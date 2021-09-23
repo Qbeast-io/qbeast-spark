@@ -1,0 +1,31 @@
+name: Test and publish artifact
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+
+jobs:
+  test-and-publish-artifact:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.REGISTRY_PAT }}
+      GHPR_TOKEN: ${{ secrets.GHPR_TOKEN }}
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up JDK 1.8
+      uses: actions/setup-java@v1
+      with:
+        java-version: 1.8
+    - name: Assembly
+      run: sbt assembly
+    - name: Test
+      run: sbt coverage 'test'
+    - name: Formatting of code and Scaladocs
+      run: sbt scalafmtSbtCheck doc
+
+    # Publish only if it is on the master branch
+    - if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+      name: Publish artifact
+      run: |
+        QBEAST_SPARK_VERSION="nightly-$(git rev-parse --short ${GITHUB_SHA})"
+        sbt "set qbeastSparkNodep/version := \"${QBEAST_SPARK_VERSION}\"" qbeastSparkNodep/publish
