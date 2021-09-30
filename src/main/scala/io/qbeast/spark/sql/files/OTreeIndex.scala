@@ -63,11 +63,9 @@ case class OTreeIndex(index: TahoeLogFileIndex, desiredCubeSize: Int)
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[AddFile] = {
 
-    val (qbeastDataFilters, tahoeDataFilters) = extractDataFilters(dataFilters)
-    val tahoeMatchingFiles = index.matchingFiles(partitionFilters, tahoeDataFilters)
-
+    val (qbeastDataFilters, _) = extractDataFilters(dataFilters)
     val (minWeight, maxWeight) = extractWeightRange(qbeastDataFilters)
-    val files = sample(minWeight, maxWeight, tahoeMatchingFiles)
+    val files = sample(minWeight, maxWeight, qbeastSnapshot.allFiles)
 
     files
   }
@@ -95,7 +93,6 @@ case class OTreeIndex(index: TahoeLogFileIndex, desiredCubeSize: Int)
 
     val filesVector = files.toVector
     qbeastSnapshot.spaceRevisions
-      .collect()
       .flatMap(spaceRevision => {
         val querySpace = QuerySpaceFromTo(originalFrom, originalTo, spaceRevision)
 
