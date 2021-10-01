@@ -91,7 +91,11 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       parameters: Map[String, String]): BaseRelation = {
     val path = getPath(parameters)
     val table = tableFactory.getIndexedTable(sqlContext, path)
-    table.load()
+    if (table.exists) {
+      table.load()
+    } else {
+      throw AnalysisExceptionFactory.create(s"'$path' is not a Qbeast formatted data directory.")
+    }
   }
 
   private def getPath(parameters: Map[String, String]): String = {
