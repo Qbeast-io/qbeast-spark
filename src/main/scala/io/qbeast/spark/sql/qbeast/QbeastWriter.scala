@@ -14,6 +14,7 @@ import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions, OptimisticTransaction
 import org.apache.spark.sql.execution.datasources.OutputWriterFactory
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.types.MetadataBuilder
 import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, SaveMode, SparkSession}
 import org.apache.spark.util.SerializableConfiguration
 
@@ -35,7 +36,7 @@ case class QbeastWriter(
     deltaLog: DeltaLog,
     options: DeltaOptions,
     partitionColumns: Seq[String],
-    data: DataFrame,
+    var data: DataFrame,
     columnsToIndex: Seq[String],
     qbeastSnapshot: QbeastSnapshot,
     announcedSet: Set[CubeId],
@@ -66,6 +67,12 @@ case class QbeastWriter(
     }
     val rearrangeOnly = options.rearrangeOnly
 
+    // Store metadata on the indexedColumns
+    val metadata = new MetadataBuilder().putBoolean("isQbeastIndexedColumn", true).build()
+    for (c <- columnsToIndex) {
+      data = data
+        .withColumn(c, data.col(c).as("", metadata))
+    }
     updateMetadata(txn, data, partitionColumns, Map.empty, isOverwriteOperation, rearrangeOnly)
 
     // Validate partition predicates
