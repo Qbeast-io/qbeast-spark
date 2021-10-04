@@ -38,7 +38,7 @@ import java.util.UUID
  * @param spaceRevision space revision of the data to write
  */
 case class BlockWriter(
-    dataPath: String,
+    dataPath: Path,
     schema: StructType,
     schemaIndex: StructType,
     factory: OutputWriterFactory,
@@ -108,7 +108,7 @@ case class BlockWriter(
 
           Iterator(
             AddFile(
-              path = path.toString,
+              path = path.getName(),
               partitionValues = Map(),
               size = fileStatus.getLen,
               modificationTime = fileStatus.getModificationTime,

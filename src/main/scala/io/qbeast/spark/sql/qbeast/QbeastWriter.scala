@@ -155,7 +155,7 @@ case class QbeastWriter(
 
     val blockWriter =
       BlockWriter(
-        dataPath = deltaLog.dataPath.toString,
+        dataPath = deltaLog.dataPath,
         schema = data.schema,
         schemaIndex = qbeastData.schema,
         factory = factory,
