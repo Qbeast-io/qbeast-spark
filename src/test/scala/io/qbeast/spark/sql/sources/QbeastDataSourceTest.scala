@@ -159,10 +159,11 @@ class QbeastDataSourceTest extends FixtureAnyFlatSpec with MockitoSugar with Mat
     }
   }
 
-  it should "load the relation from table while reading data" in { f =>
+  it should "throw exception for createRelation if the table does not exist" in { f =>
     val parameters = Map("path" -> path)
-    f.dataSource.createRelation(f.sqlContext, parameters) shouldBe f.relation
-    verify(f.table).load()
+    a[AnalysisException] shouldBe thrownBy {
+      f.dataSource.createRelation(f.sqlContext, parameters)
+    }
   }
 
   it should "throw exception for read if the path is not specified" in { f =>
