@@ -4,13 +4,12 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.index.{CubeId, QbeastColumns, Weight}
 import io.qbeast.spark.model.{LinearTransformation, Point, SpaceRevision}
 import io.qbeast.spark.sql.qbeast.BlockWriter
-import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.sql.utils.TagUtils.cubeTag
 import io.qbeast.spark.utils.BlockWriterTest.IndexData
-import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.datasources.OutputWriterFactory
@@ -56,7 +55,7 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
     val qbeastColumns = QbeastColumns(indexed)
     val (factory, serConf) = loadConf(data)
     val writer = BlockWriter(
-      dataPath = new Path(tmpDir),
+      dataPath = tmpDir,
       schema = data.schema,
       schemaIndex = indexed.schema,
       factory = factory,
@@ -98,7 +97,7 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
     val qbeastColumns = QbeastColumns(indexed)
     val (factory, serConf) = loadConf(data)
     val writer = BlockWriter(
-      dataPath = new Path(tmpDir),
+      dataPath = tmpDir,
       schema = data.schema,
       schemaIndex = indexed.schema,
       factory = factory,

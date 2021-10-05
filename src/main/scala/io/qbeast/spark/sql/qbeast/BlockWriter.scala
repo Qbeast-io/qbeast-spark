@@ -5,15 +5,7 @@ package io.qbeast.spark.sql.qbeast
 
 import io.qbeast.spark.index.{ColumnsToIndex, CubeId, QbeastColumns, Weight}
 import io.qbeast.spark.model.SpaceRevision
-import io.qbeast.spark.sql.utils.TagUtils.{
-  cubeTag,
-  elementCountTag,
-  indexedColsTag,
-  spaceTag,
-  stateTag,
-  weightMaxTag,
-  weightMinTag
-}
+import io.qbeast.spark.sql.utils.TagUtils._
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapred.{JobConf, TaskAttemptContextImpl, TaskAttemptID}
 import org.apache.hadoop.mapreduce.TaskType
@@ -28,17 +20,18 @@ import java.util.UUID
 
 /**
  * BlockWriter is in charge of writing the qbeast data into files
- * @param dataPath path of the table
- * @param schema schema of the original data
- * @param schemaIndex schema with qbeast metadata columns
- * @param factory output writer factory
- * @param serConf configuration to serialize the data
- * @param qbeastColumns qbeast metadata columns
+ *
+ * @param dataPath       path of the table
+ * @param schema         schema of the original data
+ * @param schemaIndex    schema with qbeast metadata columns
+ * @param factory        output writer factory
+ * @param serConf        configuration to serialize the data
+ * @param qbeastColumns  qbeast metadata columns
  * @param columnsToIndex columns of the original data that are used for indexing
- * @param spaceRevision space revision of the data to write
+ * @param spaceRevision  space revision of the data to write
  */
 case class BlockWriter(
-    dataPath: Path,
+    dataPath: String,
     schema: StructType,
     schemaIndex: StructType,
     factory: OutputWriterFactory,
@@ -52,6 +45,7 @@ case class BlockWriter(
 
   /**
    * Writes rows in corresponding files
+   *
    * @param iter iterator of rows
    * @return the sequence of files added
    */
