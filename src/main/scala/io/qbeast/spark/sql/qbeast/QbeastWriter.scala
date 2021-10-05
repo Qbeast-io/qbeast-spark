@@ -14,7 +14,7 @@ import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions, OptimisticTransaction
 import org.apache.spark.sql.execution.datasources.OutputWriterFactory
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.types.MetadataBuilder
+import org.apache.spark.sql.types.{Metadata, MetadataBuilder}
 import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, SaveMode, SparkSession}
 import org.apache.spark.util.SerializableConfiguration
 
@@ -36,7 +36,7 @@ case class QbeastWriter(
     deltaLog: DeltaLog,
     options: DeltaOptions,
     partitionColumns: Seq[String],
-    var data: DataFrame,
+    data: DataFrame,
     columnsToIndex: Seq[String],
     qbeastSnapshot: QbeastSnapshot,
     announcedSet: Set[CubeId],
@@ -67,12 +67,6 @@ case class QbeastWriter(
     }
     val rearrangeOnly = options.rearrangeOnly
 
-    // Store metadata on the indexedColumns
-    val metadata = new MetadataBuilder().putBoolean("isQbeastIndexedColumn", true).build()
-    for (c <- columnsToIndex) {
-      data = data
-        .withColumn(c, data.col(c).as("", metadata))
-    }
     updateMetadata(txn, data, partitionColumns, Map.empty, isOverwriteOperation, rearrangeOnly)
 
     // Validate partition predicates
@@ -183,4 +177,69 @@ case class QbeastWriter(
 
   override protected val canMergeSchema: Boolean = true
   override protected val canOverwriteSchema: Boolean = true
+}
+
+/**
+ * QbeastWriter companion object.
+ */
+object QbeastWriter {
+
+  /**
+   * Use this constructor to store metadata of the indexed columns while creating a QbeastWriter
+   * @param mode SaveMode of the write
+   * @param deltaLog deltaLog associated to the table
+   * @param options options for write operation
+   * @param partitionColumns partition columns
+   * @param data data to write
+   * @param columnsToIndex qbeast columns to index
+   * @param qbeastSnapshot current qbeast snapshot of the table
+   * @param announcedSet set of cubes announced
+   * @param oTreeAlgorithm algorithm to organize data
+   * @return a new QbeastWriter
+   */
+  def apply(
+      mode: SaveMode,
+      deltaLog: DeltaLog,
+      options: DeltaOptions,
+      partitionColumns: Seq[String],
+      data: DataFrame,
+      columnsToIndex: Seq[String],
+      qbeastSnapshot: QbeastSnapshot,
+      announcedSet: Set[CubeId],
+      oTreeAlgorithm: OTreeAlgorithm): QbeastWriter = {
+
+    // Store metadata in the indexedColumns, setting the value to false in the rest of columns.
+    // This preserves previously stored metadata as well (except isQbeastIndexedColumn).
+    var newData = data
+    for (c <- newData.columns) {
+      val isIndexedColumn = columnsToIndex.contains(c).toString
+      val oldMetadata = newData.schema(c).metadata.json
+      if (oldMetadata.equals("{}")) {
+        val newMetadata =
+          new MetadataBuilder().putString("isQbeastIndexedColumn", isIndexedColumn).build()
+        newData = newData
+          .withColumn(c, newData.col(c).as("", newMetadata))
+      } else {
+        val newMetadata = Metadata.fromJson(
+          oldMetadata
+            .substring(
+              0,
+              oldMetadata.length - 1) + ",\"isQbeastIndexedColumn\":" + isIndexedColumn + "}")
+        newData = newData
+          .withColumn(c, newData.col(c).as("", newMetadata))
+      }
+    }
+
+    new QbeastWriter(
+      mode,
+      deltaLog,
+      options,
+      partitionColumns,
+      newData,
+      columnsToIndex,
+      qbeastSnapshot,
+      announcedSet,
+      oTreeAlgorithm)
+  }
+
 }
