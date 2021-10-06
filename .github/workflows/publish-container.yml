@@ -8,8 +8,6 @@ on:
 jobs:
   publish-container:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_TOKEN: ${{ secrets.REGISTRY_PAT }}
     steps:
     - uses: actions/checkout@v2
     - name: Set up JDK 1.8
