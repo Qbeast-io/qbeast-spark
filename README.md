@@ -72,6 +72,9 @@ sbt assembly
 ```
 
 ### Quickstart
+You can run the qbeast-spark application locally on your computer, or using a Docker image we already prepared with the dependencies.
+You can find it in the [Packages section](https://github.com/orgs/Qbeast-io/packages?repo_name=qbeast-spark).
+
 1 - Launch a **spark-shell**
 
 **Inside the project folder**, launch a **spark shell** with the required dependencies:
