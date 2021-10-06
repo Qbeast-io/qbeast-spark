@@ -4,10 +4,10 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.index.{CubeId, QbeastColumns, Weight}
 import io.qbeast.spark.model.{LinearTransformation, Point, SpaceRevision}
 import io.qbeast.spark.sql.qbeast.BlockWriter
-import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.sql.utils.TagUtils.cubeTag
 import io.qbeast.spark.utils.BlockWriterTest.IndexData
 import org.apache.hadoop.mapreduce.Job
