@@ -5,6 +5,9 @@ on:
     paths:
       - 'Dockerfile'
   pull_request:
+    paths:
+      - 'Dockerfile'
+  workflow_dispatch:
 jobs:
   publish-container:
     runs-on: ubuntu-latest
