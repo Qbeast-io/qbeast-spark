@@ -84,10 +84,10 @@ trait OTreeAlgorithm {
    * Analyze the index structure and returns which cubes need to be optimized
    *
    * @param qbeastSnapshot snapshot
-   * @param spaceRevision space revision to review
+   * @param revisionTimestamp timestamp of the revision to review
    * @return the sequence of cubes that need optimization
    */
-  def analyzeIndex(qbeastSnapshot: QbeastSnapshot, spaceRevision: SpaceRevision): Seq[CubeId]
+  def analyzeIndex(qbeastSnapshot: QbeastSnapshot, revisionTimestamp: Long): Seq[CubeId]
 
 }
 
@@ -126,13 +126,14 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
       snapshot: QbeastSnapshot,
       announcedSet: Set[CubeId]): (DataFrame, SpaceRevision, Map[CubeId, Weight]) = {
     val spaceRevision = snapshot.lastSpaceRevision
+    val revisionTimestamp = spaceRevision.timestamp
     val (indexedDataFrame, cubeWeights: Map[CubeId, Weight]) = index(
       dataFrame = dataFrame,
       columnsToIndex = snapshot.indexedCols,
       spaceRevision,
-      cubeNormalizedWeights = snapshot.cubeNormalizedWeights(spaceRevision),
+      cubeNormalizedWeights = snapshot.cubeNormalizedWeights(revisionTimestamp),
       announcedSet = announcedSet,
-      replicatedSet = snapshot.replicatedSet(spaceRevision),
+      replicatedSet = snapshot.replicatedSet(revisionTimestamp),
       isReplication = false)
     (indexedDataFrame, spaceRevision, cubeWeights)
   }
@@ -152,11 +153,11 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
 
   override def analyzeIndex(
       qbeastSnapshot: QbeastSnapshot,
-      spaceRevision: SpaceRevision): Seq[CubeId] = {
+      revisionTimestamp: Long): Seq[CubeId] = {
 
     val dimensionCount = qbeastSnapshot.indexedCols.length
-    val overflowedSet = qbeastSnapshot.overflowedSet(spaceRevision)
-    val replicatedSet = qbeastSnapshot.replicatedSet(spaceRevision)
+    val overflowedSet = qbeastSnapshot.overflowedSet(revisionTimestamp)
+    val replicatedSet = qbeastSnapshot.replicatedSet(revisionTimestamp)
 
     val cubesToOptimize = overflowedSet
       .filter(cube => {
@@ -178,8 +179,9 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
       announcedSet: Set[CubeId]): (DataFrame, Map[CubeId, Weight]) = {
 
     val columnsToIndex = qbeastSnapshot.indexedCols
-    val cubeWeights = qbeastSnapshot.cubeNormalizedWeights(spaceRevision)
-    val replicatedSet = qbeastSnapshot.replicatedSet(spaceRevision)
+    val revisionTimestamp = spaceRevision.timestamp
+    val cubeWeights = qbeastSnapshot.cubeNormalizedWeights(revisionTimestamp)
+    val replicatedSet = qbeastSnapshot.replicatedSet(revisionTimestamp)
 
     index(
       dataFrame = dataFrame,

@@ -9,7 +9,6 @@ import io.qbeast.spark.index.QbeastColumns.{
   revisionColumnName
 }
 import io.qbeast.spark.index.{CubeId, OTreeAlgorithm}
-import io.qbeast.spark.model.SpaceRevision
 import io.qbeast.spark.sql.utils.State.REPLICATED
 import io.qbeast.spark.sql.utils.TagUtils.{cubeTag, stateTag}
 import org.apache.spark.sql.delta.actions.{Action, AddFile, FileAction}
@@ -26,14 +25,14 @@ import scala.collection.JavaConverters._
  * @param deltaLog deltaLog of the index
  * @param deltaOptions deltaOptions for writing on the index
  * @param qbeastSnapshot current snapshot of the OTree
- * @param spaceRevision index revision to optimize
+ * @param revisionTimestamp timestamp of the revision to optimize
  * @param oTreeAlgorithm algorithm to replicate data
  */
 class QbeastOptimizer(
     deltaLog: DeltaLog,
     deltaOptions: DeltaOptions,
     qbeastSnapshot: QbeastSnapshot,
-    spaceRevision: SpaceRevision,
+    revisionTimestamp: Long,
     oTreeAlgorithm: OTreeAlgorithm) {
 
   /**
@@ -59,7 +58,7 @@ class QbeastOptimizer(
 
     }
 
-    val metadata = newReplicatedCubes.map(c => (c.bytes, spaceRevision.timestamp))
+    val metadata = newReplicatedCubes.map(c => (c.bytes, revisionTimestamp))
     base
       .as[(Array[Byte], Long)]
       .union(metadata.toList.toDS)
@@ -86,14 +85,14 @@ class QbeastOptimizer(
     val emptyDataFrame = sparkSession.createDataFrame(List.empty[Row].asJava, schema)
 
     val dimensionCount = qbeastSnapshot.dimensionCount
-    val replicatedSet = qbeastSnapshot.replicatedSet(spaceRevision)
+    val replicatedSet = qbeastSnapshot.replicatedSet(revisionTimestamp)
 
     val cubesToOptimize = announcedCubes.map(CubeId(dimensionCount, _))
     val cubesToReplicate =
       cubesToOptimize.diff(replicatedSet)
 
     val (dataToReplicate, updatedActions) = qbeastSnapshot
-      .getCubeBlocks(cubesToReplicate, spaceRevision)
+      .getCubeBlocks(cubesToReplicate, revisionTimestamp)
       .groupBy(_.tags(cubeTag))
       .map { case (cube: String, blocks: Seq[AddFile]) =>
         val cubeId = CubeId(dimensionCount, cube)
@@ -122,6 +121,7 @@ class QbeastOptimizer(
       announcedSet = cubesToOptimize,
       oTreeAlgorithm = oTreeAlgorithm)
 
+    val spaceRevision = qbeastSnapshot.lastSpaceRevision
     val (qbeastData, weightMap) = oTreeAlgorithm
       .replicateCubes(dataToReplicate, spaceRevision, qbeastSnapshot, cubesToOptimize)
 

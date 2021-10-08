@@ -9,12 +9,11 @@ import io.qbeast.spark.model.SpaceRevision
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.sql.delta.actions.{Action, AddFile, FileAction}
 import org.apache.spark.sql.delta.commands.DeltaCommand
-import org.apache.spark.sql.delta.schema.ImplicitMetadataOperation
 import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions, OptimisticTransaction}
 import org.apache.spark.sql.execution.datasources.OutputWriterFactory
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.types.{Metadata, MetadataBuilder}
+import org.apache.spark.sql.types.{MetadataBuilder}
 import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, SaveMode, SparkSession}
 import org.apache.spark.util.SerializableConfiguration
 
@@ -41,7 +40,7 @@ case class QbeastWriter(
     qbeastSnapshot: QbeastSnapshot,
     announcedSet: Set[CubeId],
     oTreeAlgorithm: OTreeAlgorithm)
-    extends ImplicitMetadataOperation
+    extends QbeastMetadataOperation
     with DeltaCommand {
 
   private def isOverwriteOperation: Boolean = mode == SaveMode.Overwrite
@@ -67,7 +66,25 @@ case class QbeastWriter(
     }
     val rearrangeOnly = options.rearrangeOnly
 
-    updateMetadata(txn, data, partitionColumns, Map.empty, isOverwriteOperation, rearrangeOnly)
+    // is newRevision added to the metadata?
+    val isNewRevision = isOverwriteOperation || qbeastSnapshot.isInitial ||
+      !qbeastSnapshot.lastSpaceRevision.contains(data, columnsToIndex)
+    // update revision metadata
+    val (qbeastData, spaceRevision, weightMap) =
+      if (isNewRevision) {
+        val (qd, sr, wm) = oTreeAlgorithm.indexFirst(data, columnsToIndex)
+        updateQbeastMetadata(
+          sparkSession,
+          txn,
+          data.schema,
+          isOverwriteOperation,
+          rearrangeOnly,
+          Some(sr),
+          qbeastSnapshot)
+        (qd, sr, wm)
+      } else {
+        oTreeAlgorithm.indexNext(data, qbeastSnapshot, announcedSet)
+      }
 
     // Validate partition predicates
     val replaceWhere = options.replaceWhere
@@ -87,14 +104,6 @@ case class QbeastWriter(
 
       fs.mkdirs(deltaLog.logPath)
     }
-
-    val (qbeastData, spaceRevision, weightMap) =
-      if (mode == SaveMode.Overwrite || qbeastSnapshot.isInitial ||
-        !qbeastSnapshot.lastSpaceRevision.contains(data, columnsToIndex)) {
-        oTreeAlgorithm.indexFirst(data, columnsToIndex)
-      } else {
-        oTreeAlgorithm.indexNext(data, qbeastSnapshot, announcedSet)
-      }
 
     val newFiles = writeFiles(qbeastData, spaceRevision, weightMap)
     val addFiles = newFiles.collect { case a: AddFile => a }
@@ -163,7 +172,7 @@ case class QbeastWriter(
         serConf = serConf,
         qbeastColumns = qbeastColumns,
         columnsToIndex = columnsToIndex,
-        spaceRevision = spaceRevision,
+        revisionTimestamp = spaceRevision.timestamp,
         weightMap = weightMap)
     qbeastData
       .repartition(col(cubeColumnName), col(stateColumnName))
@@ -213,20 +222,15 @@ object QbeastWriter {
     var newData = data
     for (c <- newData.columns) {
       val isIndexedColumn = columnsToIndex.contains(c).toString
-      val oldMetadata = newData.schema(c).metadata.json
-      if (oldMetadata.equals("{}")) {
-        val newMetadata =
-          new MetadataBuilder().putString("isQbeastIndexedColumn", isIndexedColumn).build()
+      val oldMetadata = newData.schema(c).metadata
+      val metadataBuilder =
+        new MetadataBuilder().putString("isQbeastIndexedColumn", isIndexedColumn)
+      if (oldMetadata.toString().isEmpty) {
         newData = newData
-          .withColumn(c, newData.col(c).as("", newMetadata))
+          .withColumn(c, newData.col(c).as(c, metadataBuilder.build()))
       } else {
-        val newMetadata = Metadata.fromJson(
-          oldMetadata
-            .substring(
-              0,
-              oldMetadata.length - 1) + ",\"isQbeastIndexedColumn\":" + isIndexedColumn + "}")
         newData = newData
-          .withColumn(c, newData.col(c).as("", newMetadata))
+          .withColumn(c, newData.col(c).as(c, metadataBuilder.withMetadata(oldMetadata).build()))
       }
     }
 

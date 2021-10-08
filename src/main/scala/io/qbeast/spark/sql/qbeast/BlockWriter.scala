@@ -4,7 +4,6 @@
 package io.qbeast.spark.sql.qbeast
 
 import io.qbeast.spark.index.{ColumnsToIndex, CubeId, QbeastColumns, Weight}
-import io.qbeast.spark.model.SpaceRevision
 import io.qbeast.spark.sql.utils.TagUtils.{
   cubeTag,
   elementCountTag,
@@ -45,7 +44,7 @@ case class BlockWriter(
     serConf: SerializableConfiguration,
     qbeastColumns: QbeastColumns,
     columnsToIndex: Seq[String],
-    spaceRevision: SpaceRevision,
+    revisionTimestamp: Long,
     weightMap: Map[CubeId, Weight])
     extends Serializable {
   private val dimensionCount = columnsToIndex.length
@@ -96,7 +95,7 @@ case class BlockWriter(
             weightMinTag -> minWeight.value.toString,
             weightMaxTag -> maxWeight.value.toString,
             stateTag -> state,
-            spaceTag -> JsonUtils.toJson(spaceRevision),
+            spaceTag -> JsonUtils.toJson(revisionTimestamp),
             indexedColsTag -> ColumnsToIndex.encode(columnsToIndex),
             elementCountTag -> rowCount.toString)
 
