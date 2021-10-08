@@ -1,14 +1,13 @@
 name: Test and publish artifact
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
 
 jobs:
   test-and-publish-artifact:
     runs-on: ubuntu-latest
     env:
-      GITHUB_TOKEN: ${{ secrets.REGISTRY_PAT }}
       GHPR_TOKEN: ${{ secrets.GHPR_TOKEN }}
     steps:
     - uses: actions/checkout@v2
@@ -23,8 +22,8 @@ jobs:
     - name: Formatting of code and Scaladocs
       run: sbt scalafmtSbtCheck doc
 
-    # Publish only if it is on the master branch
-    - if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+    # Publish only if it is on the main branch
+    - if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       name: Publish artifact
       run: |
         QBEAST_SPARK_VERSION="nightly-$(git rev-parse --short ${GITHUB_SHA})"

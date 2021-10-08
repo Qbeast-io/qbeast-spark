@@ -11,6 +11,7 @@ import io.qbeast.spark.index.QbeastColumns.{
 import io.qbeast.spark.index.{CubeId, OTreeAlgorithm}
 import io.qbeast.spark.sql.utils.State.REPLICATED
 import io.qbeast.spark.sql.utils.TagUtils.{cubeTag, stateTag}
+import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.actions.{Action, AddFile, FileAction}
 import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions}
 import org.apache.spark.sql.functions.lit
@@ -22,8 +23,8 @@ import scala.collection.JavaConverters._
 /**
  * QbeastOptimizer is in charge of optimizing the index
  *
- * @param deltaLog deltaLog of the index
- * @param deltaOptions deltaOptions for writing on the index
+ * @param deltaLog       deltaLog of the index
+ * @param deltaOptions   deltaOptions for writing on the index
  * @param qbeastSnapshot current snapshot of the OTree
  * @param revisionTimestamp timestamp of the revision to optimize
  * @param oTreeAlgorithm algorithm to replicate data
@@ -38,8 +39,8 @@ class QbeastOptimizer(
   /**
    * Updates the current set of replicated cubes
    *
-   * @param sparkSession SparkSession for reading/writing
-   * @param transaction number of trasaction to save
+   * @param sparkSession       SparkSession for reading/writing
+   * @param transaction        number of trasaction to save
    * @param newReplicatedCubes set of replicated cubes to add
    */
   def updateReplicatedSet(
@@ -71,7 +72,7 @@ class QbeastOptimizer(
   /**
    * Performs the optimization
    *
-   * @param sparkSession SparkSession
+   * @param sparkSession   SparkSession
    * @param announcedCubes Set of cube paths announced
    * @return the set of cubes that completed the operation along with the file actions to commit
    */
@@ -91,6 +92,7 @@ class QbeastOptimizer(
     val cubesToReplicate =
       cubesToOptimize.diff(replicatedSet)
 
+    val dataPath = qbeastSnapshot.snapshot.path.getParent
     val (dataToReplicate, updatedActions) = qbeastSnapshot
       .getCubeBlocks(cubesToReplicate, revisionTimestamp)
       .groupBy(_.tags(cubeTag))
@@ -98,7 +100,7 @@ class QbeastOptimizer(
         val cubeId = CubeId(dimensionCount, cube)
         val data = sparkSession.read
           .format("parquet")
-          .load(blocks.map(_.path): _*)
+          .load(blocks.map(f => new Path(dataPath, f.path).toString): _*)
           .withColumn(cubeToReplicateColumnName, lit(cubeId.bytes))
 
         val newAddFiles = blocks
