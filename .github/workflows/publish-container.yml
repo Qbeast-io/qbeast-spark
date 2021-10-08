@@ -1,15 +1,16 @@
 name: Publish Container image
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
     paths:
       - 'Dockerfile'
   pull_request:
+    paths:
+      - 'Dockerfile'
+  workflow_dispatch:
 jobs:
   publish-container:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_TOKEN: ${{ secrets.REGISTRY_PAT }}
     steps:
     - uses: actions/checkout@v2
     - name: Set up JDK 1.8
@@ -21,11 +22,11 @@ jobs:
         CONTAINER_VERSION="nightly-$(git rev-parse --short ${GITHUB_SHA})"
         docker build . --rm --force-rm -t ghcr.io/qbeast-io/qbeast-spark/qbeast-spark:${CONTAINER_VERSION}
 
-    # Publish only if it is on the master branch
-    - if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+    # Publish only if it is on the main branch
+    - if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       name: Log into registry
       run: docker login ghcr.io -u "Any User" -p ${{ secrets.GITHUB_TOKEN }}
-    - if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+    - if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       name: Publish docker image
       run: |
         QBEAST_SPARK_VERSION="nightly-$(git rev-parse --short ${GITHUB_SHA})"
