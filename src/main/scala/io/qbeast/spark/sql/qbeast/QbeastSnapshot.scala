@@ -3,63 +3,39 @@
  */
 package io.qbeast.spark.sql.qbeast
 
-import io.qbeast.spark.index.QbeastColumns._
-import io.qbeast.spark.index.{ColumnsToIndex, CubeId, NormalizedWeight, Weight}
+import io.qbeast.spark.index.{CubeId, NormalizedWeight, ReplicatedSet, Weight}
 import io.qbeast.spark.model.{CubeInfo, SpaceRevision}
+import io.qbeast.spark.sql.utils.MetadataConfig._
 import io.qbeast.spark.sql.utils.State.ANNOUNCED
 import io.qbeast.spark.sql.utils.TagUtils._
-import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.util.JsonUtils
-import org.apache.spark.sql.delta.{DeltaLogFileIndex, Snapshot}
-import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
-import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, LogicalRelation}
+import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types.{BinaryType, LongType, StructField, StructType}
-import org.apache.spark.sql.{AnalysisExceptionFactory, Dataset, DatasetFactory, SparkSession}
+import org.apache.spark.sql.{AnalysisExceptionFactory, Dataset, SparkSession}
 
 /**
  * Qbeast Snapshot that provides information about the current index state.
  *
  * @param snapshot the internal Delta Lakes log snapshot
- * @param desiredCubeSize the desired cube size
  */
-case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
-
-  val indexId = s"qbeast.${snapshot.path.getParent.toUri.getPath}"
+case class QbeastSnapshot(snapshot: Snapshot) {
 
   def isInitial: Boolean = snapshot.version == -1
 
-  val indexedCols: Seq[String] = {
-    if (isInitial || snapshot.allFiles.isEmpty) Seq.empty
-    else ColumnsToIndex.decode(snapshot.allFiles.head.tags(indexedColsTag))
+  lazy val metadataMap: Map[String, String] = snapshot.metadata.configuration
+
+  val indexedCols: Seq[String] = metadataMap.get(metadataIndexedColumns) match {
+    case Some(json) => JsonUtils.fromJson[Seq[String]](json)
+    case None => Seq.empty
+  }
+
+  val desiredCubeSize: Int = metadataMap.get(metadataDesiredCubeSize) match {
+    case Some(value) => value.toInt
+    case None => 0
   }
 
   val dimensionCount: Int = indexedCols.length
-
-  private val spark = SparkSession.active
-  import spark.implicits._
-
-  private val logSchema = StructType(
-    Array(
-      StructField(name = cubeColumnName, dataType = BinaryType, nullable = false),
-      StructField(name = revisionColumnName, dataType = LongType, nullable = false)))
-
-  private def fileToDataframe(fileStatus: Array[FileStatus]): Dataset[(Array[Byte], Long)] = {
-
-    val index = DeltaLogFileIndex(new ParquetFileFormat, fileStatus)
-
-    val relation = HadoopFsRelation(
-      index,
-      index.partitionSchema,
-      logSchema,
-      None,
-      index.format,
-      Map.empty[String, String])(spark)
-
-    DatasetFactory.create[(Array[Byte], Long)](spark, LogicalRelation(relation))
-
-  }
 
   /**
    * Looks up for a space revision with a certain timestamp
@@ -67,14 +43,15 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
    * @return a SpaceRevision with the corresponding timestamp
    */
   def getRevisionAt(revisionTimestamp: Long): SpaceRevision = {
-    spaceRevisions
-      .find(_.timestamp.equals(revisionTimestamp))
-      .getOrElse(throw AnalysisExceptionFactory.create(
-        s"No Revision with id $lastRevisionTimestamp is found"))
+    spaceRevisionsMap
+      .getOrElse(
+        revisionTimestamp,
+        throw AnalysisExceptionFactory.create(
+          s"No Revision with id $lastRevisionTimestamp is found"))
   }
 
   def existsRevision(revisionTimestamp: Long): Boolean = {
-    spaceRevisions.exists(_.timestamp.equals(revisionTimestamp))
+    spaceRevisionsMap.contains(revisionTimestamp)
   }
 
   /**
@@ -126,46 +103,40 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
    * @param revisionTimestamp the timestamp of the revision
    * @return the set of cubes in a replicated state
    */
-  def replicatedSet(revisionTimestamp: Long): Set[CubeId] = {
-
-    val hadoopConf = spark.sessionState.newHadoopConf()
-
-    snapshot.setTransactions.filter(_.appId.equals(indexId)) match {
-
-      case Nil => Set.empty[CubeId]
-
-      case list =>
-        val txn = list.last
-        val filePath = new Path(snapshot.path.getParent, s"_qbeast/${txn.version}")
-        val fs = snapshot.path.getFileSystem(hadoopConf)
-        if (fs.exists(filePath)) {
-          val fileStatus = fs.listStatus(filePath)
-          fileToDataframe(fileStatus)
-            .filter(_._2.equals(revisionTimestamp))
-            .collect()
-            .map(r => CubeId(dimensionCount, r._1))
-            .toSet
-        } else Set.empty[CubeId]
-
-    }
+  def replicatedSet(revisionTimestamp: Long): ReplicatedSet = {
+    replicatedSetsMap.getOrElse(revisionTimestamp, Set.empty)
   }
 
-  lazy val metadataMap = snapshot.metadata.configuration
+  lazy val replicatedSetsMap: Map[Long, ReplicatedSet] = {
+    val listReplicatedSets = metadataMap.filterKeys(_.startsWith(metadataReplicatedSet))
+
+    listReplicatedSets.map { case (key: String, json: String) =>
+      val revisionTimestamp = key.split('.').last.toLong
+      val replicatedSet = JsonUtils
+        .fromJson[Set[String]](json)
+        .map(cube => CubeId(dimensionCount, cube))
+      (revisionTimestamp, replicatedSet)
+    }
+  }
 
   /**
    * Returns available space revisions ordered by timestamp
-   * @return a Dataset of SpaceRevision
+   * @return a sequence of SpaceRevision
    */
-  lazy val spaceRevisions: Seq[SpaceRevision] = {
-    metadataMap.get("qb.revisions") match {
-      case Some(jsonSpaceRevisions) =>
-        JsonUtils
-          .fromJson[Seq[SpaceRevision]](jsonSpaceRevisions)
-      case None => Seq.empty
-    }
+  lazy val spaceRevisionsMap: Map[Long, SpaceRevision] = {
+    val listRevisions = metadataMap.filterKeys(_.startsWith(metadataRevision))
+
+    listRevisions
+      .map { case (_, json: String) =>
+        val spaceRevision = JsonUtils
+          .fromJson[SpaceRevision](json)
+        (spaceRevision.timestamp, spaceRevision)
+      }
   }
 
-  lazy val lastRevisionTimestamp = metadataMap("qb.lastRevisionId").toLong
+  lazy val spaceRevisions: Seq[SpaceRevision] = spaceRevisionsMap.values.toSeq
+
+  lazy val lastRevisionTimestamp: Long = metadataMap(metadataLastRevisionTimestamp).toLong
 
   /**
    * Returns the space revision with the higher timestamp
@@ -181,6 +152,9 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
    * @return Dataset containing cube information
    */
   private def indexState(revisionTimestamp: Long): Dataset[CubeInfo] = {
+
+    val spark = SparkSession.active
+    import spark.implicits._
 
     val allFiles = snapshot.allFiles
     val weightValueTag = weightMaxTag + ".value"

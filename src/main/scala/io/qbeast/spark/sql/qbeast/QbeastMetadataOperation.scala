@@ -3,35 +3,69 @@
  */
 package io.qbeast.spark.sql.qbeast
 
+import io.qbeast.spark.index.ReplicatedSet
 import io.qbeast.spark.model.SpaceRevision
-import org.apache.spark.sql.{SparkSession}
+import io.qbeast.spark.sql.utils.MetadataConfig._
+import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.delta.{
   DeltaErrors,
   MetadataMismatchErrorBuilder,
   OptimisticTransaction
 }
-import org.apache.spark.sql.delta.actions.Metadata
 import org.apache.spark.sql.delta.schema.{ImplicitMetadataOperation, SchemaUtils}
 import org.apache.spark.sql.delta.util.JsonUtils
 import org.apache.spark.sql.types.{StructField, StructType}
 
 class QbeastMetadataOperation extends ImplicitMetadataOperation {
 
-  /**
-   * Update Metadata with Qbeast new space revision
-   * @param spark SparkSession
-   * @param txn write transaction
-   * @param rearrangeOnly
-   * @param newRevision new space revision
-   */
-  def updateQbeastMetadata(
-      spark: SparkSession,
+  def updateQbeastReplicatedSet(
       txn: OptimisticTransaction,
-      schema: StructType,
+      revisionTimestamp: Long,
+      qbeastSnapshot: QbeastSnapshot,
+      newReplicatedCubes: ReplicatedSet): Unit = {
+
+    val revisionId = s"$metadataReplicatedSet.$revisionTimestamp"
+    val oldReplicatedSet =
+      qbeastSnapshot.replicatedSet(revisionTimestamp)
+
+    val newReplicatedSet =
+      oldReplicatedSet.union(newReplicatedCubes).map(_.string)
+    // Save the replicated set of cube id's as String representation
+    val oldConfiguration = txn.metadata.configuration
+
+    val configuration =
+      oldConfiguration.updated(revisionId, JsonUtils.toJson(newReplicatedSet))
+    txn.updateMetadata(txn.metadata.copy(configuration = configuration))
+  }
+
+  /**
+   * Update metadata with new Qbeast Revision
+   * @param txn the transaction
+   * @param data the data to write
+   * @param partitionColumns partitionColumns
+   * @param isOverwriteMode if it's an overwrite operation
+   * @param rearrangeOnly if the operation only rearranges files
+   * @param newRevision the new Qbeast revision
+   * @param qbeastSnapshot the Qbeast Snapshot
+   */
+  def updateQbeastRevision(
+      txn: OptimisticTransaction,
+      data: Dataset[_],
+      partitionColumns: Seq[String],
       isOverwriteMode: Boolean,
       rearrangeOnly: Boolean,
-      newRevision: Option[SpaceRevision] = None,
+      columnsToIndex: Seq[String],
+      desiredCubeSize: Int,
+      newRevision: SpaceRevision,
       qbeastSnapshot: QbeastSnapshot): Unit = {
+
+    val revisionTimestamp = newRevision.timestamp
+    assert(
+      !qbeastSnapshot.existsRevision(revisionTimestamp),
+      s"The revision ${revisionTimestamp} is already present in the Metadata")
+
+    val spark = data.sparkSession
+    val schema = data.schema
 
     val dataSchema = StructType(schema.fields.map {
       case StructField(name, dataType, _, metadata) =>
@@ -48,38 +82,25 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
 
     // Merged schema will contain additional columns at the end
     def isNewSchema: Boolean = txn.metadata.schema != mergedSchema
-
-    def isNewRevision: Boolean = newRevision.isDefined
+    // Qbeast configuration metadata
     val configuration = {
-      if (isNewRevision) {
-        val revisionId = newRevision.get.timestamp
-        val revisions = {
-          if (isOverwriteMode) Seq(newRevision)
-          else qbeastSnapshot.spaceRevisions ++ Seq(newRevision)
-        }
-        Map(
-          ("qb.lastRevisionId", revisionId.toString),
-          ("qb.revisions", JsonUtils.toJson(revisions)))
-      } else Map.empty[String, String]
+      val oldConfiguration = txn.metadata.configuration
+      oldConfiguration
+        .updated(metadataIndexedColumns, JsonUtils.toJson(columnsToIndex))
+        .updated(metadataDesiredCubeSize, desiredCubeSize.toString)
+        .updated(metadataLastRevisionTimestamp, revisionTimestamp.toString)
+        .updated(s"$metadataRevision.$revisionTimestamp", JsonUtils.toJson(newRevision))
     }
 
     if (txn.readVersion == -1) {
-      if (dataSchema.isEmpty) {
-        throw DeltaErrors.emptyDataException
-      }
-      recordDeltaEvent(txn.deltaLog, "delta.ddl.initializeSchema")
-      // If this is the first write, configure the metadata of the table.
-      if (rearrangeOnly) {
-        throw DeltaErrors.unexpectedDataChangeException("Create a Delta table")
-      }
-      val description = configuration.get("comment").orNull
-      val cleanedConfs = configuration.filterKeys(_ != "comment")
-      txn.updateMetadata(
-        Metadata(
-          description = description,
-          schemaString = dataSchema.json,
-          partitionColumns = normalizedPartitionCols,
-          configuration = cleanedConfs))
+      super.updateMetadata(
+        spark,
+        txn,
+        schema,
+        partitionColumns,
+        configuration,
+        isOverwriteMode,
+        rearrangeOnly)
     } else if (isOverwriteMode && canOverwriteSchema && isNewSchema) {
       // Can define new partitioning in overwrite mode
       val newMetadata = txn.metadata.copy(
@@ -114,6 +135,7 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
     } else {
       txn.updateMetadata(txn.metadata.copy(configuration = configuration))
     }
+
   }
 
   override protected val canMergeSchema: Boolean = false

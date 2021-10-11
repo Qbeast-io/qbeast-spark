@@ -3,17 +3,13 @@
  */
 package io.qbeast.spark.sql.qbeast
 
-import io.qbeast.spark.index.QbeastColumns.{
-  cubeColumnName,
-  cubeToReplicateColumnName,
-  revisionColumnName
-}
+import io.qbeast.spark.index.QbeastColumns.{cubeToReplicateColumnName}
 import io.qbeast.spark.index.{CubeId, OTreeAlgorithm}
 import io.qbeast.spark.sql.utils.State.REPLICATED
 import io.qbeast.spark.sql.utils.TagUtils.{cubeTag, stateTag}
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.actions.{Action, AddFile, FileAction}
-import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions}
+import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions, OptimisticTransaction}
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.types.{BinaryType, StructField}
 import org.apache.spark.sql.{Row, SaveMode, SparkSession}
@@ -34,40 +30,8 @@ class QbeastOptimizer(
     deltaOptions: DeltaOptions,
     qbeastSnapshot: QbeastSnapshot,
     revisionTimestamp: Long,
-    oTreeAlgorithm: OTreeAlgorithm) {
-
-  /**
-   * Updates the current set of replicated cubes
-   *
-   * @param sparkSession       SparkSession for reading/writing
-   * @param transaction        number of trasaction to save
-   * @param newReplicatedCubes set of replicated cubes to add
-   */
-  def updateReplicatedSet(
-      sparkSession: SparkSession,
-      transaction: Long,
-      newReplicatedCubes: Set[CubeId]): Unit = {
-
-    import sparkSession.implicits._
-    val path = deltaLog.dataPath
-
-    val base = transaction match {
-      case 0 => List[(Array[Byte], Long)]().toDF()
-      case _ =>
-        sparkSession.read
-          .parquet(path + f"/_qbeast/${transaction - 1}")
-
-    }
-
-    val metadata = newReplicatedCubes.map(c => (c.bytes, revisionTimestamp))
-    base
-      .as[(Array[Byte], Long)]
-      .union(metadata.toList.toDS)
-      .toDF(cubeColumnName, revisionColumnName)
-      .write
-      .parquet(path + f"/_qbeast/$transaction")
-
-  }
+    oTreeAlgorithm: OTreeAlgorithm)
+    extends QbeastMetadataOperation {
 
   /**
    * Performs the optimization
@@ -77,6 +41,7 @@ class QbeastOptimizer(
    * @return the set of cubes that completed the operation along with the file actions to commit
    */
   def optimize(
+      txn: OptimisticTransaction,
       sparkSession: SparkSession,
       announcedCubes: Set[String]): (Set[CubeId], Seq[Action]) = {
 
@@ -127,6 +92,10 @@ class QbeastOptimizer(
     val (qbeastData, weightMap) = oTreeAlgorithm
       .replicateCubes(dataToReplicate, spaceRevision, qbeastSnapshot, cubesToOptimize)
 
+    // updateMetadata
+    updateQbeastReplicatedSet(txn, spaceRevision.timestamp, qbeastSnapshot, cubesToOptimize)
+
+    // write files
     val addFiles = writer.writeFiles(qbeastData, spaceRevision, weightMap)
     val actions = addFiles ++ updatedActions
     (cubesToReplicate, actions)

@@ -14,4 +14,9 @@ package object index {
    */
   type NormalizedWeight = Double
 
+  /**
+   * ReplicatedSet is used to represent a set of CubeId's that had been replicated
+   */
+  type ReplicatedSet = Set[CubeId]
+
 }

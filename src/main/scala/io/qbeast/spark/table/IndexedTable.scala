@@ -147,7 +147,7 @@ private[table] class IndexedTableImpl(
 
   private def snapshot = {
     if (snapshotCache.isEmpty) {
-      snapshotCache = Some(QbeastSnapshot(deltaLog.snapshot, oTreeAlgorithm.desiredCubeSize))
+      snapshotCache = Some(QbeastSnapshot(deltaLog.snapshot))
     }
     snapshotCache.get
   }
@@ -286,8 +286,7 @@ private[table] class IndexedTableImpl(
         SetTransaction(transactionID, newTransaction, Some(System.currentTimeMillis()))
 
       val (replicatedCubeIds, actions) =
-        optimizer.optimize(sqlContext.sparkSession, cubesToOptimize)
-      optimizer.updateReplicatedSet(sqlContext.sparkSession, newTransaction, replicatedCubeIds)
+        optimizer.optimize(txn, sqlContext.sparkSession, cubesToOptimize)
 
       txn.commit(actions ++ Seq(transRecord), deltaWrite)
       bo.end(replicatedCubeIds.map(_.string))

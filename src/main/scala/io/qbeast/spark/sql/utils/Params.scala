@@ -24,3 +24,12 @@ object TagUtils {
   final val elementCountTag = "rowCount"
   final val indexedColsTag = "indexedColumns"
 }
+
+object MetadataConfig {
+
+  final val metadataIndexedColumns = "qb.indexedColumns"
+  final val metadataDesiredCubeSize = "qb.desiredCubeSize"
+  final val metadataRevision = "qb.revision"
+  final val metadataReplicatedSet = "qb.replicatedSet"
+  final val metadataLastRevisionTimestamp = "qb.lastRevisionTimestamp"
+}

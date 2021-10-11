@@ -194,7 +194,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot, oTreeAlgorithm.desiredCubeSize)
+        val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
 
         val offset = 0.5
         val appendData = df

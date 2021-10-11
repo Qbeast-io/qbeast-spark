@@ -13,7 +13,6 @@ import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions, OptimisticTransaction
 import org.apache.spark.sql.execution.datasources.OutputWriterFactory
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.types.{MetadataBuilder}
 import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, SaveMode, SparkSession}
 import org.apache.spark.util.SerializableConfiguration
 
@@ -66,25 +65,43 @@ case class QbeastWriter(
     }
     val rearrangeOnly = options.rearrangeOnly
 
-    // is newRevision added to the metadata?
-    val isNewRevision = isOverwriteOperation || qbeastSnapshot.isInitial ||
+    // Whether the update contains a new revision or not
+    def isNewRevision = isOverwriteOperation || qbeastSnapshot.isInitial ||
       !qbeastSnapshot.lastSpaceRevision.contains(data, columnsToIndex)
-    // update revision metadata
+
     val (qbeastData, spaceRevision, weightMap) =
       if (isNewRevision) {
-        val (qd, sr, wm) = oTreeAlgorithm.indexFirst(data, columnsToIndex)
-        updateQbeastMetadata(
-          sparkSession,
-          txn,
-          data.schema,
-          isOverwriteOperation,
-          rearrangeOnly,
-          Some(sr),
-          qbeastSnapshot)
-        (qd, sr, wm)
+        oTreeAlgorithm.indexFirst(data, columnsToIndex)
+
       } else {
         oTreeAlgorithm.indexNext(data, qbeastSnapshot, announcedSet)
       }
+
+    // The Metadata can be updated only once in a single transaction
+    // If a new space revision is detected, we update everything in the same operation
+    // If not, we delegate directly to the delta updateMetadata
+    // TODO columnsToIndex should be included in SpaceRevision/Revision attributes
+    if (isNewRevision) {
+      updateQbeastRevision(
+        txn,
+        data,
+        partitionColumns,
+        isOverwriteOperation,
+        rearrangeOnly,
+        columnsToIndex,
+        oTreeAlgorithm.desiredCubeSize,
+        spaceRevision,
+        qbeastSnapshot)
+    } else {
+      val oldQbeastMetadata = txn.metadata.configuration
+      updateMetadata(
+        txn,
+        data,
+        partitionColumns,
+        oldQbeastMetadata,
+        isOverwriteOperation,
+        rearrangeOnly)
+    }
 
     // Validate partition predicates
     val replaceWhere = options.replaceWhere
@@ -186,64 +203,5 @@ case class QbeastWriter(
 
   override protected val canMergeSchema: Boolean = true
   override protected val canOverwriteSchema: Boolean = true
-}
-
-/**
- * QbeastWriter companion object.
- */
-object QbeastWriter {
-
-  /**
-   * Use this constructor to store metadata of the indexed columns while creating a QbeastWriter
-   * @param mode SaveMode of the write
-   * @param deltaLog deltaLog associated to the table
-   * @param options options for write operation
-   * @param partitionColumns partition columns
-   * @param data data to write
-   * @param columnsToIndex qbeast columns to index
-   * @param qbeastSnapshot current qbeast snapshot of the table
-   * @param announcedSet set of cubes announced
-   * @param oTreeAlgorithm algorithm to organize data
-   * @return a new QbeastWriter
-   */
-  def apply(
-      mode: SaveMode,
-      deltaLog: DeltaLog,
-      options: DeltaOptions,
-      partitionColumns: Seq[String],
-      data: DataFrame,
-      columnsToIndex: Seq[String],
-      qbeastSnapshot: QbeastSnapshot,
-      announcedSet: Set[CubeId],
-      oTreeAlgorithm: OTreeAlgorithm): QbeastWriter = {
-
-    // Store metadata in the indexedColumns, setting the value to false in the rest of columns.
-    // This preserves previously stored metadata as well (except isQbeastIndexedColumn).
-    var newData = data
-    for (c <- newData.columns) {
-      val isIndexedColumn = columnsToIndex.contains(c).toString
-      val oldMetadata = newData.schema(c).metadata
-      val metadataBuilder =
-        new MetadataBuilder().putString("isQbeastIndexedColumn", isIndexedColumn)
-      if (oldMetadata.toString().isEmpty) {
-        newData = newData
-          .withColumn(c, newData.col(c).as(c, metadataBuilder.build()))
-      } else {
-        newData = newData
-          .withColumn(c, newData.col(c).as(c, metadataBuilder.withMetadata(oldMetadata).build()))
-      }
-    }
-
-    new QbeastWriter(
-      mode,
-      deltaLog,
-      options,
-      partitionColumns,
-      newData,
-      columnsToIndex,
-      qbeastSnapshot,
-      announcedSet,
-      oTreeAlgorithm)
-  }
 
 }

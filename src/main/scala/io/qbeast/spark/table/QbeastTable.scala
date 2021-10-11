@@ -24,7 +24,7 @@ class QbeastTable private (
   private def deltaLog: DeltaLog = DeltaLog.forTable(sparkSession, indexedTable.path)
 
   private def qbeastSnapshot: QbeastSnapshot =
-    QbeastSnapshot(deltaLog.snapshot, QbeastContext.config.getInt("qbeast.index.size"))
+    QbeastSnapshot(deltaLog.snapshot)
 
   private def indexedTable: IndexedTable =
     indexedTableFactory.getIndexedTable(sparkSession.sqlContext, path)

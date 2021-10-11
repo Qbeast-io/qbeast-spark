@@ -46,7 +46,7 @@ class QbeastSnapshotTest
             .save(tmpDir)
 
           val deltaLog = DeltaLog.forTable(spark, tmpDir)
-          val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot, oTreeAlgorithm.desiredCubeSize)
+          val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
           val cubeNormalizedWeights =
             qbeastSnapshot.cubeNormalizedWeights(qbeastSnapshot.lastRevisionTimestamp)
 
@@ -68,7 +68,7 @@ class QbeastSnapshotTest
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot, oTreeAlgorithm.desiredCubeSize)
+        val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
         val cubeNormalizedWeights =
           qbeastSnapshot.cubeNormalizedWeights(qbeastSnapshot.lastRevisionTimestamp)
 
@@ -92,7 +92,7 @@ class QbeastSnapshotTest
             .save(tmpDir)
 
           val deltaLog = DeltaLog.forTable(spark, tmpDir)
-          val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot, oTreeAlgorithm.desiredCubeSize)
+          val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
           val commitLogWeightMap =
             qbeastSnapshot.cubeWeights(qbeastSnapshot.lastRevisionTimestamp)
 
@@ -116,7 +116,7 @@ class QbeastSnapshotTest
         .save(tmpDir)
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot, oTreeAlgorithm.desiredCubeSize)
+      val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
       val cubeWeights = qbeastSnapshot.cubeWeights(qbeastSnapshot.lastRevisionTimestamp)
 
       cubeWeights.foreach { case (_, weight: Weight) =>
@@ -143,7 +143,7 @@ class QbeastSnapshotTest
               .save(tmpDir)
 
             val deltaLog = DeltaLog.forTable(spark, tmpDir)
-            val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot, oTreeAlgorithm.desiredCubeSize)
+            val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
 
             val indexStateMethod = PrivateMethod[Dataset[CubeInfo]]('indexState)
             val indexState =

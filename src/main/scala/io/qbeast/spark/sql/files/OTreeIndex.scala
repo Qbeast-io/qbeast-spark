@@ -20,7 +20,7 @@ import org.apache.spark.sql.types.IntegerType
  *
  * @param index the Tahoe log file index
  */
-case class OTreeIndex(index: TahoeLogFileIndex, desiredCubeSize: Int)
+case class OTreeIndex(index: TahoeLogFileIndex)
     extends TahoeFileIndex(index.spark, index.deltaLog, index.path) {
 
   /**
@@ -29,7 +29,7 @@ case class OTreeIndex(index: TahoeLogFileIndex, desiredCubeSize: Int)
    */
   protected def snapshot: Snapshot = index.getSnapshot
 
-  private val qbeastSnapshot = qbeast.QbeastSnapshot(snapshot, desiredCubeSize)
+  private val qbeastSnapshot = qbeast.QbeastSnapshot(snapshot)
 
   /**
    * Analyzes the data filters from the query
