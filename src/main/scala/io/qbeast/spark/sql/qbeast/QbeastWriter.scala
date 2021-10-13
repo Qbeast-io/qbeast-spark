@@ -80,7 +80,6 @@ case class QbeastWriter(
     // The Metadata can be updated only once in a single transaction
     // If a new space revision is detected, we update everything in the same operation
     // If not, we delegate directly to the delta updateMetadata
-    // TODO columnsToIndex should be included in SpaceRevision/Revision attributes
     if (isNewRevision) {
       updateQbeastRevision(
         txn,
