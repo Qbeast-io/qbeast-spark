@@ -62,7 +62,7 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
     val revisionTimestamp = newRevision.timestamp
     assert(
       !qbeastSnapshot.existsRevision(revisionTimestamp),
-      s"The revision ${revisionTimestamp} is already present in the Metadata")
+      s"The revision $revisionTimestamp is already present in the Metadata")
 
     val spark = data.sparkSession
     val schema = data.schema

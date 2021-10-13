@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.sql.qbeast
 
-import io.qbeast.spark.index.QbeastColumns.{cubeToReplicateColumnName}
+import io.qbeast.spark.index.QbeastColumns.cubeToReplicateColumnName
 import io.qbeast.spark.index.{CubeId, OTreeAlgorithm}
 import io.qbeast.spark.sql.utils.State.REPLICATED
 import io.qbeast.spark.sql.utils.TagUtils.{cubeTag, stateTag}
