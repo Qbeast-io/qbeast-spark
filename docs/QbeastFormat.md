@@ -20,28 +20,59 @@ Following each write transaction is the creation of a new log file. **Table-leve
 
 ### Changes on _delta_log/
 
+> We are working on providing a **unified metadata structure** for Qbeast Format.
+>
+> Any feedback is welcome!
+
 **Qbeast-spark** extends Delta Lake to enhance **Data Lakehouses** with functionalities such as `multi-dimensional indexing`, efficient `sampling`, `table tolerance`, etc., through modifying the log files on the **record level**. Each record's `tags` field has information that describes the `OTree`, `cube`, and `block` involved in the operation.
 
+- Changes on the `AddFile` **`tags`** information
 ```json
 {
-  "add" : {
-    "..." : {},
-    "tags" : {
-      "cube" : "A",
-      "indexedColumns" : "ss_sales_price,ss_ticket_number",
-      "maxWeight" : "462168771",
-      "minWeight" : "-2147483648",
-      "rowCount" : "508765",
-      "space" : "{\"timestamp\":1631692406506,\"transformations\":[{\"min\":-99.76,\"max\":299.28000000000003,\"scale\":0.0025060144346431435},{\"min\":-119998.5,\"max\":359999.5,\"scale\":2.083342013925058E-6}]}",
-      "state" : "FLOODED"
+  "add": {
+    "path": "4b36340e-0bf7-44ec-97da-f7a03bf06ea3.parquet",
+    ...
+    "tags": {
+      "state": "FLOODED",
+      "rowCount": "3",
+      "cube": "gA",
+      "spaceRevision": "1634196697656",
+      "minWeight": "-2147483648",
+      "maxWeight": "-857060062"
     }
   }
+}
+```
+- Changes on `Metadata` `configuration` map
+
+```json
+{"metaData":{
+  "id":"a5c2699f-62dd-4750-8384-be3a2caa55c7",
+  ...
+  "configuration": {
+    "qb.indexedColumns":"[\"user_id\",\"product_id\"]",
+    "qb.desiredCubeSize":"30000",
+    "qb.lastRevisionTimestamp":"1634196697656",
+    "qb.revision.1634196697656":"{\"timestamp\":1634196697656,\"transformations\":[{\"min\":1.16396325E8,\"max\":7.13218881E8,\"scale\":1.675539890285246E-9},{\"min\":-2.87485335E7,\"max\":9.02495125E7,\"scale\":8.403499331409189E-9}]}"
+  },
+  "createdTime":1634196701990}}
+```
+
+We store metadata information such as the columns we index (`indexedColumns`), the desired size of the cube (`desiredCubeSize`) and the information about the space where the data belongs (`qb.revision`). 
+
+A more closer look to the `qb.revision.1634196697656`:
+```json
+
+{"timestamp":1634196697656,
+  "transformations":[
+    {"min":1.16396325E8,"max":7.13218881E8,"scale":1.675539890285246E-9},
+    {"min":-2.87485335E7,"max":9.02495125E7,"scale":8.403499331409189E-9}]
 }
 ```
 
 On a high level, the index consists of one or more `OTrees` that contain `cubes`(or nodes), and each cube is made of `blocks` that contain the actual data written by the user. All records from the log are of **block-level** information.
 
-- `space` locates the tree that contains the `block`
+- `spaceRevision` locates the tree that contains the `block`
   
 
 - `cube` identifies the current `block`'s `cube` from the `tree`
@@ -53,9 +84,9 @@ On a high level, the index consists of one or more `OTrees` that contain `cubes`
 - `weightMax/weightMin`: Each element gets assigned with a uniformly created `weight` parameter. `weightMin` and `weightMax` define the range of weights that the `block` can contain.
   
 
-- `transformations` inside `space` consist of two maps(in this case), each corresponding to one of the `indexedColumns`. Each pair of `min`/`max` defines the range of values of the associated indexed column that the `tree` can contain and is to be expanded to accommodate new rows that fall outside the current range.
+- `transformations` inside `spaceRevision` consist of two maps(in this case), each corresponding to one of the `indexedColumns`. Each pair of `min`/`max` defines the range of values of the associated indexed column that the `tree` can contain and is to be expanded to accommodate new rows that fall outside the current range.
 
-### State changes in _qbeast/
+### State changes in Metadata
 
 **Data de-normalization** is a crucial component behind our multi-dimensional index. Instead of storing an index in a separate tree-like data structure, we reorganize the data and their replications in an `OTree`, whose **hierarchical structure** is the actual index.
 
@@ -74,21 +105,16 @@ qbeastTable.analyze()
 qbeastTable.optimize()
 ```
 
-**Cubes** are analyzed, and their **states** are changed according to the relation between their `payload` and the number of elements they contain. `cube` state changes can be viewed reading the files in `_qbeast/`:
+**Cubes** are analyzed, and their **states** are changed according to the relation between their `payload` and the number of elements they contain. `cube` state changes can be viewed reading the `metaData` on the last delta commit log:
 
-```scala
-val qbeastLogPath = dir + "/_qbeast/<optimization number>"
+```json
+{"metaData":{
+  "configuration":
+  {
+    ...
+    "qb.replicatedSet.1634196697656":"[\"\",\"g\",\"gQ\"]"},
+  "createdTime":1634196701990}}
 
-spark.read.format("parquet").load(qbeastLogPath).show()
 ```
 
-```
-+----+-------------+
-|cube|     revision|
-+----+-------------+
-|   1|1627046587814|
-|    |1627046587814|
-+----+-------------+
-```
-
-In this case, some blocks from cubes `root` and `1` transformed to the state of `REPLICATED`. Corresponding actions such as `Add` and `Remove` are recorded in `_delta_log/`, with `revision` from the log shown here as their `timestamp`.
+In this case, some blocks from cubes `root`, `g` and `gQ` transformed to the state of `REPLICATED`. Corresponding actions such as `Add` and `Remove` are recorded in `_delta_log/`, with `revision` from the log shown here as their `timestamp`.

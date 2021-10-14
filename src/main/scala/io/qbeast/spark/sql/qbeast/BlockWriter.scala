@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.sql.qbeast
 
-import io.qbeast.spark.index.{ColumnsToIndex, CubeId, QbeastColumns, Weight}
+import io.qbeast.spark.index.{CubeId, QbeastColumns, Weight}
 import io.qbeast.spark.sql.utils.TagUtils._
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapred.{JobConf, TaskAttemptContextImpl, TaskAttemptID}
@@ -90,7 +90,6 @@ case class BlockWriter(
             weightMaxTag -> maxWeight.value.toString,
             stateTag -> state,
             spaceTag -> JsonUtils.toJson(revisionTimestamp),
-            indexedColsTag -> ColumnsToIndex.encode(columnsToIndex),
             elementCountTag -> rowCount.toString)
 
           writer.close()

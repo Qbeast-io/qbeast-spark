@@ -7,7 +7,6 @@ import io.qbeast.spark.index.{ColumnsToIndex, CubeId, OTreeAlgorithm}
 import io.qbeast.spark.keeper.Keeper
 import io.qbeast.spark.sql.qbeast.{QbeastOptimizer, QbeastSnapshot, QbeastWriter}
 import io.qbeast.spark.sql.sources.QbeastBaseRelation
-import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.actions.SetTransaction
 import org.apache.spark.sql.delta.sources.DeltaDataSource
 import org.apache.spark.sql.delta.{DeltaLog, DeltaOperations, DeltaOptions}
@@ -184,21 +183,10 @@ private[table] class IndexedTableImpl(
     }
   }
 
-  private def createQbeastLogIfNecessary(): Unit = {
-    val configuration = sqlContext.sparkSession.sessionState.newHadoopConf()
-    val path = new Path(deltaLog.dataPath, "_qbeast")
-    val fileSystem = path.getFileSystem(configuration)
-    if (!fileSystem.exists(path)) {
-      fileSystem.mkdirs(path)
-      fileSystem.makeQualified(path)
-    }
-  }
-
   private def write(
       data: DataFrame,
       columnsToIndex: Seq[String],
       append: Boolean): BaseRelation = {
-    createQbeastLogIfNecessary()
     val dimensionCount = columnsToIndex.length
     if (exists) {
       val revision = snapshot.lastSpaceRevision.timestamp

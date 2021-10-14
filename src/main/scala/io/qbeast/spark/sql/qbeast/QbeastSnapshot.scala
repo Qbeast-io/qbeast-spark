@@ -127,10 +127,11 @@ case class QbeastSnapshot(snapshot: Snapshot) {
     val listRevisions = metadataMap.filterKeys(_.startsWith(metadataRevision))
 
     listRevisions
-      .map { case (_, json: String) =>
+      .map { case (key: String, json: String) =>
+        val revisionTimestamp = key.split('.').last.toLong
         val spaceRevision = JsonUtils
           .fromJson[SpaceRevision](json)
-        (spaceRevision.timestamp, spaceRevision)
+        (revisionTimestamp, spaceRevision)
       }
   }
 
