@@ -9,7 +9,7 @@ import io.qbeast.spark.index.QbeastColumns.{
   revisionColumnName
 }
 import io.qbeast.spark.index.{CubeId, OTreeAlgorithm}
-import io.qbeast.spark.model.SpaceRevision
+import io.qbeast.spark.model.Revision
 import io.qbeast.spark.sql.utils.State.REPLICATED
 import io.qbeast.spark.sql.utils.TagUtils.{cubeTag, stateTag}
 import org.apache.hadoop.fs.Path
@@ -34,7 +34,7 @@ class QbeastOptimizer(
     deltaLog: DeltaLog,
     deltaOptions: DeltaOptions,
     qbeastSnapshot: QbeastSnapshot,
-    spaceRevision: SpaceRevision,
+    spaceRevision: Revision,
     oTreeAlgorithm: OTreeAlgorithm) {
 
   /**

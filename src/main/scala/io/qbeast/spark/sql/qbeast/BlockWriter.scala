@@ -4,7 +4,7 @@
 package io.qbeast.spark.sql.qbeast
 
 import io.qbeast.spark.index.{ColumnsToIndex, CubeId, QbeastColumns, Weight}
-import io.qbeast.spark.model.SpaceRevision
+import io.qbeast.spark.model.Revision
 import io.qbeast.spark.sql.utils.TagUtils._
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapred.{JobConf, TaskAttemptContextImpl, TaskAttemptID}
@@ -38,7 +38,7 @@ case class BlockWriter(
     serConf: SerializableConfiguration,
     qbeastColumns: QbeastColumns,
     columnsToIndex: Seq[String],
-    spaceRevision: SpaceRevision,
+    spaceRevision: Revision,
     weightMap: Map[CubeId, Weight])
     extends Serializable {
   private val dimensionCount = columnsToIndex.length

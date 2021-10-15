@@ -5,7 +5,7 @@ package io.qbeast.spark.sql.qbeast
 
 import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.index.{ColumnsToIndex, CubeId, NormalizedWeight, Weight}
-import io.qbeast.spark.model.{CubeInfo, SpaceRevision}
+import io.qbeast.spark.model.{CubeInfo, Revision}
 import io.qbeast.spark.sql.utils.State.ANNOUNCED
 import io.qbeast.spark.sql.utils.TagUtils._
 import org.apache.hadoop.fs.{FileStatus, Path}
@@ -66,7 +66,7 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
    * @param timestamp the timestamp of the revision
    * @return a SpaceRevision with the corresponding timestamp if any
    */
-  def getRevisionAt(timestamp: Long): Option[SpaceRevision] = {
+  def getRevisionAt(timestamp: Long): Option[Revision] = {
     val spaceRevision = spaceRevisions.filter(_.timestamp.equals(timestamp))
     if (spaceRevision.isEmpty) None
     else Some(spaceRevision.first())
@@ -77,7 +77,7 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
    * @param spaceRevision revision
    * @return a map with key cube and value max weight
    */
-  def cubeWeights(spaceRevision: SpaceRevision): Map[CubeId, Weight] = {
+  def cubeWeights(spaceRevision: Revision): Map[CubeId, Weight] = {
     indexState(spaceRevision)
       .collect()
       .map(info => (CubeId(dimensionCount, info.cube), info.maxWeight))
@@ -90,7 +90,7 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
    * @param spaceRevision revision
    * @return a map with key cube and value max weight
    */
-  def cubeNormalizedWeights(spaceRevision: SpaceRevision): Map[CubeId, Double] = {
+  def cubeNormalizedWeights(spaceRevision: Revision): Map[CubeId, Double] = {
     indexState(spaceRevision)
       .collect()
       .map {
@@ -108,7 +108,7 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
    * @return the set of overflowed cubes
    */
 
-  def overflowedSet(spaceRevision: SpaceRevision): Set[CubeId] = {
+  def overflowedSet(spaceRevision: Revision): Set[CubeId] = {
     indexState(spaceRevision)
       .filter(_.maxWeight != Weight.MaxValue)
       .collect()
@@ -121,7 +121,7 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
    * @param spaceRevision revision
    * @return the set of cubes in a replicated state
    */
-  def replicatedSet(spaceRevision: SpaceRevision): Set[CubeId] = {
+  def replicatedSet(spaceRevision: Revision): Set[CubeId] = {
 
     val hadoopConf = spark.sessionState.newHadoopConf()
 
@@ -149,18 +149,18 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
    * Returns available space revisions ordered by timestamp
    * @return a Dataset of SpaceRevision
    */
-  def spaceRevisions: Dataset[SpaceRevision] =
+  def spaceRevisions: Dataset[Revision] =
     snapshot.allFiles
       .select(s"tags.$spaceTag")
       .distinct
-      .map(a => JsonUtils.fromJson[SpaceRevision](a.getString(0)))
+      .map(a => JsonUtils.fromJson[Revision](a.getString(0)))
       .orderBy(col("timestamp").desc)
 
   /**
    * Returns the space revision with the higher timestamp
    * @return the space revision
    */
-  def lastSpaceRevision: SpaceRevision = {
+  def lastSpaceRevision: Revision = {
     // Dataset spaceRevisions is ordered by timestamp
     spaceRevisions
       .first()
@@ -172,7 +172,7 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
    * @param spaceRevision space revision
    * @return Dataset containing cube information
    */
-  private def indexState(spaceRevision: SpaceRevision): Dataset[CubeInfo] = {
+  private def indexState(spaceRevision: Revision): Dataset[CubeInfo] = {
 
     val allFiles = snapshot.allFiles
     val weightValueTag = weightMaxTag + ".value"
@@ -197,7 +197,7 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
    * @param spaceRevision space revision
    * @return the sequence of blocks
    */
-  def getCubeBlocks(cubes: Set[CubeId], spaceRevision: SpaceRevision): Seq[AddFile] = {
+  def getCubeBlocks(cubes: Set[CubeId], spaceRevision: Revision): Seq[AddFile] = {
     val dimensionCount = this.dimensionCount
     snapshot.allFiles
       .filter(_.tags(spaceTag).equals(spaceRevision.toString))

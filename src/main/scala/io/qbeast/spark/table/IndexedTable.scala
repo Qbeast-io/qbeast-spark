@@ -5,7 +5,7 @@ package io.qbeast.spark.table
 
 import io.qbeast.spark.index.{ColumnsToIndex, CubeId, OTreeAlgorithm}
 import io.qbeast.spark.keeper.Keeper
-import io.qbeast.spark.model.SpaceRevision
+import io.qbeast.spark.model.Revision
 import io.qbeast.spark.sql.qbeast.{QbeastOptimizer, QbeastSnapshot, QbeastWriter}
 import io.qbeast.spark.sql.sources.QbeastBaseRelation
 import org.apache.hadoop.fs.Path
@@ -66,13 +66,13 @@ trait IndexedTable {
    * @param spaceRevision the revision to optimize
    * @return the cubes to analyze
    */
-  def analyze(spaceRevision: SpaceRevision): Seq[String]
+  def analyze(spaceRevision: Revision): Seq[String]
 
   /**
    * Optimizes the given table for a given revision
    * @param spaceRevision the revision to optimize
    */
-  def optimize(spaceRevision: SpaceRevision): Unit
+  def optimize(spaceRevision: Revision): Unit
 }
 
 /**
@@ -259,18 +259,18 @@ private[table] class IndexedTableImpl(
     DeltaOperations.Write(mode, None, options.replaceWhere, options.userMetadata)
   }
 
-  override def analyze(spaceRevision: SpaceRevision): Seq[String] = {
+  override def analyze(spaceRevision: Revision): Seq[String] = {
     val cubesToAnnounce = oTreeAlgorithm.analyzeIndex(snapshot, spaceRevision).map(_.string)
     keeper.announce(path, spaceRevision.timestamp, cubesToAnnounce)
     cubesToAnnounce
 
   }
 
-  private def createQbeastOptimizer(spaceRevision: SpaceRevision): QbeastOptimizer = {
+  private def createQbeastOptimizer(spaceRevision: Revision): QbeastOptimizer = {
     new QbeastOptimizer(deltaLog, deltaOptions, snapshot, spaceRevision, oTreeAlgorithm)
   }
 
-  override def optimize(spaceRevision: SpaceRevision): Unit = {
+  override def optimize(spaceRevision: Revision): Unit = {
 
     val bo = keeper.beginOptimization(path, spaceRevision.timestamp)
     val cubesToOptimize = bo.cubesToOptimize

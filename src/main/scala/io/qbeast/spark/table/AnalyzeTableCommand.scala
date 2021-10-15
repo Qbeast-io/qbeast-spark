@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.table
 
-import io.qbeast.spark.model.SpaceRevision
+import io.qbeast.spark.model.Revision
 import org.apache.spark.sql.execution.command.RunnableCommand
 import org.apache.spark.sql.{Row, SparkSession}
 
@@ -12,7 +12,7 @@ import org.apache.spark.sql.{Row, SparkSession}
  * @param spaceRevision revision to analyze
  * @param indexedTable indexed table to analyze
  */
-case class AnalyzeTableCommand(spaceRevision: SpaceRevision, indexedTable: IndexedTable)
+case class AnalyzeTableCommand(spaceRevision: Revision, indexedTable: IndexedTable)
     extends RunnableCommand {
 
   override def run(sparkSession: SparkSession): Seq[Row] = {

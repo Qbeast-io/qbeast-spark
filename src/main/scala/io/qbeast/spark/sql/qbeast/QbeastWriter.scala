@@ -5,7 +5,7 @@ package io.qbeast.spark.sql.qbeast
 
 import io.qbeast.spark.index.QbeastColumns.{cubeColumnName, stateColumnName}
 import io.qbeast.spark.index.{CubeId, OTreeAlgorithm, QbeastColumns, Weight}
-import io.qbeast.spark.model.SpaceRevision
+import io.qbeast.spark.model.Revision
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.sql.delta.actions.{Action, AddFile, FileAction}
 import org.apache.spark.sql.delta.commands.DeltaCommand
@@ -141,7 +141,7 @@ case class QbeastWriter(
 
   def writeFiles(
       qbeastData: DataFrame,
-      spaceRevision: SpaceRevision,
+      spaceRevision: Revision,
       weightMap: Map[CubeId, Weight]): Seq[FileAction] = {
 
     val (factory: OutputWriterFactory, serConf: SerializableConfiguration) = {

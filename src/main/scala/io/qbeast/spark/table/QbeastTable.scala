@@ -4,7 +4,7 @@
 package io.qbeast.spark.table
 
 import io.qbeast.spark.context.QbeastContext
-import io.qbeast.spark.model.SpaceRevision
+import io.qbeast.spark.model.Revision
 import io.qbeast.spark.sql.qbeast.QbeastSnapshot
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
@@ -30,7 +30,7 @@ class QbeastTable private (
   private def indexedTable: IndexedTable =
     indexedTableFactory.getIndexedTable(sparkSession.sqlContext, path)
 
-  private def getAvailableRevision(revisionTimestamp: Option[Long]): SpaceRevision = {
+  private def getAvailableRevision(revisionTimestamp: Option[Long]): Revision = {
     revisionTimestamp match {
       case Some(timestamp) =>
         qbeastSnapshot

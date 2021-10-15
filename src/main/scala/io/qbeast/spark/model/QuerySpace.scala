@@ -57,7 +57,7 @@ case class AllSpace(dimensionCount: Int) extends QuerySpace {
  * @param originalTo   exclusive ending query range
  * @param spaceRevision revision applied on this space
  */
-case class QuerySpaceFromTo(originalFrom: Point, originalTo: Point, spaceRevision: SpaceRevision)
+case class QuerySpaceFromTo(originalFrom: Point, originalTo: Point, spaceRevision: Revision)
     extends QuerySpace {
 
   require(originalFrom <= originalTo, "from point must be < then to point")
