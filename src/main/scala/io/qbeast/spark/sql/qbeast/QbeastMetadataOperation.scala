@@ -83,14 +83,11 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
     // Merged schema will contain additional columns at the end
     def isNewSchema: Boolean = txn.metadata.schema != mergedSchema
     // Qbeast configuration metadata
-    val configuration = {
-      val oldConfiguration = txn.metadata.configuration
-      oldConfiguration
-        .updated(metadataIndexedColumns, JsonUtils.toJson(columnsToIndex))
-        .updated(metadataDesiredCubeSize, desiredCubeSize.toString)
-        .updated(metadataLastRevisionTimestamp, revisionTimestamp.toString)
-        .updated(s"$metadataRevision.$revisionTimestamp", JsonUtils.toJson(newRevision))
-    }
+    val configuration = txn.metadata.configuration
+      .updated(metadataIndexedColumns, JsonUtils.toJson(columnsToIndex))
+      .updated(metadataDesiredCubeSize, desiredCubeSize.toString)
+      .updated(metadataLastRevisionTimestamp, revisionTimestamp.toString)
+      .updated(s"$metadataRevision.$revisionTimestamp", JsonUtils.toJson(newRevision))
 
     if (txn.readVersion == -1) {
       super.updateMetadata(
@@ -125,11 +122,10 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
     } else if (isNewSchema) {
       recordDeltaEvent(txn.deltaLog, "delta.schemaValidation.failure")
       val errorBuilder = new MetadataMismatchErrorBuilder
-      if (isNewSchema) {
-        errorBuilder.addSchemaMismatch(txn.metadata.schema, dataSchema, txn.metadata.id)
-      }
       if (isOverwriteMode) {
         errorBuilder.addOverwriteBit()
+      } else {
+        errorBuilder.addSchemaMismatch(txn.metadata.schema, dataSchema, txn.metadata.id)
       }
       errorBuilder.finalizeAndThrow(spark.sessionState.conf)
     } else {
