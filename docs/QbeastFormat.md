@@ -50,10 +50,10 @@ Following each write transaction is the creation of a new log file. **Table-leve
   "id":"a5c2699f-62dd-4750-8384-be3a2caa55c7",
   ...
   "configuration": {
-    "qb.indexedColumns":"[\"user_id\",\"product_id\"]",
-    "qb.desiredCubeSize":"30000",
-    "qb.lastRevisionTimestamp":"1634196697656",
-    "qb.revision.1634196697656":"{\"timestamp\":1634196697656,\"transformations\":[{\"min\":1.16396325E8,\"max\":7.13218881E8,\"scale\":1.675539890285246E-9},{\"min\":-2.87485335E7,\"max\":9.02495125E7,\"scale\":8.403499331409189E-9}]}"
+    "qbeast.indexedColumns":"[\"user_id\",\"product_id\"]",
+    "qbeast.desiredCubeSize":"30000",
+    "qbeast.lastRevisionTimestamp":"1634196697656",
+    "qbeast.revision.1634196697656":"{\"timestamp\":1634196697656,\"transformations\":[{\"min\":1.16396325E8,\"max\":7.13218881E8,\"scale\":1.675539890285246E-9},{\"min\":-2.87485335E7,\"max\":9.02495125E7,\"scale\":8.403499331409189E-9}]}"
   },
   "createdTime":1634196701990}}
 ```
@@ -112,7 +112,7 @@ qbeastTable.optimize()
   "configuration":
   {
     ...
-    "qb.replicatedSet.1634196697656":"[\"\",\"g\",\"gQ\"]"},
+    "qbeast.replicatedSet.1634196697656":"[\"\",\"g\",\"gQ\"]"},
   "createdTime":1634196701990}}
 
 ```

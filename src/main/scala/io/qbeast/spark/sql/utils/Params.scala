@@ -26,9 +26,9 @@ object TagUtils {
 
 object MetadataConfig {
 
-  final val metadataIndexedColumns = "qb.indexedColumns"
-  final val metadataDesiredCubeSize = "qb.desiredCubeSize"
-  final val metadataRevision = "qb.revision"
-  final val metadataReplicatedSet = "qb.replicatedSet"
-  final val metadataLastRevisionTimestamp = "qb.lastRevisionTimestamp"
+  final val metadataIndexedColumns = "qbeast.indexedColumns"
+  final val metadataDesiredCubeSize = "qbeast.desiredCubeSize"
+  final val metadataRevision = "qbeast.revision"
+  final val metadataReplicatedSet = "qbeast.replicatedSet"
+  final val metadataLastRevisionTimestamp = "qbeast.lastRevisionTimestamp"
 }
