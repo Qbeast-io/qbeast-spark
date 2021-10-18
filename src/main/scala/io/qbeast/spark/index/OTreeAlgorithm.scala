@@ -10,7 +10,7 @@ import io.qbeast.spark.index.QbeastColumns.{
   weightColumnName
 }
 import io.qbeast.spark.model._
-import io.qbeast.spark.sql.qbeast.QbeastSnapshot
+import io.qbeast.spark.sql.qbeast.{RevisionSnapshot}
 import io.qbeast.spark.sql.rules.Functions.qbeastHash
 import io.qbeast.spark.sql.utils.State._
 import org.apache.spark.sql.functions._
@@ -46,7 +46,7 @@ trait OTreeAlgorithm {
    */
   def indexNext(
       dataFrame: DataFrame,
-      snapshot: QbeastSnapshot,
+      snapshot: RevisionSnapshot,
       announcedSet: Set[CubeId]): (DataFrame, Revision, Map[CubeId, Weight])
 
   /**
@@ -69,25 +69,22 @@ trait OTreeAlgorithm {
    * Takes the data from different cubes and replicates it to their children
    *
    * @param dataFrame data to be replicated
-   * @param spaceRevision current space revision to index
-   * @param qbeastSnapshot current snapshot of the index
+   * @param snapshot current revision snapshot to index
    * @param cubesToReplicate set of cubes to replicate
    * @return the modified dataFrame with replicated data
    */
   def replicateCubes(
       dataFrame: DataFrame,
-      spaceRevision: Revision,
-      qbeastSnapshot: QbeastSnapshot,
+      snapshot: RevisionSnapshot,
       cubesToReplicate: Set[CubeId]): (DataFrame, Map[CubeId, Weight])
 
   /**
    * Analyze the index structure and returns which cubes need to be optimized
    *
    * @param qbeastSnapshot snapshot
-   * @param spaceRevision space revision to review
    * @return the sequence of cubes that need optimization
    */
-  def analyzeIndex(qbeastSnapshot: QbeastSnapshot, spaceRevision: Revision): Seq[CubeId]
+  def analyzeIndex(qbeastSnapshot: RevisionSnapshot): Seq[CubeId]
 
 }
 
@@ -122,15 +119,15 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
 
   override def indexNext(
       dataFrame: DataFrame,
-      snapshot: QbeastSnapshot,
+      snapshot: RevisionSnapshot,
       announcedSet: Set[CubeId]): (DataFrame, Revision, Map[CubeId, Weight]) = {
-    val spaceRevision = snapshot.lastSpaceRevision
+    val spaceRevision = snapshot.revision
     val (indexedDataFrame, cubeWeights: Map[CubeId, Weight]) = index(
       dataFrame = dataFrame,
       spaceRevision,
-      cubeNormalizedWeights = snapshot.cubeNormalizedWeights(spaceRevision),
+      cubeNormalizedWeights = snapshot.cubeNormalizedWeights,
       announcedSet = announcedSet,
-      replicatedSet = snapshot.replicatedSet(spaceRevision),
+      replicatedSet = snapshot.replicatedSet,
       isReplication = false)
     (indexedDataFrame, spaceRevision, cubeWeights)
   }
@@ -148,13 +145,11 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
     }
   }.map(_.name)
 
-  override def analyzeIndex(
-      qbeastSnapshot: QbeastSnapshot,
-      spaceRevision: Revision): Seq[CubeId] = {
+  override def analyzeIndex(snapshot: RevisionSnapshot): Seq[CubeId] = {
 
-    val dimensionCount = qbeastSnapshot.indexedCols.length
-    val overflowedSet = qbeastSnapshot.overflowedSet(spaceRevision)
-    val replicatedSet = qbeastSnapshot.replicatedSet(spaceRevision)
+    val dimensionCount = snapshot.revision.dimensionCount
+    val overflowedSet = snapshot.overflowedSet
+    val replicatedSet = snapshot.replicatedSet
 
     val cubesToOptimize = overflowedSet
       .filter(cube => {
@@ -171,16 +166,15 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
 
   override def replicateCubes(
       dataFrame: DataFrame,
-      spaceRevision: Revision,
-      qbeastSnapshot: QbeastSnapshot,
+      snapshot: RevisionSnapshot,
       announcedSet: Set[CubeId]): (DataFrame, Map[CubeId, Weight]) = {
 
-    val cubeWeights = qbeastSnapshot.cubeNormalizedWeights(spaceRevision)
-    val replicatedSet = qbeastSnapshot.replicatedSet(spaceRevision)
+    val cubeWeights = snapshot.cubeNormalizedWeights
+    val replicatedSet = snapshot.replicatedSet
 
     index(
       dataFrame = dataFrame,
-      spaceRevision = spaceRevision,
+      spaceRevision = snapshot.revision,
       cubeNormalizedWeights = cubeWeights,
       announcedSet = announcedSet,
       replicatedSet = replicatedSet,

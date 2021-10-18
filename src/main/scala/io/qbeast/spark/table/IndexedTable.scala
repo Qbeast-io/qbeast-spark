@@ -5,7 +5,6 @@ package io.qbeast.spark.table
 
 import io.qbeast.spark.index.{ColumnsToIndex, CubeId, OTreeAlgorithm}
 import io.qbeast.spark.keeper.Keeper
-import io.qbeast.spark.model.Revision
 import io.qbeast.spark.sql.qbeast.{QbeastOptimizer, QbeastSnapshot, QbeastWriter}
 import io.qbeast.spark.sql.sources.QbeastBaseRelation
 import org.apache.hadoop.fs.Path
@@ -63,16 +62,16 @@ trait IndexedTable {
 
   /**
    * Analyzes the index for a given revision
-   * @param spaceRevision the revision to optimize
+   * @param revisionTimestamp the timestamp of the revision to analyze
    * @return the cubes to analyze
    */
-  def analyze(spaceRevision: Revision): Seq[String]
+  def analyze(revisionTimestamp: Long): Seq[String]
 
   /**
    * Optimizes the given table for a given revision
-   * @param spaceRevision the revision to optimize
+   * @param revisionTimestamp the timestamp of the revision to optimize
    */
-  def optimize(spaceRevision: Revision): Unit
+  def optimize(revisionTimestamp: Long): Unit
 }
 
 /**
@@ -160,6 +159,10 @@ private[table] class IndexedTableImpl(
     deltaLogCache.get
   }
 
+  private def lastRevisionSnapshot = {
+    snapshot.lastRevisionSnapshot
+  }
+
   private def clearCaches(): Unit = {
     deltaLogCache = None
     snapshotCache = None
@@ -179,7 +182,9 @@ private[table] class IndexedTableImpl(
   }
 
   private def checkColumnsToMatchSchema(columnsToIndex: Seq[String]): Unit = {
-    if (!ColumnsToIndex.areSame(columnsToIndex, snapshot.indexedCols)) {
+    if (!ColumnsToIndex.areSame(
+        columnsToIndex,
+        snapshot.lastRevisionSnapshot.revision.dimensionColumns)) {
       throw AnalysisExceptionFactory.create(
         s"Columns to index '$columnsToIndex' do not match existing index.")
     }
@@ -202,8 +207,8 @@ private[table] class IndexedTableImpl(
     createQbeastLogIfNecessary()
     val dimensionCount = columnsToIndex.length
     if (exists) {
-      val revision = snapshot.lastSpaceRevision.timestamp
-      keeper.withWrite(path, revision) { write =>
+      val revision = lastRevisionSnapshot.revision
+      keeper.withWrite(path, revision.timestamp) { write =>
         val announcedSet = write.announcedCubes
           .map(CubeId(dimensionCount, _))
         doWrite(data, columnsToIndex, append, announcedSet)
@@ -259,23 +264,24 @@ private[table] class IndexedTableImpl(
     DeltaOperations.Write(mode, None, options.replaceWhere, options.userMetadata)
   }
 
-  override def analyze(spaceRevision: Revision): Seq[String] = {
-    val cubesToAnnounce = oTreeAlgorithm.analyzeIndex(snapshot, spaceRevision).map(_.string)
-    keeper.announce(path, spaceRevision.timestamp, cubesToAnnounce)
+  override def analyze(revisionTimestamp: Long): Seq[String] = {
+    val revisionSnapshot = snapshot.getRevisionSnapshotAt(revisionTimestamp)
+    val cubesToAnnounce = oTreeAlgorithm.analyzeIndex(revisionSnapshot).map(_.string)
+    keeper.announce(path, revisionTimestamp, cubesToAnnounce)
     cubesToAnnounce
 
   }
 
-  private def createQbeastOptimizer(spaceRevision: Revision): QbeastOptimizer = {
-    new QbeastOptimizer(deltaLog, deltaOptions, snapshot, spaceRevision, oTreeAlgorithm)
+  private def createQbeastOptimizer(revisionTimestamp: Long): QbeastOptimizer = {
+    new QbeastOptimizer(deltaLog, deltaOptions, snapshot, revisionTimestamp, oTreeAlgorithm)
   }
 
-  override def optimize(spaceRevision: Revision): Unit = {
+  override def optimize(revisionTimestamp: Long): Unit = {
 
-    val bo = keeper.beginOptimization(path, spaceRevision.timestamp)
+    val bo = keeper.beginOptimization(path, revisionTimestamp)
     val cubesToOptimize = bo.cubesToOptimize
 
-    val optimizer = createQbeastOptimizer(spaceRevision)
+    val optimizer = createQbeastOptimizer(revisionTimestamp)
     val deltaWrite =
       createDeltaWrite(SaveMode.Append, deltaOptions)
     val transactionID = s"qbeast.$path"

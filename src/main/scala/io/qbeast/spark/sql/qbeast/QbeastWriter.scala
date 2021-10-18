@@ -92,7 +92,7 @@ case class QbeastWriter(
         !qbeastSnapshot.lastSpaceRevision.contains(data, columnsToIndex)) {
         oTreeAlgorithm.indexFirst(data, columnsToIndex)
       } else {
-        oTreeAlgorithm.indexNext(data, qbeastSnapshot, announcedSet)
+        oTreeAlgorithm.indexNext(data, qbeastSnapshot.lastRevisionSnapshot, announcedSet)
       }
 
     val newFiles = writeFiles(qbeastData, spaceRevision, weightMap)
@@ -176,4 +176,5 @@ case class QbeastWriter(
 
   override protected val canMergeSchema: Boolean = true
   override protected val canOverwriteSchema: Boolean = true
+
 }
