@@ -73,9 +73,16 @@ case class BlockWriter(
             cleanRow += row.get(i, schemaIndex(i).dataType)
           }
         }
+
+        // The minWeight of a cube is determined by its parent's maxWeight
+        val parentWeight = cubeId.parent.isDefined match {
+          case true => weightMap.getOrElse(cubeId.parent.get, Weight.MinValue)
+          case _ => Weight.MinValue
+        }
+
         // Writing the data in a single file.
         blockCtx.writer.write(InternalRow.fromSeq(cleanRow.result()))
-        blocks.updated(cubeId, blockCtx.update())
+        blocks.updated(cubeId, blockCtx.update(parentWeight))
       }
       .values
       .flatMap {
@@ -138,7 +145,10 @@ case class BlockWriter(
    * @param path the path of the written file
    */
   private case class BlockContext(stats: BlockStats, writer: OutputWriter, path: Path) {
-    def update(): BlockContext = this.copy(stats = stats.update())
+
+    def update(minWeight: Weight): BlockContext =
+      this.copy(stats = stats.update(minWeight))
+
   }
 
 }

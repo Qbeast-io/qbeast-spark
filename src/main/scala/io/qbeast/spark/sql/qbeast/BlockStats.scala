@@ -21,8 +21,14 @@ case class BlockStats protected (
     state: String,
     rowCount: Long) {
 
-  def update(): BlockStats =
-    this.copy(rowCount = rowCount + 1)
+  def update(minWeight: Weight): BlockStats = {
+    var minW = minWeight
+    if (!this.minWeight.equals(Weight.MinValue)) {
+      minW = Weight(minWeight.value.min(this.minWeight.value))
+    }
+
+    this.copy(rowCount = rowCount + 1, minWeight = minW)
+  }
 
   override def toString: String =
     s"BlocksStats($cube,${maxWeight},${minWeight},$state,$rowCount)"
