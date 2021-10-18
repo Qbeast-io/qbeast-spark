@@ -21,12 +21,17 @@ case class BlockStats protected (
     state: String,
     rowCount: Long) {
 
+  /**
+   * Update the BlockStats by computing minWeight = min(this.minWeight, minWeight).
+   * This also updates the rowCount of the BlocksStats
+   * @param minWeight the Weight to compare with the current one
+   * @return the updated BlockStats object
+   */
   def update(minWeight: Weight): BlockStats = {
     var minW = minWeight
     if (!this.minWeight.equals(Weight.MinValue)) {
       minW = Weight(minWeight.value.min(this.minWeight.value))
     }
-
     this.copy(rowCount = rowCount + 1, minWeight = minW)
   }
 

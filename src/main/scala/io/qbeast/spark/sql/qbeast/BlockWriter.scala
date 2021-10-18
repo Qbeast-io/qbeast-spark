@@ -68,21 +68,19 @@ case class BlockWriter(
 
         // The row with only the original columns
         val cleanRow = Seq.newBuilder[Any]
+        var rowWeight = Weight.MinValue
         for (i <- (0 until row.numFields)) {
           if (!qbeastColumns.contains(i)) {
             cleanRow += row.get(i, schemaIndex(i).dataType)
           }
-        }
-
-        // The minWeight of a cube is determined by its parent's maxWeight
-        val parentWeight = cubeId.parent.isDefined match {
-          case true => weightMap.getOrElse(cubeId.parent.get, Weight.MinValue)
-          case _ => Weight.MinValue
+          if (i == qbeastColumns.weightColumnIndex) {
+            rowWeight = new Weight(row.getInt(i))
+          }
         }
 
         // Writing the data in a single file.
         blockCtx.writer.write(InternalRow.fromSeq(cleanRow.result()))
-        blocks.updated(cubeId, blockCtx.update(parentWeight))
+        blocks.updated(cubeId, blockCtx.update(rowWeight))
       }
       .values
       .flatMap {
