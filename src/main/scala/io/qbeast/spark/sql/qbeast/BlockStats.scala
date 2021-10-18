@@ -31,7 +31,7 @@ case class BlockStats protected (
   }
 
   override def toString: String =
-    s"BlocksStats($cube,${maxWeight},${minWeight},$state,$rowCount)"
+    s"BlocksStats($cube,$maxWeight,$minWeight,$state,$rowCount)"
 
 }
 
