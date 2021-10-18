@@ -41,19 +41,57 @@ case class OTreeIndex(index: TahoeLogFileIndex)
     dataFilters.partition(e => e.children.head.prettyName.equals("qbeast_hash"))
   }
 
+  // TODO this ugly implementation is to test if it works
+
+  private def hasColumnReferences(attr: Expression, columnName: String): Boolean = {
+    val nameEquality = spark.sessionState.analyzer.resolver
+    attr.references.forall(r => nameEquality(r.name, columnName))
+  }
+
+  private def extractRangeFilters(
+      dataFilters: Seq[Expression],
+      dimensionColumns: Seq[String]): (Point, Point) = {
+
+    val fromTo = dimensionColumns.map(columnName => {
+
+      val columnFilters = dataFilters
+        .filter(hasColumnReferences(_, columnName))
+
+      val from = columnFilters
+        .collectFirst {
+          case expressions.GreaterThanOrEqual(_, Literal(m, _)) => m
+          case expressions.EqualTo(_, Literal(m, _)) => m
+        }
+        .getOrElse(Int.MinValue)
+        .asInstanceOf[Int]
+        .doubleValue()
+
+      val to = columnFilters
+        .collectFirst { case expressions.LessThan(_, Literal(m, _)) => m }
+        .getOrElse(Int.MaxValue)
+        .asInstanceOf[Int]
+        .doubleValue()
+
+      (from, to)
+
+    })
+
+    val from = fromTo.map(_._1)
+    val to = fromTo.map(_._2)
+    (Point(from.toVector), Point(to.toVector))
+  }
+
   private def extractWeightRange(filters: Seq[Expression]): (Weight, Weight) = {
     val min = filters
-      .collect { case expressions.GreaterThanOrEqual(_, Literal(m, IntegerType)) =>
+      .collectFirst { case expressions.GreaterThanOrEqual(_, Literal(m, IntegerType)) =>
         m.asInstanceOf[Int]
       }
-      .reduceOption(_ min _)
       .getOrElse(Int.MinValue)
 
     val max = filters
-      .collect { case expressions.LessThan(_, Literal(m, IntegerType)) =>
+      .collectFirst { case expressions.LessThan(_, Literal(m, IntegerType)) =>
         m.asInstanceOf[Int]
       }
-      .reduceOption(_ max _)
       .getOrElse(Int.MaxValue)
 
     (Weight(min), Weight(max))
@@ -67,7 +105,7 @@ case class OTreeIndex(index: TahoeLogFileIndex)
     val tahoeMatchingFiles = index.matchingFiles(partitionFilters, tahoeDataFilters)
 
     val (minWeight, maxWeight) = extractWeightRange(qbeastDataFilters)
-    val files = sample(minWeight, maxWeight, tahoeMatchingFiles)
+    val files = sample(minWeight, maxWeight, tahoeMatchingFiles, dataFilters)
 
     files
   }
@@ -81,7 +119,11 @@ case class OTreeIndex(index: TahoeLogFileIndex)
    * and find the files that satisfy the predicates
    */
 
-  def sample(fromPrecision: Weight, toPrecision: Weight, files: Seq[AddFile]): Seq[AddFile] = {
+  def sample(
+      fromPrecision: Weight,
+      toPrecision: Weight,
+      files: Seq[AddFile],
+      dataFilters: Seq[Expression]): Seq[AddFile] = {
 
     val samplingRange = RangeValues(fromPrecision, toPrecision) match {
       case range if range.to == Weight.MinValue => return List()
@@ -89,9 +131,7 @@ case class OTreeIndex(index: TahoeLogFileIndex)
       case range => range
     }
 
-    val originalFrom = Point(
-      Vector.fill(qbeastSnapshot.dimensionCount)(Int.MinValue.doubleValue()))
-    val originalTo = Point(Vector.fill(qbeastSnapshot.dimensionCount)(Int.MaxValue.doubleValue()))
+    val (originalFrom, originalTo) = extractRangeFilters(dataFilters, qbeastSnapshot.indexedCols)
 
     val filesVector = files.toVector
     qbeastSnapshot.spaceRevisionsMap.values
@@ -111,6 +151,7 @@ case class OTreeIndex(index: TahoeLogFileIndex)
           filesRevision,
           cubeWeights,
           replicatedSet)
+
       })
       .toSeq
 
