@@ -87,7 +87,7 @@ case class QbeastWriter(
       fs.mkdirs(deltaLog.logPath)
     }
 
-    val (qbeastData, spaceRevision, weightMap) =
+    val (qbeastData, revision, weightMap) =
       if (mode == SaveMode.Overwrite || qbeastSnapshot.isInitial ||
         !qbeastSnapshot.lastSpaceRevision.contains(data, columnsToIndex)) {
         oTreeAlgorithm.indexFirst(data, columnsToIndex)
@@ -95,7 +95,7 @@ case class QbeastWriter(
         oTreeAlgorithm.indexNext(data, qbeastSnapshot.lastRevisionSnapshot, announcedSet)
       }
 
-    val newFiles = writeFiles(qbeastData, spaceRevision, weightMap)
+    val newFiles = writeFiles(qbeastData, revision, weightMap)
     val addFiles = newFiles.collect { case a: AddFile => a }
     val deletedFiles = (mode, partitionFilters) match {
       case (SaveMode.Overwrite, None) =>
@@ -135,13 +135,13 @@ case class QbeastWriter(
   /**
    * Writes qbeast indexed data into files
    * @param qbeastData the dataFrame containing data to write
-   * @param spaceRevision the space revision of the data
+   * @param revision the revision of the data
    * @return the sequence of added files to the table
    */
 
   def writeFiles(
       qbeastData: DataFrame,
-      spaceRevision: Revision,
+      revision: Revision,
       weightMap: Map[CubeId, Weight]): Seq[FileAction] = {
 
     val (factory: OutputWriterFactory, serConf: SerializableConfiguration) = {
@@ -162,7 +162,7 @@ case class QbeastWriter(
         serConf = serConf,
         qbeastColumns = qbeastColumns,
         columnsToIndex = columnsToIndex,
-        spaceRevision = spaceRevision,
+        revision = revision,
         weightMap = weightMap)
     qbeastData
       .repartition(col(cubeColumnName), col(stateColumnName))

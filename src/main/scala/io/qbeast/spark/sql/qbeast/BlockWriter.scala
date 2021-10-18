@@ -38,10 +38,10 @@ case class BlockWriter(
     serConf: SerializableConfiguration,
     qbeastColumns: QbeastColumns,
     columnsToIndex: Seq[String],
-    spaceRevision: Revision,
+    revision: Revision,
     weightMap: Map[CubeId, Weight])
     extends Serializable {
-  private val dimensionCount = columnsToIndex.length
+  private val dimensionCount = revision.dimensionCount
 
   /**
    * Writes rows in corresponding files
@@ -90,7 +90,7 @@ case class BlockWriter(
             weightMinTag -> minWeight.value.toString,
             weightMaxTag -> maxWeight.value.toString,
             stateTag -> state,
-            spaceTag -> JsonUtils.toJson(spaceRevision),
+            spaceTag -> JsonUtils.toJson(revision),
             indexedColsTag -> ColumnsToIndex.encode(columnsToIndex),
             elementCountTag -> rowCount.toString)
 

@@ -62,7 +62,7 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
       serConf = serConf,
       qbeastColumns = qbeastColumns,
       columnsToIndex = names,
-      spaceRevision = Revision(data, Seq("id"), 10000),
+      revision = Revision(data, Seq("id"), 10000),
       weightMap = weightMap.toMap)
 
     val files = indexed
@@ -103,7 +103,7 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
       serConf = serConf,
       qbeastColumns = qbeastColumns,
       columnsToIndex = names,
-      spaceRevision = Revision(data, Seq("id"), 10000),
+      revision = Revision(data, Seq("id"), 10000),
       weightMap = weightMap.toMap)
 
     val files = indexed

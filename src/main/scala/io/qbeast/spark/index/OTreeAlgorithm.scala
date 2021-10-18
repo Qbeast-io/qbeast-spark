@@ -3,14 +3,9 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.spark.index.QbeastColumns.{
-  cubeColumnName,
-  cubeToReplicateColumnName,
-  stateColumnName,
-  weightColumnName
-}
+import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.model._
-import io.qbeast.spark.sql.qbeast.{RevisionSnapshot}
+import io.qbeast.spark.sql.qbeast.RevisionSnapshot
 import io.qbeast.spark.sql.rules.Functions.qbeastHash
 import io.qbeast.spark.sql.utils.State._
 import org.apache.spark.sql.functions._
@@ -36,27 +31,27 @@ trait OTreeAlgorithm {
       columnsToIndex: Seq[String]): (DataFrame, Revision, Map[CubeId, Weight])
 
   /**
-   * Indexes a given non-first data frame using the current snapshot
+   * Indexes a given non-first data frame using the current revision snapshot
    * of the index state and the announced set.
    *
    * @param dataFrame the data frame to append
-   * @param snapshot the index state snapshot
-   * @param announcedSet the announced set
-   * @return the indexed data frame, the space revision and the weightMap
+   * @param revisionSnapshot the index state snapshot of the revision
+   * @param announcedSet the announced set of the revision
+   * @return the indexed data frame, the revision and the weightMap
    */
   def indexNext(
       dataFrame: DataFrame,
-      snapshot: RevisionSnapshot,
+      revisionSnapshot: RevisionSnapshot,
       announcedSet: Set[CubeId]): (DataFrame, Revision, Map[CubeId, Weight])
 
   /**
    * Returns the columns contributing to the pseudo random weight generation.
    *
    * @param schema the schema
-   * @param columnsToIndex the columns to index
+   * @param dimensionColumns the columns to index
    * @return the columns
    */
-  def getWeightContributorColumns(schema: StructType, columnsToIndex: Seq[String]): Seq[String]
+  def getWeightContributorColumns(schema: StructType, dimensionColumns: Seq[String]): Seq[String]
 
   /**
    * The desired size of the cube.
@@ -69,22 +64,22 @@ trait OTreeAlgorithm {
    * Takes the data from different cubes and replicates it to their children
    *
    * @param dataFrame data to be replicated
-   * @param snapshot current revision snapshot to index
+   * @param revisionSnapshot current revision snapshot to index
    * @param cubesToReplicate set of cubes to replicate
    * @return the modified dataFrame with replicated data
    */
   def replicateCubes(
       dataFrame: DataFrame,
-      snapshot: RevisionSnapshot,
+      revisionSnapshot: RevisionSnapshot,
       cubesToReplicate: Set[CubeId]): (DataFrame, Map[CubeId, Weight])
 
   /**
    * Analyze the index structure and returns which cubes need to be optimized
    *
-   * @param qbeastSnapshot snapshot
+   * @param revisionSnapshot snapshot of a single Revision
    * @return the sequence of cubes that need optimization
    */
-  def analyzeIndex(qbeastSnapshot: RevisionSnapshot): Seq[CubeId]
+  def analyzeIndex(revisionSnapshot: RevisionSnapshot): Seq[CubeId]
 
 }
 
@@ -106,30 +101,30 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
       dataFrame: DataFrame,
       columnsToIndex: Seq[String]): (DataFrame, Revision, Map[CubeId, Weight]) = {
     // splitting the list of columns in two to fit the signature of the agg method.
-    val spaceRevision = Revision(dataFrame, columnsToIndex, desiredCubeSize)
+    val revision = Revision(dataFrame, columnsToIndex, desiredCubeSize)
     val (indexedDataFrame, cubeWeights: Map[CubeId, Weight]) = index(
       dataFrame = dataFrame,
-      spaceRevision = spaceRevision,
+      revision = revision,
       cubeNormalizedWeights = Map.empty,
       announcedSet = Set.empty,
       replicatedSet = Set.empty,
       isReplication = false)
-    (indexedDataFrame, spaceRevision, cubeWeights)
+    (indexedDataFrame, revision, cubeWeights)
   }
 
   override def indexNext(
       dataFrame: DataFrame,
-      snapshot: RevisionSnapshot,
+      revisionSnapshot: RevisionSnapshot,
       announcedSet: Set[CubeId]): (DataFrame, Revision, Map[CubeId, Weight]) = {
-    val spaceRevision = snapshot.revision
+    val revision = revisionSnapshot.revision
     val (indexedDataFrame, cubeWeights: Map[CubeId, Weight]) = index(
       dataFrame = dataFrame,
-      spaceRevision,
-      cubeNormalizedWeights = snapshot.cubeNormalizedWeights,
+      revision,
+      cubeNormalizedWeights = revisionSnapshot.cubeNormalizedWeights,
       announcedSet = announcedSet,
-      replicatedSet = snapshot.replicatedSet,
+      replicatedSet = revisionSnapshot.replicatedSet,
       isReplication = false)
-    (indexedDataFrame, spaceRevision, cubeWeights)
+    (indexedDataFrame, revision, cubeWeights)
   }
 
   override def getWeightContributorColumns(
@@ -145,11 +140,11 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
     }
   }.map(_.name)
 
-  override def analyzeIndex(snapshot: RevisionSnapshot): Seq[CubeId] = {
+  override def analyzeIndex(revisionSnapshot: RevisionSnapshot): Seq[CubeId] = {
 
-    val dimensionCount = snapshot.revision.dimensionCount
-    val overflowedSet = snapshot.overflowedSet
-    val replicatedSet = snapshot.replicatedSet
+    val dimensionCount = revisionSnapshot.revision.dimensionCount
+    val overflowedSet = revisionSnapshot.overflowedSet
+    val replicatedSet = revisionSnapshot.replicatedSet
 
     val cubesToOptimize = overflowedSet
       .filter(cube => {
@@ -166,15 +161,15 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
 
   override def replicateCubes(
       dataFrame: DataFrame,
-      snapshot: RevisionSnapshot,
+      revisionSnapshot: RevisionSnapshot,
       announcedSet: Set[CubeId]): (DataFrame, Map[CubeId, Weight]) = {
 
-    val cubeWeights = snapshot.cubeNormalizedWeights
-    val replicatedSet = snapshot.replicatedSet
+    val cubeWeights = revisionSnapshot.cubeNormalizedWeights
+    val replicatedSet = revisionSnapshot.replicatedSet
 
     index(
       dataFrame = dataFrame,
-      spaceRevision = snapshot.revision,
+      revision = revisionSnapshot.revision,
       cubeNormalizedWeights = cubeWeights,
       announcedSet = announcedSet,
       replicatedSet = replicatedSet,
@@ -184,7 +179,7 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
 
   private def index(
       dataFrame: DataFrame,
-      spaceRevision: Revision,
+      revision: Revision,
       cubeNormalizedWeights: Map[CubeId, NormalizedWeight],
       announcedSet: Set[CubeId],
       replicatedSet: Set[CubeId],
@@ -193,7 +188,7 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
     val sqlContext = SparkSession.active.sqlContext
     import sqlContext.implicits._
 
-    val dimensionColumns = spaceRevision.dimensionColumns
+    val dimensionColumns = revision.dimensionColumns
     val weightedDataFrame =
       dataFrame.transform(df => addRandomWeight(df, dimensionColumns))
 
@@ -205,7 +200,7 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
       desiredCubeSize
     }
 
-    val dimensionCount = spaceRevision.dimensionCount
+    val dimensionCount = revision.dimensionCount
     val selectionColumns =
       if (isReplication) dimensionColumns ++ Seq(weightColumnName, cubeToReplicateColumnName)
       else dimensionColumns ++ Seq(weightColumnName)
@@ -221,7 +216,7 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
             replicatedSet)
         rows.foreach { row =>
           val values = dimensionColumns.map(row.getAs[Any])
-          val point = rowValuesToPoint(values, spaceRevision)
+          val point = rowValuesToPoint(values, revision)
           val weight = Weight(row.getAs[Int](weightColumnName))
           if (isReplication) {
             val parentBytes = row.getAs[Array[Byte]](cubeToReplicateColumnName)
@@ -249,7 +244,7 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
 
     val findTargetCubeIds =
       udf((rowValues: Seq[Any], weightValue: Int, parentBytes: Any) => {
-        val point = rowValuesToPoint(rowValues, spaceRevision)
+        val point = rowValuesToPoint(rowValues, revision)
         val weight = Weight(weightValue)
         val parent = parentBytes match {
           case bytes: Array[Byte] => Some(CubeId(dimensionCount, bytes))
@@ -322,8 +317,8 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
   private def rowValuesColumn(columnsToIndex: Seq[String]): Column =
     array(columnsToIndex.map(col): _*)
 
-  private def addRandomWeight(df: DataFrame, columnsToIndex: Seq[String]): DataFrame = {
-    val columns = getWeightContributorColumns(df.schema, columnsToIndex).map(name => df(name))
+  private def addRandomWeight(df: DataFrame, dimensionColumns: Seq[String]): DataFrame = {
+    val columns = getWeightContributorColumns(df.schema, dimensionColumns).map(name => df(name))
     df.withColumn(weightColumnName, qbeastHash(columns: _*))
   }
 

@@ -42,7 +42,7 @@ class NewRevisionTest
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
       val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot, 10000)
 
-      qbeastSnapshot.spaceRevisions.count() shouldBe spaceMultipliers.length
+      qbeastSnapshot.allRevisions.count() shouldBe spaceMultipliers.length
 
   }
 
