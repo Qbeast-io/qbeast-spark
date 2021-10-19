@@ -28,10 +28,7 @@ case class BlockStats protected (
    * @return the updated BlockStats object
    */
   def update(minWeight: Weight): BlockStats = {
-    var minW = minWeight
-    if (!this.minWeight.equals(Weight.MinValue)) {
-      minW = Weight(minWeight.value.min(this.minWeight.value))
-    }
+    val minW = Weight(minWeight.value.min(this.minWeight.value))
     this.copy(rowCount = rowCount + 1, minWeight = minW)
   }
 
@@ -53,6 +50,6 @@ object BlockStats {
    * @return a new empty instance of BlockStats
    */
   def apply(cube: String, state: String, maxWeight: Weight): BlockStats =
-    BlockStats(cube, maxWeight, Weight.MinValue, state, 0)
+    BlockStats(cube, maxWeight, minWeight = Weight.MaxValue, state, 0)
 
 }
