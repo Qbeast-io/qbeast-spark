@@ -50,7 +50,7 @@ We achieve these functionalities by combining the **recursive space division** a
 1 - Install [**sbt**(>=1.4.7)](https://www.scala-sbt.org/download.html).
 
 2 - Install **Spark**:
-Download **Spark(3.1.1)**, unzip it, and create the `SPARK_HOME` environment variable:
+Download **Spark 3.1.1 with Hadoop 3.2**, unzip it, and create the `SPARK_HOME` environment variable:
 
 ```bash
 wget https://archive.apache.org/dist/spark/spark-3.1.1/spark-3.1.1-bin-hadoop3.2.tgz

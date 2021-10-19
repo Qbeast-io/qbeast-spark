@@ -9,9 +9,9 @@ In this sections you will find guides to better understand the technology behind
 
 ## Writing
 
-Inside the project folder, launch a spark-shell with the required **dependencies**.
+Inside the project folder, launch a spark-shell with the required **dependencies**. The following example uses AWS S3 for reading from a **public** dataset.
 
->**Warning: For reading a public AWS S3 dataset, Spark 3.1.1 and Hadoop 3.2.2 are needed.** 
+>**ℹ️ Warning: Different cloud providers may require specific versions of Spark or Hadoop, or specific libraries. Refer [here](CloudStorages.md) to check compatibilities.** 
 
 ```bash
 $SPARK_HOME/bin/spark-shell \
@@ -20,9 +20,9 @@ $SPARK_HOME/bin/spark-shell \
 --conf spark.hadoop.fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider \ 
 --packages io.delta:delta-core_2.12:0.8.0,\
 com.amazonaws:aws-java-sdk:1.12.20,\
-org.apache.hadoop:hadoop-common:3.2.2,\
-org.apache.hadoop:hadoop-client:3.2.2,\
-org.apache.hadoop:hadoop-aws:3.2.2
+org.apache.hadoop:hadoop-common:3.2.0,\
+org.apache.hadoop:hadoop-client:3.2.0,\
+org.apache.hadoop:hadoop-aws:3.2.0
 ```
 As an extra configuration, you can also change the number of records of the resulting files with:
 
