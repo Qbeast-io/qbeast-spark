@@ -12,22 +12,22 @@ import org.scalatest.matchers.should.Matchers
 
 class QbeastExpressionUtilsTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec {
 
-  def weightFilters(from: Weight, to: Weight): Seq[Expression] = {
+  def weightFilters(from: Weight, to: Weight): Expression = {
     val qbeast_hash = new QbeastMurmur3Hash(Seq(new Column("id").expr))
     val lessThan = LessThan(qbeast_hash, Literal(to.value))
     val greaterThanOrEqual = GreaterThanOrEqual(qbeast_hash, Literal(from.value))
-    Seq(lessThan, greaterThanOrEqual)
+    And(lessThan, greaterThanOrEqual)
   }
 
-  def rangeFilters(from: Any, to: Any, columnName: String): Seq[Expression] = {
+  def rangeFilters(from: Any, to: Any, columnName: String): Expression = {
 
     val column = new Column(columnName).expr
     val lessThan = LessThan(column, Literal(to))
     val greaterThanOrEqual = GreaterThanOrEqual(column, Literal(from))
-    Seq(lessThan, greaterThanOrEqual)
+    And(lessThan, greaterThanOrEqual)
   }
 
-  "QbeastExpressionUtils" should
+  "extractWeightRange" should
     "extract all weight range when expressions is empty" in withSpark(spark => {
 
       QbeastExpressionUtils
@@ -38,31 +38,56 @@ class QbeastExpressionUtilsTest extends AnyFlatSpec with Matchers with QbeastInt
 
     val (from, to) = (Weight(3), Weight(8))
     val expression = weightFilters(from, to)
-    QbeastExpressionUtils.extractWeightRange(expression) shouldBe ((from, to))
+    QbeastExpressionUtils.extractWeightRange(Seq(expression)) shouldBe ((from, to))
 
   })
 
-  it should "extract query range" in withSpark(spark => {
+  "extractQueryRange" should "extract query range" in withSpark(spark => {
 
     val (from, to) = (3, 8)
     val columnName = "id"
     val expression = rangeFilters(from, to, columnName)
     QbeastExpressionUtils
-      .extractQueryRange(expression, Seq(columnName), spark) shouldBe ((Point(from), Point(to)))
+      .extractQueryRange(Seq(expression), Seq(columnName), spark) shouldBe (
+      (
+        Point(from),
+        Point(to)))
 
   })
 
-  it should "extract qbeast filters correctly" in withSpark(spark => {
+  it should "extract all query range when expressions is empty" in withSpark(spark => {
+
+    QbeastExpressionUtils
+      .extractQueryRange(Seq.empty, Seq("id"), spark) shouldBe
+      ((Point(Int.MinValue), Point(Int.MaxValue)))
+  })
+
+  it should "not process disjunctive predicates" in withSpark(spark => {
+
+    val (from, to) = (3, 8)
+    val columnName = "id"
+    val expression =
+      Or(
+        LessThan(new Column(columnName).expr, Literal(from)),
+        GreaterThanOrEqual(new Column(columnName).expr, Literal(to))).canonicalized
+
+    QbeastExpressionUtils
+      .extractQueryRange(Seq(expression), Seq(columnName), spark) shouldBe
+      ((Point(Int.MinValue), Point(Int.MaxValue)))
+
+  })
+
+  "extractDataFilters" should "extract qbeast filters correctly" in withSpark(spark => {
 
     val (from, to) = (3, 8)
     val columnName = "id"
     val rangeExpression = rangeFilters(from, to, columnName)
     val weightExpression = weightFilters(Weight(from), Weight(to))
-    val expression = rangeExpression ++ weightExpression
+    val expressions = Seq(rangeExpression, weightExpression)
 
     QbeastExpressionUtils
-      .extractDataFilters(expression, Seq(columnName), spark)
-      ._1 shouldBe expression
+      .extractDataFilters(expressions, Seq(columnName), spark)
+      ._1 shouldBe expressions
 
   })
 }

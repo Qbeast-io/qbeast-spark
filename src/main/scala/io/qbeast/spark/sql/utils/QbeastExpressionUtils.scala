@@ -5,6 +5,7 @@ package io.qbeast.spark.sql.utils
 
 import io.qbeast.spark.index.Weight
 import io.qbeast.spark.model.Point
+import io.qbeast.spark.sql.rules.QbeastMurmur3Hash
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
@@ -21,12 +22,21 @@ object QbeastExpressionUtils {
     }
   }
 
+  private def isQbeastWeightExpression(expression: Expression): Boolean = {
+    expression match {
+      case BinaryComparison(_: QbeastMurmur3Hash, _) => true
+      case _ => false
+    }
+  }
+
   private def isQbeastExpression(
       expression: Expression,
       dimensionColumns: Seq[String],
       spark: SparkSession): Boolean =
-    expression.children.head.prettyName
-      .equals("qbeast_hash") || hasQbeastColumnReference(expression, dimensionColumns, spark)
+    isQbeastWeightExpression(expression) || hasQbeastColumnReference(
+      expression,
+      dimensionColumns,
+      spark)
 
   /**
    * Analyzes the data filters from the query
@@ -77,7 +87,7 @@ object QbeastExpressionUtils {
 
   /**
    * Extracts the space range of the query
-   * @param dataFilters the filters passed by the user
+   * @param dataFilters the filters passed by the spark engine
    * @param dimensionColumns the columns indexed with Qbeast
    * @return
    */
@@ -121,10 +131,16 @@ object QbeastExpressionUtils {
     (Point(from.toVector), Point(to.toVector))
   }
 
-  def extractWeightRange(filters: Seq[Expression]): (Weight, Weight) = {
-    val weightFilters = filters.filter(expression =>
-      expression.children.head.prettyName
-        .equals("qbeast_hash"))
+  /**
+   * Extracts the sampling weight range of the query
+   * @param dataFilters the filters passed by the spark engine
+   * @return the upper and lower weight bounds (default: Weight.MinValue, Weight.MaxValue)
+   */
+  def extractWeightRange(dataFilters: Seq[Expression]): (Weight, Weight) = {
+
+    val weightFilters = dataFilters
+      .flatMap(filter => splitConjunctivePredicates(filter))
+      .filter(isQbeastWeightExpression)
 
     val min = weightFilters
       .collectFirst { case GreaterThanOrEqual(_, Literal(m, IntegerType)) =>
