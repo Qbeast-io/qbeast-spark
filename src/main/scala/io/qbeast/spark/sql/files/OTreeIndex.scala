@@ -36,11 +36,12 @@ case class OTreeIndex(index: TahoeLogFileIndex)
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[AddFile] = {
 
-    val (qbeastDataFilters, tahoeDataFilters) = extractDataFilters(dataFilters, indexedCols)
+    val (qbeastDataFilters, tahoeDataFilters) =
+      extractDataFilters(dataFilters, indexedCols, spark)
     val tahoeMatchingFiles = index.matchingFiles(partitionFilters, tahoeDataFilters)
 
     val (minWeight, maxWeight) = extractWeightRange(qbeastDataFilters)
-    val (from, to) = extractQueryRange(qbeastDataFilters, indexedCols)
+    val (from, to) = extractQueryRange(qbeastDataFilters, indexedCols, spark)
     val files = sample(minWeight, maxWeight, from, to, tahoeMatchingFiles)
 
     files

@@ -8,20 +8,22 @@ import org.apache.spark.sql.types._
 
 object QbeastExpressionUtils {
 
-  private val spark = SparkSession.active
-
   private def hasQbeastColumnReference(
       expr: Expression,
-      dimensionColumns: Seq[String]): Boolean = {
+      dimensionColumns: Seq[String],
+      spark: SparkSession): Boolean = {
     val nameEquality = spark.sessionState.analyzer.resolver
     expr.references.forall { r =>
       dimensionColumns.exists(nameEquality(r.name, _))
     }
   }
 
-  private def isQbeastExpression(expression: Expression, dimensionColumns: Seq[String]): Boolean =
+  private def isQbeastExpression(
+      expression: Expression,
+      dimensionColumns: Seq[String],
+      spark: SparkSession): Boolean =
     expression.children.head.prettyName
-      .equals("qbeast_hash") || hasQbeastColumnReference(expression, dimensionColumns)
+      .equals("qbeast_hash") || hasQbeastColumnReference(expression, dimensionColumns, spark)
 
   /**
    * Analyzes the data filters from the query
@@ -30,9 +32,10 @@ object QbeastExpressionUtils {
    */
   def extractDataFilters(
       dataFilters: Seq[Expression],
-      dimensionColumns: Seq[String]): (Seq[Expression], Seq[Expression]) = {
+      dimensionColumns: Seq[String],
+      spark: SparkSession): (Seq[Expression], Seq[Expression]) = {
     dataFilters.partition(expression =>
-      isQbeastExpression(expression, dimensionColumns) && !SubqueryExpression.hasSubquery(
+      isQbeastExpression(expression, dimensionColumns, spark) && !SubqueryExpression.hasSubquery(
         expression))
   }
 
@@ -61,7 +64,10 @@ object QbeastExpressionUtils {
     }
   }
 
-  private def hasColumnReference(expr: Expression, columnName: String): Boolean = {
+  private def hasColumnReference(
+      expr: Expression,
+      columnName: String,
+      spark: SparkSession): Boolean = {
     val nameEquality = spark.sessionState.analyzer.resolver
     expr.references.forall(r => nameEquality(r.name, columnName))
   }
@@ -75,14 +81,15 @@ object QbeastExpressionUtils {
 
   def extractQueryRange(
       dataFilters: Seq[Expression],
-      dimensionColumns: Seq[String]): (Point, Point) = {
+      dimensionColumns: Seq[String],
+      spark: SparkSession): (Point, Point) = {
 
     // Split conjunctive predicates
     val filters = dataFilters.flatMap(filter => splitConjunctivePredicates(filter))
 
     val fromTo = dimensionColumns.map(columnName => {
 
-      val columnFilters = filters.filter(hasColumnReference(_, columnName))
+      val columnFilters = filters.filter(hasColumnReference(_, columnName, spark))
 
       val from = columnFilters
         .collectFirst {
