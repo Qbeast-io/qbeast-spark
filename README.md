@@ -50,7 +50,8 @@ We achieve these functionalities by combining the **recursive space division** a
 1 - Install [**sbt**(>=1.4.7)](https://www.scala-sbt.org/download.html).
 
 2 - Install **Spark**:
-Download **Spark 3.1.1 with Hadoop 3.2**, unzip it, and create the `SPARK_HOME` environment variable:
+Download **Spark 3.1.1 with Hadoop 3.2***, unzip it, and create the `SPARK_HOME` environment variable:<br />
+*: You can use Hadoop 2.7 if desired, but you could have some troubles with different cloud providers' storage, read more about it [here](docs/CloudStorages.md).
 
 ```bash
 wget https://archive.apache.org/dist/spark/spark-3.1.1/spark-3.1.1-bin-hadoop3.2.tgz
@@ -91,10 +92,10 @@ $SPARK_HOME/bin/spark-shell \
 Read the CSV source file placed inside the project.
 
 ```scala
-val csv_df = (spark.read.format("csv")
+val csv_df = spark.read.format("csv")
   .option("header", "true")
   .option("inferSchema", "true")
-  .load("./src/test/resources/ecommerce100K_2019_Oct.csv"))
+  .load("./src/test/resources/ecommerce100K_2019_Oct.csv")
 ```
 
 Indexing the dataset by writing it into the **qbeast** format, specifying the columns to index.

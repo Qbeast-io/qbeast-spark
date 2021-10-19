@@ -4,7 +4,7 @@
 
 Welcome to the documentation of the Qbeast-Spark project.
 
-In this sections you will find guides to better understand the technology behind an open format and be able to play with it in just a few lines of code. 
+In these sections you will find guides to better understand the technology behind an open format and be able to play with it in just a few lines of code. 
 
 
 ## Writing
@@ -15,14 +15,14 @@ Inside the project folder, launch a spark-shell with the required **dependencies
 
 ```bash
 $SPARK_HOME/bin/spark-shell \
---jars ./target/scala-2.12/qbeast-spark-assembly-0.1.0.jar \
---conf spark.sql.extensions=io.qbeast.spark.sql.QbeastSparkSessionExtension \
---conf spark.hadoop.fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider \ 
---packages io.delta:delta-core_2.12:0.8.0,\
-com.amazonaws:aws-java-sdk:1.12.20,\
-org.apache.hadoop:hadoop-common:3.2.0,\
-org.apache.hadoop:hadoop-client:3.2.0,\
-org.apache.hadoop:hadoop-aws:3.2.0
+  --jars ./target/scala-2.12/qbeast-spark-assembly-0.1.0.jar \
+  --conf spark.sql.extensions=io.qbeast.spark.sql.QbeastSparkSessionExtension \
+  --conf spark.hadoop.fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider \ 
+  --packages io.delta:delta-core_2.12:0.8.0,\
+    com.amazonaws:aws-java-sdk:1.12.20,\
+    org.apache.hadoop:hadoop-common:3.2.0,\
+    org.apache.hadoop:hadoop-client:3.2.0,\
+    org.apache.hadoop:hadoop-aws:3.2.0
 ```
 As an extra configuration, you can also change the number of records of the resulting files with:
 
@@ -30,7 +30,7 @@ As an extra configuration, you can also change the number of records of the resu
 --conf spark.driver.extraJavaOptions="-Dqbeast.index.size=200000"
 ```
 
-Read the ***store_sales*** public dataset from `TPC-DS`, the table has with **23** columns in total and was generated with a `scaleFactor` of 1. Check [The Making of TPC-DS](http://www.tpc.org/tpcds/presentations/the_making_of_tpcds.pdf) for more detilas on the dataset.
+Read the ***store_sales*** public dataset from `TPC-DS`, the table has with **23** columns in total and was generated with a `scaleFactor` of 1. Check [The Making of TPC-DS](http://www.tpc.org/tpcds/presentations/the_making_of_tpcds.pdf) for more details on the dataset.
 
 ```scala
 val parquetTablePath = "s3a://qbeast-public-datasets/store_sales"
