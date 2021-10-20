@@ -17,6 +17,13 @@ import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, LogicalRela
 import org.apache.spark.sql.functions.{min, sum}
 import org.apache.spark.sql.types.{BinaryType, LongType, StructField, StructType}
 
+/**
+ * Snapshot that provides information about the current index state of a given Revision.
+ * @param revision the given Revision
+ * @param files dataset of AddFiles that belongs to the specific Revision
+ * @param txnVersion the transaction version of the replicated set
+ * @param dataPath the data path
+ */
 case class RevisionSnapshot(
     revision: Revision,
     files: Dataset[AddFile],
