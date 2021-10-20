@@ -89,7 +89,7 @@ case class QbeastWriter(
 
     val (qbeastData, revision, weightMap) =
       if (mode == SaveMode.Overwrite || qbeastSnapshot.isInitial ||
-        !qbeastSnapshot.lastSpaceRevision.contains(data, columnsToIndex)) {
+        !qbeastSnapshot.lastSpaceRevision.contains(data)) {
         oTreeAlgorithm.indexFirst(data, columnsToIndex)
       } else {
         oTreeAlgorithm.indexNext(data, qbeastSnapshot.lastRevisionSnapshot, announcedSet)
