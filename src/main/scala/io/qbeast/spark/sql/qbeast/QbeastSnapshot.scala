@@ -48,7 +48,7 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
    * Returns available revisions ordered by timestamp
    * @return a Dataset of Revision
    */
-  def allRevisions: Dataset[Revision] =
+  def revisions: Dataset[Revision] =
     snapshot.allFiles
       .select(s"tags.$spaceTag")
       .distinct
@@ -61,7 +61,7 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
    */
   def lastSpaceRevision: Revision = {
     // Dataset spaceRevisions is ordered by timestamp
-    allRevisions
+    revisions
       .first()
 
   }
@@ -78,7 +78,7 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
   }
 
   lazy val revisionSnapshots: Seq[RevisionSnapshot] = {
-    allRevisions
+    revisions
       .collect()
       .map(revision => {
         val revisionFiles = snapshot.allFiles.filter(_.tags(spaceTag).equals(revision.toString))

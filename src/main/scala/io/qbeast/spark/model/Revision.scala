@@ -13,8 +13,9 @@ case class Revision(
     timestamp: Long,
     desiredCubeSize: Int,
     dimensionColumns: Seq[String],
-    dimensionCount: Int,
     transformations: IndexedSeq[LinearTransformation]) {
+
+  val dimensionCount = dimensionColumns.length
 
   def root: CubeId = CubeId.root(dimensionCount)
 
@@ -78,7 +79,6 @@ object Revision {
       timestamp = System.currentTimeMillis(),
       desiredCubeSize = desiredCubeSize,
       dimensionColumns = columnsToIndex,
-      dimensionCount = columnsToIndex.size,
       transformations = transformations)
   }
 

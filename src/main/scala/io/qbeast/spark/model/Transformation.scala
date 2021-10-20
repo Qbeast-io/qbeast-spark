@@ -16,18 +16,6 @@ trait Transformation {
    */
   def transform(value: Double): Double
 
-  /**
-   * The transform and revert operation are lossy, so use this method only
-   * for testing/debugging.
-   *
-   * @param normalizedValue a number between 0 and 1
-   * @return the approximation of the original value
-   */
-  @deprecated(
-    "Transform and revert are lossy, use this method only for testing or debugging ",
-    "0.1.0")
-  def revert(normalizedValue: Double): Double
-
 }
 
 /**
@@ -37,9 +25,6 @@ object IdentityTransformation extends Transformation {
 
   @inline
   override def transform(value: Double): Double = value
-
-  @inline
-  override def revert(normalizedValue: Double): Double = normalizedValue
 
 }
 
@@ -54,7 +39,5 @@ case class LinearTransformation(min: Double, max: Double) extends Transformation
   val scale: Double = 1.0f / (max - min)
 
   override def transform(value: Double): DimensionLog = (value - min) * scale
-
-  override def revert(normalizedValue: Double): DimensionLog = normalizedValue / scale + min
 
 }
