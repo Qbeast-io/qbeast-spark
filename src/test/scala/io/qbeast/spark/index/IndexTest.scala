@@ -263,7 +263,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
 
-        deltaLog.snapshot.allFiles.foreach(f =>
+        deltaLog.snapshot.allFiles.collect() foreach (f =>
           {
             val cubeId = CubeId(dimensionCount, f.tags("cube"))
             cubeId.parent match {
@@ -271,7 +271,8 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
               case Some(parent) =>
                 val minWeight = Weight(f.tags("minWeight").toInt)
                 val parentMaxWeight = weightMap(parent)
-                assert(minWeight.compare(parentMaxWeight) >= 0)
+
+                minWeight should be >= parentMaxWeight
             }
           }: Unit)
       }
