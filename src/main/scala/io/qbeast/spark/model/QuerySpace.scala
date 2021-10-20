@@ -11,11 +11,6 @@ import io.qbeast.spark.index.CubeId
 trait QuerySpace {
 
   /**
-   * The dimensional context.
-   */
-  implicit val context: DimensionalContext
-
-  /**
    * The point with minimum coordinates.
    */
   val from: Point
@@ -39,7 +34,6 @@ trait QuerySpace {
  * @param dimensionCount the dimension count
  */
 case class AllSpace(dimensionCount: Int) extends QuerySpace {
-  implicit val context: DimensionalContext = DimensionalContext(dimensionCount)
 
   val to: Point = Point(Vector.fill(dimensionCount)(1.0))
 
@@ -62,7 +56,6 @@ case class QuerySpaceFromTo(originalFrom: Point, originalTo: Point, revision: Re
 
   require(originalFrom <= originalTo, "from point must be < then to point")
   require(originalFrom.dimensionCount == originalTo.dimensionCount)
-  implicit val context: DimensionalContext = DimensionalContext(originalTo.dimensionCount)
   val from: Point = revision.transform(originalFrom.coordinates)
   val to: Point = revision.transform(originalTo.coordinates)
 
