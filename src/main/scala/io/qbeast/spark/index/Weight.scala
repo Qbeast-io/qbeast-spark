@@ -87,6 +87,13 @@ case class Weight(value: Int) extends Ordered[Weight] with Serializable {
     MaxValue
   }
 
+  /**
+   * Compares with a given weight. Returns the minimum of them.
+   * @param other the other weight
+   * @return the minimum weight
+   */
+  def min(other: Weight): Weight = if (this <= other) this else other
+
   override def compare(that: Weight): Int = value.compare(that.value)
 
   override def hashCode(): Int = value.hashCode()

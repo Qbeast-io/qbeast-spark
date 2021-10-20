@@ -28,7 +28,7 @@ case class BlockStats protected (
    * @return the updated BlockStats object
    */
   def update(minWeight: Weight): BlockStats = {
-    val minW = Weight(minWeight.value.min(this.minWeight.value))
+    val minW = minWeight.min(this.minWeight)
     this.copy(rowCount = rowCount + 1, minWeight = minW)
   }
 
