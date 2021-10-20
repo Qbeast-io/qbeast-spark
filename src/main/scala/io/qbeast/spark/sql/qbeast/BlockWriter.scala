@@ -68,15 +68,14 @@ case class BlockWriter(
 
         // The row with only the original columns
         val cleanRow = Seq.newBuilder[Any]
-        var rowWeight = Weight.MinValue
         for (i <- (0 until row.numFields)) {
           if (!qbeastColumns.contains(i)) {
             cleanRow += row.get(i, schemaIndex(i).dataType)
           }
-          if (i == qbeastColumns.weightColumnIndex) {
-            rowWeight = new Weight(row.getInt(i))
-          }
         }
+
+        // Get the weight of the row to compute the minimumWeight per block
+        val rowWeight = Weight(row.getInt(qbeastColumns.weightColumnIndex))
 
         // Writing the data in a single file.
         blockCtx.writer.write(InternalRow.fromSeq(cleanRow.result()))
