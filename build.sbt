@@ -7,6 +7,7 @@ lazy val qbeastSpark = (project in file("."))
     libraryDependencies ++= Seq(
       sparkCore % Provided,
       sparkSql % Provided,
+      hadoopClient % Provided,
       deltaCore % Provided,
       typesafeConf,
       sparkFastTests % Test,
