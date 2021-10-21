@@ -14,7 +14,7 @@ import org.apache.spark.sql.delta.{
 }
 import org.apache.spark.sql.delta.schema.{ImplicitMetadataOperation, SchemaUtils}
 import org.apache.spark.sql.delta.util.JsonUtils
-import org.apache.spark.sql.types.{StructField, StructType}
+import org.apache.spark.sql.types.StructType
 
 class QbeastMetadataOperation extends ImplicitMetadataOperation {
 
@@ -67,10 +67,7 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
     val spark = data.sparkSession
     val schema = data.schema
 
-    val dataSchema = StructType(schema.fields.map {
-      case StructField(name, dataType, _, metadata) =>
-        StructField(name, dataType, nullable = true, metadata)
-    })
+    val dataSchema = StructType(schema.fields.map(_.copy(nullable = true)))
 
     val mergedSchema = if (isOverwriteMode && canOverwriteSchema) {
       dataSchema
