@@ -4,7 +4,7 @@
 package io.qbeast.spark.sql.qbeast
 
 import io.qbeast.spark.index.{CubeId, QbeastColumns, Weight}
-import io.qbeast.spark.sql.utils.TagUtils._
+import io.qbeast.spark.sql.utils.TagUtils
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapred.{JobConf, TaskAttemptContextImpl, TaskAttemptID}
 import org.apache.hadoop.mapreduce.TaskType
@@ -85,12 +85,12 @@ case class BlockWriter(
               writer,
               path) =>
           val tags = Map(
-            cubeTag -> cube,
-            weightMinTag -> minWeight.value.toString,
-            weightMaxTag -> maxWeight.value.toString,
-            stateTag -> state,
-            spaceTag -> JsonUtils.toJson(revisionTimestamp),
-            elementCountTag -> rowCount.toString)
+            TagUtils.cube -> cube,
+            TagUtils.minWeight -> minWeight.value.toString,
+            TagUtils.maxWeight -> maxWeight.value.toString,
+            TagUtils.state -> state,
+            TagUtils.space -> JsonUtils.toJson(revisionTimestamp),
+            TagUtils.elementCount -> rowCount.toString)
 
           writer.close()
 

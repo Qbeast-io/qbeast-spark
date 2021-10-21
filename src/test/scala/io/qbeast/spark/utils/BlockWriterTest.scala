@@ -8,7 +8,7 @@ import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.index.{CubeId, QbeastColumns, Weight}
 import io.qbeast.spark.model.Point
 import io.qbeast.spark.sql.qbeast.BlockWriter
-import io.qbeast.spark.sql.utils.TagUtils.cubeTag
+import io.qbeast.spark.sql.utils.TagUtils
 import io.qbeast.spark.utils.BlockWriterTest.IndexData
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.sql.DataFrame
@@ -122,6 +122,6 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
       }
       .collect()
       .toSet
-    assert(files.map(_.tags(cubeTag)).forall(cube => cubes.contains(cube)))
+    assert(files.map(_.tags(TagUtils.cube)).forall(cube => cubes.contains(cube)))
   }
 }

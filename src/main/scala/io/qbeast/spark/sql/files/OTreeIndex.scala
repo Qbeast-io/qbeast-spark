@@ -6,8 +6,8 @@ package io.qbeast.spark.sql.files
 import io.qbeast.spark.index.{CubeId, Weight}
 import io.qbeast.spark.model.{Point, QuerySpace, QuerySpaceFromTo, RangeValues}
 import io.qbeast.spark.sql.qbeast
-import io.qbeast.spark.sql.utils.State.ANNOUNCED
-import io.qbeast.spark.sql.utils.TagUtils._
+import io.qbeast.spark.sql.utils.State
+import io.qbeast.spark.sql.utils.TagUtils
 import org.apache.spark.sql.catalyst.expressions
 import org.apache.spark.sql.catalyst.expressions.{Expression, Literal}
 import org.apache.spark.sql.delta.Snapshot
@@ -100,7 +100,7 @@ case class OTreeIndex(index: TahoeLogFileIndex)
 
         val revisionTimestamp = spaceRevision.timestamp
         val filesRevision =
-          filesVector.filter(_.tags(spaceTag).equals(revisionTimestamp.toString))
+          filesVector.filter(_.tags(TagUtils.space) == spaceRevision.timestamp.toString)
         val cubeWeights = qbeastSnapshot.cubeWeights(revisionTimestamp)
         val replicatedSet = qbeastSnapshot.replicatedSet(revisionTimestamp)
 
@@ -137,16 +137,16 @@ case class OTreeIndex(index: TahoeLogFileIndex)
       cubeWeights.get(cube) match {
         case Some(cubeWeight) if precision.to < cubeWeight =>
           val cubeString = cube.string
-          files.filter(_.tags(cubeTag) == cubeString)
+          files.filter(_.tags(TagUtils.cube) == cubeString)
         case Some(cubeWeight) =>
           val cubeString = cube.string
           val childFiles = cube.children
             .filter(space.intersectsWith)
             .flatMap(doFindSampleFiles)
           if (!replicatedSet.contains(cube) && precision.from < cubeWeight) {
-            val cubeFiles = files.filter(_.tags(cubeTag) == cubeString)
+            val cubeFiles = files.filter(_.tags(TagUtils.cube) == cubeString)
             if (childFiles.nonEmpty) {
-              cubeFiles.filterNot(_.tags(stateTag) == ANNOUNCED) ++ childFiles
+              cubeFiles.filterNot(_.tags(TagUtils.state) == State.ANNOUNCED) ++ childFiles
             } else {
               cubeFiles
             }

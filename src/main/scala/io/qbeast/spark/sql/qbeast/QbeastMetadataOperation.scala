@@ -5,7 +5,7 @@ package io.qbeast.spark.sql.qbeast
 
 import io.qbeast.spark.index.ReplicatedSet
 import io.qbeast.spark.model.SpaceRevision
-import io.qbeast.spark.sql.utils.MetadataConfig._
+import io.qbeast.spark.sql.utils.MetadataConfig
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.delta.{
   DeltaErrors,
@@ -24,7 +24,7 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
       qbeastSnapshot: QbeastSnapshot,
       newReplicatedCubes: ReplicatedSet): Unit = {
 
-    val revisionId = s"$metadataReplicatedSet.$revisionTimestamp"
+    val revisionId = s"${MetadataConfig.replicatedSet}.$revisionTimestamp"
     val oldReplicatedSet =
       qbeastSnapshot.replicatedSet(revisionTimestamp)
 
@@ -84,10 +84,10 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
     def isNewSchema: Boolean = txn.metadata.schema != mergedSchema
     // Qbeast configuration metadata
     val configuration = txn.metadata.configuration
-      .updated(metadataIndexedColumns, JsonUtils.toJson(columnsToIndex))
-      .updated(metadataDesiredCubeSize, desiredCubeSize.toString)
-      .updated(metadataLastRevisionTimestamp, revisionTimestamp.toString)
-      .updated(s"$metadataRevision.$revisionTimestamp", JsonUtils.toJson(newRevision))
+      .updated(MetadataConfig.indexedColumns, JsonUtils.toJson(columnsToIndex))
+      .updated(MetadataConfig.desiredCubeSize, desiredCubeSize.toString)
+      .updated(MetadataConfig.lastRevisionTimestamp, revisionTimestamp.toString)
+      .updated(s"${MetadataConfig.revision}.$revisionTimestamp", JsonUtils.toJson(newRevision))
 
     if (txn.readVersion == -1) {
       super.updateMetadata(
