@@ -32,6 +32,14 @@ object Weight {
    */
   def apply(fraction: Double): Weight = Weight((fraction * range + offset).toInt)
 
+  /**
+   * Compares two weights and returns the minimum of them.
+   * @param a the first weight.
+   * @param b the second weight.
+   * @return a Weight being the minimum of (a,b).
+   */
+  def min(a: Weight, b: Weight): Weight = if (a < b) a else b
+
 }
 
 /**
@@ -86,13 +94,6 @@ case class Weight(value: Int) extends Ordered[Weight] with Serializable {
   } else {
     MaxValue
   }
-
-  /**
-   * Compares with a given weight. Returns the minimum of them.
-   * @param other the other weight
-   * @return the minimum weight
-   */
-  def min(other: Weight): Weight = if (this <= other) this else other
 
   override def compare(that: Weight): Int = value.compare(that.value)
 
