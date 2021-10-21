@@ -4,7 +4,7 @@
 package io.qbeast.spark.sql.qbeast
 
 import io.qbeast.spark.index.{CubeId, NormalizedWeight, ReplicatedSet, Weight}
-import io.qbeast.spark.model.{CubeInfo, SpaceRevision}
+import io.qbeast.spark.model.{CubeInfo, LinearTransformation, SpaceRevision}
 import io.qbeast.spark.sql.utils.MetadataConfig
 import io.qbeast.spark.sql.utils.State
 import io.qbeast.spark.sql.utils.TagUtils
@@ -13,6 +13,8 @@ import org.apache.spark.sql.delta.util.JsonUtils
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{AnalysisExceptionFactory, Dataset, SparkSession}
+
+import scala.collection.immutable.IndexedSeq
 
 /**
  * Qbeast Snapshot that provides information about the current index state.
@@ -23,7 +25,7 @@ case class QbeastSnapshot(snapshot: Snapshot) {
 
   def isInitial: Boolean = snapshot.version == -1
 
-  lazy val metadataMap: Map[String, String] = snapshot.metadata.configuration
+  val metadataMap: Map[String, String] = snapshot.metadata.configuration
 
   val indexedCols: Seq[String] = metadataMap.get(MetadataConfig.indexedColumns) match {
     case Some(json) => JsonUtils.fromJson[Seq[String]](json)
@@ -107,7 +109,7 @@ case class QbeastSnapshot(snapshot: Snapshot) {
     replicatedSetsMap.getOrElse(revisionTimestamp, Set.empty)
   }
 
-  lazy val replicatedSetsMap: Map[Long, ReplicatedSet] = {
+  val replicatedSetsMap: Map[Long, ReplicatedSet] = {
     val listReplicatedSets = metadataMap.filterKeys(_.startsWith(MetadataConfig.replicatedSet))
 
     listReplicatedSets.map { case (key: String, json: String) =>
@@ -123,27 +125,26 @@ case class QbeastSnapshot(snapshot: Snapshot) {
    * Returns available space revisions ordered by timestamp
    * @return a sequence of SpaceRevision
    */
-  lazy val spaceRevisionsMap: Map[Long, SpaceRevision] = {
+  val spaceRevisionsMap: Map[Long, SpaceRevision] = {
     val listRevisions = metadataMap.filterKeys(_.startsWith(MetadataConfig.revision))
 
     listRevisions
       .map { case (key: String, json: String) =>
         val revisionTimestamp = key.split('.').last.toLong
-        val spaceRevision = JsonUtils
-          .fromJson[SpaceRevision](json)
-        (revisionTimestamp, spaceRevision)
+        val transformations = JsonUtils
+          .fromJson[IndexedSeq[LinearTransformation]](json)
+        (revisionTimestamp, SpaceRevision(revisionTimestamp, transformations))
       }
   }
 
-  lazy val spaceRevisions: Seq[SpaceRevision] = spaceRevisionsMap.values.toSeq
-
-  lazy val lastRevisionTimestamp: Long = metadataMap(MetadataConfig.lastRevisionTimestamp).toLong
+  val lastRevisionTimestamp: Long =
+    metadataMap.getOrElse(MetadataConfig.lastRevisionTimestamp, "0").toLong
 
   /**
    * Returns the space revision with the higher timestamp
    * @return the space revision
    */
-  lazy val lastSpaceRevision: SpaceRevision = {
+  def lastSpaceRevision: SpaceRevision = {
     getRevisionAt(lastRevisionTimestamp)
   }
 

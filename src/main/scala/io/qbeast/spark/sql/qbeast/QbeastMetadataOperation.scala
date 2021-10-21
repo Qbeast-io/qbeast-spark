@@ -14,9 +14,32 @@ import org.apache.spark.sql.delta.{
 }
 import org.apache.spark.sql.delta.schema.{ImplicitMetadataOperation, SchemaUtils}
 import org.apache.spark.sql.delta.util.JsonUtils
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.{ArrayType, DataType, MapType, StructType}
 
 class QbeastMetadataOperation extends ImplicitMetadataOperation {
+
+  /**
+   * Returns the same data type but set all nullability fields are true
+   * (ArrayType.containsNull, and MapType.valueContainsNull)
+   * @param dataType the data type
+   * @return same data type set to null
+   */
+  private def asNullable(dataType: DataType): DataType = {
+    dataType match {
+      case array: ArrayType => array.copy(containsNull = true)
+      case map: MapType => map.copy(valueContainsNull = true)
+      case other => other
+    }
+  }
+
+  /**
+   * Updates Delta Metadata Configuration with new replicated set
+   * for given revision
+   * @param txn the Optimistic Transaction
+   * @param revisionTimestamp the revision timestamp
+   * @param qbeastSnapshot the qbeast snapshot
+   * @param newReplicatedCubes the new set of replicated cubes
+   */
 
   def updateQbeastReplicatedSet(
       txn: OptimisticTransaction,
@@ -67,7 +90,8 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
     val spark = data.sparkSession
     val schema = data.schema
 
-    val dataSchema = StructType(schema.fields.map(_.copy(nullable = true)))
+    val dataSchema = StructType(schema.fields.map(field =>
+      field.copy(nullable = true, dataType = asNullable(field.dataType))))
 
     val mergedSchema = if (isOverwriteMode && canOverwriteSchema) {
       dataSchema
@@ -84,10 +108,12 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
       .updated(MetadataConfig.indexedColumns, JsonUtils.toJson(columnsToIndex))
       .updated(MetadataConfig.desiredCubeSize, desiredCubeSize.toString)
       .updated(MetadataConfig.lastRevisionTimestamp, revisionTimestamp.toString)
-      .updated(s"${MetadataConfig.revision}.$revisionTimestamp", JsonUtils.toJson(newRevision))
+      .updated(
+        s"${MetadataConfig.revision}.$revisionTimestamp",
+        JsonUtils.toJson(newRevision.transformations))
 
     if (txn.readVersion == -1) {
-      super.updateMetadata(
+      updateMetadata(
         spark,
         txn,
         schema,
@@ -131,6 +157,6 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
 
   }
 
-  override protected val canMergeSchema: Boolean = false
-  override protected val canOverwriteSchema: Boolean = false
+  override protected val canMergeSchema: Boolean = true
+  override protected val canOverwriteSchema: Boolean = true
 }

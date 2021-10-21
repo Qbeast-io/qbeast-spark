@@ -200,7 +200,4 @@ case class QbeastWriter(
 
   }
 
-  override protected val canMergeSchema: Boolean = true
-  override protected val canOverwriteSchema: Boolean = true
-
 }

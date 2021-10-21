@@ -94,8 +94,8 @@ case class OTreeIndex(index: TahoeLogFileIndex)
     val originalTo = Point(Vector.fill(qbeastSnapshot.dimensionCount)(Int.MaxValue.doubleValue()))
 
     val filesVector = files.toVector
-    qbeastSnapshot.spaceRevisions
-      .flatMap(spaceRevision => {
+    qbeastSnapshot.spaceRevisionsMap.values.par
+      .map(spaceRevision => {
         val querySpace = QuerySpaceFromTo(originalFrom, originalTo, spaceRevision)
 
         val revisionTimestamp = spaceRevision.timestamp
@@ -112,6 +112,7 @@ case class OTreeIndex(index: TahoeLogFileIndex)
           cubeWeights,
           replicatedSet)
       })
+      .reduce(_ union _)
 
   }
 
