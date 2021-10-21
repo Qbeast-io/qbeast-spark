@@ -55,8 +55,9 @@ All contributed code, docs, and otro materials are considered licensed under the
 
   5 - Make your changes
 
-  6 - Write, run, and pass tests:
-  
+  6 - Write, run, and pass tests:  
+**Note**: You can run tests for different Spark and Hadoop versions specifying them with `-Dspark.version` and `-Dhadoop.version`.
+  Find an example in the _Setting Up_ section of [README.md](README.md)
   - For all tests:
     
   ```bash
