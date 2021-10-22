@@ -21,11 +21,19 @@ case class BlockStats protected (
     state: String,
     rowCount: Long) {
 
-  def update(): BlockStats =
-    this.copy(rowCount = rowCount + 1)
+  /**
+   * Update the BlockStats by computing minWeight = min(this.minWeight, minWeight).
+   * This also updates the rowCount of the BlocksStats
+   * @param minWeight the Weight to compare with the current one
+   * @return the updated BlockStats object
+   */
+  def update(minWeight: Weight): BlockStats = {
+    val minW = Weight.min(minWeight, this.minWeight)
+    this.copy(rowCount = rowCount + 1, minWeight = minW)
+  }
 
   override def toString: String =
-    s"BlocksStats($cube,${maxWeight},${minWeight},$state,$rowCount)"
+    s"BlocksStats($cube,$maxWeight,$minWeight,$state,$rowCount)"
 
 }
 
@@ -42,6 +50,6 @@ object BlockStats {
    * @return a new empty instance of BlockStats
    */
   def apply(cube: String, state: String, maxWeight: Weight): BlockStats =
-    BlockStats(cube, maxWeight, Weight.MinValue, state, 0)
+    BlockStats(cube, maxWeight, minWeight = Weight.MaxValue, state, 0)
 
 }
