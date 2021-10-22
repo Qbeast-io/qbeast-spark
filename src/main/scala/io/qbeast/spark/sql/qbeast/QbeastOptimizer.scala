@@ -36,6 +36,7 @@ class QbeastOptimizer(
   /**
    * Performs the optimization
    *
+   * @param txn the OptimisticTransaction
    * @param sparkSession   SparkSession
    * @param announcedCubes Set of cube paths announced
    * @return the set of cubes that completed the operation along with the file actions to commit

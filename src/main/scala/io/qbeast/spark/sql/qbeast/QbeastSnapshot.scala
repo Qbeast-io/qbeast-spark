@@ -52,6 +52,12 @@ case class QbeastSnapshot(snapshot: Snapshot) {
           s"No Revision with id $lastRevisionTimestamp is found"))
   }
 
+  /**
+   * Checks if certain revision exists in the snapshot
+   * @param revisionTimestamp the timestamp of the revision
+   * @return true if the revision exists
+   */
+
   def existsRevision(revisionTimestamp: Long): Boolean = {
     spaceRevisionsMap.contains(revisionTimestamp)
   }

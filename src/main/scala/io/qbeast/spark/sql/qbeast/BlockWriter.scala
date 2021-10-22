@@ -28,6 +28,7 @@ import java.util.UUID
  * @param qbeastColumns  qbeast metadata columns
  * @param columnsToIndex columns of the original data that are used for indexing
  * @param revisionTimestamp the revision timestamp of the data to write
+ * @param weightMap       map of cubes and it's estimated weight
  */
 case class BlockWriter(
     dataPath: String,

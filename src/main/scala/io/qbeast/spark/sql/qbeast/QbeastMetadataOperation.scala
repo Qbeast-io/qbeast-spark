@@ -68,6 +68,8 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
    * @param partitionColumns partitionColumns
    * @param isOverwriteMode if it's an overwrite operation
    * @param rearrangeOnly if the operation only rearranges files
+   * @param columnsToIndex the columns to index
+   * @param desiredCubeSize the desired cube size
    * @param newRevision the new Qbeast revision
    * @param qbeastSnapshot the Qbeast Snapshot
    */
