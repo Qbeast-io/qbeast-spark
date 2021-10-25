@@ -73,9 +73,13 @@ case class BlockWriter(
             cleanRow += row.get(i, schemaIndex(i).dataType)
           }
         }
+
+        // Get the weight of the row to compute the minimumWeight per block
+        val rowWeight = Weight(row.getInt(qbeastColumns.weightColumnIndex))
+
         // Writing the data in a single file.
         blockCtx.writer.write(InternalRow.fromSeq(cleanRow.result()))
-        blocks.updated(cubeId, blockCtx.update())
+        blocks.updated(cubeId, blockCtx.update(rowWeight))
       }
       .values
       .flatMap {
@@ -137,7 +141,10 @@ case class BlockWriter(
    * @param path the path of the written file
    */
   private case class BlockContext(stats: BlockStats, writer: OutputWriter, path: Path) {
-    def update(): BlockContext = this.copy(stats = stats.update())
+
+    def update(minWeight: Weight): BlockContext =
+      this.copy(stats = stats.update(minWeight))
+
   }
 
 }

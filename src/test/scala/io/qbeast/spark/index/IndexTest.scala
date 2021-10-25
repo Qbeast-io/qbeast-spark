@@ -247,4 +247,35 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
     }
   }
 
+  it should "follow the rule of children's minWeight >= parent's maxWeight" in
+    withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
+      withOTreeAlgorithm { oTreeAlgorithm =>
+        val df = createDF()
+        val names = List("age", "val2")
+        val (_, _, weightMap) = oTreeAlgorithm.indexFirst(df, names)
+        val dimensionCount = names.length
+
+        df.write
+          .format("qbeast")
+          .mode("overwrite")
+          .option("columnsToIndex", names.mkString(","))
+          .save(tmpDir)
+
+        val deltaLog = DeltaLog.forTable(spark, tmpDir)
+
+        deltaLog.snapshot.allFiles.collect() foreach (f =>
+          {
+            val cubeId = CubeId(dimensionCount, f.tags("cube"))
+            cubeId.parent match {
+              case None => // cube is root
+              case Some(parent) =>
+                val minWeight = Weight(f.tags("minWeight").toInt)
+                val parentMaxWeight = weightMap(parent)
+
+                minWeight should be >= parentMaxWeight
+            }
+          }: Unit)
+      }
+    }
+
 }

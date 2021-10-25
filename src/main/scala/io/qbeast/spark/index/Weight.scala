@@ -32,6 +32,14 @@ object Weight {
    */
   def apply(fraction: Double): Weight = Weight((fraction * range + offset).toInt)
 
+  /**
+   * Compares two weights and returns the minimum of them.
+   * @param a the first weight.
+   * @param b the second weight.
+   * @return a Weight being the minimum of (a,b).
+   */
+  def min(a: Weight, b: Weight): Weight = if (a < b) a else b
+
 }
 
 /**
