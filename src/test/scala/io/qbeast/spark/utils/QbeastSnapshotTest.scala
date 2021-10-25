@@ -5,10 +5,10 @@ package io.qbeast.spark.utils
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.OTreeAlgorithmTest.Client3
-import io.qbeast.spark.index.{Weight}
+import io.qbeast.spark.index.Weight
 import io.qbeast.spark.model.CubeInfo
 import io.qbeast.spark.sql.qbeast.QbeastSnapshot
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.delta.DeltaLog
 import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpec
@@ -145,7 +145,7 @@ class QbeastSnapshotTest
             val deltaLog = DeltaLog.forTable(spark, tmpDir)
             val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
 
-            val indexStateMethod = PrivateMethod[Seq[CubeInfo]]('indexState)
+            val indexStateMethod = PrivateMethod[Dataset[CubeInfo]]('indexState)
             val indexState =
               qbeastSnapshot invokePrivate indexStateMethod(qbeastSnapshot.lastRevisionTimestamp)
             val overflowed =
@@ -154,6 +154,7 @@ class QbeastSnapshotTest
                 .map(_.string)
 
             indexState
+              .collect()
               .filter(cubeInfo => overflowed.contains(cubeInfo.cube))
               .foreach(cubeInfo =>
                 assert(
