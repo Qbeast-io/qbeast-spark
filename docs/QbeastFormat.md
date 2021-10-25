@@ -53,18 +53,17 @@ Following each write transaction is the creation of a new log file. **Table-leve
     "qbeast.indexedColumns":"[\"user_id\",\"product_id\"]",
     "qbeast.desiredCubeSize":"30000",
     "qbeast.lastRevisionTimestamp":"1634196697656",
-    "qbeast.revision.1634196697656":"{\"timestamp\":1634196697656,\"transformations\":[{\"min\":1.16396325E8,\"max\":7.13218881E8,\"scale\":1.675539890285246E-9},{\"min\":-2.87485335E7,\"max\":9.02495125E7,\"scale\":8.403499331409189E-9}]}"
+    "qbeast.revision.1634196697656":"{\"transformations\":[{\"min\":1.16396325E8,\"max\":7.13218881E8,\"scale\":1.675539890285246E-9},{\"min\":-2.87485335E7,\"max\":9.02495125E7,\"scale\":8.403499331409189E-9}]}"
   },
   "createdTime":1634196701990}}
 ```
 
-We store metadata information such as the columns we index (`indexedColumns`), the desired size of the cube (`desiredCubeSize`) and the information about the space where the data belongs (`qb.revision`). 
+We store metadata information such as the columns we index (`indexedColumns`), the desired size of the cube (`desiredCubeSize`) and the information about the space where the data belongs (`qb.revision.1634196697656`). 
 
 A more closer look to the `qb.revision.1634196697656`:
 ```json
 
-{"timestamp":1634196697656,
-  "transformations":[
+{ "transformations":[
     {"min":1.16396325E8,"max":7.13218881E8,"scale":1.675539890285246E-9},
     {"min":-2.87485335E7,"max":9.02495125E7,"scale":8.403499331409189E-9}]
 }
@@ -113,7 +112,9 @@ qbeastTable.optimize()
   {
     ...
     "qbeast.replicatedSet.1634196697656":"[\"\",\"g\",\"gQ\"]"},
-  "createdTime":1634196701990}}
+    ...
+  }
+}
 
 ```
 
