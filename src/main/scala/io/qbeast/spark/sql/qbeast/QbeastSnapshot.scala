@@ -14,7 +14,6 @@ import org.apache.spark.sql.delta.util.JsonUtils
 import org.apache.spark.sql.delta.{DeltaLogFileIndex, Snapshot}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, LogicalRelation}
-import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{BinaryType, LongType, StructField, StructType}
 import org.apache.spark.sql.{Dataset, DatasetFactory, SparkSession}
 
@@ -30,15 +29,14 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
 
   def isInitial: Boolean = snapshot.version == -1
 
+  lazy val allFiles = snapshot.allFiles.collect()
+
   val indexedCols: Seq[String] = {
-    if (isInitial || snapshot.allFiles.isEmpty) Seq.empty
-    else ColumnsToIndex.decode(snapshot.allFiles.head.tags(indexedColsTag))
+    if (isInitial || allFiles.isEmpty) Seq.empty
+    else ColumnsToIndex.decode(allFiles.head.tags(indexedColsTag))
   }
 
   val dimensionCount: Int = indexedCols.length
-
-  private val spark = SparkSession.active
-  import spark.implicits._
 
   private val logSchema = StructType(
     Array(
@@ -46,6 +44,9 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
       StructField(name = revisionColumnName, dataType = LongType, nullable = false)))
 
   private def fileToDataframe(fileStatus: Array[FileStatus]): Dataset[(Array[Byte], Long)] = {
+
+    val spark = SparkSession.active
+    import spark.implicits._
 
     val index = DeltaLogFileIndex(new ParquetFileFormat, fileStatus)
 
@@ -67,9 +68,7 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
    * @return a SpaceRevision with the corresponding timestamp if any
    */
   def getRevisionAt(timestamp: Long): Option[SpaceRevision] = {
-    val spaceRevision = spaceRevisions.filter(_.timestamp.equals(timestamp))
-    if (spaceRevision.isEmpty) None
-    else Some(spaceRevision.first())
+    spaceRevisions.find(_.timestamp.equals(timestamp))
   }
 
   /**
@@ -79,7 +78,6 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
    */
   def cubeWeights(spaceRevision: SpaceRevision): Map[CubeId, Weight] = {
     indexState(spaceRevision)
-      .collect()
       .map(info => (CubeId(dimensionCount, info.cube), info.maxWeight))
       .toMap
   }
@@ -91,15 +89,12 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
    * @return a map with key cube and value max weight
    */
   def cubeNormalizedWeights(spaceRevision: SpaceRevision): Map[CubeId, Double] = {
-    indexState(spaceRevision)
-      .collect()
-      .map {
-        case CubeInfo(cube, Weight.MaxValue, size) =>
-          (CubeId(dimensionCount, cube), NormalizedWeight(desiredCubeSize, size))
-        case CubeInfo(cube, maxWeight, _) =>
-          (CubeId(dimensionCount, cube), NormalizedWeight(maxWeight))
-      }
-      .toMap
+    indexState(spaceRevision).map {
+      case CubeInfo(cube, Weight.MaxValue, size) =>
+        (CubeId(dimensionCount, cube), NormalizedWeight(desiredCubeSize, size))
+      case CubeInfo(cube, maxWeight, _) =>
+        (CubeId(dimensionCount, cube), NormalizedWeight(maxWeight))
+    }.toMap
   }
 
   /**
@@ -111,7 +106,6 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
   def overflowedSet(spaceRevision: SpaceRevision): Set[CubeId] = {
     indexState(spaceRevision)
       .filter(_.maxWeight != Weight.MaxValue)
-      .collect()
       .map(cubeInfo => CubeId(dimensionCount, cubeInfo.cube))
       .toSet
   }
@@ -123,6 +117,7 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
    */
   def replicatedSet(spaceRevision: SpaceRevision): Set[CubeId] = {
 
+    val spark = SparkSession.active
     val hadoopConf = spark.sessionState.newHadoopConf()
 
     snapshot.setTransactions.filter(_.appId.equals(indexId)) match {
@@ -149,12 +144,12 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
    * Returns available space revisions ordered by timestamp
    * @return a Dataset of SpaceRevision
    */
-  def spaceRevisions: Dataset[SpaceRevision] =
-    snapshot.allFiles
-      .select(s"tags.$spaceTag")
+  def spaceRevisions: Seq[SpaceRevision] =
+    allFiles
+      .map(_.tags(spaceTag))
       .distinct
-      .map(a => JsonUtils.fromJson[SpaceRevision](a.getString(0)))
-      .orderBy(col("timestamp").desc)
+      .map(a => JsonUtils.fromJson[SpaceRevision](a))
+      .sortBy(_.timestamp)
 
   /**
    * Returns the space revision with the higher timestamp
@@ -162,9 +157,7 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
    */
   def lastSpaceRevision: SpaceRevision = {
     // Dataset spaceRevisions is ordered by timestamp
-    spaceRevisions
-      .first()
-
+    spaceRevisions.last
   }
 
   /**
@@ -172,10 +165,7 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
    * @param spaceRevision space revision
    * @return Dataset containing cube information
    */
-  private def indexState(spaceRevision: SpaceRevision): Dataset[CubeInfo] = {
-
-    val allFiles = snapshot.allFiles
-    val weightValueTag = weightMaxTag + ".value"
+  private def indexState(spaceRevision: SpaceRevision): Seq[CubeInfo] = {
 
     allFiles
       .filter(_.tags(spaceTag).equals(spaceRevision.toString))
@@ -186,9 +176,13 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
           Weight(a.tags(weightMinTag).toInt),
           a.tags(stateTag),
           a.tags(elementCountTag).toLong))
-      .groupBy(cubeTag)
-      .agg(min(weightValueTag), sum(elementCountTag))
-      .map(row => CubeInfo(row.getAs[String](0), Weight(row.getAs[Int](1)), row.getAs[Long](2)))
+      .groupBy(_.cube)
+      .map { case (cube: String, blocks: Array[BlockStats]) =>
+        val weightMax = blocks.map(_.maxWeight.value).min
+        val numElements = blocks.map(_.rowCount).sum
+        CubeInfo(cube, Weight(weightMax), numElements)
+      }
+      .toSeq
   }
 
   /**
@@ -199,11 +193,10 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
    */
   def getCubeBlocks(cubes: Set[CubeId], spaceRevision: SpaceRevision): Seq[AddFile] = {
     val dimensionCount = this.dimensionCount
-    snapshot.allFiles
+    allFiles
       .filter(_.tags(spaceTag).equals(spaceRevision.toString))
       .filter(_.tags(stateTag) != ANNOUNCED)
       .filter(a => cubes.contains(CubeId(dimensionCount, a.tags(cubeTag))))
-      .collect()
   }
 
 }
