@@ -6,8 +6,8 @@ package io.qbeast.spark.sql.files
 import io.qbeast.spark.index.{CubeId, Weight}
 import io.qbeast.spark.model.{Point, QuerySpace, QuerySpaceFromTo, RangeValues}
 import io.qbeast.spark.sql.qbeast
-import io.qbeast.spark.sql.utils.State.ANNOUNCED
-import io.qbeast.spark.sql.utils.TagUtils._
+import io.qbeast.spark.sql.utils.State
+import io.qbeast.spark.sql.utils.TagUtils
 import org.apache.spark.sql.catalyst.expressions
 import org.apache.spark.sql.catalyst.expressions.{Expression, Literal}
 import org.apache.spark.sql.delta.Snapshot
@@ -20,7 +20,7 @@ import org.apache.spark.sql.types.IntegerType
  *
  * @param index the Tahoe log file index
  */
-case class OTreeIndex(index: TahoeLogFileIndex, desiredCubeSize: Int)
+case class OTreeIndex(index: TahoeLogFileIndex)
     extends TahoeFileIndex(index.spark, index.deltaLog, index.path) {
 
   /**
@@ -29,7 +29,7 @@ case class OTreeIndex(index: TahoeLogFileIndex, desiredCubeSize: Int)
    */
   protected def snapshot: Snapshot = index.getSnapshot
 
-  private val qbeastSnapshot = qbeast.QbeastSnapshot(snapshot, desiredCubeSize)
+  private val qbeastSnapshot = qbeast.QbeastSnapshot(snapshot)
 
   /**
    * Analyzes the data filters from the query
@@ -63,9 +63,11 @@ case class OTreeIndex(index: TahoeLogFileIndex, desiredCubeSize: Int)
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[AddFile] = {
 
-    val (qbeastDataFilters, _) = extractDataFilters(dataFilters)
+    val (qbeastDataFilters, tahoeDataFilters) = extractDataFilters(dataFilters)
+    val tahoeMatchingFiles = index.matchingFiles(partitionFilters, tahoeDataFilters)
+
     val (minWeight, maxWeight) = extractWeightRange(qbeastDataFilters)
-    val files = sample(minWeight, maxWeight, qbeastSnapshot.allFiles)
+    val files = sample(minWeight, maxWeight, tahoeMatchingFiles)
 
     files
   }
@@ -92,13 +94,15 @@ case class OTreeIndex(index: TahoeLogFileIndex, desiredCubeSize: Int)
     val originalTo = Point(Vector.fill(qbeastSnapshot.dimensionCount)(Int.MaxValue.doubleValue()))
 
     val filesVector = files.toVector
-    qbeastSnapshot.spaceRevisions
+    qbeastSnapshot.spaceRevisionsMap.values
       .flatMap(spaceRevision => {
         val querySpace = QuerySpaceFromTo(originalFrom, originalTo, spaceRevision)
 
-        val filesRevision = filesVector.filter(_.tags(spaceTag).equals(spaceRevision.toString))
-        val cubeWeights = qbeastSnapshot.cubeWeights(spaceRevision)
-        val replicatedSet = qbeastSnapshot.replicatedSet(spaceRevision)
+        val revisionTimestamp = spaceRevision.timestamp
+        val filesRevision =
+          filesVector.filter(_.tags(TagUtils.space) == spaceRevision.timestamp.toString)
+        val cubeWeights = qbeastSnapshot.cubeWeights(revisionTimestamp)
+        val replicatedSet = qbeastSnapshot.replicatedSet(revisionTimestamp)
 
         findSampleFiles(
           querySpace,
@@ -108,6 +112,7 @@ case class OTreeIndex(index: TahoeLogFileIndex, desiredCubeSize: Int)
           cubeWeights,
           replicatedSet)
       })
+      .toSeq
 
   }
 
@@ -133,16 +138,16 @@ case class OTreeIndex(index: TahoeLogFileIndex, desiredCubeSize: Int)
       cubeWeights.get(cube) match {
         case Some(cubeWeight) if precision.to < cubeWeight =>
           val cubeString = cube.string
-          files.filter(_.tags(cubeTag) == cubeString)
+          files.filter(_.tags(TagUtils.cube) == cubeString)
         case Some(cubeWeight) =>
           val cubeString = cube.string
           val childFiles = cube.children
             .filter(space.intersectsWith)
             .flatMap(doFindSampleFiles)
           if (!replicatedSet.contains(cube) && precision.from < cubeWeight) {
-            val cubeFiles = files.filter(_.tags(cubeTag) == cubeString)
+            val cubeFiles = files.filter(_.tags(TagUtils.cube) == cubeString)
             if (childFiles.nonEmpty) {
-              cubeFiles.filterNot(_.tags(stateTag) == ANNOUNCED) ++ childFiles
+              cubeFiles.filterNot(_.tags(TagUtils.state) == State.ANNOUNCED) ++ childFiles
             } else {
               cubeFiles
             }

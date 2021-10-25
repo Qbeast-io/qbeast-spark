@@ -16,11 +16,19 @@ object State {
  * Tag keys for saving qbeast index metadata into the delta commit log
  */
 object TagUtils {
-  final val cubeTag = "cube"
-  final val weightMinTag = "minWeight"
-  final val weightMaxTag = "maxWeight"
-  final val stateTag = "state"
-  final val spaceTag = "space"
-  final val elementCountTag = "rowCount"
-  final val indexedColsTag = "indexedColumns"
+  final val cube = "cube"
+  final val minWeight = "minWeight"
+  final val maxWeight = "maxWeight"
+  final val state = "state"
+  final val space = "spaceRevision"
+  final val elementCount = "rowCount"
+}
+
+object MetadataConfig {
+
+  final val indexedColumns = "qbeast.indexedColumns"
+  final val desiredCubeSize = "qbeast.desiredCubeSize"
+  final val revision = "qbeast.revision"
+  final val replicatedSet = "qbeast.replicatedSet"
+  final val lastRevisionTimestamp = "qbeast.lastRevisionTimestamp"
 }

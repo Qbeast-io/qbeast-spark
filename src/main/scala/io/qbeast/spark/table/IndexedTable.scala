@@ -5,10 +5,8 @@ package io.qbeast.spark.table
 
 import io.qbeast.spark.index.{ColumnsToIndex, CubeId, OTreeAlgorithm}
 import io.qbeast.spark.keeper.Keeper
-import io.qbeast.spark.model.SpaceRevision
 import io.qbeast.spark.sql.qbeast.{QbeastOptimizer, QbeastSnapshot, QbeastWriter}
 import io.qbeast.spark.sql.sources.QbeastBaseRelation
-import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.actions.SetTransaction
 import org.apache.spark.sql.delta.sources.DeltaDataSource
 import org.apache.spark.sql.delta.{DeltaLog, DeltaOperations, DeltaOptions}
@@ -63,16 +61,16 @@ trait IndexedTable {
 
   /**
    * Analyzes the index for a given revision
-   * @param spaceRevision the revision to optimize
+   * @param revisionTimestamp the timestamp of the revision to analyze
    * @return the cubes to analyze
    */
-  def analyze(spaceRevision: SpaceRevision): Seq[String]
+  def analyze(revisionTimestamp: Long): Seq[String]
 
   /**
    * Optimizes the given table for a given revision
-   * @param spaceRevision the revision to optimize
+   * @param revisionTimestamp the timestamp of the revision to optimize
    */
-  def optimize(spaceRevision: SpaceRevision): Unit
+  def optimize(revisionTimestamp: Long): Unit
 }
 
 /**
@@ -148,7 +146,7 @@ private[table] class IndexedTableImpl(
 
   private def snapshot = {
     if (snapshotCache.isEmpty) {
-      snapshotCache = Some(QbeastSnapshot(deltaLog.snapshot, oTreeAlgorithm.desiredCubeSize))
+      snapshotCache = Some(QbeastSnapshot(deltaLog.snapshot))
     }
     snapshotCache.get
   }
@@ -185,21 +183,10 @@ private[table] class IndexedTableImpl(
     }
   }
 
-  private def createQbeastLogIfNecessary(): Unit = {
-    val configuration = sqlContext.sparkSession.sessionState.newHadoopConf()
-    val path = new Path(deltaLog.dataPath, "_qbeast")
-    val fileSystem = path.getFileSystem(configuration)
-    if (!fileSystem.exists(path)) {
-      fileSystem.mkdirs(path)
-      fileSystem.makeQualified(path)
-    }
-  }
-
   private def write(
       data: DataFrame,
       columnsToIndex: Seq[String],
       append: Boolean): BaseRelation = {
-    createQbeastLogIfNecessary()
     val dimensionCount = columnsToIndex.length
     if (exists) {
       val revision = snapshot.lastSpaceRevision.timestamp
@@ -259,23 +246,23 @@ private[table] class IndexedTableImpl(
     DeltaOperations.Write(mode, None, options.replaceWhere, options.userMetadata)
   }
 
-  override def analyze(spaceRevision: SpaceRevision): Seq[String] = {
-    val cubesToAnnounce = oTreeAlgorithm.analyzeIndex(snapshot, spaceRevision).map(_.string)
-    keeper.announce(path, spaceRevision.timestamp, cubesToAnnounce)
+  override def analyze(revisionTimestamp: Long): Seq[String] = {
+    val cubesToAnnounce = oTreeAlgorithm.analyzeIndex(snapshot, revisionTimestamp).map(_.string)
+    keeper.announce(path, revisionTimestamp, cubesToAnnounce)
     cubesToAnnounce
 
   }
 
-  private def createQbeastOptimizer(spaceRevision: SpaceRevision): QbeastOptimizer = {
-    new QbeastOptimizer(deltaLog, deltaOptions, snapshot, spaceRevision, oTreeAlgorithm)
+  private def createQbeastOptimizer(revisionTimestamp: Long): QbeastOptimizer = {
+    new QbeastOptimizer(deltaLog, deltaOptions, snapshot, revisionTimestamp, oTreeAlgorithm)
   }
 
-  override def optimize(spaceRevision: SpaceRevision): Unit = {
+  override def optimize(revisionTimestamp: Long): Unit = {
 
-    val bo = keeper.beginOptimization(path, spaceRevision.timestamp)
+    val bo = keeper.beginOptimization(path, revisionTimestamp)
     val cubesToOptimize = bo.cubesToOptimize
 
-    val optimizer = createQbeastOptimizer(spaceRevision)
+    val optimizer = createQbeastOptimizer(revisionTimestamp)
     val deltaWrite =
       createDeltaWrite(SaveMode.Append, deltaOptions)
     val transactionID = s"qbeast.$path"
@@ -287,8 +274,7 @@ private[table] class IndexedTableImpl(
         SetTransaction(transactionID, newTransaction, Some(System.currentTimeMillis()))
 
       val (replicatedCubeIds, actions) =
-        optimizer.optimize(sqlContext.sparkSession, cubesToOptimize)
-      optimizer.updateReplicatedSet(sqlContext.sparkSession, newTransaction, replicatedCubeIds)
+        optimizer.optimize(txn, sqlContext.sparkSession, cubesToOptimize)
 
       txn.commit(actions ++ Seq(transRecord), deltaWrite)
       bo.end(replicatedCubeIds.map(_.string))

@@ -3,9 +3,8 @@
  */
 package io.qbeast.spark.sql.qbeast
 
-import io.qbeast.spark.index.{ColumnsToIndex, CubeId, QbeastColumns, Weight}
-import io.qbeast.spark.model.SpaceRevision
-import io.qbeast.spark.sql.utils.TagUtils._
+import io.qbeast.spark.index.{CubeId, QbeastColumns, Weight}
+import io.qbeast.spark.sql.utils.TagUtils
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapred.{JobConf, TaskAttemptContextImpl, TaskAttemptID}
 import org.apache.hadoop.mapreduce.TaskType
@@ -28,7 +27,8 @@ import java.util.UUID
  * @param serConf        configuration to serialize the data
  * @param qbeastColumns  qbeast metadata columns
  * @param columnsToIndex columns of the original data that are used for indexing
- * @param spaceRevision  space revision of the data to write
+ * @param revisionTimestamp the revision timestamp of the data to write
+ * @param weightMap       map of cubes and it's estimated weight
  */
 case class BlockWriter(
     dataPath: String,
@@ -38,7 +38,7 @@ case class BlockWriter(
     serConf: SerializableConfiguration,
     qbeastColumns: QbeastColumns,
     columnsToIndex: Seq[String],
-    spaceRevision: SpaceRevision,
+    revisionTimestamp: Long,
     weightMap: Map[CubeId, Weight])
     extends Serializable {
   private val dimensionCount = columnsToIndex.length
@@ -90,13 +90,12 @@ case class BlockWriter(
               writer,
               path) =>
           val tags = Map(
-            cubeTag -> cube,
-            weightMinTag -> minWeight.value.toString,
-            weightMaxTag -> maxWeight.value.toString,
-            stateTag -> state,
-            spaceTag -> JsonUtils.toJson(spaceRevision),
-            indexedColsTag -> ColumnsToIndex.encode(columnsToIndex),
-            elementCountTag -> rowCount.toString)
+            TagUtils.cube -> cube,
+            TagUtils.minWeight -> minWeight.value.toString,
+            TagUtils.maxWeight -> maxWeight.value.toString,
+            TagUtils.state -> state,
+            TagUtils.space -> JsonUtils.toJson(revisionTimestamp),
+            TagUtils.elementCount -> rowCount.toString)
 
           writer.close()
 
