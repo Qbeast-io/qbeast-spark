@@ -3,7 +3,6 @@
  */
 package io.qbeast.spark.sql.rules
 
-import io.qbeast.spark.context.QbeastContext
 import io.qbeast.spark.sql.files.OTreeIndex
 import io.qbeast.spark.sql.sources.QbeastBaseRelation
 import org.apache.spark.sql.SparkSession
@@ -21,13 +20,11 @@ import org.apache.spark.sql.execution.datasources.LogicalRelation
  */
 class ReplaceQbeastStorageRead(spark: SparkSession) extends Rule[LogicalPlan] {
 
-  private val desiredCubeSize: Int = QbeastContext.oTreeAlgorithm.desiredCubeSize
-
   override def apply(plan: LogicalPlan): LogicalPlan = plan transform {
     case r @ LogicalRelation(QbeastBaseRelation(delta, _), _, _, _) =>
       r.copy(relation = delta) match {
         case p @ DeltaTable(fileIndex: TahoeLogFileIndex) =>
-          DeltaTableUtils.replaceFileIndex(p, OTreeIndex(fileIndex, desiredCubeSize))
+          DeltaTableUtils.replaceFileIndex(p, OTreeIndex(fileIndex))
       }
   }
 

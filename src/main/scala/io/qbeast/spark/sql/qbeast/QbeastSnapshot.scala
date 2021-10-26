@@ -6,25 +6,37 @@ package io.qbeast.spark.sql.qbeast
 import io.qbeast.spark.index.ColumnsToIndex
 import io.qbeast.spark.model.{Revision, RevisionID}
 import io.qbeast.spark.sql.utils.TagUtils._
+import io.qbeast.spark.index.{CubeId, NormalizedWeight, ReplicatedSet, Weight}
+import io.qbeast.spark.model.{CubeInfo, LinearTransformation, SpaceRevision}
+import io.qbeast.spark.sql.utils.MetadataConfig
+import io.qbeast.spark.sql.utils.State
+import io.qbeast.spark.sql.utils.TagUtils
+import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.util.JsonUtils
 import org.apache.spark.sql.delta.Snapshot
-import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{AnalysisExceptionFactory, Dataset, SparkSession}
+
+import scala.collection.immutable.IndexedSeq
 
 /**
  * Qbeast Snapshot that provides information about the current index state.
  *
  * @param snapshot the internal Delta Lakes log snapshot
  */
-case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
-
-  val indexId = s"qbeast.${snapshot.path.getParent.toUri.getPath}"
+case class QbeastSnapshot(snapshot: Snapshot) {
 
   def isInitial: Boolean = snapshot.version == -1
 
-  val indexedCols: Seq[String] = {
-    if (isInitial || snapshot.allFiles.isEmpty) Seq.empty
-    else ColumnsToIndex.decode(snapshot.allFiles.head.tags(indexedColsTag))
+  val metadataMap: Map[String, String] = snapshot.metadata.configuration
+
+  val indexedCols: Seq[String] = metadataMap.get(MetadataConfig.indexedColumns) match {
+    case Some(json) => JsonUtils.fromJson[Seq[String]](json)
+    case None => Seq.empty
+  }
+
+  val desiredCubeSize: Int = metadataMap.get(MetadataConfig.desiredCubeSize) match {
+    case Some(value) => value.toInt
+    case None => 0
   }
 
   val dimensionCount: Int = indexedCols.length
@@ -36,66 +48,67 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
    * Looks up for a revision with a certain identifier
    * @param revisionID the ID of the revision
    * @return RevisionData for the corresponding identifier
-   */
+   **/
   def getRevisionData(revisionID: RevisionID): RevisionData = {
-    revisionsData
-      .find(_.revision.timestamp == revisionID)
-      .getOrElse(
+    spaceRevisionsMap
+      .getOrElse(revisionID,
         throw AnalysisExceptionFactory.create(s"No space revision available with $revisionID"))
+
+
+
+  val replicatedSetsMap: Map[Long, ReplicatedSet] = {
+    val listReplicatedSets = metadataMap.filterKeys(_.startsWith(MetadataConfig.replicatedSet))
+
+    listReplicatedSets.map { case (key: String, json: String) =>
+      val revisionTimestamp = key.split('.').last.toLong
+      val replicatedSet = JsonUtils
+        .fromJson[Set[String]](json)
+        .map(cube => CubeId(dimensionCount, cube))
+      (revisionTimestamp, replicatedSet)
+    }
   }
 
   /**
-   * Returns available revisions ordered by timestamp
-   * @return a Dataset of Revision
+   * Returns available space revisions ordered by timestamp
+   * @return a sequence of SpaceRevision
    */
-  def revisions: Dataset[Revision] =
-    snapshot.allFiles
-      .select(s"tags.$spaceTag")
-      .distinct
-      .map(a => JsonUtils.fromJson[Revision](a.getString(0)))
-      .orderBy(col("timestamp").desc)
+  val spaceRevisionsMap: Map[Long, Revision] = {
+    val listRevisions = metadataMap.filterKeys(_.startsWith(MetadataConfig.revision))
+
+    listRevisions
+      .map { case (key: String, json: String) =>
+        val revisionTimestamp = key.split('.').last.toLong
+        val transformations = JsonUtils
+          .fromJson[IndexedSeq[LinearTransformation]](json)
+        (revisionTimestamp, Revision(revisionTimestamp, transformations))
+      }
+  }
+
+  val lastRevisionTimestamp: Long =
+    metadataMap.getOrElse(MetadataConfig.lastRevisionTimestamp, "0").toLong
 
   /**
    * Returns the revision with the higher timestamp
    * @return the revision
    */
   def lastRevision: Revision = {
-    // Dataset spaceRevisions is ordered by timestamp
-    revisions
-      .first()
-
+    getRevisionData(lastRevisionTimestamp).revision
   }
-
-  /**
+    /**
    * Returns true if a revision with a specific revision identifier exists
    * @param revisionID the identifier of the revision
    * @return boolean
-   */
-
+     **/
   def existsRevision(revisionID: RevisionID): Boolean = {
     revisionsData.exists(_.revision.id == revisionID)
   }
 
-  lazy val txnVersion = {
-    snapshot.setTransactions.filter(_.appId == indexId) match {
-      case Nil => -1
-      case list => list.last.version
+    lazy val txnVersion = {
+      snapshot.setTransactions.filter(_.appId == indexId) match {
+        case Nil => -1
+        case list => list.last.version
+      }
     }
+
+
   }
-
-  lazy val revisionsData: Seq[RevisionData] = {
-    revisions
-      .collect()
-      .map(revision => {
-        val revisionFiles = snapshot.allFiles.filter(_.tags(spaceTag) == revision.toString)
-        RevisionData(revision, revisionFiles, txnVersion, snapshot.path.getParent)
-      })
-  }
-
-  lazy val lastRevisionData: RevisionData = {
-    getRevisionData(lastRevisionID)
-  }
-
-  lazy val lastRevisionID: Long = lastRevision.id
-
-}

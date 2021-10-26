@@ -5,8 +5,10 @@ package io.qbeast.spark.index
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.OTreeAlgorithmTest.Client3
+import io.qbeast.spark.sql.qbeast.QbeastSnapshot
 import io.qbeast.spark.table.QbeastTable
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.delta.DeltaLog
 import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -46,47 +48,34 @@ class AnalyzeAndOptimizeTest
   }
 
   it should "not analyze replicated cubes" in withSparkAndTmpDir { (spark, tmpDir) =>
-    import spark.implicits._
-
-    val dimensionCount = appendNewRevision(spark, tmpDir, 1)
+    appendNewRevision(spark, tmpDir, 1)
     val qbeastTable = QbeastTable.forPath(spark, tmpDir)
     qbeastTable.analyze()
     qbeastTable.optimize()
     qbeastTable.analyze()
     qbeastTable.optimize()
 
-    val replicatedCubes = spark.read
-      .format("parquet")
-      .load(tmpDir + s"/_qbeast/1")
-      .as[(Array[Byte], Long)]
-      .map(_._1)
-      .collect()
-      .map(bytes => CubeId(dimensionCount, bytes).string)
+    val deltaLog = DeltaLog.forTable(spark, tmpDir)
+    val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
+    val replicatedCubes = qbeastSnapshot.replicatedSet(qbeastSnapshot.lastRevisionTimestamp)
 
     val announcedCubes = qbeastTable.analyze()
     announcedCubes.foreach(a => replicatedCubes shouldNot contain(a))
-
   }
 
   "Optimize command" should "replicate cubes in announce set" in withSparkAndTmpDir {
     (spark, tmpDir) =>
-      import spark.implicits._
-
-      val dimensionCount = appendNewRevision(spark, tmpDir, 1)
+      appendNewRevision(spark, tmpDir, 1)
 
       val qbeastTable = QbeastTable.forPath(spark, tmpDir)
 
       (0 to 5).foreach(txn => {
         val announcedCubes = qbeastTable.analyze()
-
         qbeastTable.optimize()
-        val replicatedCubes = spark.read
-          .format("parquet")
-          .load(tmpDir + s"/_qbeast/$txn")
-          .as[(Array[Byte], Long)]
-          .map(_._1)
-          .collect()
-          .map(bytes => CubeId(dimensionCount, bytes).string)
+        val deltaLog = DeltaLog.forTable(spark, tmpDir)
+        val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
+        val replicatedCubes =
+          qbeastSnapshot.replicatedSet(qbeastSnapshot.lastRevisionTimestamp).map(_.string)
 
         announcedCubes.foreach(r => replicatedCubes should contain(r))
       })

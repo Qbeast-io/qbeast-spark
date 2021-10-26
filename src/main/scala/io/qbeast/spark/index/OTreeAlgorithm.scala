@@ -3,11 +3,16 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.spark.index.QbeastColumns._
+import io.qbeast.spark.index.QbeastColumns.{
+  cubeColumnName,
+  cubeToReplicateColumnName,
+  stateColumnName,
+  weightColumnName
+}
 import io.qbeast.spark.model._
 import io.qbeast.spark.sql.qbeast.RevisionData
 import io.qbeast.spark.sql.rules.Functions.qbeastHash
-import io.qbeast.spark.sql.utils.State._
+import io.qbeast.spark.sql.utils.State
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{AnalysisExceptionFactory, Column, DataFrame, SparkSession}
@@ -286,11 +291,11 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
     val states = udf { (bytes: Array[Byte]) =>
       val cubeId = CubeId(dimensionCount, bytes)
       if (announcedSet.contains(cubeId) && !replicatedSet.contains(cubeId)) {
-        ANNOUNCED
+        State.ANNOUNCED
       } else if (replicatedSet.contains(cubeId)) {
-        REPLICATED
+        State.REPLICATED
       } else {
-        FLOODED
+        State.FLOODED
       }
     }
 

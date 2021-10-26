@@ -8,7 +8,6 @@ import io.qbeast.spark.keeper.Keeper
 import io.qbeast.spark.model.RevisionID
 import io.qbeast.spark.sql.qbeast.{QbeastOptimizer, QbeastSnapshot, QbeastWriter}
 import io.qbeast.spark.sql.sources.QbeastBaseRelation
-import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.actions.SetTransaction
 import org.apache.spark.sql.delta.sources.DeltaDataSource
 import org.apache.spark.sql.delta.{DeltaLog, DeltaOperations, DeltaOptions}
@@ -148,7 +147,7 @@ private[table] class IndexedTableImpl(
 
   private def snapshot = {
     if (snapshotCache.isEmpty) {
-      snapshotCache = Some(QbeastSnapshot(deltaLog.snapshot, oTreeAlgorithm.desiredCubeSize))
+      snapshotCache = Some(QbeastSnapshot(deltaLog.snapshot))
     }
     snapshotCache.get
   }
@@ -179,21 +178,9 @@ private[table] class IndexedTableImpl(
   }
 
   private def checkColumnsToMatchSchema(columnsToIndex: Seq[String]): Unit = {
-    if (!ColumnsToIndex.areSame(
-        columnsToIndex,
-        snapshot.lastRevisionData.revision.dimensionColumns)) {
+    if (!ColumnsToIndex.areSame(columnsToIndex, snapshot.indexedCols)) {
       throw AnalysisExceptionFactory.create(
         s"Columns to index '$columnsToIndex' do not match existing index.")
-    }
-  }
-
-  private def createQbeastLogIfNecessary(): Unit = {
-    val configuration = sqlContext.sparkSession.sessionState.newHadoopConf()
-    val path = new Path(deltaLog.dataPath, "_qbeast")
-    val fileSystem = path.getFileSystem(configuration)
-    if (!fileSystem.exists(path)) {
-      fileSystem.mkdirs(path)
-      fileSystem.makeQualified(path)
     }
   }
 
@@ -201,11 +188,10 @@ private[table] class IndexedTableImpl(
       data: DataFrame,
       columnsToIndex: Seq[String],
       append: Boolean): BaseRelation = {
-    createQbeastLogIfNecessary()
     val dimensionCount = columnsToIndex.length
     if (exists) {
       val revision = snapshot.lastRevisionData.revision
-      keeper.withWrite(path, revision.timestamp) { write =>
+      keeper.withWrite(path, revision.id) { write =>
         val announcedSet = write.announcedCubes
           .map(CubeId(dimensionCount, _))
         doWrite(data, columnsToIndex, append, announcedSet)
@@ -290,8 +276,7 @@ private[table] class IndexedTableImpl(
         SetTransaction(transactionID, newTransaction, Some(System.currentTimeMillis()))
 
       val (replicatedCubeIds, actions) =
-        optimizer.optimize(sqlContext.sparkSession, cubesToOptimize)
-      optimizer.updateReplicatedSet(sqlContext.sparkSession, newTransaction, replicatedCubeIds)
+        optimizer.optimize(txn, sqlContext.sparkSession, cubesToOptimize)
 
       txn.commit(actions ++ Seq(transRecord), deltaWrite)
       bo.end(replicatedCubeIds.map(_.string))

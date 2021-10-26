@@ -25,9 +25,8 @@ class QbeastSnapshotTest
 
     val rdd =
       spark.sparkContext.parallelize(
-        Seq(Client3(size * size, s"student-$size", 20, 1000 + 123, 2567.3432143)) ++
-          1.until(size)
-            .map(i => Client3(i * i, s"student-$i", 20 + i, 1000 + 123 + i, 2567.3432143 + i)))
+        1.to(size)
+          .map(i => Client3(i * i, s"student-$i", i, i * 1000 + 123, i * 2567.3432143)))
 
     assert(rdd.count() == size)
     spark.createDataFrame(rdd)
@@ -47,7 +46,7 @@ class QbeastSnapshotTest
             .save(tmpDir)
 
           val deltaLog = DeltaLog.forTable(spark, tmpDir)
-          val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot, oTreeAlgorithm.desiredCubeSize)
+          val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
           val cubeNormalizedWeights =
             qbeastSnapshot.lastRevisionData.cubeNormalizedWeights
 
@@ -69,7 +68,7 @@ class QbeastSnapshotTest
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot, oTreeAlgorithm.desiredCubeSize)
+        val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
         val cubeNormalizedWeights =
           qbeastSnapshot.lastRevisionData.cubeNormalizedWeights
 
@@ -143,7 +142,7 @@ class QbeastSnapshotTest
               .save(tmpDir)
 
             val deltaLog = DeltaLog.forTable(spark, tmpDir)
-            val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot, oTreeAlgorithm.desiredCubeSize)
+            val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
 
             val indexStateMethod = PrivateMethod[Dataset[CubeInfo]]('revisionState)
             val indexState =

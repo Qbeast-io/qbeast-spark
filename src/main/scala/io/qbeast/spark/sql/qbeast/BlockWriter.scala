@@ -3,9 +3,9 @@
  */
 package io.qbeast.spark.sql.qbeast
 
-import io.qbeast.spark.index.{ColumnsToIndex, CubeId, QbeastColumns, Weight}
+import io.qbeast.spark.index.{CubeId, QbeastColumns, Weight}
 import io.qbeast.spark.model.Revision
-import io.qbeast.spark.sql.utils.TagUtils._
+import io.qbeast.spark.sql.utils.TagUtils
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapred.{JobConf, TaskAttemptContextImpl, TaskAttemptID}
 import org.apache.hadoop.mapreduce.TaskType
@@ -27,8 +27,8 @@ import java.util.UUID
  * @param factory        output writer factory
  * @param serConf        configuration to serialize the data
  * @param qbeastColumns  qbeast metadata columns
- * @param columnsToIndex columns of the original data that are used for indexing
- * @param spaceRevision  space revision of the data to write
+ * @param revision     the revision of the data to write
+ * @param weightMap       map of cubes and it's estimated weight
  */
 case class BlockWriter(
     dataPath: String,
@@ -37,11 +37,10 @@ case class BlockWriter(
     factory: OutputWriterFactory,
     serConf: SerializableConfiguration,
     qbeastColumns: QbeastColumns,
-    columnsToIndex: Seq[String],
     revision: Revision,
     weightMap: Map[CubeId, Weight])
     extends Serializable {
-  private val dimensionCount = revision.dimensionCount
+  private def dimensionCount = revision.dimensionCount
 
   /**
    * Writes rows in corresponding files
@@ -73,9 +72,13 @@ case class BlockWriter(
             cleanRow += row.get(i, schemaIndex(i).dataType)
           }
         }
+
+        // Get the weight of the row to compute the minimumWeight per block
+        val rowWeight = Weight(row.getInt(qbeastColumns.weightColumnIndex))
+
         // Writing the data in a single file.
         blockCtx.writer.write(InternalRow.fromSeq(cleanRow.result()))
-        blocks.updated(cubeId, blockCtx.update())
+        blocks.updated(cubeId, blockCtx.update(rowWeight))
       }
       .values
       .flatMap {
@@ -86,13 +89,12 @@ case class BlockWriter(
               writer,
               path) =>
           val tags = Map(
-            cubeTag -> cube,
-            weightMinTag -> minWeight.value.toString,
-            weightMaxTag -> maxWeight.value.toString,
-            stateTag -> state,
-            spaceTag -> JsonUtils.toJson(revision),
-            indexedColsTag -> ColumnsToIndex.encode(columnsToIndex),
-            elementCountTag -> rowCount.toString)
+            TagUtils.cube -> cube,
+            TagUtils.minWeight -> minWeight.value.toString,
+            TagUtils.maxWeight -> maxWeight.value.toString,
+            TagUtils.state -> state,
+            TagUtils.space -> JsonUtils.toJson(revision.id),
+            TagUtils.elementCount -> rowCount.toString)
 
           writer.close()
 
@@ -138,7 +140,10 @@ case class BlockWriter(
    * @param path the path of the written file
    */
   private case class BlockContext(stats: BlockStats, writer: OutputWriter, path: Path) {
-    def update(): BlockContext = this.copy(stats = stats.update())
+
+    def update(minWeight: Weight): BlockContext =
+      this.copy(stats = stats.update(minWeight))
+
   }
 
 }

@@ -10,11 +10,11 @@ import io.qbeast.spark.index.QbeastColumns.{
 }
 import io.qbeast.spark.index.{CubeId, OTreeAlgorithm}
 import io.qbeast.spark.model.RevisionID
-import io.qbeast.spark.sql.utils.State.REPLICATED
-import io.qbeast.spark.sql.utils.TagUtils.{cubeTag, stateTag}
+import io.qbeast.spark.sql.utils.State
+import io.qbeast.spark.sql.utils.TagUtils
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.actions.{Action, AddFile, FileAction}
-import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions}
+import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions, OptimisticTransaction}
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.types.{BinaryType, StructField}
 import org.apache.spark.sql.{Row, SaveMode, SparkSession}
@@ -76,11 +76,13 @@ class QbeastOptimizer(
   /**
    * Performs the optimization
    *
+   * @param txn the OptimisticTransaction
    * @param sparkSession   SparkSession
    * @param announcedCubes Set of cube paths announced
    * @return the set of cubes that completed the operation along with the file actions to commit
    */
   def optimize(
+      txn: OptimisticTransaction,
       sparkSession: SparkSession,
       announcedCubes: Set[String]): (Set[CubeId], Seq[Action]) = {
 
@@ -99,7 +101,7 @@ class QbeastOptimizer(
     val dataPath = qbeastSnapshot.snapshot.path.getParent
     val (dataToReplicate, updatedActions) = revisionData
       .getCubeBlocks(cubesToReplicate)
-      .groupBy(_.tags(cubeTag))
+      .groupBy(_.tags(TagUtils.cube))
       .map { case (cube: String, blocks: Seq[AddFile]) =>
         val cubeId = CubeId(dimensionCount, cube)
         val data = sparkSession.read
@@ -108,7 +110,7 @@ class QbeastOptimizer(
           .withColumn(cubeToReplicateColumnName, lit(cubeId.bytes))
 
         val newAddFiles = blocks
-          .map(f => f.copy(tags = f.tags.updated(stateTag, REPLICATED)))
+          .map(f => f.copy(tags = f.tags.updated(TagUtils.state, State.REPLICATED)))
         val deletedFiles = blocks.map(_.remove)
 
         (data, deletedFiles ++ newAddFiles)
@@ -129,7 +131,10 @@ class QbeastOptimizer(
 
     val (qbeastData, weightMap) = oTreeAlgorithm
       .replicateCubes(dataToReplicate, revisionData, cubesToOptimize)
+    // updateMetadata
+    updateQbeastReplicatedSet(txn, revisionID, qbeastSnapshot, cubesToOptimize)
 
+    // write files
     val addFiles = writer.writeFiles(qbeastData, revision, weightMap)
     val actions = addFiles ++ updatedActions
     (cubesToReplicate, actions)

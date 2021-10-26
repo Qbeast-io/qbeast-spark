@@ -9,7 +9,6 @@ import io.qbeast.spark.model.Revision
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.sql.delta.actions.{Action, AddFile, FileAction}
 import org.apache.spark.sql.delta.commands.DeltaCommand
-import org.apache.spark.sql.delta.schema.ImplicitMetadataOperation
 import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions, OptimisticTransaction}
 import org.apache.spark.sql.execution.datasources.OutputWriterFactory
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
@@ -40,7 +39,7 @@ case class QbeastWriter(
     qbeastSnapshot: QbeastSnapshot,
     announcedSet: Set[CubeId],
     oTreeAlgorithm: OTreeAlgorithm)
-    extends ImplicitMetadataOperation
+    extends QbeastMetadataOperation
     with DeltaCommand {
 
   private def isOverwriteOperation: Boolean = mode == SaveMode.Overwrite
@@ -66,7 +65,42 @@ case class QbeastWriter(
     }
     val rearrangeOnly = options.rearrangeOnly
 
-    updateMetadata(txn, data, partitionColumns, Map.empty, isOverwriteOperation, rearrangeOnly)
+    // Whether the update contains a new revision or not
+    def isNewRevision = isOverwriteOperation || qbeastSnapshot.isInitial ||
+      !qbeastSnapshot.lastRevision.contains(data, columnsToIndex)
+
+    val (qbeastData, spaceRevision, weightMap) =
+      if (isNewRevision) {
+        oTreeAlgorithm.indexFirst(data, columnsToIndex)
+
+      } else {
+        oTreeAlgorithm.indexNext(data, qbeastSnapshot, announcedSet)
+      }
+
+    // The Metadata can be updated only once in a single transaction
+    // If a new space revision is detected, we update everything in the same operation
+    // If not, we delegate directly to the delta updateMetadata
+    if (isNewRevision) {
+      updateQbeastRevision(
+        txn,
+        data,
+        partitionColumns,
+        isOverwriteOperation,
+        rearrangeOnly,
+        columnsToIndex,
+        oTreeAlgorithm.desiredCubeSize,
+        spaceRevision,
+        qbeastSnapshot)
+    } else {
+      val oldQbeastMetadata = txn.metadata.configuration
+      updateMetadata(
+        txn,
+        data,
+        partitionColumns,
+        oldQbeastMetadata,
+        isOverwriteOperation,
+        rearrangeOnly)
+    }
 
     // Validate partition predicates
     val replaceWhere = options.replaceWhere
@@ -87,15 +121,7 @@ case class QbeastWriter(
       fs.mkdirs(deltaLog.logPath)
     }
 
-    val (qbeastData, revision, weightMap) =
-      if (mode == SaveMode.Overwrite || qbeastSnapshot.isInitial ||
-        !qbeastSnapshot.lastRevision.contains(data, columnsToIndex)) {
-        oTreeAlgorithm.indexFirst(data, columnsToIndex)
-      } else {
-        oTreeAlgorithm.indexNext(data, qbeastSnapshot.lastRevisionData, announcedSet)
-      }
-
-    val newFiles = writeFiles(qbeastData, revision, weightMap)
+    val newFiles = writeFiles(qbeastData, spaceRevision, weightMap)
     val addFiles = newFiles.collect { case a: AddFile => a }
     val deletedFiles = (mode, partitionFilters) match {
       case (SaveMode.Overwrite, None) =>
@@ -161,7 +187,6 @@ case class QbeastWriter(
         factory = factory,
         serConf = serConf,
         qbeastColumns = qbeastColumns,
-        columnsToIndex = columnsToIndex,
         revision = revision,
         weightMap = weightMap)
     qbeastData
@@ -173,8 +198,5 @@ case class QbeastWriter(
       .collect()
 
   }
-
-  override protected val canMergeSchema: Boolean = true
-  override protected val canOverwriteSchema: Boolean = true
 
 }

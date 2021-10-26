@@ -40,9 +40,10 @@ class NewRevisionTest
       spaceMultipliers.foreach(i => appendNewRevision(spark, tmpDir, i))
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot, 10000)
+      val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
+      val spaceRevisions = qbeastSnapshot.spaceRevisionsMap.values
 
-      qbeastSnapshot.revisions.count() shouldBe spaceMultipliers.length
+      spaceRevisions.size shouldBe spaceMultipliers.length
 
   }
 
@@ -53,12 +54,11 @@ class NewRevisionTest
         appendNewRevision(spark, tmpDir, 3)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot, 10000)
+        val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
 
-        val allWM = qbeastSnapshot.revisionsData.map(_.cubeWeights)
+        val spaceRevisions = qbeastSnapshot.spaceRevisionsMap.values
+        val allWM = spaceRevisions.map(_.timestamp).map(qbeastSnapshot.cubeWeights)
         allWM.foreach(wm => assert(wm.nonEmpty))
-        assert(allWM.distinct.length == allWM.length)
-
     }
 
 }
