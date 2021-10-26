@@ -50,15 +50,14 @@ case class Revision(
   def transform(point: Point): Point = transform(point.coordinates)
 
   /**
-   * Returns whether a given data frame fits the space revision for each index column.
+   * Returns whether a given data frame fits the revision for each index column.
    *
    * @param dataFrame the data frame
-   * @param columnsToIndex the column to index
    * @return the data frame fits the space revision
    */
-  def contains(dataFrame: DataFrame, columnsToIndex: Seq[String]): Boolean = {
+  def contains(dataFrame: DataFrame): Boolean = {
     transformations
-      .zip(ColumnInfo.get(dataFrame, columnsToIndex))
+      .zip(ColumnInfo.get(dataFrame, dimensionColumns))
       .forall { case (transformation, info) =>
         transformation.min <= info.min && info.max <= transformation.max
       }
@@ -67,14 +66,20 @@ case class Revision(
   override def toString: String = JsonUtils.toJson(this)
 }
 
+/**
+ * Companion object for Revision
+ * Creates a new Revision on a given Dataframe,
+ * columns to index and desired cube size
+ */
 object Revision {
 
   /**
-   * Creates a space revision from a given data frame to index.
+   * Creates a revision from a given data frame to index.
    *
    * @param dataFrame the data frame
    * @param columnsToIndex the columns to index
-   * @return a space revision
+   * @param desiredCubeSize the desired cube size
+   * @return a revision
    */
   def apply(dataFrame: DataFrame, columnsToIndex: Seq[String], desiredCubeSize: Int): Revision = {
     val transformations = ColumnInfo

@@ -67,7 +67,7 @@ case class QbeastWriter(
 
     // Whether the update contains a new revision or not
     def isNewRevision = isOverwriteOperation || qbeastSnapshot.isInitial ||
-      !qbeastSnapshot.lastRevision.contains(data, columnsToIndex)
+      !qbeastSnapshot.lastRevision.contains(data)
 
     val (qbeastData, revision, weightMap) =
       if (isNewRevision) {
