@@ -5,19 +5,10 @@ package io.qbeast.spark.utils
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.CubeId
-import io.qbeast.spark.sql.files.OTreeIndex
 import io.qbeast.spark.table.QbeastTable
-import org.apache.spark.sql.execution.FileSourceScanExec
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{SparkSession}
 
 class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
-
-  private def loadTestData(spark: SparkSession): DataFrame = spark.read
-    .format("csv")
-    .option("header", "true")
-    .option("inferSchema", "true")
-    .load("src/test/resources/ecommerce100K_2019_Oct.csv")
-    .distinct()
 
   "the Qbeast data source" should
     "expose the original number of columns and rows" in withQbeastContextSparkAndTmpDir {
@@ -130,78 +121,6 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
     }
 
   it should
-    "filter the files to read" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
-      {
-        val data = loadTestData(spark)
-
-        data.write
-          .mode("error")
-          .format("qbeast")
-          .option("columnsToIndex", "user_id,product_id")
-          .save(tmpDir)
-        val df = spark.read.format("qbeast").load(tmpDir)
-        val precision = 0.1
-
-        val query = df.sample(withReplacement = false, precision)
-        val executionPlan = query.queryExecution.executedPlan.collectLeaves()
-
-        assert(
-          executionPlan.exists(p =>
-            p
-              .asInstanceOf[FileSourceScanExec]
-              .relation
-              .location
-              .isInstanceOf[OTreeIndex]))
-
-        executionPlan
-          .foreach {
-            case f: FileSourceScanExec if f.relation.location.isInstanceOf[OTreeIndex] =>
-              val index = f.relation.location
-              val matchingFiles =
-                index.listFiles(f.partitionFilters, f.dataFilters).flatMap(_.files)
-              val allFiles = index.inputFiles
-              matchingFiles.length shouldBe <(allFiles.length)
-          }
-      }
-    }
-
-  it should
-    "return a valid sample of the original dataset" in withQbeastContextSparkAndTmpDir {
-      (spark, tmpDir) =>
-        {
-          val data = loadTestData(spark)
-
-          data.write
-            .mode("error")
-            .format("qbeast")
-            .option("columnsToIndex", "user_id,product_id")
-            .save(tmpDir)
-          val df = spark.read.format("qbeast").load(tmpDir)
-          val dataSize = data.count()
-          // We allow a 1% of tolerance in the sampling
-          val tolerance = 0.01
-
-          List(0.1, 0.2, 0.5, 0.7, 0.99).foreach(precision => {
-            val result = df
-              .sample(withReplacement = false, precision)
-              .count()
-              .toDouble
-
-            result shouldBe (dataSize * precision) +- dataSize * precision * tolerance
-          })
-
-          // Testing collect() method
-          df.sample(withReplacement = false, 0.1)
-            .collect()
-            .length
-            .toDouble shouldBe (dataSize * 0.1) +- dataSize * 0.1 * tolerance
-
-          data.columns.toSet shouldBe df.columns.toSet
-
-        }
-    }
-
-  it should
     "append data to the original dataset" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
       {
         val data = loadTestData(spark)
@@ -245,64 +164,34 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
 
   }
 
-  "An optimized index" should "sample correctly" in withQbeastContextSparkAndTmpDir {
-    (spark, tmpDir) =>
-      {
-        val data = loadTestData(spark)
+  "An optimized index" should
+    "erase cube information when overwrited" in withQbeastContextSparkAndTmpDir {
+      (spark, tmpDir) =>
+        {
+          // val tmpDir = "/tmp/qbeast3"
+          val data = loadTestData(spark)
 
-        data.write
-          .mode("error")
-          .format("qbeast")
-          .option("columnsToIndex", "user_id,product_id")
-          .save(tmpDir)
+          data.write
+            .mode("error")
+            .format("qbeast")
+            .option("columnsToIndex", "user_id,product_id")
+            .save(tmpDir)
 
-        val df = spark.read.format("qbeast").load(tmpDir)
+          // analyze and optimize the index 3 times
+          optimize(spark, tmpDir, 3)
 
-        // analyze and optimize the index 3 times
-        optimize(spark, tmpDir, 3)
-        val dataSize = data.count()
+          // Overwrite table
+          data.write
+            .mode("overwrite")
+            .format("qbeast")
+            .option("columnsToIndex", "user_id,product_id")
+            .save(tmpDir)
 
-        df.count() shouldBe dataSize
+          val qbeastTable = QbeastTable.forPath(spark, tmpDir)
 
-        val tolerance = 0.01
-        List(0.1, 0.2, 0.5, 0.7, 0.99).foreach(precision => {
-          val result = df
-            .sample(false, precision)
-            .count()
-            .toDouble
+          qbeastTable.analyze() shouldBe Seq(CubeId.root(2).string)
 
-          result shouldBe (dataSize * precision) +- dataSize * precision * tolerance
-        })
-      }
-  }
-
-  it should "erase cube information when overwrited" in withQbeastContextSparkAndTmpDir {
-    (spark, tmpDir) =>
-      {
-        // val tmpDir = "/tmp/qbeast3"
-        val data = loadTestData(spark)
-
-        data.write
-          .mode("error")
-          .format("qbeast")
-          .option("columnsToIndex", "user_id,product_id")
-          .save(tmpDir)
-
-        // analyze and optimize the index 3 times
-        optimize(spark, tmpDir, 3)
-
-        // Overwrite table
-        data.write
-          .mode("overwrite")
-          .format("qbeast")
-          .option("columnsToIndex", "user_id,product_id")
-          .save(tmpDir)
-
-        val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-
-        qbeastTable.analyze() shouldBe Seq(CubeId.root(2).string)
-
-      }
-  }
+        }
+    }
 
 }

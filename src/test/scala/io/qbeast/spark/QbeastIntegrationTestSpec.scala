@@ -9,9 +9,11 @@ import io.qbeast.spark.context.{QbeastContext, QbeastContextImpl}
 import io.qbeast.spark.index.{OTreeAlgorithm, OTreeAlgorithmImpl}
 import io.qbeast.spark.keeper.{Keeper, LocalKeeper}
 import io.qbeast.spark.sql.QbeastSparkSessionExtension
+import io.qbeast.spark.sql.files.OTreeIndex
 import io.qbeast.spark.table.IndexedTableFactoryImpl
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.execution.{FileSourceScanExec}
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -31,6 +33,37 @@ import java.nio.file.Files
 trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetComparer {
   // This reduce the verbosity of Spark
   Logger.getLogger("org.apache").setLevel(Level.WARN)
+
+  def loadTestData(spark: SparkSession): DataFrame = spark.read
+    .format("csv")
+    .option("header", "true")
+    .option("inferSchema", "true")
+    .load("src/test/resources/ecommerce100K_2019_Oct.csv")
+    .distinct()
+
+  def checkFileFiltering(query: DataFrame): Unit = {
+
+    val leaves = query.queryExecution.executedPlan.collectLeaves()
+
+    assert(
+      leaves.exists(p =>
+        p
+          .asInstanceOf[FileSourceScanExec]
+          .relation
+          .location
+          .isInstanceOf[OTreeIndex]))
+
+    leaves
+      .foreach {
+        case f: FileSourceScanExec if f.relation.location.isInstanceOf[OTreeIndex] =>
+          val index = f.relation.location
+          val matchingFiles =
+            index.listFiles(f.partitionFilters, f.dataFilters).flatMap(_.files)
+          val allFiles = index.inputFiles
+          matchingFiles.length shouldBe <(allFiles.length)
+      }
+
+  }
 
   def withSpark[T](testCode: SparkSession => T): T = {
     val spark = SparkSession
