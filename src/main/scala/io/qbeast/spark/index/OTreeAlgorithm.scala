@@ -141,14 +141,7 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
   override def getWeightContributorColumns(
       schema: StructType,
       columnsToIndex: Seq[String]): Seq[String] = {
-    val fields = columnsToIndex.map(column => schema.find(_.name == column).get)
-    val notNulls =
-      fields.filter(p => !p.nullable)
-    if (notNulls.isEmpty) {
-      fields
-    } else {
-      notNulls
-    }
+    columnsToIndex.map(column => schema.find(_.name == column).get)
   }.map(_.name)
 
   override def analyzeIndex(
