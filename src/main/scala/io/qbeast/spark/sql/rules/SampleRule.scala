@@ -3,7 +3,6 @@
  */
 package io.qbeast.spark.sql.rules
 
-import io.qbeast.spark.context.QbeastContext
 import io.qbeast.spark.index.Weight
 import io.qbeast.spark.sql.sources.QbeastBaseRelation
 import org.apache.spark.internal.Logging
@@ -31,8 +30,6 @@ import org.apache.spark.unsafe.hash.Murmur3_x86_32
  */
 class SampleRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
 
-  private val oTreeAlgorithm = QbeastContext.oTreeAlgorithm
-
   def transformSampleToFilter(
       sample: Sample,
       logicalRelation: LogicalRelation,
@@ -40,9 +37,7 @@ class SampleRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
     val minWeight = Weight(sample.lowerBound).value
     val maxWeight = Weight(sample.upperBound).value
 
-    val columnsForHash =
-      oTreeAlgorithm.getWeightContributorColumns(logicalRelation.schema, columnsToIndex)
-    val columns = columnsForHash.map(c => logicalRelation.output.find(_.name == c).get)
+    val columns = columnsToIndex.map(c => logicalRelation.output.find(_.name == c).get)
     val weight = new QbeastMurmur3Hash(columns)
     And(LessThan(weight, Literal(maxWeight)), GreaterThanOrEqual(weight, Literal(minWeight)))
 

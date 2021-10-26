@@ -14,7 +14,6 @@ import io.qbeast.spark.sql.qbeast.QbeastSnapshot
 import io.qbeast.spark.sql.rules.Functions.qbeastHash
 import io.qbeast.spark.sql.utils.State
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{AnalysisExceptionFactory, Column, DataFrame, SparkSession}
 
 import scala.collection.immutable.IndexedSeq
@@ -48,15 +47,6 @@ trait OTreeAlgorithm {
       dataFrame: DataFrame,
       snapshot: QbeastSnapshot,
       announcedSet: Set[CubeId]): (DataFrame, SpaceRevision, Map[CubeId, Weight])
-
-  /**
-   * Returns the columns contributing to the pseudo random weight generation.
-   *
-   * @param schema the schema
-   * @param columnsToIndex the columns to index
-   * @return the columns
-   */
-  def getWeightContributorColumns(schema: StructType, columnsToIndex: Seq[String]): Seq[String]
 
   /**
    * The desired size of the cube.
@@ -137,12 +127,6 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
       isReplication = false)
     (indexedDataFrame, spaceRevision, cubeWeights)
   }
-
-  override def getWeightContributorColumns(
-      schema: StructType,
-      columnsToIndex: Seq[String]): Seq[String] = {
-    columnsToIndex.map(column => schema.find(_.name == column).get)
-  }.map(_.name)
 
   override def analyzeIndex(
       qbeastSnapshot: QbeastSnapshot,
@@ -327,8 +311,7 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
     array(columnsToIndex.map(col): _*)
 
   private def addRandomWeight(df: DataFrame, columnsToIndex: Seq[String]): DataFrame = {
-    val columns = getWeightContributorColumns(df.schema, columnsToIndex).map(name => df(name))
-    df.withColumn(weightColumnName, qbeastHash(columns: _*))
+    df.withColumn(weightColumnName, qbeastHash(columnsToIndex.map(name => df(name)): _*))
   }
 
 }
