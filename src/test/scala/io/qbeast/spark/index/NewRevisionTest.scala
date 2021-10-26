@@ -55,7 +55,7 @@ class NewRevisionTest
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
         val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot, 10000)
 
-        val allWM = qbeastSnapshot.revisionSnapshots.map(_.cubeWeights)
+        val allWM = qbeastSnapshot.revisionsData.map(_.cubeWeights)
         allWM.foreach(wm => assert(wm.nonEmpty))
         assert(allWM.distinct.length == allWM.length)
 

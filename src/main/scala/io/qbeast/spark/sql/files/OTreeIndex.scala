@@ -90,7 +90,7 @@ case class OTreeIndex(index: TahoeLogFileIndex, desiredCubeSize: Int)
     }
 
     val filesVector = files.toVector
-    qbeastSnapshot.revisionSnapshots
+    qbeastSnapshot.revisionsData
       .flatMap(revisionSnapshot => {
         val revision = revisionSnapshot.revision
         val dimensionCount = revision.dimensionCount

@@ -12,12 +12,14 @@ import scala.collection.immutable.IndexedSeq
 /**
  * Represents the configuration and space where the data is fitted.
  *
- * @param timestamp moment when the revision was created
+ * @param id the identifier of the revision
+ * @param timestamp moment when the revision was created in milliseconds
  * @param desiredCubeSize the desired size of the cubes for the revision
  * @param dimensionColumns the columns indexed on the revision
  * @param transformations transformations for each coordinate in the space
  */
 case class Revision(
+    id: RevisionID,
     timestamp: Long,
     desiredCubeSize: Int,
     dimensionColumns: Seq[String],
@@ -83,8 +85,10 @@ object Revision {
       })
       .toIndexedSeq
 
+    val timestamp = System.currentTimeMillis()
     new Revision(
-      timestamp = System.currentTimeMillis(),
+      timestamp,
+      timestamp,
       desiredCubeSize = desiredCubeSize,
       dimensionColumns = columnsToIndex,
       transformations = transformations)

@@ -5,7 +5,7 @@ package io.qbeast.spark.index
 
 import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.model._
-import io.qbeast.spark.sql.qbeast.RevisionSnapshot
+import io.qbeast.spark.sql.qbeast.RevisionData
 import io.qbeast.spark.sql.rules.Functions.qbeastHash
 import io.qbeast.spark.sql.utils.State._
 import org.apache.spark.sql.functions._
@@ -35,13 +35,13 @@ trait OTreeAlgorithm {
    * of the index state and the announced set.
    *
    * @param dataFrame the data frame to append
-   * @param revisionSnapshot the index state snapshot of the revision
+   * @param revisionData the index state snapshot of the revision
    * @param announcedSet the announced set of the revision
    * @return the indexed data frame, the revision and the weightMap
    */
   def indexNext(
       dataFrame: DataFrame,
-      revisionSnapshot: RevisionSnapshot,
+      revisionData: RevisionData,
       announcedSet: Set[CubeId]): (DataFrame, Revision, Map[CubeId, Weight])
 
   /**
@@ -64,22 +64,22 @@ trait OTreeAlgorithm {
    * Takes the data from different cubes and replicates it to their children
    *
    * @param dataFrame data to be replicated
-   * @param revisionSnapshot current revision snapshot to index
+   * @param revisionData current revision snapshot to index
    * @param cubesToReplicate set of cubes to replicate
    * @return the modified dataFrame with replicated data
    */
   def replicateCubes(
       dataFrame: DataFrame,
-      revisionSnapshot: RevisionSnapshot,
+      revisionData: RevisionData,
       cubesToReplicate: Set[CubeId]): (DataFrame, Map[CubeId, Weight])
 
   /**
    * Analyze the index structure and returns which cubes need to be optimized
    *
-   * @param revisionSnapshot snapshot of a single Revision
+   * @param revisionData data of a single Revision
    * @return the sequence of cubes that need optimization
    */
-  def analyzeIndex(revisionSnapshot: RevisionSnapshot): Seq[CubeId]
+  def analyzeIndex(revisionData: RevisionData): Seq[CubeId]
 
 }
 
@@ -114,15 +114,15 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
 
   override def indexNext(
       dataFrame: DataFrame,
-      revisionSnapshot: RevisionSnapshot,
+      revisionData: RevisionData,
       announcedSet: Set[CubeId]): (DataFrame, Revision, Map[CubeId, Weight]) = {
-    val revision = revisionSnapshot.revision
+    val revision = revisionData.revision
     val (indexedDataFrame, cubeWeights: Map[CubeId, Weight]) = index(
       dataFrame = dataFrame,
       revision,
-      cubeNormalizedWeights = revisionSnapshot.cubeNormalizedWeights,
+      cubeNormalizedWeights = revisionData.cubeNormalizedWeights,
       announcedSet = announcedSet,
-      replicatedSet = revisionSnapshot.replicatedSet,
+      replicatedSet = revisionData.replicatedSet,
       isReplication = false)
     (indexedDataFrame, revision, cubeWeights)
   }
@@ -140,11 +140,11 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
     }
   }.map(_.name)
 
-  override def analyzeIndex(revisionSnapshot: RevisionSnapshot): Seq[CubeId] = {
+  override def analyzeIndex(revisionData: RevisionData): Seq[CubeId] = {
 
-    val dimensionCount = revisionSnapshot.revision.dimensionCount
-    val overflowedSet = revisionSnapshot.overflowedSet
-    val replicatedSet = revisionSnapshot.replicatedSet
+    val dimensionCount = revisionData.revision.dimensionCount
+    val overflowedSet = revisionData.overflowedSet
+    val replicatedSet = revisionData.replicatedSet
 
     val cubesToOptimize = overflowedSet
       .filter(cube => {
@@ -161,15 +161,15 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
 
   override def replicateCubes(
       dataFrame: DataFrame,
-      revisionSnapshot: RevisionSnapshot,
+      revisionData: RevisionData,
       announcedSet: Set[CubeId]): (DataFrame, Map[CubeId, Weight]) = {
 
-    val cubeWeights = revisionSnapshot.cubeNormalizedWeights
-    val replicatedSet = revisionSnapshot.replicatedSet
+    val cubeWeights = revisionData.cubeNormalizedWeights
+    val replicatedSet = revisionData.replicatedSet
 
     index(
       dataFrame = dataFrame,
-      revision = revisionSnapshot.revision,
+      revision = revisionData.revision,
       cubeNormalizedWeights = cubeWeights,
       announcedSet = announcedSet,
       replicatedSet = replicatedSet,

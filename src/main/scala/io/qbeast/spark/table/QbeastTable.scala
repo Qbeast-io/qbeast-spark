@@ -4,6 +4,7 @@
 package io.qbeast.spark.table
 
 import io.qbeast.spark.context.QbeastContext
+import io.qbeast.spark.model.RevisionID
 import io.qbeast.spark.sql.qbeast.QbeastSnapshot
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
@@ -29,22 +30,22 @@ class QbeastTable private (
   private def indexedTable: IndexedTable =
     indexedTableFactory.getIndexedTable(sparkSession.sqlContext, path)
 
-  private def getAvailableRevision(revisionTimestamp: Option[Long]): Long = {
-    revisionTimestamp match {
-      case Some(timestamp) if qbeastSnapshot.existsRevision(timestamp) =>
-        timestamp
-      case None => qbeastSnapshot.lastSpaceRevision.timestamp
+  private def getAvailableRevision(revisionID: Option[RevisionID]): RevisionID = {
+    revisionID match {
+      case Some(id) if qbeastSnapshot.existsRevision(id) =>
+        id
+      case None => qbeastSnapshot.lastRevisionID
     }
   }
 
   /**
    * The optimize operation should read the data of those cubes announced
    * and replicate it in their children
-   * @param revisionTimestamp the revision to optimize.
+   * @param revisionID the identifier of the revision to optimize.
    *                          If doesn't exist or none is specified, would be the last available
    */
-  def optimize(revisionTimestamp: Option[Long] = None): Unit = {
-    OptimizeTableCommand(getAvailableRevision(revisionTimestamp), indexedTable)
+  def optimize(revisionID: Option[RevisionID] = None): Unit = {
+    OptimizeTableCommand(getAvailableRevision(revisionID), indexedTable)
       .run(sparkSession)
 
   }
@@ -52,12 +53,12 @@ class QbeastTable private (
   /**
    * The analyze operation should analyze the index structure
    * and find the cubes that need optimization
-   * @param revisionTimestamp the revision to optimize.
+   * @param revisionID the identifier of the revision to optimize.
    *                          If doesn't exist or none is specified, would be the last available
    * @return the sequence of cubes to optimize
    */
-  def analyze(revisionTimestamp: Option[Long] = None): Seq[String] = {
-    AnalyzeTableCommand(getAvailableRevision(revisionTimestamp), indexedTable)
+  def analyze(revisionID: Option[RevisionID] = None): Seq[String] = {
+    AnalyzeTableCommand(getAvailableRevision(revisionID), indexedTable)
       .run(sparkSession)
       .map(_.getString(0))
   }

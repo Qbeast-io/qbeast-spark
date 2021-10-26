@@ -5,16 +5,23 @@ package io.qbeast.spark.model
 
 object CubeKeyFactory extends Serializable {
 
+  def characterOffset(numberOfDimensions: Int): Int = {
+    numberOfDimensions match {
+      case a if a <= 3 => '0'
+      case a if a <= 5 => 'A'
+      case 6 => '0'
+      case _ => 0 // in this case we can't print
+    }
+  }
+
   @inline
-  def createCubeKey(dime: Point, times: Int)(implicit
-      dimensionalContext: DimensionalContext): String =
+  def createCubeKey(dime: Point, times: Int): String =
     CubeKeyFactoryJava.createCubeKey(
       dime.coordinates.toArray,
       times,
-      dimensionalContext.characterOffset)
+      characterOffset(dime.coordinates.size))
 
-  def old_createCubeKey(dime: Point, times: Int)(implicit
-      dimensionalContext: DimensionalContext): String = {
+  def old_createCubeKey(dime: Point, times: Int): String = {
 
     val mul = BigDecimal(BigInt(1) << times)
     val rounded = dime.coordinates.map(a => (a * mul).toBigInt())
@@ -30,7 +37,7 @@ object CubeKeyFactory extends Serializable {
           .toByte
       }
       .foldLeft("") { case (string, id) =>
-        string + (id + dimensionalContext.characterOffset).toChar
+        string + (id + characterOffset(dime.coordinates.size)).toChar
       }
 
   }

@@ -4,7 +4,7 @@
 package io.qbeast.spark.sql.qbeast
 
 import io.qbeast.spark.index.ColumnsToIndex
-import io.qbeast.spark.model.Revision
+import io.qbeast.spark.model.{Revision, RevisionID}
 import io.qbeast.spark.sql.utils.TagUtils._
 import org.apache.spark.sql.delta.util.JsonUtils
 import org.apache.spark.sql.delta.Snapshot
@@ -33,15 +33,15 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
   import spark.implicits._
 
   /**
-   * Looks up for a space revision with a certain timestamp
-   * @param timestamp the timestamp of the revision
-   * @return a SpaceRevision with the corresponding timestamp if any
+   * Looks up for a revision with a certain identifier
+   * @param revisionID the ID of the revision
+   * @return RevisionData for the corresponding identifier
    */
-  def getRevisionSnapshotAt(timestamp: Long): RevisionSnapshot = {
-    revisionSnapshots
-      .find(_.revision.timestamp.equals(timestamp))
+  def getRevisionData(revisionID: RevisionID): RevisionData = {
+    revisionsData
+      .find(_.revision.timestamp == revisionID)
       .getOrElse(
-        throw AnalysisExceptionFactory.create(s"No space revision available at $timestamp"))
+        throw AnalysisExceptionFactory.create(s"No space revision available with $revisionID"))
   }
 
   /**
@@ -56,40 +56,46 @@ case class QbeastSnapshot(snapshot: Snapshot, desiredCubeSize: Int) {
       .orderBy(col("timestamp").desc)
 
   /**
-   * Returns the space revision with the higher timestamp
-   * @return the space revision
+   * Returns the revision with the higher timestamp
+   * @return the revision
    */
-  def lastSpaceRevision: Revision = {
+  def lastRevision: Revision = {
     // Dataset spaceRevisions is ordered by timestamp
     revisions
       .first()
 
   }
 
-  def existsRevision(timestamp: Long): Boolean = {
-    revisionSnapshots.exists(_.revision.timestamp.equals(timestamp))
+  /**
+   * Returns true if a revision with a specific revision identifier exists
+   * @param revisionID the identifier of the revision
+   * @return boolean
+   */
+
+  def existsRevision(revisionID: RevisionID): Boolean = {
+    revisionsData.exists(_.revision.id == revisionID)
   }
 
   lazy val txnVersion = {
-    snapshot.setTransactions.filter(_.appId.equals(indexId)) match {
+    snapshot.setTransactions.filter(_.appId == indexId) match {
       case Nil => -1
       case list => list.last.version
     }
   }
 
-  lazy val revisionSnapshots: Seq[RevisionSnapshot] = {
+  lazy val revisionsData: Seq[RevisionData] = {
     revisions
       .collect()
       .map(revision => {
-        val revisionFiles = snapshot.allFiles.filter(_.tags(spaceTag).equals(revision.toString))
-        RevisionSnapshot(revision, revisionFiles, txnVersion, snapshot.path.getParent)
+        val revisionFiles = snapshot.allFiles.filter(_.tags(spaceTag) == revision.toString)
+        RevisionData(revision, revisionFiles, txnVersion, snapshot.path.getParent)
       })
   }
 
-  lazy val lastRevisionSnapshot: RevisionSnapshot = {
-    getRevisionSnapshotAt(lastSpaceRevision.timestamp)
+  lazy val lastRevisionData: RevisionData = {
+    getRevisionData(lastRevisionID)
   }
 
-  lazy val lastRevisionTimestamp: Long = lastSpaceRevision.timestamp
+  lazy val lastRevisionID: Long = lastRevision.id
 
 }

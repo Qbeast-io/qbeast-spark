@@ -24,13 +24,13 @@ import org.apache.spark.sql.types.{BinaryType, LongType, StructField, StructType
  * @param txnVersion the transaction version of the replicated set
  * @param dataPath the data path
  */
-case class RevisionSnapshot(
+case class RevisionData(
     revision: Revision,
     files: Dataset[AddFile],
     txnVersion: Long,
     dataPath: Path) {
 
-  private val dimensionCount = revision.dimensionCount
+  private def dimensionCount = revision.dimensionCount
 
   /**
    * Returns the cube maximum weights for a given space revision

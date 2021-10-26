@@ -89,10 +89,10 @@ case class QbeastWriter(
 
     val (qbeastData, revision, weightMap) =
       if (mode == SaveMode.Overwrite || qbeastSnapshot.isInitial ||
-        !qbeastSnapshot.lastSpaceRevision.contains(data, columnsToIndex)) {
+        !qbeastSnapshot.lastRevision.contains(data, columnsToIndex)) {
         oTreeAlgorithm.indexFirst(data, columnsToIndex)
       } else {
-        oTreeAlgorithm.indexNext(data, qbeastSnapshot.lastRevisionSnapshot, announcedSet)
+        oTreeAlgorithm.indexNext(data, qbeastSnapshot.lastRevisionData, announcedSet)
       }
 
     val newFiles = writeFiles(qbeastData, revision, weightMap)
