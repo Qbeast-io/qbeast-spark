@@ -69,12 +69,12 @@ case class QbeastWriter(
     def isNewRevision = isOverwriteOperation || qbeastSnapshot.isInitial ||
       !qbeastSnapshot.lastRevision.contains(data, columnsToIndex)
 
-    val (qbeastData, spaceRevision, weightMap) =
+    val (qbeastData, revision, weightMap) =
       if (isNewRevision) {
         oTreeAlgorithm.indexFirst(data, columnsToIndex)
 
       } else {
-        oTreeAlgorithm.indexNext(data, qbeastSnapshot, announcedSet)
+        oTreeAlgorithm.indexNext(data, qbeastSnapshot.lastRevisionData, announcedSet)
       }
 
     // The Metadata can be updated only once in a single transaction
@@ -89,7 +89,7 @@ case class QbeastWriter(
         rearrangeOnly,
         columnsToIndex,
         oTreeAlgorithm.desiredCubeSize,
-        spaceRevision,
+        revision,
         qbeastSnapshot)
     } else {
       val oldQbeastMetadata = txn.metadata.configuration
@@ -121,7 +121,7 @@ case class QbeastWriter(
       fs.mkdirs(deltaLog.logPath)
     }
 
-    val newFiles = writeFiles(qbeastData, spaceRevision, weightMap)
+    val newFiles = writeFiles(qbeastData, revision, weightMap)
     val addFiles = newFiles.collect { case a: AddFile => a }
     val deletedFiles = (mode, partitionFilters) match {
       case (SaveMode.Overwrite, None) =>

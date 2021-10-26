@@ -3,11 +3,7 @@
  */
 package io.qbeast.spark.sql.qbeast
 
-import io.qbeast.spark.index.QbeastColumns.{
-  cubeColumnName,
-  cubeToReplicateColumnName,
-  revisionColumnName
-}
+import io.qbeast.spark.index.QbeastColumns.cubeToReplicateColumnName
 import io.qbeast.spark.index.{CubeId, OTreeAlgorithm}
 import io.qbeast.spark.model.RevisionID
 import io.qbeast.spark.sql.utils.State
@@ -35,43 +31,11 @@ class QbeastOptimizer(
     deltaOptions: DeltaOptions,
     qbeastSnapshot: QbeastSnapshot,
     revisionID: RevisionID,
-    oTreeAlgorithm: OTreeAlgorithm) {
+    oTreeAlgorithm: OTreeAlgorithm)
+    extends QbeastMetadataOperation {
 
-  private val revisionData = qbeastSnapshot.getRevisionData(revisionID)
-  private val revision = revisionData.revision
-
-  /**
-   * Updates the current set of replicated cubes
-   *
-   * @param sparkSession       SparkSession for reading/writing
-   * @param transaction        number of trasaction to save
-   * @param newReplicatedCubes set of replicated cubes to add
-   */
-  def updateReplicatedSet(
-      sparkSession: SparkSession,
-      transaction: Long,
-      newReplicatedCubes: Set[CubeId]): Unit = {
-
-    import sparkSession.implicits._
-    val path = deltaLog.dataPath
-
-    val base = transaction match {
-      case 0 => List[(Array[Byte], Long)]().toDF()
-      case _ =>
-        sparkSession.read
-          .parquet(path + f"/_qbeast/${transaction - 1}")
-
-    }
-
-    val metadata = newReplicatedCubes.map(c => (c.bytes, revision.timestamp))
-    base
-      .as[(Array[Byte], Long)]
-      .union(metadata.toList.toDS)
-      .toDF(cubeColumnName, revisionColumnName)
-      .write
-      .parquet(path + f"/_qbeast/$transaction")
-
-  }
+  private def revisionData = qbeastSnapshot.getRevisionData(revisionID)
+  private def revision = revisionData.revision
 
   /**
    * Performs the optimization
@@ -124,7 +88,7 @@ class QbeastOptimizer(
       options = deltaOptions,
       partitionColumns = Nil,
       data = dataToReplicate,
-      columnsToIndex = qbeastSnapshot.indexedCols,
+      columnsToIndex = revision.dimensionColumns,
       qbeastSnapshot = qbeastSnapshot,
       announcedSet = cubesToOptimize,
       oTreeAlgorithm = oTreeAlgorithm)
@@ -132,7 +96,7 @@ class QbeastOptimizer(
     val (qbeastData, weightMap) = oTreeAlgorithm
       .replicateCubes(dataToReplicate, revisionData, cubesToOptimize)
     // updateMetadata
-    updateQbeastReplicatedSet(txn, revisionID, qbeastSnapshot, cubesToOptimize)
+    updateQbeastReplicatedSet(txn, revisionData, cubesToOptimize)
 
     // write files
     val addFiles = writer.writeFiles(qbeastData, revision, weightMap)

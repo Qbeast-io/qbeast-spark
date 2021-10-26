@@ -50,7 +50,6 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
     val indexed =
       spark.createDataFrame(rdd).toDF("id", cubeColumnName, weightColumnName, stateColumnName)
     val data = indexed.select("id")
-    val names = List("id")
 
     val qbeastColumns = QbeastColumns(indexed)
     val (factory, serConf) = loadConf(data)

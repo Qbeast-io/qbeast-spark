@@ -142,7 +142,7 @@ private[table] class IndexedTableImpl(
   override def load(): BaseRelation = {
     QbeastBaseRelation(
       new DeltaDataSource().createRelation(sqlContext, Map("path" -> path)),
-      snapshot.indexedCols)
+      snapshot.lastRevision.dimensionColumns)
   }
 
   private def snapshot = {
@@ -178,7 +178,7 @@ private[table] class IndexedTableImpl(
   }
 
   private def checkColumnsToMatchSchema(columnsToIndex: Seq[String]): Unit = {
-    if (!ColumnsToIndex.areSame(columnsToIndex, snapshot.indexedCols)) {
+    if (!ColumnsToIndex.areSame(columnsToIndex, snapshot.lastRevision.dimensionColumns)) {
       throw AnalysisExceptionFactory.create(
         s"Columns to index '$columnsToIndex' do not match existing index.")
     }
@@ -190,8 +190,8 @@ private[table] class IndexedTableImpl(
       append: Boolean): BaseRelation = {
     val dimensionCount = columnsToIndex.length
     if (exists) {
-      val revision = snapshot.lastRevisionData.revision
-      keeper.withWrite(path, revision.id) { write =>
+      val revisionID = snapshot.lastRevisionID
+      keeper.withWrite(path, revisionID) { write =>
         val announcedSet = write.announcedCubes
           .map(CubeId(dimensionCount, _))
         doWrite(data, columnsToIndex, append, announcedSet)

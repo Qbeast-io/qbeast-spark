@@ -30,5 +30,5 @@ object MetadataConfig {
   final val desiredCubeSize = "qbeast.desiredCubeSize"
   final val revision = "qbeast.revision"
   final val replicatedSet = "qbeast.replicatedSet"
-  final val lastRevisionTimestamp = "qbeast.lastRevisionTimestamp"
+  final val lastRevisionID = "qbeast.lastRevisionID"
 }
