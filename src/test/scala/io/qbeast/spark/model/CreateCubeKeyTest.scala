@@ -13,8 +13,6 @@ class CreateCubeKeyTest extends AnyWordSpec with Matchers {
 
   "A 4D CubeKey" should {
     "should be coherent in a from to scenario" in {
-      implicit val context: DimensionalContext = DimensionalContext(4)
-
       val from =
         Point(0.00, 0.35366827644197594, 0.36683283014651886, 0.38392387982921825)
       val to =
@@ -31,7 +29,6 @@ class CreateCubeKeyTest extends AnyWordSpec with Matchers {
 
   "A 3D CubeKey" should {
     "should be coherent in a from to scenario" in {
-      implicit val context: DimensionalContext = DimensionalContext(3)
 
       val from = Point(0.00, 0.35366827644197594, 0.36683283014651886)
       val to = Point(0.015, 0.36980719058864669, 0.369123645959100985)
@@ -49,7 +46,6 @@ class CreateCubeKeyTest extends AnyWordSpec with Matchers {
 
   "A 3D CubeKey" should {
     "always share the father prefix" in {
-      implicit val context: DimensionalContext = DimensionalContext(3)
 
       val point = Point(Random.nextDouble(), Random.nextDouble(), Random.nextDouble())
       // scalastyle:off println
@@ -66,7 +62,6 @@ class CreateCubeKeyTest extends AnyWordSpec with Matchers {
 
   "A 4D CubeKey" should {
     "always share the father prefix" in {
-      implicit val context: DimensionalContext = DimensionalContext(4)
 
       val point =
         Point(Random.nextDouble(), Random.nextDouble(), Random.nextDouble(), Random.nextDouble())

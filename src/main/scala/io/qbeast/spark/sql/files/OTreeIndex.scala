@@ -89,30 +89,29 @@ case class OTreeIndex(index: TahoeLogFileIndex)
       case range => range
     }
 
-    val originalFrom = Point(
-      Vector.fill(qbeastSnapshot.dimensionCount)(Int.MinValue.doubleValue()))
-    val originalTo = Point(Vector.fill(qbeastSnapshot.dimensionCount)(Int.MaxValue.doubleValue()))
-
     val filesVector = files.toVector
-    qbeastSnapshot.spaceRevisionsMap.values
-      .flatMap(spaceRevision => {
-        val querySpace = QuerySpaceFromTo(originalFrom, originalTo, spaceRevision)
+    qbeastSnapshot.revisions
+      .flatMap(revision => {
 
-        val revisionTimestamp = spaceRevision.timestamp
-        val filesRevision =
-          filesVector.filter(_.tags(TagUtils.space) == spaceRevision.timestamp.toString)
-        val cubeWeights = qbeastSnapshot.cubeWeights(revisionTimestamp)
-        val replicatedSet = qbeastSnapshot.replicatedSet(revisionTimestamp)
+        val revisionData = qbeastSnapshot.getRevisionData(revision.id)
+        val dimensionCount = revision.dimensionCount
+
+        val originalFrom = Point(Vector.fill(dimensionCount)(Int.MinValue.doubleValue()))
+        val originalTo = Point(Vector.fill(dimensionCount)(Int.MaxValue.doubleValue()))
+        val querySpace = QuerySpaceFromTo(originalFrom, originalTo, revision)
+
+        val cubeWeights = revisionData.cubeWeights
+        val replicatedSet = revisionData.replicatedSet
+        val filesRevision = filesVector.filter(_.tags(TagUtils.revision) == revision.id.toString)
 
         findSampleFiles(
           querySpace,
           samplingRange,
-          CubeId.root(qbeastSnapshot.dimensionCount),
+          CubeId.root(dimensionCount),
           filesRevision,
           cubeWeights,
           replicatedSet)
       })
-      .toSeq
 
   }
 

@@ -41,11 +41,11 @@ class CreateCubeKeySpeedTest extends AnyWordSpec with Matchers with TimeLimitedT
   // warming up
   for (from <- points4d) {
 
-    CubeKeyFactory.createCubeKey(from, 20)(DimensionalContext(4))
+    CubeKeyFactory.createCubeKey(from, 20)
   }
   for (from <- points3d) {
 
-    CubeKeyFactory.createCubeKey(from, 20)(DimensionalContext(3))
+    CubeKeyFactory.createCubeKey(from, 20)
   }
 
   "the time to run a test" should {
@@ -87,7 +87,7 @@ class CreateCubeKeySpeedTest extends AnyWordSpec with Matchers with TimeLimitedT
   }
   "A 4D CubeKey" should {
     "complete in time" in {
-      implicit val context: DimensionalContext = DimensionalContext(4)
+
       val starting = System.currentTimeMillis()
       for (from <- points4d) {
 
@@ -102,7 +102,7 @@ class CreateCubeKeySpeedTest extends AnyWordSpec with Matchers with TimeLimitedT
 
   "A 3D CubeKey" should {
     "should be coherent in a from to scenario" in {
-      implicit val context: DimensionalContext = DimensionalContext(3)
+
       val starting = System.currentTimeMillis()
       for (from <- points3d) {
         CubeKeyFactory.createCubeKey(from, 20)
