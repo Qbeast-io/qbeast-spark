@@ -47,16 +47,16 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
 
     val revisionID = revisionData.revision.id
 
-    val revisionMetadata = s"${MetadataConfig.replicatedSet}.$revisionID"
     val oldReplicatedSet = revisionData.replicatedSet
-
     val newReplicatedSet =
       oldReplicatedSet.union(newReplicatedCubes).map(_.string)
     // Save the replicated set of cube id's as String representation
     val oldConfiguration = txn.metadata.configuration
 
     val configuration =
-      oldConfiguration.updated(revisionMetadata, JsonUtils.toJson(newReplicatedSet))
+      oldConfiguration.updated(
+        s"${MetadataConfig.replicatedSet}.$revisionID",
+        JsonUtils.toJson(newReplicatedSet))
     txn.updateMetadata(txn.metadata.copy(configuration = configuration))
   }
 
@@ -67,8 +67,6 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
    * @param partitionColumns partitionColumns
    * @param isOverwriteMode if it's an overwrite operation
    * @param rearrangeOnly if the operation only rearranges files
-   * @param columnsToIndex the columns to index
-   * @param desiredCubeSize the desired cube size
    * @param newRevision the new Qbeast revision
    * @param qbeastSnapshot the Qbeast Snapshot
    */
@@ -78,8 +76,6 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
       partitionColumns: Seq[String],
       isOverwriteMode: Boolean,
       rearrangeOnly: Boolean,
-      columnsToIndex: Seq[String],
-      desiredCubeSize: Int,
       newRevision: Revision,
       qbeastSnapshot: QbeastSnapshot): Unit = {
 
@@ -106,8 +102,6 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
     def isNewSchema: Boolean = txn.metadata.schema != mergedSchema
     // Qbeast configuration metadata
     val configuration = txn.metadata.configuration
-      .updated(MetadataConfig.indexedColumns, JsonUtils.toJson(columnsToIndex))
-      .updated(MetadataConfig.desiredCubeSize, desiredCubeSize.toString)
       .updated(MetadataConfig.lastRevisionID, revisionID.toString)
       .updated(s"${MetadataConfig.revision}.$revisionID", JsonUtils.toJson(newRevision))
 

@@ -20,8 +20,8 @@ object TagUtils {
   final val minWeight = "minWeight"
   final val maxWeight = "maxWeight"
   final val state = "state"
-  final val space = "spaceRevision"
-  final val elementCount = "rowCount"
+  final val revision = "revision"
+  final val elementCount = "elementCount"
 }
 
 object MetadataConfig {

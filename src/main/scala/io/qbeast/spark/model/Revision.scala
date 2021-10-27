@@ -15,17 +15,17 @@ import scala.collection.immutable.IndexedSeq
  * @param id the identifier of the revision
  * @param timestamp moment when the revision was created in milliseconds
  * @param desiredCubeSize the desired size of the cubes for the revision
- * @param dimensionColumns the columns indexed on the revision
+ * @param indexedColumns the columns indexed on the revision
  * @param transformations transformations for each coordinate in the space
  */
 case class Revision(
     id: RevisionID,
     timestamp: Long,
     desiredCubeSize: Int,
-    dimensionColumns: Seq[String],
+    indexedColumns: Seq[String],
     transformations: IndexedSeq[LinearTransformation]) {
 
-  val dimensionCount = dimensionColumns.length
+  val dimensionCount = indexedColumns.length
 
   def root: CubeId = CubeId.root(dimensionCount)
 
@@ -57,7 +57,7 @@ case class Revision(
    */
   def contains(dataFrame: DataFrame): Boolean = {
     transformations
-      .zip(ColumnInfo.get(dataFrame, dimensionColumns))
+      .zip(ColumnInfo.get(dataFrame, indexedColumns))
       .forall { case (transformation, info) =>
         transformation.min <= info.min && info.max <= transformation.max
       }
@@ -95,7 +95,7 @@ object Revision {
       timestamp,
       timestamp,
       desiredCubeSize = desiredCubeSize,
-      dimensionColumns = columnsToIndex,
+      indexedColumns = columnsToIndex,
       transformations = transformations)
   }
 

@@ -92,7 +92,7 @@ case class QbeastSnapshot(snapshot: Snapshot) {
   def getRevisionData(revisionID: RevisionID): RevisionData = {
     val revision = getRevision(revisionID)
     val replicatedSet = replicatedSetsMap.getOrElse(revisionID, Set.empty)
-    val revisionFiles = snapshot.allFiles.filter(_.tags(TagUtils.space) == revisionID.toString)
+    val revisionFiles = snapshot.allFiles.filter(_.tags(TagUtils.revision) == revisionID.toString)
     RevisionData(revision, replicatedSet, revisionFiles)
   }
 

@@ -142,7 +142,7 @@ private[table] class IndexedTableImpl(
   override def load(): BaseRelation = {
     QbeastBaseRelation(
       new DeltaDataSource().createRelation(sqlContext, Map("path" -> path)),
-      snapshot.lastRevision.dimensionColumns)
+      snapshot.lastRevision.indexedColumns)
   }
 
   private def snapshot = {
@@ -178,7 +178,7 @@ private[table] class IndexedTableImpl(
   }
 
   private def checkColumnsToMatchSchema(columnsToIndex: Seq[String]): Unit = {
-    if (!ColumnsToIndex.areSame(columnsToIndex, snapshot.lastRevision.dimensionColumns)) {
+    if (!ColumnsToIndex.areSame(columnsToIndex, snapshot.lastRevision.indexedColumns)) {
       throw AnalysisExceptionFactory.create(
         s"Columns to index '$columnsToIndex' do not match existing index.")
     }

@@ -103,3 +103,22 @@ case class RevisionData(
   }
 
 }
+
+/**
+ * Companion object for RevisionData
+ */
+object RevisionData {
+
+  /**
+   * Build a new RevisionData for a revision with empty replicatedSet and empty files
+   * @param revision the revision
+   * @return revision data
+   */
+  def apply(revision: Revision): RevisionData = {
+    val spark = SparkSession.active
+    import spark.implicits._
+
+    RevisionData(revision, Set.empty, spark.createDataset(Seq.empty[AddFile]))
+  }
+
+}

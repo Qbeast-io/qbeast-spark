@@ -105,14 +105,12 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
   override def indexFirst(
       dataFrame: DataFrame,
       columnsToIndex: Seq[String]): (DataFrame, Revision, Map[CubeId, Weight]) = {
-    // splitting the list of columns in two to fit the signature of the agg method.
     val revision = Revision(dataFrame, columnsToIndex, desiredCubeSize)
+    val revisionData = RevisionData(revision)
     val (indexedDataFrame, cubeWeights: Map[CubeId, Weight]) = index(
       dataFrame = dataFrame,
-      revision = revision,
-      cubeNormalizedWeights = Map.empty,
+      revisionData = revisionData,
       announcedSet = Set.empty,
-      replicatedSet = Set.empty,
       isReplication = false)
     (indexedDataFrame, revision, cubeWeights)
   }
@@ -122,13 +120,12 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
       revisionData: RevisionData,
       announcedSet: Set[CubeId]): (DataFrame, Revision, Map[CubeId, Weight]) = {
     val revision = revisionData.revision
-    val (indexedDataFrame, cubeWeights: Map[CubeId, Weight]) = index(
-      dataFrame = dataFrame,
-      revision,
-      cubeNormalizedWeights = revisionData.cubeNormalizedWeights,
-      announcedSet = announcedSet,
-      replicatedSet = revisionData.replicatedSet,
-      isReplication = false)
+    val (indexedDataFrame, cubeWeights: Map[CubeId, Weight]) =
+      index(
+        dataFrame = dataFrame,
+        revisionData,
+        announcedSet = announcedSet,
+        isReplication = false)
     (indexedDataFrame, revision, cubeWeights)
   }
 
@@ -169,33 +166,30 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
       revisionData: RevisionData,
       announcedSet: Set[CubeId]): (DataFrame, Map[CubeId, Weight]) = {
 
-    val cubeWeights = revisionData.cubeNormalizedWeights
-    val replicatedSet = revisionData.replicatedSet
-
     index(
       dataFrame = dataFrame,
-      revision = revisionData.revision,
-      cubeNormalizedWeights = cubeWeights,
+      revisionData = revisionData,
       announcedSet = announcedSet,
-      replicatedSet = replicatedSet,
       isReplication = true)
 
   }
 
   private def index(
       dataFrame: DataFrame,
-      revision: Revision,
-      cubeNormalizedWeights: Map[CubeId, NormalizedWeight],
+      revisionData: RevisionData,
       announcedSet: Set[CubeId],
-      replicatedSet: Set[CubeId],
       isReplication: Boolean): (DataFrame, Map[CubeId, Weight]) = {
 
     val sqlContext = SparkSession.active.sqlContext
     import sqlContext.implicits._
 
-    val dimensionColumns = revision.dimensionColumns
+    val revision = revisionData.revision
+    val columnsToIndex = revision.indexedColumns
+    val replicatedSet = revisionData.replicatedSet
+    val cubeNormalizedWeights = revisionData.cubeNormalizedWeights
+
     val weightedDataFrame =
-      dataFrame.transform(df => addRandomWeight(df, dimensionColumns))
+      dataFrame.transform(df => addRandomWeight(df, columnsToIndex))
 
     val partitionCount = weightedDataFrame.rdd.getNumPartitions
 
@@ -207,8 +201,8 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
 
     val dimensionCount = revision.dimensionCount
     val selectionColumns =
-      if (isReplication) dimensionColumns ++ Seq(weightColumnName, cubeToReplicateColumnName)
-      else dimensionColumns ++ Seq(weightColumnName)
+      if (isReplication) columnsToIndex ++ Seq(weightColumnName, cubeToReplicateColumnName)
+      else columnsToIndex ++ Seq(weightColumnName)
 
     val partitionedEstimatedCubeWeights = weightedDataFrame
       .selectExpr(selectionColumns: _*)
@@ -220,7 +214,7 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
             announcedSet,
             replicatedSet)
         rows.foreach { row =>
-          val values = dimensionColumns.map(row.getAs[Any])
+          val values = columnsToIndex.map(row.getAs[Any])
           val point = rowValuesToPoint(values, revision)
           val weight = Weight(row.getAs[Int](weightColumnName))
           if (isReplication) {
@@ -272,7 +266,7 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
         cubeColumnName,
         explode(
           findTargetCubeIds(
-            rowValuesColumn(dimensionColumns),
+            rowValuesColumn(columnsToIndex),
             col(weightColumnName), {
               if (isReplication) col(cubeToReplicateColumnName)
               else lit(null)

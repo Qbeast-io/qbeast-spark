@@ -102,7 +102,7 @@ case class OTreeIndex(index: TahoeLogFileIndex)
 
         val cubeWeights = revisionData.cubeWeights
         val replicatedSet = revisionData.replicatedSet
-        val filesRevision = filesVector.filter(_.tags(TagUtils.space) == revision.id.toString)
+        val filesRevision = filesVector.filter(_.tags(TagUtils.revision) == revision.id.toString)
 
         findSampleFiles(
           querySpace,

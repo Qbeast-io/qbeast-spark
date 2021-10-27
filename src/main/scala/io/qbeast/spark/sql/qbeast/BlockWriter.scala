@@ -11,7 +11,6 @@ import org.apache.hadoop.mapred.{JobConf, TaskAttemptContextImpl, TaskAttemptID}
 import org.apache.hadoop.mapreduce.TaskType
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.delta.actions.AddFile
-import org.apache.spark.sql.delta.util.JsonUtils
 import org.apache.spark.sql.execution.datasources.{OutputWriter, OutputWriterFactory}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.SerializableConfiguration
@@ -40,7 +39,6 @@ case class BlockWriter(
     revision: Revision,
     weightMap: Map[CubeId, Weight])
     extends Serializable {
-  private def dimensionCount = revision.dimensionCount
 
   /**
    * Writes rows in corresponding files
@@ -55,7 +53,7 @@ case class BlockWriter(
 
     iter
       .foldLeft[Map[CubeId, BlockContext]](Map()) { case (blocks, row) =>
-        val cubeId = CubeId(dimensionCount, row.getBinary(qbeastColumns.cubeColumnIndex))
+        val cubeId = CubeId(revision.dimensionCount, row.getBinary(qbeastColumns.cubeColumnIndex))
         val state = row.getString(qbeastColumns.stateColumnIndex)
         // TODO make sure this does not compromise the structure of the index
         // It could happen than estimated weights
@@ -82,7 +80,7 @@ case class BlockWriter(
       }
       .values
       .flatMap {
-        case BlockContext(blockStats, _, _) if blockStats.rowCount == 0 =>
+        case BlockContext(blockStats, _, _) if blockStats.elementCount == 0 =>
           Iterator.empty // Do nothing, this  is a empty partition
         case BlockContext(
               BlockStats(cube, maxWeight, minWeight, state, rowCount),
@@ -93,7 +91,7 @@ case class BlockWriter(
             TagUtils.minWeight -> minWeight.value.toString,
             TagUtils.maxWeight -> maxWeight.value.toString,
             TagUtils.state -> state,
-            TagUtils.space -> JsonUtils.toJson(revision.id),
+            TagUtils.revision -> revision.id.toString,
             TagUtils.elementCount -> rowCount.toString)
 
           writer.close()

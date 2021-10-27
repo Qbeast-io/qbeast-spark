@@ -87,8 +87,6 @@ case class QbeastWriter(
         partitionColumns,
         isOverwriteOperation,
         rearrangeOnly,
-        columnsToIndex,
-        oTreeAlgorithm.desiredCubeSize,
         revision,
         qbeastSnapshot)
     } else {

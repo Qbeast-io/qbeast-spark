@@ -88,7 +88,7 @@ class QbeastOptimizer(
       options = deltaOptions,
       partitionColumns = Nil,
       data = dataToReplicate,
-      columnsToIndex = revision.dimensionColumns,
+      columnsToIndex = revision.indexedColumns,
       qbeastSnapshot = qbeastSnapshot,
       announcedSet = cubesToOptimize,
       oTreeAlgorithm = oTreeAlgorithm)
