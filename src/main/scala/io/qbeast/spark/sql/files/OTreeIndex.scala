@@ -52,18 +52,24 @@ case class OTreeIndex(index: TahoeLogFileIndex)
   }
 
   /**
-   * Given a From-To range, initialize QuerySpace
+   * Given both Point and Weight from-to range, initialize QuerySpace
    * and find the files that satisfy the predicates
+   *
+   * @param fromWeight from weight
+   * @param toWeight to weight
+   * @param fromPoint from point
+   * @param toPoint to point
+   * @param files available files to read
+   * @return the sequence of files matching the query predicates
    */
-
   def sample(
-      fromPrecision: Weight,
-      toPrecision: Weight,
-      originalFrom: Point,
-      originalTo: Point,
+      fromWeight: Weight,
+      toWeight: Weight,
+      fromPoint: Point,
+      toPoint: Point,
       files: Seq[AddFile]): Seq[AddFile] = {
 
-    val samplingRange = RangeValues(fromPrecision, toPrecision) match {
+    val samplingRange = RangeValues(fromWeight, toWeight) match {
       case range if range.to == Weight.MinValue => return List()
       case range if range.from > range.to => return List()
       case range => range
@@ -72,7 +78,7 @@ case class OTreeIndex(index: TahoeLogFileIndex)
     val filesVector = files.toVector
     qbeastSnapshot.spaceRevisionsMap.values
       .flatMap(spaceRevision => {
-        val querySpace = QuerySpaceFromTo(originalFrom, originalTo, spaceRevision)
+        val querySpace = QuerySpaceFromTo(fromPoint, toPoint, spaceRevision)
 
         val revisionTimestamp = spaceRevision.timestamp
         val filesRevision =

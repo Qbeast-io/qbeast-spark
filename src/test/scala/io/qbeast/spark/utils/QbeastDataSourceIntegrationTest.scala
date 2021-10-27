@@ -6,7 +6,7 @@ package io.qbeast.spark.utils
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.CubeId
 import io.qbeast.spark.table.QbeastTable
-import org.apache.spark.sql.{SparkSession}
+import org.apache.spark.sql.SparkSession
 
 class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
 

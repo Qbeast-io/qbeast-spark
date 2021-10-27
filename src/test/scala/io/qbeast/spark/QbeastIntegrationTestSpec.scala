@@ -12,7 +12,7 @@ import io.qbeast.spark.sql.QbeastSparkSessionExtension
 import io.qbeast.spark.sql.files.OTreeIndex
 import io.qbeast.spark.table.IndexedTableFactoryImpl
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.sql.execution.{FileSourceScanExec}
+import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
