@@ -5,6 +5,7 @@ package io.qbeast.spark.sql.qbeast
 
 import io.qbeast.spark.index.{CubeId, NormalizedWeight, ReplicatedSet, Weight}
 import io.qbeast.spark.model.{CubeInfo, Revision}
+import io.qbeast.spark.sql.files.RevisionFiltering
 import io.qbeast.spark.sql.utils.{State, TagUtils}
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.delta.actions.AddFile
@@ -16,10 +17,8 @@ import org.apache.spark.sql.functions.{min, sum}
  * @param replicatedSet the set of replicated cubes for the specific Revision
  * @param files dataset of AddFiles that belongs to the specific Revision
  */
-case class RevisionData(
-    revision: Revision,
-    replicatedSet: ReplicatedSet,
-    files: Dataset[AddFile]) {
+case class RevisionData(revision: Revision, replicatedSet: ReplicatedSet, files: Dataset[AddFile])
+    extends RevisionFiltering {
 
   private def dimensionCount = revision.dimensionCount
 

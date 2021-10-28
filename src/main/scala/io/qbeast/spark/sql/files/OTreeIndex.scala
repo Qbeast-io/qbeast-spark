@@ -3,12 +3,10 @@
  */
 package io.qbeast.spark.sql.files
 
-import io.qbeast.spark.index.{CubeId, Weight}
-import io.qbeast.spark.model.{Point, QuerySpace, QuerySpaceFromTo, RangeValues}
+import io.qbeast.spark.model.Revision
 import io.qbeast.spark.sql.qbeast
-import io.qbeast.spark.sql.utils.State
-import io.qbeast.spark.sql.utils.TagUtils
-import io.qbeast.spark.sql.utils.QbeastExpressionUtils._
+import io.qbeast.spark.sql.utils.QbeastExpressionUtils.{extractDataFilters, extractWeightRange}
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.delta.actions.AddFile
@@ -28,123 +26,36 @@ case class OTreeIndex(index: TahoeLogFileIndex)
    */
   protected def snapshot: Snapshot = index.getSnapshot
 
-  private val qbeastSnapshot = qbeast.QbeastSnapshot(snapshot)
-
-  private val indexedCols = qbeastSnapshot.indexedCols
+  /**
+   * QbeastSnapshot to analyze
+   *
+   * @return the qbeast snapshot
+   */
+  private def qbeastSnapshot = qbeast.QbeastSnapshot(snapshot)
 
   override def matchingFiles(
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[AddFile] = {
 
-    val (qbeastDataFilters, tahoeDataFilters) =
-      extractDataFilters(dataFilters, indexedCols, spark)
-    val tahoeMatchingFiles = index.matchingFiles(partitionFilters, tahoeDataFilters)
-
+    val filters = partitionFilters ++ dataFilters
+    val qbeastDataFilters =
+      extractDataFilters(filters, qbeastSnapshot.lastRevision, SparkSession.active)
     val (minWeight, maxWeight) = extractWeightRange(qbeastDataFilters)
-    val (from, to) = extractQueryRange(qbeastDataFilters, indexedCols, spark)
-    val files = sample(minWeight, maxWeight, from, to, tahoeMatchingFiles)
 
-    files
+    // For each of the available revisions, sample the files required
+    // through the revision data collected from the Delta Snapshot
+    qbeastSnapshot.revisions
+      .map { revision: Revision =>
+        qbeastSnapshot
+          .getRevisionData(revision.id)
+          .sample(minWeight, maxWeight, qbeastDataFilters)
+
+      }
+      .reduce(_ ++ _)
   }
 
   override def inputFiles: Array[String] = {
     index.inputFiles
-  }
-
-  /**
-   * Given both Point and Weight from-to range, initialize QuerySpace
-   * and find the files that satisfy the predicates
-   *
-   * @param fromWeight from weight
-   * @param toWeight to weight
-   * @param fromPoint from point
-   * @param toPoint to point
-   * @param files available files to read
-   * @return the sequence of files matching the query predicates
-   */
-  def sample(
-      fromWeight: Weight,
-      toWeight: Weight,
-      fromPoint: Point,
-      toPoint: Point,
-      files: Seq[AddFile]): Seq[AddFile] = {
-
-    val samplingRange = RangeValues(fromWeight, toWeight) match {
-      case range if range.to == Weight.MinValue => return List()
-      case range if range.from > range.to => return List()
-      case range => range
-    }
-
-    val filesVector = files.toVector
-    qbeastSnapshot.revisions
-      .flatMap(revision => {
-
-        val revisionData = qbeastSnapshot.getRevisionData(revision.id)
-        val dimensionCount = revision.dimensionCount
-
-        val originalFrom = Point(Vector.fill(dimensionCount)(Int.MinValue.doubleValue()))
-        val originalTo = Point(Vector.fill(dimensionCount)(Int.MaxValue.doubleValue()))
-        val querySpace = QuerySpaceFromTo(originalFrom, originalTo, revision)
-
-        val cubeWeights = revisionData.cubeWeights
-        val replicatedSet = revisionData.replicatedSet
-        val filesRevision = filesVector.filter(_.tags(TagUtils.revision) == revision.id.toString)
-
-        findSampleFiles(
-          querySpace,
-          samplingRange,
-          CubeId.root(dimensionCount),
-          filesRevision,
-          cubeWeights,
-          replicatedSet)
-
-      })
-
-  }
-
-  /**
-   * Finds the files to retrieve the query sample.
-   *
-   * @param space the query space
-   * @param precision the sample precision range
-   * @param startCube the start cube
-   * @param files the data files
-   * @param cubeWeights the cube weights
-   * @return the files with sample data
-   */
-  def findSampleFiles(
-      space: QuerySpace,
-      precision: RangeValues,
-      startCube: CubeId,
-      files: Vector[AddFile],
-      cubeWeights: Map[CubeId, Weight],
-      replicatedSet: Set[CubeId]): Vector[AddFile] = {
-
-    def doFindSampleFiles(cube: CubeId): Vector[AddFile] = {
-      cubeWeights.get(cube) match {
-        case Some(cubeWeight) if precision.to < cubeWeight =>
-          val cubeString = cube.string
-          files.filter(_.tags(TagUtils.cube) == cubeString)
-        case Some(cubeWeight) =>
-          val cubeString = cube.string
-          val childFiles = cube.children
-            .filter(space.intersectsWith)
-            .flatMap(doFindSampleFiles)
-          if (!replicatedSet.contains(cube) && precision.from < cubeWeight) {
-            val cubeFiles = files.filter(_.tags(TagUtils.cube) == cubeString)
-            if (childFiles.nonEmpty) {
-              cubeFiles.filterNot(_.tags(TagUtils.state) == State.ANNOUNCED) ++ childFiles
-            } else {
-              cubeFiles
-            }
-          } else {
-            childFiles.toVector
-          }
-        case None => Vector.empty
-      }
-    }
-
-    doFindSampleFiles(startCube)
   }
 
   override def refresh(): Unit = index.refresh()

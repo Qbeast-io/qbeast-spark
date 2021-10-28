@@ -4,7 +4,7 @@
 package io.qbeast.spark.sql.utils
 
 import io.qbeast.spark.index.Weight
-import io.qbeast.spark.model.Point
+import io.qbeast.spark.model.{Point, QuerySpace, QuerySpaceFromTo, Revision}
 import io.qbeast.spark.sql.rules.QbeastMurmur3Hash
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions._
@@ -31,25 +31,27 @@ object QbeastExpressionUtils {
 
   private def isQbeastExpression(
       expression: Expression,
-      dimensionColumns: Seq[String],
+      indexedColumns: Seq[String],
       spark: SparkSession): Boolean =
     isQbeastWeightExpression(expression) || hasQbeastColumnReference(
       expression,
-      dimensionColumns,
+      indexedColumns,
       spark)
 
   /**
    * Analyzes the data filters from the query
    * @param dataFilters filters passed to the relation
-   * @return min max weight (default Integer.MINVALUE, Integer.MAXVALUE)
+   * @param revision the revision of the index
+   * @param spark the spark session
+   * @return sequence of filters involving qbeast format
    */
   def extractDataFilters(
       dataFilters: Seq[Expression],
-      dimensionColumns: Seq[String],
-      spark: SparkSession): (Seq[Expression], Seq[Expression]) = {
-    dataFilters.partition(expression =>
-      isQbeastExpression(expression, dimensionColumns, spark) && !SubqueryExpression.hasSubquery(
-        expression))
+      revision: Revision,
+      spark: SparkSession): Seq[Expression] = {
+    dataFilters.filter(expression =>
+      isQbeastExpression(expression, revision.indexedColumns, spark) && !SubqueryExpression
+        .hasSubquery(expression))
   }
 
   /**
@@ -86,49 +88,50 @@ object QbeastExpressionUtils {
   }
 
   /**
-   * Extracts the space range of the query
+   * Extracts the space of the query
    * @param dataFilters the filters passed by the spark engine
-   * @param dimensionColumns the columns indexed with Qbeast
+   * @param revision the characteristics of the index
    * @return
    */
 
-  def extractQueryRange(
+  def extractQuerySpace(
       dataFilters: Seq[Expression],
-      dimensionColumns: Seq[String],
-      spark: SparkSession): (Point, Point) = {
+      revision: Revision,
+      spark: SparkSession): QuerySpace = {
 
     // Split conjunctive predicates
     val filters = dataFilters.flatMap(filter => splitConjunctivePredicates(filter))
+    val indexedColumns = revision.indexedColumns
 
-    val fromTo = dimensionColumns.map(columnName => {
+    val fromTo = indexedColumns.map(columnName => {
 
       val columnFilters = filters.filter(hasColumnReference(_, columnName, spark))
+      val indexedColumnIndex = revision.indexedColumns.indexOf(columnName)
+      val indexedColumnTransformations = revision.transformations(indexedColumnIndex)
 
       val from = columnFilters
         .collectFirst {
           case GreaterThanOrEqual(_, Literal(value, dataType)) =>
-            extractIntValue(value, dataType)
+            extractIntValue(value, dataType).doubleValue()
           case EqualTo(_, Literal(value, dataType)) =>
-            extractIntValue(value, dataType)
+            extractIntValue(value, dataType).doubleValue()
         }
-        .getOrElse(Int.MinValue)
-        .doubleValue()
+        .getOrElse(indexedColumnTransformations.min)
 
       val to = columnFilters
         .collectFirst { case LessThan(_, Literal(value, dataType)) =>
-          extractIntValue(value, dataType)
+          extractIntValue(value, dataType).doubleValue()
         }
-        .getOrElse(Int.MaxValue)
-        .doubleValue()
+        .getOrElse(indexedColumnTransformations.max)
 
       (from, to)
 
     })
 
-    val from = fromTo.map(_._1)
-    val to = fromTo.map(_._2)
+    val from = Point(fromTo.map(_._1).toVector)
+    val to = Point(fromTo.map(_._2).toVector)
 
-    (Point(from.toVector), Point(to.toVector))
+    QuerySpaceFromTo(from, to, revision)
   }
 
   /**
