@@ -5,7 +5,7 @@ package io.qbeast.spark.sql.qbeast
 
 import io.qbeast.spark.index.QbeastColumns.{cubeColumnName, stateColumnName}
 import io.qbeast.spark.index.{CubeId, OTreeAlgorithm, QbeastColumns, Weight}
-import io.qbeast.spark.model.SpaceRevision
+import io.qbeast.spark.model.Revision
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.sql.delta.actions.{Action, AddFile, FileAction}
 import org.apache.spark.sql.delta.commands.DeltaCommand
@@ -67,14 +67,14 @@ case class QbeastWriter(
 
     // Whether the update contains a new revision or not
     def isNewRevision = isOverwriteOperation || qbeastSnapshot.isInitial ||
-      !qbeastSnapshot.lastSpaceRevision.contains(data, columnsToIndex)
+      !qbeastSnapshot.lastRevision.contains(data)
 
-    val (qbeastData, spaceRevision, weightMap) =
+    val (qbeastData, revision, weightMap) =
       if (isNewRevision) {
         oTreeAlgorithm.indexFirst(data, columnsToIndex)
 
       } else {
-        oTreeAlgorithm.indexNext(data, qbeastSnapshot, announcedSet)
+        oTreeAlgorithm.indexNext(data, qbeastSnapshot.lastRevisionData, announcedSet)
       }
 
     // The Metadata can be updated only once in a single transaction
@@ -87,9 +87,7 @@ case class QbeastWriter(
         partitionColumns,
         isOverwriteOperation,
         rearrangeOnly,
-        columnsToIndex,
-        oTreeAlgorithm.desiredCubeSize,
-        spaceRevision,
+        revision,
         qbeastSnapshot)
     } else {
       val oldQbeastMetadata = txn.metadata.configuration
@@ -121,7 +119,7 @@ case class QbeastWriter(
       fs.mkdirs(deltaLog.logPath)
     }
 
-    val newFiles = writeFiles(qbeastData, spaceRevision, weightMap)
+    val newFiles = writeFiles(qbeastData, revision, weightMap)
     val addFiles = newFiles.collect { case a: AddFile => a }
     val deletedFiles = (mode, partitionFilters) match {
       case (SaveMode.Overwrite, None) =>
@@ -161,13 +159,13 @@ case class QbeastWriter(
   /**
    * Writes qbeast indexed data into files
    * @param qbeastData the dataFrame containing data to write
-   * @param spaceRevision the space revision of the data
+   * @param revision the revision of the data
    * @return the sequence of added files to the table
    */
 
   def writeFiles(
       qbeastData: DataFrame,
-      spaceRevision: SpaceRevision,
+      revision: Revision,
       weightMap: Map[CubeId, Weight]): Seq[FileAction] = {
 
     val (factory: OutputWriterFactory, serConf: SerializableConfiguration) = {
@@ -187,8 +185,7 @@ case class QbeastWriter(
         factory = factory,
         serConf = serConf,
         qbeastColumns = qbeastColumns,
-        columnsToIndex = columnsToIndex,
-        revisionTimestamp = spaceRevision.timestamp,
+        revision = revision,
         weightMap = weightMap)
     qbeastData
       .repartition(col(cubeColumnName), col(stateColumnName))

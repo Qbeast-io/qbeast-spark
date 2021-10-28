@@ -6,7 +6,7 @@ package io.qbeast.spark.utils
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.index.{CubeId, QbeastColumns, Weight}
-import io.qbeast.spark.model.Point
+import io.qbeast.spark.model.{Point, Revision}
 import io.qbeast.spark.sql.qbeast.BlockWriter
 import io.qbeast.spark.sql.utils.TagUtils
 import io.qbeast.spark.utils.BlockWriterTest.IndexData
@@ -50,7 +50,6 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
     val indexed =
       spark.createDataFrame(rdd).toDF("id", cubeColumnName, weightColumnName, stateColumnName)
     val data = indexed.select("id")
-    val names = List("id")
 
     val qbeastColumns = QbeastColumns(indexed)
     val (factory, serConf) = loadConf(data)
@@ -61,8 +60,7 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
       factory = factory,
       serConf = serConf,
       qbeastColumns = qbeastColumns,
-      columnsToIndex = names,
-      revisionTimestamp = System.currentTimeMillis(),
+      revision = Revision(data, Seq("id"), 10000),
       weightMap = weightMap.toMap)
 
     val files = indexed
@@ -102,8 +100,7 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
       factory = factory,
       serConf = serConf,
       qbeastColumns = qbeastColumns,
-      columnsToIndex = names,
-      revisionTimestamp = System.currentTimeMillis(),
+      revision = Revision(data, Seq("id"), 10000),
       weightMap = weightMap.toMap)
 
     val files = indexed

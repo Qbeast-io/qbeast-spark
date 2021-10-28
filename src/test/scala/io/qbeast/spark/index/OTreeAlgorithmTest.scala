@@ -217,11 +217,11 @@ class OTreeAlgorithmTest
         val df = spark.createDataFrame(rdd)
         val names = List("age", "val2", "val3")
 
-        val (_, spaceRevision, _) = oTreeAlgorithm.indexFirst(df, names)
+        val (_, revision, _) = oTreeAlgorithm.indexFirst(df, names)
 
         val df2 = df.withColumn("val2", expr("val2 * 3"))
 
-        assert(!spaceRevision.contains(df2, names))
+        assert(!revision.contains(df2))
       }
 
     }
@@ -236,11 +236,11 @@ class OTreeAlgorithmTest
       val df = spark.createDataFrame(rdd)
       val names = List("age", "val2", "val3")
 
-      val (_, spaceRevision, _) = oTreeAlgorithm.indexFirst(df, names)
+      val (_, revision, _) = oTreeAlgorithm.indexFirst(df, names)
 
       val df2 = df.withColumn("val2", expr("val2 + 3"))
 
-      assert(spaceRevision.contains(df2, names))
+      assert(revision.contains(df2))
     }
 
   }

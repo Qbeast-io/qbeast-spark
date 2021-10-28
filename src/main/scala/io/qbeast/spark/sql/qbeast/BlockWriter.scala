@@ -4,13 +4,13 @@
 package io.qbeast.spark.sql.qbeast
 
 import io.qbeast.spark.index.{CubeId, QbeastColumns, Weight}
+import io.qbeast.spark.model.Revision
 import io.qbeast.spark.sql.utils.TagUtils
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapred.{JobConf, TaskAttemptContextImpl, TaskAttemptID}
 import org.apache.hadoop.mapreduce.TaskType
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.delta.actions.AddFile
-import org.apache.spark.sql.delta.util.JsonUtils
 import org.apache.spark.sql.execution.datasources.{OutputWriter, OutputWriterFactory}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.SerializableConfiguration
@@ -26,8 +26,7 @@ import java.util.UUID
  * @param factory        output writer factory
  * @param serConf        configuration to serialize the data
  * @param qbeastColumns  qbeast metadata columns
- * @param columnsToIndex columns of the original data that are used for indexing
- * @param revisionTimestamp the revision timestamp of the data to write
+ * @param revision     the revision of the data to write
  * @param weightMap       map of cubes and it's estimated weight
  */
 case class BlockWriter(
@@ -37,11 +36,9 @@ case class BlockWriter(
     factory: OutputWriterFactory,
     serConf: SerializableConfiguration,
     qbeastColumns: QbeastColumns,
-    columnsToIndex: Seq[String],
-    revisionTimestamp: Long,
+    revision: Revision,
     weightMap: Map[CubeId, Weight])
     extends Serializable {
-  private val dimensionCount = columnsToIndex.length
 
   /**
    * Writes rows in corresponding files
@@ -56,7 +53,7 @@ case class BlockWriter(
 
     iter
       .foldLeft[Map[CubeId, BlockContext]](Map()) { case (blocks, row) =>
-        val cubeId = CubeId(dimensionCount, row.getBinary(qbeastColumns.cubeColumnIndex))
+        val cubeId = CubeId(revision.dimensionCount, row.getBinary(qbeastColumns.cubeColumnIndex))
         val state = row.getString(qbeastColumns.stateColumnIndex)
         // TODO make sure this does not compromise the structure of the index
         // It could happen than estimated weights
@@ -83,7 +80,7 @@ case class BlockWriter(
       }
       .values
       .flatMap {
-        case BlockContext(blockStats, _, _) if blockStats.rowCount == 0 =>
+        case BlockContext(blockStats, _, _) if blockStats.elementCount == 0 =>
           Iterator.empty // Do nothing, this  is a empty partition
         case BlockContext(
               BlockStats(cube, maxWeight, minWeight, state, rowCount),
@@ -94,7 +91,7 @@ case class BlockWriter(
             TagUtils.minWeight -> minWeight.value.toString,
             TagUtils.maxWeight -> maxWeight.value.toString,
             TagUtils.state -> state,
-            TagUtils.space -> JsonUtils.toJson(revisionTimestamp),
+            TagUtils.revision -> revision.id.toString,
             TagUtils.elementCount -> rowCount.toString)
 
           writer.close()

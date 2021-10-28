@@ -48,7 +48,7 @@ class QbeastSnapshotTest
           val deltaLog = DeltaLog.forTable(spark, tmpDir)
           val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
           val cubeNormalizedWeights =
-            qbeastSnapshot.cubeNormalizedWeights(qbeastSnapshot.lastRevisionTimestamp)
+            qbeastSnapshot.lastRevisionData.cubeNormalizedWeights
 
           cubeNormalizedWeights.foreach(cubeInfo => cubeInfo._2 shouldBe 2.0)
         }
@@ -70,7 +70,7 @@ class QbeastSnapshotTest
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
         val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
         val cubeNormalizedWeights =
-          qbeastSnapshot.cubeNormalizedWeights(qbeastSnapshot.lastRevisionTimestamp)
+          qbeastSnapshot.lastRevisionData.cubeNormalizedWeights
 
         cubeNormalizedWeights.foreach(cubeInfo => cubeInfo._2 shouldBe <(1.0))
       }
@@ -93,8 +93,7 @@ class QbeastSnapshotTest
 
           val deltaLog = DeltaLog.forTable(spark, tmpDir)
           val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
-          val commitLogWeightMap =
-            qbeastSnapshot.cubeWeights(qbeastSnapshot.lastRevisionTimestamp)
+          val commitLogWeightMap = qbeastSnapshot.lastRevisionData.cubeWeights
 
           // commitLogWeightMap shouldBe weightMap
           commitLogWeightMap.keys.foreach(cubeId => {
@@ -117,7 +116,7 @@ class QbeastSnapshotTest
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
       val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
-      val cubeWeights = qbeastSnapshot.cubeWeights(qbeastSnapshot.lastRevisionTimestamp)
+      val cubeWeights = qbeastSnapshot.lastRevisionData.cubeWeights
 
       cubeWeights.foreach { case (_, weight: Weight) =>
         weight shouldBe >(Weight.MinValue)
@@ -145,17 +144,15 @@ class QbeastSnapshotTest
             val deltaLog = DeltaLog.forTable(spark, tmpDir)
             val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
 
-            val indexStateMethod = PrivateMethod[Dataset[CubeInfo]]('indexState)
+            val indexStateMethod = PrivateMethod[Dataset[CubeInfo]]('revisionState)
             val indexState =
-              qbeastSnapshot invokePrivate indexStateMethod(qbeastSnapshot.lastRevisionTimestamp)
+              qbeastSnapshot.lastRevisionData invokePrivate indexStateMethod()
             val overflowed =
-              qbeastSnapshot
-                .overflowedSet(qbeastSnapshot.lastRevisionTimestamp)
-                .map(_.string)
+              qbeastSnapshot.lastRevisionData.overflowedSet.map(_.string)
 
             indexState
-              .collect()
               .filter(cubeInfo => overflowed.contains(cubeInfo.cube))
+              .collect()
               .foreach(cubeInfo =>
                 assert(
                   cubeInfo.size > oTreeAlgorithm.desiredCubeSize * 0.9,
