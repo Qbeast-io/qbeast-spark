@@ -293,8 +293,8 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
   private def rowValuesColumn(columnsToIndex: Seq[String]): Column =
     array(columnsToIndex.map(col): _*)
 
-  private def addRandomWeight(df: DataFrame, dimensionColumns: Seq[String]): DataFrame = {
-    df.withColumn(weightColumnName, qbeastHash(dimensionColumns.map(name => df(name)): _*))
+  private def addRandomWeight(df: DataFrame, columnsToIndex: Seq[String]): DataFrame = {
+    df.withColumn(weightColumnName, qbeastHash(columnsToIndex.map(name => df(name)): _*))
   }
 
 }
