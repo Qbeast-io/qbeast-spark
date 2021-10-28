@@ -60,7 +60,7 @@ class QbeastExpressionUtilsTest extends AnyFlatSpec with Matchers with QbeastInt
     val revision = createRevision(Seq(columnName))
     QbeastExpressionUtils
       .extractQuerySpace(Seq(expression), revision, spark) shouldBe
-      QuerySpaceFromTo(Point(from), Point(to), revision)
+      QuerySpaceFromTo(Point(3.0), Point(8.0), revision)
 
   })
 
@@ -69,7 +69,7 @@ class QbeastExpressionUtilsTest extends AnyFlatSpec with Matchers with QbeastInt
     val revision = createRevision(Seq("id"))
     QbeastExpressionUtils
       .extractQuerySpace(Seq.empty, revision, spark) shouldBe
-      QuerySpaceFromTo(Point(Int.MinValue), Point(Int.MaxValue), revision)
+      QuerySpaceFromTo(Point(0.0), Point(1.0), revision)
   })
 
   it should "not process disjunctive predicates" in withSpark(spark => {
@@ -85,7 +85,7 @@ class QbeastExpressionUtilsTest extends AnyFlatSpec with Matchers with QbeastInt
 
     QbeastExpressionUtils
       .extractQuerySpace(Seq(expression), revision, spark) shouldBe
-      QuerySpaceFromTo(Point(Int.MinValue), Point(Int.MaxValue), revision)
+      QuerySpaceFromTo(Point(0.0), Point(1.0), revision)
 
   })
 
