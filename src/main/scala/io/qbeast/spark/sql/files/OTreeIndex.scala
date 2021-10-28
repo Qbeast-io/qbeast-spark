@@ -4,7 +4,7 @@
 package io.qbeast.spark.sql.files
 
 import io.qbeast.spark.index.{CubeId, Weight}
-import io.qbeast.spark.model.{Point, QuerySpace, QuerySpaceFromTo, RangeValues}
+import io.qbeast.spark.model.{AllSpace, QuerySpace, RangeValues}
 import io.qbeast.spark.sql.qbeast
 import io.qbeast.spark.sql.utils.State
 import io.qbeast.spark.sql.utils.TagUtils
@@ -96,10 +96,7 @@ case class OTreeIndex(index: TahoeLogFileIndex)
         val revisionData = qbeastSnapshot.getRevisionData(revision.id)
         val dimensionCount = revision.dimensionCount
 
-        val originalFrom = Point(Vector.fill(dimensionCount)(Int.MinValue.doubleValue()))
-        val originalTo = Point(Vector.fill(dimensionCount)(Int.MaxValue.doubleValue()))
-        val querySpace = QuerySpaceFromTo(originalFrom, originalTo, revision)
-
+        val querySpace = AllSpace(dimensionCount)
         val cubeWeights = revisionData.cubeWeights
         val replicatedSet = revisionData.replicatedSet
         val filesRevision = filesVector.filter(_.tags(TagUtils.revision) == revision.id.toString)

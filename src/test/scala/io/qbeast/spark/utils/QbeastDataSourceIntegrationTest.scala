@@ -8,6 +8,7 @@ import io.qbeast.spark.index.CubeId
 import io.qbeast.spark.sql.files.OTreeIndex
 import io.qbeast.spark.table.QbeastTable
 import org.apache.spark.sql.execution.FileSourceScanExec
+import org.apache.spark.sql.functions.{col, lit}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
@@ -40,6 +41,29 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
 
         }
     }
+
+  it should "index correctly on bigger spaces" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      {
+        val data = loadTestData(spark)
+          .withColumn("user_id", lit(col("user_id") * Long.MaxValue))
+        // WRITE SOME DATA
+        data.write
+          .mode("overwrite")
+          .format("qbeast")
+          .option("columnsToIndex", "user_id,product_id")
+          .save(tmpDir)
+
+        val indexed = spark.read.format("qbeast").load(tmpDir)
+
+        data.count() shouldBe indexed.count()
+
+        assertLargeDatasetEquality(indexed, data, orderedComparison = false)
+
+        data.columns.toSet shouldBe indexed.columns.toSet
+
+      }
+  }
 
   it should "index correctly on overwrite" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
     {
