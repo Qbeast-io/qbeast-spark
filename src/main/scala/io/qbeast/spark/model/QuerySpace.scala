@@ -11,11 +11,6 @@ import io.qbeast.spark.index.CubeId
 trait QuerySpace {
 
   /**
-   * The dimensional context.
-   */
-  implicit val context: DimensionalContext
-
-  /**
    * The point with minimum coordinates.
    */
   val from: Point
@@ -39,7 +34,6 @@ trait QuerySpace {
  * @param dimensionCount the dimension count
  */
 case class AllSpace(dimensionCount: Int) extends QuerySpace {
-  implicit val context: DimensionalContext = DimensionalContext(dimensionCount)
 
   val to: Point = Point(Vector.fill(dimensionCount)(1.0))
 
@@ -55,16 +49,15 @@ case class AllSpace(dimensionCount: Int) extends QuerySpace {
  *
  * @param originalFrom inclusive starting range
  * @param originalTo   exclusive ending query range
- * @param spaceRevision revision applied on this space
+ * @param revision revision applied on this space
  */
-case class QuerySpaceFromTo(originalFrom: Point, originalTo: Point, spaceRevision: SpaceRevision)
+case class QuerySpaceFromTo(originalFrom: Point, originalTo: Point, revision: Revision)
     extends QuerySpace {
 
   require(originalFrom <= originalTo, "from point must be < then to point")
   require(originalFrom.dimensionCount == originalTo.dimensionCount)
-  implicit val context: DimensionalContext = DimensionalContext(originalTo.dimensionCount)
-  val from: Point = spaceRevision.transform(originalFrom.coordinates)
-  val to: Point = spaceRevision.transform(originalTo.coordinates)
+  val from: Point = revision.transform(originalFrom.coordinates)
+  val to: Point = revision.transform(originalTo.coordinates)
 
   override def intersectsWith(cube: CubeId): Boolean = {
     val ranges = from.coordinates.zip(to.coordinates)

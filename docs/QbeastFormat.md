@@ -36,7 +36,7 @@ Following each write transaction is the creation of a new log file. **Table-leve
       "state": "FLOODED",
       "rowCount": "3",
       "cube": "gA",
-      "spaceRevision": "1634196697656",
+      "revision": "1634196697656",
       "minWeight": "-2147483648",
       "maxWeight": "-857060062"
     }
@@ -50,28 +50,42 @@ Following each write transaction is the creation of a new log file. **Table-leve
   "id":"a5c2699f-62dd-4750-8384-be3a2caa55c7",
   ...
   "configuration": {
-    "qbeast.indexedColumns":"[\"user_id\",\"product_id\"]",
-    "qbeast.desiredCubeSize":"30000",
-    "qbeast.lastRevisionTimestamp":"1634196697656",
-    "qbeast.revision.1634196697656":"{\"transformations\":[{\"min\":1.16396325E8,\"max\":7.13218881E8,\"scale\":1.675539890285246E-9},{\"min\":-2.87485335E7,\"max\":9.02495125E7,\"scale\":8.403499331409189E-9}]}"
+    "qbeast.lastRevisionID":"1634196697656",
+    "qbeast.revision.1634196697656":"{\"id\":1634196697656,\"timestamp\":1634196697656,\"desiredCubeSize\":10000,\"indexedColumns\":[\"user_id\",\"product_id\"],\"transformations\":[{\"min\":1.16396325E8,\"max\":7.13218881E8,\"scale\":1.675539890285246E-9},{\"min\":-2.87485335E7,\"max\":9.02495125E7,\"scale\":8.403499331409189E-9}]}"
   },
   "createdTime":1634196701990}}
 ```
-
-We store metadata information such as the columns we index (`indexedColumns`), the desired size of the cube (`desiredCubeSize`) and the information about the space where the data belongs (`qb.revision.1634196697656`). 
+We store two different values:
+- A pointer to the last revision available `qbeast.lastRevisionID`
+- The different characteristics of this revision (`qb.revision.1634196697656`). 
 
 A more closer look to the `qb.revision.1634196697656`:
+
 ```json
 
-{ "transformations":[
-    {"min":1.16396325E8,"max":7.13218881E8,"scale":1.675539890285246E-9},
-    {"min":-2.87485335E7,"max":9.02495125E7,"scale":8.403499331409189E-9}]
+{
+  "id": 1634196697656,
+  "timestamp": 1634196697656,
+  "desiredCubeSize": 10000,
+  "indexedColumns": ["user_id", "product_id"],
+  "transformations": [
+    {
+      "min": 1.16396325E8,
+      "max": 7.13218881E8,
+      "scale": 1.675539890285246E-9
+    },
+    {
+      "min": -2.87485335E7,
+      "max": 9.02495125E7,
+      "scale": 8.403499331409189E-9
+    }
+  ]
 }
 ```
 
 On a high level, the index consists of one or more `OTrees` that contain `cubes`(or nodes), and each cube is made of `blocks` that contain the actual data written by the user. All records from the log are of **block-level** information.
 
-- `spaceRevision` locates the tree that contains the `block`
+- `revision` locates the tree that contains the `block`
   
 
 - `cube` identifies the current `block`'s `cube` from the `tree`
@@ -83,7 +97,7 @@ On a high level, the index consists of one or more `OTrees` that contain `cubes`
 - `weightMax/weightMin`: Each element gets assigned with a uniformly created `weight` parameter. `weightMin` and `weightMax` define the range of weights that the `block` can contain.
   
 
-- `transformations` inside `spaceRevision` consist of two maps(in this case), each corresponding to one of the `indexedColumns`. Each pair of `min`/`max` defines the range of values of the associated indexed column that the `tree` can contain and is to be expanded to accommodate new rows that fall outside the current range.
+- `transformations` inside `revision` consist of two maps(in this case), each corresponding to one of the `indexedColumns`. Each pair of `min`/`max` defines the range of values of the associated indexed column that the `tree` can contain and is to be expanded to accommodate new rows that fall outside the current range.
 
 ### State changes in Metadata
 

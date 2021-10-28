@@ -12,28 +12,28 @@ import io.qbeast.spark.index.Weight
  * @param maxWeight the maximum weight
  * @param minWeight the minimum weight
  * @param state the cube state
- * @param rowCount the number of rows
+ * @param elementCount the number of rows
  */
 case class BlockStats protected (
     cube: String,
     maxWeight: Weight,
     minWeight: Weight,
     state: String,
-    rowCount: Long) {
+    elementCount: Long) {
 
   /**
    * Update the BlockStats by computing minWeight = min(this.minWeight, minWeight).
-   * This also updates the rowCount of the BlocksStats
+   * This also updates the elementCount of the BlocksStats
    * @param minWeight the Weight to compare with the current one
    * @return the updated BlockStats object
    */
   def update(minWeight: Weight): BlockStats = {
     val minW = Weight.min(minWeight, this.minWeight)
-    this.copy(rowCount = rowCount + 1, minWeight = minW)
+    this.copy(elementCount = elementCount + 1, minWeight = minW)
   }
 
   override def toString: String =
-    s"BlocksStats($cube,$maxWeight,$minWeight,$state,$rowCount)"
+    s"BlocksStats($cube,$maxWeight,$minWeight,$state,$elementCount)"
 
 }
 
