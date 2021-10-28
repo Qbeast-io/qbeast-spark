@@ -14,11 +14,11 @@ object QbeastExpressionUtils {
 
   private def hasQbeastColumnReference(
       expr: Expression,
-      dimensionColumns: Seq[String],
+      indexedColumns: Seq[String],
       spark: SparkSession): Boolean = {
     val nameEquality = spark.sessionState.analyzer.resolver
     expr.references.forall { r =>
-      dimensionColumns.exists(nameEquality(r.name, _))
+      indexedColumns.exists(nameEquality(r.name, _))
     }
   }
 

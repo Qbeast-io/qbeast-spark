@@ -28,7 +28,7 @@ class QbeastExpressionUtilsTest extends AnyFlatSpec with Matchers with QbeastInt
   }
 
   private def createRevision(columnNames: Seq[String]) = {
-    val transformations = columnNames.map(s => LinearTransformation(0.0, 1.0)).toIndexedSeq
+    val transformations = columnNames.map(_ => LinearTransformation(0.0, 1.0)).toIndexedSeq
     new Revision(
       System.currentTimeMillis(),
       System.currentTimeMillis(),
@@ -38,19 +38,19 @@ class QbeastExpressionUtilsTest extends AnyFlatSpec with Matchers with QbeastInt
   }
 
   "extractWeightRange" should
-    "extract all weight range when expressions is empty" in withSpark(spark => {
+    "extract all weight range when expressions is empty" in {
 
       QbeastExpressionUtils
         .extractWeightRange(Seq.empty) shouldBe ((Weight.MinValue, Weight.MaxValue))
-    })
+    }
 
-  it should "filter correctly the expressions for weight" in withSpark(_ => {
+  it should "filter correctly the expressions for weight" in {
 
     val (from, to) = (Weight(3), Weight(8))
     val expression = weightFilters(from, to)
     QbeastExpressionUtils.extractWeightRange(Seq(expression)) shouldBe ((from, to))
 
-  })
+  }
 
   "extractQueryRange" should "extract query range" in withSpark(spark => {
 
