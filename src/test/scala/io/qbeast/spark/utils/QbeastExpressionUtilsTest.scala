@@ -19,7 +19,7 @@ class QbeastExpressionUtilsTest extends AnyFlatSpec with Matchers with QbeastInt
     And(lessThan, greaterThanOrEqual)
   }
 
-  private def rangeFilters(from: Any, to: Any, columnName: String): Expression = {
+  private def rangeFilters(from: Int, to: Int, columnName: String): Expression = {
 
     val column = new Column(columnName).expr
     val lessThan = LessThan(column, Literal(to))
@@ -28,7 +28,8 @@ class QbeastExpressionUtilsTest extends AnyFlatSpec with Matchers with QbeastInt
   }
 
   private def createRevision(columnNames: Seq[String]) = {
-    val transformations = columnNames.map(_ => LinearTransformation(0.0, 1.0)).toIndexedSeq
+    val transformations =
+      columnNames.map(_ => LinearTransformation(Int.MinValue, Int.MaxValue)).toIndexedSeq
     new Revision(
       System.currentTimeMillis(),
       System.currentTimeMillis(),
@@ -69,7 +70,7 @@ class QbeastExpressionUtilsTest extends AnyFlatSpec with Matchers with QbeastInt
     val revision = createRevision(Seq("id"))
     QbeastExpressionUtils
       .extractQuerySpace(Seq.empty, revision, spark) shouldBe
-      QuerySpaceFromTo(Point(0.0), Point(1.0), revision)
+      QuerySpaceFromTo(Point(Int.MinValue), Point(Int.MaxValue), revision)
   })
 
   it should "not process disjunctive predicates" in withSpark(spark => {
@@ -85,7 +86,7 @@ class QbeastExpressionUtilsTest extends AnyFlatSpec with Matchers with QbeastInt
 
     QbeastExpressionUtils
       .extractQuerySpace(Seq(expression), revision, spark) shouldBe
-      QuerySpaceFromTo(Point(0.0), Point(1.0), revision)
+      QuerySpaceFromTo(Point(Int.MinValue), Point(Int.MaxValue), revision)
 
   })
 
