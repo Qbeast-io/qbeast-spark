@@ -14,7 +14,6 @@ import io.qbeast.spark.sql.qbeast.RevisionData
 import io.qbeast.spark.sql.rules.Functions.qbeastHash
 import io.qbeast.spark.sql.utils.State
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{AnalysisExceptionFactory, Column, DataFrame, SparkSession}
 
 import scala.collection.immutable.IndexedSeq
@@ -48,15 +47,6 @@ trait OTreeAlgorithm {
       dataFrame: DataFrame,
       revisionData: RevisionData,
       announcedSet: Set[CubeId]): (DataFrame, Revision, Map[CubeId, Weight])
-
-  /**
-   * Returns the columns contributing to the pseudo random weight generation.
-   *
-   * @param schema the schema
-   * @param dimensionColumns the columns to index
-   * @return the columns
-   */
-  def getWeightContributorColumns(schema: StructType, dimensionColumns: Seq[String]): Seq[String]
 
   /**
    * The desired size of the cube.
@@ -128,19 +118,6 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
         isReplication = false)
     (indexedDataFrame, revision, cubeWeights)
   }
-
-  override def getWeightContributorColumns(
-      schema: StructType,
-      columnsToIndex: Seq[String]): Seq[String] = {
-    val fields = columnsToIndex.map(column => schema.find(_.name == column).get)
-    val notNulls =
-      fields.filter(p => !p.nullable)
-    if (notNulls.isEmpty) {
-      fields
-    } else {
-      notNulls
-    }
-  }.map(_.name)
 
   override def analyzeIndex(revisionData: RevisionData): Seq[CubeId] = {
 
@@ -316,9 +293,8 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
   private def rowValuesColumn(columnsToIndex: Seq[String]): Column =
     array(columnsToIndex.map(col): _*)
 
-  private def addRandomWeight(df: DataFrame, dimensionColumns: Seq[String]): DataFrame = {
-    val columns = getWeightContributorColumns(df.schema, dimensionColumns).map(name => df(name))
-    df.withColumn(weightColumnName, qbeastHash(columns: _*))
+  private def addRandomWeight(df: DataFrame, columnsToIndex: Seq[String]): DataFrame = {
+    df.withColumn(weightColumnName, qbeastHash(columnsToIndex.map(name => df(name)): _*))
   }
 
 }
