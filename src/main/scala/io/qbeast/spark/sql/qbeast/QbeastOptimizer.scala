@@ -6,7 +6,7 @@ package io.qbeast.spark.sql.qbeast
 import io.qbeast.model.CubeId
 import io.qbeast.spark.index.QbeastColumns.cubeToReplicateColumnName
 import io.qbeast.spark.index.OTreeAlgorithm
-import io.qbeast.spark.model.RevisionID
+import io.qbeast.model.RevisionID
 import io.qbeast.spark.sql.utils.State
 import io.qbeast.spark.sql.utils.TagUtils
 import org.apache.hadoop.fs.Path

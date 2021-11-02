@@ -4,7 +4,7 @@
 package io.qbeast.spark.sql.files
 
 import io.qbeast.model.{CubeId, Weight}
-import io.qbeast.spark.model.{Point, QuerySpace, QuerySpaceFromTo, RangeValues}
+import io.qbeast.model.{Point, QuerySpace, QuerySpaceFromTo}
 import io.qbeast.spark.sql.qbeast
 import io.qbeast.spark.sql.utils.State
 import io.qbeast.spark.sql.utils.TagUtils
@@ -14,6 +14,13 @@ import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.files.{TahoeFileIndex, TahoeLogFileIndex}
 import org.apache.spark.sql.types.IntegerType
+
+/**
+ * Integer values of range [from, to)
+ * @param from from value
+ * @param to to value
+ */
+case class RangeValues(from: Weight, to: Weight)
 
 /**
  * FileIndex to prune files

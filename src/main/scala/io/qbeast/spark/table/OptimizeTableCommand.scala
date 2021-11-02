@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.table
 
-import io.qbeast.spark.model.RevisionID
+import io.qbeast.model.RevisionID
 import org.apache.spark.sql.execution.command.RunnableCommand
 import org.apache.spark.sql.{Row, SparkSession}
 

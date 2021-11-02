@@ -16,6 +16,7 @@ lazy val qbeastSpark = (project in file("."))
   .settings(
     name := "qbeast-spark",
     libraryDependencies ++= Seq(
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.12.0",
       sparkCore % Provided,
       sparkSql % Provided,
       hadoopClient % Provided,

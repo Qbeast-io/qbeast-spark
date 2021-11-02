@@ -3,19 +3,20 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.model.{CubeId, CubeWeights, Weight}
+import io.qbeast.model.{CubeId, CubeWeights, CubeWeightsBuilder, Point, Revision, Weight}
 import io.qbeast.spark.index.QbeastColumns.{
   cubeColumnName,
   cubeToReplicateColumnName,
   stateColumnName,
   weightColumnName
 }
-import io.qbeast.spark.model._
 import io.qbeast.spark.sql.qbeast.RevisionData
 import io.qbeast.spark.sql.rules.Functions.qbeastHash
 import io.qbeast.spark.sql.utils.State
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{AnalysisExceptionFactory, Column, DataFrame, SparkSession}
+
+import io.qbeast.spark.model.RevisionUtil
 
 import scala.collection.immutable.IndexedSeq
 
@@ -96,7 +97,9 @@ final class OTreeAlgorithmImpl(val desiredCubeSize: Int)
   override def indexFirst(
       dataFrame: DataFrame,
       columnsToIndex: Seq[String]): (DataFrame, Revision, Map[CubeId, Weight]) = {
-    val revision = Revision(dataFrame, columnsToIndex, desiredCubeSize)
+
+    val revision: Revision = RevisionUtil
+      .createRevisionFromDF(dataFrame, columnsToIndex, desiredCubeSize)
     val revisionData = RevisionData(revision)
     val (indexedDataFrame, cubeWeights: Map[CubeId, Weight]) = index(
       dataFrame = dataFrame,

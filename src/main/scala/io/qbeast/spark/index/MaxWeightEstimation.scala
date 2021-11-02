@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.model.{NormalizedWeight, Weight}
+import io.qbeast.model.{Weight, NormalizedWeight}
 import org.apache.spark.sql.{Encoder, Encoders}
 import org.apache.spark.sql.expressions.Aggregator
 

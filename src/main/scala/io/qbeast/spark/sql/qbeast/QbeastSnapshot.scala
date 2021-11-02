@@ -3,9 +3,8 @@
  */
 package io.qbeast.spark.sql.qbeast
 
+import io.qbeast.model.{CubeId, Revision, RevisionID}
 import io.qbeast.spark.index.ReplicatedSet
-import io.qbeast.spark.model.RevisionID
-import io.qbeast.spark.model.Revision
 import io.qbeast.spark.sql.utils.{MetadataConfig, TagUtils}
 import org.apache.spark.sql.delta.util.JsonUtils
 import org.apache.spark.sql.delta.Snapshot

@@ -19,7 +19,7 @@ case class Revision(
     timestamp: Long,
     desiredCubeSize: Int,
     indexedColumns: Seq[String],
-    transformations: IndexedSeq[LinearTransformation]) {
+    transformations: IndexedSeq[Transformation]) {
 
   val dimensionCount = indexedColumns.length
 

@@ -5,7 +5,7 @@ package io.qbeast.spark.sql.qbeast
 
 import io.qbeast.model.{CubeId, Weight}
 import io.qbeast.spark.index.QbeastColumns
-import io.qbeast.spark.model.Revision
+import io.qbeast.model.Revision
 import io.qbeast.spark.sql.utils.TagUtils
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapred.{JobConf, TaskAttemptContextImpl, TaskAttemptID}

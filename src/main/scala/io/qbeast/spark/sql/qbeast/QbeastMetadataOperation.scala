@@ -4,7 +4,7 @@
 package io.qbeast.spark.sql.qbeast
 
 import io.qbeast.spark.index.ReplicatedSet
-import io.qbeast.spark.model.Revision
+import io.qbeast.model.Revision
 import io.qbeast.spark.sql.utils.MetadataConfig
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.delta.{

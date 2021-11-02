@@ -3,10 +3,9 @@
  */
 package io.qbeast.spark.sql.qbeast
 
-import io.qbeast.model.CubeId
+import io.qbeast.model.{CubeId, Revision, Weight}
 import io.qbeast.spark.index.QbeastColumns.{cubeColumnName, stateColumnName}
 import io.qbeast.spark.index.{OTreeAlgorithm, QbeastColumns}
-import io.qbeast.spark.model.Revision
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.sql.delta.actions.{Action, AddFile, FileAction}
 import org.apache.spark.sql.delta.commands.DeltaCommand
@@ -16,6 +15,7 @@ import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, SaveMode, SparkSession}
 import org.apache.spark.util.SerializableConfiguration
+import io.qbeast.spark.model.RevisionUtil
 
 /**
  * QbeastWriter is in charge of writing data to a table
@@ -68,7 +68,7 @@ case class QbeastWriter(
 
     // Whether the update contains a new revision or not
     def isNewRevision = isOverwriteOperation || qbeastSnapshot.isInitial ||
-      !qbeastSnapshot.lastRevision.contains(data)
+      !RevisionUtil.revisionContains(qbeastSnapshot.lastRevision, data, columnsToIndex)
 
     val (qbeastData, revision, weightMap) =
       if (isNewRevision) {

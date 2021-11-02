@@ -3,13 +3,21 @@
  */
 package io.qbeast.spark.sql.qbeast
 
-import io.qbeast.model.{CubeId, NormalizedWeight, Weight}
+import io.qbeast.model.{CubeId, NormalizedWeight, Revision, Weight}
 import io.qbeast.spark.index.ReplicatedSet
-import io.qbeast.spark.model.{CubeInfo, Revision}
 import io.qbeast.spark.sql.utils.{State, TagUtils}
-import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.functions.{min, sum}
+import org.apache.spark.sql.{Dataset, SparkSession}
+
+/**
+ * Cube Information
+ * @param cube Id of the cube
+ * @param maxWeight Maximum weight of the cube
+ * @param size Number of elements of the cube
+ */
+
+case class CubeInfo(cube: String, maxWeight: Weight, size: Long)
 
 /**
  * Snapshot that provides information about the current index state of a given Revision.
