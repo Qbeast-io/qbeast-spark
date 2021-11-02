@@ -3,7 +3,8 @@
  */
 package io.qbeast.spark.sql.qbeast
 
-import io.qbeast.spark.index.{CubeId, QbeastColumns, Weight}
+import io.qbeast.model.{CubeId, Weight}
+import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.model.Revision
 import io.qbeast.spark.sql.utils.TagUtils
 import org.apache.hadoop.fs.Path

@@ -3,6 +3,7 @@
  */
 package io.qbeast.spark.index
 
+import io.qbeast.model.{CubeId, CubeWeights, Weight}
 import io.qbeast.spark.index.QbeastColumns.{
   cubeColumnName,
   cubeToReplicateColumnName,

@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.sql.files
 
-import io.qbeast.spark.index.{CubeId, Weight}
+import io.qbeast.model.{CubeId, Weight}
 import io.qbeast.spark.model.{Point, QuerySpace, QuerySpaceFromTo, RangeValues}
 import io.qbeast.spark.sql.qbeast
 import io.qbeast.spark.sql.utils.State

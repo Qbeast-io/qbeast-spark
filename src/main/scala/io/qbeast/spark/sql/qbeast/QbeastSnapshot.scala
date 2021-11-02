@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.sql.qbeast
 
-import io.qbeast.spark.index.{CubeId, ReplicatedSet}
+import io.qbeast.spark.index.ReplicatedSet
 import io.qbeast.spark.model.RevisionID
 import io.qbeast.spark.model.Revision
 import io.qbeast.spark.sql.utils.{MetadataConfig, TagUtils}

@@ -3,8 +3,9 @@
  */
 package io.qbeast.spark.sql.qbeast
 
+import io.qbeast.model.CubeId
 import io.qbeast.spark.index.QbeastColumns.{cubeColumnName, stateColumnName}
-import io.qbeast.spark.index.{CubeId, OTreeAlgorithm, QbeastColumns, Weight}
+import io.qbeast.spark.index.{OTreeAlgorithm, QbeastColumns}
 import io.qbeast.spark.model.Revision
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.sql.delta.actions.{Action, AddFile, FileAction}

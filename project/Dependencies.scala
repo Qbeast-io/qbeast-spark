@@ -15,4 +15,5 @@ object Dependencies {
   val sparkFastTests = "com.github.mrpowers" %% "spark-fast-tests" % "1.0.0"
   val scalaTest = "org.scalatest" %% "scalatest" % "3.2.9"
   val mockito = "org.scalatestplus" %% "mockito-3-4" % "3.2.9.0"
+  val apacheCommons = "org.apache.commons" % "commons-lang3" % "3.10"
 }

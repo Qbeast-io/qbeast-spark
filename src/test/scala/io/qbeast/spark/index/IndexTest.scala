@@ -3,6 +3,7 @@
  */
 package io.qbeast.spark.index
 
+import io.qbeast.model.{CubeId, Weight}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.OTreeAlgorithmTest.{Client3, Client4}
 import io.qbeast.spark.index.QbeastColumns.cubeColumnName

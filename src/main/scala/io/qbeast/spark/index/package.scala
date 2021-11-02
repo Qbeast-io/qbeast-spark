@@ -3,6 +3,8 @@
  */
 package io.qbeast.spark
 
+import io.qbeast.model.CubeId
+
 /**
  * Index package object.
  */

@@ -1,10 +1,6 @@
-/*
- * Copyright 2021 Qbeast Analytics, S.L.
- */
-package io.qbeast.spark.index
+package io.qbeast.model
 
-import io.qbeast.spark.index.Weight.MaxValue
-import io.qbeast.spark.model.Point
+import io.qbeast.model.Weight.MaxValue
 
 import scala.collection.mutable
 

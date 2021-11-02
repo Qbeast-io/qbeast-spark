@@ -1,10 +1,9 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.index
+package io.qbeast.model
 
-import io.qbeast.spark.index.CubeId.{ChildrenIterator, Codec}
-import io.qbeast.spark.model.Point
+import io.qbeast.model.CubeId.{ChildrenIterator, Codec}
 
 import java.nio.ByteBuffer
 import scala.collection.immutable.BitSet
@@ -332,7 +331,7 @@ class CubeId private (
    * @param point the point
    * @return the cube contains the point
    */
-  private[index] def contains(point: Point): Boolean = {
+  private[model] def contains(point: Point): Boolean = {
     require(point.dimensionCount == dimensionCount)
     from.coordinates.zip(point.coordinates).zip(to.coordinates).forall { case ((f, p), t) =>
       f <= p && (p < t || (p == t && t == 1.0))

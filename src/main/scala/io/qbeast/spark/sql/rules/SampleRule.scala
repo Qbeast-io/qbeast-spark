@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.sql.rules
 
-import io.qbeast.spark.index.Weight
+import io.qbeast.model.Weight
 import io.qbeast.spark.sql.sources.QbeastBaseRelation
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{

@@ -3,9 +3,10 @@
  */
 package io.qbeast.spark.utils
 
+import io.qbeast.model.Weight
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.QbeastColumns._
-import io.qbeast.spark.index.{CubeId, QbeastColumns, Weight}
+import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.model.{Point, Revision}
 import io.qbeast.spark.sql.qbeast.BlockWriter
 import io.qbeast.spark.sql.utils.TagUtils

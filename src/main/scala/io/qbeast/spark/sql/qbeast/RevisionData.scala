@@ -3,7 +3,8 @@
  */
 package io.qbeast.spark.sql.qbeast
 
-import io.qbeast.spark.index.{CubeId, NormalizedWeight, ReplicatedSet, Weight}
+import io.qbeast.model.{CubeId, NormalizedWeight, Weight}
+import io.qbeast.spark.index.ReplicatedSet
 import io.qbeast.spark.model.{CubeInfo, Revision}
 import io.qbeast.spark.sql.utils.{State, TagUtils}
 import org.apache.spark.sql.{Dataset, SparkSession}

@@ -1,9 +1,9 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.index
+package io.qbeast.model
 
-import io.qbeast.spark.index.Weight.{MaxValue, MinValue, offset, range}
+import io.qbeast.model.Weight.{MaxValue, MinValue, offset, range}
 
 /**
  * Weight companion object.

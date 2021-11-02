@@ -1,7 +1,7 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.model
+package io.qbeast.model
 
 import org.apache.commons.lang3.StringUtils
 import org.scalatest.matchers.should.Matchers

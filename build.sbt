@@ -1,7 +1,18 @@
 import Dependencies._
 
+lazy val qbeastCore = (project in file("core")).settings(
+  name := "qbeast-core",
+  libraryDependencies ++= Seq(
+    "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.12.0",
+    typesafeConf,
+    sparkFastTests % Test,
+    scalaTest % Test,
+    mockito % Test,
+    apacheCommons % Test))
+
 // Projects
 lazy val qbeastSpark = (project in file("."))
+  .dependsOn(qbeastCore)
   .settings(
     name := "qbeast-spark",
     libraryDependencies ++= Seq(

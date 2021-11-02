@@ -3,8 +3,8 @@
  */
 package io.qbeast.spark.utils
 
+import io.qbeast.model.CubeId
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.index.CubeId
 import io.qbeast.spark.sql.files.OTreeIndex
 import io.qbeast.spark.table.QbeastTable
 import org.apache.spark.sql.execution.FileSourceScanExec

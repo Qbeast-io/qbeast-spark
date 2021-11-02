@@ -1,11 +1,7 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.model
-
-import io.qbeast.spark.index.CubeId
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.delta.util.JsonUtils
+package io.qbeast.model
 
 import scala.collection.immutable.IndexedSeq
 
@@ -54,16 +50,15 @@ case class Revision(
    *
    * @param dataFrame the data frame
    * @return the data frame fits the space revision
+   *
+   *  def contains(dataFrame: DataFrame): Boolean = {
+   *    transformations
+   *      .zip(ColumnInfo.get(dataFrame, indexedColumns))
+   *      .forall { case (transformation, info) =>
+   *        transformation.min <= info.min && info.max <= transformation.max
+   *      }
+   *  }
    */
-  def contains(dataFrame: DataFrame): Boolean = {
-    transformations
-      .zip(ColumnInfo.get(dataFrame, indexedColumns))
-      .forall { case (transformation, info) =>
-        transformation.min <= info.min && info.max <= transformation.max
-      }
-  }
-
-  override def toString: String = JsonUtils.toJson(this)
 }
 
 /**
@@ -80,23 +75,23 @@ object Revision {
    * @param columnsToIndex the columns to index
    * @param desiredCubeSize the desired cube size
    * @return a revision
+   *
+   *  def apply(dataFrame: DataFrame, columnsToIndex: Seq[String], desiredCubeSize: Int): Revision = {
+   *    val transformations = ColumnInfo
+   *      .get(dataFrame, columnsToIndex)
+   *      .map(info => {
+   *        val expansion = (info.max - info.min) / 2
+   *        LinearTransformation(info.min - expansion, info.max + expansion)
+   *      })
+   *      .toIndexedSeq
+   *
+   *    val timestamp = System.currentTimeMillis()
+   *    new Revision(
+   *      timestamp,
+   *      timestamp,
+   *      desiredCubeSize = desiredCubeSize,
+   *      indexedColumns = columnsToIndex,
+   *      transformations = transformations)
+   *  }
    */
-  def apply(dataFrame: DataFrame, columnsToIndex: Seq[String], desiredCubeSize: Int): Revision = {
-    val transformations = ColumnInfo
-      .get(dataFrame, columnsToIndex)
-      .map(info => {
-        val expansion = (info.max - info.min) / 2
-        LinearTransformation(info.min - expansion, info.max + expansion)
-      })
-      .toIndexedSeq
-
-    val timestamp = System.currentTimeMillis()
-    new Revision(
-      timestamp,
-      timestamp,
-      desiredCubeSize = desiredCubeSize,
-      indexedColumns = columnsToIndex,
-      transformations = transformations)
-  }
-
 }

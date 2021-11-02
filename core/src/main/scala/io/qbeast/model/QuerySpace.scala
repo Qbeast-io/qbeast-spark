@@ -1,9 +1,7 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.model
-
-import io.qbeast.spark.index.CubeId
+package io.qbeast.model
 
 /**
  * Query space defines the domain area requested by the query.
