@@ -4,9 +4,8 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.model.CubeId
-import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.sql.files.OTreeIndex
-import io.qbeast.spark.table.QbeastTable
+import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
+import io.qbeast.spark.delta.OTreeIndex
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.{DataFrame, SparkSession}
 

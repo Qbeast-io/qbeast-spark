@@ -1,7 +1,7 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.sql.qbeast
+package io.qbeast.spark.index.writer
 
 import io.qbeast.model.Weight
 

@@ -1,14 +1,12 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.sql.qbeast
+package io.qbeast.spark.delta
 
-import io.qbeast.model.CubeId
-import io.qbeast.spark.index.QbeastColumns.cubeToReplicateColumnName
+import io.qbeast.model.{CubeId, RevisionID}
 import io.qbeast.spark.index.OTreeAlgorithm
-import io.qbeast.model.RevisionID
-import io.qbeast.spark.sql.utils.State
-import io.qbeast.spark.sql.utils.TagUtils
+import io.qbeast.spark.index.QbeastColumns.cubeToReplicateColumnName
+import io.qbeast.spark.utils.{State, TagUtils}
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.actions.{Action, AddFile, FileAction}
 import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions, OptimisticTransaction}

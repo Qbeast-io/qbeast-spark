@@ -1,7 +1,7 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.sql.utils
+package io.qbeast.spark.utils
 
 /**
  * Names of possible states of the cube

@@ -7,8 +7,9 @@ import io.qbeast.keeper.Keeper
 import io.qbeast.model.CubeId
 import io.qbeast.spark.index.{ColumnsToIndex, OTreeAlgorithm}
 import io.qbeast.model.RevisionID
-import io.qbeast.spark.sql.qbeast.{QbeastOptimizer, QbeastSnapshot, QbeastWriter}
-import io.qbeast.spark.sql.sources.QbeastBaseRelation
+import io.qbeast.spark.delta
+import io.qbeast.spark.delta.{QbeastOptimizer, QbeastSnapshot, QbeastWriter}
+import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import org.apache.spark.sql.delta.actions.SetTransaction
 import org.apache.spark.sql.delta.sources.DeltaDataSource
 import org.apache.spark.sql.delta.{DeltaLog, DeltaOperations, DeltaOptions}
@@ -148,7 +149,7 @@ private[table] class IndexedTableImpl(
 
   private def snapshot = {
     if (snapshotCache.isEmpty) {
-      snapshotCache = Some(QbeastSnapshot(deltaLog.snapshot))
+      snapshotCache = Some(delta.QbeastSnapshot(deltaLog.snapshot))
     }
     snapshotCache.get
   }
@@ -230,7 +231,7 @@ private[table] class IndexedTableImpl(
       mode: SaveMode,
       announcedSet: Set[CubeId],
       options: DeltaOptions): QbeastWriter = {
-    QbeastWriter(
+    delta.QbeastWriter(
       mode = mode,
       deltaLog = deltaLog,
       options = options,

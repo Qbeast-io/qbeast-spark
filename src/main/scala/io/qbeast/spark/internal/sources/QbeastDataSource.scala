@@ -1,11 +1,11 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.sql.sources
+package io.qbeast.spark.internal.sources
 
 import io.qbeast.context.QbeastContext
 import io.qbeast.spark.index.ColumnsToIndex
-import io.qbeast.spark.sql.qbeast.QbeastOptions
+import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.hadoop.fs.FileStatus
 import org.apache.spark.sql.connector.catalog.TableCapability._

@@ -1,12 +1,11 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.sql.qbeast
+package io.qbeast.spark.index.writer
 
-import io.qbeast.model.{CubeId, Weight}
+import io.qbeast.model.{CubeId, Revision, Weight}
 import io.qbeast.spark.index.QbeastColumns
-import io.qbeast.model.Revision
-import io.qbeast.spark.sql.utils.TagUtils
+import io.qbeast.spark.utils.TagUtils
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapred.{JobConf, TaskAttemptContextImpl, TaskAttemptID}
 import org.apache.hadoop.mapreduce.TaskType
@@ -101,6 +100,7 @@ case class BlockWriter(
             .getFileSystem(serConf.value)
             .getFileStatus(path)
 
+          // TODO create a QbeastFile to not use anything from Delta to write
           Iterator(
             AddFile(
               path = path.getName(),

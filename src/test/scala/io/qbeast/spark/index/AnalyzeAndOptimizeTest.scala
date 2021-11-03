@@ -4,10 +4,8 @@
 package io.qbeast.spark.index
 
 import io.qbeast.model.CubeId
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable, delta}
 import io.qbeast.spark.index.OTreeAlgorithmTest.Client3
-import io.qbeast.spark.sql.qbeast.QbeastSnapshot
-import io.qbeast.spark.table.QbeastTable
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
 import org.scalatest.PrivateMethodTester
@@ -57,7 +55,7 @@ class AnalyzeAndOptimizeTest
     qbeastTable.optimize()
 
     val deltaLog = DeltaLog.forTable(spark, tmpDir)
-    val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
+    val qbeastSnapshot = delta.QbeastSnapshot(deltaLog.snapshot)
     val replicatedCubes = qbeastSnapshot.lastRevisionData.replicatedSet
 
     val announcedCubes = qbeastTable.analyze()
@@ -74,7 +72,7 @@ class AnalyzeAndOptimizeTest
         val announcedCubes = qbeastTable.analyze()
         qbeastTable.optimize()
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
+        val qbeastSnapshot = delta.QbeastSnapshot(deltaLog.snapshot)
         val replicatedCubes =
           qbeastSnapshot.lastRevisionData.replicatedSet.map(_.string)
 

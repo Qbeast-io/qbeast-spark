@@ -4,9 +4,18 @@
 package io.qbeast.context
 
 import com.typesafe.config.{Config, ConfigFactory}
-import io.qbeast.keeper.Keeper
-import io.qbeast.spark.index.{OTreeAlgorithm, OTreeAlgorithmImpl}
-import io.qbeast.spark.table.{IndexedTableFactory, IndexedTableFactoryImpl}
+import io.qbeast.keeper.{Keeper, LocalKeeper}
+import io.qbeast.model.{
+  IndexManager,
+  MetadataManager,
+  QTableIDProvider,
+  QbeastCoreContext,
+  QueryManager
+}
+import io.qbeast.spark.delta.SparkDeltaMetadataManager
+import io.qbeast.spark.index.{OTreeAlgorithm, OTreeAlgorithmImpl, SparkIndexManager}
+import io.qbeast.spark.internal.SparkQueryManager
+import io.qbeast.spark.table.{IndexedTableFactory, IndexedTableFactoryImpl, SparkQTableIdProvider}
 import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationEnd}
 import org.apache.spark.sql.SparkSession
 
@@ -57,13 +66,24 @@ trait QbeastContext {
  * session and should be used in testing scenarios only. To restore the default
  * behavior use the #unsetUnmanaged method.
  */
-object QbeastContext extends QbeastContext {
+object QbeastContext extends QbeastContext with QbeastCoreContext {
   private var managedOption: Option[QbeastContext] = None
   private var unmanagedOption: Option[QbeastContext] = None
 
+  // Override methods from QbeastCoreContext
+  override def queryManager[Q, T]: QueryManager[Q, T] =
+    new SparkQueryManager
+
+  override def indexManager[T]: IndexManager[T] = new SparkIndexManager
+
+  override def metadataManager: MetadataManager = new SparkDeltaMetadataManager
+
+  override def qtableIDProvider: QTableIDProvider = new SparkQTableIdProvider
+
+  // Override methods from QbeastContext trait
   override def config: Config = current.config
 
-  override def keeper: Keeper = current.keeper
+  override def keeper: Keeper = LocalKeeper
 
   override def oTreeAlgorithm: OTreeAlgorithm = current.oTreeAlgorithm
 

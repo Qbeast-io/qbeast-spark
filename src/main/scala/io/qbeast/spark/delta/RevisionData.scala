@@ -1,11 +1,12 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.sql.qbeast
+package io.qbeast.spark.delta
 
 import io.qbeast.model.{CubeId, NormalizedWeight, Revision, Weight}
 import io.qbeast.spark.index.ReplicatedSet
-import io.qbeast.spark.sql.utils.{State, TagUtils}
+import io.qbeast.spark.utils.{State, TagUtils}
+import io.qbeast.spark.index.writer.BlockStats
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.functions.{min, sum}
 import org.apache.spark.sql.{Dataset, SparkSession}

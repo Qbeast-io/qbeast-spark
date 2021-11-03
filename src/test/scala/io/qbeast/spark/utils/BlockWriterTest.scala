@@ -7,10 +7,8 @@ import io.qbeast.model.{CubeId, Point, Weight}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.index.QbeastColumns
-import io.qbeast.spark.model.RevisionUtil
-import io.qbeast.spark.sql.qbeast.BlockWriter
-import io.qbeast.spark.sql.utils.TagUtils
 import io.qbeast.spark.utils.BlockWriterTest.IndexData
+import io.qbeast.spark.index.writer.BlockWriter
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.datasources.OutputWriterFactory

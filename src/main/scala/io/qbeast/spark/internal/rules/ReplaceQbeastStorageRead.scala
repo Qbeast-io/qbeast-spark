@@ -1,10 +1,10 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.sql.rules
+package io.qbeast.spark.internal.rules
 
-import io.qbeast.spark.sql.files.OTreeIndex
-import io.qbeast.spark.sql.sources.QbeastBaseRelation
+import io.qbeast.spark.delta.OTreeIndex
+import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.rules.Rule

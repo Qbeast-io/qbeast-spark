@@ -4,19 +4,17 @@
 package io.qbeast.spark.index
 
 import io.qbeast.model.{CubeId, CubeWeights, CubeWeightsBuilder, Point, Revision, Weight}
+import io.qbeast.spark.delta.RevisionData
 import io.qbeast.spark.index.QbeastColumns.{
   cubeColumnName,
   cubeToReplicateColumnName,
   stateColumnName,
   weightColumnName
 }
-import io.qbeast.spark.sql.qbeast.RevisionData
-import io.qbeast.spark.sql.rules.Functions.qbeastHash
-import io.qbeast.spark.sql.utils.State
+import io.qbeast.spark.internal.rules.Functions.qbeastHash
+import io.qbeast.spark.utils.{RevisionUtil, State}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{AnalysisExceptionFactory, Column, DataFrame, SparkSession}
-
-import io.qbeast.spark.model.RevisionUtil
 
 import scala.collection.immutable.IndexedSeq
 

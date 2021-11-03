@@ -1,13 +1,10 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.sql.files
+package io.qbeast.spark.delta
 
-import io.qbeast.model.{CubeId, Weight}
-import io.qbeast.model.{Point, QuerySpace, QuerySpaceFromTo}
-import io.qbeast.spark.sql.qbeast
-import io.qbeast.spark.sql.utils.State
-import io.qbeast.spark.sql.utils.TagUtils
+import io.qbeast.model._
+import io.qbeast.spark.utils.{State, TagUtils}
 import org.apache.spark.sql.catalyst.expressions
 import org.apache.spark.sql.catalyst.expressions.{Expression, Literal}
 import org.apache.spark.sql.delta.Snapshot
@@ -36,7 +33,7 @@ case class OTreeIndex(index: TahoeLogFileIndex)
    */
   protected def snapshot: Snapshot = index.getSnapshot
 
-  private val qbeastSnapshot = qbeast.QbeastSnapshot(snapshot)
+  private val qbeastSnapshot = QbeastSnapshot(snapshot)
 
   /**
    * Analyzes the data filters from the query

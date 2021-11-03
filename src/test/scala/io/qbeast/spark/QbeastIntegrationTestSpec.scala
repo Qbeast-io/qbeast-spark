@@ -8,7 +8,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import io.qbeast.keeper.{Keeper, LocalKeeper}
 import io.qbeast.context.{QbeastContext, QbeastContextImpl}
 import io.qbeast.spark.index.{OTreeAlgorithm, OTreeAlgorithmImpl}
-import io.qbeast.spark.sql.QbeastSparkSessionExtension
+import io.qbeast.spark.internal.QbeastSparkSessionExtension
 import io.qbeast.spark.table.IndexedTableFactoryImpl
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.sql.SparkSession

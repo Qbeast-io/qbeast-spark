@@ -1,10 +1,10 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.sql.rules
+package io.qbeast.spark.internal.rules
 
 import io.qbeast.model.Weight
-import io.qbeast.spark.sql.sources.QbeastBaseRelation
+import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{
   And,

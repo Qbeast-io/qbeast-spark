@@ -1,7 +1,7 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.sql.sources
+package io.qbeast.spark.internal.sources
 
 import io.qbeast.spark.table.{IndexedTable, IndexedTableFactory}
 import org.apache.spark.sql.connector.catalog.TableCapability._

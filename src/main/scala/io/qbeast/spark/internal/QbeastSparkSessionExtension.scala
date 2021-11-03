@@ -1,10 +1,10 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.sql
+package io.qbeast.spark.internal
 
 import io.delta.sql.DeltaSparkSessionExtension
-import io.qbeast.spark.sql.rules.{ReplaceQbeastStorageRead, SampleRule}
+import io.qbeast.spark.internal.rules.{ReplaceQbeastStorageRead, SampleRule}
 import org.apache.spark.sql.SparkSessionExtensions
 
 /**

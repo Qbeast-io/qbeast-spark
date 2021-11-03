@@ -4,9 +4,9 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.model.Weight
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
+import io.qbeast.spark.delta.{CubeInfo, QbeastSnapshot}
 import io.qbeast.spark.index.OTreeAlgorithmTest.Client3
-import io.qbeast.spark.sql.qbeast.{CubeInfo, QbeastSnapshot}
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.delta.DeltaLog
 import org.scalatest.PrivateMethodTester
@@ -67,7 +67,7 @@ class QbeastSnapshotTest
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
+        val qbeastSnapshot = delta.QbeastSnapshot(deltaLog.snapshot)
         val cubeNormalizedWeights =
           qbeastSnapshot.lastRevisionData.cubeNormalizedWeights
 
@@ -91,7 +91,7 @@ class QbeastSnapshotTest
             .save(tmpDir)
 
           val deltaLog = DeltaLog.forTable(spark, tmpDir)
-          val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
+          val qbeastSnapshot = delta.QbeastSnapshot(deltaLog.snapshot)
           val commitLogWeightMap = qbeastSnapshot.lastRevisionData.cubeWeights
 
           // commitLogWeightMap shouldBe weightMap
@@ -114,7 +114,7 @@ class QbeastSnapshotTest
         .save(tmpDir)
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
+      val qbeastSnapshot = delta.QbeastSnapshot(deltaLog.snapshot)
       val cubeWeights = qbeastSnapshot.lastRevisionData.cubeWeights
 
       cubeWeights.foreach { case (_, weight: Weight) =>
@@ -141,7 +141,7 @@ class QbeastSnapshotTest
               .save(tmpDir)
 
             val deltaLog = DeltaLog.forTable(spark, tmpDir)
-            val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
+            val qbeastSnapshot = delta.QbeastSnapshot(deltaLog.snapshot)
 
             val indexStateMethod = PrivateMethod[Dataset[CubeInfo]]('revisionState)
             val indexState =

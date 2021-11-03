@@ -1,13 +1,12 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.model
+package io.qbeast.spark.utils
 
+import io.qbeast.model.{LinearTransformation, Revision}
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions.{max, min}
 import org.apache.spark.sql.types.DoubleType
-import io.qbeast.model.Revision
-import io.qbeast.model.LinearTransformation
 
 /**
  * Column information.

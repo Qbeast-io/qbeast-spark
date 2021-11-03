@@ -3,9 +3,8 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
 import io.qbeast.spark.index.OTreeAlgorithmTest.Client3
-import io.qbeast.spark.sql.qbeast.QbeastSnapshot
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
 import org.scalatest.PrivateMethodTester
@@ -40,7 +39,7 @@ class NewRevisionTest
       spaceMultipliers.foreach(i => appendNewRevision(spark, tmpDir, i))
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
+      val qbeastSnapshot = delta.QbeastSnapshot(deltaLog.snapshot)
       val spaceRevisions = qbeastSnapshot.revisions
 
       spaceRevisions.size shouldBe spaceMultipliers.length
@@ -54,7 +53,7 @@ class NewRevisionTest
         appendNewRevision(spark, tmpDir, 3)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
+        val qbeastSnapshot = delta.QbeastSnapshot(deltaLog.snapshot)
 
         val revisions = qbeastSnapshot.revisions
         val allWM =

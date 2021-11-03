@@ -1,11 +1,13 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.sql.qbeast
+package io.qbeast.spark.delta
 
 import io.qbeast.model.{CubeId, Revision, Weight}
 import io.qbeast.spark.index.QbeastColumns.{cubeColumnName, stateColumnName}
 import io.qbeast.spark.index.{OTreeAlgorithm, QbeastColumns}
+import io.qbeast.spark.utils.RevisionUtil
+import io.qbeast.spark.index.writer.BlockWriter
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.sql.delta.actions.{Action, AddFile, FileAction}
 import org.apache.spark.sql.delta.commands.DeltaCommand
@@ -15,11 +17,11 @@ import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, SaveMode, SparkSession}
 import org.apache.spark.util.SerializableConfiguration
-import io.qbeast.spark.model.RevisionUtil
 
 /**
  * QbeastWriter is in charge of writing data to a table
  * and report the necessary log information
+ *
  * @param mode SaveMode of the write
  * @param deltaLog deltaLog associated to the table
  * @param options options for write operation

@@ -1,14 +1,14 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.sql.qbeast
+package io.qbeast.spark.delta
 
 import io.qbeast.model.{CubeId, Revision, RevisionID}
 import io.qbeast.spark.index.ReplicatedSet
-import io.qbeast.spark.sql.utils.{MetadataConfig, TagUtils}
-import org.apache.spark.sql.delta.util.JsonUtils
-import org.apache.spark.sql.delta.Snapshot
+import io.qbeast.spark.utils.{MetadataConfig, TagUtils}
 import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.delta.Snapshot
+import org.apache.spark.sql.delta.util.JsonUtils
 
 /**
  * Qbeast Snapshot that provides information about the current index state.

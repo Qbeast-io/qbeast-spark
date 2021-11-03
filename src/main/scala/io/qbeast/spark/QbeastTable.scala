@@ -1,11 +1,17 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.table
+package io.qbeast.spark
 
 import io.qbeast.context.QbeastContext
 import io.qbeast.model.RevisionID
-import io.qbeast.spark.sql.qbeast.QbeastSnapshot
+import io.qbeast.spark.delta.QbeastSnapshot
+import io.qbeast.spark.table.{
+  AnalyzeTableCommand,
+  IndexedTable,
+  IndexedTableFactory,
+  OptimizeTableCommand
+}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
 
@@ -25,7 +31,7 @@ class QbeastTable private (
   private def deltaLog: DeltaLog = DeltaLog.forTable(sparkSession, indexedTable.path)
 
   private def qbeastSnapshot: QbeastSnapshot =
-    QbeastSnapshot(deltaLog.snapshot)
+    delta.QbeastSnapshot(deltaLog.snapshot)
 
   private def indexedTable: IndexedTable =
     indexedTableFactory.getIndexedTable(sparkSession.sqlContext, path)

@@ -1,19 +1,19 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.sql.qbeast
+package io.qbeast.spark.delta
 
-import io.qbeast.spark.index.ReplicatedSet
 import io.qbeast.model.Revision
-import io.qbeast.spark.sql.utils.MetadataConfig
+import io.qbeast.spark.index.ReplicatedSet
+import io.qbeast.spark.utils.MetadataConfig
 import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.delta.schema.{ImplicitMetadataOperation, SchemaUtils}
+import org.apache.spark.sql.delta.util.JsonUtils
 import org.apache.spark.sql.delta.{
   DeltaErrors,
   MetadataMismatchErrorBuilder,
   OptimisticTransaction
 }
-import org.apache.spark.sql.delta.schema.{ImplicitMetadataOperation, SchemaUtils}
-import org.apache.spark.sql.delta.util.JsonUtils
 import org.apache.spark.sql.types.{ArrayType, DataType, MapType, StructType}
 
 class QbeastMetadataOperation extends ImplicitMetadataOperation {

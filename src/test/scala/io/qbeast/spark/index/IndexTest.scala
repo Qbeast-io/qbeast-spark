@@ -4,10 +4,9 @@
 package io.qbeast.spark.index
 
 import io.qbeast.model.{CubeId, Weight}
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
 import io.qbeast.spark.index.OTreeAlgorithmTest.{Client3, Client4}
 import io.qbeast.spark.index.QbeastColumns.cubeColumnName
-import io.qbeast.spark.sql.qbeast.QbeastSnapshot
 import org.apache.spark.SparkException
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.col
@@ -195,7 +194,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
+        val qbeastSnapshot = delta.QbeastSnapshot(deltaLog.snapshot)
 
         val offset = 0.5
         val appendData = df
