@@ -4,9 +4,10 @@
 package io.qbeast.spark.index
 
 import io.qbeast.model.{IndexManager, IndexStatus, TableChanges}
+import org.apache.spark.sql.DataFrame
 
-class SparkIndexManager[DataFrame] extends IndexManager[DataFrame] {
-  override def index(data: DataFrame, indexStatus: IndexStatus): TableChanges = _
+class SparkIndexManager extends IndexManager[DataFrame] {
+  override def index(data: DataFrame, indexStatus: IndexStatus): TableChanges = null
 
-  override def optimize(data: DataFrame, indexStatus: IndexStatus): TableChanges = _
+  override def optimize(data: DataFrame, indexStatus: IndexStatus): TableChanges = null
 }

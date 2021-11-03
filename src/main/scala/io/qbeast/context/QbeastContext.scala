@@ -13,11 +13,10 @@ import io.qbeast.model.{
   QueryManager
 }
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
-import io.qbeast.spark.index.{OTreeAlgorithm, OTreeAlgorithmImpl, SparkIndexManager}
-import io.qbeast.spark.internal.SparkQueryManager
+import io.qbeast.spark.index.{OTreeAlgorithm, OTreeAlgorithmImpl}
 import io.qbeast.spark.table.{IndexedTableFactory, IndexedTableFactoryImpl, SparkQTableIdProvider}
 import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationEnd}
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{SparkSession}
 
 /**
  * Qbeast context provides access to internal mechanisms of
@@ -71,10 +70,10 @@ object QbeastContext extends QbeastContext with QbeastCoreContext {
   private var unmanagedOption: Option[QbeastContext] = None
 
   // Override methods from QbeastCoreContext
-  override def queryManager[Q, T]: QueryManager[Q, T] =
-    new SparkQueryManager
+  override def queryManager[SparkPlan, DataFrame]: QueryManager[SparkPlan, DataFrame] =
+    null
 
-  override def indexManager[T]: IndexManager[T] = new SparkIndexManager
+  override def indexManager[DataFrame]: IndexManager[DataFrame] = null
 
   override def metadataManager: MetadataManager = new SparkDeltaMetadataManager
 

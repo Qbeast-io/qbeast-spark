@@ -16,13 +16,13 @@ import io.qbeast.model.{
 }
 
 class SparkDeltaMetadataManager extends MetadataManager {
-  override def loadLatestIndexStatus(qtable: QTableID): IndexStatus = _
+  override def loadLatestIndexStatus(qtable: QTableID): IndexStatus = null
 
-  override def loadAllIndexStatus(qtable: QTableID): IISeq[IndexStatus] = _
+  override def loadAllIndexStatus(qtable: QTableID): IISeq[IndexStatus] = null
 
-  override def loadAllRevisions(qtable: QTableID): IISeq[Revision] = _
+  override def loadAllRevisions(qtable: QTableID): IISeq[Revision] = null
 
-  override def loadRevisionStatus(revisionID: RevisionID): IndexStatus = _
+  override def loadRevisionStatus(revisionID: RevisionID): IndexStatus = null
 
   /**
    * Loads the most updated revision at a given timestamp
@@ -30,9 +30,9 @@ class SparkDeltaMetadataManager extends MetadataManager {
    * @param timestamp
    * @return the latest Revision at a concrete timestamp
    */
-  override def loadRevisionAt(timestamp: Long): Revision = { _ }
+  override def loadRevisionAt(timestamp: Long): Revision = null
 
-  override def loadRevisionStatusAt(timestamp: Long): IndexStatus = { _ }
+  override def loadRevisionStatusAt(timestamp: Long): IndexStatus = null
 
   override def updateRevision(revisionChange: RevisionChange): Unit = {}
 

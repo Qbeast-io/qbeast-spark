@@ -6,5 +6,7 @@ package io.qbeast.spark.table
 import io.qbeast.model.{QTableID, QTableIDProvider}
 
 class SparkQTableIdProvider extends QTableIDProvider {
-  override def fromStringSerialization(value: String): QTableID = _
+
+  override def fromStringSerialization(value: String): QTableID = null
+
 }
