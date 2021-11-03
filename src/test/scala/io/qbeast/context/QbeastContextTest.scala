@@ -1,11 +1,12 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.context
+package io.qbeast.context
 
 import com.typesafe.config.ConfigFactory
+import io.qbeast.keeper.{Keeper, LocalKeeper}
 import io.qbeast.spark.index.OTreeAlgorithmImpl
-import io.qbeast.spark.keeper.{Keeper, LocalKeeper}
+import io.qbeast.keeper.LocalKeeper
 import io.qbeast.spark.table.IndexedTableFactoryImpl
 import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec

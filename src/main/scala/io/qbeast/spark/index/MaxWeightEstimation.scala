@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.model.{Weight, NormalizedWeight}
+import io.qbeast.model.Weight
 import org.apache.spark.sql.{Encoder, Encoders}
 import org.apache.spark.sql.expressions.Aggregator
 
@@ -12,6 +12,8 @@ import org.apache.spark.sql.expressions.Aggregator
  */
 object MaxWeightEstimation
     extends Aggregator[NormalizedWeight, NormalizedWeight, NormalizedWeight] {
+
+  import io.qbeast.model.NormalizedWeight
 
   /**
    * Zero value for this aggregation

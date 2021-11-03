@@ -4,11 +4,10 @@
 package io.qbeast.spark.index
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.context.QbeastContext
+import io.qbeast.context.QbeastContext
 import io.qbeast.spark.index.OTreeAlgorithmTest._
 import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.model.{ColumnInfo, RevisionUtil}
-import io.qbeast.model.{LinearTransformation, Revision}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.DataFrame
 import org.scalatest.PrivateMethodTester

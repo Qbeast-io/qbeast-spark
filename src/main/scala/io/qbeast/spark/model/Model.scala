@@ -72,8 +72,10 @@ object RevisionUtil {
       indexedColumns: Seq[String]): Boolean = {
     revision.transformations
       .zip(ColumnInfo.get(dataFrame, indexedColumns))
-      .forall { case (transformation: LinearTransformation, info) =>
-        transformation.min <= info.min && info.max <= transformation.max
+      .forall {
+        case (transformation: LinearTransformation, info) =>
+          transformation.min <= info.min && info.max <= transformation.max
+        case _ => false
       }
 
   }

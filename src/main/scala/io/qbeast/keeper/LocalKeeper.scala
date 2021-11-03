@@ -1,7 +1,7 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.keeper
+package io.qbeast.keeper
 
 import java.util.concurrent.atomic.AtomicInteger
 

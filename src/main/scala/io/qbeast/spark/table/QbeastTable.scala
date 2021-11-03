@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.table
 
-import io.qbeast.spark.context.QbeastContext
+import io.qbeast.context.QbeastContext
 import io.qbeast.model.RevisionID
 import io.qbeast.spark.sql.qbeast.QbeastSnapshot
 import org.apache.spark.sql.SparkSession

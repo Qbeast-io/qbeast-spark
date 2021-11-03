@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.sql.sources
 
-import io.qbeast.spark.context.QbeastContext
+import io.qbeast.context.QbeastContext
 import io.qbeast.spark.index.ColumnsToIndex
 import io.qbeast.spark.sql.qbeast.QbeastOptions
 import io.qbeast.spark.table.IndexedTableFactory

@@ -3,9 +3,9 @@
  */
 package io.qbeast.spark.table
 
+import io.qbeast.keeper.Keeper
 import io.qbeast.model.CubeId
 import io.qbeast.spark.index.{ColumnsToIndex, OTreeAlgorithm}
-import io.qbeast.spark.keeper.Keeper
 import io.qbeast.model.RevisionID
 import io.qbeast.spark.sql.qbeast.{QbeastOptimizer, QbeastSnapshot, QbeastWriter}
 import io.qbeast.spark.sql.sources.QbeastBaseRelation

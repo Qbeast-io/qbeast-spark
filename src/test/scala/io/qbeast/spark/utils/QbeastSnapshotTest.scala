@@ -6,8 +6,7 @@ package io.qbeast.spark.utils
 import io.qbeast.model.Weight
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.OTreeAlgorithmTest.Client3
-import io.qbeast.spark.model.CubeInfo
-import io.qbeast.spark.sql.qbeast.QbeastSnapshot
+import io.qbeast.spark.sql.qbeast.{CubeInfo, QbeastSnapshot}
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.delta.DeltaLog
 import org.scalatest.PrivateMethodTester

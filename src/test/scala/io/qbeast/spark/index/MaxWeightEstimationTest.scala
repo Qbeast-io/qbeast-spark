@@ -1,6 +1,6 @@
 package io.qbeast.spark.index
 
-import io.qbeast.model.{NormalizedWeight, Weight}
+import io.qbeast.model.Weight
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.functions.{col, udaf}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -9,6 +9,9 @@ import org.scalatest.matchers.should.Matchers
 import scala.util.Random
 
 class MaxWeightEstimationTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec {
+
+  import io.qbeast.model.NormalizedWeight
+
   "MaxWeight merge" should "compute fraction correctly" in {
     val weightA = NormalizedWeight(Weight.MaxValue)
     val weightB = NormalizedWeight(Weight.MaxValue)

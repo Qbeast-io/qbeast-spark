@@ -3,11 +3,11 @@
  */
 package io.qbeast.spark.utils
 
-import io.qbeast.model.Weight
+import io.qbeast.model.{CubeId, Point, Weight}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.index.QbeastColumns
-import io.qbeast.spark.model.{Point, Revision}
+import io.qbeast.spark.model.RevisionUtil
 import io.qbeast.spark.sql.qbeast.BlockWriter
 import io.qbeast.spark.sql.utils.TagUtils
 import io.qbeast.spark.utils.BlockWriterTest.IndexData
@@ -61,7 +61,7 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
       factory = factory,
       serConf = serConf,
       qbeastColumns = qbeastColumns,
-      revision = Revision(data, Seq("id"), 10000),
+      revision = RevisionUtil.createRevisionFromDF(data, Seq("id"), 10000),
       weightMap = weightMap.toMap)
 
     val files = indexed
@@ -101,7 +101,7 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
       factory = factory,
       serConf = serConf,
       qbeastColumns = qbeastColumns,
-      revision = Revision(data, Seq("id"), 10000),
+      revision = RevisionUtil.createRevisionFromDF(data, Seq("id"), 10000),
       weightMap = weightMap.toMap)
 
     val files = indexed
