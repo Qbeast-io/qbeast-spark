@@ -111,3 +111,11 @@ Compile / compile := (Compile / compile).dependsOn(Compile / headerCheck).value
 lazy val shadingRules =
   Seq("com.typesafe")
     .map(pack => ShadeRule.rename(f"$pack.**" -> f"io.qbeast.spark.shaded.$pack.@1").inAll)
+
+// Merge strategy for assembly
+// TODO check if this strategy is the correct one.
+//  I changed it to be able to assembly the artifacts.
+assemblyMergeStrategy in assembly := {
+  case "module-info.class" => MergeStrategy.discard
+  case s => MergeStrategy.defaultMergeStrategy(s)
+}

@@ -24,12 +24,6 @@ class SparkDeltaMetadataManager extends MetadataManager {
 
   override def loadRevisionStatus(revisionID: RevisionID): IndexStatus = null
 
-  /**
-   * Loads the most updated revision at a given timestamp
-   *
-   * @param timestamp
-   * @return the latest Revision at a concrete timestamp
-   */
   override def loadRevisionAt(timestamp: Long): Revision = null
 
   override def loadRevisionStatusAt(timestamp: Long): IndexStatus = null

@@ -76,7 +76,8 @@ object Revision {
    * @param desiredCubeSize the desired cube size
    * @return a revision
    *
-   *  def apply(dataFrame: DataFrame, columnsToIndex: Seq[String], desiredCubeSize: Int): Revision = {
+   *  def apply(dataFrame: DataFrame, columnsToIndex: Seq[String], desiredCubeSize: Int):
+   *  Revision = {
    *    val transformations = ColumnInfo
    *      .get(dataFrame, columnsToIndex)
    *      .map(info => {
