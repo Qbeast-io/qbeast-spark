@@ -1,6 +1,6 @@
 package io.qbeast.model
 
-import io.qbeast.transform.{LinearTransformation, Transformation, Transformer}
+import io.qbeast.transform.{HashTransformation, LinearTransformation, Transformation, Transformer}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -35,7 +35,7 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
     mapper.readValue[Transformer](ser2, classOf[Transformer]) shouldBe tr2
   }
 
-  "A transformation" should "serializer with the class type con Double" in {
+  "A LinearTransformation" should "serializer with the class type con Double" in {
     val tr: Transformation = LinearTransformation(0.0, 10.0, DoubleDataType)
     val ser =
       """{"className":"io.qbeast.transform.LinearTransformation",""" +
@@ -44,7 +44,7 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
     mapper.readValue[Transformation](ser, classOf[Transformation]) shouldBe tr
 
   }
-  "A transformation" should "serializer with the class type con Integer" in {
+  "A LinearTransformation" should "serializer with the class type con Integer" in {
     val tr: Transformation = LinearTransformation(0, 10, IntegerDataType)
     val ser =
       """{"className":"io.qbeast.transform.LinearTransformation",""" +
@@ -53,11 +53,20 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
     mapper.readValue[Transformation](ser, classOf[Transformation]) shouldBe tr
 
   }
-  "A transformation" should "serializer with the class type con Long" in {
+  "A LinearTransformation" should "serializer with the class type con Long" in {
     val tr: Transformation = LinearTransformation(0L, 10L, LongDataType)
     val ser =
       """{"className":"io.qbeast.transform.LinearTransformation",""" +
         """"minNumber":0,"maxNumber":10,"orderedDataType":"LongDataType"}"""
+    mapper.writeValueAsString(tr) shouldBe ser
+    mapper.readValue[Transformation](ser, classOf[Transformation]) shouldBe tr
+
+  }
+
+  "A HashTransformation" should "serialize correctly" in {
+    val tr: Transformation = HashTransformation()
+    val ser =
+      """{"className":"io.qbeast.transform.HashTransformation"}"""
     mapper.writeValueAsString(tr) shouldBe ser
     mapper.readValue[Transformation](ser, classOf[Transformation]) shouldBe tr
 
@@ -97,6 +106,24 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
         """"columnName":"test1","dataType":"LongDataType"}],"transformations":""" +
         """[{"className":"io.qbeast.transform.LinearTransformation","minNumber":0,""" +
         """"maxNumber":100,"orderedDataType":"LongDataType"}]}"""
+    mapper.writeValueAsString(rev) shouldBe json
+    mapper.readValue[Revision](json, classOf[Revision]) shouldBe rev
+
+  }
+  "A revision" should "Serialize with all Hash Transoform*" in {
+    val rev =
+      Revision(
+        12L,
+        12L,
+        QTableID("test"),
+        100,
+        List(Transformer("hashing", "test1", StringDataType)),
+        List(HashTransformation()))
+    val json =
+      """{"revisionID":12,"timestamp":12,"tableID":"test","desiredCubeSize":100,""" +
+        """"columnTransformers":[{"className":"io.qbeast.transform.HashTransformer",""" +
+        """"columnName":"test1","dataType":"StringDataType"}],"transformations":""" +
+        """[{"className":"io.qbeast.transform.HashTransformation"}]}"""
     mapper.writeValueAsString(rev) shouldBe json
     mapper.readValue[Revision](json, classOf[Revision]) shouldBe rev
 

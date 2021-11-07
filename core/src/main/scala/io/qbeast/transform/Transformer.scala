@@ -4,19 +4,32 @@
 package io.qbeast.transform
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import io.qbeast.model.QDataType
+import io.qbeast.model.{OrderedDataType, QDataType, StringDataType}
 
 import java.util.Locale
 
 object Transformer {
 
   private val transformersRegistry: Map[String, TransformerType] =
-    Seq(LinearTransformer).map(a => (a.transformerSimpleName, a)).toMap
+    Seq(LinearTransformer, HashTransformer).map(a => (a.transformerSimpleName, a)).toMap
 
   def apply(transformerTypeName: String, columnName: String, dataType: QDataType): Transformer = {
 
     val tt = transformerTypeName.toLowerCase(Locale.ROOT)
     transformersRegistry(tt)(columnName, dataType)
+  }
+
+  def apply(columnName: String, dataType: QDataType): Transformer = {
+    getDefaultTransformerForType(dataType)(columnName, dataType)
+  }
+
+  def getDefaultTransformerForType(dataType: QDataType): TransformerType = transformersRegistry {
+    dataType match {
+      case _: OrderedDataType => LinearTransformer.transformerSimpleName
+      case StringDataType => HashTransformer.transformerSimpleName
+      case _ => throw new RuntimeException(s"There's not default transformer for $dataType")
+    }
+
   }
 
 }
@@ -52,6 +65,8 @@ trait Transformer extends Serializable {
   def spec: String = s"$columnName/${transformerType.transformerSimpleName}"
 
 }
+
+object NoColumnStats extends ColumnStats(Nil, Nil)
 
 case class ColumnStats(names: Seq[String], columns: Seq[String]) extends Serializable {
   def getValues(row: Map[String, Any]): Seq[Any] = names.map(column => row(column))

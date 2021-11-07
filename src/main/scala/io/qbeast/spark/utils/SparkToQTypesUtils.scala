@@ -23,7 +23,8 @@ object SparkToQTypesUtils {
     case _: IntegerType => qmodel.IntegerDataType
     case _: FloatType => qmodel.FloatDataType
     case _: LongType => qmodel.LongDataType
-    case _ => throw new RuntimeException("Missing type")
+    case _: StringType => qmodel.StringDataType
+    case _ => throw new RuntimeException(s"${sparkType.typeName} is not supported yet")
     // TODO add more types
   }
 

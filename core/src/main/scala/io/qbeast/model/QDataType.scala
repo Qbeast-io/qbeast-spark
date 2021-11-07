@@ -3,7 +3,9 @@ package io.qbeast.model
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonIgnore, JsonValue}
 
 object QDataType {
-  val qtypes: Map[String, OrderedDataType] = OrderedDataType.qtypes // TODO add more types
+
+  val qtypes: Map[String, QDataType] =
+    Map(StringDataType.name -> StringDataType) ++ OrderedDataType.qtypes // TODO add more types
 
   @JsonCreator
   def apply(name: String): QDataType = qtypes(name)
@@ -19,11 +21,9 @@ trait QDataType extends Serializable {
 
 object OrderedDataType {
 
-  val qtypes = Map(
-    "DoubleDataType" -> DoubleDataType,
-    "IntegerDataType" -> IntegerDataType,
-    "FloatDataType" -> FloatDataType,
-    "LongDataType" -> LongDataType)
+  val qtypes = Seq(DoubleDataType, IntegerDataType, FloatDataType, LongDataType)
+    .map(dt => dt.name -> dt)
+    .toMap
 
   @JsonCreator
   def apply(name: String): OrderedDataType = qtypes(name)
@@ -60,4 +60,8 @@ object LongDataType extends OrderedDataType {
 object FloatDataType extends OrderedDataType {
   override def name: String = "FloatDataType"
   override val ordering: Numeric[Any] = implicitly[Numeric[Float]].asInstanceOf[Numeric[Any]]
+}
+
+object StringDataType extends QDataType {
+  override def name: String = "StringDataType"
 }
