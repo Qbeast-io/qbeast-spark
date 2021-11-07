@@ -3,7 +3,7 @@
  */
 package io.qbeast.model
 
-import scala.collection.immutable
+import io.qbeast.IISeq
 
 /**
  * Point companion object.
@@ -24,7 +24,7 @@ object Point {
  *
  * @param coordinates the coordinates
  */
-case class Point(coordinates: immutable.IndexedSeq[Double]) {
+case class Point(coordinates: IISeq[Double]) {
   require(coordinates.nonEmpty)
 
   /**

@@ -3,10 +3,23 @@
  */
 package io.qbeast
 
+import com.fasterxml.jackson.annotation.JsonInclude.Include
+import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.json.JsonMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
+
 package object model {
   type NormalizedWeight = Double
-  type DimensionLog = Double
-  type DimensionMask = Int
   type RevisionID = Long
+
+  lazy val mapper: JsonMapper = {
+
+    JsonMapper
+      .builder()
+      .addModule(DefaultScalaModule)
+      .serializationInclusion(Include.NON_ABSENT)
+      .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+      .build()
+  }
 
 }

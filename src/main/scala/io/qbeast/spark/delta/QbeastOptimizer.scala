@@ -54,10 +54,9 @@ class QbeastOptimizer(
         StructField(cubeToReplicateColumnName, BinaryType, false))
     val emptyDataFrame = sparkSession.createDataFrame(List.empty[Row].asJava, schema)
 
-    val dimensionCount = revisionData.revision.dimensionCount
     val replicatedSet = revisionData.replicatedSet
 
-    val cubesToOptimize = announcedCubes.map(CubeId(dimensionCount, _))
+    val cubesToOptimize = announcedCubes.map(revision.createCubeId)
     val cubesToReplicate =
       cubesToOptimize.diff(replicatedSet)
 
@@ -66,7 +65,7 @@ class QbeastOptimizer(
       .getCubeBlocks(cubesToReplicate)
       .groupBy(_.tags(TagUtils.cube))
       .map { case (cube: String, blocks: Seq[AddFile]) =>
-        val cubeId = CubeId(dimensionCount, cube)
+        val cubeId = revision.createCubeId(cube)
         val data = sparkSession.read
           .format("parquet")
           .load(blocks.map(f => new Path(dataPath, f.path).toString): _*)
@@ -87,18 +86,16 @@ class QbeastOptimizer(
       options = deltaOptions,
       partitionColumns = Nil,
       data = dataToReplicate,
-      columnsToIndex = revision.indexedColumns,
+      indexStatus = revisionData,
       qbeastSnapshot = qbeastSnapshot,
-      announcedSet = cubesToOptimize,
       oTreeAlgorithm = oTreeAlgorithm)
 
-    val (qbeastData, weightMap) = oTreeAlgorithm
-      .replicateCubes(dataToReplicate, revisionData, cubesToOptimize)
+    val (qbeastData, tableChanges) = oTreeAlgorithm.replicateCubes(dataToReplicate, revisionData)
     // updateMetadata
     updateQbeastReplicatedSet(txn, revisionData, cubesToOptimize)
 
     // write files
-    val addFiles = writer.writeFiles(qbeastData, revision, weightMap)
+    val addFiles = writer.writeFiles(qbeastData, tableChanges.indexChanges)
     val actions = addFiles ++ updatedActions
     (cubesToReplicate, actions)
 

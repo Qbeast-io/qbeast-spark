@@ -3,11 +3,10 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.model.{CubeId, Revision, Weight}
+import io.qbeast.model.{IndexStatus, IndexStatusChange, TableChanges}
 import io.qbeast.spark.index.QbeastColumns.{cubeColumnName, stateColumnName}
-import io.qbeast.spark.index.{OTreeAlgorithm, QbeastColumns}
-import io.qbeast.spark.utils.RevisionUtil
 import io.qbeast.spark.index.writer.BlockWriter
+import io.qbeast.spark.index.{OTreeAlgorithm, QbeastColumns}
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.sql.delta.actions.{Action, AddFile, FileAction}
 import org.apache.spark.sql.delta.commands.DeltaCommand
@@ -27,7 +26,7 @@ import org.apache.spark.util.SerializableConfiguration
  * @param options options for write operation
  * @param partitionColumns partition columns
  * @param data data to write
- * @param columnsToIndex qbeast columns to index
+ * @param revision the current table revision
  * @param qbeastSnapshot current qbeast snapshot of the table
  * @param announcedSet set of cubes announced
  * @param oTreeAlgorithm algorithm to organize data
@@ -38,9 +37,8 @@ case class QbeastWriter(
     options: DeltaOptions,
     partitionColumns: Seq[String],
     data: DataFrame,
-    columnsToIndex: Seq[String],
+    indexStatus: IndexStatus,
     qbeastSnapshot: QbeastSnapshot,
-    announcedSet: Set[CubeId],
     oTreeAlgorithm: OTreeAlgorithm)
     extends QbeastMetadataOperation
     with DeltaCommand {
@@ -68,29 +66,20 @@ case class QbeastWriter(
     }
     val rearrangeOnly = options.rearrangeOnly
 
-    // Whether the update contains a new revision or not
-    def isNewRevision = isOverwriteOperation || qbeastSnapshot.isInitial ||
-      !RevisionUtil.revisionContains(qbeastSnapshot.lastRevision, data, columnsToIndex)
-
-    val (qbeastData, revision, weightMap) =
-      if (isNewRevision) {
-        oTreeAlgorithm.indexFirst(data, columnsToIndex)
-
-      } else {
-        oTreeAlgorithm.indexNext(data, qbeastSnapshot.lastRevisionData, announcedSet)
-      }
+    val (qbeastData, tc @ TableChanges(revisionChange, indexChanges)) =
+      oTreeAlgorithm.index(data, indexStatus, false) // TODO change the new ManagerAPI
 
     // The Metadata can be updated only once in a single transaction
     // If a new space revision is detected, we update everything in the same operation
     // If not, we delegate directly to the delta updateMetadata
-    if (isNewRevision) {
+    if (revisionChange.isDefined) {
       updateQbeastRevision(
         txn,
         data,
         partitionColumns,
         isOverwriteOperation,
         rearrangeOnly,
-        revision,
+        revisionChange.get,
         qbeastSnapshot)
     } else {
       val oldQbeastMetadata = txn.metadata.configuration
@@ -122,7 +111,7 @@ case class QbeastWriter(
       fs.mkdirs(deltaLog.logPath)
     }
 
-    val newFiles = writeFiles(qbeastData, revision, weightMap)
+    val newFiles = writeFiles(qbeastData, indexChanges)
     val addFiles = newFiles.collect { case a: AddFile => a }
     val deletedFiles = (mode, partitionFilters) match {
       case (SaveMode.Overwrite, None) =>
@@ -162,14 +151,11 @@ case class QbeastWriter(
   /**
    * Writes qbeast indexed data into files
    * @param qbeastData the dataFrame containing data to write
-   * @param revision the revision of the data
+   * @param indexStatusChange the update status of the index.
    * @return the sequence of added files to the table
    */
 
-  def writeFiles(
-      qbeastData: DataFrame,
-      revision: Revision,
-      weightMap: Map[CubeId, Weight]): Seq[FileAction] = {
+  def writeFiles(qbeastData: DataFrame, indexStatusChange: IndexStatusChange): Seq[FileAction] = {
 
     val (factory: OutputWriterFactory, serConf: SerializableConfiguration) = {
       val format = new ParquetFileFormat()
@@ -188,8 +174,7 @@ case class QbeastWriter(
         factory = factory,
         serConf = serConf,
         qbeastColumns = qbeastColumns,
-        revision = revision,
-        weightMap = weightMap)
+        indexStatusChange = indexStatusChange)
     qbeastData
       .repartition(col(cubeColumnName), col(stateColumnName))
       .queryExecution

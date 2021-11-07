@@ -3,12 +3,12 @@
  */
 package io.qbeast.spark.utils
 
-import io.qbeast.model.{CubeId, Point, Weight}
-import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.index.QbeastColumns._
+import io.qbeast.model.{CubeId, IndexStatusCC, IndexStatusChange, Point, QTableID}
 import io.qbeast.spark.index.QbeastColumns
-import io.qbeast.spark.utils.BlockWriterTest.IndexData
+import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.index.writer.BlockWriter
+import io.qbeast.spark.utils.BlockWriterTest.IndexData
+import io.qbeast.spark.{QbeastIntegrationTestSpec, SparkRevisionBuilder}
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.datasources.OutputWriterFactory
@@ -22,7 +22,7 @@ import scala.util.Random
 
 object BlockWriterTest {
 
-  case class IndexData(id: Long, cube: Array[Byte], weight: Int, state: String)
+  case class IndexData(id: Long, cube: Array[Byte], weight: Double, state: String)
 }
 
 class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec {
@@ -40,9 +40,9 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
     val distinctCubes = 100
     val weightMap = 1
       .to(distinctCubes)
-      .map(i => (CubeId.container(point, i), Weight(Random.nextInt())))
+      .map(i => (CubeId.container(point, i), Random.nextDouble()))
     val indexData =
-      weightMap.map(ids => IndexData(Random.nextInt(), ids._1.bytes, ids._2.value, "FLOODED"))
+      weightMap.map(ids => IndexData(Random.nextInt(), ids._1.bytes, ids._2, "FLOODED"))
 
     val rdd =
       spark.sparkContext.parallelize(indexData)
@@ -52,6 +52,11 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
 
     val qbeastColumns = QbeastColumns(indexed)
     val (factory, serConf) = loadConf(data)
+    val rev = SparkRevisionBuilder
+      .createNewRevision(
+        QTableID("test"),
+        data,
+        Map("columnsToIndex" -> "id", "desiredCubeSize" -> "10000"))
     val writer = BlockWriter(
       dataPath = tmpDir,
       schema = data.schema,
@@ -59,9 +64,8 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
       factory = factory,
       serConf = serConf,
       qbeastColumns = qbeastColumns,
-      revision = RevisionUtil.createRevisionFromDF(data, Seq("id"), 10000),
-      weightMap = weightMap.toMap)
-
+      indexStatusChange =
+        IndexStatusChange(IndexStatusCC(rev), deltaNormalizedCubeWeights = weightMap.toMap))
     val files = indexed
       .repartition(col(cubeColumnName), col(weightColumnName))
       .queryExecution
@@ -79,9 +83,9 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
     val distinctCubes = 1000
     val weightMap = 1
       .to(distinctCubes)
-      .map(i => (CubeId.container(point, i), Weight(Random.nextInt())))
+      .map(i => (CubeId.container(point, i), Random.nextDouble()))
     val indexData =
-      weightMap.map(ids => IndexData(Random.nextInt(), ids._1.bytes, ids._2.value, "FLOODED"))
+      weightMap.map(ids => IndexData(Random.nextInt(), ids._1.bytes, ids._2, "FLOODED"))
 
     val rdd =
       spark.sparkContext.parallelize(indexData)
@@ -89,7 +93,10 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
       spark.createDataFrame(rdd).toDF("id", cubeColumnName, weightColumnName, stateColumnName)
     val data = indexed.select("id")
     val names = List("id")
-
+    val rev = SparkRevisionBuilder.createNewRevision(
+      QTableID("test"),
+      data,
+      Map("columnsToIndex" -> "id", "desiredCubeSize" -> "10000"))
     val qbeastColumns = QbeastColumns(indexed)
     val (factory, serConf) = loadConf(data)
     val writer = BlockWriter(
@@ -99,8 +106,8 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
       factory = factory,
       serConf = serConf,
       qbeastColumns = qbeastColumns,
-      revision = RevisionUtil.createRevisionFromDF(data, Seq("id"), 10000),
-      weightMap = weightMap.toMap)
+      indexStatusChange =
+        IndexStatusChange(IndexStatusCC(rev), deltaNormalizedCubeWeights = weightMap.toMap))
 
     val files = indexed
       .repartition(col(cubeColumnName), col(weightColumnName))

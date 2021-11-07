@@ -5,18 +5,15 @@ package io.qbeast.context
 
 import com.typesafe.config.{Config, ConfigFactory}
 import io.qbeast.keeper.{Keeper, LocalKeeper}
-import io.qbeast.model.{
-  IndexManager,
-  MetadataManager,
-  QTableIDProvider,
-  QbeastCoreContext,
-  QueryManager
-}
+import io.qbeast.model._
+import io.qbeast.spark.SparkRevisionBuilder
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
 import io.qbeast.spark.index.{OTreeAlgorithm, OTreeAlgorithmImpl}
-import io.qbeast.spark.table.{IndexedTableFactory, IndexedTableFactoryImpl, SparkQTableIdProvider}
+import io.qbeast.spark.table.{IndexedTableFactory, IndexedTableFactoryImpl}
 import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationEnd}
-import org.apache.spark.sql.{SparkSession}
+import org.apache.spark.sql.{DataFrame, SparkSession}
+
+import scala.reflect.ClassTag
 
 /**
  * Qbeast context provides access to internal mechanisms of
@@ -65,19 +62,17 @@ trait QbeastContext {
  * session and should be used in testing scenarios only. To restore the default
  * behavior use the #unsetUnmanaged method.
  */
-object QbeastContext extends QbeastContext with QbeastCoreContext {
+object QbeastContext extends QbeastContext with QbeastCoreContext[QTableID, DataFrame] {
   private var managedOption: Option[QbeastContext] = None
   private var unmanagedOption: Option[QbeastContext] = None
 
   // Override methods from QbeastCoreContext
-  override def queryManager[SparkPlan, DataFrame]: QueryManager[SparkPlan, DataFrame] =
+  override def queryManager[SparkPlan: ClassTag]: QueryManager[SparkPlan, DataFrame] =
     null
 
-  override def indexManager[DataFrame]: IndexManager[DataFrame] = null
+  override def indexManager: IndexManager[DataFrame] = null
 
-  override def metadataManager: MetadataManager = new SparkDeltaMetadataManager
-
-  override def qtableIDProvider: QTableIDProvider = new SparkQTableIdProvider
+  override def metadataManager: MetadataManager[QTableID] = new SparkDeltaMetadataManager
 
   // Override methods from QbeastContext trait
   override def config: Config = current.config
@@ -122,17 +117,12 @@ object QbeastContext extends QbeastContext with QbeastCoreContext {
   private def createManaged(): QbeastContext = {
     val config = ConfigFactory.load()
     val keeper = createKeeper(config)
-    val oTreeAlgorithm = createOTreeAlgorithm(config)
+    val oTreeAlgorithm = OTreeAlgorithmImpl
     val indexedTableFactory = createIndexedTableFactory(keeper, oTreeAlgorithm)
     new QbeastContextImpl(config, keeper, oTreeAlgorithm, indexedTableFactory)
   }
 
   private def createKeeper(config: Config): Keeper = Keeper(config)
-
-  private def createOTreeAlgorithm(config: Config): OTreeAlgorithm = {
-    val desiredCubeSize = config.getInt("qbeast.index.size")
-    new OTreeAlgorithmImpl(desiredCubeSize)
-  }
 
   private def createIndexedTableFactory(
       keeper: Keeper,
@@ -150,6 +140,9 @@ object QbeastContext extends QbeastContext with QbeastCoreContext {
       destroyManaged()
 
   }
+
+  override def revisionBuilder: RevisionBuilder[DataFrame] =
+    SparkRevisionBuilder
 
 }
 

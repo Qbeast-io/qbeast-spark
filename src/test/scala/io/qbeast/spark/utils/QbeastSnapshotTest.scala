@@ -3,12 +3,12 @@
  */
 package io.qbeast.spark.utils
 
-import io.qbeast.model.Weight
-import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
+import io.qbeast.model.{EmptyIndexStatus, QTableID, Weight}
 import io.qbeast.spark.delta.{CubeInfo, QbeastSnapshot}
 import io.qbeast.spark.index.OTreeAlgorithmTest.Client3
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
+import io.qbeast.spark.{QbeastIntegrationTestSpec, SparkRevisionBuilder, delta}
 import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -35,7 +35,7 @@ class QbeastSnapshotTest
     "normalize weights when cubes are half full" in withQbeastContextSparkAndTmpDir {
       (spark, tmpDir) =>
         withOTreeAlgorithm { oTreeAlgorithm =>
-          val df = createDF(oTreeAlgorithm.desiredCubeSize / 2).repartition(1)
+          val df = createDF(10000 / 2).repartition(1)
           val names = List("age", "val2")
           // val dimensionCount = names.length
           df.write
@@ -57,7 +57,7 @@ class QbeastSnapshotTest
   it should "normalize weights when cubes are full" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
       withOTreeAlgorithm { oTreeAlgorithm =>
-        val df = createDF(oTreeAlgorithm.desiredCubeSize).repartition(1)
+        val df = createDF(1000).repartition(1)
         val names = List("age", "val2")
         // val dimensionCount = names.length
         df.write
@@ -81,13 +81,15 @@ class QbeastSnapshotTest
       (spark, tmpDir) =>
         withOTreeAlgorithm { oTreeAlgorithm =>
           val df = createDF(100000)
-          val names = List("age", "val2")
-          val (_, _, weightMap) = oTreeAlgorithm.indexFirst(df, names)
-
+          val indexStatus = EmptyIndexStatus(
+            SparkRevisionBuilder
+              .createNewRevision(QTableID("test"), df, Map("columnsToIndex" -> "age,val2")))
+          val (_, tc) = oTreeAlgorithm.index(df, indexStatus)
+          val weightMap = tc.indexChanges.cubeWeights
           df.write
             .format("qbeast")
             .mode("overwrite")
-            .option("columnsToIndex", names.mkString(","))
+            .option("columnsToIndex", "age,val2")
             .save(tmpDir)
 
           val deltaLog = DeltaLog.forTable(spark, tmpDir)
@@ -154,7 +156,7 @@ class QbeastSnapshotTest
               .collect()
               .foreach(cubeInfo =>
                 assert(
-                  cubeInfo.size > oTreeAlgorithm.desiredCubeSize * 0.9,
+                  cubeInfo.size > 1000 * 0.9,
                   "assertion failed in cube " + cubeInfo.cube +
                     " where size is " + cubeInfo.size + " and weight is " + cubeInfo.maxWeight))
           }

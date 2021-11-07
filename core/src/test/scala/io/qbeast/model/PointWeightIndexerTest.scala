@@ -11,7 +11,7 @@ import scala.util.Random
 /**
  * Tests of CubeWeights.
  */
-class CubeWeightsTest extends AnyFlatSpec with Matchers {
+class PointWeightIndexerTest extends AnyFlatSpec with Matchers {
   private val point = Point(0.66, 0.28)
   private val numDimensions = point.coordinates.length
   private val List(root, id10, id1001) = CubeId.containers(point).take(3).toList
@@ -25,77 +25,56 @@ class CubeWeightsTest extends AnyFlatSpec with Matchers {
   }
 
   "findTargetCubeIds" should "return the root cube if cube weights is empty" in {
-    val cubeIds = CubeWeights.findTargetCubeIds(point, Weight(1), Map.empty, Set.empty, Set.empty)
+    val pwi = new PointWeightIndexer(Map.empty, Set.empty)
+    val cubeIds = pwi.findTargetCubeIds(point, Weight(1))
     cubeIds shouldBe Seq(root)
   }
 
   it should "return the first cube with correct weight" in {
-    val cubeIds = CubeWeights.findTargetCubeIds(
-      point,
-      Weight(2),
+    val pwi = new PointWeightIndexer(
       Map(root -> Weight(1), id10 -> Weight(2), id1001 -> Weight(3)),
-      Set.empty,
       Set.empty)
+    val cubeIds = pwi.findTargetCubeIds(point, Weight(2))
     cubeIds shouldBe Seq(id10)
   }
 
   it should "return the child of announced cube with correct weight" in {
-    val cubeIds = CubeWeights.findTargetCubeIds(
-      point,
-      Weight(2),
+    val pwi = new PointWeightIndexer(
       Map(root -> Weight(1), id10 -> Weight(2), id1001 -> Weight(3)),
-      Set(id10),
-      Set(root))
+      Set(id10, root))
+    val cubeIds = pwi.findTargetCubeIds(point, Weight(2))
     cubeIds shouldBe Seq(id10, id1001)
   }
 
   it should "return the child of replicated cube with correct weight" in {
-    val cubeIds = CubeWeights.findTargetCubeIds(
-      point,
-      Weight(2),
+    val pwi = new PointWeightIndexer(
       Map(root -> Weight(1), id10 -> Weight(2), id1001 -> Weight(3)),
-      Set.empty,
       Set(root, id10))
+    val cubeIds = pwi.findTargetCubeIds(point, Weight(2))
     cubeIds shouldBe Seq(id10, id1001)
   }
 
   it should "return the first child cube of the specified parent with correct weight" in {
-    val cubeIds = CubeWeights.findTargetCubeIds(
-      point,
-      Weight(2),
+    val pwi = new PointWeightIndexer(
       Map(root -> Weight(1), id10 -> Weight(2), id1001 -> Weight(3)),
-      Set.empty,
-      Set.empty,
-      Some(id10))
+      Set.empty)
+    val cubeIds = pwi.findTargetCubeIds(point, Weight(2), Some(id10))
     cubeIds shouldBe Seq(id1001)
   }
 
-  it should "return the child of announced parent cube with correct weight" in {
-    val cubeIds = CubeWeights.findTargetCubeIds(
-      point,
-      Weight(2),
+  it should "return the child of announcedOrReplicated parent cube with correct weight" in {
+    val pwi = new PointWeightIndexer(
       Map(root -> Weight(1), id10 -> Weight(2), id1001 -> Weight(3)),
-      Set(id10),
-      Set(root),
-      Some(id10))
-    cubeIds shouldBe Seq(id1001)
-  }
-
-  it should "return the child of replicated parent cube with correct weight" in {
-    val cubeIds = CubeWeights.findTargetCubeIds(
-      point,
-      Weight(2),
-      Map(root -> Weight(1), id10 -> Weight(2), id1001 -> Weight(3)),
-      Set.empty,
-      Set(root, id10),
-      Some(id10))
+      Set(root, id10))
+    val cubeIds = pwi.findTargetCubeIds(point, Weight(2), Some(id10))
     cubeIds shouldBe Seq(id1001)
   }
 
   "merge" should "merge the cube weights correctly" in {
     val cubeWeights = Map(root -> Weight(1).fraction, id10 -> Weight(2).fraction)
     val estimatedCubeWeights = Map(root -> Weight(3).fraction, id1001 -> Weight(4).fraction)
-    val mergedCubeWeights = CubeWeights.merge(cubeWeights, estimatedCubeWeights)
+    val mergedCubeWeights =
+      PointWeightIndexer.mergeNormalizedWeights(cubeWeights, estimatedCubeWeights)
     val mergedRootWeight = (Weight(1) * Weight(3)) / (Weight(1) + Weight(3))
 
     mergedCubeWeights(
@@ -107,14 +86,17 @@ class CubeWeightsTest extends AnyFlatSpec with Matchers {
 
   it should "return the cube weights as a merge with empty estimated cube weights" in {
     val cubeWeights = Map(root -> Weight(1).fraction, id10 -> Weight(2).fraction)
-    val mergedCubeWeights = CubeWeights.merge(cubeWeights, Map.empty).mapValues(_.fraction)
+    val mergedCubeWeights =
+      PointWeightIndexer.mergeNormalizedWeights(cubeWeights, Map.empty).mapValues(_.fraction)
     mergedCubeWeights shouldBe cubeWeights
   }
 
   it should "return the estimated cube weights as a merge with empty cube weights" in {
     val estimatedCubeWeights = Map(root -> Weight(3).fraction, id1001 -> Weight(4).fraction)
     val mergedCubeWeights =
-      CubeWeights.merge(Map.empty, estimatedCubeWeights).mapValues(_.fraction)
+      PointWeightIndexer
+        .mergeNormalizedWeights(Map.empty, estimatedCubeWeights)
+        .mapValues(_.fraction)
     mergedCubeWeights shouldBe estimatedCubeWeights
   }
 
@@ -122,22 +104,26 @@ class CubeWeightsTest extends AnyFlatSpec with Matchers {
 
     // if desired size is 1000
     // A = 333 elements, B = 500 => still a leaf
-    CubeWeights.merge(Map(root -> 3.0), Map(root -> 2.0))(root) shouldBe Weight.MaxValue
+    PointWeightIndexer.mergeNormalizedWeights(Map(root -> 3.0), Map(root -> 2.0))(
+      root) shouldBe Weight.MaxValue
 
     // A = 500 elements, B = 500 => full
-    CubeWeights.merge(Map(root -> 2.0), Map(root -> 2.0))(root) shouldBe Weight.MaxValue
+    PointWeightIndexer.mergeNormalizedWeights(Map(root -> 2.0), Map(root -> 2.0))(
+      root) shouldBe Weight.MaxValue
 
     // A =~ 666 elements, B = 500 => about 0.85
-    CubeWeights.merge(Map(root -> 1.5), Map(root -> 2.0))(root).fraction shouldBe 0.85 +- 0.01
+    PointWeightIndexer
+      .mergeNormalizedWeights(Map(root -> 1.5), Map(root -> 2.0))(root)
+      .fraction shouldBe 0.85 +- 0.01
 
     // A > 1000 elements, w=0.1 (estimated 1000 elements), B = 10 => about 0.0999
-    CubeWeights
-      .merge(Map(root -> 0.1), Map(root -> 100.0))(root)
+    PointWeightIndexer
+      .mergeNormalizedWeights(Map(root -> 0.1), Map(root -> 100.0))(root)
       .fraction shouldBe 0.0999 +- 0.001
 
     // A > 1000 elements, w=0.1 (estimated 1000 elements), B >1000, w=0.01  => about 0.009
-    CubeWeights
-      .merge(Map(root -> 0.1), Map(root -> 0.01))(root)
+    PointWeightIndexer
+      .mergeNormalizedWeights(Map(root -> 0.1), Map(root -> 0.01))(root)
       .fraction shouldBe 0.009 +- 0.0001
   }
 

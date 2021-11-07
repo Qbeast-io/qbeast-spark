@@ -4,6 +4,7 @@
 package io.qbeast.keeper
 
 import com.typesafe.config.Config
+import io.qbeast.model.QTableID
 
 import java.util.ServiceLoader
 
@@ -15,22 +16,22 @@ trait Keeper {
   /**
    * Begins a write for given index domain revision.
    *
-   * @param indexId the index identifier
+   * @param tableID the index identifier
    * @param revision the domain revision
    * @return the write operation
    */
-  def beginWrite(indexId: String, revision: Long): Write
+  def beginWrite(tableID: QTableID, revision: Long): Write
 
   /**
    * Runs an action as part of write operation for the specified index revision.
    *
-   * @param indexId the index identifier
+   * @param tableID the index identifier
    * @param revision the index domain revision
    * @tparam T the result type
    * @return the result
    */
-  def withWrite[T](indexId: String, revision: Long)(action: Write => T): T = {
-    val write = beginWrite(indexId, revision)
+  def withWrite[T](tableID: QTableID, revision: Long)(action: Write => T): T = {
+    val write = beginWrite(tableID, revision)
     try {
       action(write)
     } finally {
@@ -40,21 +41,21 @@ trait Keeper {
 
   /**
    * Announces cubes for given index domain revision
-   * @param indexId th index identifier
+   * @param tableID the index identifier
    * @param revision the domain revision
    * @param cubes the announced cube identifiers
    */
-  def announce(indexId: String, revision: Long, cubes: Seq[String]): Unit
+  def announce(tableID: QTableID, revision: Long, cubes: Seq[String]): Unit
 
   /**
    * Begins an optimization for given index domain revision.
-   * @param indexId the index identifier
+   * @param tableID the index identifier
    * @param revision the domain revision
    * @param cubeLimit the maximum (exclusive) number of cubes to be optimized
    * @return the optimization operation
    */
   def beginOptimization(
-      indexId: String,
+      tableID: QTableID,
       revision: Long,
       cubeLimit: Integer = Integer.MAX_VALUE): Optimization
 

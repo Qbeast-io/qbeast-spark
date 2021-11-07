@@ -3,12 +3,11 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.model.Revision
+import io.qbeast.model.{RevisionChange, mapper}
 import io.qbeast.spark.index.ReplicatedSet
 import io.qbeast.spark.utils.MetadataConfig
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.delta.schema.{ImplicitMetadataOperation, SchemaUtils}
-import org.apache.spark.sql.delta.util.JsonUtils
 import org.apache.spark.sql.delta.{
   DeltaErrors,
   MetadataMismatchErrorBuilder,
@@ -42,10 +41,10 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
 
   def updateQbeastReplicatedSet(
       txn: OptimisticTransaction,
-      revisionData: RevisionData,
+      revisionData: DeltaIndexStatus,
       newReplicatedCubes: ReplicatedSet): Unit = {
 
-    val revisionID = revisionData.revision.id
+    val revisionID = revisionData.revision.revisionID
 
     val oldReplicatedSet = revisionData.replicatedSet
     val newReplicatedSet =
@@ -56,7 +55,7 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
     val configuration =
       oldConfiguration.updated(
         s"${MetadataConfig.replicatedSet}.$revisionID",
-        JsonUtils.toJson(newReplicatedSet))
+        mapper.writeValueAsString(newReplicatedSet))
     txn.updateMetadata(txn.metadata.copy(configuration = configuration))
   }
 
@@ -76,10 +75,10 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
       partitionColumns: Seq[String],
       isOverwriteMode: Boolean,
       rearrangeOnly: Boolean,
-      newRevision: Revision,
+      revisionChange: RevisionChange,
       qbeastSnapshot: QbeastSnapshot): Unit = {
 
-    val revisionID = newRevision.id
+    val revisionID = revisionChange.newRevisionID
     assert(
       !qbeastSnapshot.existsRevision(revisionID),
       s"The revision $revisionID is already present in the Metadata")
@@ -100,10 +99,11 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
 
     // Merged schema will contain additional columns at the end
     def isNewSchema: Boolean = txn.metadata.schema != mergedSchema
+    val newRevision = revisionChange.newRevision
     // Qbeast configuration metadata
     val configuration = txn.metadata.configuration
       .updated(MetadataConfig.lastRevisionID, revisionID.toString)
-      .updated(s"${MetadataConfig.revision}.$revisionID", JsonUtils.toJson(newRevision))
+      .updated(s"${MetadataConfig.revision}.$revisionID", mapper.writeValueAsString(newRevision))
 
     if (txn.readVersion == -1) {
       updateMetadata(

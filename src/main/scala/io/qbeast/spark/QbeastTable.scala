@@ -4,14 +4,9 @@
 package io.qbeast.spark
 
 import io.qbeast.context.QbeastContext
-import io.qbeast.model.RevisionID
+import io.qbeast.model.{QTableID, RevisionID}
 import io.qbeast.spark.delta.QbeastSnapshot
-import io.qbeast.spark.table.{
-  AnalyzeTableCommand,
-  IndexedTable,
-  IndexedTableFactory,
-  OptimizeTableCommand
-}
+import io.qbeast.spark.table._
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
 
@@ -24,17 +19,17 @@ import org.apache.spark.sql.delta.DeltaLog
  */
 class QbeastTable private (
     sparkSession: SparkSession,
-    path: String,
+    tableID: QTableID,
     indexedTableFactory: IndexedTableFactory)
     extends Serializable {
 
-  private def deltaLog: DeltaLog = DeltaLog.forTable(sparkSession, indexedTable.path)
+  private def deltaLog: DeltaLog = DeltaLog.forTable(sparkSession, tableID.id)
 
   private def qbeastSnapshot: QbeastSnapshot =
     delta.QbeastSnapshot(deltaLog.snapshot)
 
   private def indexedTable: IndexedTable =
-    indexedTableFactory.getIndexedTable(sparkSession.sqlContext, path)
+    indexedTableFactory.getIndexedTable(sparkSession.sqlContext, tableID)
 
   private def getAvailableRevision(revisionID: Option[RevisionID]): RevisionID = {
     revisionID match {
@@ -74,7 +69,7 @@ class QbeastTable private (
 object QbeastTable {
 
   def forPath(sparkSession: SparkSession, path: String): QbeastTable = {
-    new QbeastTable(sparkSession, path, QbeastContext.indexedTableFactory)
+    new QbeastTable(sparkSession, new QTableID(path), QbeastContext.indexedTableFactory)
   }
 
 }

@@ -3,12 +3,12 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.model.{CubeId, Revision, RevisionID}
+import io.qbeast.IISeq
+import io.qbeast.model.{Revision, RevisionID, mapper}
 import io.qbeast.spark.index.ReplicatedSet
 import io.qbeast.spark.utils.{MetadataConfig, TagUtils}
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.delta.Snapshot
-import org.apache.spark.sql.delta.util.JsonUtils
 
 /**
  * Qbeast Snapshot that provides information about the current index state.
@@ -30,8 +30,8 @@ case class QbeastSnapshot(snapshot: Snapshot) {
     val listRevisions = metadataMap.filterKeys(_.startsWith(MetadataConfig.revision))
     listRevisions.map { case (key: String, json: String) =>
       val revisionID = key.split('.').last.toLong
-      val revision = JsonUtils
-        .fromJson[Revision](json)
+      val revision = mapper
+        .readValue[Revision](json, classOf[Revision])
       (revisionID, revision)
     }
   }
@@ -46,10 +46,10 @@ case class QbeastSnapshot(snapshot: Snapshot) {
 
     listReplicatedSets.map { case (key: String, json: String) =>
       val revisionID = key.split('.').last.toLong
-      val dimensionCount = getRevision(revisionID).dimensionCount
-      val replicatedSet = JsonUtils
-        .fromJson[Set[String]](json)
-        .map(cube => CubeId(dimensionCount, cube))
+      val revision = getRevision(revisionID)
+      val replicatedSet = mapper
+        .readValue[Set[String]](json, classOf[Set[String]])
+        .map(revision.createCubeId)
       (revisionID, replicatedSet)
     }
   }
@@ -67,7 +67,7 @@ case class QbeastSnapshot(snapshot: Snapshot) {
    *
    * @return a sequence of revisions
    */
-  def revisions: Seq[Revision] = revisionsMap.values.toSeq
+  def revisions: IISeq[Revision] = revisionsMap.values.toVector
 
   /**
    * Looks up for a revision with a certain identifier
@@ -88,11 +88,11 @@ case class QbeastSnapshot(snapshot: Snapshot) {
    * @param revisionID the ID of the revision
    * @return revision information for the corresponding identifier
    */
-  def getRevisionData(revisionID: RevisionID): RevisionData = {
+  def getRevisionData(revisionID: RevisionID): DeltaIndexStatus = {
     val revision = getRevision(revisionID)
     val replicatedSet = replicatedSetsMap.getOrElse(revisionID, Set.empty)
     val revisionFiles = snapshot.allFiles.filter(_.tags(TagUtils.revision) == revisionID.toString)
-    RevisionData(revision, replicatedSet, revisionFiles)
+    DeltaIndexStatus(revision, replicatedSet, revisionFiles)
   }
 
   /**
@@ -100,7 +100,7 @@ case class QbeastSnapshot(snapshot: Snapshot) {
    *
    * @return the revision data
    */
-  def lastRevisionData: RevisionData = {
+  def lastRevisionData: DeltaIndexStatus = {
     getRevisionData(lastRevisionID)
   }
 

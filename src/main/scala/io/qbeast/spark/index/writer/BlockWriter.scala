@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.index.writer
 
-import io.qbeast.model.{CubeId, Revision, Weight}
+import io.qbeast.model.{CubeId, IndexStatusChange, Weight}
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.utils.TagUtils
 import org.apache.hadoop.fs.Path
@@ -26,8 +26,7 @@ import java.util.UUID
  * @param factory        output writer factory
  * @param serConf        configuration to serialize the data
  * @param qbeastColumns  qbeast metadata columns
- * @param revision     the revision of the data to write
- * @param weightMap       map of cubes and it's estimated weight
+ * @param indexStatusChange     the revision of the data to write
  */
 case class BlockWriter(
     dataPath: String,
@@ -36,8 +35,7 @@ case class BlockWriter(
     factory: OutputWriterFactory,
     serConf: SerializableConfiguration,
     qbeastColumns: QbeastColumns,
-    revision: Revision,
-    weightMap: Map[CubeId, Weight])
+    indexStatusChange: IndexStatusChange)
     extends Serializable {
 
   /**
@@ -50,16 +48,16 @@ case class BlockWriter(
     if (!iter.hasNext) {
       return Iterator.empty
     }
-
+    val revision = indexStatusChange.supersededIndexStatus.revision
     iter
       .foldLeft[Map[CubeId, BlockContext]](Map()) { case (blocks, row) =>
-        val cubeId = CubeId(revision.dimensionCount, row.getBinary(qbeastColumns.cubeColumnIndex))
+        val cubeId = revision.createCubeId(row.getBinary(qbeastColumns.cubeColumnIndex))
         val state = row.getString(qbeastColumns.stateColumnIndex)
         // TODO make sure this does not compromise the structure of the index
         // It could happen than estimated weights
         // doesn't include all the cubes present in the final indexed dataframe
         // we save those newly added leaves with the max weight possible
-        val maxWeight = weightMap.getOrElse(cubeId, Weight.MaxValue)
+        val maxWeight = indexStatusChange.cubeWeights.getOrElse(cubeId, Weight.MaxValue)
         val blockCtx =
           blocks.getOrElse(cubeId, buildWriter(cubeId, state, maxWeight))
 
@@ -91,7 +89,7 @@ case class BlockWriter(
             TagUtils.minWeight -> minWeight.value.toString,
             TagUtils.maxWeight -> maxWeight.value.toString,
             TagUtils.state -> state,
-            TagUtils.revision -> revision.id.toString,
+            TagUtils.revision -> revision.revisionID.toString,
             TagUtils.elementCount -> rowCount.toString)
 
           writer.close()

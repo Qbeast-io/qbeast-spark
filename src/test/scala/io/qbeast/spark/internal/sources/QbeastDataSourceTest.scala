@@ -3,6 +3,7 @@
  */
 package io.qbeast.spark.internal.sources
 
+import io.qbeast.model.QTableID
 import io.qbeast.spark.table.{IndexedTable, IndexedTableFactory}
 import org.apache.spark.sql.connector.catalog.TableCapability._
 import org.apache.spark.sql.connector.expressions.Transform
@@ -10,6 +11,7 @@ import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.sql.{AnalysisException, DataFrame, SQLContext, SaveMode}
+import org.mockito.ArgumentMatchers
 import org.mockito.ArgumentMatchers.{any, anyBoolean}
 import org.mockito.Mockito.{verify, when}
 import org.scalatest.Outcome
@@ -42,10 +44,11 @@ class QbeastDataSourceTest extends FixtureAnyFlatSpec with MockitoSugar with Mat
 
     val table = mock[IndexedTable]
     when(table.load()).thenReturn(relation)
-    when(table.save(any[DataFrame], any[List[String]], anyBoolean())).thenReturn(relation)
+    when(table.save(any[DataFrame], any[Map[String, String]], anyBoolean())).thenReturn(relation)
 
     val tableFactory = mock[IndexedTableFactory]
-    when(tableFactory.getIndexedTable(sqlContext, path)).thenReturn(table)
+    when(tableFactory.getIndexedTable(ArgumentMatchers.eq(sqlContext), any[QTableID]()))
+      .thenReturn(table)
 
     val dataSource = new QbeastDataSource(tableFactory)
 
@@ -84,7 +87,7 @@ class QbeastDataSourceTest extends FixtureAnyFlatSpec with MockitoSugar with Mat
       SaveMode.Append,
       parameters,
       data) shouldBe f.relation
-    verify(f.table).save(data, columnsToIndex, append = true)
+    verify(f.table).save(data, parameters, append = true)
   }
 
   it should "overwrite table if mode is Overwrite" in { f =>
@@ -95,7 +98,7 @@ class QbeastDataSourceTest extends FixtureAnyFlatSpec with MockitoSugar with Mat
       SaveMode.Overwrite,
       parameters,
       data) shouldBe f.relation
-    verify(f.table).save(data, columnsToIndex, append = false)
+    verify(f.table).save(data, parameters, append = false)
   }
 
   it should "throw exception if mode is ErrorIfExists and the table exists" in { f =>
@@ -116,7 +119,7 @@ class QbeastDataSourceTest extends FixtureAnyFlatSpec with MockitoSugar with Mat
       SaveMode.ErrorIfExists,
       parameters,
       data) shouldBe f.relation
-    verify(f.table).save(data, columnsToIndex, append = false)
+    verify(f.table).save(data, parameters, append = false)
   }
 
   it should "return relation if mode is Ignore and the table exists" in { f =>
@@ -140,7 +143,7 @@ class QbeastDataSourceTest extends FixtureAnyFlatSpec with MockitoSugar with Mat
       SaveMode.Ignore,
       parameters,
       data) shouldBe f.relation
-    verify(f.table).save(data, columnsToIndex, append = false)
+    verify(f.table).save(data, parameters, append = false)
   }
 
   it should "throw exception for write if path is not specified" in { f =>

@@ -3,24 +3,16 @@
  */
 package io.qbeast.transform
 
-import io.qbeast.mapper
-
-case class TransformationSerialization(name: String, value: Transformation)
-
-object TransformationSerializer {
-
-  def loadFromJson(value: String): Transformation = {
-
-    mapper.readValue[TransformationSerialization](value).value
-
-  }
-
-}
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 
 /**
  * Double value transformation.
  */
-trait Transformation {
+@JsonTypeInfo(
+  use = JsonTypeInfo.Id.CLASS,
+  include = JsonTypeInfo.As.PROPERTY,
+  property = "className")
+trait Transformation extends Serializable {
 
   /**
    * Converts a real number to a normalized value.
@@ -29,10 +21,6 @@ trait Transformation {
    * @return a real number between 0 and 1
    */
   def transform(value: Any): Double
-
-  def serializeToJson(): String =
-    mapper.writeValueAsString(
-      Map("type" -> this.getClass.getSimpleName, "value" -> mapper.writeValueAsString(this)))
 
   /**
    * This method should determine if the new data will cause the creation of a new revision.
@@ -70,4 +58,5 @@ object IdentityTransformation extends Transformation {
   override def isSupersededBy(newTransformation: Transformation): Boolean = false
 
   override def merge(other: Transformation): Transformation = this
+
 }

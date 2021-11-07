@@ -19,7 +19,7 @@ case class LinearTransformer(columnName: String, dataType: QDataType) extends Tr
       Seq(colMax, colMin),
       Seq(s"max($columnName) AS $colMax", s"min($columnName) AS $colMin"))
 
-  override def makeTransformation(row: Map[String, Any]): Transformation =
+  override def makeTransformation(row: String => Any): Transformation =
     dataType match {
       case ordered: OrderedDataType =>
         LinearTransformation(row(colMin), row(colMax), ordered)

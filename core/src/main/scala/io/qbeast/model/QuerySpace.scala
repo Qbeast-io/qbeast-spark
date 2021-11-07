@@ -54,8 +54,8 @@ case class QuerySpaceFromTo(originalFrom: Point, originalTo: Point, revision: Re
 
   require(originalFrom <= originalTo, "from point must be < then to point")
   require(originalFrom.dimensionCount == originalTo.dimensionCount)
-  val from: Point = revision.transform(originalFrom.coordinates)
-  val to: Point = revision.transform(originalTo.coordinates)
+  val from: Point = Point(revision.transform(originalFrom.coordinates))
+  val to: Point = Point(revision.transform(originalTo.coordinates))
 
   override def intersectsWith(cube: CubeId): Boolean = {
     val ranges = from.coordinates.zip(to.coordinates)

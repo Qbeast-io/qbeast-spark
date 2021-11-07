@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.model.{CubeId, NormalizedWeight, Revision, Weight}
+import io.qbeast.model.{CubeId, IndexStatus, NormalizedWeight, Revision, Weight}
 import io.qbeast.spark.index.ReplicatedSet
 import io.qbeast.spark.utils.{State, TagUtils}
 import io.qbeast.spark.index.writer.BlockStats
@@ -26,12 +26,11 @@ case class CubeInfo(cube: String, maxWeight: Weight, size: Long)
  * @param replicatedSet the set of replicated cubes for the specific Revision
  * @param files dataset of AddFiles that belongs to the specific Revision
  */
-case class RevisionData(
+case class DeltaIndexStatus(
     revision: Revision,
     replicatedSet: ReplicatedSet,
-    files: Dataset[AddFile]) {
-
-  private def dimensionCount = revision.dimensionCount
+    files: Dataset[AddFile])
+    extends IndexStatus {
 
   /**
    * Returns the cube maximum weights for a given space revision
@@ -40,7 +39,7 @@ case class RevisionData(
   def cubeWeights: Map[CubeId, Weight] = {
     revisionState
       .collect()
-      .map(info => (CubeId(dimensionCount, info.cube), info.maxWeight))
+      .map(info => (revision.createCubeId(info.cube), info.maxWeight))
       .toMap
   }
 
@@ -49,16 +48,14 @@ case class RevisionData(
    *
    * @return a map with key cube and value max weight
    */
-  def cubeNormalizedWeights: Map[CubeId, Double] = {
+  def cubeNormalizedWeights: Map[CubeId, NormalizedWeight] = {
     revisionState
       .collect()
       .map {
         case CubeInfo(cube, Weight.MaxValue, size) =>
-          (
-            CubeId(revision.dimensionCount, cube),
-            NormalizedWeight(revision.desiredCubeSize, size))
+          (revision.createCubeId(cube), NormalizedWeight(revision.desiredCubeSize, size))
         case CubeInfo(cube, maxWeight, _) =>
-          (CubeId(dimensionCount, cube), NormalizedWeight(maxWeight))
+          (revision.createCubeId(cube), NormalizedWeight(maxWeight))
       }
       .toMap
   }
@@ -72,7 +69,7 @@ case class RevisionData(
     revisionState
       .filter(_.maxWeight != Weight.MaxValue)
       .collect()
-      .map(cubeInfo => CubeId(dimensionCount, cubeInfo.cube))
+      .map(cubeInfo => revision.createCubeId(cubeInfo.cube))
       .toSet
   }
 
@@ -108,27 +105,29 @@ case class RevisionData(
   def getCubeBlocks(cubes: Set[CubeId]): Seq[AddFile] = {
     files
       .filter(_.tags(TagUtils.state) != State.ANNOUNCED)
-      .filter(a => cubes.contains(CubeId(dimensionCount, a.tags(TagUtils.cube))))
+      .filter(a => cubes.contains(revision.createCubeId(a.tags(TagUtils.cube))))
       .collect()
   }
 
+  override def announcedSet: Set[CubeId] = Set.empty
 }
 
 /**
  * Companion object for RevisionData
  */
-object RevisionData {
+object DeltaIndexStatus {
 
   /**
    * Build a new RevisionData for a revision with empty replicatedSet and empty files
+   *
    * @param revision the revision
    * @return revision data
    */
-  def apply(revision: Revision): RevisionData = {
+  def apply(revision: Revision): DeltaIndexStatus = {
     val spark = SparkSession.active
     import spark.implicits._
 
-    RevisionData(revision, Set.empty, spark.createDataset(Seq.empty[AddFile]))
+    DeltaIndexStatus(revision, Set.empty, spark.createDataset(Seq.empty[AddFile]))
   }
 
 }

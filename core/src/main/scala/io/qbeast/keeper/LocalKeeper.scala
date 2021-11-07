@@ -3,6 +3,8 @@
  */
 package io.qbeast.keeper
 
+import io.qbeast.model.QTableID
+
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -11,23 +13,23 @@ import java.util.concurrent.atomic.AtomicInteger
  */
 object LocalKeeper extends Keeper {
   private val generator = new AtomicInteger()
-  private val announcedMap = scala.collection.mutable.Map.empty[(String, Long), Set[String]]
+  private val announcedMap = scala.collection.mutable.Map.empty[(QTableID, Long), Set[String]]
 
-  override def beginWrite(indexId: String, revision: Long): Write = new LocalWrite(
+  override def beginWrite(tableID: QTableID, revision: Long): Write = new LocalWrite(
     generator.getAndIncrement().toString,
-    announcedMap.getOrElse((indexId, revision), Set.empty[String]))
+    announcedMap.getOrElse((tableID, revision), Set.empty[String]))
 
-  override def announce(indexId: String, revision: Long, cubes: Seq[String]): Unit = {
-    val announcedCubes = announcedMap.getOrElse((indexId, revision), Set.empty[String])
-    announcedMap.update((indexId, revision), announcedCubes.union(cubes.toSet))
+  override def announce(tableID: QTableID, revision: Long, cubes: Seq[String]): Unit = {
+    val announcedCubes = announcedMap.getOrElse((tableID, revision), Set.empty[String])
+    announcedMap.update((tableID, revision), announcedCubes.union(cubes.toSet))
   }
 
   override def beginOptimization(
-      indexId: String,
+      tableID: QTableID,
       revision: Long,
       cubeLimit: Integer): Optimization = new LocalOptimization(
     generator.getAndIncrement().toString,
-    announcedMap.getOrElse((indexId, revision), Set.empty[String]))
+    announcedMap.getOrElse((tableID, revision), Set.empty[String]))
 
   override def stop(): Unit = {}
 }

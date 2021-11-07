@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.internal.rules
 
-import io.qbeast.model.Weight
+import io.qbeast.model.{Revision, Weight}
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{
@@ -33,11 +33,12 @@ class SampleRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
   def transformSampleToFilter(
       sample: Sample,
       logicalRelation: LogicalRelation,
-      columnsToIndex: Seq[String]): Expression = {
+      revision: Revision): Expression = {
     val minWeight = Weight(sample.lowerBound).value
     val maxWeight = Weight(sample.upperBound).value
 
-    val columns = columnsToIndex.map(c => logicalRelation.output.find(_.name == c).get)
+    val columns = revision.columnTransformers.map(c =>
+      logicalRelation.output.find(_.name == c.columnName).get)
     val weight = new QbeastMurmur3Hash(columns)
     And(LessThan(weight, Literal(maxWeight)), GreaterThanOrEqual(weight, Literal(minWeight)))
 
@@ -51,8 +52,8 @@ class SampleRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
             _,
             false,
             _,
-            l @ LogicalRelation(QbeastBaseRelation(_, columnsToIndex), _, _, _)) =>
-        Filter(transformSampleToFilter(s, l, columnsToIndex), l)
+            l @ LogicalRelation(QbeastBaseRelation(_, revision), _, _, _)) =>
+        Filter(transformSampleToFilter(s, l, revision), l)
 
       case s @ Sample(_, _, false, _, child) =>
         child match {

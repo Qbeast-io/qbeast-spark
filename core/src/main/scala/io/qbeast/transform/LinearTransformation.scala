@@ -3,8 +3,17 @@
  */
 package io.qbeast.transform
 
-import io.qbeast.model.OrderedDataType
+import com.fasterxml.jackson.core.{JsonGenerator, JsonParser, TreeNode}
+import com.fasterxml.jackson.databind.annotation.{JsonDeserialize, JsonSerialize}
+import com.fasterxml.jackson.databind.deser.std.StdDeserializer
+import com.fasterxml.jackson.databind.jsontype.TypeSerializer
+import com.fasterxml.jackson.databind.node.{DoubleNode, IntNode, NumericNode, TextNode}
+import com.fasterxml.jackson.databind.ser.std.StdSerializer
+import com.fasterxml.jackson.databind.{DeserializationContext, SerializerProvider}
+import io.qbeast.model.{DoubleDataType, IntegerDataType, LongDataType, OrderedDataType}
 
+@JsonSerialize(using = classOf[LinearTransformationSerializer])
+@JsonDeserialize(using = classOf[LinearTransformationDeserializer])
 case class LinearTransformation(minNumber: Any, maxNumber: Any, orderedDataType: OrderedDataType)
     extends Transformation {
 
@@ -12,14 +21,19 @@ case class LinearTransformation(minNumber: Any, maxNumber: Any, orderedDataType:
 
   private val mn = minNumber.toDouble
 
-  val scale: Double = {
+  private val scale: Double = {
     val mx = maxNumber.toDouble
     require(mx > mn, "Range cannot be not null, and max must be > min")
     1.0 / (mx - mn)
   }
 
-  override def transform(value: Any): Double = {
-    (value.toDouble - mn) * scale
+  override def transform(value: Any): Double = value match {
+    case v: Double => (v - mn) * scale
+    case v: Long => (v - mn) * scale
+    case v: Int => (v - mn) * scale
+
+    case v: Float => (v - mn) * scale
+
   }
 
   /**
@@ -49,5 +63,75 @@ case class LinearTransformation(minNumber: Any, maxNumber: Any, orderedDataType:
           if orderedDataType == otherOrdering =>
         gt(minNumber, newMin) || gt(maxNumber, newMax)
     }
+
+}
+
+class LinearTransformationSerializer
+    extends StdSerializer[LinearTransformation](classOf[LinearTransformation]) {
+
+  private def writeNumb(gen: JsonGenerator, filedName: String, numb: Any): Unit = {
+    numb match {
+      case v: Double => gen.writeNumberField(filedName, v)
+      case v: Long => gen.writeNumberField(filedName, v)
+      case v: Int => gen.writeNumberField(filedName, v)
+      case v: Float => gen.writeNumberField(filedName, v)
+    }
+  }
+
+  override def serializeWithType(
+      value: LinearTransformation,
+      gen: JsonGenerator,
+      serializers: SerializerProvider,
+      typeSer: TypeSerializer): Unit = {
+    gen.writeStartObject()
+    typeSer.getPropertyName
+    gen.writeStringField(typeSer.getPropertyName, typeSer.getTypeIdResolver.idFromValue(value))
+
+    writeNumb(gen, "minNumber", value.minNumber)
+    writeNumb(gen, "maxNumber", value.maxNumber)
+    gen.writeObjectField("orderedDataType", value.orderedDataType)
+    gen.writeEndObject()
+  }
+
+  override def serialize(
+      value: LinearTransformation,
+      gen: JsonGenerator,
+      provider: SerializerProvider): Unit = {
+    gen.writeStartObject()
+    writeNumb(gen, "minNumber", value.minNumber)
+    writeNumb(gen, "maxNumber", value.maxNumber)
+    gen.writeObjectField("orderedDataType", value.orderedDataType)
+    gen.writeEndObject()
+  }
+
+}
+
+class LinearTransformationDeserializer
+    extends StdDeserializer[LinearTransformation](classOf[LinearTransformation]) {
+
+  override def deserialize(p: JsonParser, ctxt: DeserializationContext): LinearTransformation = {
+    val json = p.getCodec
+    val tree: TreeNode = json
+      .readTree(p)
+    /* val odt = ctxt.readValue[OrderedDataType](
+      tree.get("orderedDataType").traverse(),
+      classOf[OrderedDataType])
+
+     */
+    val odt = tree.get("orderedDataType") match {
+      case tn: TextNode => OrderedDataType(tn.asText())
+    }
+    (odt, tree.get("minNumber"), tree.get("maxNumber")) match {
+      case (DoubleDataType, mn: DoubleNode, mx: DoubleNode) =>
+        LinearTransformation(mn.asDouble(), mx.asDouble(), odt)
+      case (IntegerDataType, mn: IntNode, mx: IntNode) =>
+        LinearTransformation(mn.asInt(), mx.asInt(), odt)
+      case (LongDataType, mn: NumericNode, mx: NumericNode) =>
+        LinearTransformation(mn.asLong(), mx.asLong(), odt)
+      case (a, b, c) =>
+        throw new IllegalArgumentException(s"Invalid data type  ($a,$b,$c) ${b.getClass} ")
+    }
+
+  }
 
 }

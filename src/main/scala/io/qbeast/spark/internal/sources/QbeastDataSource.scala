@@ -4,9 +4,8 @@
 package io.qbeast.spark.internal.sources
 
 import io.qbeast.context.QbeastContext
-import io.qbeast.spark.index.ColumnsToIndex
-import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.table.IndexedTableFactory
+import io.qbeast.spark.utils.SparkToQTypesUtils
 import org.apache.hadoop.fs.FileStatus
 import org.apache.spark.sql.connector.catalog.TableCapability._
 import org.apache.spark.sql.connector.catalog._
@@ -72,47 +71,30 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       mode: SaveMode,
       parameters: Map[String, String],
       data: DataFrame): BaseRelation = {
-    val path = getPath(parameters)
-    val table = tableFactory.getIndexedTable(sqlContext, path)
-    val columnsToIndex = getColumnsToIndex(parameters)
+    val tableId = SparkToQTypesUtils.loadFromParameters(parameters)
+    val table = tableFactory.getIndexedTable(sqlContext, tableId)
     mode match {
-      case SaveMode.Append => table.save(data, columnsToIndex, append = true)
-      case SaveMode.Overwrite => table.save(data, columnsToIndex, append = false)
+      case SaveMode.Append => table.save(data, parameters, append = true)
+      case SaveMode.Overwrite => table.save(data, parameters, append = false)
       case SaveMode.ErrorIfExists if table.exists =>
-        throw AnalysisExceptionFactory.create(s"The table '$path' already exists.")
-      case SaveMode.ErrorIfExists => table.save(data, columnsToIndex, append = false)
+        throw AnalysisExceptionFactory.create(s"The table '$tableId' already exists.")
+      case SaveMode.ErrorIfExists => table.save(data, parameters, append = false)
       case SaveMode.Ignore if table.exists => table.load()
-      case SaveMode.Ignore => table.save(data, columnsToIndex, append = false)
+      case SaveMode.Ignore => table.save(data, parameters, append = false)
     }
   }
 
   override def createRelation(
       sqlContext: SQLContext,
       parameters: Map[String, String]): BaseRelation = {
-    val path = getPath(parameters)
-    val table = tableFactory.getIndexedTable(sqlContext, path)
+    val tableID = SparkToQTypesUtils.loadFromParameters(parameters)
+    val table = tableFactory.getIndexedTable(sqlContext, tableID)
     if (table.exists) {
       table.load()
     } else {
-      throw AnalysisExceptionFactory.create(s"'$path' is not a Qbeast formatted data directory.")
+      throw AnalysisExceptionFactory.create(
+        s"'$tableID' is not a Qbeast formatted data directory.")
     }
-  }
-
-  private def getPath(parameters: Map[String, String]): String = {
-    parameters.getOrElse(
-      "path", {
-        throw AnalysisExceptionFactory.create("'path' is not specified")
-      })
-  }
-
-  private def getColumnsToIndex(parameters: Map[String, String]): Seq[String] = {
-    val encodedColumnsToIndex = parameters.getOrElse(
-      QbeastOptions.COLUMNS_TO_INDEX, {
-        throw AnalysisExceptionFactory.create(
-          "you must specify the columns to index in a comma separated way" +
-            " as .option(columnsToIndex, ...)")
-      })
-    ColumnsToIndex.decode(encodedColumnsToIndex)
   }
 
 }

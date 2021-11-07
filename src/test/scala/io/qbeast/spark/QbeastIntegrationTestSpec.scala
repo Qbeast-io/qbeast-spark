@@ -71,8 +71,7 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
    */
   def withQbeastContext[T](keeper: Keeper = LocalKeeper, config: Config = ConfigFactory.load())(
       testCode: => T): T = {
-    val desiredSampleSize = config.getInt("qbeast.index.size")
-    val oTreeAlgorithm = new OTreeAlgorithmImpl(desiredSampleSize)
+    val oTreeAlgorithm = OTreeAlgorithmImpl
     val indexedTableFactory = new IndexedTableFactoryImpl(keeper, oTreeAlgorithm)
     val context = new QbeastContextImpl(config, keeper, oTreeAlgorithm, indexedTableFactory)
     try {
@@ -87,9 +86,7 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
     withQbeastContext()(withTmpDir(tmpDir => withSpark(spark => testCode(spark, tmpDir))))
 
   def withOTreeAlgorithm[T](code: OTreeAlgorithm => T): T = {
-    val config = ConfigFactory.load()
-    val oTreeAlgorithm = new OTreeAlgorithmImpl(
-      desiredCubeSize = config.getInt("qbeast.index.size"))
+    val oTreeAlgorithm = OTreeAlgorithmImpl
     code(oTreeAlgorithm)
   }
 

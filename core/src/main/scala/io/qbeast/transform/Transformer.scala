@@ -3,12 +3,12 @@
  */
 package io.qbeast.transform
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 import io.qbeast.model.QDataType
 
 import java.util.Locale
 
 object Transformer {
-  private val SpecExtractor = "([^/]+/[^/]+)".r
 
   private val transformersRegistry: Map[String, TransformerType] =
     Seq(LinearTransformer).map(a => (a.transformerSimpleName, a)).toMap
@@ -19,17 +19,6 @@ object Transformer {
     transformersRegistry(tt)(columnName, dataType)
   }
 
-  def apply(spec: String, dataType: QDataType): Transformer = {
-    spec match {
-      case SpecExtractor(columnName, transformerType) =>
-        apply(transformerType, columnName, dataType)
-
-      case columnName =>
-        apply("linear", columnName, dataType)
-    }
-
-  }
-
 }
 
 private[transform] trait TransformerType {
@@ -38,12 +27,16 @@ private[transform] trait TransformerType {
   def apply(columnName: String, dataType: QDataType): Transformer
 }
 
-trait Transformer {
+@JsonTypeInfo(
+  use = JsonTypeInfo.Id.CLASS,
+  include = JsonTypeInfo.As.PROPERTY,
+  property = "className")
+trait Transformer extends Serializable {
 
   protected def transformerType: TransformerType
   def columnName: String
   def stats: ColumnStats
-  def makeTransformation(row: Map[String, Any]): Transformation
+  def makeTransformation(row: String => Any): Transformation
 
   def maybeUpdateTransformation(
       currentTransformation: Transformation,
@@ -60,6 +53,6 @@ trait Transformer {
 
 }
 
-case class ColumnStats(names: Seq[String], columns: Seq[String]) {
+case class ColumnStats(names: Seq[String], columns: Seq[String]) extends Serializable {
   def getValues(row: Map[String, Any]): Seq[Any] = names.map(column => row(column))
 }

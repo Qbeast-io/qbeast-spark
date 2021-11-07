@@ -23,7 +23,7 @@ class QbeastContextTest extends AnyFlatSpec with Matchers {
 
   it should "use the unmanaged context if provided" in {
     val keeper = LocalKeeper
-    val oTreeAlgorithm = new OTreeAlgorithmImpl(1)
+    val oTreeAlgorithm = OTreeAlgorithmImpl
     val unmanaged = new QbeastContextImpl(
       config = ConfigFactory.load(),
       keeper = keeper,
@@ -41,7 +41,7 @@ class QbeastContextTest extends AnyFlatSpec with Matchers {
 
   it should "use the managed context after the unmanaged is unset" in {
     val keeper = LocalKeeper
-    val oTreeAlgorithm = new OTreeAlgorithmImpl(1)
+    val oTreeAlgorithm = OTreeAlgorithmImpl
     val unmanaged = new QbeastContextImpl(
       config = ConfigFactory.load(),
       keeper = keeper,
