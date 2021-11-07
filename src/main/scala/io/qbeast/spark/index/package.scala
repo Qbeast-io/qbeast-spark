@@ -3,8 +3,6 @@
  */
 package io.qbeast.spark
 
-import io.qbeast.model.CubeId
-
 /**
  * Index package object.
  */
@@ -15,10 +13,5 @@ package object index {
    * weight while indexing new data.
    */
   type NormalizedWeight = Double
-
-  /**
-   * ReplicatedSet is used to represent a set of CubeId's that had been replicated
-   */
-  type ReplicatedSet = Set[CubeId]
 
 }

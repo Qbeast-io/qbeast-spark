@@ -5,7 +5,7 @@ package io.qbeast.spark.table
 
 import io.qbeast.context.QbeastContext
 import io.qbeast.keeper.Keeper
-import io.qbeast.model.{EmptyIndexStatus, IndexStatus, QTableID, RevisionID}
+import io.qbeast.model.{IndexStatus, QTableID, RevisionID}
 import io.qbeast.spark.SparkRevisionBuilder
 import io.qbeast.spark.delta.{QbeastOptimizer, QbeastSnapshot, QbeastWriter}
 import io.qbeast.spark.index.OTreeAlgorithm
@@ -133,15 +133,15 @@ private[table] class IndexedTableImpl(
       append: Boolean): BaseRelation = {
     val indexStatus = if (exists) {
       QbeastContext.metadataManager.loadIndexStatus(tableID)
+      // TODO check here if the parameters is compatible with the old revision
     } else {
-      EmptyIndexStatus(SparkRevisionBuilder.createNewRevision(tableID, data, parameters))
+      IndexStatus(SparkRevisionBuilder.createNewRevision(tableID, data, parameters))
     }
 
     if (exists && append) {
       checkColumnsToMatchSchema(indexStatus)
     }
 
-    // TODO add the newRevision built from the dataframe and columnToIndex.
     val relation = write(data, indexStatus, append)
     clearCaches()
     relation
@@ -186,8 +186,6 @@ private[table] class IndexedTableImpl(
     if (exists) {
       keeper.withWrite(indexStatus.revision.tableID, revision.revisionID) { write =>
         val announcedSet = write.announcedCubes
-          .map(revision.createCubeId)
-
         val updatedStatus = indexStatus.addAnnouncements(announcedSet)
         doWrite(data, updatedStatus, append)
       }
@@ -237,9 +235,9 @@ private[table] class IndexedTableImpl(
   }
 
   override def analyze(revisionID: RevisionID): Seq[String] = {
-    val revisionData = snapshot.getRevisionData(revisionID)
-    val cubesToAnnounce = oTreeAlgorithm.analyzeIndex(revisionData).map(_.string)
-    keeper.announce(tableID, revisionID, cubesToAnnounce)
+    val indexStatus = snapshot.getIndexStatus(revisionID)
+    val cubesToAnnounce = oTreeAlgorithm.analyzeIndex(indexStatus).map(_.string)
+    keeper.announce(tableID, revisionID, cubesToAnnounce.map(indexStatus.revision.createCubeId))
     cubesToAnnounce
 
   }
@@ -268,7 +266,7 @@ private[table] class IndexedTableImpl(
         optimizer.optimize(txn, sqlContext.sparkSession, cubesToOptimize)
 
       txn.commit(actions ++ Seq(transRecord), deltaWrite)
-      bo.end(replicatedCubeIds.map(_.string))
+      bo.end(replicatedCubeIds)
     }
   }
 

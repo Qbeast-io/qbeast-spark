@@ -1,10 +1,9 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.utils
+package io.qbeast.spark.delta
 
-import io.qbeast.model.{EmptyIndexStatus, QTableID, Weight}
-import io.qbeast.spark.delta.{CubeInfo, QbeastSnapshot}
+import io.qbeast.model.{IndexStatus, QTableID, Weight}
 import io.qbeast.spark.index.OTreeAlgorithmTest.Client3
 import io.qbeast.spark.{QbeastIntegrationTestSpec, SparkRevisionBuilder, delta}
 import org.apache.spark.sql.delta.DeltaLog
@@ -81,7 +80,7 @@ class QbeastSnapshotTest
       (spark, tmpDir) =>
         withOTreeAlgorithm { oTreeAlgorithm =>
           val df = createDF(100000)
-          val indexStatus = EmptyIndexStatus(
+          val indexStatus = IndexStatus(
             SparkRevisionBuilder
               .createNewRevision(QTableID("test"), df, Map("columnsToIndex" -> "age,val2")))
           val (_, tc) = oTreeAlgorithm.index(df, indexStatus)
@@ -143,11 +142,13 @@ class QbeastSnapshotTest
               .save(tmpDir)
 
             val deltaLog = DeltaLog.forTable(spark, tmpDir)
-            val qbeastSnapshot = delta.QbeastSnapshot(deltaLog.snapshot)
+            val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
+            val isBuilder =
+              new qbeastSnapshot.DeltaSnapshotIndexStatusBuilder(qbeastSnapshot.lastRevision)
 
             val indexStateMethod = PrivateMethod[Dataset[CubeInfo]]('revisionState)
             val indexState =
-              qbeastSnapshot.lastRevisionData invokePrivate indexStateMethod()
+              isBuilder invokePrivate indexStateMethod()
             val overflowed =
               qbeastSnapshot.lastRevisionData.overflowedSet.map(_.string)
 

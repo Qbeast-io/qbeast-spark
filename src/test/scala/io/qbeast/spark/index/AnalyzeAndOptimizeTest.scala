@@ -68,7 +68,7 @@ class AnalyzeAndOptimizeTest
 
       val qbeastTable = QbeastTable.forPath(spark, tmpDir)
 
-      (0 to 5).foreach(txn => {
+      (0 to 5).foreach(_ => {
         val announcedCubes = qbeastTable.analyze()
         qbeastTable.optimize()
         val deltaLog = DeltaLog.forTable(spark, tmpDir)

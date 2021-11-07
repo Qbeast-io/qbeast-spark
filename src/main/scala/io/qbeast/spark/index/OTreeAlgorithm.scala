@@ -4,7 +4,6 @@
 package io.qbeast.spark.index
 
 import io.qbeast.model._
-import io.qbeast.spark.delta.DeltaIndexStatus
 import io.qbeast.spark.index.QbeastColumns.{
   cubeColumnName,
   cubeToReplicateColumnName,
@@ -48,7 +47,7 @@ trait OTreeAlgorithm {
    * @param revisionData data of a single Revision
    * @return the sequence of cubes that need optimization
    */
-  def analyzeIndex(revisionData: DeltaIndexStatus): Seq[CubeId]
+  def analyzeIndex(revisionData: IndexStatus): Seq[CubeId]
 
 }
 
@@ -57,7 +56,7 @@ trait OTreeAlgorithm {
  */
 object OTreeAlgorithmImpl extends OTreeAlgorithm with Serializable {
 
-  override def analyzeIndex(revisionData: DeltaIndexStatus): Seq[CubeId] = {
+  override def analyzeIndex(revisionData: IndexStatus): Seq[CubeId] = {
 
     val overflowedSet = revisionData.overflowedSet
     val replicatedSet = revisionData.replicatedSet

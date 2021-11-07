@@ -33,7 +33,7 @@ class QbeastOptimizer(
     oTreeAlgorithm: OTreeAlgorithm)
     extends QbeastMetadataOperation {
 
-  private def revisionData = qbeastSnapshot.getRevisionData(revisionID)
+  private def revisionData = qbeastSnapshot.getIndexStatus(revisionID)
   private def revision = revisionData.revision
 
   /**
@@ -47,7 +47,7 @@ class QbeastOptimizer(
   def optimize(
       txn: OptimisticTransaction,
       sparkSession: SparkSession,
-      announcedCubes: Set[String]): (Set[CubeId], Seq[Action]) = {
+      cubesToOptimize: Set[CubeId]): (Set[CubeId], Seq[Action]) = {
 
     val schema =
       qbeastSnapshot.snapshot.schema.add(
@@ -56,13 +56,12 @@ class QbeastOptimizer(
 
     val replicatedSet = revisionData.replicatedSet
 
-    val cubesToOptimize = announcedCubes.map(revision.createCubeId)
     val cubesToReplicate =
       cubesToOptimize.diff(replicatedSet)
 
     val dataPath = qbeastSnapshot.snapshot.path.getParent
-    val (dataToReplicate, updatedActions) = revisionData
-      .getCubeBlocks(cubesToReplicate)
+    val (dataToReplicate, updatedActions) = qbeastSnapshot
+      .getCubeBlocks(revisionData, cubesToReplicate)
       .groupBy(_.tags(TagUtils.cube))
       .map { case (cube: String, blocks: Seq[AddFile]) =>
         val cubeId = revision.createCubeId(cube)

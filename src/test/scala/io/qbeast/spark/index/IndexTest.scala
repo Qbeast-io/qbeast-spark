@@ -110,7 +110,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
           df,
           Map("columnsToIndex" -> "age,val2"))
 
-        val (indexed, tc) = oTreeAlgorithm.index(df, EmptyIndexStatus(rev))
+        val (indexed, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
         checkCubeSize(tc, rev, indexed)
       }
@@ -126,7 +126,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
           df,
           Map("columnsToIndex" -> "age,val2"))
 
-        val (_, tc) = oTreeAlgorithm.index(df, EmptyIndexStatus(rev))
+        val (_, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
         checkCubes(tc.indexChanges.cubeWeights)
       }
@@ -142,7 +142,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
           df,
           Map("columnsToIndex" -> "age,val2"))
 
-        val (_, tc) = oTreeAlgorithm.index(df, EmptyIndexStatus(rev))
+        val (_, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
         checkWeightsIncrement(tc.indexChanges.cubeWeights)
       }
@@ -158,7 +158,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
           df,
           Map("columnsToIndex" -> "age,val2"))
 
-        val (indexed, tc) = oTreeAlgorithm.index(df, EmptyIndexStatus(rev))
+        val (indexed, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
         checkCubesOnData(tc.indexChanges.cubeWeights, indexed, 2)
       }
@@ -181,7 +181,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
           QTableID("test"),
           df,
           Map("columnsToIndex" -> "user_id,product_id"))
-        val (indexed, tc) = oTreeAlgorithm.index(df, EmptyIndexStatus(rev))
+        val (indexed, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
         val weightMap = tc.indexChanges.cubeWeights
         checkCubes(weightMap)
         checkWeightsIncrement(weightMap)
@@ -202,7 +202,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
           df,
           Map("columnsToIndex" -> "age,val2"))
 
-        val (i, _) = oTreeAlgorithm.index(df, EmptyIndexStatus(rev))
+        val (i, _) = oTreeAlgorithm.index(df, IndexStatus(rev))
         val firstIndexed = i.withColumnRenamed(cubeColumnName, cubeColumnName + "First")
 
         df.write
@@ -263,7 +263,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
             QTableID("test"),
             df,
             Map("columnsToIndex" -> "age,val2"))
-          oTreeAlgorithm.index(df, EmptyIndexStatus(rev))
+          oTreeAlgorithm.index(df, IndexStatus(rev))
           fail()
         } catch {
           case e: SparkException if e.getCause.isInstanceOf[AnalysisException] =>
@@ -280,7 +280,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
           QTableID("test"),
           df,
           Map("columnsToIndex" -> "age,val2"))
-        val (_, tc) = oTreeAlgorithm.index(df, EmptyIndexStatus(rev))
+        val (_, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
         df.write
           .format("qbeast")

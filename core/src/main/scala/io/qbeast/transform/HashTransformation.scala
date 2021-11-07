@@ -6,8 +6,14 @@ case class HashTransformation() extends Transformation {
 
   override def transform(value: Any): Double = {
     value match {
-      case s: String => MurmurHash3.bytesHash(s.getBytes).toDouble
+      case s: String =>
+        val randomInt = MurmurHash3.bytesHash(s.getBytes)
 
+        (randomInt & 0x7fffffff).toDouble / Int.MaxValue
+      case a: Array[Byte] =>
+        val randomInt = MurmurHash3.bytesHash(a)
+
+        (randomInt & 0x7fffffff).toDouble / Int.MaxValue
     }
   }
 

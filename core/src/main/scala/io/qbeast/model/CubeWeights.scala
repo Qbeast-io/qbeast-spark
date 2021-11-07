@@ -15,7 +15,8 @@ class CubeWeightsBuilder(
     private val desiredSize: Int,
     private val numPartitions: Int,
     announcedSet: Set[CubeId] = Set.empty,
-    replicatedSet: Set[CubeId] = Set.empty) {
+    replicatedSet: Set[CubeId] = Set.empty)
+    extends Serializable {
   private val byWeight = Ordering.by[PointWeightAndParent, Weight](_.weight).reverse
   private val queue = new mutable.PriorityQueue[PointWeightAndParent]()(byWeight)
 

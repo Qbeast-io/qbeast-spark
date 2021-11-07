@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.utils
 
-import io.qbeast.model.{CubeId, IndexStatusCC, IndexStatusChange, Point, QTableID}
+import io.qbeast.model.{CubeId, IndexStatus, IndexStatusChange, Point, QTableID}
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.index.writer.BlockWriter
@@ -65,7 +65,7 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
       serConf = serConf,
       qbeastColumns = qbeastColumns,
       indexStatusChange =
-        IndexStatusChange(IndexStatusCC(rev), deltaNormalizedCubeWeights = weightMap.toMap))
+        IndexStatusChange(IndexStatus(rev), deltaNormalizedCubeWeights = weightMap.toMap))
     val files = indexed
       .repartition(col(cubeColumnName), col(weightColumnName))
       .queryExecution
@@ -107,7 +107,7 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
       serConf = serConf,
       qbeastColumns = qbeastColumns,
       indexStatusChange =
-        IndexStatusChange(IndexStatusCC(rev), deltaNormalizedCubeWeights = weightMap.toMap))
+        IndexStatusChange(IndexStatus(rev), deltaNormalizedCubeWeights = weightMap.toMap))
 
     val files = indexed
       .repartition(col(cubeColumnName), col(weightColumnName))

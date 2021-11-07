@@ -18,7 +18,7 @@ trait OTreeDataAnalyzer {
 
 }
 
-object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer {
+object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
   /**
    * Estimates MaxWeight on DataFrame

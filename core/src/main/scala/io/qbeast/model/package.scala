@@ -12,6 +12,11 @@ package object model {
   type NormalizedWeight = Double
   type RevisionID = Long
 
+  /**
+   * ReplicatedSet is used to represent a set of CubeId's that had been replicated
+   */
+  type ReplicatedSet = Set[CubeId]
+
   lazy val mapper: JsonMapper = {
 
     JsonMapper

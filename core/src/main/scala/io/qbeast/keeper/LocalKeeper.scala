@@ -3,7 +3,7 @@
  */
 package io.qbeast.keeper
 
-import io.qbeast.model.QTableID
+import io.qbeast.model.{CubeId, QTableID}
 
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -13,14 +13,14 @@ import java.util.concurrent.atomic.AtomicInteger
  */
 object LocalKeeper extends Keeper {
   private val generator = new AtomicInteger()
-  private val announcedMap = scala.collection.mutable.Map.empty[(QTableID, Long), Set[String]]
+  private val announcedMap = scala.collection.mutable.Map.empty[(QTableID, Long), Set[CubeId]]
 
   override def beginWrite(tableID: QTableID, revision: Long): Write = new LocalWrite(
     generator.getAndIncrement().toString,
-    announcedMap.getOrElse((tableID, revision), Set.empty[String]))
+    announcedMap.getOrElse((tableID, revision), Set.empty[CubeId]))
 
-  override def announce(tableID: QTableID, revision: Long, cubes: Seq[String]): Unit = {
-    val announcedCubes = announcedMap.getOrElse((tableID, revision), Set.empty[String])
+  override def announce(tableID: QTableID, revision: Long, cubes: Seq[CubeId]): Unit = {
+    val announcedCubes = announcedMap.getOrElse((tableID, revision), Set.empty[CubeId])
     announcedMap.update((tableID, revision), announcedCubes.union(cubes.toSet))
   }
 
@@ -29,18 +29,18 @@ object LocalKeeper extends Keeper {
       revision: Long,
       cubeLimit: Integer): Optimization = new LocalOptimization(
     generator.getAndIncrement().toString,
-    announcedMap.getOrElse((tableID, revision), Set.empty[String]))
+    announcedMap.getOrElse((tableID, revision), Set.empty[CubeId]))
 
   override def stop(): Unit = {}
 }
 
-private class LocalWrite(val id: String, override val announcedCubes: Set[String]) extends Write {
+private class LocalWrite(val id: String, override val announcedCubes: Set[CubeId]) extends Write {
 
   override def end(): Unit = {}
 }
 
-private class LocalOptimization(val id: String, override val cubesToOptimize: Set[String])
+private class LocalOptimization(val id: String, override val cubesToOptimize: Set[CubeId])
     extends Optimization {
 
-  override def end(replicatedCubes: Set[String]): Unit = {}
+  override def end(replicatedCubes: Set[CubeId]): Unit = {}
 }

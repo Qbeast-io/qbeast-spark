@@ -3,8 +3,7 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.model.{RevisionChange, mapper}
-import io.qbeast.spark.index.ReplicatedSet
+import io.qbeast.model.{IndexStatus, ReplicatedSet, RevisionChange, mapper}
 import io.qbeast.spark.utils.MetadataConfig
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.delta.schema.{ImplicitMetadataOperation, SchemaUtils}
@@ -41,7 +40,7 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
 
   def updateQbeastReplicatedSet(
       txn: OptimisticTransaction,
-      revisionData: DeltaIndexStatus,
+      revisionData: IndexStatus,
       newReplicatedCubes: ReplicatedSet): Unit = {
 
     val revisionID = revisionData.revision.revisionID

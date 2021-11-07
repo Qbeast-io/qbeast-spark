@@ -97,7 +97,7 @@ case class OTreeIndex(index: TahoeLogFileIndex)
     qbeastSnapshot.revisions
       .flatMap(revision => {
 
-        val revisionData = qbeastSnapshot.getRevisionData(revision.revisionID)
+        val revisionData = qbeastSnapshot.getIndexStatus(revision.revisionID)
         val dimensionCount = revision.columnTransformers.length
 
         val originalFrom = Point(Vector.fill(dimensionCount)(Int.MinValue.doubleValue()))

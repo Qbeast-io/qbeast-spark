@@ -148,46 +148,23 @@ case class RevisionChange(
 
 }
 
-trait IndexStatus {
-
-  def revision: Revision
-  def replicatedSet: Set[CubeId]
-  def announcedSet: Set[CubeId]
-  def cubeWeights: Map[CubeId, Weight]
-  def cubeNormalizedWeights: Map[CubeId, NormalizedWeight]
-
-  def addAnnouncements(newAnnouncedSet: Set[CubeId]): IndexStatus = {
-    val outer = this
-    new IndexStatus {
-      override def revision: Revision = outer.revision
-
-      override def replicatedSet: Set[CubeId] = outer.replicatedSet
-
-      override def announcedSet: Set[CubeId] = outer.announcedSet ++ newAnnouncedSet
-
-      override def cubeWeights: Map[CubeId, Weight] = outer.cubeWeights
-
-      override def cubeNormalizedWeights: Map[CubeId, NormalizedWeight] =
-        outer.cubeNormalizedWeights
-    }
-  }
-
-}
-
-case class EmptyIndexStatus(revision: Revision) extends IndexStatus {
-  override def replicatedSet: Set[CubeId] = Set.empty
-  override def announcedSet: Set[CubeId] = Set.empty
-  override def cubeWeights: Map[CubeId, Weight] = Map.empty
-  override def cubeNormalizedWeights: Map[CubeId, NormalizedWeight] = Map.empty
-}
-
-case class IndexStatusCC(
+case class IndexStatus(
     revision: Revision,
-    replicatedSet: Set[CubeId] = Set.empty,
+    replicatedSet: ReplicatedSet = Set.empty,
     announcedSet: Set[CubeId] = Set.empty,
     cubeWeights: Map[CubeId, Weight] = Map.empty,
-    cubeNormalizedWeights: Map[CubeId, NormalizedWeight] = Map.empty)
-    extends IndexStatus
+    cubeNormalizedWeights: Map[CubeId, NormalizedWeight] = Map.empty,
+    overflowedSet: Set[CubeId] = Set.empty)
+    extends Serializable {
+
+  def addAnnouncements(newAnnouncedSet: Set[CubeId]): IndexStatus =
+    copy(announcedSet = announcedSet ++ newAnnouncedSet)
+
+}
+
+object IndexStatus {
+  def empty(revision: Revision): IndexStatus = IndexStatus(revision)
+}
 
 case class IndexStatusChange(
     supersededIndexStatus: IndexStatus,
