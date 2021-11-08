@@ -19,12 +19,16 @@ case class LinearTransformer(columnName: String, dataType: QDataType) extends Tr
       Seq(colMax, colMin),
       Seq(s"max($columnName) AS $colMax", s"min($columnName) AS $colMin"))
 
-  override def makeTransformation(row: String => Any): Transformation =
+  override def makeTransformation(row: String => Any): Transformation = {
+    val min = row(colMin)
+    val max = row(colMax)
+    assert(min != null && max != null)
     dataType match {
       case ordered: OrderedDataType =>
-        LinearTransformation(row(colMin), row(colMax), ordered)
+        LinearTransformation(min, max, ordered)
 
     }
+  }
 
   override protected def transformerType: TransformerType = LinearTransformer
 }

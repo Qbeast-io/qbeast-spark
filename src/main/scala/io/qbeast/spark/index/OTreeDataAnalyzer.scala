@@ -31,8 +31,12 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     val columnStats = revision.columnTransformers.map(_.stats)
     val columnsExpr = columnStats.flatMap(_.columns)
     // This is a actions that will be executed on the dataframe
-    val row = data.selectExpr(columnsExpr: _*).first()
-
+    val rows = data.selectExpr(columnsExpr: _*).collect()
+    if (rows.isEmpty) {
+      throw new RuntimeException(
+        "The DataFrame is empty, why are you trying ot index an empty dataset?")
+    }
+    val row = rows.head
     val newTransformation =
       revision.columnTransformers.map(_.makeTransformation(colName => row.getAs[Object](colName)))
 
@@ -64,7 +68,11 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       dataFrame: DataFrame,
       indexStatus: IndexStatus,
       isReplication: Boolean): (DataFrame, TableChanges) = {
-    val spaceChanges = calculateRevisionChanges(dataFrame, indexStatus.revision)
+    val spaceChanges = if (isReplication) {
+      None
+    } else {
+      calculateRevisionChanges(dataFrame, indexStatus.revision)
+    }
     val revision = spaceChanges match {
       case Some(revisionChange) =>
         revisionChange.newRevision

@@ -154,6 +154,7 @@ class QbeastDataSourceTest extends FixtureAnyFlatSpec with MockitoSugar with Mat
     }
   }
 
+  // TODO this tests fails probably becuase this check is not performed by the indexedTable.
   it should "throw exception for write if columns to index are not specified" in { f =>
     val parameters = Map("path" -> path)
     val data = mock[DataFrame]

@@ -61,7 +61,7 @@ case class LinearTransformation(minNumber: Any, maxNumber: Any, orderedDataType:
     newTransformation match {
       case LinearTransformation(newMin, newMax, otherOrdering)
           if orderedDataType == otherOrdering =>
-        gt(minNumber, newMin) || gt(maxNumber, newMax)
+        gt(minNumber, newMin) || lt(maxNumber, newMax)
     }
 
 }

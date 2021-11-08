@@ -10,6 +10,7 @@ import io.qbeast.spark.{QbeastIntegrationTestSpec, SparkRevisionBuilder, delta}
 import org.apache.spark.SparkException
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.types.{IntegerType, LongType}
 import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -216,8 +217,8 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
 
         val offset = 0.5
         val appendData = df
-          .withColumn("age", col("age") * offset)
-          .withColumn("val2", col("val2") * offset)
+          .withColumn("age", (col("age") * offset).cast(IntegerType))
+          .withColumn("val2", (col("val2") * offset).cast(LongType))
 
         val appendRev = SparkRevisionBuilder.createNewRevision(
           tableId,
