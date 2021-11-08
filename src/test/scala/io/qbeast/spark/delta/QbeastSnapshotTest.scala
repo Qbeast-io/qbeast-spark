@@ -3,6 +3,7 @@
  */
 package io.qbeast.spark.delta
 
+import com.typesafe.config.ConfigFactory
 import io.qbeast.model.{IndexStatus, QTableID, Weight}
 import io.qbeast.spark.index.OTreeAlgorithmTest.Client3
 import io.qbeast.spark.{QbeastIntegrationTestSpec, SparkRevisionBuilder, delta}
@@ -55,10 +56,10 @@ class QbeastSnapshotTest
 
   it should "normalize weights when cubes are full" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
-      withOTreeAlgorithm { oTreeAlgorithm =>
-        val df = createDF(1000).repartition(1)
+      withOTreeAlgorithm { _ =>
+        val df = createDF(ConfigFactory.load().getInt("qbeast.index.size")).repartition(1)
         val names = List("age", "val2")
-        // val dimensionCount = names.length
+
         df.write
           .format("qbeast")
           .mode("overwrite")
