@@ -65,7 +65,6 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
    * @param partitionColumns partitionColumns
    * @param isOverwriteMode if it's an overwrite operation
    * @param rearrangeOnly if the operation only rearranges files
-   * @param newRevision the new Qbeast revision
    * @param qbeastSnapshot the Qbeast Snapshot
    */
   def updateQbeastRevision(
@@ -77,10 +76,12 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
       revisionChange: RevisionChange,
       qbeastSnapshot: QbeastSnapshot): Unit = {
 
-    val revisionID = revisionChange.newRevisionID
+    val newRevision = revisionChange.newRevision
+    val newRevisionID = newRevision.revisionID
+
     assert(
-      !qbeastSnapshot.existsRevision(revisionID),
-      s"The revision $revisionID is already present in the Metadata")
+      !qbeastSnapshot.existsRevision(newRevisionID),
+      s"The revision $newRevisionID is already present in the Metadata")
 
     val spark = data.sparkSession
     val schema = data.schema
@@ -98,11 +99,12 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
 
     // Merged schema will contain additional columns at the end
     def isNewSchema: Boolean = txn.metadata.schema != mergedSchema
-    val newRevision = revisionChange.newRevision
     // Qbeast configuration metadata
     val configuration = txn.metadata.configuration
-      .updated(MetadataConfig.lastRevisionID, revisionID.toString)
-      .updated(s"${MetadataConfig.revision}.$revisionID", mapper.writeValueAsString(newRevision))
+      .updated(MetadataConfig.lastRevisionID, newRevisionID.toString)
+      .updated(
+        s"${MetadataConfig.revision}.$newRevisionID",
+        mapper.writeValueAsString(newRevision))
 
     if (txn.readVersion == -1) {
       updateMetadata(

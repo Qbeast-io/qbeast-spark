@@ -94,7 +94,7 @@ class QbeastOptimizer(
     updateQbeastReplicatedSet(txn, revisionData, cubesToOptimize)
 
     // write files
-    val addFiles = writer.writeFiles(qbeastData, tableChanges.indexChanges)
+    val addFiles = writer.writeFiles(qbeastData, tableChanges)
     val actions = addFiles ++ updatedActions
     (cubesToReplicate, actions)
 

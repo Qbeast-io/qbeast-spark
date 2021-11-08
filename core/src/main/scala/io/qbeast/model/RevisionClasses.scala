@@ -114,7 +114,6 @@ final case class Revision(
 }
 
 case class RevisionChange(
-    newRevisionID: RevisionID,
     timestamp: Long,
     supersededRevision: Revision,
     desiredCubeSizeChange: Option[Int] = None,
@@ -124,9 +123,9 @@ case class RevisionChange(
   def toJson: String = newRevision.toJson
 
   def newRevision: Revision = supersededRevision match {
-    case Revision(_, _, tableID, desiredCubeSize, columnTransformers, transformations) =>
+    case Revision(revisionID, _, tableID, desiredCubeSize, columnTransformers, transformations) =>
       Revision(
-        newRevisionID,
+        revisionID + 1,
         timestamp,
         tableID,
         desiredCubeSizeChange.getOrElse(desiredCubeSize),

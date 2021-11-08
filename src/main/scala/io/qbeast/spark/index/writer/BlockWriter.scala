@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.index.writer
 
-import io.qbeast.model.{CubeId, IndexStatusChange, Weight}
+import io.qbeast.model.{CubeId, TableChanges, Weight}
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.utils.TagUtils
 import org.apache.hadoop.fs.Path
@@ -26,7 +26,7 @@ import java.util.UUID
  * @param factory        output writer factory
  * @param serConf        configuration to serialize the data
  * @param qbeastColumns  qbeast metadata columns
- * @param indexStatusChange     the revision of the data to write
+ * @param tableChanges     the revision of the data to write
  */
 case class BlockWriter(
     dataPath: String,
@@ -35,7 +35,7 @@ case class BlockWriter(
     factory: OutputWriterFactory,
     serConf: SerializableConfiguration,
     qbeastColumns: QbeastColumns,
-    indexStatusChange: IndexStatusChange)
+    tableChanges: TableChanges)
     extends Serializable {
 
   /**
@@ -48,7 +48,7 @@ case class BlockWriter(
     if (!iter.hasNext) {
       return Iterator.empty
     }
-    val revision = indexStatusChange.supersededIndexStatus.revision
+    val revision = tableChanges.updatedRevision
     iter
       .foldLeft[Map[CubeId, BlockContext]](Map()) { case (blocks, row) =>
         val cubeId = revision.createCubeId(row.getBinary(qbeastColumns.cubeColumnIndex))
@@ -57,7 +57,7 @@ case class BlockWriter(
         // It could happen than estimated weights
         // doesn't include all the cubes present in the final indexed dataframe
         // we save those newly added leaves with the max weight possible
-        val maxWeight = indexStatusChange.cubeWeights.getOrElse(cubeId, Weight.MaxValue)
+        val maxWeight = tableChanges.indexChanges.cubeWeights.getOrElse(cubeId, Weight.MaxValue)
         val blockCtx =
           blocks.getOrElse(cubeId, buildWriter(cubeId, state, maxWeight))
 

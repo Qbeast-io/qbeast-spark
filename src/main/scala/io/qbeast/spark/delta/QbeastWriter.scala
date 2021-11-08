@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.model.{IndexStatus, IndexStatusChange, TableChanges}
+import io.qbeast.model.{IndexStatus, TableChanges}
 import io.qbeast.spark.index.QbeastColumns.{cubeColumnName, stateColumnName}
 import io.qbeast.spark.index.writer.BlockWriter
 import io.qbeast.spark.index.{OTreeAlgorithm, QbeastColumns}
@@ -66,7 +66,7 @@ case class QbeastWriter(
     }
     val rearrangeOnly = options.rearrangeOnly
 
-    val (qbeastData, tc @ TableChanges(revisionChange, indexChanges)) =
+    val (qbeastData, tc @ TableChanges(revisionChange, _)) =
       oTreeAlgorithm.index(data, indexStatus, false) // TODO change the new ManagerAPI
 
     // The Metadata can be updated only once in a single transaction
@@ -111,7 +111,7 @@ case class QbeastWriter(
       fs.mkdirs(deltaLog.logPath)
     }
 
-    val newFiles = writeFiles(qbeastData, indexChanges)
+    val newFiles = writeFiles(qbeastData, tc)
     val addFiles = newFiles.collect { case a: AddFile => a }
     val deletedFiles = (mode, partitionFilters) match {
       case (SaveMode.Overwrite, None) =>
@@ -151,11 +151,11 @@ case class QbeastWriter(
   /**
    * Writes qbeast indexed data into files
    * @param qbeastData the dataFrame containing data to write
-   * @param indexStatusChange the update status of the index.
+   * @param tableChanges the update status of the index.
    * @return the sequence of added files to the table
    */
 
-  def writeFiles(qbeastData: DataFrame, indexStatusChange: IndexStatusChange): Seq[FileAction] = {
+  def writeFiles(qbeastData: DataFrame, tableChanges: TableChanges): Seq[FileAction] = {
 
     val (factory: OutputWriterFactory, serConf: SerializableConfiguration) = {
       val format = new ParquetFileFormat()
@@ -174,7 +174,7 @@ case class QbeastWriter(
         factory = factory,
         serConf = serConf,
         qbeastColumns = qbeastColumns,
-        indexStatusChange = indexStatusChange)
+        tableChanges = tableChanges)
     qbeastData
       .repartition(col(cubeColumnName), col(stateColumnName))
       .queryExecution

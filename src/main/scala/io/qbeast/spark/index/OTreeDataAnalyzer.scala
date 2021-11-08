@@ -56,7 +56,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     } else {
       Some(
         RevisionChange(
-          newRevisionID = revision.revisionID + 1,
           supersededRevision = revision,
           timestamp = System.currentTimeMillis(),
           transformationsChanges = transformationDelta))
