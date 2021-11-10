@@ -3,9 +3,9 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.model.{IndexStatus, ReplicatedSet, RevisionChange, mapper}
+import io.qbeast.model.{IndexStatus, ReplicatedSet, RevisionChange, TableChanges, mapper}
 import io.qbeast.spark.utils.MetadataConfig
-import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.schema.{ImplicitMetadataOperation, SchemaUtils}
 import org.apache.spark.sql.delta.{
   DeltaErrors,
@@ -14,7 +14,9 @@ import org.apache.spark.sql.delta.{
 }
 import org.apache.spark.sql.types.{ArrayType, DataType, MapType, StructType}
 
-class QbeastMetadataOperation extends ImplicitMetadataOperation {
+private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
+
+  type Configuration = Map[String, String]
 
   /**
    * Returns the same data type but set all nullability fields are true
@@ -33,58 +35,73 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
   /**
    * Updates Delta Metadata Configuration with new replicated set
    * for given revision
-   * @param txn the Optimistic Transaction
-   * @param revisionData the revision data
-   * @param newReplicatedCubes the new set of replicated cubes
+   * @param baseConfiguration Delta Metadata Configuration
+   * @param indexStatus the index status
+   * @param deltaReplicatedSet the new set of replicated cubes
    */
 
-  def updateQbeastReplicatedSet(
-      txn: OptimisticTransaction,
-      revisionData: IndexStatus,
-      newReplicatedCubes: ReplicatedSet): Unit = {
+  private def updateQbeastReplicatedSet(
+      baseConfiguration: Configuration,
+      indexStatus: IndexStatus,
+      deltaReplicatedSet: ReplicatedSet): Configuration = {
 
-    val revisionID = revisionData.revision.revisionID
+    val revisionID = indexStatus.revision.revisionID
+    assert(baseConfiguration.contains(s"${MetadataConfig.revision}.$revisionID"))
 
-    val oldReplicatedSet = revisionData.replicatedSet
+    val oldReplicatedSet = indexStatus.replicatedSet
     val newReplicatedSet =
-      oldReplicatedSet.union(newReplicatedCubes).map(_.string)
+      oldReplicatedSet.union(deltaReplicatedSet).map(_.string)
     // Save the replicated set of cube id's as String representation
-    val oldConfiguration = txn.metadata.configuration
 
-    val configuration =
-      oldConfiguration.updated(
-        s"${MetadataConfig.replicatedSet}.$revisionID",
-        mapper.writeValueAsString(newReplicatedSet))
-    txn.updateMetadata(txn.metadata.copy(configuration = configuration))
+    baseConfiguration.updated(
+      s"${MetadataConfig.replicatedSet}.$revisionID",
+      mapper.writeValueAsString(newReplicatedSet))
+
+  }
+
+  private def overwriteReplicatedSet(
+      baseConfiguration: Configuration,
+      indexStatus: IndexStatus): Configuration = {
+
+    val revisionID = indexStatus.revision.revisionID
+    assert(baseConfiguration.contains(s"${MetadataConfig.revision}.$revisionID"))
+
+    baseConfiguration.updated(
+      s"${MetadataConfig.replicatedSet}.$revisionID",
+      mapper.writeValueAsString(Set.empty))
+
   }
 
   /**
    * Update metadata with new Qbeast Revision
-   * @param txn the transaction
-   * @param data the data to write
-   * @param partitionColumns partitionColumns
-   * @param isOverwriteMode if it's an overwrite operation
-   * @param rearrangeOnly if the operation only rearranges files
-   * @param qbeastSnapshot the Qbeast Snapshot
+   * @param baseConfiguration the base configuration
+   * @param revisionChange the new revision
    */
-  def updateQbeastRevision(
-      txn: OptimisticTransaction,
-      data: Dataset[_],
-      partitionColumns: Seq[String],
-      isOverwriteMode: Boolean,
-      rearrangeOnly: Boolean,
-      revisionChange: RevisionChange,
-      qbeastSnapshot: QbeastSnapshot): Unit = {
+  private def updateQbeastRevision(
+      baseConfiguration: Configuration,
+      revisionChange: RevisionChange): Configuration = {
 
     val newRevision = revisionChange.newRevision
     val newRevisionID = newRevision.revisionID
 
-    assert(
-      !qbeastSnapshot.existsRevision(newRevisionID),
-      s"The revision $newRevisionID is already present in the Metadata")
+    // Qbeast configuration metadata
+    baseConfiguration
+      .updated(MetadataConfig.lastRevisionID, newRevisionID.toString)
+      .updated(
+        s"${MetadataConfig.revision}.$newRevisionID",
+        mapper.writeValueAsString(newRevision))
 
-    val spark = data.sparkSession
-    val schema = data.schema
+  }
+
+  def updateQbeastMetadata(
+      txn: OptimisticTransaction,
+      schema: StructType,
+      isOverwriteMode: Boolean,
+      isOptimizeOperation: Boolean,
+      rearrangeOnly: Boolean,
+      tableChanges: TableChanges): Unit = {
+
+    val spark = SparkSession.active
 
     val dataSchema = StructType(schema.fields.map(field =>
       field.copy(nullable = true, dataType = asNullable(field.dataType))))
@@ -99,19 +116,30 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
 
     // Merged schema will contain additional columns at the end
     def isNewSchema: Boolean = txn.metadata.schema != mergedSchema
+    def isNewRevision: Boolean = tableChanges.revisionChanges.isDefined
+
+    val baseConfiguration: Configuration =
+      if (txn.readVersion == -1) Map.empty else txn.metadata.configuration
     // Qbeast configuration metadata
-    val configuration = txn.metadata.configuration
-      .updated(MetadataConfig.lastRevisionID, newRevisionID.toString)
-      .updated(
-        s"${MetadataConfig.revision}.$newRevisionID",
-        mapper.writeValueAsString(newRevision))
+    val configuration = if (isNewRevision) {
+      updateQbeastRevision(baseConfiguration, tableChanges.revisionChanges.get)
+    } else if (isOverwriteMode) {
+      // Be careful with overwrite mode when is within the same revision,
+      // because it maintains old configuration if any
+      overwriteReplicatedSet(baseConfiguration, tableChanges.indexChanges.supersededIndexStatus)
+    } else if (isOptimizeOperation) {
+      updateQbeastReplicatedSet(
+        baseConfiguration,
+        tableChanges.indexChanges.supersededIndexStatus,
+        tableChanges.indexChanges.deltaReplicatedSet)
+    } else { baseConfiguration }
 
     if (txn.readVersion == -1) {
-      updateMetadata(
+      super.updateMetadata(
         spark,
         txn,
         schema,
-        partitionColumns,
+        Seq.empty,
         configuration,
         isOverwriteMode,
         rearrangeOnly)
@@ -148,7 +176,6 @@ class QbeastMetadataOperation extends ImplicitMetadataOperation {
     } else {
       txn.updateMetadata(txn.metadata.copy(configuration = configuration))
     }
-
   }
 
   override protected val canMergeSchema: Boolean = true

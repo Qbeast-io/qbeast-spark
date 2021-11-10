@@ -8,7 +8,7 @@ import io.qbeast.model.{IndexStatus, QTableID, Weight}
 import io.qbeast.spark.index.OTreeAlgorithmTest.Client3
 import io.qbeast.spark.{QbeastIntegrationTestSpec, SparkRevisionBuilder, delta}
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -130,38 +130,35 @@ class QbeastSnapshotTest
   "Overflowed set" should
     "contain only cubes that surpass desiredCubeSize" in withQbeastContextSparkAndTmpDir {
       (spark, tmpDir) =>
-        withOTreeAlgorithm { oTreeAlgorithm =>
-          {
+        {
 
-            val df = createDF(100000)
-            val names = List("age", "val2")
+          val df = createDF(100000)
+          val names = List("age", "val2")
 
-            df.write
-              .format("qbeast")
-              .mode("overwrite")
-              .option("columnsToIndex", names.mkString(","))
-              .save(tmpDir)
+          df.write
+            .format("qbeast")
+            .mode("overwrite")
+            .option("columnsToIndex", names.mkString(","))
+            .save(tmpDir)
 
-            val deltaLog = DeltaLog.forTable(spark, tmpDir)
-            val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
-            val isBuilder =
-              new qbeastSnapshot.DeltaSnapshotIndexStatusBuilder(qbeastSnapshot.lastRevision)
+          val deltaLog = DeltaLog.forTable(spark, tmpDir)
+          val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
+          val isBuilder =
+            new DeltaIndexStatusBuilder(qbeastSnapshot, qbeastSnapshot.lastRevision)
 
-            val indexStateMethod = PrivateMethod[Dataset[CubeInfo]]('revisionState)
-            val indexState =
-              isBuilder invokePrivate indexStateMethod()
-            val overflowed =
-              qbeastSnapshot.lastRevisionData.overflowedSet.map(_.string)
+          val indexStateMethod = PrivateMethod[Seq[CubeInfo]]('revisionState)
+          val indexState =
+            isBuilder invokePrivate indexStateMethod()
+          val overflowed =
+            qbeastSnapshot.lastRevisionData.overflowedSet.map(_.string)
 
-            indexState
-              .filter(cubeInfo => overflowed.contains(cubeInfo.cube))
-              .collect()
-              .foreach(cubeInfo =>
-                assert(
-                  cubeInfo.size > 1000 * 0.9,
-                  "assertion failed in cube " + cubeInfo.cube +
-                    " where size is " + cubeInfo.size + " and weight is " + cubeInfo.maxWeight))
-          }
+          indexState
+            .filter(cubeInfo => overflowed.contains(cubeInfo.cube))
+            .foreach(cubeInfo =>
+              assert(
+                cubeInfo.size > 1000 * 0.9,
+                "assertion failed in cube " + cubeInfo.cube +
+                  " where size is " + cubeInfo.size + " and weight is " + cubeInfo.maxWeight))
         }
     }
 

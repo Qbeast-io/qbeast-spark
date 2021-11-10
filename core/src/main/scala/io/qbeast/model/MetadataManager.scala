@@ -2,7 +2,11 @@ package io.qbeast.model
 
 import io.qbeast.IISeq
 
-trait MetadataManager[T <: QTableID] {
+trait MetadataManager[T <: QTableID, DataSchema, FileAction] {
+
+  /**
+   * Load methods
+   */
 
   /**
    * Obtains the latest IndexStatus for a given QTableID
@@ -10,6 +14,14 @@ trait MetadataManager[T <: QTableID] {
    * @return the latest IndexStatus for qtable
    */
   def loadIndexStatus(qtable: T): IndexStatus
+
+  /**
+   * Obtains the latest IndexStatus for a given QTableID and RevisionID
+   * @param qtable the QTableID
+   * @param revisionID the RevisionID
+   * @return
+   */
+  def loadIndexStatusAt(qtable: T, revisionID: RevisionID): IndexStatus
 
   /**
    * Obtain all Revisions for a given QTableID
@@ -40,27 +52,41 @@ trait MetadataManager[T <: QTableID] {
   def loadRevisionAt(qtable: T, timestamp: Long): Revision
 
   /**
+   * Save methods
+   */
+
+  /**
+   * Perform an Update operation by using transaction control
+   * @param code the code to be executed
+   * @param schema the schema of the data
+   * @param qtable the QTableID
+   * @param append the append flag
+   */
+  def updateWithTransaction(
+      qtable: T,
+      schema: DataSchema,
+      code: => (TableChanges, IISeq[FileAction]),
+      append: Boolean): Unit
+
+  /**
    * Update the Revision with the given RevisionChanges
    * @param revisionChange the collection of RevisionChanges
+   * @param qtable the QTableID
    */
-  def updateRevision(revisionChange: RevisionChange): Unit
+  def updateRevision(qtable: T, revisionChange: RevisionChange): Unit
 
   /**
    * Update the IndexStatus with the given IndexStatusChanges
    * @param indexStatusChange the collection of IndexStatusChanges
+   * @param qtable the QTableID
    */
-  def updateIndexStatus(indexStatusChange: IndexStatusChange): Unit
+  def updateIndexStatus(qtable: T, indexStatusChange: IndexStatusChange): Unit
 
   /**
    * Update the Table with the given TableChanges
    * @param tableChanges the collection of TableChanges
+   * @param qtable the QTableID
    */
-  def updateTable(tableChanges: TableChanges): Unit
-
-  /**
-   * Perform an Update operation by using transcation control provided by Delta
-   * @param code the code to be executed
-   */
-  def updateWithTransaction(code: _ => TableChanges): Unit
+  def updateTable(qtable: T, tableChanges: TableChanges): Unit
 
 }

@@ -4,22 +4,11 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.IISeq
-import io.qbeast.model.{
-  CubeId,
-  IndexStatus,
-  NormalizedWeight,
-  ReplicatedSet,
-  Revision,
-  RevisionID,
-  Weight,
-  mapper
-}
-import io.qbeast.spark.index.writer.BlockStats
+import io.qbeast.model.{CubeId, IndexStatus, ReplicatedSet, Revision, RevisionID, Weight, mapper}
 import io.qbeast.spark.utils.{MetadataConfig, State, TagUtils}
-import org.apache.spark.sql.{AnalysisExceptionFactory, Dataset, SparkSession}
+import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.delta.actions.AddFile
-import org.apache.spark.sql.functions.{min, sum}
 
 /**
  * Qbeast Snapshot that provides information about the current index state.
@@ -52,7 +41,7 @@ case class QbeastSnapshot(snapshot: Snapshot) {
    *
    * @return a map of revision identifier and revision
    */
-  private val revisionsMap: Map[RevisionID, Revision] = {
+  val revisionsMap: Map[RevisionID, Revision] = {
     val listRevisions = metadataMap.filterKeys(_.startsWith(MetadataConfig.revision))
     listRevisions.map { case (key: String, json: String) =>
       val revisionID = key.split('.').last.toLong
@@ -67,7 +56,7 @@ case class QbeastSnapshot(snapshot: Snapshot) {
    *
    * @return a map of revision identifier and replicated set
    */
-  private val replicatedSetsMap: Map[RevisionID, ReplicatedSet] = {
+  val replicatedSetsMap: Map[RevisionID, ReplicatedSet] = {
     val listReplicatedSets = metadataMap.filterKeys(_.startsWith(MetadataConfig.replicatedSet))
 
     listReplicatedSets.map { case (key: String, json: String) =>
@@ -115,7 +104,12 @@ case class QbeastSnapshot(snapshot: Snapshot) {
    * @return revision information for the corresponding identifier
    */
   def getRevisionData(revision: Revision): IndexStatus = {
-    new DeltaSnapshotIndexStatusBuilder(revision).build()
+    new DeltaIndexStatusBuilder(this, revision).build()
+  }
+
+  def getRevisionData(revisionID: RevisionID): IndexStatus = {
+    val revision = getRevision(revisionID)
+    new DeltaIndexStatusBuilder(this, revision).build()
   }
 
   /**
@@ -126,7 +120,7 @@ case class QbeastSnapshot(snapshot: Snapshot) {
    */
   def getIndexStatus(revisionID: RevisionID): IndexStatus = {
     val revision = getRevision(revisionID)
-    new DeltaSnapshotIndexStatusBuilder(revision).build()
+    new DeltaIndexStatusBuilder(this, revision).build()
   }
 
   /**
@@ -136,7 +130,7 @@ case class QbeastSnapshot(snapshot: Snapshot) {
    * @return revision information for the corresponding identifier
    */
   def getIndexStatus(revision: Revision): IndexStatus = {
-    new DeltaSnapshotIndexStatusBuilder(revision).build()
+    new DeltaIndexStatusBuilder(this, revision).build()
   }
 
   /**
@@ -158,105 +152,6 @@ case class QbeastSnapshot(snapshot: Snapshot) {
    */
   def existsRevision(revisionID: RevisionID): Boolean = {
     revisionsMap.contains(revisionID)
-  }
-
-  /**
-   * Snapshot that provides information about the current index state of a given Revision.
-   * @param revision the given Revision
-   * @param replicatedSet the set of replicated cubes for the specific Revision
-   * @param files dataset of AddFiles that belongs to the specific Revision
-   */
-  private[delta] class DeltaSnapshotIndexStatusBuilder(
-      revision: Revision,
-      announcedSet: Set[CubeId] = Set.empty)
-      extends Serializable {
-
-    def revisionFiles: Dataset[AddFile] = {
-      // this must be external to the lambda, to avoid SerializationErrors
-      val revID = revision.revisionID.toString
-      snapshot.allFiles.filter(_.tags(TagUtils.revision) == revID)
-    }
-
-    def replicatedSet: ReplicatedSet =
-      replicatedSetsMap.getOrElse(revision.revisionID, Set.empty)
-
-    def build(): IndexStatus = {
-      IndexStatus(
-        revision = revision,
-        replicatedSet = replicatedSet,
-        announcedSet = announcedSet,
-        cubeWeights = cubeWeights,
-        cubeNormalizedWeights = cubeNormalizedWeights,
-        overflowedSet = overflowedSet)
-    }
-
-    /**
-     * Returns the cube maximum weights for a given space revision
-     *
-     * @return a map with key cube and value max weight
-     */
-    def cubeWeights: Map[CubeId, Weight] = {
-      revisionState
-        .collect()
-        .map(info => (revision.createCubeId(info.cube), info.maxWeight))
-        .toMap
-    }
-
-    /**
-     * Returns the cube maximum normalized weights for a given space revision
-     *
-     * @return a map with key cube and value max weight
-     */
-    def cubeNormalizedWeights: Map[CubeId, NormalizedWeight] = {
-      revisionState
-        .collect()
-        .map {
-          case CubeInfo(cube, Weight.MaxValue, size) =>
-            (revision.createCubeId(cube), NormalizedWeight(revision.desiredCubeSize, size))
-          case CubeInfo(cube, maxWeight, _) =>
-            (revision.createCubeId(cube), NormalizedWeight(maxWeight))
-        }
-        .toMap
-    }
-
-    /**
-     * Returns the set of cubes that are overflowed for a given space revision
-     *
-     * @return the set of overflowed cubes
-     */
-
-    def overflowedSet: Set[CubeId] = {
-      revisionState
-        .filter(_.maxWeight != Weight.MaxValue)
-        .collect()
-        .map(cubeInfo => revision.createCubeId(cubeInfo.cube))
-        .toSet
-    }
-
-    /**
-     * Returns the index state for the given space revision
-     * @return Dataset containing cube information
-     */
-    private def revisionState: Dataset[CubeInfo] = {
-
-      val spark = SparkSession.active
-      import spark.implicits._
-
-      val weightValueTag = TagUtils.maxWeight + ".value"
-
-      revisionFiles
-        .map(a =>
-          BlockStats(
-            a.tags(TagUtils.cube),
-            Weight(a.tags(TagUtils.maxWeight).toInt),
-            Weight(a.tags(TagUtils.minWeight).toInt),
-            a.tags(TagUtils.state),
-            a.tags(TagUtils.elementCount).toLong))
-        .groupBy(TagUtils.cube)
-        .agg(min(weightValueTag), sum(TagUtils.elementCount))
-        .map(row => CubeInfo(row.getAs[String](0), Weight(row.getAs[Int](1)), row.getAs[Long](2)))
-    }
-
   }
 
 }

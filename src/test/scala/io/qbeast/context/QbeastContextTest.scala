@@ -5,8 +5,10 @@ package io.qbeast.context
 
 import com.typesafe.config.ConfigFactory
 import io.qbeast.keeper.{Keeper, LocalKeeper}
-import io.qbeast.spark.index.OTreeAlgorithmImpl
+import io.qbeast.spark.index.{OTreeAlgorithmImpl, SparkIndexManager}
 import io.qbeast.keeper.LocalKeeper
+import io.qbeast.spark.delta.SparkDeltaMetadataManager
+import io.qbeast.spark.index.writer.SparkDataWriter
 import io.qbeast.spark.table.IndexedTableFactoryImpl
 import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
@@ -24,11 +26,17 @@ class QbeastContextTest extends AnyFlatSpec with Matchers {
   it should "use the unmanaged context if provided" in {
     val keeper = LocalKeeper
     val oTreeAlgorithm = OTreeAlgorithmImpl
+    val indexedTableFactory = new IndexedTableFactoryImpl(
+      keeper,
+      oTreeAlgorithm,
+      new SparkIndexManager,
+      new SparkDeltaMetadataManager,
+      new SparkDataWriter)
     val unmanaged = new QbeastContextImpl(
       config = ConfigFactory.load(),
       keeper = keeper,
       oTreeAlgorithm = oTreeAlgorithm,
-      indexedTableFactory = new IndexedTableFactoryImpl(keeper, oTreeAlgorithm))
+      indexedTableFactory = indexedTableFactory)
     QbeastContext.setUnmanaged(unmanaged)
     try {
       withSpark {
@@ -42,11 +50,17 @@ class QbeastContextTest extends AnyFlatSpec with Matchers {
   it should "use the managed context after the unmanaged is unset" in {
     val keeper = LocalKeeper
     val oTreeAlgorithm = OTreeAlgorithmImpl
+    val indexedTableFactory = new IndexedTableFactoryImpl(
+      keeper,
+      oTreeAlgorithm,
+      new SparkIndexManager,
+      new SparkDeltaMetadataManager,
+      new SparkDataWriter)
     val unmanaged = new QbeastContextImpl(
       config = ConfigFactory.load(),
       keeper = keeper,
       oTreeAlgorithm = oTreeAlgorithm,
-      indexedTableFactory = new IndexedTableFactoryImpl(keeper, oTreeAlgorithm))
+      indexedTableFactory = indexedTableFactory)
     QbeastContext.setUnmanaged(unmanaged)
     QbeastContext.unsetUnmanaged() shouldBe Some(unmanaged)
     withSpark {

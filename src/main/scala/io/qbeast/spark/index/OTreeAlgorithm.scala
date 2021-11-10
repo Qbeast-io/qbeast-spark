@@ -36,7 +36,6 @@ trait OTreeAlgorithm {
    *
    * @param dataFrame data to be replicated
    * @param revisionData current revision snapshot to index
-   * @param cubesToReplicate the cubes that we are going to replicate
    * @return the modified dataFrame with replicated data
    */
   def replicateCubes(dataFrame: DataFrame, revisionData: IndexStatus): (DataFrame, TableChanges)

@@ -14,7 +14,7 @@ import org.apache.spark.sql.delta.DeltaLog
  * Class for interacting with QbeastTable at a user level
  *
  * @param sparkSession active SparkSession
- * @param path path of the table
+ * @param tableID      QTableID
  * @param indexedTableFactory configuration of the indexed table
  */
 class QbeastTable private (

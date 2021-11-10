@@ -7,7 +7,9 @@ import com.github.mrpowers.spark.fast.tests.DatasetComparer
 import com.typesafe.config.{Config, ConfigFactory}
 import io.qbeast.keeper.{Keeper, LocalKeeper}
 import io.qbeast.context.{QbeastContext, QbeastContextImpl}
-import io.qbeast.spark.index.{OTreeAlgorithm, OTreeAlgorithmImpl}
+import io.qbeast.spark.delta.SparkDeltaMetadataManager
+import io.qbeast.spark.index.writer.SparkDataWriter
+import io.qbeast.spark.index.{OTreeAlgorithm, OTreeAlgorithmImpl, SparkIndexManager}
 import io.qbeast.spark.internal.QbeastSparkSessionExtension
 import io.qbeast.spark.table.IndexedTableFactoryImpl
 import org.apache.log4j.{Level, Logger}
@@ -72,7 +74,12 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
   def withQbeastContext[T](keeper: Keeper = LocalKeeper, config: Config = ConfigFactory.load())(
       testCode: => T): T = {
     val oTreeAlgorithm = OTreeAlgorithmImpl
-    val indexedTableFactory = new IndexedTableFactoryImpl(keeper, oTreeAlgorithm)
+    val indexedTableFactory = new IndexedTableFactoryImpl(
+      keeper,
+      oTreeAlgorithm,
+      new SparkIndexManager,
+      new SparkDeltaMetadataManager,
+      new SparkDataWriter)
     val context = new QbeastContextImpl(config, keeper, oTreeAlgorithm, indexedTableFactory)
     try {
       QbeastContext.setUnmanaged(context)

@@ -5,16 +5,24 @@ package io.qbeast.spark.table
 
 import io.qbeast.context.QbeastContext
 import io.qbeast.keeper.Keeper
-import io.qbeast.model.{IndexStatus, QTableID, RevisionID}
+import io.qbeast.model.{
+  DataWriter,
+  IndexManager,
+  IndexStatus,
+  MetadataManager,
+  QTableID,
+  RevisionID
+}
 import io.qbeast.spark.SparkRevisionBuilder
-import io.qbeast.spark.delta.{QbeastOptimizer, QbeastSnapshot, QbeastWriter}
+import io.qbeast.spark.delta.{QbeastOptimizer, QbeastSnapshot, SparkDeltaMetadataManager}
 import io.qbeast.spark.index.OTreeAlgorithm
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
-import org.apache.spark.sql.delta.actions.SetTransaction
+import org.apache.spark.sql.delta.actions.{FileAction}
 import org.apache.spark.sql.delta.sources.DeltaDataSource
-import org.apache.spark.sql.delta.{DeltaLog, DeltaOperations, DeltaOptions}
+import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions}
 import org.apache.spark.sql.sources.BaseRelation
-import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, SQLContext, SaveMode}
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, SQLContext}
 
 /**
  * Indexed table represents the tabular data storage
@@ -48,7 +56,7 @@ trait IndexedTable {
    * flag defines whether the existing data should be overwritten.
    *
    * @param data the data to save
-   * @param columnsToIndex the columns to index
+   * @param parameters the parameters to save the data
    * @param append the data should be appended to the table
    * @return the base relation to read the saved data
    */
@@ -100,11 +108,21 @@ trait IndexedTableFactory {
  */
 final class IndexedTableFactoryImpl(
     private val keeper: Keeper,
-    private val oTreeAlgorithm: OTreeAlgorithm)
+    private val oTreeAlgorithm: OTreeAlgorithm,
+    private val indexManager: IndexManager[DataFrame],
+    private val metadataManager: MetadataManager[QTableID, StructType, FileAction],
+    private val dataWriter: DataWriter[QTableID, DataFrame, StructType, FileAction])
     extends IndexedTableFactory {
 
   override def getIndexedTable(sqlContext: SQLContext, tableID: QTableID): IndexedTable =
-    new IndexedTableImpl(sqlContext, tableID, keeper, oTreeAlgorithm)
+    new IndexedTableImpl(
+      sqlContext,
+      tableID,
+      keeper,
+      oTreeAlgorithm,
+      indexManager,
+      metadataManager,
+      dataWriter)
 
 }
 
@@ -112,7 +130,7 @@ final class IndexedTableFactoryImpl(
  * Implementation of IndexedTable.
  *
  * @param sqlContext the associated SQLContext
- * @param path the table path
+ * @param tableID the table identifier
  * @param keeper the keeper
  * @param oTreeAlgorithm the OTreeAlgorithm instance
  */
@@ -120,7 +138,10 @@ private[table] class IndexedTableImpl(
     val sqlContext: SQLContext,
     val tableID: QTableID,
     private val keeper: Keeper,
-    private val oTreeAlgorithm: OTreeAlgorithm)
+    private val oTreeAlgorithm: OTreeAlgorithm,
+    private val indexManager: IndexManager[DataFrame],
+    private val metadataManager: MetadataManager[QTableID, StructType, FileAction],
+    private val dataWriter: DataWriter[QTableID, DataFrame, StructType, FileAction])
     extends IndexedTable {
   private var deltaLogCache: Option[DeltaLog] = None
   private var snapshotCache: Option[QbeastSnapshot] = None
@@ -196,15 +217,17 @@ private[table] class IndexedTableImpl(
   }
 
   private def doWrite(data: DataFrame, indexStatus: IndexStatus, append: Boolean): Unit = {
-    val mode = if (append) SaveMode.Append else SaveMode.Overwrite
-    val options = deltaOptions
-    val writer =
-      createQbeastWriter(data, indexStatus, mode, options)
-    val deltaWrite = createDeltaWrite(mode, options)
-    deltaLog.withNewTransaction { transaction =>
-      val actions = writer.write(transaction, sqlContext.sparkSession)
-      transaction.commit(actions, deltaWrite)
+
+    val schema = data.schema
+
+    val codeWrite = {
+      val (qbeastData, tableChanges) =
+        oTreeAlgorithm.index(data, indexStatus, false)
+      val fileActions = dataWriter.write(tableID, schema, qbeastData, tableChanges)
+      (tableChanges, fileActions)
     }
+    metadataManager.updateWithTransaction(tableID, schema, codeWrite, append)
+
   }
 
   private def deltaOptions: DeltaOptions = {
@@ -212,30 +235,8 @@ private[table] class IndexedTableImpl(
     new DeltaOptions(parameters, sqlContext.sparkSession.sessionState.conf)
   }
 
-  private def createQbeastWriter(
-      data: DataFrame,
-      indexStatus: IndexStatus,
-      mode: SaveMode,
-      options: DeltaOptions): QbeastWriter = {
-    QbeastWriter(
-      mode = mode,
-      deltaLog = deltaLog,
-      options = options,
-      partitionColumns = Nil,
-      data = data,
-      indexStatus = indexStatus,
-      qbeastSnapshot = snapshot,
-      oTreeAlgorithm = oTreeAlgorithm)
-  }
-
-  private def createDeltaWrite(
-      mode: SaveMode,
-      options: DeltaOptions): DeltaOperations.Operation = {
-    DeltaOperations.Write(mode, None, options.replaceWhere, options.userMetadata)
-  }
-
   override def analyze(revisionID: RevisionID): Seq[String] = {
-    val indexStatus = snapshot.getIndexStatus(revisionID)
+    val indexStatus = metadataManager.loadIndexStatusAt(tableID, revisionID)
     val cubesToAnnounce = oTreeAlgorithm.analyzeIndex(indexStatus).map(_.string)
     keeper.announce(tableID, revisionID, cubesToAnnounce.map(indexStatus.revision.createCubeId))
     cubesToAnnounce
@@ -243,7 +244,14 @@ private[table] class IndexedTableImpl(
   }
 
   private def createQbeastOptimizer(revisionID: RevisionID): QbeastOptimizer = {
-    new QbeastOptimizer(deltaLog, deltaOptions, snapshot, revisionID, oTreeAlgorithm)
+    val indexStatus = metadataManager.loadIndexStatusAt(tableID, revisionID)
+    new QbeastOptimizer(
+      tableID,
+      deltaLog,
+      deltaOptions,
+      indexStatus,
+      oTreeAlgorithm,
+      metadataManager.asInstanceOf[SparkDeltaMetadataManager])
   }
 
   override def optimize(revisionID: RevisionID): Unit = {
@@ -252,22 +260,17 @@ private[table] class IndexedTableImpl(
     val cubesToOptimize = bo.cubesToOptimize
 
     val optimizer = createQbeastOptimizer(revisionID)
-    val deltaWrite =
-      createDeltaWrite(SaveMode.Append, deltaOptions)
-    val transactionID = s"qbeast.$tableID"
 
-    deltaLog.withNewTransaction { txn =>
-      val startingTnx = txn.txnVersion(transactionID)
-      val newTransaction = startingTnx + 1
-      val transRecord =
-        SetTransaction(transactionID, newTransaction, Some(System.currentTimeMillis()))
-
-      val (replicatedCubeIds, actions) =
-        optimizer.optimize(txn, sqlContext.sparkSession, cubesToOptimize)
-
-      txn.commit(actions ++ Seq(transRecord), deltaWrite)
-      bo.end(replicatedCubeIds)
+    val codeOptimize = {
+      val (qbeastData, tableChanges) =
+        optimizer.optimize(sqlContext.sparkSession, cubesToOptimize)
+      val fileActions =
+        dataWriter.write(tableID, deltaLog.snapshot.schema, qbeastData, tableChanges)
+      (tableChanges, fileActions)
     }
+
+    metadataManager.updateWithTransaction(tableID, deltaLog.snapshot.schema, codeOptimize, true)
+    bo.end(cubesToOptimize)
   }
 
 }
