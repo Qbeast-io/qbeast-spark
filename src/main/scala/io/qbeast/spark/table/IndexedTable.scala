@@ -3,7 +3,6 @@
  */
 package io.qbeast.spark.table
 
-import io.qbeast.context.QbeastContext
 import io.qbeast.keeper.Keeper
 import io.qbeast.model.{
   DataWriter,
@@ -11,18 +10,22 @@ import io.qbeast.model.{
   IndexStatus,
   MetadataManager,
   QTableID,
+  QbeastSnapshot,
   RevisionID
 }
 import io.qbeast.spark.SparkRevisionBuilder
-import io.qbeast.spark.delta.{QbeastOptimizer, QbeastSnapshot, SparkDeltaMetadataManager}
-import io.qbeast.spark.index.OTreeAlgorithm
+import io.qbeast.spark.delta.{DeltaQbeastSnapshot}
+import io.qbeast.spark.index.QbeastColumns.cubeToReplicateColumnName
+import io.qbeast.spark.index.{OTreeAlgorithm}
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
-import org.apache.spark.sql.delta.actions.{FileAction}
+import org.apache.hadoop.fs.Path
+import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.delta.sources.DeltaDataSource
-import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions}
+import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, SQLContext}
+import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, SQLContext, SparkSession}
 
 /**
  * Indexed table represents the tabular data storage
@@ -115,14 +118,7 @@ final class IndexedTableFactoryImpl(
     extends IndexedTableFactory {
 
   override def getIndexedTable(sqlContext: SQLContext, tableID: QTableID): IndexedTable =
-    new IndexedTableImpl(
-      sqlContext,
-      tableID,
-      keeper,
-      oTreeAlgorithm,
-      indexManager,
-      metadataManager,
-      dataWriter)
+    new IndexedTableImpl(sqlContext, tableID, keeper, indexManager, metadataManager, dataWriter)
 
 }
 
@@ -132,13 +128,11 @@ final class IndexedTableFactoryImpl(
  * @param sqlContext the associated SQLContext
  * @param tableID the table identifier
  * @param keeper the keeper
- * @param oTreeAlgorithm the OTreeAlgorithm instance
  */
 private[table] class IndexedTableImpl(
     val sqlContext: SQLContext,
     val tableID: QTableID,
     private val keeper: Keeper,
-    private val oTreeAlgorithm: OTreeAlgorithm,
     private val indexManager: IndexManager[DataFrame],
     private val metadataManager: MetadataManager[StructType, FileAction],
     private val dataWriter: DataWriter[DataFrame, StructType, FileAction])
@@ -153,7 +147,7 @@ private[table] class IndexedTableImpl(
       parameters: Map[String, String],
       append: Boolean): BaseRelation = {
     val indexStatus = if (exists) {
-      QbeastContext.metadataManager.loadIndexStatus(tableID)
+      snapshot.loadIndexStatus
       // TODO check here if the parameters is compatible with the old revision
     } else {
       IndexStatus(SparkRevisionBuilder.createNewRevision(tableID, data, parameters))
@@ -171,12 +165,12 @@ private[table] class IndexedTableImpl(
   override def load(): BaseRelation = {
     QbeastBaseRelation(
       new DeltaDataSource().createRelation(sqlContext, Map("path" -> tableID.id)),
-      snapshot.lastRevision)
+      snapshot.loadLatestRevision)
   }
 
   private def snapshot = {
     if (snapshotCache.isEmpty) {
-      snapshotCache = Some(QbeastSnapshot(deltaLog.snapshot))
+      snapshotCache = Some(metadataManager.loadQbeastSnapshot(tableID))
     }
     snapshotCache.get
   }
@@ -195,7 +189,7 @@ private[table] class IndexedTableImpl(
 
   def checkColumnsToMatchSchema(indexStatus: IndexStatus): Unit = {
     val columnsToIndex = indexStatus.revision.columnTransformers.map(_.columnName)
-    if (!snapshot.lastRevision.matchColumns(columnsToIndex)) {
+    if (!snapshot.loadLatestRevision.matchColumns(columnsToIndex)) {
       throw AnalysisExceptionFactory.create(
         s"Columns to index '$columnsToIndex' do not match existing index.")
     }
@@ -220,38 +214,21 @@ private[table] class IndexedTableImpl(
 
     val schema = data.schema
 
-    val codeWrite = {
+    metadataManager.updateWithTransaction(tableID, schema, append) {
       val (qbeastData, tableChanges) =
-        oTreeAlgorithm.index(data, indexStatus, false)
+        indexManager.index(data, indexStatus)
       val fileActions = dataWriter.write(tableID, schema, qbeastData, tableChanges)
       (tableChanges, fileActions)
     }
-    metadataManager.updateWithTransaction(tableID, schema, codeWrite, append)
 
-  }
-
-  private def deltaOptions: DeltaOptions = {
-    val parameters = Map("path" -> tableID.id)
-    new DeltaOptions(parameters, sqlContext.sparkSession.sessionState.conf)
   }
 
   override def analyze(revisionID: RevisionID): Seq[String] = {
-    val indexStatus = metadataManager.loadIndexStatusAt(tableID, revisionID)
-    val cubesToAnnounce = oTreeAlgorithm.analyzeIndex(indexStatus).map(_.string)
+    val indexStatus = snapshot.loadIndexStatusAt(revisionID)
+    val cubesToAnnounce = indexManager.analyze(indexStatus).map(_.string)
     keeper.announce(tableID, revisionID, cubesToAnnounce.map(indexStatus.revision.createCubeId))
     cubesToAnnounce
 
-  }
-
-  private def createQbeastOptimizer(revisionID: RevisionID): QbeastOptimizer = {
-    val indexStatus = metadataManager.loadIndexStatusAt(tableID, revisionID)
-    new QbeastOptimizer(
-      tableID,
-      deltaLog,
-      deltaOptions,
-      indexStatus,
-      oTreeAlgorithm,
-      metadataManager.asInstanceOf[SparkDeltaMetadataManager])
   }
 
   override def optimize(revisionID: RevisionID): Unit = {
@@ -259,17 +236,30 @@ private[table] class IndexedTableImpl(
     val bo = keeper.beginOptimization(tableID, revisionID)
     val cubesToOptimize = bo.cubesToOptimize
 
-    val optimizer = createQbeastOptimizer(revisionID)
+    // val optimizer = createQbeastOptimizer(revisionID)
+    val indexStatus = snapshot.loadIndexStatusAt(revisionID)
+    val revision = indexStatus.revision
+    val schema = deltaLog.snapshot.schema
 
-    val codeOptimize = {
+    metadataManager.updateWithTransaction(tableID, schema, true) {
+      val deltaQbeastSnapshot = snapshot.asInstanceOf[DeltaQbeastSnapshot]
+      val dataToReplicate = cubesToOptimize
+        .map(cube => {
+          val cubeBlocks = deltaQbeastSnapshot.loadCubeFiles(revision, cube)
+          SparkSession.active.read
+            .format("parquet")
+            .load(cubeBlocks.map(f => new Path(tableID.id, f.path).toString): _*)
+            .withColumn(cubeToReplicateColumnName, lit(cube.bytes))
+        })
+        .reduce(_ union _)
+
       val (qbeastData, tableChanges) =
-        optimizer.optimize(sqlContext.sparkSession, cubesToOptimize)
+        indexManager.optimize(dataToReplicate, indexStatus)
+      // optimizer.optimize(sqlContext.sparkSession, cubesToOptimize)
       val fileActions =
         dataWriter.write(tableID, deltaLog.snapshot.schema, qbeastData, tableChanges)
       (tableChanges, fileActions)
     }
-
-    metadataManager.updateWithTransaction(tableID, deltaLog.snapshot.schema, codeOptimize, true)
     bo.end(cubesToOptimize)
   }
 

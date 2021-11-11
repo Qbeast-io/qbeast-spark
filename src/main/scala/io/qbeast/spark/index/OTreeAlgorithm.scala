@@ -3,6 +3,7 @@
  */
 package io.qbeast.spark.index
 
+import io.qbeast.IISeq
 import io.qbeast.model._
 import io.qbeast.spark.index.QbeastColumns.{
   cubeColumnName,
@@ -46,7 +47,7 @@ trait OTreeAlgorithm {
    * @param revisionData data of a single Revision
    * @return the sequence of cubes that need optimization
    */
-  def analyzeIndex(revisionData: IndexStatus): Seq[CubeId]
+  def analyzeIndex(revisionData: IndexStatus): IISeq[CubeId]
 
 }
 
@@ -55,7 +56,7 @@ trait OTreeAlgorithm {
  */
 object OTreeAlgorithmImpl extends OTreeAlgorithm with Serializable {
 
-  override def analyzeIndex(revisionData: IndexStatus): Seq[CubeId] = {
+  override def analyzeIndex(revisionData: IndexStatus): IISeq[CubeId] = {
 
     val overflowedSet = revisionData.overflowedSet
     val replicatedSet = revisionData.replicatedSet
@@ -69,8 +70,8 @@ object OTreeAlgorithmImpl extends OTreeAlgorithm with Serializable {
       })
 
     if (cubesToOptimize.isEmpty && replicatedSet.isEmpty) {
-      Seq(revisionData.revision.createCubeIdRoot())
-    } else cubesToOptimize.toSeq
+      Seq(revisionData.revision.createCubeIdRoot()).toIndexedSeq
+    } else cubesToOptimize.toIndexedSeq
   }
 
   override def replicateCubes(

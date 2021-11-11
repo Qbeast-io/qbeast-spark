@@ -213,7 +213,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = delta.QbeastSnapshot(deltaLog.snapshot)
+        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
 
         val offset = 0.5
         val appendData = df
@@ -225,7 +225,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
           appendData,
           Map("columnsToIndex" -> "age,val2"))
         val (indexed, tc) =
-          oTreeAlgorithm.index(appendData, qbeastSnapshot.lastRevisionData)
+          oTreeAlgorithm.index(appendData, qbeastSnapshot.loadIndexStatus)
 
         checkCubes(tc.indexChanges.cubeWeights)
         checkWeightsIncrement(tc.indexChanges.cubeWeights)

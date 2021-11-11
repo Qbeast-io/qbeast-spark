@@ -36,10 +36,9 @@ private[delta] case class DeltaMetadataWriter(
     DeltaOperations.Write(mode, None, options.replaceWhere, options.userMetadata)
   }
 
-  def updateMetadataWithTransaction(code: => (TableChanges, Seq[FileAction])): Unit = {
-
+  def writeWithTransaction(writer: => (TableChanges, Seq[FileAction])): Unit = {
     deltaLog.withNewTransaction { txn =>
-      val (changes, newFiles) = code
+      val (changes, newFiles) = writer
       val finalActions = updateMetadata(txn, changes, newFiles)
       txn.commit(finalActions, deltaOperation)
     }

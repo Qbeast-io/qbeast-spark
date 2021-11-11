@@ -33,7 +33,7 @@ case class OTreeIndex(index: TahoeLogFileIndex)
    */
   protected def snapshot: Snapshot = index.getSnapshot
 
-  private val qbeastSnapshot = QbeastSnapshot(snapshot)
+  private val qbeastSnapshot = DeltaQbeastSnapshot(snapshot)
 
   /**
    * Analyzes the data filters from the query
@@ -94,10 +94,10 @@ case class OTreeIndex(index: TahoeLogFileIndex)
     }
 
     val filesVector = files.toVector
-    qbeastSnapshot.revisions
+    qbeastSnapshot.loadAllRevisions
       .flatMap(revision => {
 
-        val revisionData = qbeastSnapshot.getIndexStatus(revision.revisionID)
+        val revisionData = qbeastSnapshot.loadIndexStatusAt(revision.revisionID)
         val dimensionCount = revision.columnTransformers.length
 
         val originalFrom = Point(Vector.fill(dimensionCount)(Int.MinValue.doubleValue()))

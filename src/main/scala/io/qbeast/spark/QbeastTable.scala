@@ -5,7 +5,7 @@ package io.qbeast.spark
 
 import io.qbeast.context.QbeastContext
 import io.qbeast.model.{QTableID, RevisionID}
-import io.qbeast.spark.delta.QbeastSnapshot
+import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.table._
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
@@ -25,8 +25,8 @@ class QbeastTable private (
 
   private def deltaLog: DeltaLog = DeltaLog.forTable(sparkSession, tableID.id)
 
-  private def qbeastSnapshot: QbeastSnapshot =
-    delta.QbeastSnapshot(deltaLog.snapshot)
+  private def qbeastSnapshot: DeltaQbeastSnapshot =
+    delta.DeltaQbeastSnapshot(deltaLog.snapshot)
 
   private def indexedTable: IndexedTable =
     indexedTableFactory.getIndexedTable(sparkSession.sqlContext, tableID)
@@ -35,7 +35,7 @@ class QbeastTable private (
     revisionID match {
       case Some(id) if qbeastSnapshot.existsRevision(id) =>
         id
-      case None => qbeastSnapshot.lastRevisionID
+      case None => qbeastSnapshot.loadLatestRevision.revisionID
     }
   }
 

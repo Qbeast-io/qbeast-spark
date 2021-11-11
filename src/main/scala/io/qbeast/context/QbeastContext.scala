@@ -71,6 +71,13 @@ object QbeastContext
   private var managedOption: Option[QbeastContext] = None
   private var unmanagedOption: Option[QbeastContext] = None
 
+  // Override methods from QbeastContext trait
+  override def config: Config = current.config
+
+  override def keeper: Keeper = LocalKeeper
+
+  override def oTreeAlgorithm: OTreeAlgorithm = current.oTreeAlgorithm
+
   // Override methods from QbeastCoreContext
   override def queryManager[SparkPlan: ClassTag]: QueryManager[SparkPlan, DataFrame] = null
 
@@ -81,13 +88,6 @@ object QbeastContext
 
   override def dataWriter: DataWriter[DataFrame, StructType, FileAction] =
     new SparkDataWriter
-
-  // Override methods from QbeastContext trait
-  override def config: Config = current.config
-
-  override def keeper: Keeper = LocalKeeper
-
-  override def oTreeAlgorithm: OTreeAlgorithm = current.oTreeAlgorithm
 
   override def indexedTableFactory: IndexedTableFactory = current.indexedTableFactory
 

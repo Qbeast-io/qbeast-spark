@@ -250,7 +250,7 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
         val data = loadTestData(spark)
 
         data.write
-          .mode("error")
+          .mode("overwrite")
           .format("qbeast")
           .option("columnsToIndex", "user_id,product_id")
           .save(tmpDir)

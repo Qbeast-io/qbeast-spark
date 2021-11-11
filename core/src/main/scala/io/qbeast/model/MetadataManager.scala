@@ -5,51 +5,11 @@ import io.qbeast.IISeq
 trait MetadataManager[DataSchema, FileAction] {
 
   /**
-   * Load methods
-   */
-
-  /**
-   * Obtains the latest IndexStatus for a given QTableID
-   * @param qtable the QTableID
-   * @return the latest IndexStatus for qtable
-   */
-  def loadIndexStatus(qtable: QTableID): IndexStatus
-
-  /**
-   * Obtains the latest IndexStatus for a given QTableID and RevisionID
-   * @param qtable the QTableID
-   * @param revisionID the RevisionID
+   * Get the QbeastSnapshot for a given table
+   * @param qtable
    * @return
    */
-  def loadIndexStatusAt(qtable: QTableID, revisionID: RevisionID): IndexStatus
-
-  /**
-   * Obtain all Revisions for a given QTableID
-   * @param qtable the QTableID
-   * @return an immutable Seq of Revision for qtable
-   */
-  def loadAllRevisions(qtable: QTableID): IISeq[Revision]
-
-  /**
-   * Obtain the last Revisions for a given QTableID
-   * @param qtable the QTableID
-   * @return an immutable Seq of Revision for qtable
-   */
-  def loadLatestRevision(qtable: QTableID): Revision
-
-  /**
-   * Obtain the IndexStatus for a given RevisionID
-   * @param revisionID the RevisionID
-   * @return the IndexStatus for revisionID
-   */
-  def loadRevision(qtable: QTableID, revisionID: RevisionID): Revision
-
-  /**
-   * Loads the most updated revision at a given timestamp
-   * @param timestamp the timestamp in Long format
-   * @return the latest Revision at a concrete timestamp
-   */
-  def loadRevisionAt(qtable: QTableID, timestamp: Long): Revision
+  def loadQbeastSnapshot(qtable: QTableID): QbeastSnapshot
 
   /**
    * Save methods
@@ -57,16 +17,13 @@ trait MetadataManager[DataSchema, FileAction] {
 
   /**
    * Perform an Update operation by using transaction control
-   * @param code the code to be executed
+   * @param writer the writer code to be executed
    * @param schema the schema of the data
    * @param qtable the QTableID
    * @param append the append flag
    */
-  def updateWithTransaction(
-      qtable: QTableID,
-      schema: DataSchema,
-      code: => (TableChanges, IISeq[FileAction]),
-      append: Boolean): Unit
+  def updateWithTransaction(qtable: QTableID, schema: DataSchema, append: Boolean)(
+      writer: => (TableChanges, IISeq[FileAction]))
 
   /**
    * Update the Revision with the given RevisionChanges

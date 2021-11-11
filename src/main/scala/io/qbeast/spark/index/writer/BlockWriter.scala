@@ -28,7 +28,7 @@ import java.util.UUID
  * @param qbeastColumns  qbeast metadata columns
  * @param tableChanges     the revision of the data to write
  */
-case class BlockWriter(
+private[writer] case class BlockWriter(
     dataPath: String,
     schema: StructType,
     schemaIndex: StructType,

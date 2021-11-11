@@ -5,13 +5,23 @@ package io.qbeast.spark.delta
 
 import io.qbeast.model.{CubeId, IndexStatus, NormalizedWeight, ReplicatedSet, Revision, Weight}
 import io.qbeast.spark.index.writer.BlockStats
-import io.qbeast.spark.utils.{TagUtils}
+import io.qbeast.spark.utils.TagUtils
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.functions.{min, sum}
 
+/**
+ * Cube Information
+ *
+ * @param cube      Id of the cube
+ * @param maxWeight Maximum weight of the cube
+ * @param size      Number of elements of the cube
+ */
+
+case class CubeInfo(cube: String, maxWeight: Weight, size: Long)
+
 private[delta] class IndexStatusBuilder(
-    qbeastSnapshot: QbeastSnapshot,
+    qbeastSnapshot: DeltaQbeastSnapshot,
     revision: Revision,
     announcedSet: Set[CubeId] = Set.empty)
     extends Serializable {
@@ -23,7 +33,7 @@ private[delta] class IndexStatusBuilder(
   }
 
   def replicatedSet: ReplicatedSet =
-    qbeastSnapshot.replicatedSetsMap.getOrElse(revision.revisionID, Set.empty)
+    qbeastSnapshot.getReplicatedSet(revision.revisionID)
 
   def build(): IndexStatus = {
     IndexStatus(

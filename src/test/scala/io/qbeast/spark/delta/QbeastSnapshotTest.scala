@@ -45,9 +45,9 @@ class QbeastSnapshotTest
             .save(tmpDir)
 
           val deltaLog = DeltaLog.forTable(spark, tmpDir)
-          val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
+          val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
           val cubeNormalizedWeights =
-            qbeastSnapshot.lastRevisionData.cubeNormalizedWeights
+            qbeastSnapshot.loadIndexStatus.cubeNormalizedWeights
 
           cubeNormalizedWeights.foreach(cubeInfo => cubeInfo._2 shouldBe 2.0)
         }
@@ -67,9 +67,9 @@ class QbeastSnapshotTest
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = delta.QbeastSnapshot(deltaLog.snapshot)
+        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
         val cubeNormalizedWeights =
-          qbeastSnapshot.lastRevisionData.cubeNormalizedWeights
+          qbeastSnapshot.loadIndexStatus.cubeNormalizedWeights
 
         cubeNormalizedWeights.foreach(cubeInfo => cubeInfo._2 shouldBe <(1.0))
       }
@@ -93,8 +93,8 @@ class QbeastSnapshotTest
             .save(tmpDir)
 
           val deltaLog = DeltaLog.forTable(spark, tmpDir)
-          val qbeastSnapshot = delta.QbeastSnapshot(deltaLog.snapshot)
-          val commitLogWeightMap = qbeastSnapshot.lastRevisionData.cubeWeights
+          val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
+          val commitLogWeightMap = qbeastSnapshot.loadIndexStatus.cubeWeights
 
           // commitLogWeightMap shouldBe weightMap
           commitLogWeightMap.keys.foreach(cubeId => {
@@ -116,8 +116,8 @@ class QbeastSnapshotTest
         .save(tmpDir)
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val qbeastSnapshot = delta.QbeastSnapshot(deltaLog.snapshot)
-      val cubeWeights = qbeastSnapshot.lastRevisionData.cubeWeights
+      val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
+      val cubeWeights = qbeastSnapshot.loadIndexStatus.cubeWeights
 
       cubeWeights.foreach { case (_, weight: Weight) =>
         weight shouldBe >(Weight.MinValue)
@@ -142,15 +142,15 @@ class QbeastSnapshotTest
             .save(tmpDir)
 
           val deltaLog = DeltaLog.forTable(spark, tmpDir)
-          val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
+          val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
           val isBuilder =
-            new IndexStatusBuilder(qbeastSnapshot, qbeastSnapshot.lastRevision)
+            new IndexStatusBuilder(qbeastSnapshot, qbeastSnapshot.loadIndexStatus.revision)
 
           val indexStateMethod = PrivateMethod[Seq[CubeInfo]]('revisionState)
           val indexState =
             isBuilder invokePrivate indexStateMethod()
           val overflowed =
-            qbeastSnapshot.lastRevisionData.overflowedSet.map(_.string)
+            qbeastSnapshot.loadIndexStatus.overflowedSet.map(_.string)
 
           indexState
             .filter(cubeInfo => overflowed.contains(cubeInfo.cube))

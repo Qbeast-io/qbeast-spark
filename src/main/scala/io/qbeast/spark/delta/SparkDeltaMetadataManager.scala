@@ -7,87 +7,27 @@ import io.qbeast.IISeq
 import io.qbeast.model._
 import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions}
-import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
+import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.types.StructType
 
 class SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction] {
 
   /**
-   * Returns the sequence of files for a set of cubes belonging to a specific space revision
-   *
-   * @param cubes the set of cubes
-   * @return the sequence of blocks
-   */
-  def getCubeFiles(
-      qtable: QTableID,
-      indexStatus: IndexStatus,
-      cubes: Set[CubeId]): Seq[AddFile] = {
-    QbeastSnapshot(DeltaLog.forTable(SparkSession.active, qtable.id).snapshot)
-      .getCubeBlocks(indexStatus, cubes)
-  }
-
-  override def loadAllRevisions(qtable: QTableID): IISeq[Revision] = {
-    QbeastSnapshot(DeltaLog.forTable(SparkSession.active, qtable.id).snapshot)
-  }.revisions
-
-  override def loadRevisionAt(qtable: QTableID, timestamp: Long): Revision = null
-
-  /**
-   * Obtain the last Revisions for a given QTableID
-   *
-   * @param qtable the QTableID
-   * @return an immutable Seq of Revision for qtable
-   */
-  override def loadLatestRevision(qtable: QTableID): Revision = {
-    QbeastSnapshot(DeltaLog.forTable(SparkSession.active, qtable.id).snapshot)
-  }.lastRevision
-
-  /**
-   * Obtains the latest IndexStatus for a given QTableID
-   *
-   * @param qtable the QTableID
-   * @return the latest IndexStatus for qtable, or None if no IndexStatus exists for qtable
-   */
-  override def loadIndexStatus(qtable: QTableID): IndexStatus = {
-
-    QbeastSnapshot(DeltaLog.forTable(SparkSession.active, qtable.id).snapshot).lastRevisionData
-  }
-
-  override def loadIndexStatusAt(qtable: QTableID, revisionID: RevisionID): IndexStatus = {
-    QbeastSnapshot(DeltaLog.forTable(SparkSession.active, qtable.id).snapshot)
-      .getRevisionData(revisionID)
-  }
-
-  /**
-   * Obtain the IndexStatus for a given RevisionID
-   *
-   * @param revisionID the RevisionID
-   * @return the IndexStatus for revisionID
-   */
-  override def loadRevision(qtable: QTableID, revisionID: RevisionID): Revision = {
-    QbeastSnapshot(DeltaLog.forTable(SparkSession.active, qtable.id).snapshot)
-      .getRevision(revisionID)
-  }
-
-  /**
    * Update the metadata within a transaction
    * @param qtable the QTableID
    * @param schema the schema of the data
-   * @param code the code to be executed
+   * @param writer the writer code to be executed
    * @param append the append flag
    */
-  override def updateWithTransaction(
-      qtable: QTableID,
-      schema: StructType,
-      code: => (TableChanges, IISeq[FileAction]),
-      append: Boolean): Unit = {
+  override def updateWithTransaction(qtable: QTableID, schema: StructType, append: Boolean)(
+      writer: => (TableChanges, IISeq[FileAction])): Unit = {
 
     val deltaLog = DeltaLog.forTable(SparkSession.active, qtable.id)
     val mode = if (append) SaveMode.Append else SaveMode.Overwrite
     val options =
       new DeltaOptions(Map("path" -> qtable.id), SparkSession.active.sessionState.conf)
     val metadataWriter = DeltaMetadataWriter(qtable, mode, deltaLog, options, schema)
-    metadataWriter.updateMetadataWithTransaction(code)
+    metadataWriter.writeWithTransaction(writer)
   }
 
   /**
@@ -115,4 +55,15 @@ class SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction] 
    * @param qtable       the QTableID
    */
   override def updateTable(qtable: QTableID, tableChanges: TableChanges): Unit = {}
+
+  /**
+   * Get the QbeastSnapshot for a given table
+   *
+   * @param qtable
+   * @return
+   */
+  override def loadQbeastSnapshot(qtable: QTableID): DeltaQbeastSnapshot = {
+    DeltaQbeastSnapshot(DeltaLog.forTable(SparkSession.active, qtable.id).snapshot)
+  }
+
 }
