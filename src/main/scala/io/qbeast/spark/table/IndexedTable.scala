@@ -5,7 +5,6 @@ package io.qbeast.spark.table
 
 import io.qbeast.keeper.Keeper
 import io.qbeast.model.{
-  CubeId,
   DataWriter,
   IndexManager,
   IndexStatus,
@@ -243,27 +242,23 @@ private[table] class IndexedTableImpl(
     val bo = keeper.beginOptimization(tableID, revisionID)
     val currentIndexStatus = snapshot.loadIndexStatusAt(revisionID)
     val indexStatus = currentIndexStatus.addAnnouncements(bo.cubesToOptimize)
-    var optimizedCubes = Set.empty[CubeId]
+    val cubesToReplicate = indexStatus.cubesToOptimize
 
     metadataManager.updateWithTransaction(tableID, schema, true) {
-      val cubesToReplicate = indexStatus.cubesToOptimize
-
       val dataToReplicate =
         DataLoader(tableID).loadSetWithCubeColumn(cubesToReplicate, indexStatus.revision)
+
       val (qbeastData, tableChanges) =
         indexManager.optimize(dataToReplicate, indexStatus)
-
-      val fileActions = {
+      val fileActions =
         dataWriter.write(tableID, schema, qbeastData, tableChanges)
-      }
       // TODO rearrange the replicated files
       // val updatedFiles = updateReplicatedFiles(tableChanges)
       // val fileActions = newFiles ++ updatedFiles
-      optimizedCubes = tableChanges.indexChanges.deltaReplicatedSet
       (tableChanges, fileActions)
     }
 
-    bo.end(optimizedCubes)
+    bo.end(cubesToReplicate)
   }
 
 }
