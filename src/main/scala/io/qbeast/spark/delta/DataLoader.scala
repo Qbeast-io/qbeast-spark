@@ -19,18 +19,14 @@ case class DataLoader(qtable: QTableID) {
 
   def loadSetWithCubeColumn(cubeSet: Set[CubeId], revision: Revision): DataFrame = {
     cubeSet
-      .map(cube => {
-        loadWithCubeColumn(cube, revision)
-      })
+      .map(loadWithCubeColumn(_, revision))
       .filter(df => !df.isEmpty)
-      .reduce(_ union _)
+      .reduceOption(_ union _)
+      .getOrElse(spark.emptyDataFrame)
   }
 
   def loadWithCubeColumn(cubeId: CubeId, revision: Revision): DataFrame = {
-
-    val df = load(cubeId, revision)
-    if (df.isEmpty) spark.emptyDataFrame
-    else df.withColumn(cubeToReplicateColumnName, lit(cubeId.bytes))
+    load(cubeId, revision).withColumn(cubeToReplicateColumnName, lit(cubeId.bytes))
   }
 
   def load(cube: CubeId, revision: Revision): DataFrame = {
