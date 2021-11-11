@@ -18,7 +18,7 @@ trait QbeastSnapshot {
    * Obtains the latest IndexStatus for a given QTableID
    * @return the latest IndexStatus for qtable
    */
-  def loadIndexStatus: IndexStatus
+  def loadLatestIndexStatus: IndexStatus
 
   /**
    * Obtains the latest IndexStatus for a given RevisionID

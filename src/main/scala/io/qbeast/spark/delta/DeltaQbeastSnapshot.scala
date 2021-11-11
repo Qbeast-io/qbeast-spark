@@ -4,19 +4,10 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.IISeq
-import io.qbeast.model.{
-  CubeId,
-  IndexStatus,
-  QbeastSnapshot,
-  ReplicatedSet,
-  Revision,
-  RevisionID,
-  mapper
-}
-import io.qbeast.spark.utils.{MetadataConfig, State, TagUtils}
+import io.qbeast.model.{IndexStatus, QbeastSnapshot, ReplicatedSet, Revision, RevisionID, mapper}
+import io.qbeast.spark.utils.MetadataConfig
 import org.apache.spark.sql.{AnalysisExceptionFactory}
 import org.apache.spark.sql.delta.Snapshot
-import org.apache.spark.sql.delta.actions.AddFile
 
 /**
  * Qbeast Snapshot that provides information about the current index state.
@@ -24,20 +15,6 @@ import org.apache.spark.sql.delta.actions.AddFile
  * @param snapshot the internal Delta Lakes log snapshot
  */
 case class DeltaQbeastSnapshot(snapshot: Snapshot) extends QbeastSnapshot {
-
-  /**
-   * Returns the sequence of blocks for a cube belonging to a specific space revision
-   * @param cube the cube to read
-   * @return the sequence of files
-   */
-  def loadCubeFiles(revision: Revision, cube: CubeId): Seq[AddFile] = {
-    val files =
-      snapshot.allFiles.filter(_.tags(TagUtils.revision) == revision.revisionID.toString)
-    files
-      .filter(_.tags(TagUtils.state) != State.ANNOUNCED)
-      .filter(a => cube.string == a.tags(TagUtils.cube))
-      .collect()
-  }
 
   def isInitial: Boolean = snapshot.version == -1
 
@@ -117,7 +94,7 @@ case class DeltaQbeastSnapshot(snapshot: Snapshot) extends QbeastSnapshot {
    *
    * @return the latest IndexStatus for qtable
    */
-  override def loadIndexStatus: IndexStatus = {
+  override def loadLatestIndexStatus: IndexStatus = {
     val revision = getRevision(lastRevisionID)
     new IndexStatusBuilder(this, revision).build()
   }

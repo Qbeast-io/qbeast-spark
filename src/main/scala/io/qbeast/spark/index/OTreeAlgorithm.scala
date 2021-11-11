@@ -76,21 +76,21 @@ object OTreeAlgorithmImpl extends OTreeAlgorithm with Serializable {
 
   override def replicateCubes(
       dataToReplicate: DataFrame,
-      revisionData: IndexStatus): (DataFrame, TableChanges) = {
+      indexStatus: IndexStatus): (DataFrame, TableChanges) = {
 
-    index(dataFrame = dataToReplicate, revisionData = revisionData, isReplication = true)
+    index(dataFrame = dataToReplicate, indexStatus = indexStatus, isReplication = true)
 
   }
 
   override def index(
       dataFrame: DataFrame,
-      revisionData: IndexStatus,
+      indexStatus: IndexStatus,
       isReplication: Boolean): (DataFrame, TableChanges) = {
 
     val sqlContext = SparkSession.active.sqlContext
 
     val (weightedDataFrame, tc) =
-      DoublePassOTreeDataAnalyzer.analyze(dataFrame, revisionData, isReplication)
+      DoublePassOTreeDataAnalyzer.analyze(dataFrame, indexStatus, isReplication)
     val revision = tc.updatedRevision
 
     val pointWeightIndexer = PointWeightIndexer.buildNewWeightIndexer(tc.indexChanges)
@@ -125,7 +125,7 @@ object OTreeAlgorithmImpl extends OTreeAlgorithm with Serializable {
         extendWithType(
           columnsToIndex.length,
           tc.indexChanges.announcedSet,
-          revisionData.replicatedSet))
+          indexStatus.replicatedSet))
       .drop(cubeToReplicateColumnName)
 
     (indexedDataFrame, tc)

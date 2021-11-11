@@ -225,7 +225,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
           appendData,
           Map("columnsToIndex" -> "age,val2"))
         val (indexed, tc) =
-          oTreeAlgorithm.index(appendData, qbeastSnapshot.loadIndexStatus)
+          oTreeAlgorithm.index(appendData, qbeastSnapshot.loadLatestIndexStatus)
 
         checkCubes(tc.indexChanges.cubeWeights)
         checkWeightsIncrement(tc.indexChanges.cubeWeights)

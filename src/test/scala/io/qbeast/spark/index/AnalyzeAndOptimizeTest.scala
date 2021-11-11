@@ -56,7 +56,7 @@ class AnalyzeAndOptimizeTest
 
     val deltaLog = DeltaLog.forTable(spark, tmpDir)
     val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
-    val replicatedCubes = qbeastSnapshot.loadIndexStatus.replicatedSet
+    val replicatedCubes = qbeastSnapshot.loadLatestIndexStatus.replicatedSet
 
     val announcedCubes = qbeastTable.analyze()
     announcedCubes.foreach(a => replicatedCubes shouldNot contain(a))
@@ -74,7 +74,7 @@ class AnalyzeAndOptimizeTest
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
         val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
         val replicatedCubes =
-          qbeastSnapshot.loadIndexStatus.replicatedSet.map(_.string)
+          qbeastSnapshot.loadLatestIndexStatus.replicatedSet.map(_.string)
 
         announcedCubes.foreach(r => replicatedCubes should contain(r))
       })

@@ -97,7 +97,7 @@ final case class Revision(
    */
   def transform(values: IISeq[_]): IISeq[Double] = {
     assert(
-      values.length == transformations.length && values.length > 0,
+      values.length == transformations.length && values.nonEmpty,
       s"$values $transformations")
     val vb = Vector.newBuilder[Double]
     vb.sizeHint(transformations.length)
@@ -158,6 +158,8 @@ case class IndexStatus(
 
   def addAnnouncements(newAnnouncedSet: Set[CubeId]): IndexStatus =
     copy(announcedSet = announcedSet ++ newAnnouncedSet)
+
+  def cubesToOptimize: Set[CubeId] = announcedSet.diff(replicatedSet)
 
 }
 

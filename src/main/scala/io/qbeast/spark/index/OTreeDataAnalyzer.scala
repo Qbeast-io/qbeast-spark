@@ -63,6 +63,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     }
   }
 
+  // TODO should we use different method for replicate?
   override def analyze(
       dataFrame: DataFrame,
       indexStatus: IndexStatus,
@@ -109,7 +110,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         }
         weights.result().iterator
       })
-    // These column names are the ones specified in case clas CubeNormalizedWeight
+    // These column names are the ones specified in case class CubeNormalizedWeight
     val estimatedCubeWeights = partitionedEstimatedCubeWeights
       .groupBy("cubeBytes")
       .agg(maxWeightEstimation(col("normalizedWeight")))
@@ -121,9 +122,18 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       }
       .toMap
 
+    val deltaReplicatedSet =
+      if (isReplication) indexStatus.cubesToOptimize
+      else Set.empty[CubeId]
+
     (
       weightedDataFrame,
-      TableChanges(spaceChanges, IndexStatusChange(indexStatus, estimatedCubeWeights)))
+      TableChanges(
+        spaceChanges,
+        IndexStatusChange(
+          indexStatus,
+          estimatedCubeWeights,
+          deltaReplicatedSet = deltaReplicatedSet)))
   }
 
   private def addRandomWeight(df: DataFrame, revision: Revision): DataFrame = {

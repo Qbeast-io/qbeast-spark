@@ -4,8 +4,13 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.model.{QTableID, TableChanges}
-import io.qbeast.spark.utils.{State, TagUtils}
-import org.apache.spark.sql.delta.actions.{Action, AddFile, FileAction, SetTransaction}
+import org.apache.spark.sql.delta.actions.{
+  Action,
+  AddFile,
+  FileAction,
+  RemoveFile,
+  SetTransaction
+}
 import org.apache.spark.sql.delta.commands.DeltaCommand
 import org.apache.spark.sql.delta.{DeltaLog, DeltaOperations, DeltaOptions, OptimisticTransaction}
 import org.apache.spark.sql.types.StructType
@@ -42,32 +47,6 @@ private[delta] case class DeltaMetadataWriter(
       val finalActions = updateMetadata(txn, changes, newFiles)
       txn.commit(finalActions, deltaOperation)
     }
-  }
-
-  private def updateReplicatedFiles(
-      txn: OptimisticTransaction,
-      tableChanges: TableChanges): Seq[Action] = {
-
-    val transactionID = s"qbeast.${qtableID.id}"
-    val startingTnx = txn.txnVersion(transactionID)
-    val newTransaction = startingTnx + 1
-    val transRecord =
-      SetTransaction(transactionID, newTransaction, Some(System.currentTimeMillis()))
-
-    val deltaReplicatedSet = tableChanges.indexChanges.deltaReplicatedSet
-    val cubeStrings = deltaReplicatedSet.map(_.string)
-    val cubeBlocks =
-      deltaLog.snapshot.allFiles
-        .filter(file => cubeStrings.contains(file.tags(TagUtils.cube)))
-        .collect()
-
-    val newAddFiles = cubeBlocks.map { block =>
-      block.copy(tags = block.tags.updated(TagUtils.state, State.REPLICATED))
-    }
-    val deleteFiles = cubeBlocks.map(_.remove)
-
-    (newAddFiles ++ deleteFiles :+ transRecord).toSeq
-
   }
 
   /**
@@ -117,10 +96,8 @@ private[delta] case class DeltaMetadataWriter(
     val deletedFiles = mode match {
       case SaveMode.Overwrite =>
         txn.filterFiles().map(_.remove)
-      case _ => Nil
+      case _ => newFiles.collect { case r: RemoveFile => r }
     }
-    val optimizeActions =
-      if (isOptimizeOperation) updateReplicatedFiles(txn, tableChanges) else Seq.empty
 
     val allFileActions = if (rearrangeOnly) {
       addFiles.map(_.copy(dataChange = !rearrangeOnly)) ++
@@ -129,7 +106,15 @@ private[delta] case class DeltaMetadataWriter(
       newFiles ++ deletedFiles
     }
 
-    allFileActions ++ optimizeActions
+    if (isOptimizeOperation) {
+      val transactionID = s"qbeast.${qtableID.id}"
+      val startingTnx = txn.txnVersion(transactionID)
+      val newTransaction = startingTnx + 1
+      val transRecord =
+        SetTransaction(transactionID, newTransaction, Some(System.currentTimeMillis()))
+
+      allFileActions ++ Seq(transRecord)
+    } else allFileActions
 
   }
 
