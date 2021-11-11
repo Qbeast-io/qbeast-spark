@@ -7,7 +7,7 @@ import io.qbeast.model.{QTableID, TableChanges}
 import io.qbeast.spark.utils.{State, TagUtils}
 import org.apache.spark.sql.delta.actions.{Action, AddFile, FileAction, SetTransaction}
 import org.apache.spark.sql.delta.commands.DeltaCommand
-import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions, OptimisticTransaction}
+import org.apache.spark.sql.delta.{DeltaLog, DeltaOperations, DeltaOptions, OptimisticTransaction}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{AnalysisExceptionFactory, SaveMode, SparkSession}
 
@@ -31,6 +31,19 @@ private[delta] case class DeltaMetadataWriter(
   private def isOverwriteOperation: Boolean = mode == SaveMode.Overwrite
 
   private val sparkSession = SparkSession.active
+
+  private val deltaOperation = {
+    DeltaOperations.Write(mode, None, options.replaceWhere, options.userMetadata)
+  }
+
+  def updateMetadataWithTransaction(code: => (TableChanges, Seq[FileAction])): Unit = {
+
+    deltaLog.withNewTransaction { txn =>
+      val (changes, newFiles) = code
+      val finalActions = updateMetadata(txn, changes, newFiles)
+      txn.commit(finalActions, deltaOperation)
+    }
+  }
 
   private def updateReplicatedFiles(
       txn: OptimisticTransaction,

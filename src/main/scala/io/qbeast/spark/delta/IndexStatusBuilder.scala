@@ -10,7 +10,7 @@ import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.functions.{min, sum}
 
-private[delta] class DeltaIndexStatusBuilder(
+private[delta] class IndexStatusBuilder(
     qbeastSnapshot: QbeastSnapshot,
     revision: Revision,
     announcedSet: Set[CubeId] = Set.empty)

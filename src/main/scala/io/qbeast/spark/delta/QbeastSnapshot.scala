@@ -104,12 +104,12 @@ case class QbeastSnapshot(snapshot: Snapshot) {
    * @return revision information for the corresponding identifier
    */
   def getRevisionData(revision: Revision): IndexStatus = {
-    new DeltaIndexStatusBuilder(this, revision).build()
+    new IndexStatusBuilder(this, revision).build()
   }
 
   def getRevisionData(revisionID: RevisionID): IndexStatus = {
     val revision = getRevision(revisionID)
-    new DeltaIndexStatusBuilder(this, revision).build()
+    new IndexStatusBuilder(this, revision).build()
   }
 
   /**
@@ -120,7 +120,7 @@ case class QbeastSnapshot(snapshot: Snapshot) {
    */
   def getIndexStatus(revisionID: RevisionID): IndexStatus = {
     val revision = getRevision(revisionID)
-    new DeltaIndexStatusBuilder(this, revision).build()
+    new IndexStatusBuilder(this, revision).build()
   }
 
   /**
@@ -130,7 +130,7 @@ case class QbeastSnapshot(snapshot: Snapshot) {
    * @return revision information for the corresponding identifier
    */
   def getIndexStatus(revision: Revision): IndexStatus = {
-    new DeltaIndexStatusBuilder(this, revision).build()
+    new IndexStatusBuilder(this, revision).build()
   }
 
   /**

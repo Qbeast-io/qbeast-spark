@@ -2,7 +2,7 @@ package io.qbeast.model
 
 import io.qbeast.IISeq
 
-trait MetadataManager[T <: QTableID, DataSchema, FileAction] {
+trait MetadataManager[DataSchema, FileAction] {
 
   /**
    * Load methods
@@ -13,7 +13,7 @@ trait MetadataManager[T <: QTableID, DataSchema, FileAction] {
    * @param qtable the QTableID
    * @return the latest IndexStatus for qtable
    */
-  def loadIndexStatus(qtable: T): IndexStatus
+  def loadIndexStatus(qtable: QTableID): IndexStatus
 
   /**
    * Obtains the latest IndexStatus for a given QTableID and RevisionID
@@ -21,35 +21,35 @@ trait MetadataManager[T <: QTableID, DataSchema, FileAction] {
    * @param revisionID the RevisionID
    * @return
    */
-  def loadIndexStatusAt(qtable: T, revisionID: RevisionID): IndexStatus
+  def loadIndexStatusAt(qtable: QTableID, revisionID: RevisionID): IndexStatus
 
   /**
    * Obtain all Revisions for a given QTableID
    * @param qtable the QTableID
    * @return an immutable Seq of Revision for qtable
    */
-  def loadAllRevisions(qtable: T): IISeq[Revision]
+  def loadAllRevisions(qtable: QTableID): IISeq[Revision]
 
   /**
    * Obtain the last Revisions for a given QTableID
    * @param qtable the QTableID
    * @return an immutable Seq of Revision for qtable
    */
-  def loadLatestRevision(qtable: T): Revision
+  def loadLatestRevision(qtable: QTableID): Revision
 
   /**
    * Obtain the IndexStatus for a given RevisionID
    * @param revisionID the RevisionID
    * @return the IndexStatus for revisionID
    */
-  def loadRevision(qtable: T, revisionID: RevisionID): Revision
+  def loadRevision(qtable: QTableID, revisionID: RevisionID): Revision
 
   /**
    * Loads the most updated revision at a given timestamp
    * @param timestamp the timestamp in Long format
    * @return the latest Revision at a concrete timestamp
    */
-  def loadRevisionAt(qtable: T, timestamp: Long): Revision
+  def loadRevisionAt(qtable: QTableID, timestamp: Long): Revision
 
   /**
    * Save methods
@@ -63,7 +63,7 @@ trait MetadataManager[T <: QTableID, DataSchema, FileAction] {
    * @param append the append flag
    */
   def updateWithTransaction(
-      qtable: T,
+      qtable: QTableID,
       schema: DataSchema,
       code: => (TableChanges, IISeq[FileAction]),
       append: Boolean): Unit
@@ -73,20 +73,20 @@ trait MetadataManager[T <: QTableID, DataSchema, FileAction] {
    * @param revisionChange the collection of RevisionChanges
    * @param qtable the QTableID
    */
-  def updateRevision(qtable: T, revisionChange: RevisionChange): Unit
+  def updateRevision(qtable: QTableID, revisionChange: RevisionChange): Unit
 
   /**
    * Update the IndexStatus with the given IndexStatusChanges
    * @param indexStatusChange the collection of IndexStatusChanges
    * @param qtable the QTableID
    */
-  def updateIndexStatus(qtable: T, indexStatusChange: IndexStatusChange): Unit
+  def updateIndexStatus(qtable: QTableID, indexStatusChange: IndexStatusChange): Unit
 
   /**
    * Update the Table with the given TableChanges
    * @param tableChanges the collection of TableChanges
    * @param qtable the QTableID
    */
-  def updateTable(qtable: T, tableChanges: TableChanges): Unit
+  def updateTable(qtable: QTableID, tableChanges: TableChanges): Unit
 
 }

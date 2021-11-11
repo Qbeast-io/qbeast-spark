@@ -144,7 +144,7 @@ class QbeastSnapshotTest
           val deltaLog = DeltaLog.forTable(spark, tmpDir)
           val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
           val isBuilder =
-            new DeltaIndexStatusBuilder(qbeastSnapshot, qbeastSnapshot.lastRevision)
+            new IndexStatusBuilder(qbeastSnapshot, qbeastSnapshot.lastRevision)
 
           val indexStateMethod = PrivateMethod[Seq[CubeInfo]]('revisionState)
           val indexState =

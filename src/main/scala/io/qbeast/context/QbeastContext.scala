@@ -67,7 +67,7 @@ trait QbeastContext {
  */
 object QbeastContext
     extends QbeastContext
-    with QbeastCoreContext[QTableID, DataFrame, StructType, FileAction] {
+    with QbeastCoreContext[DataFrame, StructType, FileAction] {
   private var managedOption: Option[QbeastContext] = None
   private var unmanagedOption: Option[QbeastContext] = None
 
@@ -76,10 +76,10 @@ object QbeastContext
 
   override def indexManager: IndexManager[DataFrame] = new SparkIndexManager
 
-  override def metadataManager: MetadataManager[QTableID, StructType, FileAction] =
+  override def metadataManager: MetadataManager[StructType, FileAction] =
     new SparkDeltaMetadataManager
 
-  override def dataWriter: DataWriter[QTableID, DataFrame, StructType, FileAction] =
+  override def dataWriter: DataWriter[DataFrame, StructType, FileAction] =
     new SparkDataWriter
 
   // Override methods from QbeastContext trait

@@ -4,9 +4,9 @@ import io.qbeast.keeper.Keeper
 
 import scala.reflect.ClassTag
 
-trait QbeastCoreContext[ID <: QTableID, DATA, DataSchema, FileAction] {
-  def metadataManager: MetadataManager[ID, DataSchema, FileAction]
-  def dataWriter: DataWriter[ID, DATA, DataSchema, FileAction]
+trait QbeastCoreContext[DATA, DataSchema, FileAction] {
+  def metadataManager: MetadataManager[DataSchema, FileAction]
+  def dataWriter: DataWriter[DATA, DataSchema, FileAction]
   def indexManager: IndexManager[DATA]
   def queryManager[QUERY: ClassTag]: QueryManager[QUERY, DATA]
   def revisionBuilder: RevisionBuilder[DATA]

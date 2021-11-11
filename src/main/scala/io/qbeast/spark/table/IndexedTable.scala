@@ -110,8 +110,8 @@ final class IndexedTableFactoryImpl(
     private val keeper: Keeper,
     private val oTreeAlgorithm: OTreeAlgorithm,
     private val indexManager: IndexManager[DataFrame],
-    private val metadataManager: MetadataManager[QTableID, StructType, FileAction],
-    private val dataWriter: DataWriter[QTableID, DataFrame, StructType, FileAction])
+    private val metadataManager: MetadataManager[StructType, FileAction],
+    private val dataWriter: DataWriter[DataFrame, StructType, FileAction])
     extends IndexedTableFactory {
 
   override def getIndexedTable(sqlContext: SQLContext, tableID: QTableID): IndexedTable =
@@ -140,8 +140,8 @@ private[table] class IndexedTableImpl(
     private val keeper: Keeper,
     private val oTreeAlgorithm: OTreeAlgorithm,
     private val indexManager: IndexManager[DataFrame],
-    private val metadataManager: MetadataManager[QTableID, StructType, FileAction],
-    private val dataWriter: DataWriter[QTableID, DataFrame, StructType, FileAction])
+    private val metadataManager: MetadataManager[StructType, FileAction],
+    private val dataWriter: DataWriter[DataFrame, StructType, FileAction])
     extends IndexedTable {
   private var deltaLogCache: Option[DeltaLog] = None
   private var snapshotCache: Option[QbeastSnapshot] = None

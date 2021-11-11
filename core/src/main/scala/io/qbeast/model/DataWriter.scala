@@ -2,10 +2,10 @@ package io.qbeast.model
 
 import io.qbeast.IISeq
 
-trait DataWriter[T <: QTableID, DATA, DataSchema, FileAction] {
+trait DataWriter[DATA, DataSchema, FileAction] {
 
   def write(
-      qtable: T,
+      qtable: QTableID,
       schema: DataSchema,
       data: DATA,
       tableChanges: TableChanges): IISeq[FileAction]

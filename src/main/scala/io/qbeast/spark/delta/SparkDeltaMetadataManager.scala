@@ -6,11 +6,11 @@ package io.qbeast.spark.delta
 import io.qbeast.IISeq
 import io.qbeast.model._
 import org.apache.spark.sql.{SaveMode, SparkSession}
-import org.apache.spark.sql.delta.{DeltaLog, DeltaOperations, DeltaOptions}
+import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions}
 import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
 import org.apache.spark.sql.types.StructType
 
-class SparkDeltaMetadataManager extends MetadataManager[QTableID, StructType, FileAction] {
+class SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction] {
 
   /**
    * Returns the sequence of files for a set of cubes belonging to a specific space revision
@@ -69,27 +69,25 @@ class SparkDeltaMetadataManager extends MetadataManager[QTableID, StructType, Fi
       .getRevision(revisionID)
   }
 
+  /**
+   * Update the metadata within a transaction
+   * @param qtable the QTableID
+   * @param schema the schema of the data
+   * @param code the code to be executed
+   * @param append the append flag
+   */
   override def updateWithTransaction(
       qtable: QTableID,
       schema: StructType,
       code: => (TableChanges, IISeq[FileAction]),
       append: Boolean): Unit = {
 
-    val spark = SparkSession.active
     val deltaLog = DeltaLog.forTable(SparkSession.active, qtable.id)
     val mode = if (append) SaveMode.Append else SaveMode.Overwrite
     val options =
-      new DeltaOptions(Map("path" -> qtable.id), spark.sessionState.conf)
-    val deltaOperation = {
-      DeltaOperations.Write(mode, None, options.replaceWhere, options.userMetadata)
-    }
+      new DeltaOptions(Map("path" -> qtable.id), SparkSession.active.sessionState.conf)
     val metadataWriter = DeltaMetadataWriter(qtable, mode, deltaLog, options, schema)
-
-    deltaLog.withNewTransaction { txn =>
-      val (changes, newFiles) = code
-      val finalActions = metadataWriter.updateMetadata(txn, changes, newFiles)
-      txn.commit(finalActions, deltaOperation)
-    }
+    metadataWriter.updateMetadataWithTransaction(code)
   }
 
   /**
