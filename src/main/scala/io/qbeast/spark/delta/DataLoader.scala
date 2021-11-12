@@ -26,10 +26,10 @@ case class DataLoader(qtable: QTableID) {
   }
 
   def loadWithCubeColumn(cubeId: CubeId, revision: Revision): DataFrame = {
-    load(cubeId, revision).withColumn(cubeToReplicateColumnName, lit(cubeId.bytes))
+    loadCubeData(cubeId, revision).withColumn(cubeToReplicateColumnName, lit(cubeId.bytes))
   }
 
-  def load(cube: CubeId, revision: Revision): DataFrame = {
+  def loadCubeData(cube: CubeId, revision: Revision): DataFrame = {
 
     val cubeBlocks = snapshot.allFiles
       .filter(file =>

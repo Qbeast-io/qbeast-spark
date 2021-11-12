@@ -244,18 +244,20 @@ private[table] class IndexedTableImpl(
     val indexStatus = currentIndexStatus.addAnnouncements(bo.cubesToOptimize)
     val cubesToReplicate = indexStatus.cubesToOptimize
 
-    metadataManager.updateWithTransaction(tableID, schema, true) {
-      val dataToReplicate =
-        DataLoader(tableID).loadSetWithCubeColumn(cubesToReplicate, indexStatus.revision)
+    if (cubesToReplicate.nonEmpty) {
+      metadataManager.updateWithTransaction(tableID, schema, true) {
+        val dataToReplicate =
+          DataLoader(tableID).loadSetWithCubeColumn(cubesToReplicate, indexStatus.revision)
 
-      val (qbeastData, tableChanges) =
-        indexManager.optimize(dataToReplicate, indexStatus)
-      val fileActions =
-        dataWriter.write(tableID, schema, qbeastData, tableChanges)
-      // TODO rearrange the replicated files
-      // val updatedFiles = updateReplicatedFiles(tableChanges)
-      // val fileActions = newFiles ++ updatedFiles
-      (tableChanges, fileActions)
+        val (qbeastData, tableChanges) =
+          indexManager.optimize(dataToReplicate, indexStatus)
+        val fileActions =
+          dataWriter.write(tableID, schema, qbeastData, tableChanges)
+        // TODO rearrange the replicated files
+        // val updatedFiles = updateReplicatedFiles(tableChanges)
+        // val fileActions = newFiles ++ updatedFiles
+        (tableChanges, fileActions)
+      }
     }
 
     bo.end(cubesToReplicate)
