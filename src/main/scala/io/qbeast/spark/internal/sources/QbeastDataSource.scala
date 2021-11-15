@@ -10,7 +10,6 @@ import org.apache.hadoop.fs.FileStatus
 import org.apache.spark.sql.connector.catalog.TableCapability._
 import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.delta.sources.DeltaDataSource
 import org.apache.spark.sql.sources.{
   BaseRelation,
   CreatableRelationProvider,
@@ -58,12 +57,7 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       options: Map[String, String],
       files: Seq[FileStatus]): Option[StructType] = {
     files.head.getPath.getParent
-    Some(
-      new DeltaDataSource()
-        .createRelation(
-          sparkSession.sqlContext,
-          options + ("path" -> files.head.getPath.getParent.toString))
-        .schema)
+    Some(createRelation(sparkSession.sqlContext, options).schema)
   }
 
   override def createRelation(

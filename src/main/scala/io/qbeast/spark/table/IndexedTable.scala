@@ -4,21 +4,13 @@
 package io.qbeast.spark.table
 
 import io.qbeast.keeper.Keeper
-import io.qbeast.model.{
-  DataWriter,
-  IndexManager,
-  IndexStatus,
-  MetadataManager,
-  QTableID,
-  RevisionID
-}
+import io.qbeast.model.api.{DataWriter, IndexManager, MetadataManager, QbeastSnapshot}
+import io.qbeast.model.{IndexStatus, QTableID, RevisionID}
 import io.qbeast.spark.SparkRevisionBuilder
-import io.qbeast.spark.delta.{DataLoader, DeltaQbeastSnapshot}
+import io.qbeast.spark.delta.DataLoader
 import io.qbeast.spark.index.OTreeAlgorithm
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import org.apache.spark.sql.delta.actions.FileAction
-import org.apache.spark.sql.delta.sources.DeltaDataSource
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, SQLContext}
@@ -133,9 +125,7 @@ private[table] class IndexedTableImpl(
     private val metadataManager: MetadataManager[StructType, FileAction],
     private val dataWriter: DataWriter[DataFrame, StructType, FileAction])
     extends IndexedTable {
-  private var deltaLogCache: Option[DeltaLog] = None
-  private var snapshotCache: Option[DeltaQbeastSnapshot] = None
-  private var schemaCache: Option[StructType] = None
+  private var snapshotCache: Option[QbeastSnapshot] = None
 
   override def exists: Boolean = !snapshot.isInitial
 
@@ -160,38 +150,19 @@ private[table] class IndexedTableImpl(
   }
 
   override def load(): BaseRelation = {
-    QbeastBaseRelation(
-      new DeltaDataSource().createRelation(sqlContext, Map("path" -> tableID.id)),
-      snapshot.loadLatestRevision)
+    clearCaches()
+    createQbeastBaseRelation()
   }
 
   private def snapshot = {
     if (snapshotCache.isEmpty) {
-      snapshotCache = Some(
-        metadataManager.loadQbeastSnapshot(tableID).asInstanceOf[DeltaQbeastSnapshot])
+      snapshotCache = Some(metadataManager.loadQbeastSnapshot(tableID))
     }
     snapshotCache.get
   }
 
-  private def deltaLog = {
-    if (deltaLogCache.isEmpty) {
-      deltaLogCache = Some(DeltaLog.forTable(sqlContext.sparkSession, tableID.id))
-    }
-    deltaLogCache.get
-  }
-
-  private def schema = {
-    if (deltaLogCache.isEmpty) {
-      schemaCache = Some(DeltaLog.forTable(sqlContext.sparkSession, tableID.id).snapshot.schema)
-    }
-    schemaCache.get
-
-  }
-
   private def clearCaches(): Unit = {
-    deltaLogCache = None
     snapshotCache = None
-    schemaCache = None
   }
 
   def checkColumnsToMatchSchema(indexStatus: IndexStatus): Unit = {
@@ -200,6 +171,11 @@ private[table] class IndexedTableImpl(
       throw AnalysisExceptionFactory.create(
         s"Columns to index '$columnsToIndex' do not match existing index.")
     }
+  }
+
+  private def createQbeastBaseRelation(): QbeastBaseRelation = {
+
+    QbeastBaseRelation.forTableID(sqlContext.sparkSession, tableID)
   }
 
   private def write(data: DataFrame, indexStatus: IndexStatus, append: Boolean): BaseRelation = {
@@ -214,7 +190,8 @@ private[table] class IndexedTableImpl(
     } else {
       doWrite(data, indexStatus, append)
     }
-    QbeastBaseRelation(deltaLog.createRelation(), revision)
+    clearCaches()
+    createQbeastBaseRelation()
   }
 
   private def doWrite(data: DataFrame, indexStatus: IndexStatus, append: Boolean): Unit = {
@@ -243,6 +220,7 @@ private[table] class IndexedTableImpl(
     val currentIndexStatus = snapshot.loadIndexStatusAt(revisionID)
     val indexStatus = currentIndexStatus.addAnnouncements(bo.cubesToOptimize)
     val cubesToReplicate = indexStatus.cubesToOptimize
+    val schema = metadataManager.loadCurrentSchema(tableID)
 
     if (cubesToReplicate.nonEmpty) {
       metadataManager.updateWithTransaction(tableID, schema, true) {
@@ -253,14 +231,12 @@ private[table] class IndexedTableImpl(
           indexManager.optimize(dataToReplicate, indexStatus)
         val fileActions =
           dataWriter.write(tableID, schema, qbeastData, tableChanges)
-        // TODO rearrange the replicated files
-        // val updatedFiles = updateReplicatedFiles(tableChanges)
-        // val fileActions = newFiles ++ updatedFiles
         (tableChanges, fileActions)
       }
     }
 
     bo.end(cubesToReplicate)
+    clearCaches()
   }
 
 }

@@ -5,7 +5,8 @@ package io.qbeast.spark.index
 
 import io.qbeast.IISeq
 import io.qbeast.context.QbeastContext
-import io.qbeast.model.{CubeId, IndexManager, IndexStatus, TableChanges}
+import io.qbeast.model.api.IndexManager
+import io.qbeast.model.{CubeId, IndexStatus, TableChanges}
 import org.apache.spark.sql.DataFrame
 
 class SparkIndexManager extends IndexManager[DataFrame] {

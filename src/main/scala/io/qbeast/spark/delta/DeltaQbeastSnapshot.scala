@@ -4,9 +4,10 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.IISeq
-import io.qbeast.model.{IndexStatus, QbeastSnapshot, ReplicatedSet, Revision, RevisionID, mapper}
+import io.qbeast.model.api.QbeastSnapshot
+import io.qbeast.model.{IndexStatus, ReplicatedSet, Revision, RevisionID, mapper}
 import io.qbeast.spark.utils.MetadataConfig
-import org.apache.spark.sql.{AnalysisExceptionFactory}
+import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.delta.Snapshot
 
 /**
@@ -84,6 +85,11 @@ case class DeltaQbeastSnapshot(snapshot: Snapshot) extends QbeastSnapshot {
     revisionsMap.contains(revisionID)
   }
 
+  /**
+   * Returns the replicated set for a revision identifier if exists
+   * @param revisionID the revision identifier
+   * @return the replicated set
+   */
   def getReplicatedSet(revisionID: RevisionID): ReplicatedSet = {
     replicatedSetsMap
       .getOrElse(revisionID, Set.empty)
@@ -142,6 +148,10 @@ case class DeltaQbeastSnapshot(snapshot: Snapshot) extends QbeastSnapshot {
    * @param timestamp the timestamp in Long format
    * @return the latest Revision at a concrete timestamp
    */
-  override def loadRevisionAt(timestamp: RevisionID): Revision = null
+  override def loadRevisionAt(timestamp: Long): Revision = {
+    revisionsMap.values.find(_.timestamp <= timestamp).getOrElse {
+      throw AnalysisExceptionFactory.create(s"No space revision available before $timestamp")
+    }
+  }
 
 }

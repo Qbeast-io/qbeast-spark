@@ -1,6 +1,7 @@
-package io.qbeast.model
+package io.qbeast.model.api
 
 import io.qbeast.IISeq
+import io.qbeast.model.{IndexStatusChange, QTableID, RevisionChange, TableChanges}
 
 trait MetadataManager[DataSchema, FileAction] {
 
@@ -10,6 +11,12 @@ trait MetadataManager[DataSchema, FileAction] {
    * @return
    */
   def loadQbeastSnapshot(qtable: QTableID): QbeastSnapshot
+
+  /**
+   * Get the Schema for a given table
+   * @param qtable
+   */
+  def loadCurrentSchema(qtable: QTableID): DataSchema
 
   /**
    * Save methods

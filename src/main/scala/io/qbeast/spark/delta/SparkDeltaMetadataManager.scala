@@ -5,6 +5,7 @@ package io.qbeast.spark.delta
 
 import io.qbeast.IISeq
 import io.qbeast.model._
+import io.qbeast.model.api.MetadataManager
 import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions}
 import org.apache.spark.sql.delta.actions.FileAction
@@ -28,6 +29,25 @@ class SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction] 
       new DeltaOptions(Map("path" -> qtable.id), SparkSession.active.sessionState.conf)
     val metadataWriter = DeltaMetadataWriter(qtable, mode, deltaLog, options, schema)
     metadataWriter.writeWithTransaction(writer)
+  }
+
+  /**
+   * Get the QbeastSnapshot for a given table
+   *
+   * @param qtable
+   * @return
+   */
+  override def loadQbeastSnapshot(qtable: QTableID): DeltaQbeastSnapshot = {
+    DeltaQbeastSnapshot(DeltaLog.forTable(SparkSession.active, qtable.id).update())
+  }
+
+  /**
+   * Get the Schema for a given table
+   *
+   * @param qtable
+   */
+  override def loadCurrentSchema(qtable: QTableID): StructType = {
+    DeltaLog.forTable(SparkSession.active, qtable.id).update().schema
   }
 
   /**
@@ -55,15 +75,4 @@ class SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction] 
    * @param qtable       the QTableID
    */
   override def updateTable(qtable: QTableID, tableChanges: TableChanges): Unit = {}
-
-  /**
-   * Get the QbeastSnapshot for a given table
-   *
-   * @param qtable
-   * @return
-   */
-  override def loadQbeastSnapshot(qtable: QTableID): DeltaQbeastSnapshot = {
-    DeltaQbeastSnapshot(DeltaLog.forTable(SparkSession.active, qtable.id).snapshot)
-  }
-
 }

@@ -5,7 +5,7 @@ package io.qbeast.spark.index
 
 import io.qbeast.model._
 import io.qbeast.spark.index.QbeastColumns.{cubeToReplicateColumnName, weightColumnName}
-import io.qbeast.spark.internal.rules.Functions.qbeastHash
+import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
 import org.apache.spark.sql.functions.{col, udaf}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 

@@ -87,7 +87,7 @@ private[delta] class IndexStatusBuilder(
    * Returns the index state for the given space revision
    * @return Dataset containing cube information
    */
-  private def revisionState: Seq[CubeInfo] = {
+  def revisionState: Seq[CubeInfo] = {
 
     val spark = SparkSession.active
     import spark.implicits._

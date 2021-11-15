@@ -4,6 +4,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.model.{QTableID, TableChanges}
+import io.qbeast.spark.utils.TagUtils
 import org.apache.spark.sql.delta.actions.{
   Action,
   AddFile,
@@ -49,6 +50,34 @@ private[delta] case class DeltaMetadataWriter(
     }
   }
 
+  private def updateReplicatedFiles(tableChanges: TableChanges): Seq[Action] = {
+
+    val revision = tableChanges.indexChanges.supersededIndexStatus.revision
+    val deltaReplicatedSet = tableChanges.indexChanges.deltaReplicatedSet
+
+    val cubeStrings = deltaReplicatedSet.map(_.string)
+    val cubeBlocks =
+      deltaLog.snapshot.allFiles
+        .filter(file =>
+          file.tags(TagUtils.revision) == revision.revisionID.toString &&
+            cubeStrings.contains(file.tags(TagUtils.cube)))
+        .collect()
+
+    val newReplicatedFiles = cubeBlocks.map(ReplicatedFile(_))
+    val deleteFiles = cubeBlocks.map(_.remove)
+
+    deleteFiles ++ newReplicatedFiles
+
+  }
+
+  private def updateTransactionVersion(txn: OptimisticTransaction): SetTransaction = {
+    val transactionID = s"qbeast.${qtableID.id}"
+    val startingTnx = txn.txnVersion(transactionID)
+    val newTransaction = startingTnx + 1
+
+    SetTransaction(transactionID, newTransaction, Some(System.currentTimeMillis()))
+  }
+
   /**
    * Writes metadata of the table
    * @param txn transaction to commit
@@ -56,7 +85,7 @@ private[delta] case class DeltaMetadataWriter(
    * @param newFiles files to add or remove
    * @return the sequence of file actions to save in the commit log(add, remove...)
    */
-  def updateMetadata(
+  private def updateMetadata(
       txn: OptimisticTransaction,
       tableChanges: TableChanges,
       newFiles: Seq[FileAction]): Seq[Action] = {
@@ -74,6 +103,7 @@ private[delta] case class DeltaMetadataWriter(
     val rearrangeOnly = options.rearrangeOnly
 
     def isOptimizeOperation: Boolean = tableChanges.indexChanges.deltaReplicatedSet.nonEmpty
+
     // The Metadata can be updated only once in a single transaction
     // If a new space revision or a new replicated set is detected,
     // we update everything in the same operation
@@ -107,13 +137,9 @@ private[delta] case class DeltaMetadataWriter(
     }
 
     if (isOptimizeOperation) {
-      val transactionID = s"qbeast.${qtableID.id}"
-      val startingTnx = txn.txnVersion(transactionID)
-      val newTransaction = startingTnx + 1
-      val transRecord =
-        SetTransaction(transactionID, newTransaction, Some(System.currentTimeMillis()))
-
-      allFileActions ++ Seq(transRecord)
+      val transactionRecord = updateTransactionVersion(txn)
+      val replicatedFiles = updateReplicatedFiles(tableChanges)
+      allFileActions ++ replicatedFiles ++ Seq(transactionRecord)
     } else allFileActions
 
   }

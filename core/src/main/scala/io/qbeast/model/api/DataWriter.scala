@@ -1,6 +1,7 @@
-package io.qbeast.model
+package io.qbeast.model.api
 
 import io.qbeast.IISeq
+import io.qbeast.model.{QTableID, TableChanges}
 
 trait DataWriter[DATA, DataSchema, FileAction] {
 

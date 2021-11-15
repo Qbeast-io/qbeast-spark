@@ -143,16 +143,15 @@ class QbeastSnapshotTest
 
           val deltaLog = DeltaLog.forTable(spark, tmpDir)
           val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
-          val isBuilder =
+          val builder =
             new IndexStatusBuilder(qbeastSnapshot, qbeastSnapshot.loadLatestIndexStatus.revision)
+          val revisionState = builder.revisionState
 
-          val indexStateMethod = PrivateMethod[Seq[CubeInfo]]('revisionState)
-          val indexState =
-            isBuilder invokePrivate indexStateMethod()
           val overflowed =
-            qbeastSnapshot.loadLatestIndexStatus.overflowedSet.map(_.string)
+            qbeastSnapshot.loadLatestIndexStatus.overflowedSet
+              .map(_.string)
 
-          indexState
+          revisionState
             .filter(cubeInfo => overflowed.contains(cubeInfo.cube))
             .foreach(cubeInfo =>
               assert(

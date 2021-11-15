@@ -1,6 +1,7 @@
-package io.qbeast.model
+package io.qbeast.model.api
 
 import io.qbeast.IISeq
+import io.qbeast.model.{CubeId, IndexStatus, TableChanges}
 
 trait IndexManager[T] {
 
