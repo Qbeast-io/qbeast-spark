@@ -5,7 +5,7 @@ package io.qbeast.spark.index
 
 import io.qbeast.model.Revision
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.delta.QbeastSnapshot
+import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.index.OTreeAlgorithmTest.{Client3, Client4}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.delta.DeltaLog
@@ -30,8 +30,8 @@ class RevisionTest
       .option("columnsToIndex", columnsToIndex)
       .save(directory)
     val deltaLog = DeltaLog.forTable(spark, directory)
-    val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
-    val lastRevision = qbeastSnapshot.lastRevision
+    val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+    val lastRevision = qbeastSnapshot.loadLatestRevision
     val dfqbeast = spark.read.format("qbeast").load(directory)
     dfqbeast.createTempView("dfqbeast")
 
