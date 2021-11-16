@@ -26,7 +26,7 @@ import org.apache.spark.sql.{AnalysisExceptionFactory, SaveMode, SparkSession}
  * @param options options for writeMetadata operation
  */
 private[delta] case class DeltaMetadataWriter(
-    qtableID: QTableID,
+    tableID: QTableID,
     mode: SaveMode,
     deltaLog: DeltaLog,
     options: DeltaOptions,
@@ -71,7 +71,7 @@ private[delta] case class DeltaMetadataWriter(
   }
 
   private def updateTransactionVersion(txn: OptimisticTransaction): SetTransaction = {
-    val transactionID = s"qbeast.${qtableID.id}"
+    val transactionID = s"qbeast.${tableID.id}"
     val startingTnx = txn.txnVersion(transactionID)
     val newTransaction = startingTnx + 1
 

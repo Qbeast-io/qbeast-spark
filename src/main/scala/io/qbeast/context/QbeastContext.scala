@@ -7,10 +7,9 @@ import com.typesafe.config.{Config, ConfigFactory}
 import io.qbeast.keeper.{Keeper, LocalKeeper}
 import io.qbeast.model._
 import io.qbeast.model.api.{DataWriter, IndexManager, MetadataManager, QueryManager}
-import io.qbeast.spark.SparkRevisionBuilder
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
+import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionBuilder}
 import io.qbeast.spark.index.writer.SparkDataWriter
-import io.qbeast.spark.index.{OTreeAlgorithm, OTreeAlgorithmImpl, SparkIndexManager}
 import io.qbeast.spark.table.{IndexedTableFactory, IndexedTableFactoryImpl}
 import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationEnd}
 import org.apache.spark.sql.delta.actions.FileAction
@@ -38,13 +37,6 @@ trait QbeastContext {
    * @return the keeper
    */
   def keeper: Keeper
-
-  /**
-   * Returns the OTreeAlgorithm instance.
-   *
-   * @return the OTreeAlgorithm instance
-   */
-  def oTreeAlgorithm: OTreeAlgorithm
 
   /**
    * Returns the IndexedTableFactory instance.
@@ -77,12 +69,11 @@ object QbeastContext
 
   override def keeper: Keeper = LocalKeeper
 
-  override def oTreeAlgorithm: OTreeAlgorithm = current.oTreeAlgorithm
-
   // Override methods from QbeastCoreContext
+  // TODO : Add query manager implementation
   override def queryManager[SparkPlan: ClassTag]: QueryManager[SparkPlan, DataFrame] = null
 
-  override def indexManager: IndexManager[DataFrame] = new SparkIndexManager
+  override def indexManager: IndexManager[DataFrame] = new SparkOTreeManager
 
   override def metadataManager: MetadataManager[StructType, FileAction] =
     new SparkDeltaMetadataManager
@@ -126,18 +117,15 @@ object QbeastContext
   private def createManaged(): QbeastContext = {
     val config = ConfigFactory.load()
     val keeper = createKeeper(config)
-    val oTreeAlgorithm = OTreeAlgorithmImpl
     val indexedTableFactory =
-      createIndexedTableFactory(keeper, oTreeAlgorithm)
-    new QbeastContextImpl(config, keeper, oTreeAlgorithm, indexedTableFactory)
+      createIndexedTableFactory(keeper)
+    new QbeastContextImpl(config, keeper, indexedTableFactory)
   }
 
   private def createKeeper(config: Config): Keeper = Keeper(config)
 
-  private def createIndexedTableFactory(
-      keeper: Keeper,
-      oTreeAlgorithm: OTreeAlgorithm): IndexedTableFactory =
-    new IndexedTableFactoryImpl(keeper, oTreeAlgorithm, indexManager, metadataManager, dataWriter)
+  private def createIndexedTableFactory(keeper: Keeper): IndexedTableFactory =
+    new IndexedTableFactoryImpl(keeper, indexManager, metadataManager, dataWriter)
 
   private def destroyManaged(): Unit = this.synchronized {
     managedOption.foreach(_.keeper.stop())
@@ -162,6 +150,5 @@ object QbeastContext
 class QbeastContextImpl(
     val config: Config,
     val keeper: Keeper,
-    val oTreeAlgorithm: OTreeAlgorithm,
     val indexedTableFactory: IndexedTableFactory)
     extends QbeastContext {}

@@ -9,6 +9,8 @@ import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.table._
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
+import io.qbeast.spark.internal.commands.AnalyzeTableCommand
+import io.qbeast.spark.internal.commands.OptimizeTableCommand
 
 /**
  * Class for interacting with QbeastTable at a user level

@@ -6,7 +6,7 @@ package io.qbeast.spark.index
 import io.qbeast.model._
 import io.qbeast.spark.index.OTreeAlgorithmTest.{Client3, Client4}
 import io.qbeast.spark.index.QbeastColumns.cubeColumnName
-import io.qbeast.spark.{QbeastIntegrationTestSpec, SparkRevisionBuilder, delta}
+import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
 import org.apache.spark.SparkException
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.col

@@ -11,11 +11,11 @@ import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.functions.lit
 
-case class DataLoader(qtable: QTableID) {
+case class DataLoader(tableID: QTableID) {
 
   private val spark = SparkSession.active
 
-  private val snapshot = DeltaLog.forTable(SparkSession.active, qtable.id).snapshot
+  private val snapshot = DeltaLog.forTable(SparkSession.active, tableID.id).snapshot
 
   def loadSetWithCubeColumn(cubeSet: Set[CubeId], revision: Revision): DataFrame = {
     cubeSet
@@ -38,7 +38,7 @@ case class DataLoader(qtable: QTableID) {
           file.tags(TagUtils.state) != State.ANNOUNCED)
       .collect()
 
-    val fileNames = cubeBlocks.map(f => new Path(qtable.id, f.path).toString)
+    val fileNames = cubeBlocks.map(f => new Path(tableID.id, f.path).toString)
     spark.read
       .format("parquet")
       .load(fileNames: _*)

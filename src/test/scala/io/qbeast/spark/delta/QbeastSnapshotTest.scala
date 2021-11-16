@@ -6,7 +6,8 @@ package io.qbeast.spark.delta
 import com.typesafe.config.ConfigFactory
 import io.qbeast.model.{IndexStatus, QTableID, Weight}
 import io.qbeast.spark.index.OTreeAlgorithmTest.Client3
-import io.qbeast.spark.{QbeastIntegrationTestSpec, SparkRevisionBuilder, delta}
+import io.qbeast.spark.index.SparkRevisionBuilder
+import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.scalatest.PrivateMethodTester

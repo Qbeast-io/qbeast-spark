@@ -6,7 +6,7 @@ package io.qbeast.spark.index
 import io.qbeast.model.QTableID
 import io.qbeast.spark.index.OTreeAlgorithmTest._
 import io.qbeast.spark.index.QbeastColumns._
-import io.qbeast.spark.{QbeastIntegrationTestSpec, SparkRevisionBuilder}
+import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
 import org.scalatest.PrivateMethodTester

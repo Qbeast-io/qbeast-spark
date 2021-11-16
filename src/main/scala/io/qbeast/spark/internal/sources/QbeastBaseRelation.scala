@@ -49,9 +49,8 @@ object QbeastBaseRelation {
 
   def forTableID(spark: SparkSession, qTableID: QTableID): QbeastBaseRelation = {
 
-    val snapshot = DeltaLog.forTable(spark, qTableID.id).update()
-    val deltaLog = snapshot.deltaLog
-
+    val deltaLog = DeltaLog.forTable(spark, qTableID.id)
+    val snapshot = deltaLog.snapshot
     val qbeastSnapshot = DeltaQbeastSnapshot(snapshot)
     val revision = qbeastSnapshot.loadLatestRevision
 

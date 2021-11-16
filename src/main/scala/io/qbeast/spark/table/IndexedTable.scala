@@ -6,9 +6,8 @@ package io.qbeast.spark.table
 import io.qbeast.keeper.Keeper
 import io.qbeast.model.api.{DataWriter, IndexManager, MetadataManager, QbeastSnapshot}
 import io.qbeast.model.{IndexStatus, QTableID, RevisionID}
-import io.qbeast.spark.SparkRevisionBuilder
 import io.qbeast.spark.delta.DataLoader
-import io.qbeast.spark.index.OTreeAlgorithm
+import io.qbeast.spark.index.SparkRevisionBuilder
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.sources.BaseRelation
@@ -95,11 +94,9 @@ trait IndexedTableFactory {
  * Implementation of IndexedTableFactory.
  *
  * @param keeper the keeper
- * @param oTreeAlgorithm the OTreeAlgorithm instance
  */
 final class IndexedTableFactoryImpl(
     private val keeper: Keeper,
-    private val oTreeAlgorithm: OTreeAlgorithm,
     private val indexManager: IndexManager[DataFrame],
     private val metadataManager: MetadataManager[StructType, FileAction],
     private val dataWriter: DataWriter[DataFrame, StructType, FileAction])
@@ -174,7 +171,6 @@ private[table] class IndexedTableImpl(
   }
 
   private def createQbeastBaseRelation(): QbeastBaseRelation = {
-
     QbeastBaseRelation.forTableID(sqlContext.sparkSession, tableID)
   }
 
@@ -216,7 +212,9 @@ private[table] class IndexedTableImpl(
 
   override def optimize(revisionID: RevisionID): Unit = {
 
+    // begin keeper transaction
     val bo = keeper.beginOptimization(tableID, revisionID)
+
     val currentIndexStatus = snapshot.loadIndexStatusAt(revisionID)
     val indexStatus = currentIndexStatus.addAnnouncements(bo.cubesToOptimize)
     val cubesToReplicate = indexStatus.cubesToOptimize
@@ -226,7 +224,6 @@ private[table] class IndexedTableImpl(
       metadataManager.updateWithTransaction(tableID, schema, true) {
         val dataToReplicate =
           DataLoader(tableID).loadSetWithCubeColumn(cubesToReplicate, indexStatus.revision)
-
         val (qbeastData, tableChanges) =
           indexManager.optimize(dataToReplicate, indexStatus)
         val fileActions =
@@ -236,6 +233,8 @@ private[table] class IndexedTableImpl(
     }
 
     bo.end(cubesToReplicate)
+    // end keeper transaction
+
     clearCaches()
   }
 

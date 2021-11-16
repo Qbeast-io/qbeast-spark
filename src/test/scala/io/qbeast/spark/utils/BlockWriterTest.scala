@@ -4,11 +4,11 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.model.{CubeId, IndexStatus, IndexStatusChange, Point, QTableID, TableChanges}
-import io.qbeast.spark.index.QbeastColumns
+import io.qbeast.spark.index.{QbeastColumns, SparkRevisionBuilder}
 import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.index.writer.BlockWriter
 import io.qbeast.spark.utils.BlockWriterTest.IndexData
-import io.qbeast.spark.{QbeastIntegrationTestSpec, SparkRevisionBuilder}
+import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.datasources.OutputWriterFactory

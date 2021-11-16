@@ -7,10 +7,17 @@ import io.qbeast.model._
 import io.qbeast.spark.index.QbeastColumns.{cubeToReplicateColumnName, weightColumnName}
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
 import org.apache.spark.sql.functions.{col, udaf}
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
 trait OTreeDataAnalyzer {
 
+  /**
+   * Analyze the data to process
+   * @param data the data to index
+   * @param indexStatus the current status of the index
+   * @param isReplication either we are replicating the elements or not
+   * @return the changes to the index
+   */
   def analyze(
       data: DataFrame,
       indexStatus: IndexStatus,
@@ -63,34 +70,52 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     }
   }
 
-  // TODO should we use different method for replicate?
-  override def analyze(
-      dataFrame: DataFrame,
-      indexStatus: IndexStatus,
-      isReplication: Boolean): (DataFrame, TableChanges) = {
-    val spaceChanges = if (isReplication) {
-      None
-    } else {
-      calculateRevisionChanges(dataFrame, indexStatus.revision)
-    }
-    val revision = spaceChanges match {
-      case Some(revisionChange) =>
-        revisionChange.newRevision
-      case None => indexStatus.revision
-    }
+  // DATAFRAME TRANSFORMATIONS //
+
+  private[index] def addRandomWeight(df: DataFrame, revision: Revision): DataFrame = {
+    df.withColumn(
+      weightColumnName,
+      qbeastHash(revision.columnTransformers.map(name => df(name.columnName)): _*))
+  }
+
+  private[index] def estimateCubeWeights(
+      partitionedEstimatedCubeWeights: Dataset[CubeNormalizedWeight],
+      revision: Revision): Dataset[(CubeId, NormalizedWeight)] = {
+
     val sqlContext = SparkSession.active.sqlContext
     import sqlContext.implicits._
-    val weightedDataFrame = dataFrame.transform(df => addRandomWeight(df, revision))
+
+    // These column names are the ones specified in case class CubeNormalizedWeight
+    partitionedEstimatedCubeWeights
+      .groupBy("cubeBytes")
+      .agg(maxWeightEstimation(col("normalizedWeight")))
+      .map { row =>
+        val bytes = row.getAs[Array[Byte]](0)
+        val estimatedWeight = row.getAs[Double](1)
+        (revision.createCubeId(bytes), estimatedWeight)
+      }
+  }
+
+  private[index] def estimatePartitionCubeWeights(
+      weightedDataFrame: DataFrame,
+      revision: Revision,
+      indexStatus: IndexStatus,
+      isReplication: Boolean): Dataset[CubeNormalizedWeight] = {
+
+    val sqlContext = SparkSession.active.sqlContext
+    import sqlContext.implicits._
 
     val partitionCount: Int = weightedDataFrame.rdd.getNumPartitions
+
     val partitionedDesiredCubeSize = if (partitionCount > 0) {
       revision.desiredCubeSize / partitionCount
     } else {
       revision.desiredCubeSize
     }
+
     val columnsToIndex = revision.columnTransformers.map(_.columnName)
 
-    val partitionedEstimatedCubeWeights = weightedDataFrame
+    weightedDataFrame
       .mapPartitions(rows => {
         val weights =
           new CubeWeightsBuilder(
@@ -100,7 +125,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
             indexStatus.replicatedSet)
         rows.foreach { row =>
           val values = columnsToIndex.map(row.getAs[Any])
-          val point = OTreeAlgorithmImpl.rowValuesToPoint(values, revision)
+          val point = RowUtils.rowValuesToPoint(values, revision)
           val weight = Weight(row.getAs[Int](weightColumnName))
           if (isReplication) {
             val parentBytes = row.getAs[Array[Byte]](cubeToReplicateColumnName)
@@ -110,36 +135,56 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         }
         weights.result().iterator
       })
-    // These column names are the ones specified in case class CubeNormalizedWeight
-    val estimatedCubeWeights = partitionedEstimatedCubeWeights
-      .groupBy("cubeBytes")
-      .agg(maxWeightEstimation(col("normalizedWeight")))
-      .collect()
-      .map { row =>
-        val bytes = row.getAs[Array[Byte]](0)
-        val estimatedWeight = row.getAs[Double](1)
-        (revision.createCubeId(bytes), estimatedWeight)
-      }
-      .toMap
-
-    val deltaReplicatedSet =
-      if (isReplication) indexStatus.cubesToOptimize
-      else Set.empty[CubeId]
-
-    (
-      weightedDataFrame,
-      TableChanges(
-        spaceChanges,
-        IndexStatusChange(
-          indexStatus,
-          estimatedCubeWeights,
-          deltaReplicatedSet = deltaReplicatedSet)))
   }
 
-  private def addRandomWeight(df: DataFrame, revision: Revision): DataFrame = {
-    df.withColumn(
-      weightColumnName,
-      qbeastHash(revision.columnTransformers.map(name => df(name.columnName)): _*))
+  // ANALYZE METHODS
+  /**
+   * @param dataFrame
+   * @param indexStatus
+   * @param isReplication
+   * @return
+   */
+  override def analyze(
+      dataFrame: DataFrame,
+      indexStatus: IndexStatus,
+      isReplication: Boolean): (DataFrame, TableChanges) = {
+
+    val spaceChanges =
+      if (isReplication) None
+      else calculateRevisionChanges(dataFrame, indexStatus.revision)
+
+    // The revision to use
+    val revision = spaceChanges match {
+      case Some(revisionChange) =>
+        revisionChange.newRevision
+      case None => indexStatus.revision
+    }
+
+    // Three step transformation
+
+    // First, add a random weight column
+    val weightedDataFrame = dataFrame.transform(df => addRandomWeight(df, revision))
+    // Second, estimate the cube weights at partition level
+    val partitionedEstimatedCubeWeights = weightedDataFrame.transform(df =>
+      estimatePartitionCubeWeights(df, revision, indexStatus, isReplication))
+    // Third, compute the overall estimated cube weights
+    val estimatedCubeWeights =
+      partitionedEstimatedCubeWeights
+        .transform(df => estimateCubeWeights(df, revision))
+        .collect()
+        .toMap
+
+    // Gather the new changes
+    val tableChanges = TableChanges(
+      spaceChanges,
+      IndexStatusChange(
+        indexStatus,
+        estimatedCubeWeights,
+        deltaReplicatedSet =
+          if (isReplication) indexStatus.cubesToOptimize
+          else Set.empty[CubeId]))
+
+    (weightedDataFrame, tableChanges)
   }
 
 }

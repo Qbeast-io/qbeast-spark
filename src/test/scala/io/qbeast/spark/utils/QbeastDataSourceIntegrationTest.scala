@@ -29,6 +29,13 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
             .option("columnsToIndex", "user_id,product_id")
             .save(tmpDir)
 
+          spark.sql(
+            s"""CREATE TABLE default.ecommerce USING QBEAST LOCATION '$tmpDir'""".stripMargin)
+
+          val a = spark.table("default.ecommerce")
+          a.sample(0.1).explain(true)
+          spark.catalog.listTables().show()
+
           val indexed = spark.read.format("qbeast").load(tmpDir)
 
           data.count() shouldBe indexed.count()

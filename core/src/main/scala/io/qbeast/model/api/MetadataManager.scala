@@ -7,16 +7,16 @@ trait MetadataManager[DataSchema, FileAction] {
 
   /**
    * Get the QbeastSnapshot for a given table
-   * @param qtable
+   * @param tableID
    * @return
    */
-  def loadQbeastSnapshot(qtable: QTableID): QbeastSnapshot
+  def loadQbeastSnapshot(tableID: QTableID): QbeastSnapshot
 
   /**
    * Get the Schema for a given table
-   * @param qtable
+   * @param tableID
    */
-  def loadCurrentSchema(qtable: QTableID): DataSchema
+  def loadCurrentSchema(tableID: QTableID): DataSchema
 
   /**
    * Save methods
@@ -26,31 +26,31 @@ trait MetadataManager[DataSchema, FileAction] {
    * Perform an Update operation by using transaction control
    * @param writer the writer code to be executed
    * @param schema the schema of the data
-   * @param qtable the QTableID
+   * @param tableID the QTableID
    * @param append the append flag
    */
-  def updateWithTransaction(qtable: QTableID, schema: DataSchema, append: Boolean)(
+  def updateWithTransaction(tableID: QTableID, schema: DataSchema, append: Boolean)(
       writer: => (TableChanges, IISeq[FileAction]))
 
   /**
    * Update the Revision with the given RevisionChanges
    * @param revisionChange the collection of RevisionChanges
-   * @param qtable the QTableID
+   * @param tableID the QTableID
    */
-  def updateRevision(qtable: QTableID, revisionChange: RevisionChange): Unit
+  def updateRevision(tableID: QTableID, revisionChange: RevisionChange): Unit
 
   /**
    * Update the IndexStatus with the given IndexStatusChanges
    * @param indexStatusChange the collection of IndexStatusChanges
-   * @param qtable the QTableID
+   * @param tableID the QTableID
    */
-  def updateIndexStatus(qtable: QTableID, indexStatusChange: IndexStatusChange): Unit
+  def updateIndexStatus(tableID: QTableID, indexStatusChange: IndexStatusChange): Unit
 
   /**
    * Update the Table with the given TableChanges
    * @param tableChanges the collection of TableChanges
-   * @param qtable the QTableID
+   * @param tableID the QTableID
    */
-  def updateTable(qtable: QTableID, tableChanges: TableChanges): Unit
+  def updateTable(tableID: QTableID, tableChanges: TableChanges): Unit
 
 }
