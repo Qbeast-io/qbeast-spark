@@ -13,13 +13,6 @@ import org.apache.spark.sql.delta.files.{TahoeFileIndex, TahoeLogFileIndex}
 import org.apache.spark.sql.types.IntegerType
 
 /**
- * Integer values of range [from, to)
- * @param from from value
- * @param to to value
- */
-case class RangeValues(from: Weight, to: Weight)
-
-/**
  * FileIndex to prune files
  *
  * @param index the Tahoe log file index
@@ -33,7 +26,7 @@ case class OTreeIndex(index: TahoeLogFileIndex)
    */
   protected def snapshot: Snapshot = index.getSnapshot
 
-  private val qbeastSnapshot = QbeastSnapshot(snapshot)
+  private def qbeastSnapshot = DeltaQbeastSnapshot(snapshot)
 
   /**
    * Analyzes the data filters from the query
@@ -45,7 +38,7 @@ case class OTreeIndex(index: TahoeLogFileIndex)
     dataFilters.partition(e => e.children.head.prettyName.equals("qbeast_hash"))
   }
 
-  private def extractWeightRange(filters: Seq[Expression]): (Weight, Weight) = {
+  private def extractWeightRange(filters: Seq[Expression]): Range[Weight] = {
     val min = filters
       .collect { case expressions.GreaterThanOrEqual(_, Literal(m, IntegerType)) =>
         m.asInstanceOf[Int]
@@ -60,7 +53,7 @@ case class OTreeIndex(index: TahoeLogFileIndex)
       .reduceOption(_ max _)
       .getOrElse(Int.MaxValue)
 
-    (Weight(min), Weight(max))
+    Range(Weight(min), Weight(max))
   }
 
   override def matchingFiles(
@@ -70,8 +63,8 @@ case class OTreeIndex(index: TahoeLogFileIndex)
     val (qbeastDataFilters, tahoeDataFilters) = extractDataFilters(dataFilters)
     val tahoeMatchingFiles = index.matchingFiles(partitionFilters, tahoeDataFilters)
 
-    val (minWeight, maxWeight) = extractWeightRange(qbeastDataFilters)
-    val files = sample(minWeight, maxWeight, tahoeMatchingFiles)
+    val weightRange = extractWeightRange(qbeastDataFilters)
+    val files = sample(weightRange, tahoeMatchingFiles)
 
     files
   }
@@ -85,19 +78,16 @@ case class OTreeIndex(index: TahoeLogFileIndex)
    * and find the files that satisfy the predicates
    */
 
-  def sample(fromPrecision: Weight, toPrecision: Weight, files: Seq[AddFile]): Seq[AddFile] = {
+  def sample(weightRange: Range[Weight], files: Seq[AddFile]): Seq[AddFile] = {
 
-    val samplingRange = RangeValues(fromPrecision, toPrecision) match {
-      case range if range.to == Weight.MinValue => return List()
-      case range if range.from > range.to => return List()
-      case range => range
-    }
+    if (weightRange.to == Weight.MinValue || weightRange.from > weightRange.to) return List.empty
 
     val filesVector = files.toVector
-    qbeastSnapshot.revisions
+
+    qbeastSnapshot.loadAllRevisions
       .flatMap(revision => {
 
-        val revisionData = qbeastSnapshot.getIndexStatus(revision.revisionID)
+        val revisionData = qbeastSnapshot.loadIndexStatusAt(revision.revisionID)
         val dimensionCount = revision.columnTransformers.length
 
         val originalFrom = Point(Vector.fill(dimensionCount)(Int.MinValue.doubleValue()))
@@ -111,7 +101,7 @@ case class OTreeIndex(index: TahoeLogFileIndex)
 
         findSampleFiles(
           querySpace,
-          samplingRange,
+          weightRange,
           CubeId.root(dimensionCount),
           filesRevision,
           cubeWeights,
@@ -124,7 +114,7 @@ case class OTreeIndex(index: TahoeLogFileIndex)
    * Finds the files to retrieve the query sample.
    *
    * @param space the query space
-   * @param precision the sample precision range
+   * @param weightRange the weight range
    * @param startCube the start cube
    * @param files the data files
    * @param cubeWeights the cube weights
@@ -132,7 +122,7 @@ case class OTreeIndex(index: TahoeLogFileIndex)
    */
   def findSampleFiles(
       space: QuerySpace,
-      precision: RangeValues,
+      weightRange: Range[Weight],
       startCube: CubeId,
       files: Vector[AddFile],
       cubeWeights: Map[CubeId, Weight],
@@ -140,7 +130,7 @@ case class OTreeIndex(index: TahoeLogFileIndex)
 
     def doFindSampleFiles(cube: CubeId): Vector[AddFile] = {
       cubeWeights.get(cube) match {
-        case Some(cubeWeight) if precision.to < cubeWeight =>
+        case Some(cubeWeight) if weightRange.to < cubeWeight =>
           val cubeString = cube.string
           files.filter(_.tags(TagUtils.cube) == cubeString)
         case Some(cubeWeight) =>
@@ -148,7 +138,7 @@ case class OTreeIndex(index: TahoeLogFileIndex)
           val childFiles = cube.children
             .filter(space.intersectsWith)
             .flatMap(doFindSampleFiles)
-          if (!replicatedSet.contains(cube) && precision.from < cubeWeight) {
+          if (!replicatedSet.contains(cube) && weightRange.from < cubeWeight) {
             val cubeFiles = files.filter(_.tags(TagUtils.cube) == cubeString)
             if (childFiles.nonEmpty) {
               cubeFiles.filterNot(_.tags(TagUtils.state) == State.ANNOUNCED) ++ childFiles

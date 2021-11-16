@@ -5,55 +5,74 @@ package io.qbeast.spark.delta
 
 import io.qbeast.IISeq
 import io.qbeast.model._
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.delta.DeltaLog
+import io.qbeast.model.api.MetadataManager
+import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions}
+import org.apache.spark.sql.delta.actions.FileAction
+import org.apache.spark.sql.types.StructType
 
-class SparkDeltaMetadataManager extends MetadataManager[QTableID] {
-
-  override def loadAllRevisions(qtable: QTableID): IISeq[Revision] = {
-    QbeastSnapshot(DeltaLog.forTable(SparkSession.active, qtable.id).snapshot)
-  }.revisions
-
-  override def loadRevisionAt(qtable: QTableID, timestamp: Long): Revision = null
-
-  override def updateRevision(revisionChange: RevisionChange): Unit = {}
-
-  override def updateIndexStatus(indexStatusChange: IndexStatusChange): Unit = {}
-
-  override def updateTable(tableChanges: TableChanges): Unit = {}
-
-  override def updateWithTransaction(code: Function[_, TableChanges]): Unit = {}
+class SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction] {
 
   /**
-   * Obtain the last Revisions for a given QTableID
-   *
-   * @param qtable the QTableID
-   * @return an immutable Seq of Revision for qtable
+   * Update the metadata within a transaction
+   * @param tableID the QTableID
+   * @param schema the schema of the data
+   * @param writer the writer code to be executed
+   * @param append the append flag
    */
-  override def loadLatestRevision(qtable: QTableID): Revision = {
-    QbeastSnapshot(DeltaLog.forTable(SparkSession.active, qtable.id).snapshot)
-  }.lastRevision
+  override def updateWithTransaction(tableID: QTableID, schema: StructType, append: Boolean)(
+      writer: => (TableChanges, IISeq[FileAction])): Unit = {
 
-  /**
-   * Obtains the latest IndexStatus for a given QTableID
-   *
-   * @param qtable the QTableID
-   * @return the latest IndexStatus for qtable, or None if no IndexStatus exists for qtable
-   */
-  override def loadIndexStatus(qtable: QTableID): IndexStatus = {
-
-    QbeastSnapshot(DeltaLog.forTable(SparkSession.active, qtable.id).snapshot).lastRevisionData
+    val deltaLog = DeltaLog.forTable(SparkSession.active, tableID.id)
+    val mode = if (append) SaveMode.Append else SaveMode.Overwrite
+    val options =
+      new DeltaOptions(Map("path" -> tableID.id), SparkSession.active.sessionState.conf)
+    val metadataWriter = DeltaMetadataWriter(tableID, mode, deltaLog, options, schema)
+    metadataWriter.writeWithTransaction(writer)
   }
 
   /**
-   * Obtain the IndexStatus for a given RevisionID
+   * Get the QbeastSnapshot for a given table
    *
-   * @param revisionID the RevisionID
-   * @return the IndexStatus for revisionID
+   * @param tableID
+   * @return
    */
-  override def loadRevision(qtable: QTableID, revisionID: RevisionID): Revision = {
-    QbeastSnapshot(DeltaLog.forTable(SparkSession.active, qtable.id).snapshot)
-      .getRevision(revisionID)
+  override def loadQbeastSnapshot(tableID: QTableID): DeltaQbeastSnapshot = {
+    DeltaQbeastSnapshot(DeltaLog.forTable(SparkSession.active, tableID.id).update())
   }
 
+  /**
+   * Get the Schema for a given table
+   *
+   * @param tableID
+   */
+  override def loadCurrentSchema(tableID: QTableID): StructType = {
+    DeltaLog.forTable(SparkSession.active, tableID.id).update().schema
+  }
+
+  /**
+   * Update the Revision with the given RevisionChanges
+   *
+   * @param revisionChange the collection of RevisionChanges
+   * @param tableID         the QTableID
+   */
+  override def updateRevision(tableID: QTableID, revisionChange: RevisionChange): Unit = {}
+
+  /**
+   * Update the IndexStatus with the given IndexStatusChanges
+   *
+   * @param indexStatusChange the collection of IndexStatusChanges
+   * @param tableID            the QTableID
+   */
+  override def updateIndexStatus(
+      tableID: QTableID,
+      indexStatusChange: IndexStatusChange): Unit = {}
+
+  /**
+   * Update the Table with the given TableChanges
+   *
+   * @param tableChanges the collection of TableChanges
+   * @param tableID       the QTableID
+   */
+  override def updateTable(tableID: QTableID, tableChanges: TableChanges): Unit = {}
 }

@@ -97,7 +97,7 @@ final case class Revision(
    */
   def transform(values: IISeq[_]): IISeq[Double] = {
     assert(
-      values.length == transformations.length && values.length > 0,
+      values.length == transformations.length && values.nonEmpty,
       s"$values $transformations")
     val vb = Vector.newBuilder[Double]
     vb.sizeHint(transformations.length)
@@ -159,6 +159,8 @@ case class IndexStatus(
   def addAnnouncements(newAnnouncedSet: Set[CubeId]): IndexStatus =
     copy(announcedSet = announcedSet ++ newAnnouncedSet)
 
+  def cubesToOptimize: Set[CubeId] = announcedSet.diff(replicatedSet)
+
 }
 
 object IndexStatus {
@@ -167,16 +169,14 @@ object IndexStatus {
 
 case class IndexStatusChange(
     supersededIndexStatus: IndexStatus,
-    deltaNormalizedCubeWeights: Map[CubeId, NormalizedWeight])
+    deltaNormalizedCubeWeights: Map[CubeId, NormalizedWeight],
+    deltaReplicatedSet: Set[CubeId] = Set.empty,
+    deltaAnnouncedSet: Set[CubeId] = Set.empty)
     extends Serializable {
 
   def cubeWeights: Map[CubeId, Weight] = PointWeightIndexer.mergeNormalizedWeights(
     supersededIndexStatus.cubeNormalizedWeights,
     deltaNormalizedCubeWeights)
-
-  def deltaReplicatedSet: Set[CubeId] = Set.empty
-
-  def deltaAnnouncedSet: Set[CubeId] = Set.empty
 
   def announcedSet: Set[CubeId] = supersededIndexStatus.announcedSet ++ deltaAnnouncedSet
 

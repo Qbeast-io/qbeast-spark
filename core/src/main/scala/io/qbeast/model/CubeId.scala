@@ -243,11 +243,7 @@ object CubeId {
  * @param depth the cube depth
  * @param bitMask the bitMask representing the cube z-index.
  */
-class CubeId private (
-    private val dimensionCount: Int,
-    private val depth: Int,
-    private val bitMask: Array[Long])
-    extends Serializable {
+case class CubeId(dimensionCount: Int, depth: Int, bitMask: Array[Long]) extends Serializable {
   private lazy val range = getRange
 
   /**

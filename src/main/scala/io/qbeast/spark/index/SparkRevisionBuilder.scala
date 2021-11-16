@@ -1,11 +1,10 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark
+package io.qbeast.spark.index
 
 import com.typesafe.config.ConfigFactory
 import io.qbeast.model.{QDataType, QTableID, Revision, RevisionBuilder}
-import io.qbeast.spark.index.ColumnsToIndex
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.utils.SparkToQTypesUtils
 import io.qbeast.transform.Transformer

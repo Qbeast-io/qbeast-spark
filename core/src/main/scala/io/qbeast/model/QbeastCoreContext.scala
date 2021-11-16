@@ -1,11 +1,13 @@
 package io.qbeast.model
 
 import io.qbeast.keeper.Keeper
+import io.qbeast.model.api.{DataWriter, IndexManager, MetadataManager, QueryManager}
 
 import scala.reflect.ClassTag
 
-trait QbeastCoreContext[ID <: QTableID, DATA] {
-  def metadataManager: MetadataManager[ID]
+trait QbeastCoreContext[DATA, DataSchema, FileAction] {
+  def metadataManager: MetadataManager[DataSchema, FileAction]
+  def dataWriter: DataWriter[DATA, DataSchema, FileAction]
   def indexManager: IndexManager[DATA]
   def queryManager[QUERY: ClassTag]: QueryManager[QUERY, DATA]
   def revisionBuilder: RevisionBuilder[DATA]

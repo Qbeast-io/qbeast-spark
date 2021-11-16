@@ -6,9 +6,10 @@ package io.qbeast.spark.delta
 import com.typesafe.config.ConfigFactory
 import io.qbeast.model.{IndexStatus, QTableID, Weight}
 import io.qbeast.spark.index.OTreeAlgorithmTest.Client3
-import io.qbeast.spark.{QbeastIntegrationTestSpec, SparkRevisionBuilder, delta}
+import io.qbeast.spark.index.SparkRevisionBuilder
+import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -45,9 +46,9 @@ class QbeastSnapshotTest
             .save(tmpDir)
 
           val deltaLog = DeltaLog.forTable(spark, tmpDir)
-          val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
+          val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
           val cubeNormalizedWeights =
-            qbeastSnapshot.lastRevisionData.cubeNormalizedWeights
+            qbeastSnapshot.loadLatestIndexStatus.cubeNormalizedWeights
 
           cubeNormalizedWeights.foreach(cubeInfo => cubeInfo._2 shouldBe 2.0)
         }
@@ -67,9 +68,9 @@ class QbeastSnapshotTest
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = delta.QbeastSnapshot(deltaLog.snapshot)
+        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
         val cubeNormalizedWeights =
-          qbeastSnapshot.lastRevisionData.cubeNormalizedWeights
+          qbeastSnapshot.loadLatestIndexStatus.cubeNormalizedWeights
 
         cubeNormalizedWeights.foreach(cubeInfo => cubeInfo._2 shouldBe <(1.0))
       }
@@ -93,8 +94,8 @@ class QbeastSnapshotTest
             .save(tmpDir)
 
           val deltaLog = DeltaLog.forTable(spark, tmpDir)
-          val qbeastSnapshot = delta.QbeastSnapshot(deltaLog.snapshot)
-          val commitLogWeightMap = qbeastSnapshot.lastRevisionData.cubeWeights
+          val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
+          val commitLogWeightMap = qbeastSnapshot.loadLatestIndexStatus.cubeWeights
 
           // commitLogWeightMap shouldBe weightMap
           commitLogWeightMap.keys.foreach(cubeId => {
@@ -116,8 +117,8 @@ class QbeastSnapshotTest
         .save(tmpDir)
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val qbeastSnapshot = delta.QbeastSnapshot(deltaLog.snapshot)
-      val cubeWeights = qbeastSnapshot.lastRevisionData.cubeWeights
+      val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
+      val cubeWeights = qbeastSnapshot.loadLatestIndexStatus.cubeWeights
 
       cubeWeights.foreach { case (_, weight: Weight) =>
         weight shouldBe >(Weight.MinValue)
@@ -130,38 +131,34 @@ class QbeastSnapshotTest
   "Overflowed set" should
     "contain only cubes that surpass desiredCubeSize" in withQbeastContextSparkAndTmpDir {
       (spark, tmpDir) =>
-        withOTreeAlgorithm { oTreeAlgorithm =>
-          {
+        {
 
-            val df = createDF(100000)
-            val names = List("age", "val2")
+          val df = createDF(100000)
+          val names = List("age", "val2")
 
-            df.write
-              .format("qbeast")
-              .mode("overwrite")
-              .option("columnsToIndex", names.mkString(","))
-              .save(tmpDir)
+          df.write
+            .format("qbeast")
+            .mode("overwrite")
+            .option("columnsToIndex", names.mkString(","))
+            .save(tmpDir)
 
-            val deltaLog = DeltaLog.forTable(spark, tmpDir)
-            val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
-            val isBuilder =
-              new qbeastSnapshot.DeltaSnapshotIndexStatusBuilder(qbeastSnapshot.lastRevision)
+          val deltaLog = DeltaLog.forTable(spark, tmpDir)
+          val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+          val builder =
+            new IndexStatusBuilder(qbeastSnapshot, qbeastSnapshot.loadLatestIndexStatus.revision)
+          val revisionState = builder.revisionState
 
-            val indexStateMethod = PrivateMethod[Dataset[CubeInfo]]('revisionState)
-            val indexState =
-              isBuilder invokePrivate indexStateMethod()
-            val overflowed =
-              qbeastSnapshot.lastRevisionData.overflowedSet.map(_.string)
+          val overflowed =
+            qbeastSnapshot.loadLatestIndexStatus.overflowedSet
+              .map(_.string)
 
-            indexState
-              .filter(cubeInfo => overflowed.contains(cubeInfo.cube))
-              .collect()
-              .foreach(cubeInfo =>
-                assert(
-                  cubeInfo.size > 1000 * 0.9,
-                  "assertion failed in cube " + cubeInfo.cube +
-                    " where size is " + cubeInfo.size + " and weight is " + cubeInfo.maxWeight))
-          }
+          revisionState
+            .filter(cubeInfo => overflowed.contains(cubeInfo.cube))
+            .foreach(cubeInfo =>
+              assert(
+                cubeInfo.size > 1000 * 0.9,
+                "assertion failed in cube " + cubeInfo.cube +
+                  " where size is " + cubeInfo.size + " and weight is " + cubeInfo.maxWeight))
         }
     }
 

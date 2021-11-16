@@ -6,7 +6,7 @@ package io.qbeast.spark.index
 import io.qbeast.model._
 import io.qbeast.spark.index.OTreeAlgorithmTest.{Client3, Client4}
 import io.qbeast.spark.index.QbeastColumns.cubeColumnName
-import io.qbeast.spark.{QbeastIntegrationTestSpec, SparkRevisionBuilder, delta}
+import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
 import org.apache.spark.SparkException
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.col
@@ -213,7 +213,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = delta.QbeastSnapshot(deltaLog.snapshot)
+        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
 
         val offset = 0.5
         val appendData = df
@@ -225,7 +225,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
           appendData,
           Map("columnsToIndex" -> "age,val2"))
         val (indexed, tc) =
-          oTreeAlgorithm.index(appendData, qbeastSnapshot.lastRevisionData)
+          oTreeAlgorithm.index(appendData, qbeastSnapshot.loadLatestIndexStatus)
 
         checkCubes(tc.indexChanges.cubeWeights)
         checkWeightsIncrement(tc.indexChanges.cubeWeights)

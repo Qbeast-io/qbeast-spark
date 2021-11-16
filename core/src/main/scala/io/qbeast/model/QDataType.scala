@@ -37,15 +37,10 @@ trait OrderedDataType extends QDataType {
 
 }
 
-class DoubleDataType extends OrderedDataType {
-
-  @JsonValue
+object DoubleDataType extends OrderedDataType {
   override def name: String = "DoubleDataType"
-
   override val ordering: Numeric[Any] = implicitly[Numeric[Double]].asInstanceOf[Numeric[Any]]
 }
-
-object DoubleDataType extends DoubleDataType
 
 object IntegerDataType extends OrderedDataType {
   override def name: String = "IntegerDataType"
