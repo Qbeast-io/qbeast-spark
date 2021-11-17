@@ -14,8 +14,6 @@
 ---
 **Qbeast Spark** extension is a **data lakehouse** enhancement that enables **multi-dimensional indexing** and **efficient data sampling** with **ACID** properties.
 
-We achieve these functionalities by combining the **recursive space division** algorithm for indexing with data **de-normalization** and a set of query optimization rules developed for Spark.
-
 
 <br/>
  

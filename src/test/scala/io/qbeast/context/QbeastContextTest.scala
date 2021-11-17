@@ -26,9 +26,9 @@ class QbeastContextTest extends AnyFlatSpec with Matchers {
     val keeper = LocalKeeper
     val indexedTableFactory = new IndexedTableFactoryImpl(
       keeper,
-      new SparkOTreeManager,
-      new SparkDeltaMetadataManager,
-      new SparkDataWriter)
+      SparkOTreeManager,
+      SparkDeltaMetadataManager,
+      SparkDataWriter)
     val unmanaged = new QbeastContextImpl(
       config = ConfigFactory.load(),
       keeper = keeper,
@@ -47,9 +47,9 @@ class QbeastContextTest extends AnyFlatSpec with Matchers {
     val keeper = LocalKeeper
     val indexedTableFactory = new IndexedTableFactoryImpl(
       keeper,
-      new SparkOTreeManager,
-      new SparkDeltaMetadataManager,
-      new SparkDataWriter)
+      SparkOTreeManager,
+      SparkDeltaMetadataManager,
+      SparkDataWriter)
     val unmanaged = new QbeastContextImpl(
       config = ConfigFactory.load(),
       keeper = keeper,

@@ -14,6 +14,9 @@ import org.apache.spark.sql.delta.{
 }
 import org.apache.spark.sql.types.{ArrayType, DataType, MapType, StructType}
 
+/**
+ * Qbeast metadata changes on a Delta Table.
+ */
 private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
 
   type Configuration = Map[String, String]

@@ -7,13 +7,14 @@ import com.github.mrpowers.spark.fast.tests.DatasetComparer
 import com.typesafe.config.{Config, ConfigFactory}
 import io.qbeast.keeper.{Keeper, LocalKeeper}
 import io.qbeast.context.{QbeastContext, QbeastContextImpl}
+import io.qbeast.model.api.IndexManager
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
 import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.index.writer.SparkDataWriter
 import io.qbeast.spark.internal.QbeastSparkSessionExtension
 import io.qbeast.spark.table.IndexedTableFactoryImpl
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -75,9 +76,9 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
       testCode: => T): T = {
     val indexedTableFactory = new IndexedTableFactoryImpl(
       keeper,
-      new SparkOTreeManager,
-      new SparkDeltaMetadataManager,
-      new SparkDataWriter)
+      SparkOTreeManager,
+      SparkDeltaMetadataManager,
+      SparkDataWriter)
     val context = new QbeastContextImpl(config, keeper, indexedTableFactory)
     try {
       QbeastContext.setUnmanaged(context)
@@ -90,9 +91,8 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
   def withQbeastContextSparkAndTmpDir[T](testCode: (SparkSession, String) => T): T =
     withQbeastContext()(withTmpDir(tmpDir => withSpark(spark => testCode(spark, tmpDir))))
 
-  def withOTreeAlgorithm[T](code: SparkOTreeManager => T): T = {
-    val oTreeAlgorithm = new SparkOTreeManager
-    code(oTreeAlgorithm)
+  def withOTreeAlgorithm[T](code: IndexManager[DataFrame] => T): T = {
+    code(SparkOTreeManager)
   }
 
 }

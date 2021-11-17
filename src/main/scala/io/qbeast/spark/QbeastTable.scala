@@ -58,7 +58,7 @@ class QbeastTable private (
    * and find the cubes that need optimization
    * @param revisionID the identifier of the revision to optimize.
    *                          If doesn't exist or none is specified, would be the last available
-   * @return the sequence of cubes to optimize
+   * @return the sequence of cubes to optimize in string representation
    */
   def analyze(revisionID: Option[RevisionID] = None): Seq[String] = {
     AnalyzeTableCommand(getAvailableRevision(revisionID), indexedTable)

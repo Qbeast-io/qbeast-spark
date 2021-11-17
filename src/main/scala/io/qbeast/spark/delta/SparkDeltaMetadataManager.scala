@@ -11,15 +11,11 @@ import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions}
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.types.StructType
 
-class SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction] {
+/**
+ * Spark+Delta implementation of the MetadataManager interface
+ */
+object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction] {
 
-  /**
-   * Update the metadata within a transaction
-   * @param tableID the QTableID
-   * @param schema the schema of the data
-   * @param writer the writer code to be executed
-   * @param append the append flag
-   */
   override def updateWithTransaction(tableID: QTableID, schema: StructType, append: Boolean)(
       writer: => (TableChanges, IISeq[FileAction])): Unit = {
 
@@ -31,48 +27,19 @@ class SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction] 
     metadataWriter.writeWithTransaction(writer)
   }
 
-  /**
-   * Get the QbeastSnapshot for a given table
-   *
-   * @param tableID
-   * @return
-   */
   override def loadQbeastSnapshot(tableID: QTableID): DeltaQbeastSnapshot = {
     DeltaQbeastSnapshot(DeltaLog.forTable(SparkSession.active, tableID.id).update())
   }
 
-  /**
-   * Get the Schema for a given table
-   *
-   * @param tableID
-   */
   override def loadCurrentSchema(tableID: QTableID): StructType = {
     DeltaLog.forTable(SparkSession.active, tableID.id).update().schema
   }
 
-  /**
-   * Update the Revision with the given RevisionChanges
-   *
-   * @param revisionChange the collection of RevisionChanges
-   * @param tableID         the QTableID
-   */
   override def updateRevision(tableID: QTableID, revisionChange: RevisionChange): Unit = {}
 
-  /**
-   * Update the IndexStatus with the given IndexStatusChanges
-   *
-   * @param indexStatusChange the collection of IndexStatusChanges
-   * @param tableID            the QTableID
-   */
   override def updateIndexStatus(
       tableID: QTableID,
       indexStatusChange: IndexStatusChange): Unit = {}
 
-  /**
-   * Update the Table with the given TableChanges
-   *
-   * @param tableChanges the collection of TableChanges
-   * @param tableID       the QTableID
-   */
   override def updateTable(tableID: QTableID, tableChanges: TableChanges): Unit = {}
 }

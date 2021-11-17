@@ -27,15 +27,26 @@ import io.qbeast.model.Range
  */
 class SampleRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
 
+  /**
+   * Extracts the weight range of the Sample operator
+   * @param sample the Sample operator
+   * @return the Range of Weights
+   */
   private def extractWeightRange(sample: Sample): Range[Weight] = {
     val minWeight = Weight(sample.lowerBound)
     val maxWeight = Weight(sample.upperBound)
     Range(minWeight, maxWeight)
   }
 
-  def transformSampleToFilter(sample: Sample, l: LogicalRelation): LogicalPlan = {
+  /**
+   * Transforms the Sample Operator to a Filter if suited
+   * @param sample the Sample Operator
+   * @param logicalRelation the relation underneath
+   * @return the new LogicalPlan containing the Filter
+   */
+  def transformSampleToFilter(sample: Sample, logicalRelation: LogicalRelation): LogicalPlan = {
 
-    l match {
+    logicalRelation match {
       case LogicalRelation(q: QbeastBaseRelation, output, _, _) =>
         val weightRange = extractWeightRange(sample)
 
@@ -45,7 +56,8 @@ class SampleRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
         val filter = And(
           LessThan(qbeastHash, Literal(weightRange.to.value)),
           GreaterThanOrEqual(qbeastHash, Literal(weightRange.from.value)))
-        Filter(filter, l)
+        Filter(filter, logicalRelation)
+
       case _ => sample
 
     }
@@ -56,6 +68,7 @@ class SampleRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
     plan transformDown {
 
       case s @ Sample(_, _, false, _, l: LogicalRelation) => transformSampleToFilter(s, l)
+
       case s @ Sample(_, _, false, _, child) =>
         child match {
           case ProjectionFilter(l: LogicalRelation, projectList) =>

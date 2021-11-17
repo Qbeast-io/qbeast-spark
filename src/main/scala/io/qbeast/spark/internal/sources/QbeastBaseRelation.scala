@@ -16,23 +16,33 @@ import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
 
 /**
- * Implementation of BaseRelation which wraps the
- * HadoopFsRelation
+ * Implementation of BaseRelation which wraps the HadoopFsRelation
  *
- * @param baseRelation the wrapped instance
+ * @param relation the wrapped instance
  */
-case class QbeastBaseRelation(baseRelation: BaseRelation, private val revision: Revision)
+case class QbeastBaseRelation(relation: BaseRelation, private val revision: Revision)
     extends BaseRelation {
-  override def sqlContext: SQLContext = baseRelation.sqlContext
+  override def sqlContext: SQLContext = relation.sqlContext
 
-  override def schema: StructType = baseRelation.schema
+  override def schema: StructType = relation.schema
 
   def columnTransformers: IISeq[Transformer] = revision.columnTransformers
 
 }
 
+/**
+ * Companion object for QbeastBaseRelation
+ */
 object QbeastBaseRelation {
 
+  /**
+   * Creates HadoopFsRelation that wraps an OTreeIndex instance
+   * @param spark SparkSession
+   * @param fileIndex the file index to access
+   * @param schema the schema of the data
+   * @param options the options to write
+   * @return the HadoopFsRelation
+   */
   private def createHadoopFsRelation(
       spark: SparkSession,
       fileIndex: FileIndex,
@@ -47,9 +57,16 @@ object QbeastBaseRelation {
       options)(spark)
   }
 
-  def forTableID(spark: SparkSession, qTableID: QTableID): QbeastBaseRelation = {
+  /**
+   * Creates a QbeastBaseRelation instance
+   * @param spark SparkSession
+   * @param tableID the identifier of the table
+   * @return the QbeastBaseRelation
+   */
 
-    val deltaLog = DeltaLog.forTable(spark, qTableID.id)
+  def forTableID(spark: SparkSession, tableID: QTableID): QbeastBaseRelation = {
+
+    val deltaLog = DeltaLog.forTable(spark, tableID.id)
     val snapshot = deltaLog.snapshot
     val qbeastSnapshot = DeltaQbeastSnapshot(snapshot)
     val revision = qbeastSnapshot.loadLatestRevision

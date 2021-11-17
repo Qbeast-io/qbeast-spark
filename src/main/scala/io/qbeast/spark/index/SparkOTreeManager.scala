@@ -21,7 +21,7 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 /**
  * Implementation of OTreeAlgorithm.
  */
-class SparkOTreeManager extends IndexManager[DataFrame] with Serializable {
+object SparkOTreeManager extends IndexManager[DataFrame] with Serializable {
 
   /**
    * Builds an OTree index.
@@ -70,8 +70,10 @@ class SparkOTreeManager extends IndexManager[DataFrame] with Serializable {
   }
 
   private def findTargetCubeIdsUDF(
-      revision: Revision,
+      tableChanges: TableChanges,
       indexer: Broadcast[PointWeightIndexer]): UserDefinedFunction = {
+    val revision = tableChanges.updatedRevision
+
     udf((rowValues: Seq[Any], weightValue: Int, parentBytes: Any) => {
       val point = RowUtils.rowValuesToPoint(rowValues, revision)
       val weight = Weight(weightValue)
@@ -86,24 +88,18 @@ class SparkOTreeManager extends IndexManager[DataFrame] with Serializable {
     })
   }
 
-  private def index(
-      dataFrame: DataFrame,
-      indexStatus: IndexStatus,
-      isReplication: Boolean): (DataFrame, TableChanges) = {
+  private def addCubeAndState(
+      weightedDataFrame: DataFrame,
+      findTargetCubeIds: UserDefinedFunction,
+      tableChanges: TableChanges,
+      isReplication: Boolean) = {
 
-    val sqlContext = SparkSession.active.sqlContext
-
-    val (weightedDataFrame, tc) =
-      DoublePassOTreeDataAnalyzer.analyze(dataFrame, indexStatus, isReplication)
-    val revision = tc.updatedRevision
-
-    val pointWeightIndexer = PointWeightIndexer.buildNewWeightIndexer(tc.indexChanges)
-
-    val pwiBC = sqlContext.sparkContext.broadcast(pointWeightIndexer)
-    val findTargetCubeIds = findTargetCubeIdsUDF(revision, pwiBC)
-
+    val revision = tableChanges.updatedRevision
+    val replicatedSet = tableChanges.indexChanges.replicatedSet
+    val announcedSet = tableChanges.indexChanges.announcedSet
     val columnsToIndex = revision.columnTransformers.map(_.columnName)
-    val indexedDataFrame = weightedDataFrame
+
+    weightedDataFrame
       .withColumn(
         cubeColumnName,
         explode(
@@ -113,12 +109,32 @@ class SparkOTreeManager extends IndexManager[DataFrame] with Serializable {
               if (isReplication) col(cubeToReplicateColumnName)
               else lit(null)
             })))
-      .transform(
-        extendWithType(
-          columnsToIndex.length,
-          tc.indexChanges.announcedSet,
-          indexStatus.replicatedSet))
+      .transform(extendWithType(columnsToIndex.length, announcedSet, replicatedSet))
       .drop(cubeToReplicateColumnName)
+
+  }
+
+  private def index(
+      dataFrame: DataFrame,
+      indexStatus: IndexStatus,
+      isReplication: Boolean): (DataFrame, TableChanges) = {
+
+    val sqlContext = SparkSession.active.sqlContext
+
+    // Analyze the data and compute weight and estimated weight map of the result
+    val (weightedDataFrame, tc) =
+      DoublePassOTreeDataAnalyzer.analyze(dataFrame, indexStatus, isReplication)
+
+    val pointWeightIndexer = PointWeightIndexer.buildNewWeightIndexer(tc.indexChanges)
+
+    val pwiBC = sqlContext.sparkContext.broadcast(pointWeightIndexer)
+
+    // Create UDF to find the cubeIDS
+    val findTargetCubeIds = findTargetCubeIdsUDF(tc, pwiBC)
+
+    // Add cube and state information to the dataframe
+    val indexedDataFrame =
+      weightedDataFrame.transform(df => addCubeAndState(df, findTargetCubeIds, tc, isReplication))
 
     (indexedDataFrame, tc)
   }

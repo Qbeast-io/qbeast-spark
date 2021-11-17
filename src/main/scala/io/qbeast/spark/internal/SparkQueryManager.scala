@@ -8,8 +8,9 @@ import io.qbeast.model.api.QueryManager
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
-class SparkQueryManager extends QueryManager[SparkPlan, DataFrame] {
+object SparkQueryManager extends QueryManager[SparkPlan, DataFrame] {
 
+  // TODO Implement Query Manager/other sorts of QueryOptimization
   override def query(query: SparkPlan, indexStatus: IndexStatus): DataFrame = {
     SparkSession.active.emptyDataFrame
   }

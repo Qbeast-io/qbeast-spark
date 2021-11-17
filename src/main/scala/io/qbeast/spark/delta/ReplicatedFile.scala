@@ -6,6 +6,9 @@ package io.qbeast.spark.delta
 import io.qbeast.spark.utils.{State, TagUtils}
 import org.apache.spark.sql.delta.actions.AddFile
 
+/**
+ * AddFile with Replicate information
+ */
 object ReplicatedFile {
 
   def apply(addFile: AddFile): AddFile = {

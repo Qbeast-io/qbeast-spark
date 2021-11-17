@@ -12,6 +12,9 @@ import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame}
 
 import scala.util.matching.Regex
 
+/**
+ * Spark implementation of RevisionBuilder
+ */
 object SparkRevisionBuilder extends RevisionBuilder[DataFrame] {
   private val defaultDesiredSize = ConfigFactory.load().getInt("qbeast.index.size")
   val SpecExtractor: Regex = "((^<column_name>[^/]+)/(^<transformer>[^/]+))".r

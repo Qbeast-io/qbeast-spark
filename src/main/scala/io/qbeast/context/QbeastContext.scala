@@ -64,24 +64,33 @@ object QbeastContext
   private var managedOption: Option[QbeastContext] = None
   private var unmanagedOption: Option[QbeastContext] = None
 
-  // Override methods from QbeastContext trait
+  /**
+   * Override methods from QbeastContext
+   */
+
   override def config: Config = current.config
 
   override def keeper: Keeper = LocalKeeper
 
-  // Override methods from QbeastCoreContext
+  override def indexedTableFactory: IndexedTableFactory = current.indexedTableFactory
+
+  /**
+   * Override methods from QbeastCoreContext
+   */
+
   // TODO : Add query manager implementation
   override def queryManager[SparkPlan: ClassTag]: QueryManager[SparkPlan, DataFrame] = null
 
-  override def indexManager: IndexManager[DataFrame] = new SparkOTreeManager
+  override def indexManager: IndexManager[DataFrame] = SparkOTreeManager
 
   override def metadataManager: MetadataManager[StructType, FileAction] =
-    new SparkDeltaMetadataManager
+    SparkDeltaMetadataManager
 
   override def dataWriter: DataWriter[DataFrame, StructType, FileAction] =
-    new SparkDataWriter
+    SparkDataWriter
 
-  override def indexedTableFactory: IndexedTableFactory = current.indexedTableFactory
+  override def revisionBuilder: RevisionBuilder[DataFrame] =
+    SparkRevisionBuilder
 
   /**
    * Sets the unmanaged context. The specified context will not
@@ -138,9 +147,6 @@ object QbeastContext
       destroyManaged()
 
   }
-
-  override def revisionBuilder: RevisionBuilder[DataFrame] =
-    SparkRevisionBuilder
 
 }
 

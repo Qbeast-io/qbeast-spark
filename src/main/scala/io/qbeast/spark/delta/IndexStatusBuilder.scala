@@ -10,16 +10,6 @@ import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.functions.{min, sum}
 
-/**
- * Cube Information
- *
- * @param cube      Id of the cube
- * @param maxWeight Maximum weight of the cube
- * @param size      Number of elements of the cube
- */
-
-case class CubeInfo(cube: String, maxWeight: Weight, size: Long)
-
 private[delta] class IndexStatusBuilder(
     qbeastSnapshot: DeltaQbeastSnapshot,
     revision: Revision,

@@ -29,19 +29,19 @@ trait QbeastSnapshot {
   def loadIndexStatusAt(revisionID: RevisionID): IndexStatus
 
   /**
-   * Obtain all Revisions for a given QTableID
+   * Obtains all Revisions for a given QTableID
    * @return an immutable Seq of Revision for qtable
    */
   def loadAllRevisions: IISeq[Revision]
 
   /**
-   * Obtain the last Revisions
+   * Obtains the last Revisions
    * @return an immutable Seq of Revision for qtable
    */
   def loadLatestRevision: Revision
 
   /**
-   * Obtain the IndexStatus for a given RevisionID
+   * Obtains the IndexStatus for a given RevisionID
    * @param revisionID the RevisionID
    * @return the IndexStatus for revisionID
    */

@@ -18,7 +18,7 @@ class ReplaceQbeastStorageRead(spark: SparkSession) extends Rule[LogicalPlan] {
 
   override def apply(plan: LogicalPlan): LogicalPlan = plan transform {
     case r @ LogicalRelation(q: QbeastBaseRelation, _, _, _) =>
-      r.copy(relation = q.baseRelation)
+      r.copy(relation = q.relation)
   }
 
 }

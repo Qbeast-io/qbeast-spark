@@ -6,7 +6,8 @@ package io.qbeast.spark.table
 import io.qbeast.keeper.Keeper
 import io.qbeast.model.api.{DataWriter, IndexManager, MetadataManager, QbeastSnapshot}
 import io.qbeast.model.{IndexStatus, QTableID, RevisionID}
-import io.qbeast.spark.delta.DataLoader
+import io.qbeast.spark.delta.CubeDataLoader
+import io.qbeast.spark.index.QbeastColumns.cubeToReplicateColumnName
 import io.qbeast.spark.index.SparkRevisionBuilder
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import org.apache.spark.sql.delta.actions.FileAction
@@ -223,7 +224,10 @@ private[table] class IndexedTableImpl(
     if (cubesToReplicate.nonEmpty) {
       metadataManager.updateWithTransaction(tableID, schema, true) {
         val dataToReplicate =
-          DataLoader(tableID).loadSetWithCubeColumn(cubesToReplicate, indexStatus.revision)
+          CubeDataLoader(tableID).loadSetWithCubeColumn(
+            cubesToReplicate,
+            indexStatus.revision,
+            cubeToReplicateColumnName)
         val (qbeastData, tableChanges) =
           indexManager.optimize(dataToReplicate, indexStatus)
         val fileActions =

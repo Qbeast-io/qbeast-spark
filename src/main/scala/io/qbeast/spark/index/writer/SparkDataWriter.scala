@@ -17,7 +17,10 @@ import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.SerializableConfiguration
 
-class SparkDataWriter extends DataWriter[DataFrame, StructType, FileAction] {
+/**
+ * Spark implementation of the DataWriter interface.
+ */
+object SparkDataWriter extends DataWriter[DataFrame, StructType, FileAction] {
 
   override def write(
       qtable: QTableID,
