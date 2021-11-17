@@ -90,7 +90,7 @@ sbt assembly
 $SPARK_HOME/bin/spark-shell \
 --jars ./target/scala-2.12/qbeast-spark-assembly-0.1.0.jar \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
---packages io.delta:delta-core_2.12:0.8.0
+--packages io.delta:delta-core_2.12:1.0.0
 ```
 
 ### Overriding configurations
