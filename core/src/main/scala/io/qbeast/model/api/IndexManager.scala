@@ -3,7 +3,7 @@ package io.qbeast.model.api
 import io.qbeast.IISeq
 import io.qbeast.model.{CubeId, IndexStatus, TableChanges}
 
-trait IndexManager[T] {
+trait IndexManager[DATA] {
 
   /**
    * Indexes the data
@@ -11,7 +11,7 @@ trait IndexManager[T] {
    * @param indexStatus the current index status
    * @return the changes of the index
    */
-  def index(data: T, indexStatus: IndexStatus): (T, TableChanges)
+  def index(data: DATA, indexStatus: IndexStatus): (DATA, TableChanges)
 
   /**
    * Optimizes the index
@@ -19,7 +19,7 @@ trait IndexManager[T] {
    * @param indexStatus the current index status
    * @return the changes on the index
    */
-  def optimize(data: T, indexStatus: IndexStatus): (T, TableChanges)
+  def optimize(data: DATA, indexStatus: IndexStatus): (DATA, TableChanges)
 
   /**
    * Analyzes the current index status

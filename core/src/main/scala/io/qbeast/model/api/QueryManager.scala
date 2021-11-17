@@ -2,7 +2,7 @@ package io.qbeast.model.api
 
 import io.qbeast.model.IndexStatus
 
-trait QueryManager[Q, T] {
+trait QueryManager[QUERY, DATA] {
 
   /**
    * Executes a query against a index
@@ -10,6 +10,6 @@ trait QueryManager[Q, T] {
    * @param indexStatus the current index status
    * @return the result of the query
    */
-  def query(query: Q, indexStatus: IndexStatus): T
+  def query(query: QUERY, indexStatus: IndexStatus): DATA
 
 }
