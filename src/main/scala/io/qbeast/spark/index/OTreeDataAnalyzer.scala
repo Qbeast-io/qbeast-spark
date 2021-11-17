@@ -6,6 +6,7 @@ package io.qbeast.spark.index
 import io.qbeast.model._
 import io.qbeast.spark.index.QbeastColumns.{cubeToReplicateColumnName, weightColumnName}
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
+import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.functions.{col, udaf}
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
@@ -30,7 +31,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
   /**
    * Estimates MaxWeight on DataFrame
    */
-  val maxWeightEstimation = udaf(MaxWeightEstimation)
+  private val maxWeightEstimation: UserDefinedFunction = udaf(MaxWeightEstimation)
 
   private[index] def calculateRevisionChanges(
       data: DataFrame,
