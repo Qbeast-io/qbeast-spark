@@ -16,7 +16,10 @@ import scala.util.matching.Regex
  * Spark implementation of RevisionBuilder
  */
 object SparkRevisionBuilder extends RevisionBuilder[DataFrame] {
-  private val defaultDesiredSize = ConfigFactory.load().getInt("qbeast.index.size")
+
+  private def defaultDesiredSize =
+    ConfigFactory.load().getInt("qbeast.index.defaultCubeSize")
+
   val SpecExtractor: Regex = "((^<column_name>[^/]+)/(^<transformer>[^/]+))".r
 
   def getColumnQType(columnName: String, dataFrame: DataFrame): QDataType = {
@@ -29,6 +32,7 @@ object SparkRevisionBuilder extends RevisionBuilder[DataFrame] {
       options: Map[String, String]): Revision = {
 
     val columnSpecs = getColumnsToIndex(options)
+    val desiredCubeSize = getDesiredCubeSize(options)
 
     val transformers = columnSpecs.map {
       case SpecExtractor(columnName, transformerType) =>
@@ -39,7 +43,7 @@ object SparkRevisionBuilder extends RevisionBuilder[DataFrame] {
 
     }.toVector
 
-    Revision.firstRevision(qtableID, defaultDesiredSize, transformers)
+    Revision.firstRevision(qtableID, desiredCubeSize, transformers)
   }
 
   private def getColumnsToIndex(parameters: Map[String, String]): Seq[String] = {
@@ -50,6 +54,13 @@ object SparkRevisionBuilder extends RevisionBuilder[DataFrame] {
             " as .option(columnsToIndex, ...)")
       })
     ColumnsToIndex.decode(encodedColumnsToIndex)
+  }
+
+  private def getDesiredCubeSize(parameters: Map[String, String]): Int = {
+    parameters.get(QbeastOptions.CUBE_SIZE) match {
+      case Some(value) => value.toInt
+      case None => defaultDesiredSize
+    }
   }
 
 }

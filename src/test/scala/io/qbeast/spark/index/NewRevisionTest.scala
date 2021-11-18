@@ -62,4 +62,34 @@ class NewRevisionTest
         allWM.foreach(wm => assert(wm.nonEmpty))
     }
 
+  it should
+    "create different revision on different desired cube size" in withQbeastContextSparkAndTmpDir {
+      (spark, tmpDir) =>
+        {
+          val rdd =
+            spark.sparkContext.parallelize(
+              Seq(
+                Client3(1, s"student-1", 1, 1000 + 123, 2567.3432143),
+                Client3(2, s"student-2", 2, 2 * 1000 + 123, 2 * 2567.3432143)))
+
+          val df = spark.createDataFrame(rdd)
+
+          val names = List("age", "val2")
+          val cubeSize = 3000
+
+          df.write
+            .format("qbeast")
+            .mode("overwrite")
+            .option("columnsToIndex", names.mkString(","))
+            .option("cubeSize", cubeSize.toString)
+            .save(tmpDir)
+
+          val deltaLog = DeltaLog.forTable(spark, tmpDir)
+          val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
+
+          qbeastSnapshot.loadLatestRevision.desiredCubeSize shouldBe cubeSize
+
+        }
+    }
+
 }

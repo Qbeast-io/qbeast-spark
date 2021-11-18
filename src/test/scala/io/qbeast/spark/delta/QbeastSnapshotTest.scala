@@ -58,7 +58,8 @@ class QbeastSnapshotTest
   it should "normalize weights when cubes are full" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
       withOTreeAlgorithm { _ =>
-        val df = createDF(ConfigFactory.load().getInt("qbeast.index.size")).repartition(1)
+        val df =
+          createDF(ConfigFactory.load().getInt("qbeast.index.defaultCubeSize")).repartition(1)
         val names = List("age", "val2")
 
         df.write

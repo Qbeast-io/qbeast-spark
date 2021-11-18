@@ -8,4 +8,5 @@ package io.qbeast.spark.internal
  */
 object QbeastOptions {
   val COLUMNS_TO_INDEX = "columnsToIndex"
+  val CUBE_SIZE = "cubeSize"
 }
