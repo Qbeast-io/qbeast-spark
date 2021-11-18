@@ -1,7 +1,6 @@
 package io.qbeast.model
 
 import io.qbeast.keeper.Keeper
-import io.qbeast.model.api.{DataWriter, IndexManager, MetadataManager, QueryManager}
 
 import scala.reflect.ClassTag
 

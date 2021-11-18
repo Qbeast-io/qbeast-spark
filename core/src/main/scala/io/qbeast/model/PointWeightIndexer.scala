@@ -1,5 +1,10 @@
 package io.qbeast.model
 
+/**
+ * Indexes a point by its weight and cube transformation.
+ * @param cubeWeights the map of cube and weight
+ * @param announcedOrReplicatedSet the set of cubes in announced or replicated state
+ */
 class PointWeightIndexer(
     val cubeWeights: Map[CubeId, Weight],
     val announcedOrReplicatedSet: Set[CubeId])
@@ -44,6 +49,11 @@ class PointWeightIndexer(
 
 object PointWeightIndexer {
 
+  /**
+   * Builds a new point weight indexer from the status changes
+   * @param isc the index status changes
+   * @return
+   */
   def buildNewWeightIndexer(isc: IndexStatusChange): PointWeightIndexer =
     buildNewWeightIndexer(
       isc.supersededIndexStatus.cubeNormalizedWeights,
@@ -51,11 +61,12 @@ object PointWeightIndexer {
       isc.announcedOrReplicatedSet)
 
   /**
-   * This method return the merge between the previous state of the index status
-   * and the newly computed NormalizedCubeWeights.
+   * Builds a new weight indexer.
+   * @param previousStateNormalizedWeights the previous state of the NormalizedCubeWeights
+   * @param deltaNormalizedCubeWeights the newly computed NormalizedCubeWeights
+   * @param announcedOrReplicatedSet the set of cubes in announced or replicated state
    * @return
    */
-
   def buildNewWeightIndexer(
       previousStateNormalizedWeights: Map[CubeId, NormalizedWeight],
       deltaNormalizedCubeWeights: Map[CubeId, NormalizedWeight],
@@ -68,6 +79,13 @@ object PointWeightIndexer {
 
   }
 
+  /**
+   * This method return the merge between the previous state of the index status
+   * and the newly computed NormalizedCubeWeights.
+   * @param previousStateNormalizedWeights the previous state of the NormalizedCubeWeights
+   * @param deltaNormalizedCubeWeights the newly computed NormalizedCubeWeights
+   * @return
+   */
   def mergeNormalizedWeights(
       previousStateNormalizedWeights: Map[CubeId, NormalizedWeight],
       deltaNormalizedCubeWeights: Map[CubeId, NormalizedWeight]): Map[CubeId, Weight] = {

@@ -4,8 +4,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.IISeq
-import io.qbeast.model._
-import io.qbeast.model.api.MetadataManager
+import io.qbeast.model.{MetadataManager, _}
 import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions}
 import org.apache.spark.sql.delta.actions.FileAction
@@ -19,7 +18,7 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction]
   override def updateWithTransaction(tableID: QTableID, schema: StructType, append: Boolean)(
       writer: => (TableChanges, IISeq[FileAction])): Unit = {
 
-    val deltaLog = DeltaLog.forTable(SparkSession.active, tableID.id)
+    val deltaLog = loadDeltaQbeastLog(tableID).deltaLog
     val mode = if (append) SaveMode.Append else SaveMode.Overwrite
     val options =
       new DeltaOptions(Map("path" -> tableID.id), SparkSession.active.sessionState.conf)
@@ -27,12 +26,12 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction]
     metadataWriter.writeWithTransaction(writer)
   }
 
-  override def loadQbeastSnapshot(tableID: QTableID): DeltaQbeastSnapshot = {
-    DeltaQbeastSnapshot(DeltaLog.forTable(SparkSession.active, tableID.id).update())
+  override def loadSnapshot(tableID: QTableID): DeltaQbeastSnapshot = {
+    DeltaQbeastSnapshot(loadDeltaQbeastLog(tableID).deltaLog.update())
   }
 
   override def loadCurrentSchema(tableID: QTableID): StructType = {
-    DeltaLog.forTable(SparkSession.active, tableID.id).update().schema
+    loadDeltaQbeastLog(tableID).deltaLog.update().schema
   }
 
   override def updateRevision(tableID: QTableID, revisionChange: RevisionChange): Unit = {}
@@ -42,4 +41,14 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction]
       indexStatusChange: IndexStatusChange): Unit = {}
 
   override def updateTable(tableID: QTableID, tableChanges: TableChanges): Unit = {}
+
+  /**
+   * Returns the DeltaQbeastLog for the table
+   * @param tableID the table ID
+   * @return
+   */
+  def loadDeltaQbeastLog(tableID: QTableID): DeltaQbeastLog = {
+    DeltaQbeastLog(DeltaLog.forTable(SparkSession.active, tableID.id))
+  }
+
 }

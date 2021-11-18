@@ -49,6 +49,15 @@ object Revision {
 
 }
 
+/**
+ * A revision of a QTable.
+ * @param revisionID the identifier of the revision
+ * @param timestamp the timestamp
+ * @param tableID the table identifier
+ * @param desiredCubeSize the desired cube size
+ * @param columnTransformers the column transformers
+ * @param transformations the space transformations
+ */
 final case class Revision(
     revisionID: RevisionID,
     timestamp: Long,
@@ -113,6 +122,14 @@ final case class Revision(
 
 }
 
+/**
+ * Container for the set of changes to a revision
+ * @param timestamp the timestamp
+ * @param supersededRevision the superseded revision
+ * @param desiredCubeSizeChange the desired cube size option change
+ * @param columnTransformersChanges the column transformers optional changes
+ * @param transformationsChanges the space transformations optional changes
+ */
 case class RevisionChange(
     timestamp: Long,
     supersededRevision: Revision,
@@ -147,6 +164,16 @@ case class RevisionChange(
 
 }
 
+/**
+ * Container for the current status of the index
+ * @param revision the revision
+ * @param replicatedSet the set of cubes in a replicated state
+ * @param announcedSet the set of cubes in an announced state
+ * @param cubeWeights the map of cube and weight
+ * @param cubeNormalizedWeights the map of cube and normalized weight
+ * @param overflowedSet the set of cubes that has surpass their capacity
+ */
+
 case class IndexStatus(
     revision: Revision,
     replicatedSet: ReplicatedSet = Set.empty,
@@ -163,10 +190,20 @@ case class IndexStatus(
 
 }
 
+/**
+ * Companion object for the IndexStatus
+ */
 object IndexStatus {
   def empty(revision: Revision): IndexStatus = IndexStatus(revision)
 }
 
+/**
+ * Container for the changes to the index status
+ * @param supersededIndexStatus the superseded index status
+ * @param deltaNormalizedCubeWeights the new entries to the normalized cube weights
+ * @param deltaReplicatedSet the new entries to the replicated set
+ * @param deltaAnnouncedSet the new entries to the announced set
+ */
 case class IndexStatusChange(
     supersededIndexStatus: IndexStatus,
     deltaNormalizedCubeWeights: Map[CubeId, NormalizedWeight],
@@ -185,6 +222,11 @@ case class IndexStatusChange(
   def announcedOrReplicatedSet: Set[CubeId] = announcedSet ++ replicatedSet
 }
 
+/**
+ * Container for the table changes
+ * @param revisionChanges the optional revision changes
+ * @param indexChanges the index status changes
+ */
 case class TableChanges(
     revisionChanges: Option[RevisionChange],
     indexChanges: IndexStatusChange) {

@@ -6,7 +6,6 @@ package io.qbeast.context
 import com.typesafe.config.{Config, ConfigFactory}
 import io.qbeast.keeper.{Keeper, LocalKeeper}
 import io.qbeast.model._
-import io.qbeast.model.api.{DataWriter, IndexManager, MetadataManager, QueryManager}
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
 import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionBuilder}
 import io.qbeast.spark.index.writer.SparkDataWriter
@@ -134,7 +133,12 @@ object QbeastContext
   private def createKeeper(config: Config): Keeper = Keeper(config)
 
   private def createIndexedTableFactory(keeper: Keeper): IndexedTableFactory =
-    new IndexedTableFactoryImpl(keeper, indexManager, metadataManager, dataWriter)
+    new IndexedTableFactoryImpl(
+      keeper,
+      indexManager,
+      metadataManager,
+      dataWriter,
+      revisionBuilder)
 
   private def destroyManaged(): Unit = this.synchronized {
     managedOption.foreach(_.keeper.stop())

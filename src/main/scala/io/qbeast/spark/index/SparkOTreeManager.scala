@@ -4,8 +4,7 @@
 package io.qbeast.spark.index
 
 import io.qbeast.IISeq
-import io.qbeast.model._
-import io.qbeast.model.api.IndexManager
+import io.qbeast.model.{IndexManager, _}
 import io.qbeast.spark.index.QbeastColumns.{
   cubeColumnName,
   cubeToReplicateColumnName,

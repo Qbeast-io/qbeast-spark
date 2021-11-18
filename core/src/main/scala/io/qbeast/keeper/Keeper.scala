@@ -16,7 +16,7 @@ trait Keeper {
   /**
    * Begins a write for given index domain revision.
    *
-   * @param tableID the index identifier
+   * @param tableID the table identifier
    * @param revision the domain revision
    * @return the write operation
    */
@@ -25,7 +25,7 @@ trait Keeper {
   /**
    * Runs an action as part of write operation for the specified index revision.
    *
-   * @param tableID the index identifier
+   * @param tableID the table identifier
    * @param revision the index domain revision
    * @tparam T the result type
    * @return the result
@@ -41,7 +41,7 @@ trait Keeper {
 
   /**
    * Announces cubes for given index domain revision
-   * @param tableID the index identifier
+   * @param tableID the table identifier
    * @param revision the domain revision
    * @param cubes the announced cube identifiers
    */
@@ -49,7 +49,7 @@ trait Keeper {
 
   /**
    * Begins an optimization for given index domain revision.
-   * @param tableID the index identifier
+   * @param tableID the table identifier
    * @param revision the domain revision
    * @param cubeLimit the maximum (exclusive) number of cubes to be optimized
    * @return the optimization operation
