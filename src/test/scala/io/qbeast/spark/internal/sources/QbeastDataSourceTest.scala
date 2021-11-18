@@ -11,7 +11,6 @@ import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.sql.{AnalysisException, DataFrame, SQLContext, SaveMode}
-import org.mockito.ArgumentMatchers
 import org.mockito.ArgumentMatchers.{any, anyBoolean}
 import org.mockito.Mockito.{verify, when}
 import org.scalatest.Outcome
@@ -47,7 +46,7 @@ class QbeastDataSourceTest extends FixtureAnyFlatSpec with MockitoSugar with Mat
     when(table.save(any[DataFrame], any[Map[String, String]], anyBoolean())).thenReturn(relation)
 
     val tableFactory = mock[IndexedTableFactory]
-    when(tableFactory.getIndexedTable(ArgumentMatchers.eq(sqlContext), any[QTableID]()))
+    when(tableFactory.getIndexedTable(any[QTableID]()))
       .thenReturn(table)
 
     val dataSource = new QbeastDataSource(tableFactory)

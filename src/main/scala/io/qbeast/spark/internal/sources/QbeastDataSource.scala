@@ -69,7 +69,7 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       parameters.contains("columnsToIndex"),
       throw AnalysisExceptionFactory.create("'columnsToIndex is not specified"))
     val tableId = SparkToQTypesUtils.loadFromParameters(parameters)
-    val table = tableFactory.getIndexedTable(sqlContext, tableId)
+    val table = tableFactory.getIndexedTable(tableId)
     mode match {
       case SaveMode.Append => table.save(data, parameters, append = true)
       case SaveMode.Overwrite => table.save(data, parameters, append = false)
@@ -85,7 +85,7 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       sqlContext: SQLContext,
       parameters: Map[String, String]): BaseRelation = {
     val tableID = SparkToQTypesUtils.loadFromParameters(parameters)
-    val table = tableFactory.getIndexedTable(sqlContext, tableID)
+    val table = tableFactory.getIndexedTable(tableID)
     if (table.exists) {
       table.load()
     } else {

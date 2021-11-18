@@ -30,8 +30,7 @@ class QbeastTable private (
   private def qbeastSnapshot: DeltaQbeastSnapshot =
     delta.DeltaQbeastSnapshot(deltaLog.snapshot)
 
-  private def indexedTable: IndexedTable =
-    indexedTableFactory.getIndexedTable(sparkSession.sqlContext, tableID)
+  private def indexedTable: IndexedTable = indexedTableFactory.getIndexedTable(tableID)
 
   private def getAvailableRevision(revisionID: Option[RevisionID]): RevisionID = {
     revisionID match {
