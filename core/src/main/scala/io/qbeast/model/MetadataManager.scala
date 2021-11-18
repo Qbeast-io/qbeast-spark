@@ -1,20 +1,20 @@
-package io.qbeast.model.api
+package io.qbeast.model
 
 import io.qbeast.IISeq
-import io.qbeast.model.{IndexStatusChange, QTableID, RevisionChange, TableChanges}
 
 trait MetadataManager[DataSchema, FileAction] {
 
   /**
-   * Gets the QbeastSnapshot for a given table
-   * @param tableID
-   * @return
+   * Gets the Snapshot for a given table
+   * @param tableID the table identifier
+   * @return the current snapshot
    */
-  def loadQbeastSnapshot(tableID: QTableID): QbeastSnapshot
+  def loadSnapshot(tableID: QTableID): QbeastSnapshot
 
   /**
    * Gets the Schema for a given table
-   * @param tableID
+   * @param tableID the table identifier
+   * @return the current schema
    */
   def loadCurrentSchema(tableID: QTableID): DataSchema
 
@@ -23,14 +23,14 @@ trait MetadataManager[DataSchema, FileAction] {
    */
 
   /**
-   * Updates the metadata by using transaction control
+   * Writes and updates the metadata by using transaction control
    * @param writer the writer code to be executed
    * @param schema the schema of the data
    * @param tableID the QTableID
    * @param append the append flag
    */
   def updateWithTransaction(tableID: QTableID, schema: DataSchema, append: Boolean)(
-      writer: => (TableChanges, IISeq[FileAction]))
+      writer: => (TableChanges, IISeq[FileAction])): Unit
 
   /**
    * Updates the Revision with the given RevisionChanges

@@ -4,8 +4,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.IISeq
-import io.qbeast.model._
-import io.qbeast.model.api.MetadataManager
+import io.qbeast.model.{MetadataManager, _}
 import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions}
 import org.apache.spark.sql.delta.actions.FileAction
@@ -27,7 +26,7 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction]
     metadataWriter.writeWithTransaction(writer)
   }
 
-  override def loadQbeastSnapshot(tableID: QTableID): DeltaQbeastSnapshot = {
+  override def loadSnapshot(tableID: QTableID): DeltaQbeastSnapshot = {
     DeltaQbeastSnapshot(loadDeltaQbeastLog(tableID).deltaLog.update())
   }
 

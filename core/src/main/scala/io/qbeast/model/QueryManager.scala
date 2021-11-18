@@ -1,6 +1,4 @@
-package io.qbeast.model.api
-
-import io.qbeast.model.IndexStatus
+package io.qbeast.model
 
 trait QueryManager[QUERY, DATA] {
 

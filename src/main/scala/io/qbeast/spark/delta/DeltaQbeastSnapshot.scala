@@ -4,8 +4,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.IISeq
-import io.qbeast.model.api.QbeastSnapshot
-import io.qbeast.model.{IndexStatus, ReplicatedSet, Revision, RevisionID, mapper}
+import io.qbeast.model.{IndexStatus, QbeastSnapshot, ReplicatedSet, Revision, RevisionID, mapper}
 import io.qbeast.spark.utils.MetadataConfig
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.delta.Snapshot
@@ -111,7 +110,7 @@ case class DeltaQbeastSnapshot(snapshot: Snapshot) extends QbeastSnapshot {
    * @param revisionID the RevisionID
    * @return
    */
-  override def loadIndexStatusAt(revisionID: RevisionID): IndexStatus = {
+  override def loadIndexStatus(revisionID: RevisionID): IndexStatus = {
     val revision = getRevision(revisionID)
     new IndexStatusBuilder(this, revision).build()
   }

@@ -1,23 +1,22 @@
-package io.qbeast.model.api
+package io.qbeast.model
 
 import io.qbeast.IISeq
-import io.qbeast.model.{CubeId, IndexStatus, TableChanges}
 
 trait IndexManager[DATA] {
 
   /**
    * Indexes the data
-   * @param data the data
+   * @param data the data to index
    * @param indexStatus the current index status
-   * @return the changes of the index
+   * @return the changes of the index and reorganization of data
    */
   def index(data: DATA, indexStatus: IndexStatus): (DATA, TableChanges)
 
   /**
    * Optimizes the index
-   * @param data the data
+   * @param data the data of the index
    * @param indexStatus the current index status
-   * @return the changes on the index
+   * @return the changes on the index and reorganization of data
    */
   def optimize(data: DATA, indexStatus: IndexStatus): (DATA, TableChanges)
 
