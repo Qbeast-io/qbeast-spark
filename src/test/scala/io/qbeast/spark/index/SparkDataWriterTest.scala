@@ -37,7 +37,7 @@ class SparkDataWriterTest
       Map("columnsToIndex" -> "age,val2", "desiredCubeSize" -> "1000")
     val indexStatus =
       IndexStatus(SparkRevisionBuilder.createNewRevision(tableID, df, parameters))
-    val (qbeastData, tableChanges) = new SparkOTreeManager().index(df, indexStatus)
+    val (qbeastData, tableChanges) = SparkOTreeManager.index(df, indexStatus)
 
     (tableID, df.schema, qbeastData, tableChanges)
   }
@@ -46,7 +46,7 @@ class SparkDataWriterTest
     withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
       val (tableID, schema, qbeastData, tableChanges) =
         prepareDataWriter(spark, tmpDir, 10000)
-      val fileActions = new SparkDataWriter().write(tableID, schema, qbeastData, tableChanges)
+      val fileActions = SparkDataWriter.write(tableID, schema, qbeastData, tableChanges)
 
       for (fa <- fileActions) {
         Path(tmpDir + "/" + fa.path).exists shouldBe true
