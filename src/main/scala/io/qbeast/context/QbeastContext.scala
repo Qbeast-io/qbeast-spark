@@ -134,7 +134,12 @@ object QbeastContext
   private def createKeeper(config: Config): Keeper = Keeper(config)
 
   private def createIndexedTableFactory(keeper: Keeper): IndexedTableFactory =
-    new IndexedTableFactoryImpl(keeper, indexManager, metadataManager, dataWriter)
+    new IndexedTableFactoryImpl(
+      keeper,
+      indexManager,
+      metadataManager,
+      dataWriter,
+      revisionBuilder)
 
   private def destroyManaged(): Unit = this.synchronized {
     managedOption.foreach(_.keeper.stop())

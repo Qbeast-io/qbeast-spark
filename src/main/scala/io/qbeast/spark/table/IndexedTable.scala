@@ -5,10 +5,9 @@ package io.qbeast.spark.table
 
 import io.qbeast.keeper.Keeper
 import io.qbeast.model.api.{DataWriter, IndexManager, MetadataManager, QbeastSnapshot}
-import io.qbeast.model.{IndexStatus, QTableID, RevisionID}
+import io.qbeast.model.{IndexStatus, QTableID, RevisionBuilder, RevisionID}
 import io.qbeast.spark.delta.CubeDataLoader
-import io.qbeast.spark.index.QbeastColumns.cubeToReplicateColumnName
-import io.qbeast.spark.index.SparkRevisionBuilder
+import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.sources.BaseRelation
@@ -100,11 +99,19 @@ final class IndexedTableFactoryImpl(
     private val keeper: Keeper,
     private val indexManager: IndexManager[DataFrame],
     private val metadataManager: MetadataManager[StructType, FileAction],
-    private val dataWriter: DataWriter[DataFrame, StructType, FileAction])
+    private val dataWriter: DataWriter[DataFrame, StructType, FileAction],
+    private val revisionBuilder: RevisionBuilder[DataFrame])
     extends IndexedTableFactory {
 
   override def getIndexedTable(sqlContext: SQLContext, tableID: QTableID): IndexedTable =
-    new IndexedTableImpl(sqlContext, tableID, keeper, indexManager, metadataManager, dataWriter)
+    new IndexedTableImpl(
+      sqlContext,
+      tableID,
+      keeper,
+      indexManager,
+      metadataManager,
+      dataWriter,
+      revisionBuilder)
 
 }
 
@@ -121,7 +128,8 @@ private[table] class IndexedTableImpl(
     private val keeper: Keeper,
     private val indexManager: IndexManager[DataFrame],
     private val metadataManager: MetadataManager[StructType, FileAction],
-    private val dataWriter: DataWriter[DataFrame, StructType, FileAction])
+    private val dataWriter: DataWriter[DataFrame, StructType, FileAction],
+    private val revisionBuilder: RevisionBuilder[DataFrame])
     extends IndexedTable {
   private var snapshotCache: Option[QbeastSnapshot] = None
 
@@ -135,7 +143,7 @@ private[table] class IndexedTableImpl(
       snapshot.loadLatestIndexStatus
       // TODO check here if the parameters is compatible with the old revision
     } else {
-      IndexStatus(SparkRevisionBuilder.createNewRevision(tableID, data, parameters))
+      IndexStatus(revisionBuilder.createNewRevision(tableID, data, parameters))
     }
 
     if (exists && append) {
@@ -172,7 +180,7 @@ private[table] class IndexedTableImpl(
   }
 
   private def createQbeastBaseRelation(): QbeastBaseRelation = {
-    QbeastBaseRelation.forTableID(sqlContext.sparkSession, tableID)
+    QbeastBaseRelation.forDeltaTable(tableID)
   }
 
   private def write(data: DataFrame, indexStatus: IndexStatus, append: Boolean): BaseRelation = {
@@ -227,7 +235,7 @@ private[table] class IndexedTableImpl(
           CubeDataLoader(tableID).loadSetWithCubeColumn(
             cubesToReplicate,
             indexStatus.revision,
-            cubeToReplicateColumnName)
+            QbeastColumns.cubeToReplicateColumnName)
         val (qbeastData, tableChanges) =
           indexManager.optimize(dataToReplicate, indexStatus)
         val fileActions =
