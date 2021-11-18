@@ -4,23 +4,14 @@
 package io.qbeast.spark.table
 
 import io.qbeast.keeper.Keeper
-import io.qbeast.model.{
-  DataWriter,
-  IndexManager,
-  IndexStatus,
-  MetadataManager,
-  QTableID,
-  QbeastSnapshot,
-  RevisionBuilder,
-  RevisionID
-}
+import io.qbeast.model._
 import io.qbeast.spark.delta.CubeDataLoader
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, SQLContext}
+import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame}
 
 /**
  * Indexed table represents the tabular data storage
@@ -33,13 +24,6 @@ trait IndexedTable {
    * @return the table physically exists.
    */
   def exists: Boolean
-
-  /**
-   * Returns the associated SQLContext.
-   *
-   * @return the associated SQLContext
-   */
-  def sqlContext: SQLContext
 
   /**
    * Returns the table id which identifies the table.
@@ -91,11 +75,10 @@ trait IndexedTableFactory {
    * It is not guaranteed that the returned table physically
    * exists, use IndexedTable#exists attribute to verify it.
    *
-   * @param sqlContext the SQLContext to associate with the table
    * @param tableId the table path
    * @return the table
    */
-  def getIndexedTable(sqlContext: SQLContext, tableId: QTableID): IndexedTable
+  def getIndexedTable(tableId: QTableID): IndexedTable
 }
 
 /**
@@ -111,9 +94,8 @@ final class IndexedTableFactoryImpl(
     private val revisionBuilder: RevisionBuilder[DataFrame])
     extends IndexedTableFactory {
 
-  override def getIndexedTable(sqlContext: SQLContext, tableID: QTableID): IndexedTable =
+  override def getIndexedTable(tableID: QTableID): IndexedTable =
     new IndexedTableImpl(
-      sqlContext,
       tableID,
       keeper,
       indexManager,
@@ -126,12 +108,10 @@ final class IndexedTableFactoryImpl(
 /**
  * Implementation of IndexedTable.
  *
- * @param sqlContext the associated SQLContext
  * @param tableID the table identifier
  * @param keeper the keeper
  */
 private[table] class IndexedTableImpl(
-    val sqlContext: SQLContext,
     val tableID: QTableID,
     private val keeper: Keeper,
     private val indexManager: IndexManager[DataFrame],
@@ -238,7 +218,7 @@ private[table] class IndexedTableImpl(
     val schema = metadataManager.loadCurrentSchema(tableID)
 
     if (cubesToReplicate.nonEmpty) {
-      metadataManager.updateWithTransaction(tableID, schema, true) {
+      metadataManager.updateWithTransaction(tableID, schema, append = true) {
         val dataToReplicate =
           CubeDataLoader(tableID).loadSetWithCubeColumn(
             cubesToReplicate,

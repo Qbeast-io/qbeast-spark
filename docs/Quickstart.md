@@ -55,11 +55,10 @@ Allow the sample operator to be pushed down to the source when sampling, reducin
 
 Perform sampling, open your **Spark Web UI**, and observe how the sample operator is converted into a **filter** and pushed down to the source!
 ```scala
-val qbeastDf =
-  spark
-    .read
-    .format("qbeast")
-    .load(qbeastTablePath)
+val qbeastDf = (spark
+  .read
+  .format("qbeast")
+  .load(qbeastTablePath))
 
 qbeastDf.sample(0.1).explain()
 ```
