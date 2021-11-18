@@ -40,8 +40,11 @@ class RevisionTest
 
   def getMaxMinFromRevision(revision: Revision, spark: SparkSession): Seq[Seq[Any]] = {
     for (t <- revision.columnTransformers)
-      yield for (c <- t.stats.columns)
-        yield spark.sql(s"SELECT %s FROM dfqbeast".format(c)).collect()(0)(0)
+      yield spark
+        .sql(s"SELECT %s FROM dfqbeast".format(t.stats.columns.mkString(",")))
+        .collect()(0)
+        .toSeq
+        .toVector
   }
 
   "LinearTransformer" should
@@ -54,9 +57,9 @@ class RevisionTest
         val lastRevision = writeAndLoadDF(df, cols, tmpDir, spark)
 
         getMaxMinFromRevision(lastRevision, spark) shouldBe List(
-          List(100, 0),
-          List(100123, 123),
-          List(256734.32143, 0.0))
+          Vector(100, 0),
+          Vector(100123, 123),
+          Vector(256734.32143, 0.0))
     }
 
   it should "get correct values with nullable numbers" in withQbeastContextSparkAndTmpDir {
@@ -70,9 +73,9 @@ class RevisionTest
       val lastRevision = writeAndLoadDF(df, cols, tmpDir, spark)
 
       getMaxMinFromRevision(lastRevision, spark) shouldBe List(
-        List(100.0, 0.0),
-        List(100123.0, 123.0),
-        List(256734.32143, 0.0))
+        Vector(100.0, 0.0),
+        Vector(100123.0, 123.0),
+        Vector(256734.32143, 0.0))
   }
 
 }
