@@ -139,7 +139,6 @@ private[table] class IndexedTableImpl(
     }
 
     val relation = write(data, indexStatus, append)
-    clearCaches()
     relation
   }
 
