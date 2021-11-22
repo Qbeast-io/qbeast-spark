@@ -18,16 +18,26 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
     .load("src/test/resources/ecommerce100K_2019_Oct.csv")
     .distinct()
 
+  private def writeTestData(
+      data: DataFrame,
+      columnsToIndex: Seq[String],
+      cubeSize: Int,
+      tmpDir: String): Unit = {
+
+    data.write
+      .mode("overwrite")
+      .format("qbeast")
+      .options(
+        Map("columnsToIndex" -> columnsToIndex.mkString(","), "cubeSize" -> cubeSize.toString))
+      .save(tmpDir)
+  }
+
   "the Qbeast data source" should
     "expose the original number of columns and rows" in withQbeastContextSparkAndTmpDir {
       (spark, tmpDir) =>
         {
           val data = loadTestData(spark)
-          data.write
-            .mode("overwrite")
-            .format("qbeast")
-            .option("columnsToIndex", "user_id,product_id")
-            .save(tmpDir)
+          writeTestData(data, Seq("user_id", "product_id"), 30000, tmpDir)
 
           val indexed = spark.read.format("qbeast").load(tmpDir)
 
@@ -44,18 +54,10 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
     {
       val data = loadTestData(spark)
       // WRITE SOME DATA
-      data.write
-        .mode("overwrite")
-        .format("qbeast")
-        .option("columnsToIndex", "user_id,product_id")
-        .save(tmpDir)
+      writeTestData(data, Seq("user_id", "product_id"), 30000, tmpDir)
 
       // OVERWRITE
-      data.write
-        .mode("overwrite")
-        .format("qbeast")
-        .option("columnsToIndex", "user_id,product_id")
-        .save(tmpDir)
+      writeTestData(data, Seq("user_id", "product_id"), 30000, tmpDir)
 
       val indexed = spark.read.format("qbeast").load(tmpDir)
 
@@ -95,11 +97,7 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
             .withColumnRenamed("tmp_user_id", "user_id")
             .withColumnRenamed("tmp_norm_p", "product_id")
 
-          normalizedData.write
-            .mode("overwrite")
-            .format("qbeast")
-            .option("columnsToIndex", "user_id,product_id")
-            .save(tmpDir)
+          writeTestData(normalizedData, Seq("user_id", "product_id"), 30000, tmpDir)
 
           val indexed = spark.read.format("qbeast").load(tmpDir)
 
@@ -116,11 +114,7 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
       (spark, tmpDir) =>
         {
           val data = loadTestData(spark)
-          data.write
-            .mode("error")
-            .format("qbeast")
-            .option("columnsToIndex", "user_id,product_id")
-            .save(tmpDir)
+          writeTestData(data, Seq("user_id", "product_id"), 30000, tmpDir)
 
           val indexed = spark.read.format("parquet").load(tmpDir)
           assertLargeDatasetEquality(indexed, data, orderedComparison = false)
@@ -133,11 +127,8 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
       {
         val data = loadTestData(spark)
 
-        data.write
-          .mode("error")
-          .format("qbeast")
-          .option("columnsToIndex", "user_id,product_id")
-          .save(tmpDir)
+        writeTestData(data, Seq("user_id", "product_id"), 30000, tmpDir)
+
         val df = spark.read.format("qbeast").load(tmpDir)
         val precision = 0.1
 
@@ -170,11 +161,8 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
         {
           val data = loadTestData(spark)
 
-          data.write
-            .mode("error")
-            .format("qbeast")
-            .option("columnsToIndex", "user_id,product_id")
-            .save(tmpDir)
+          writeTestData(data, Seq("user_id", "product_id"), 30000, tmpDir)
+
           val df = spark.read.format("qbeast").load(tmpDir)
           val dataSize = data.count()
           // We allow a 1% of tolerance in the sampling
@@ -204,12 +192,9 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
     "append data to the original dataset" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
       {
         val data = loadTestData(spark)
-
-        data.write
-          .mode("error")
-          .format("qbeast")
-          .option("columnsToIndex", "user_id,product_id")
-          .save(tmpDir)
+        val columnsToIndex = Seq("user_id", "product_id")
+        val cubeSize = 30000
+        writeTestData(data, columnsToIndex, cubeSize, tmpDir)
 
         val appendData = spark.read
           .format("csv")
@@ -220,7 +205,10 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
         appendData.write
           .mode("append")
           .format("qbeast")
-          .option("columnsToIndex", "user_id,product_id")
+          .options(
+            Map(
+              "columnsToIndex" -> columnsToIndex.mkString(","),
+              "cubeSize" -> cubeSize.toString))
           .save(tmpDir)
 
         val df = spark.read.format("qbeast").load(tmpDir)
@@ -249,11 +237,7 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
       {
         val data = loadTestData(spark)
 
-        data.write
-          .mode("overwrite")
-          .format("qbeast")
-          .option("columnsToIndex", "user_id,product_id")
-          .save(tmpDir)
+        writeTestData(data, Seq("user_id", "product_id"), 30000, tmpDir)
 
         val df = spark.read.format("qbeast").load(tmpDir)
 
@@ -281,21 +265,13 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
         // val tmpDir = "/tmp/qbeast3"
         val data = loadTestData(spark)
 
-        data.write
-          .mode("error")
-          .format("qbeast")
-          .option("columnsToIndex", "user_id,product_id")
-          .save(tmpDir)
+        writeTestData(data, Seq("user_id", "product_id"), 30000, tmpDir)
 
         // analyze and optimize the index 3 times
         optimize(spark, tmpDir, 3)
 
         // Overwrite table
-        data.write
-          .mode("overwrite")
-          .format("qbeast")
-          .option("columnsToIndex", "user_id,product_id")
-          .save(tmpDir)
+        writeTestData(data, Seq("user_id", "product_id"), 30000, tmpDir)
 
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
 

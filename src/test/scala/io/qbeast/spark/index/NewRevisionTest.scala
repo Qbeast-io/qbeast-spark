@@ -29,7 +29,7 @@ class NewRevisionTest
     df.write
       .format("qbeast")
       .mode("append")
-      .option("columnsToIndex", names.mkString(","))
+      .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> "10000"))
       .save(tmpDir)
   }
 
@@ -80,8 +80,8 @@ class NewRevisionTest
           df.write
             .format("qbeast")
             .mode("overwrite")
-            .option("columnsToIndex", names.mkString(","))
-            .option("cubeSize", cubeSize.toString)
+            .options(
+              Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> cubeSize.toString))
             .save(tmpDir)
 
           val deltaLog = DeltaLog.forTable(spark, tmpDir)

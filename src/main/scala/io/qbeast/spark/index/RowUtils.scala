@@ -19,17 +19,15 @@ object RowUtils {
    * @return the point
    */
   def rowValuesToPoint(values: Seq[Any], revision: Revision): Point = Point {
-    val coordinates = Vector.newBuilder[Double]
+    val coordinates = Vector.newBuilder[Any]
     coordinates.sizeHint(values.length)
     for (value <- values) {
       value match {
-        case n: Number =>
-          coordinates += n.doubleValue()
+        case n: Any => coordinates += n
         case null =>
           throw AnalysisExceptionFactory.create(
             "Column to index contains null values. Please initialize them before indexing")
-        case _ =>
-          throw AnalysisExceptionFactory.create("Column to index contains non-numeric value")
+
       }
     }
     revision.transform(coordinates.result())

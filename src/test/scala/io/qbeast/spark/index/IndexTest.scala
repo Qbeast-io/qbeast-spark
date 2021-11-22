@@ -17,6 +17,22 @@ import org.scalatest.matchers.should.Matchers
 
 class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec {
 
+  // TEST CONFIGURATIONS
+  private val options = Map("columnsToIndex" -> "age,val2", "cubeSize" -> "10000")
+
+  private def createDF(): DataFrame = {
+    val spark = SparkSession.active
+
+    val rdd =
+      spark.sparkContext.parallelize(
+        0.to(100000)
+          .map(i => Client3(i * i, s"student-$i", i, i * 1000 + 123, i * 2567.3432143)))
+
+    spark.createDataFrame(rdd)
+  }
+
+  // Check correctness
+
   def checkCubeSize(tableChanges: TableChanges, revision: Revision, indexed: DataFrame): Unit = {
     val weightMap: Map[CubeId, Weight] = tableChanges.indexChanges.cubeWeights
     val cubeSizes = indexed
@@ -91,25 +107,11 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
     }
   }
 
-  def createDF(): DataFrame = {
-    val spark = SparkSession.active
-
-    val rdd =
-      spark.sparkContext.parallelize(
-        0.to(100000)
-          .map(i => Client3(i * i, s"student-$i", i, i * 1000 + 123, i * 2567.3432143)))
-
-    spark.createDataFrame(rdd)
-  }
-
   "Indexing method" should "respect the desired cube size" in withSpark { spark =>
     withOTreeAlgorithm { oTreeAlgorithm =>
       {
         val df = createDF()
-        val rev = SparkRevisionBuilder.createNewRevision(
-          QTableID("test"),
-          df,
-          Map("columnsToIndex" -> "age,val2"))
+        val rev = SparkRevisionBuilder.createNewRevision(QTableID("test"), df, options)
 
         val (indexed, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
@@ -122,10 +124,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
     withOTreeAlgorithm { oTreeAlgorithm =>
       {
         val df = createDF()
-        val rev = SparkRevisionBuilder.createNewRevision(
-          QTableID("test"),
-          df,
-          Map("columnsToIndex" -> "age,val2"))
+        val rev = SparkRevisionBuilder.createNewRevision(QTableID("test"), df, options)
 
         val (_, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
@@ -138,10 +137,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
     withOTreeAlgorithm { oTreeAlgorithm =>
       {
         val df = createDF()
-        val rev = SparkRevisionBuilder.createNewRevision(
-          QTableID("test"),
-          df,
-          Map("columnsToIndex" -> "age,val2"))
+        val rev = SparkRevisionBuilder.createNewRevision(QTableID("test"), df, options)
 
         val (_, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
@@ -154,10 +150,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
     withOTreeAlgorithm { oTreeAlgorithm =>
       {
         val df = createDF()
-        val rev = SparkRevisionBuilder.createNewRevision(
-          QTableID("test"),
-          df,
-          Map("columnsToIndex" -> "age,val2"))
+        val rev = SparkRevisionBuilder.createNewRevision(QTableID("test"), df, options)
 
         val (indexed, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
@@ -181,7 +174,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
         val rev = SparkRevisionBuilder.createNewRevision(
           QTableID("test"),
           df,
-          Map("columnsToIndex" -> "user_id,product_id"))
+          Map("columnsToIndex" -> "user_id,product_id", "cubeSize" -> "10000"))
         val (indexed, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
         val weightMap = tc.indexChanges.cubeWeights
         checkCubes(weightMap)
@@ -198,10 +191,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
       withOTreeAlgorithm { oTreeAlgorithm =>
         val df = createDF()
         val tableId = new QTableID(tmpDir)
-        val rev = SparkRevisionBuilder.createNewRevision(
-          QTableID("test"),
-          df,
-          Map("columnsToIndex" -> "age,val2"))
+        val rev = SparkRevisionBuilder.createNewRevision(QTableID("test"), df, options)
 
         val (i, _) = oTreeAlgorithm.index(df, IndexStatus(rev))
         val firstIndexed = i.withColumnRenamed(cubeColumnName, cubeColumnName + "First")
@@ -209,7 +199,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
         df.write
           .format("qbeast")
           .mode("overwrite")
-          .option("columnsToIndex", "age,val2")
+          .options(options)
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
@@ -220,10 +210,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
           .withColumn("age", (col("age") * offset).cast(IntegerType))
           .withColumn("val2", (col("val2") * offset).cast(LongType))
 
-        val appendRev = SparkRevisionBuilder.createNewRevision(
-          tableId,
-          appendData,
-          Map("columnsToIndex" -> "age,val2"))
+        val appendRev = SparkRevisionBuilder.createNewRevision(tableId, appendData, options)
         val (indexed, tc) =
           oTreeAlgorithm.index(appendData, qbeastSnapshot.loadLatestIndexStatus)
 
@@ -260,10 +247,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
         val df = spark.createDataFrame(rdd)
 
         try {
-          val rev = SparkRevisionBuilder.createNewRevision(
-            QTableID("test"),
-            df,
-            Map("columnsToIndex" -> "age,val2"))
+          val rev = SparkRevisionBuilder.createNewRevision(QTableID("test"), df, options)
           oTreeAlgorithm.index(df, IndexStatus(rev))
           fail()
         } catch {
@@ -277,16 +261,13 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
     withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
       withOTreeAlgorithm { oTreeAlgorithm =>
         val df = createDF()
-        val rev = SparkRevisionBuilder.createNewRevision(
-          QTableID("test"),
-          df,
-          Map("columnsToIndex" -> "age,val2"))
+        val rev = SparkRevisionBuilder.createNewRevision(QTableID("test"), df, options)
         val (_, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
         df.write
           .format("qbeast")
           .mode("overwrite")
-          .option("columnsToIndex", "age,val2")
+          .options(options)
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)

@@ -33,7 +33,7 @@ class AnalyzeAndOptimizeTest
     df.write
       .format("qbeast")
       .mode("append")
-      .option("columnsToIndex", names.mkString(","))
+      .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> "10000"))
       .save(tmpDir)
     names.length
   }

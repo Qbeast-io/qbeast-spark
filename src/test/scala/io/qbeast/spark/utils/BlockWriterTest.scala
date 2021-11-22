@@ -56,7 +56,7 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
       .createNewRevision(
         QTableID("test"),
         data,
-        Map("columnsToIndex" -> "id", "desiredCubeSize" -> "10000"))
+        Map("columnsToIndex" -> "id", "cubeSize" -> "10000"))
     val writer = BlockWriter(
       dataPath = tmpDir,
       schema = data.schema,
@@ -97,7 +97,7 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
     val rev = SparkRevisionBuilder.createNewRevision(
       QTableID("test"),
       data,
-      Map("columnsToIndex" -> "id", "desiredCubeSize" -> "10000"))
+      Map("columnsToIndex" -> "id", "cubeSize" -> "10000"))
     val qbeastColumns = QbeastColumns(indexed)
     val (factory, serConf) = loadConf(data)
     val writer = BlockWriter(

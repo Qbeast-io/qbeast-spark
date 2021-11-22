@@ -3,7 +3,6 @@
  */
 package io.qbeast.spark.delta
 
-import com.typesafe.config.ConfigFactory
 import io.qbeast.model.{IndexStatus, QTableID, Weight}
 import io.qbeast.spark.index.OTreeAlgorithmTest.Client3
 import io.qbeast.spark.index.SparkRevisionBuilder
@@ -36,13 +35,15 @@ class QbeastSnapshotTest
     "normalize weights when cubes are half full" in withQbeastContextSparkAndTmpDir {
       (spark, tmpDir) =>
         withOTreeAlgorithm { oTreeAlgorithm =>
-          val df = createDF(10000 / 2).repartition(1)
+          val cubeSize = 10000
+          val df = createDF(cubeSize / 2).repartition(1)
           val names = List("age", "val2")
           // val dimensionCount = names.length
           df.write
             .format("qbeast")
             .mode("overwrite")
-            .option("columnsToIndex", names.mkString(","))
+            .options(
+              Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> cubeSize.toString))
             .save(tmpDir)
 
           val deltaLog = DeltaLog.forTable(spark, tmpDir)
@@ -58,14 +59,15 @@ class QbeastSnapshotTest
   it should "normalize weights when cubes are full" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
       withOTreeAlgorithm { _ =>
+        val cubeSize = 10000
         val df =
-          createDF(ConfigFactory.load().getInt("qbeast.index.defaultCubeSize")).repartition(1)
+          createDF(cubeSize).repartition(1)
         val names = List("age", "val2")
 
         df.write
           .format("qbeast")
           .mode("overwrite")
-          .option("columnsToIndex", names.mkString(","))
+          .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> cubeSize.toString))
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
@@ -85,7 +87,10 @@ class QbeastSnapshotTest
           val df = createDF(100000)
           val indexStatus = IndexStatus(
             SparkRevisionBuilder
-              .createNewRevision(QTableID("test"), df, Map("columnsToIndex" -> "age,val2")))
+              .createNewRevision(
+                QTableID("test"),
+                df,
+                Map("columnsToIndex" -> "age,val2", "cubeSize" -> "10000")))
           val (_, tc) = oTreeAlgorithm.index(df, indexStatus)
           val weightMap = tc.indexChanges.cubeWeights
           df.write
@@ -114,7 +119,7 @@ class QbeastSnapshotTest
       df.write
         .format("qbeast")
         .mode("overwrite")
-        .option("columnsToIndex", names.mkString(","))
+        .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> "10000"))
         .save(tmpDir)
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
@@ -140,7 +145,7 @@ class QbeastSnapshotTest
           df.write
             .format("qbeast")
             .mode("overwrite")
-            .option("columnsToIndex", names.mkString(","))
+            .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> "10000"))
             .save(tmpDir)
 
           val deltaLog = DeltaLog.forTable(spark, tmpDir)

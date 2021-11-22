@@ -117,7 +117,7 @@ class OTreeAlgorithmTest
       val rev = SparkRevisionBuilder.createNewRevision(
         QTableID("test"),
         df,
-        Map("columnsToIndex" -> df.columns.mkString(",")))
+        Map("columnsToIndex" -> df.columns.mkString(","), "cubeSize" -> "10000"))
 
       val newDf = DoublePassOTreeDataAnalyzer invokePrivate addRandomWeight(df, rev)
       /* With less than 10k rows the probability of a collision is approximately 0.3%,
