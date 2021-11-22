@@ -3,9 +3,10 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.model.{IndexStatus, QTableID, Weight}
+import io.qbeast.model.{CubeStatus, IndexStatus, QTableID, Weight}
 import io.qbeast.spark.index.OTreeAlgorithmTest.Client3
 import io.qbeast.spark.index.SparkRevisionFactory
+import io.qbeast.spark.utils.TagUtils
 import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -101,7 +102,7 @@ class QbeastSnapshotTest
 
           val deltaLog = DeltaLog.forTable(spark, tmpDir)
           val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
-          val commitLogWeightMap = qbeastSnapshot.loadLatestIndexStatus.cubeWeights
+          val commitLogWeightMap = qbeastSnapshot.loadLatestIndexStatus.cubesStatuses
 
           // commitLogWeightMap shouldBe weightMap
           commitLogWeightMap.keys.foreach(cubeId => {
@@ -124,9 +125,9 @@ class QbeastSnapshotTest
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
       val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
-      val cubeWeights = qbeastSnapshot.loadLatestIndexStatus.cubeWeights
+      val cubeWeights = qbeastSnapshot.loadLatestIndexStatus.cubesStatuses
 
-      cubeWeights.foreach { case (_, weight: Weight) =>
+      cubeWeights.values.foreach { case CubeStatus(weight, _, _) =>
         weight shouldBe >(Weight.MinValue)
         weight shouldBe <=(Weight.MaxValue)
       }
@@ -152,19 +153,21 @@ class QbeastSnapshotTest
           val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
           val builder =
             new IndexStatusBuilder(qbeastSnapshot, qbeastSnapshot.loadLatestIndexStatus.revision)
-          val revisionState = builder.revisionState
+          val revisionState = builder.buildCubesStatuses
 
-          val overflowed =
-            qbeastSnapshot.loadLatestIndexStatus.overflowedSet
-              .map(_.string)
-
+          val overflowed = qbeastSnapshot.loadLatestIndexStatus.overflowedSet
+          val fileInfo = qbeastSnapshot.snapshot.allFiles.collect().map(a => (a.path, a)).toMap
           revisionState
-            .filter(cubeInfo => overflowed.contains(cubeInfo.cube))
-            .foreach(cubeInfo =>
+            .filter { case (cube, _) => overflowed.contains(cube) }
+            .foreach { case (cube, CubeStatus(weight, _, files)) =>
               assert(
-                cubeInfo.size > 1000 * 0.9,
-                "assertion failed in cube " + cubeInfo.cube +
-                  " where size is " + cubeInfo.size + " and weight is " + cubeInfo.maxWeight))
+                files
+                  .map(fileInfo)
+                  .map(a => a.tags(TagUtils.elementCount).toLong)
+                  .sum > 1000 * 0.9,
+                "assertion failed in cube " + cube +
+                  " where size is " + files.size + " and weight is " + weight)
+            }
         }
     }
 

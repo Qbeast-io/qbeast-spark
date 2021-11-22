@@ -107,6 +107,11 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
         .parquet(tmpDir)
         .as[T1]
 
+      val f = indexed
+        .withColumn("file_name", input_file_name())
+        .groupBy(col("file_name"))
+        .count()
+
       p.count() shouldBe source.count()
 
       indexed.count() shouldBe source.count()
@@ -115,10 +120,6 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
         indexed,
         ignoreNullable = true,
         orderedComparison = false)
-      val f = indexed
-        .withColumn("file_name", input_file_name())
-        .groupBy(col("file_name"))
-        .count()
 
       f.filter(col("count") > 15).isEmpty shouldBe true
 

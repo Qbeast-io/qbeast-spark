@@ -2,7 +2,7 @@ package io.qbeast.model
 
 import io.qbeast.IISeq
 
-trait MetadataManager[DataSchema, FileAction] {
+trait MetadataManager[DataSchema, FileDescriptor] {
 
   /**
    * Gets the Snapshot for a given table
@@ -30,7 +30,7 @@ trait MetadataManager[DataSchema, FileAction] {
    * @param append the append flag
    */
   def updateWithTransaction(tableID: QTableID, schema: DataSchema, append: Boolean)(
-      writer: => (TableChanges, IISeq[FileAction])): Unit
+      writer: => (TableChanges, IISeq[FileDescriptor])): Unit
 
   /**
    * Updates the Revision with the given RevisionChanges

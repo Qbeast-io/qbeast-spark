@@ -49,6 +49,7 @@ case class BlockWriter(
       return Iterator.empty
     }
     val revision = tableChanges.updatedRevision
+    val cubeWeights = tableChanges.indexChanges.cubeWeights
     iter
       .foldLeft[Map[CubeId, BlockContext]](Map()) { case (blocks, row) =>
         val cubeId = revision.createCubeId(row.getBinary(qbeastColumns.cubeColumnIndex))
@@ -57,13 +58,13 @@ case class BlockWriter(
         // It could happen than estimated weights
         // doesn't include all the cubes present in the final indexed dataframe
         // we save those newly added leaves with the max weight possible
-        val maxWeight = tableChanges.indexChanges.cubeWeights.getOrElse(cubeId, Weight.MaxValue)
-        val blockCtx =
-          blocks.getOrElse(cubeId, buildWriter(cubeId, state, maxWeight))
+        val maxWeight = cubeWeights.getOrElse(cubeId, Weight.MaxValue)
+        val blockCtx = blocks.getOrElse(cubeId, buildWriter(cubeId, state, maxWeight))
 
         // The row with only the original columns
         val cleanRow = Seq.newBuilder[Any]
-        for (i <- (0 until row.numFields)) {
+        cleanRow.sizeHint(row.numFields)
+        for (i <- 0 until row.numFields) {
           if (!qbeastColumns.contains(i)) {
             cleanRow += row.get(i, schemaIndex(i).dataType)
           }

@@ -169,18 +169,14 @@ case class RevisionChange(
  * @param revision the revision
  * @param replicatedSet the set of cubes in a replicated state
  * @param announcedSet the set of cubes in an announced state
- * @param cubeWeights the map of cube and weight
- * @param cubeNormalizedWeights the map of cube and normalized weight
- * @param overflowedSet the set of cubes that has surpass their capacity
+ * @param cubesStatuses the map containing the status (weight and files) of each cube
  */
 
 case class IndexStatus(
     revision: Revision,
     replicatedSet: ReplicatedSet = Set.empty,
     announcedSet: Set[CubeId] = Set.empty,
-    cubeWeights: Map[CubeId, Weight] = Map.empty,
-    cubeNormalizedWeights: Map[CubeId, NormalizedWeight] = Map.empty,
-    overflowedSet: Set[CubeId] = Set.empty)
+    cubesStatuses: Map[CubeId, CubeStatus] = Map.empty)
     extends Serializable {
 
   def addAnnouncements(newAnnouncedSet: Set[CubeId]): IndexStatus =
@@ -188,7 +184,20 @@ case class IndexStatus(
 
   def cubesToOptimize: Set[CubeId] = announcedSet.diff(replicatedSet)
 
+  /**
+   * the set of cubes that has surpass their capacity
+   * @return
+   */
+  def overflowedSet: Set[CubeId] =
+    cubesStatuses.filter(_._2.weight != Weight.MaxValue).keySet
+
+  def cubeNormalizedWeights: Map[CubeId, NormalizedWeight] =
+    cubesStatuses.mapValues(_.normalizedWeight)
+
 }
+
+case class CubeStatus(weight: Weight, normalizedWeight: NormalizedWeight, files: IISeq[String])
+    extends Serializable
 
 /**
  * Companion object for the IndexStatus

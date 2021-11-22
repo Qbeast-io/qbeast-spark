@@ -3,6 +3,7 @@
  */
 package io.qbeast.spark.delta
 
+import io.qbeast.IISeq
 import io.qbeast.model._
 import io.qbeast.spark.utils.{State, TagUtils}
 import org.apache.spark.sql.catalyst.expressions
@@ -82,8 +83,6 @@ case class OTreeIndex(index: TahoeLogFileIndex)
 
     if (weightRange.to == Weight.MinValue || weightRange.from > weightRange.to) return List.empty
 
-    val filesVector = files.toVector
-
     qbeastSnapshot.loadAllRevisions
       .flatMap(revision => {
 
@@ -94,18 +93,16 @@ case class OTreeIndex(index: TahoeLogFileIndex)
         val originalTo = Point(Vector.fill(dimensionCount)(Int.MaxValue.doubleValue()))
         val querySpace = QuerySpaceFromTo(originalFrom, originalTo, revision)
 
-        val cubeWeights = revisionData.cubeWeights
+        val cubeStatus = revisionData.cubesStatuses
         val replicatedSet = revisionData.replicatedSet
-        val filesRevision =
-          filesVector.filter(_.tags(TagUtils.revision) == revision.revisionID.toString)
 
         findSampleFiles(
           querySpace,
           weightRange,
           CubeId.root(dimensionCount),
-          filesRevision,
-          cubeWeights,
-          replicatedSet)
+          cubeStatus,
+          replicatedSet,
+          files)
       })
 
   }
@@ -116,30 +113,27 @@ case class OTreeIndex(index: TahoeLogFileIndex)
    * @param space the query space
    * @param weightRange the weight range
    * @param startCube the start cube
-   * @param files the data files
-   * @param cubeWeights the cube weights
+   * @param cubesStatuses the cube weights and files
    * @return the files with sample data
    */
   def findSampleFiles(
       space: QuerySpace,
       weightRange: Range[Weight],
       startCube: CubeId,
-      files: Vector[AddFile],
-      cubeWeights: Map[CubeId, Weight],
-      replicatedSet: Set[CubeId]): Vector[AddFile] = {
-
-    def doFindSampleFiles(cube: CubeId): Vector[AddFile] = {
-      cubeWeights.get(cube) match {
-        case Some(cubeWeight) if weightRange.to < cubeWeight =>
-          val cubeString = cube.string
-          files.filter(_.tags(TagUtils.cube) == cubeString)
-        case Some(cubeWeight) =>
-          val cubeString = cube.string
+      cubesStatuses: Map[CubeId, CubeStatus],
+      replicatedSet: Set[CubeId],
+      previouslyMatchedFiles: Seq[AddFile]): IISeq[AddFile] = {
+    val fileMap = previouslyMatchedFiles.map(a => (a.path, a)).toMap
+    def doFindSampleFiles(cube: CubeId): IISeq[AddFile] = {
+      cubesStatuses.get(cube) match {
+        case Some(CubeStatus(cubeWeight, _, files)) if weightRange.to < cubeWeight =>
+          files.flatMap(fileMap.get)
+        case Some(CubeStatus(cubeWeight, _, files)) =>
+          val cubeFiles = files.flatMap(fileMap.get)
           val childFiles = cube.children
             .filter(space.intersectsWith)
             .flatMap(doFindSampleFiles)
           if (!replicatedSet.contains(cube) && weightRange.from < cubeWeight) {
-            val cubeFiles = files.filter(_.tags(TagUtils.cube) == cubeString)
             if (childFiles.nonEmpty) {
               cubeFiles.filterNot(_.tags(TagUtils.state) == State.ANNOUNCED) ++ childFiles
             } else {

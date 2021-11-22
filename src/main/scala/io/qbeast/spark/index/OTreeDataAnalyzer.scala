@@ -80,68 +80,68 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
   }
 
   private[index] def estimateCubeWeights(
-      partitionedEstimatedCubeWeights: Dataset[CubeNormalizedWeight],
-      revision: Revision): Dataset[(CubeId, NormalizedWeight)] = {
+      revision: Revision): Dataset[CubeNormalizedWeight] => Dataset[(CubeId, NormalizedWeight)] =
+    (partitionedEstimatedCubeWeights: Dataset[CubeNormalizedWeight]) => {
 
-    val sqlContext = SparkSession.active.sqlContext
-    import sqlContext.implicits._
+      val sqlContext = SparkSession.active.sqlContext
+      import sqlContext.implicits._
 
-    // These column names are the ones specified in case class CubeNormalizedWeight
-    partitionedEstimatedCubeWeights
-      .groupBy("cubeBytes")
-      .agg(maxWeightEstimation(col("normalizedWeight")))
-      .map { row =>
-        val bytes = row.getAs[Array[Byte]](0)
-        val estimatedWeight = row.getAs[Double](1)
-        (revision.createCubeId(bytes), estimatedWeight)
-      }
-  }
+      // These column names are the ones specified in case class CubeNormalizedWeight
+      partitionedEstimatedCubeWeights
+        .groupBy("cubeBytes")
+        .agg(maxWeightEstimation(col("normalizedWeight")))
+        .map { row =>
+          val bytes = row.getAs[Array[Byte]](0)
+          val estimatedWeight = row.getAs[Double](1)
+          (revision.createCubeId(bytes), estimatedWeight)
+        }
+    }
 
   private[index] def estimatePartitionCubeWeights(
-      weightedDataFrame: DataFrame,
       revision: Revision,
       indexStatus: IndexStatus,
-      isReplication: Boolean): Dataset[CubeNormalizedWeight] = {
+      isReplication: Boolean): DataFrame => Dataset[CubeNormalizedWeight] =
+    (weightedDataFrame: DataFrame) => {
 
-    val sqlContext = SparkSession.active.sqlContext
-    import sqlContext.implicits._
+      val spark = SparkSession.active
+      import spark.implicits._
 
-    val partitionCount: Int = weightedDataFrame.rdd.getNumPartitions
+      val partitionCount: Int = weightedDataFrame.rdd.getNumPartitions
 
-    val partitionedDesiredCubeSize = if (partitionCount > 0) {
-      revision.desiredCubeSize / partitionCount
-    } else {
-      revision.desiredCubeSize
+      val partitionedDesiredCubeSize = if (partitionCount > 1) {
+        revision.desiredCubeSize / partitionCount
+      } else {
+        revision.desiredCubeSize
+      }
+
+      val indexColumns = if (isReplication) {
+        Seq(weightColumnName, cubeToReplicateColumnName)
+      } else {
+        Seq(weightColumnName)
+      }
+      val cols = revision.columnTransformers.map(_.columnName) ++ indexColumns
+
+      weightedDataFrame
+        .select(cols.map(col): _*)
+        .mapPartitions(rows => {
+          val weights =
+            new CubeWeightsBuilder(
+              partitionedDesiredCubeSize,
+              partitionCount,
+              indexStatus.announcedSet,
+              indexStatus.replicatedSet)
+          rows.foreach { row =>
+            val point = RowUtils.rowValuesToPoint(row, revision)
+            val weight = Weight(row.getAs[Int](weightColumnName))
+            if (isReplication) {
+              val parentBytes = row.getAs[Array[Byte]](cubeToReplicateColumnName)
+              val parent = Some(revision.createCubeId(parentBytes))
+              weights.update(point, weight, parent)
+            } else weights.update(point, weight)
+          }
+          weights.result().iterator
+        })
     }
-
-    val indexColumns = if (isReplication) {
-      Seq(weightColumnName, cubeToReplicateColumnName)
-    } else {
-      Seq(weightColumnName)
-    }
-    val cols = revision.columnTransformers.map(_.columnName) ++ indexColumns
-
-    weightedDataFrame
-      .select(cols.map(col): _*)
-      .mapPartitions(rows => {
-        val weights =
-          new CubeWeightsBuilder(
-            partitionedDesiredCubeSize,
-            partitionCount,
-            indexStatus.announcedSet,
-            indexStatus.replicatedSet)
-        rows.foreach { row =>
-          val point = RowUtils.rowValuesToPoint(row, revision)
-          val weight = Weight(row.getAs[Int](weightColumnName))
-          if (isReplication) {
-            val parentBytes = row.getAs[Array[Byte]](cubeToReplicateColumnName)
-            val parent = Some(revision.createCubeId(parentBytes))
-            weights.update(point, weight, parent)
-          } else weights.update(point, weight)
-        }
-        weights.result().iterator
-      })
-  }
 
   // ANALYZE METHODS
   /**
@@ -171,12 +171,12 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     // First, add a random weight column
     val weightedDataFrame = dataFrame.transform(df => addRandomWeight(df, revision))
     // Second, estimate the cube weights at partition level
-    val partitionedEstimatedCubeWeights = weightedDataFrame.transform(df =>
-      estimatePartitionCubeWeights(df, revision, indexStatus, isReplication))
+    val partitionedEstimatedCubeWeights = weightedDataFrame.transform(
+      estimatePartitionCubeWeights(revision, indexStatus, isReplication))
     // Third, compute the overall estimated cube weights
     val estimatedCubeWeights =
       partitionedEstimatedCubeWeights
-        .transform(df => estimateCubeWeights(df, revision))
+        .transform(estimateCubeWeights(revision))
         .collect()
         .toMap
 
