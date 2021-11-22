@@ -4,7 +4,7 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.model.{CubeId, IndexStatus, IndexStatusChange, Point, QTableID, TableChanges}
-import io.qbeast.spark.index.{QbeastColumns, SparkRevisionBuilder}
+import io.qbeast.spark.index.{QbeastColumns, SparkRevisionFactory}
 import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.index.writer.BlockWriter
 import io.qbeast.spark.utils.BlockWriterTest.IndexData
@@ -52,10 +52,10 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
 
     val qbeastColumns = QbeastColumns(indexed)
     val (factory, serConf) = loadConf(data)
-    val rev = SparkRevisionBuilder
+    val rev = SparkRevisionFactory
       .createNewRevision(
         QTableID("test"),
-        data,
+        data.schema,
         Map("columnsToIndex" -> "id", "cubeSize" -> "10000"))
     val writer = BlockWriter(
       dataPath = tmpDir,
@@ -94,9 +94,9 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
       spark.createDataFrame(rdd).toDF("id", cubeColumnName, weightColumnName, stateColumnName)
     val data = indexed.select("id")
     val names = List("id")
-    val rev = SparkRevisionBuilder.createNewRevision(
+    val rev = SparkRevisionFactory.createNewRevision(
       QTableID("test"),
-      data,
+      data.schema,
       Map("columnsToIndex" -> "id", "cubeSize" -> "10000"))
     val qbeastColumns = QbeastColumns(indexed)
     val (factory, serConf) = loadConf(data)

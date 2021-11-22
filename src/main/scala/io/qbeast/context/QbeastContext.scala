@@ -7,7 +7,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import io.qbeast.keeper.{Keeper, LocalKeeper}
 import io.qbeast.model._
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
-import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionBuilder}
+import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionFactory}
 import io.qbeast.spark.index.writer.SparkDataWriter
 import io.qbeast.spark.table.{IndexedTableFactory, IndexedTableFactoryImpl}
 import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationEnd}
@@ -88,8 +88,8 @@ object QbeastContext
   override def dataWriter: DataWriter[DataFrame, StructType, FileAction] =
     SparkDataWriter
 
-  override def revisionBuilder: RevisionBuilder[DataFrame] =
-    SparkRevisionBuilder
+  override def revisionBuilder: RevisionFactory[StructType] =
+    SparkRevisionFactory
 
   /**
    * Sets the unmanaged context. The specified context will not

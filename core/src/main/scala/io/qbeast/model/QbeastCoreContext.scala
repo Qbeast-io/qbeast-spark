@@ -9,21 +9,16 @@ trait QbeastCoreContext[DATA, DataSchema, FileAction] {
   def dataWriter: DataWriter[DATA, DataSchema, FileAction]
   def indexManager: IndexManager[DATA]
   def queryManager[QUERY: ClassTag]: QueryManager[QUERY, DATA]
-  def revisionBuilder: RevisionBuilder[DATA]
+  def revisionBuilder: RevisionFactory[DataSchema]
   def keeper: Keeper
 
 }
 
-trait QTableIDProvider[T <: QTableID] {
+trait RevisionFactory[DataSchema] {
 
-  /**
-   * Obtain a QTableID object from a given string representation
-   * @param value the string representation of the QTableID
-   * @return the QTableID object
-   */
-  def fromStringSerialization(value: String): T
-}
+  def createNewRevision(
+      qtableID: QTableID,
+      schema: DataSchema,
+      options: Map[String, String]): Revision
 
-trait RevisionBuilder[D] {
-  def createNewRevision(qtableID: QTableID, data: D, options: Map[String, String]): Revision
 }

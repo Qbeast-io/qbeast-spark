@@ -114,9 +114,9 @@ class OTreeAlgorithmTest
 
   def checkRDD(df: DataFrame): Unit =
     withQbeastContext() {
-      val rev = SparkRevisionBuilder.createNewRevision(
+      val rev = SparkRevisionFactory.createNewRevision(
         QTableID("test"),
-        df,
+        df.schema,
         Map("columnsToIndex" -> df.columns.mkString(","), "cubeSize" -> "10000"))
 
       val newDf = DoublePassOTreeDataAnalyzer invokePrivate addRandomWeight(df, rev)

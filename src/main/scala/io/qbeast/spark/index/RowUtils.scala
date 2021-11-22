@@ -4,8 +4,7 @@
 package io.qbeast.spark.index
 
 import io.qbeast.model.{Point, Revision}
-import org.apache.spark.sql.{AnalysisExceptionFactory, Column}
-import org.apache.spark.sql.functions.{array, col}
+import org.apache.spark.sql.{AnalysisExceptionFactory, Row}
 
 /**
  * Utility functions for working with Spark Rows
@@ -18,27 +17,27 @@ object RowUtils {
    * @param revision the revision of the space
    * @return the point
    */
-  def rowValuesToPoint(values: Seq[Any], revision: Revision): Point = Point {
-    val coordinates = Vector.newBuilder[Any]
-    coordinates.sizeHint(values.length)
-    for (value <- values) {
-      value match {
-        case n: Any => coordinates += n
-        case null =>
-          throw AnalysisExceptionFactory.create(
-            "Column to index contains null values. Please initialize them before indexing")
+  def rowValuesToPoint(values: Row, revision: Revision): Point = Point {
+    if (revision.transformations.isEmpty) {
+      throw AnalysisExceptionFactory.create("Trying to index on a not initialized Revision")
+
+    }
+    val coordinates = Vector.newBuilder[Double]
+    coordinates.sizeHint(revision.columnTransformers.length)
+    var i = 0
+    for (t <- revision.transformations) {
+      val v = values.get(i)
+      i += 1
+      if (v == null) {
+        throw AnalysisExceptionFactory.create(
+          "Column to index contains null values. Please initialize them before indexing")
 
       }
-    }
-    revision.transform(coordinates.result())
-  }
+      coordinates += t.transform(v)
 
-  /**
-   * Converts the column names into Spark Columns
-   * @param columnNames the column names
-   * @return
-   */
-  def rowValuesColumn(columnNames: Seq[String]): Column =
-    array(columnNames.map(col): _*)
+    }
+    coordinates.result()
+
+  }
 
 }

@@ -6,25 +6,25 @@ import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.transform.{HashTransformer, LinearTransformer}
 case class Test(a: Int, b: Double, c: String, d: Float)
 
-class SparkRevisionBuilderTest extends QbeastIntegrationTestSpec {
+class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
 
-  behavior of "SparkRevisionBuilderTest"
+  behavior of "SparkRevisionFactory"
 
   it should "detect the correct types in getColumnQType" in withSpark(spark => {
 
     import spark.implicits._
-    val df = 0.to(10).map(i => Test(i, i * 2.0, s"$i", i * 1.2f)).toDF()
+    val df = 0.to(10).map(i => Test(i, i * 2.0, s"$i", i * 1.2f)).toDF().schema
 
-    SparkRevisionBuilder.getColumnQType("a", df) shouldBe IntegerDataType
-    SparkRevisionBuilder.getColumnQType("b", df) shouldBe DoubleDataType
-    SparkRevisionBuilder.getColumnQType("c", df) shouldBe StringDataType
-    SparkRevisionBuilder.getColumnQType("d", df) shouldBe FloatDataType
+    SparkRevisionFactory.getColumnQType("a", df) shouldBe IntegerDataType
+    SparkRevisionFactory.getColumnQType("b", df) shouldBe DoubleDataType
+    SparkRevisionFactory.getColumnQType("c", df) shouldBe StringDataType
+    SparkRevisionFactory.getColumnQType("d", df) shouldBe FloatDataType
 
   })
 
   it should "should extract correctly the type" in {
 
-    import SparkRevisionBuilder.SpecExtractor
+    import SparkRevisionFactory.SpecExtractor
 
     "column:LinearTransformer" match {
       case SpecExtractor(column, transformer) =>
@@ -43,12 +43,12 @@ class SparkRevisionBuilderTest extends QbeastIntegrationTestSpec {
 
   it should "createNewRevision with only one columns" in withSpark(spark => {
     import spark.implicits._
-    val df = 0.to(10).map(i => Test(i, i * 2.0, s"$i", i * 1.2f)).toDF()
+    val schema = 0.to(10).map(i => Test(i, i * 2.0, s"$i", i * 1.2f)).toDF().schema
     val qid = QTableID("t")
     val revision =
-      SparkRevisionBuilder.createNewRevision(
+      SparkRevisionFactory.createNewRevision(
         qid,
-        df,
+        schema,
         Map(QbeastOptions.COLUMNS_TO_INDEX -> "a", QbeastOptions.CUBE_SIZE -> "10"))
 
     revision.tableID shouldBe qid
@@ -60,12 +60,12 @@ class SparkRevisionBuilderTest extends QbeastIntegrationTestSpec {
   })
   it should "createNewRevision with only indexed columns and no spec" in withSpark(spark => {
     import spark.implicits._
-    val df = 0.to(10).map(i => Test(i, i * 2.0, s"$i", i * 1.2f)).toDF()
+    val schema = 0.to(10).map(i => Test(i, i * 2.0, s"$i", i * 1.2f)).toDF().schema
     val qid = QTableID("t")
     val revision =
-      SparkRevisionBuilder.createNewRevision(
+      SparkRevisionFactory.createNewRevision(
         qid,
-        df,
+        schema,
         Map(QbeastOptions.COLUMNS_TO_INDEX -> "a,b,c,d", QbeastOptions.CUBE_SIZE -> "10"))
 
     revision.tableID shouldBe qid
@@ -79,9 +79,9 @@ class SparkRevisionBuilderTest extends QbeastIntegrationTestSpec {
     revision.transformations shouldBe Vector.empty
 
     val revisionExplicit =
-      SparkRevisionBuilder.createNewRevision(
+      SparkRevisionFactory.createNewRevision(
         qid,
-        df,
+        schema,
         Map(
           QbeastOptions.COLUMNS_TO_INDEX -> "a:linear,b:linear,c:hashing,d:linear",
           QbeastOptions.CUBE_SIZE -> "10"))
@@ -91,12 +91,12 @@ class SparkRevisionBuilderTest extends QbeastIntegrationTestSpec {
 
   it should "createNewRevision with only indexed columns with all hash" in withSpark(spark => {
     import spark.implicits._
-    val df = 0.to(10).map(i => Test(i, i * 2.0, s"$i", i * 1.2f)).toDF()
+    val schema = 0.to(10).map(i => Test(i, i * 2.0, s"$i", i * 1.2f)).toDF().schema
     val qid = QTableID("t")
     val revision =
-      SparkRevisionBuilder.createNewRevision(
+      SparkRevisionFactory.createNewRevision(
         qid,
-        df,
+        schema,
         Map(
           QbeastOptions.COLUMNS_TO_INDEX -> "a:hashing,b:hashing,c:hashing,d:hashing",
           QbeastOptions.CUBE_SIZE -> "10"))

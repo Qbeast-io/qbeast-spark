@@ -91,7 +91,7 @@ final class IndexedTableFactoryImpl(
     private val indexManager: IndexManager[DataFrame],
     private val metadataManager: MetadataManager[StructType, FileAction],
     private val dataWriter: DataWriter[DataFrame, StructType, FileAction],
-    private val revisionBuilder: RevisionBuilder[DataFrame])
+    private val revisionBuilder: RevisionFactory[StructType])
     extends IndexedTableFactory {
 
   override def getIndexedTable(tableID: QTableID): IndexedTable =
@@ -117,7 +117,7 @@ private[table] class IndexedTableImpl(
     private val indexManager: IndexManager[DataFrame],
     private val metadataManager: MetadataManager[StructType, FileAction],
     private val dataWriter: DataWriter[DataFrame, StructType, FileAction],
-    private val revisionBuilder: RevisionBuilder[DataFrame])
+    private val revisionBuilder: RevisionFactory[StructType])
     extends IndexedTable {
   private var snapshotCache: Option[QbeastSnapshot] = None
 
@@ -131,7 +131,7 @@ private[table] class IndexedTableImpl(
       snapshot.loadLatestIndexStatus
       // TODO check here if the parameters is compatible with the old revision
     } else {
-      IndexStatus(revisionBuilder.createNewRevision(tableID, data, parameters))
+      IndexStatus(revisionBuilder.createNewRevision(tableID, data.schema, parameters))
     }
 
     if (exists && append) {

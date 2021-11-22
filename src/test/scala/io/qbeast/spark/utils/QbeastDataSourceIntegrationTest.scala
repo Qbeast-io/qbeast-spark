@@ -250,7 +250,7 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
         val tolerance = 0.01
         List(0.1, 0.2, 0.5, 0.7, 0.99).foreach(precision => {
           val result = df
-            .sample(false, precision)
+            .sample(withReplacement = false, precision)
             .count()
             .toDouble
 
@@ -259,7 +259,7 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
       }
   }
 
-  it should "erase cube information when overwrited" in withQbeastContextSparkAndTmpDir {
+  it should "erase cube information when overwritten" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
       {
         // val tmpDir = "/tmp/qbeast3"

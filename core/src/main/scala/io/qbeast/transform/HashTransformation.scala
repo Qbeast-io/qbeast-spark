@@ -5,16 +5,15 @@ import scala.util.hashing.MurmurHash3
 case class HashTransformation() extends Transformation {
 
   override def transform(value: Any): Double = {
-    value match {
+    val hash = value match {
       case s: String =>
-        val randomInt = MurmurHash3.bytesHash(s.getBytes)
-
-        (randomInt & 0x7fffffff).toDouble / Int.MaxValue
+        MurmurHash3.bytesHash(s.getBytes)
+      case n: Number =>
+        MurmurHash3.bytesHash(n.toString.getBytes)
       case a: Array[Byte] =>
-        val randomInt = MurmurHash3.bytesHash(a)
-
-        (randomInt & 0x7fffffff).toDouble / Int.MaxValue
+        MurmurHash3.bytesHash(a)
     }
+    (hash & 0x7fffffff).toDouble / Int.MaxValue
   }
 
   /**

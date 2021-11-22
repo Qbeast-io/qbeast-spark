@@ -114,9 +114,15 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       revision.desiredCubeSize
     }
 
-    val columnsToIndex = revision.columnTransformers.map(_.columnName)
+    val indexColumns = if (isReplication) {
+      Seq(weightColumnName, cubeToReplicateColumnName)
+    } else {
+      Seq(weightColumnName)
+    }
+    val cols = revision.columnTransformers.map(_.columnName) ++ indexColumns
 
     weightedDataFrame
+      .select(cols.map(col): _*)
       .mapPartitions(rows => {
         val weights =
           new CubeWeightsBuilder(
@@ -125,8 +131,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
             indexStatus.announcedSet,
             indexStatus.replicatedSet)
         rows.foreach { row =>
-          val values = columnsToIndex.map(row.getAs[Any])
-          val point = RowUtils.rowValuesToPoint(values, revision)
+          val point = RowUtils.rowValuesToPoint(row, revision)
           val weight = Weight(row.getAs[Int](weightColumnName))
           if (isReplication) {
             val parentBytes = row.getAs[Array[Byte]](cubeToReplicateColumnName)

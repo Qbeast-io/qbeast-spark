@@ -6,7 +6,7 @@ package io.qbeast.context
 import com.typesafe.config.ConfigFactory
 import io.qbeast.keeper.{Keeper, LocalKeeper}
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
-import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionBuilder}
+import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionFactory}
 import io.qbeast.spark.index.writer.SparkDataWriter
 import io.qbeast.spark.table.IndexedTableFactoryImpl
 import org.apache.spark.sql.SparkSession
@@ -29,7 +29,7 @@ class QbeastContextTest extends AnyFlatSpec with Matchers {
       SparkOTreeManager,
       SparkDeltaMetadataManager,
       SparkDataWriter,
-      SparkRevisionBuilder)
+      SparkRevisionFactory)
     val unmanaged = new QbeastContextImpl(
       config = ConfigFactory.load(),
       keeper = keeper,
@@ -51,7 +51,7 @@ class QbeastContextTest extends AnyFlatSpec with Matchers {
       SparkOTreeManager,
       SparkDeltaMetadataManager,
       SparkDataWriter,
-      SparkRevisionBuilder)
+      SparkRevisionFactory)
     val unmanaged = new QbeastContextImpl(
       config = ConfigFactory.load(),
       keeper = keeper,

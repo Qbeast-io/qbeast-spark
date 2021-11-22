@@ -5,7 +5,7 @@ package io.qbeast.spark.delta
 
 import io.qbeast.model.{IndexStatus, QTableID, Weight}
 import io.qbeast.spark.index.OTreeAlgorithmTest.Client3
-import io.qbeast.spark.index.SparkRevisionBuilder
+import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -86,10 +86,10 @@ class QbeastSnapshotTest
         withOTreeAlgorithm { oTreeAlgorithm =>
           val df = createDF(100000)
           val indexStatus = IndexStatus(
-            SparkRevisionBuilder
+            SparkRevisionFactory
               .createNewRevision(
                 QTableID("test"),
-                df,
+                df.schema,
                 Map("columnsToIndex" -> "age,val2", "cubeSize" -> "10000")))
           val (_, tc) = oTreeAlgorithm.index(df, indexStatus)
           val weightMap = tc.indexChanges.cubeWeights

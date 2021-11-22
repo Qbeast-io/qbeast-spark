@@ -36,7 +36,7 @@ class SparkDataWriterTest
     val parameters: Map[String, String] =
       Map("columnsToIndex" -> "age,val2", "desiredCubeSize" -> "1000")
     val indexStatus =
-      IndexStatus(SparkRevisionBuilder.createNewRevision(tableID, df, parameters))
+      IndexStatus(SparkRevisionFactory.createNewRevision(tableID, df.schema, parameters))
     val (qbeastData, tableChanges) = SparkOTreeManager.index(df, indexStatus)
 
     (tableID, df.schema, qbeastData, tableChanges)
