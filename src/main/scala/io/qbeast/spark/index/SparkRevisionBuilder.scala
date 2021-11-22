@@ -16,7 +16,7 @@ import scala.util.matching.Regex
  */
 object SparkRevisionBuilder extends RevisionBuilder[DataFrame] {
 
-  val SpecExtractor: Regex = "((^<column_name>[^/]+)/(^<transformer>[^/]+))".r
+  val SpecExtractor: Regex = "([^:]+):([A-z]+)".r
 
   def getColumnQType(columnName: String, dataFrame: DataFrame): QDataType = {
     SparkToQTypesUtils.convertDataTypes(dataFrame.schema(columnName).dataType)
