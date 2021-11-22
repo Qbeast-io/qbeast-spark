@@ -10,6 +10,9 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
 
+/**
+ * Object with utility methods to work with Spark expressions.
+ */
 object QbeastExpressionUtils {
 
   private def hasQbeastColumnReference(
