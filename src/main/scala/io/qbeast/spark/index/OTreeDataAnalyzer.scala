@@ -73,11 +73,12 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
   // DATAFRAME TRANSFORMATIONS //
 
-  private[index] def addRandomWeight(df: DataFrame, revision: Revision): DataFrame = {
-    df.withColumn(
-      weightColumnName,
-      qbeastHash(revision.columnTransformers.map(name => df(name.columnName)): _*))
-  }
+  private[index] def addRandomWeight(revision: Revision): DataFrame => DataFrame =
+    (df: DataFrame) => {
+      df.withColumn(
+        weightColumnName,
+        qbeastHash(revision.columnTransformers.map(name => df(name.columnName)): _*))
+    }
 
   private[index] def estimateCubeWeights(
       revision: Revision): Dataset[CubeNormalizedWeight] => Dataset[(CubeId, NormalizedWeight)] =
@@ -163,7 +164,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     // Three step transformation
 
     // First, add a random weight column
-    val weightedDataFrame = dataFrame.transform(df => addRandomWeight(df, revision))
+    val weightedDataFrame = dataFrame.transform(addRandomWeight(revision))
     // Second, estimate the cube weights at partition level
     val partitionedEstimatedCubeWeights = weightedDataFrame.transform(
       estimatePartitionCubeWeights(revision, indexStatus, isReplication))
