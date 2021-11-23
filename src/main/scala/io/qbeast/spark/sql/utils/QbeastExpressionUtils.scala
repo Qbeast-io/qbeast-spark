@@ -42,7 +42,7 @@ object QbeastExpressionUtils {
       spark)
 
   /**
-   * Analyzes the data filters from the query
+   * Extracts the data filters from the query that can be used by qbeast
    * @param dataFilters filters passed to the relation
    * @param revision the revision of the index
    * @param spark the spark session
