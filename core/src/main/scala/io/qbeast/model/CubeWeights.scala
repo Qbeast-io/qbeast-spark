@@ -41,6 +41,11 @@ class CubeWeightsBuilder(
    */
   def result(): Seq[CubeNormalizedWeight] = {
     val weights = mutable.Map.empty[CubeId, WeightAndCount]
+    val partitionedDesiredCubeSize = if (numPartitions > 1) {
+      desiredSize / numPartitions
+    } else {
+      desiredSize
+    }
     while (queue.nonEmpty) {
       val PointWeightAndParent(point, weight, parent) = queue.dequeue()
       val containers = parent match {
@@ -51,9 +56,9 @@ class CubeWeightsBuilder(
       while (continue && containers.hasNext) {
         val cubeId = containers.next()
         val weightAndCount = weights.getOrElseUpdate(cubeId, new WeightAndCount(MaxValue, 0))
-        if (weightAndCount.count < desiredSize) {
+        if (weightAndCount.count < partitionedDesiredCubeSize) {
           weightAndCount.count += 1
-          if (weightAndCount.count == desiredSize) {
+          if (weightAndCount.count == partitionedDesiredCubeSize) {
             weightAndCount.weight = weight
           }
           continue = announcedSet.contains(cubeId) || replicatedSet.contains(cubeId)
@@ -61,13 +66,11 @@ class CubeWeightsBuilder(
       }
     }
     weights.map {
-      case (cubeId, weightAndCount) if weightAndCount.count == desiredSize =>
+      case (cubeId, weightAndCount) if weightAndCount.count == partitionedDesiredCubeSize =>
         val nw = NormalizedWeight(weightAndCount.weight)
-        CubeNormalizedWeight(cubeId.bytes, nw * numPartitions)
+        CubeNormalizedWeight(cubeId.bytes, nw)
       case (cubeId, weightAndCount) =>
-        CubeNormalizedWeight(
-          cubeId.bytes,
-          NormalizedWeight(desiredSize, weightAndCount.count) * numPartitions)
+        CubeNormalizedWeight(cubeId.bytes, NormalizedWeight(desiredSize, weightAndCount.count))
     }.toSeq
   }
 

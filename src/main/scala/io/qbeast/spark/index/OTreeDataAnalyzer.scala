@@ -108,12 +108,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
       val partitionCount: Int = weightedDataFrame.rdd.getNumPartitions
 
-      val partitionedDesiredCubeSize = if (partitionCount > 1) {
-        revision.desiredCubeSize / partitionCount
-      } else {
-        revision.desiredCubeSize
-      }
-
       val indexColumns = if (isReplication) {
         Seq(weightColumnName, cubeToReplicateColumnName)
       } else {
@@ -126,8 +120,8 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         .mapPartitions(rows => {
           val weights =
             new CubeWeightsBuilder(
-              partitionedDesiredCubeSize,
-              partitionCount,
+              desiredSize = indexStatus.revision.desiredCubeSize,
+              numPartitions = partitionCount,
               indexStatus.announcedSet,
               indexStatus.replicatedSet)
           rows.foreach { row =>
