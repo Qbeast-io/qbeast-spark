@@ -73,11 +73,12 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
   // DATAFRAME TRANSFORMATIONS //
 
-  private[index] def addRandomWeight(df: DataFrame, revision: Revision): DataFrame = {
-    df.withColumn(
-      weightColumnName,
-      qbeastHash(revision.columnTransformers.map(name => df(name.columnName)): _*))
-  }
+  private[index] def addRandomWeight(revision: Revision): DataFrame => DataFrame =
+    (df: DataFrame) => {
+      df.withColumn(
+        weightColumnName,
+        qbeastHash(revision.columnTransformers.map(name => df(name.columnName)): _*))
+    }
 
   private[index] def estimateCubeWeights(
       revision: Revision): Dataset[CubeNormalizedWeight] => Dataset[(CubeId, NormalizedWeight)] =
@@ -86,6 +87,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       val sqlContext = SparkSession.active.sqlContext
       import sqlContext.implicits._
 
+      // TODO process the partitions that doesn't have certain cubes
       // These column names are the ones specified in case class CubeNormalizedWeight
       partitionedEstimatedCubeWeights
         .groupBy("cubeBytes")
@@ -108,7 +110,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
       val partitionCount: Int = weightedDataFrame.rdd.getNumPartitions
 
-      val partitionedDesiredCubeSize = if (partitionCount > 1) {
+      val partitionedDesiredCubeSize = if (partitionCount < revision.desiredCubeSize) {
         revision.desiredCubeSize / partitionCount
       } else {
         revision.desiredCubeSize
@@ -169,7 +171,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     // Three step transformation
 
     // First, add a random weight column
-    val weightedDataFrame = dataFrame.transform(df => addRandomWeight(df, revision))
+    val weightedDataFrame = dataFrame.transform(addRandomWeight(revision))
     // Second, estimate the cube weights at partition level
     val partitionedEstimatedCubeWeights = weightedDataFrame.transform(
       estimatePartitionCubeWeights(revision, indexStatus, isReplication))

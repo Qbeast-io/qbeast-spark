@@ -61,9 +61,11 @@ class CubeWeightsBuilder(
       }
     }
     weights.map {
+      // TODO here we delete the multiplication per numPartition in the first case
+      // check if it does not break anything
       case (cubeId, weightAndCount) if weightAndCount.count == desiredSize =>
         val nw = NormalizedWeight(weightAndCount.weight)
-        CubeNormalizedWeight(cubeId.bytes, nw * numPartitions)
+        CubeNormalizedWeight(cubeId.bytes, nw)
       case (cubeId, weightAndCount) =>
         CubeNormalizedWeight(
           cubeId.bytes,

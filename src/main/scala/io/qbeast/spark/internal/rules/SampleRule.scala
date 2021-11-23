@@ -18,7 +18,7 @@ import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, Project
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.SparkSession
-import io.qbeast.model.Range
+import io.qbeast.model.WeightRange
 
 /**
  * Rule class that transforms a Sample operator over a Qbeast Relation
@@ -32,10 +32,10 @@ class SampleRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
    * @param sample the Sample operator
    * @return the Range of Weights
    */
-  private def extractWeightRange(sample: Sample): Range[Weight] = {
+  private def extractWeightRange(sample: Sample): WeightRange = {
     val minWeight = Weight(sample.lowerBound)
     val maxWeight = Weight(sample.upperBound)
-    Range(minWeight, maxWeight)
+    WeightRange(minWeight, maxWeight)
   }
 
   /**

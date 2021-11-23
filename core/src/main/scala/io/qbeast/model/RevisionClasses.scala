@@ -169,7 +169,7 @@ case class RevisionChange(
  * @param revision the revision
  * @param replicatedSet the set of cubes in a replicated state
  * @param announcedSet the set of cubes in an announced state
- * @param cubesStatuses the map containing the status (weight and files) of each cube
+ * @param cubesStatuses the map containing the status (maxWeight and files) of each cube
  */
 
 case class IndexStatus(
@@ -189,14 +189,14 @@ case class IndexStatus(
    * @return
    */
   def overflowedSet: Set[CubeId] =
-    cubesStatuses.filter(_._2.weight != Weight.MaxValue).keySet
+    cubesStatuses.filter(_._2.maxWeight != Weight.MaxValue).keySet
 
   def cubeNormalizedWeights: Map[CubeId, NormalizedWeight] =
     cubesStatuses.mapValues(_.normalizedWeight)
 
 }
 
-case class CubeStatus(weight: Weight, normalizedWeight: NormalizedWeight, files: IISeq[String])
+case class CubeStatus(maxWeight: Weight, normalizedWeight: NormalizedWeight, files: IISeq[String])
     extends Serializable
 
 /**

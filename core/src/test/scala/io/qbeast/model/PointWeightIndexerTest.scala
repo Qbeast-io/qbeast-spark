@@ -30,7 +30,7 @@ class PointWeightIndexerTest extends AnyFlatSpec with Matchers {
     cubeIds shouldBe Seq(root)
   }
 
-  it should "return the first cube with correct weight" in {
+  it should "return the first cube with correct maxWeight" in {
     val pwi = new PointWeightIndexer(
       Map(root -> Weight(1), id10 -> Weight(2), id1001 -> Weight(3)),
       Set.empty)
@@ -38,7 +38,7 @@ class PointWeightIndexerTest extends AnyFlatSpec with Matchers {
     cubeIds shouldBe Seq(id10)
   }
 
-  it should "return the child of announced cube with correct weight" in {
+  it should "return the child of announced cube with correct maxWeight" in {
     val pwi = new PointWeightIndexer(
       Map(root -> Weight(1), id10 -> Weight(2), id1001 -> Weight(3)),
       Set(id10, root))
@@ -46,7 +46,7 @@ class PointWeightIndexerTest extends AnyFlatSpec with Matchers {
     cubeIds shouldBe Seq(id10, id1001)
   }
 
-  it should "return the child of replicated cube with correct weight" in {
+  it should "return the child of replicated cube with correct maxWeight" in {
     val pwi = new PointWeightIndexer(
       Map(root -> Weight(1), id10 -> Weight(2), id1001 -> Weight(3)),
       Set(root, id10))
@@ -54,7 +54,7 @@ class PointWeightIndexerTest extends AnyFlatSpec with Matchers {
     cubeIds shouldBe Seq(id10, id1001)
   }
 
-  it should "return the first child cube of the specified parent with correct weight" in {
+  it should "return the first child cube of the specified parent with correct maxWeight" in {
     val pwi = new PointWeightIndexer(
       Map(root -> Weight(1), id10 -> Weight(2), id1001 -> Weight(3)),
       Set.empty)
@@ -62,7 +62,7 @@ class PointWeightIndexerTest extends AnyFlatSpec with Matchers {
     cubeIds shouldBe Seq(id1001)
   }
 
-  it should "return the child of announcedOrReplicated parent cube with correct weight" in {
+  it should "return the child of announcedOrReplicated parent cube with correct maxWeight" in {
     val pwi = new PointWeightIndexer(
       Map(root -> Weight(1), id10 -> Weight(2), id1001 -> Weight(3)),
       Set(root, id10))
@@ -127,7 +127,7 @@ class PointWeightIndexerTest extends AnyFlatSpec with Matchers {
       .fraction shouldBe 0.009 +- 0.0001
   }
 
-  "CubeWeightsBuilder" should "calculate weight for the roots" in {
+  "CubeWeightsBuilder" should "calculate maxWeight for the roots" in {
     val builder = new CubeWeightsBuilder(10, 1)
     Random.shuffle(0.to(100).toList).foreach { value => builder.update(point, Weight(value)) }
     val weights = builder.result().map(CubeWeightTesting.apply)
@@ -158,7 +158,7 @@ class PointWeightIndexerTest extends AnyFlatSpec with Matchers {
       CubeWeightTesting(id10, Weight(4).fraction))
   }
 
-  it should "assign a the correct normalized weight if the cube is not full" in {
+  it should "assign a the correct normalized maxWeight if the cube is not full" in {
     val builder = new CubeWeightsBuilder(2, 1)
     builder.update(point, Weight(1))
     builder.update(point, Weight(2))
@@ -171,7 +171,7 @@ class PointWeightIndexerTest extends AnyFlatSpec with Matchers {
       CubeWeightTesting(id1001, 2.0))
   }
 
-  it should "move the biggest weight to a child cube if the cube is full" in {
+  it should "move the biggest maxWeight to a child cube if the cube is full" in {
     val builder = new CubeWeightsBuilder(2, 1)
     builder.update(point, Weight(5))
     builder.update(point, Weight(6))
@@ -185,7 +185,7 @@ class PointWeightIndexerTest extends AnyFlatSpec with Matchers {
       CubeWeightTesting(id1001, Weight(6).fraction))
   }
 
-  it should "add weight to the child of announced cube" in {
+  it should "add maxWeight to the child of announced cube" in {
     val builder = new CubeWeightsBuilder(1, 1, announcedSet = Set(root))
     builder.update(point, Weight(2))
     builder.result().map(CubeWeightTesting.apply) shouldBe Seq(
@@ -193,7 +193,7 @@ class PointWeightIndexerTest extends AnyFlatSpec with Matchers {
       CubeWeightTesting(id10, Weight(2).fraction))
   }
 
-  it should "add weight to the child of replicated cube" in {
+  it should "add maxWeight to the child of replicated cube" in {
     val builder = new CubeWeightsBuilder(1, 1, replicatedSet = Set(root))
     builder.update(point, Weight(2))
     builder.result().map(CubeWeightTesting.apply) shouldBe Seq(

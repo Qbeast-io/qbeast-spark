@@ -13,11 +13,11 @@ object RowUtils {
 
   /**
    * Converts the row values to a Point in the space
-   * @param values the values of the columns
+   * @param row the row values
    * @param revision the revision of the space
    * @return the point
    */
-  def rowValuesToPoint(values: Row, revision: Revision): Point = Point {
+  def rowValuesToPoint(row: Row, revision: Revision): Point = Point {
     if (revision.transformations.isEmpty) {
       throw AnalysisExceptionFactory.create("Trying to index on a not initialized Revision")
 
@@ -26,7 +26,7 @@ object RowUtils {
     coordinates.sizeHint(revision.columnTransformers.length)
     var i = 0
     for (t <- revision.transformations) {
-      val v = values.get(i)
+      val v = row.get(i)
       i += 1
       if (v == null) {
         throw AnalysisExceptionFactory.create(
