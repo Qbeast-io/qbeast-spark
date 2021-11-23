@@ -10,7 +10,7 @@ import org.scalatest.matchers.should.Matchers
  * Tests of NormalizedWeight.
  */
 class NormalizedWeightTest extends AnyFlatSpec with Matchers {
-  "NormalizedWeight" should "support merge with other weight" in {
+  "NormalizedWeight" should "support merge with other maxWeight" in {
     NormalizedWeight.merge(2.0, 3.0) shouldBe 1.2
     NormalizedWeight.merge(0.0, 1.0) shouldBe 1.0
     NormalizedWeight.merge(1.0, 0.0) shouldBe 1.0
@@ -49,23 +49,25 @@ class NormalizedWeightTest extends AnyFlatSpec with Matchers {
 
   }
 
-  /*  it should "estimate correctly unbalanced distribution actual Paola's version" in {
+  it should "estimate correctly unbalanced distribution actual Paola's version" in {
 
     def testDistrib(unbalancedDistribution: List[Int], desiredSize: Int = 10): Unit = {
       val total = unbalancedDistribution.sum
       val idealLoad = desiredSize.toDouble / total
       val s = unbalancedDistribution.size
       unbalancedDistribution
-        .map(NormalizedWeight(desiredSize / s, _) * s)
-        .reduce(NormalizedWeight.merge) shouldBe idealLoad +- (0.01 * idealLoad)
+        .map(NormalizedWeight(desiredSize / s, _))
+        .reduce(
+          NormalizedWeight.merge) * (desiredSize / s) shouldBe idealLoad +- (0.01 * idealLoad)
     }
     testDistrib(List(10, 10, 10, 2, 1, 10, 10, 1))
-    testDistrib(List(10, 10, 10, 2, 1, 10, 10, 1), desiredSize = 1000)
-
     testDistrib(List(1000), desiredSize = 10)
 
-    testDistrib(List(1000), desiredSize = 10000)
-    testDistrib(List(1000, 1), desiredSize = 100)
+    /* testDistrib(List(10, 10, 10, 2, 1, 10, 10, 1), desiredSize = 1000)
 
-  } */
+
+    testDistrib(List(1000), desiredSize = 10000)
+    testDistrib(List(1000, 1), desiredSize = 100) */
+
+  }
 }

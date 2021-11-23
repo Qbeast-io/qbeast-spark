@@ -38,7 +38,6 @@ class OTreeAlgorithmTest
     with Matchers
     with PrivateMethodTester
     with QbeastIntegrationTestSpec {
-  private val addRandomWeight = PrivateMethod[DataFrame]('addRandomWeight)
 
   "addRandomWeight" should
     "be deterministic when a row have only nullable columns" in withQbeastContext() {
@@ -119,13 +118,13 @@ class OTreeAlgorithmTest
         df.schema,
         Map("columnsToIndex" -> df.columns.mkString(","), "cubeSize" -> "10000"))
 
-      val newDf = DoublePassOTreeDataAnalyzer invokePrivate addRandomWeight(df, rev)
+      val newDf = df.transform(DoublePassOTreeDataAnalyzer.addRandomWeight(rev))
       /* With less than 10k rows the probability of a collision is approximately 0.3%,
     show it should not happen  calculated with
     https://gist.github.com/benhoyt/b59c00fc47361b67bfdedc92e86b03eb#file-birthday_probability-py
        */
 
-      val df2 = DoublePassOTreeDataAnalyzer invokePrivate addRandomWeight(df, rev)
+      val df2 = df.transform(DoublePassOTreeDataAnalyzer.addRandomWeight(rev))
       df2.agg(sum(col(weightColumnName))).first().get(0) shouldBe newDf
         .agg(sum(col(weightColumnName)))
         .first()

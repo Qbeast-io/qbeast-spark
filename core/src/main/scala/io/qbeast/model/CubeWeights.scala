@@ -34,6 +34,16 @@ class CubeWeightsBuilder(
     this
   }
 
+  // TODO add more logic and set at configurable parameter
+  def estimatePartitionCubeSize: Double = {
+    if (desiredSize.toDouble / numPartitions < 1000) {
+      desiredSize.toDouble
+    } else {
+      desiredSize.toDouble / numPartitions
+    }
+
+  }
+
   /**
    * Builds the resulting cube weights sequence.
    *
@@ -41,11 +51,7 @@ class CubeWeightsBuilder(
    */
   def result(): Seq[CubeNormalizedWeight] = {
     val weights = mutable.Map.empty[CubeId, WeightAndCount]
-    val partitionedDesiredCubeSize = if (numPartitions > 1) {
-      desiredSize / numPartitions
-    } else {
-      desiredSize
-    }
+    val boostSize = estimatePartitionCubeSize
     while (queue.nonEmpty) {
       val PointWeightAndParent(point, weight, parent) = queue.dequeue()
       val containers = parent match {
@@ -56,9 +62,9 @@ class CubeWeightsBuilder(
       while (continue && containers.hasNext) {
         val cubeId = containers.next()
         val weightAndCount = weights.getOrElseUpdate(cubeId, new WeightAndCount(MaxValue, 0))
-        if (weightAndCount.count < partitionedDesiredCubeSize) {
+        if (weightAndCount.count < boostSize) {
           weightAndCount.count += 1
-          if (weightAndCount.count == partitionedDesiredCubeSize) {
+          if (weightAndCount.count >= boostSize) {
             weightAndCount.weight = weight
           }
           continue = announcedSet.contains(cubeId) || replicatedSet.contains(cubeId)
@@ -66,11 +72,11 @@ class CubeWeightsBuilder(
       }
     }
     weights.map {
-      case (cubeId, weightAndCount) if weightAndCount.count == partitionedDesiredCubeSize =>
-        val nw = NormalizedWeight(weightAndCount.weight)
+      case (cubeId, weightAndCount) if weightAndCount.count == boostSize =>
+        val nw = NormalizedWeight(weightAndCount.weight) * boostSize
         CubeNormalizedWeight(cubeId.bytes, nw)
       case (cubeId, weightAndCount) =>
-        CubeNormalizedWeight(cubeId.bytes, NormalizedWeight(desiredSize, weightAndCount.count))
+        CubeNormalizedWeight(cubeId.bytes, NormalizedWeight(boostSize, weightAndCount.count))
     }.toSeq
   }
 

@@ -20,11 +20,11 @@ object NormalizedWeight {
    * @param cubeSize the actual cube size, must not be zero
    * @return a normalized weight
    */
-  def apply(desiredCubeSize: Int, cubeSize: Long): NormalizedWeight = {
+  def apply(desiredCubeSize: Double, cubeSize: Long): NormalizedWeight = {
     if (cubeSize == 0) {
       throw new IllegalArgumentException("Cube size is zero.")
     }
-    desiredCubeSize.toDouble / cubeSize
+    desiredCubeSize / cubeSize
   }
 
   /**
