@@ -3,6 +3,7 @@
  */
 package io.qbeast.spark.index
 
+import io.qbeast.TestClasses.T1
 import io.qbeast.model._
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.internal.QbeastOptions
@@ -12,13 +13,12 @@ import org.apache.spark.sql.functions.{col, udf}
 
 import scala.util.Random
 
-case class Test1(a: Int, b: Double, c: String)
-
 class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
 
   behavior of "SparkPointWeightIndexerTest"
 
   it should "addState" in withSpark(spark => {
+
     import spark.implicits._
     val addState = SparkPointWeightIndexer.addState(
       3,
@@ -49,7 +49,7 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
   it should "buildIndex should fail with empty transformation" in withSpark(spark => {
     import spark.implicits._
     val qid = QTableID("t")
-    val df = 0.to(10).map(a => Test1(a, a.toDouble, a.toString)).toDF()
+    val df = 0.to(10).map(a => T1(a, a.toString, a.toDouble)).toDF()
     val rev = SparkRevisionFactory.createNewRevision(
       qid,
       df.schema,
@@ -72,7 +72,7 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
   it should "buildIndex works with different indexed columns" in withSpark(spark => {
     import spark.implicits._
     val qid = QTableID("t")
-    val df = 0.to(10).map(a => Test1(a, a.toDouble, a.toString)).toDF()
+    val df = 0.to(10).map(a => T1(a, a.toString, a.toDouble)).toDF()
     val rev = SparkRevisionFactory.createNewRevision(
       qid,
       df.schema,
@@ -90,8 +90,8 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
           columnTransformersChanges = Nil,
           transformationsChanges = Vector(
             Some(LinearTransformation(0, 10, IntegerDataType)),
-            Some(LinearTransformation(0.0, 10.0, DoubleDataType)),
-            Some(HashTransformation())))),
+            Some(HashTransformation()),
+            Some(LinearTransformation(0.0, 10.0, DoubleDataType))))),
       isc)
 
     val r = udf(() => {
@@ -109,7 +109,7 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
   it should "buildIndex when we hash all columns" in withSpark(spark => {
     import spark.implicits._
     val qid = QTableID("t")
-    val df = 0.to(10).map(a => Test1(a, a.toDouble, a.toString)).toDF()
+    val df = 0.to(10).map(a => T1(a, a.toString, a.toDouble)).toDF()
     val rev = SparkRevisionFactory.createNewRevision(
       qid,
       df.schema,

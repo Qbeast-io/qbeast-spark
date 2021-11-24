@@ -3,8 +3,8 @@
  */
 package io.qbeast.spark.index
 
+import io.qbeast.TestClasses.{Client3, Client4}
 import io.qbeast.model._
-import io.qbeast.spark.index.OTreeAlgorithmTest.{Client3, Client4}
 import io.qbeast.spark.index.QbeastColumns.cubeColumnName
 import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
 import org.apache.spark.SparkException

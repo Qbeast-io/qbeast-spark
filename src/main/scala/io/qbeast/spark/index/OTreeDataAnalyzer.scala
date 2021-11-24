@@ -3,6 +3,7 @@
  */
 package io.qbeast.spark.index
 
+import com.typesafe.config.ConfigFactory
 import io.qbeast.model._
 import io.qbeast.spark.index.QbeastColumns.{cubeToReplicateColumnName, weightColumnName}
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
@@ -32,6 +33,14 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
    * Estimates MaxWeight on DataFrame
    */
   private val maxWeightEstimation: UserDefinedFunction = udaf(MaxWeightEstimation)
+
+  /**
+   * The minimum cube size per partition registered in configuration
+   */
+  private val minPartitionCubeSize: Int =
+    ConfigFactory.load().getInt("qbeast.index.minPartitionCubeSize")
+
+  private lazy val logger = org.apache.log4j.LogManager.getLogger(this.getClass)
 
   private[index] def calculateRevisionChanges(
       data: DataFrame,
@@ -98,6 +107,26 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         }
     }
 
+  // TODO add more logic and set at configurable parameter
+  private[index] def estimatePartitionCubeSize(
+      desiredCubeSize: Int,
+      numPartitions: Int): Double = {
+    if (numPartitions > 0) {
+      val desiredPartitionCubeSize = desiredCubeSize.toDouble / numPartitions
+      if (desiredPartitionCubeSize < minPartitionCubeSize) {
+        logger.warn(
+          s"Cube size per partition is less than $minPartitionCubeSize," +
+            s" set a bigger cubeSize before writing")
+        desiredCubeSize
+      } else {
+        desiredPartitionCubeSize
+      }
+    } else {
+      desiredCubeSize
+    }
+
+  }
+
   private[index] def estimatePartitionCubeWeights(
       revision: Revision,
       indexStatus: IndexStatus,
@@ -107,8 +136,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       val spark = SparkSession.active
       import spark.implicits._
 
-      val partitionCount: Int = weightedDataFrame.rdd.getNumPartitions
-
       val indexColumns = if (isReplication) {
         Seq(weightColumnName, cubeToReplicateColumnName)
       } else {
@@ -116,13 +143,21 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       }
       val cols = revision.columnTransformers.map(_.columnName) ++ indexColumns
 
+      // Estimate the desiredSize of the cube at partition level
+      // If the user has specified a desiredSize too small
+      // set it to minCubeSize
+      val numPartitions: Int = weightedDataFrame.rdd.getNumPartitions
+      val desiredCubeSize: Int = indexStatus.revision.desiredCubeSize
+      val desiredPartitionCubeSize =
+        estimatePartitionCubeSize(desiredCubeSize, numPartitions)
+
       weightedDataFrame
         .select(cols.map(col): _*)
         .mapPartitions(rows => {
           val weights =
             new CubeWeightsBuilder(
-              desiredSize = indexStatus.revision.desiredCubeSize,
-              numPartitions = partitionCount,
+              desiredCubeSize = desiredCubeSize,
+              boostSize = desiredPartitionCubeSize,
               indexStatus.announcedSet,
               indexStatus.replicatedSet)
           rows.foreach { row =>
@@ -165,9 +200,11 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
     // First, add a random weight column
     val weightedDataFrame = dataFrame.transform(addRandomWeight(revision))
+
     // Second, estimate the cube weights at partition level
     val partitionedEstimatedCubeWeights = weightedDataFrame.transform(
       estimatePartitionCubeWeights(revision, indexStatus, isReplication))
+
     // Third, compute the overall estimated cube weights
     val estimatedCubeWeights =
       partitionedEstimatedCubeWeights

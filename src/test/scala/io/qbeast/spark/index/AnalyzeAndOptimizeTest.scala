@@ -3,9 +3,9 @@
  */
 package io.qbeast.spark.index
 
+import io.qbeast.TestClasses.Client3
 import io.qbeast.model.CubeId
 import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable, delta}
-import io.qbeast.spark.index.OTreeAlgorithmTest.Client3
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
 import org.scalatest.PrivateMethodTester

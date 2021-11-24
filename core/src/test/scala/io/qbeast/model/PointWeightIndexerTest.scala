@@ -128,15 +128,15 @@ class PointWeightIndexerTest extends AnyFlatSpec with Matchers {
   }
 
   "CubeWeightsBuilder" should "calculate maxWeight for the roots" in {
-    val builder = new CubeWeightsBuilder(10, 1)
+    val builder = new CubeWeightsBuilder(10, 10)
     Random.shuffle(0.to(100).toList).foreach { value => builder.update(point, Weight(value)) }
     val weights = builder.result().map(CubeWeightTesting.apply)
     weights.find(_.cube.equals(root)).get.normalizedWeight shouldBe Weight(9).fraction
   }
 
   it should "give the same results whether the data is sorted or not" in {
-    val randomBuilder = new CubeWeightsBuilder(100, 1)
-    val sortedBuilder = new CubeWeightsBuilder(100, 1)
+    val randomBuilder = new CubeWeightsBuilder(100, 100)
+    val sortedBuilder = new CubeWeightsBuilder(100, 100)
 
     Random.shuffle(0.to(1000).toList).foreach { value =>
       randomBuilder.update(point, Weight(value))
@@ -148,7 +148,7 @@ class PointWeightIndexerTest extends AnyFlatSpec with Matchers {
   }
 
   it should "add weights to the cube until it is full" in {
-    val builder = new CubeWeightsBuilder(2, 1)
+    val builder = new CubeWeightsBuilder(2, 2)
     builder.update(point, Weight(1))
     builder.update(point, Weight(2))
     builder.update(point, Weight(3))
@@ -159,7 +159,7 @@ class PointWeightIndexerTest extends AnyFlatSpec with Matchers {
   }
 
   it should "assign a the correct normalized maxWeight if the cube is not full" in {
-    val builder = new CubeWeightsBuilder(2, 1)
+    val builder = new CubeWeightsBuilder(2, 2)
     builder.update(point, Weight(1))
     builder.update(point, Weight(2))
     builder.update(point, Weight(3))
@@ -172,7 +172,7 @@ class PointWeightIndexerTest extends AnyFlatSpec with Matchers {
   }
 
   it should "move the biggest maxWeight to a child cube if the cube is full" in {
-    val builder = new CubeWeightsBuilder(2, 1)
+    val builder = new CubeWeightsBuilder(2, 2)
     builder.update(point, Weight(5))
     builder.update(point, Weight(6))
     builder.update(point, Weight(3))

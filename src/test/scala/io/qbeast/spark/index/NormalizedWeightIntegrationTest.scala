@@ -1,7 +1,7 @@
 package io.qbeast.spark.index
 
+import io.qbeast.TestClasses.Client3
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.index.OTreeAlgorithmTest.Client3
 import io.qbeast.spark.utils.TagUtils
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -45,7 +45,6 @@ class NormalizedWeightIntegrationTest extends QbeastIntegrationTestSpec {
   "CubeNormalizedWeights" should
     "write a the right Weight with a full cube split in 3 blocks" in
     withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
-      import spark.implicits._
       val cubeSize = 10000
       val df = createDF(cubeSize).repartition(3)
       val names = List("age", "val2")
@@ -59,11 +58,12 @@ class NormalizedWeightIntegrationTest extends QbeastIntegrationTestSpec {
       spark.read.format("qbeast").load(tmpDir).count() shouldBe cubeSize
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val files = deltaLog.snapshot.allFiles
+      val files = deltaLog.snapshot.allFiles.collect()
+      files.length shouldBe 1
 
-      val tags = files.map(_.tags).collect()
-      tags.length shouldBe 1
+      val tags = files.map(_.tags)
       val root = tags.filter(_(TagUtils.cube) == "").head
+
       root(TagUtils.maxWeight).toInt shouldBe Int.MaxValue
       root(TagUtils.state) shouldBe "FLOODED"
       root(TagUtils.elementCount).toInt shouldBe cubeSize

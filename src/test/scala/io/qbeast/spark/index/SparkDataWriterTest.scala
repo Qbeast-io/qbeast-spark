@@ -2,13 +2,13 @@ package io.qbeast.spark.index
 
 import io.qbeast.model.{IndexStatus, QTableID, TableChanges}
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.index.OTreeAlgorithmTest.Client4
 import io.qbeast.spark.index.writer.SparkDataWriter
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.types.StructType
 import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import io.qbeast.TestClasses._
 
 import scala.reflect.io.Path
 

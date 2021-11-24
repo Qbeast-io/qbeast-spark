@@ -3,8 +3,8 @@
  */
 package io.qbeast.spark.delta
 
+import io.qbeast.TestClasses.Client3
 import io.qbeast.model.{CubeStatus, IndexStatus, QTableID, Weight}
-import io.qbeast.spark.index.OTreeAlgorithmTest.Client3
 import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.utils.TagUtils
 import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
@@ -157,16 +157,18 @@ class QbeastSnapshotTest
 
           val overflowed = qbeastSnapshot.loadLatestIndexStatus.overflowedSet
           val fileInfo = qbeastSnapshot.snapshot.allFiles.collect().map(a => (a.path, a)).toMap
+
           revisionState
             .filter { case (cube, _) => overflowed.contains(cube) }
             .foreach { case (cube, CubeStatus(weight, _, files)) =>
+              val size = files
+                .map(fileInfo)
+                .map(a => a.tags(TagUtils.elementCount).toLong)
+                .sum
               assert(
-                files
-                  .map(fileInfo)
-                  .map(a => a.tags(TagUtils.elementCount).toLong)
-                  .sum > 1000 * 0.9,
+                size > 10000 * 0.9,
                 "assertion failed in cube " + cube +
-                  " where size is " + files.size + " and weight is " + weight)
+                  " where size is " + size + " and weight is " + weight)
             }
         }
     }

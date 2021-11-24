@@ -7,13 +7,14 @@ import scala.collection.mutable
 /**
  * Builder for creating cube weights.
  *
- * @param desiredSize the desired cube size
+ * @param desiredCubeSize the desired cube size
+ * @param boostSize       the boost size
  * @param announcedSet the announced cube identifiers
  * @param replicatedSet the replicated cube identifiers
  */
 class CubeWeightsBuilder(
-    private val desiredSize: Int,
-    private val numPartitions: Int,
+    private val desiredCubeSize: Int,
+    private val boostSize: Double,
     announcedSet: Set[CubeId] = Set.empty,
     replicatedSet: Set[CubeId] = Set.empty)
     extends Serializable {
@@ -34,16 +35,6 @@ class CubeWeightsBuilder(
     this
   }
 
-  // TODO add more logic and set at configurable parameter
-  def estimatePartitionCubeSize: Double = {
-    if (desiredSize.toDouble / numPartitions < 1000) {
-      desiredSize.toDouble
-    } else {
-      desiredSize.toDouble / numPartitions
-    }
-
-  }
-
   /**
    * Builds the resulting cube weights sequence.
    *
@@ -51,7 +42,6 @@ class CubeWeightsBuilder(
    */
   def result(): Seq[CubeNormalizedWeight] = {
     val weights = mutable.Map.empty[CubeId, WeightAndCount]
-    val boostSize = estimatePartitionCubeSize
     while (queue.nonEmpty) {
       val PointWeightAndParent(point, weight, parent) = queue.dequeue()
       val containers = parent match {
@@ -64,7 +54,7 @@ class CubeWeightsBuilder(
         val weightAndCount = weights.getOrElseUpdate(cubeId, new WeightAndCount(MaxValue, 0))
         if (weightAndCount.count < boostSize) {
           weightAndCount.count += 1
-          if (weightAndCount.count >= boostSize) {
+          if (weightAndCount.count == boostSize) {
             weightAndCount.weight = weight
           }
           continue = announcedSet.contains(cubeId) || replicatedSet.contains(cubeId)
@@ -73,10 +63,12 @@ class CubeWeightsBuilder(
     }
     weights.map {
       case (cubeId, weightAndCount) if weightAndCount.count == boostSize =>
-        val nw = NormalizedWeight(weightAndCount.weight) * boostSize
-        CubeNormalizedWeight(cubeId.bytes, nw)
+        val s = desiredCubeSize / boostSize
+        CubeNormalizedWeight(cubeId.bytes, NormalizedWeight(weightAndCount.weight) * s)
       case (cubeId, weightAndCount) =>
-        CubeNormalizedWeight(cubeId.bytes, NormalizedWeight(boostSize, weightAndCount.count))
+        CubeNormalizedWeight(
+          cubeId.bytes,
+          NormalizedWeight(desiredCubeSize, weightAndCount.count))
     }.toSeq
   }
 

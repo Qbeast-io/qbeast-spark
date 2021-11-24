@@ -3,10 +3,10 @@
  */
 package io.qbeast.spark.index
 
+import io.qbeast.TestClasses._
 import io.qbeast.model.Revision
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.index.OTreeAlgorithmTest.{Client3, Client4}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.delta.DeltaLog
 import org.scalatest.PrivateMethodTester

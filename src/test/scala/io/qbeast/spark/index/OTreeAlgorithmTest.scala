@@ -3,41 +3,14 @@
  */
 package io.qbeast.spark.index
 
+import io.qbeast.TestClasses._
 import io.qbeast.model.QTableID
-import io.qbeast.spark.index.OTreeAlgorithmTest._
 import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
-import org.scalatest.PrivateMethodTester
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
-object OTreeAlgorithmTest {
-  case class Client1(id: Option[Long], name: Option[String], age: Option[Int])
-
-  case class ClientString(id: String, name: String, age: String)
-
-  case class ClientStringOption(id: Option[String], name: Option[String], age: Option[String])
-
-  case class Client2(id: Long, name: String, age: Int)
-
-  case class Client3(id: Long, name: String, age: Int, val2: Long, val3: Double)
-
-  case class Client4(
-      id: Long,
-      name: String,
-      age: Option[Int],
-      val2: Option[Long],
-      val3: Option[Double])
-
-}
-
-class OTreeAlgorithmTest
-    extends AnyFlatSpec
-    with Matchers
-    with PrivateMethodTester
-    with QbeastIntegrationTestSpec {
+class OTreeAlgorithmTest extends QbeastIntegrationTestSpec {
 
   "addRandomWeight" should
     "be deterministic when a row have only nullable columns" in withQbeastContext() {

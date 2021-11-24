@@ -4,12 +4,12 @@
 package io.qbeast.spark.index
 
 import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
-import io.qbeast.spark.index.OTreeAlgorithmTest.Client3
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
 import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import io.qbeast.TestClasses._
 
 class NewRevisionTest
     extends AnyFlatSpec
