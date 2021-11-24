@@ -143,11 +143,7 @@ case class OTreeIndex(index: TahoeLogFileIndex)
             childFiles.toVector
           }
         case None =>
-          /* cubesStatuses.keys
-            .filter(a => a.parent.contains(cube) || a.parent.flatMap(_.parent).contains(cube))
-            .filter(space.intersectsWith)
-            .flatMap(doFindSampleFiles)
-            .toVector */
+          // TODO how we manage non-existing/empty cubes if the children are present?
           Vector.empty
       }
     }
