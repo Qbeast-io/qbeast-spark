@@ -122,7 +122,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     }
 
     // TODO should fail if the desiredCubeSize is < than minPartitionCubeSize?
-    desiredCubeSize
+    Math.max(desiredCubeSize, minPartitionCubeSize)
 
   }
 

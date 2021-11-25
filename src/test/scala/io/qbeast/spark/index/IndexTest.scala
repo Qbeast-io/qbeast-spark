@@ -48,23 +48,6 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
     }
   }
 
-  it should "respect the desired cube size with smaller values" in withSpark { _ =>
-    withOTreeAlgorithm { oTreeAlgorithm =>
-      {
-        val df = createDF()
-        val smallCubeSize = 10
-        val rev = SparkRevisionFactory.createNewRevision(
-          QTableID("test"),
-          df.schema,
-          Map("columnsToIndex" -> "age,val2", "cubeSize" -> smallCubeSize.toString))
-
-        val (indexed, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
-
-        checkCubeSize(tc, rev, indexed)
-      }
-    }
-  }
-
   it should "not miss any cube" in withSpark { _ =>
     withOTreeAlgorithm { oTreeAlgorithm =>
       {
