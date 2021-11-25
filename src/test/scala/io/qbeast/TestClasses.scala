@@ -5,6 +5,10 @@ object TestClasses {
 
   case class T2(a: Int, c: Double)
 
+  case class T3(a: Int, b: Double, c: String, d: Float)
+
+  case class IndexData(id: Long, cube: Array[Byte], weight: Double, state: String)
+
   case class Client1(id: Option[Long], name: Option[String], age: Option[Int])
 
   case class ClientString(id: String, name: String, age: String)

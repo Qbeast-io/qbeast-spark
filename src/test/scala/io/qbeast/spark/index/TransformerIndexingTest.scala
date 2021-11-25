@@ -11,17 +11,15 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
     import spark.implicits._
     val source = 0
-      .to(10000)
+      .to(1000)
       .map(i => T1(i, s"$i", i.toDouble))
       .toDF()
       .as[T1]
 
-    val cubeSize = 1000
-
     source.write
       .format("qbeast")
-      .option("columnsToIndex", "a,b:hashing,c")
-      .option("cubeSize", cubeSize)
+      .option("columnsToIndex", "a,b,c")
+      .option("cubeSize", 10)
       .save(tmpDir)
 
     val indexed = spark.read
@@ -42,17 +40,15 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
   "Qbeast spark" should "Index tables without string" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
     val source = 0
-      .to(10000)
+      .to(1000)
       .map(i => T2(i, i.toDouble))
       .toDF()
       .as[T2]
 
-    val cubeSize = 1000
-
     source.write
       .format("qbeast")
       .option("columnsToIndex", "a,c")
-      .option("cubeSize", cubeSize)
+      .option("cubeSize", 10)
       .save(tmpDir)
 
     val indexed = spark.read
@@ -65,5 +61,35 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
     assertSmallDatasetEquality(source, indexed, ignoreNullable = true, orderedComparison = false)
 
   })
+
+  "Qbeast spark" should
+    "Index tables with hashing configuration" in withSparkAndTmpDir((spark, tmpDir) => {
+      import spark.implicits._
+      val source = 0
+        .to(1000)
+        .map(i => T2(i, i.toDouble))
+        .toDF()
+        .as[T2]
+
+      source.write
+        .format("qbeast")
+        .option("columnsToIndex", "a:hashing,c:hashing")
+        .option("cubeSize", 10)
+        .save(tmpDir)
+
+      val indexed = spark.read
+        .format("qbeast")
+        .load(tmpDir)
+        .as[T2]
+
+      indexed.count() shouldBe source.count()
+
+      assertSmallDatasetEquality(
+        source,
+        indexed,
+        ignoreNullable = true,
+        orderedComparison = false)
+
+    })
 
 }

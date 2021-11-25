@@ -67,7 +67,7 @@ All contributed code, docs, and otro materials are considered licensed under the
   - To run a particular test only:
   
   ```bash
-  sbt "testOnly io.qbeast.spark.utils.BlockWriterTest"
+  sbt "testOnly io.qbeast.spark.index.writer.BlockWriterTest"
   ```
 
   7 - Commit your changes: `git commit -m "mychanges"`

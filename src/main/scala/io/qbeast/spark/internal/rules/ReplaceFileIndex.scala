@@ -14,11 +14,10 @@ import org.apache.spark.sql.execution.datasources.LogicalRelation
 
 /**
  * Rule class that changes the file index of the DeltaRelation
- * underneath the QbeastRelation
- * for an OTreeIndex
+ * underneath the QbeastRelation for an OTreeIndex
  * @param spark The SparkSession to extend
  */
-class ReplaceQbeastStorageRead(spark: SparkSession) extends Rule[LogicalPlan] {
+class ReplaceFileIndex(spark: SparkSession) extends Rule[LogicalPlan] {
 
   override def apply(plan: LogicalPlan): LogicalPlan = plan transform {
     case r @ LogicalRelation(QbeastBaseRelation(delta, _), _, _, _) =>

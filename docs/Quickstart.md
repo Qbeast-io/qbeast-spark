@@ -24,10 +24,16 @@ org.apache.hadoop:hadoop-common:3.2.0,\
 org.apache.hadoop:hadoop-client:3.2.0,\
 org.apache.hadoop:hadoop-aws:3.2.0
 ```
-As an extra configuration, you can also change the number of records of the resulting files with:
+As an **_extra configuration_**, you can also change two global parameters of the index:
+
+1. The **default desired size** of the written files (100000)
+```
+--conf spark.driver.extraJavaOptions="-Dqbeast.index.defaultCubeSize=200000"
+```
+2. The **default minimum number of records processed per partition** (1000)
 
 ```
---conf spark.driver.extraJavaOptions="-Dqbeast.index.size=200000"
+--conf spark.driver.extraJavaOptions="-Dqbeast.index.minPartitionCubeSize=100"
 ```
 
 Read the ***store_sales*** public dataset from `TPC-DS`, the table has with **23** columns in total and was generated with a `scaleFactor` of 1. Check [The Making of TPC-DS](http://www.tpc.org/tpcds/presentations/the_making_of_tpcds.pdf) for more details on the dataset.
@@ -46,6 +52,7 @@ parquetDf.write
     .mode("overwrite")
     .format("qbeast")     // Saving the dataframe in a qbeast datasource
     .option("columnsToIndex", "ss_cdemo_sk,ss_cdemo_sk")      // Indexing the table
+    .option("cubeSize", "10000") // The desired number of records of the resulting files/cubes. Default is 100000
     .save(qbeastTablePath)
 ```
 

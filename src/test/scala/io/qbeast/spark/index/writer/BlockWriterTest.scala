@@ -1,14 +1,14 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.utils
+package io.qbeast.spark.index.writer
 
-import io.qbeast.model.{CubeId, IndexStatus, IndexStatusChange, Point, QTableID, TableChanges}
-import io.qbeast.spark.index.{QbeastColumns, SparkRevisionFactory}
-import io.qbeast.spark.index.QbeastColumns._
-import io.qbeast.spark.index.writer.BlockWriter
-import io.qbeast.spark.utils.BlockWriterTest.IndexData
+import io.qbeast.TestClasses.IndexData
+import io.qbeast.model._
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.index.QbeastColumns._
+import io.qbeast.spark.index.{QbeastColumns, SparkRevisionFactory}
+import io.qbeast.spark.utils.TagUtils
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.datasources.OutputWriterFactory
@@ -19,11 +19,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.util.Random
-
-object BlockWriterTest {
-
-  case class IndexData(id: Long, cube: Array[Byte], weight: Double, state: String)
-}
 
 class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec {
   private val point = Point(0.66, 0.28)
@@ -79,8 +74,6 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
   }
 
   it should "not miss any cubes in high partitioning" in withSparkAndTmpDir { (spark, tmpDir) =>
-    import spark.implicits._
-
     val distinctCubes = 1000
     val weightMap = 1
       .to(distinctCubes)
@@ -122,10 +115,10 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
     val dimensionCount = names.length
     val cubes = indexed
       .select(cubeColumnName)
+      .collect()
       .map { row =>
         CubeId(dimensionCount, row.getAs[Array[Byte]](0)).string
       }
-      .collect()
       .toSet
     assert(files.map(_.tags(TagUtils.cube)).forall(cube => cubes.contains(cube)))
   }

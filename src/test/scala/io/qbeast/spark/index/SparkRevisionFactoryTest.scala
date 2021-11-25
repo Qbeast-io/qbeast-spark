@@ -1,10 +1,10 @@
 package io.qbeast.spark.index
 
+import io.qbeast.TestClasses.T3
 import io.qbeast.model._
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.transform.{HashTransformer, LinearTransformer}
-case class Test(a: Int, b: Double, c: String, d: Float)
 
 class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
 
@@ -13,7 +13,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
   it should "detect the correct types in getColumnQType" in withSpark(spark => {
 
     import spark.implicits._
-    val df = 0.to(10).map(i => Test(i, i * 2.0, s"$i", i * 1.2f)).toDF().schema
+    val df = 0.to(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).toDF().schema
 
     SparkRevisionFactory.getColumnQType("a", df) shouldBe IntegerDataType
     SparkRevisionFactory.getColumnQType("b", df) shouldBe DoubleDataType
@@ -43,7 +43,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
 
   it should "createNewRevision with only one columns" in withSpark(spark => {
     import spark.implicits._
-    val schema = 0.to(10).map(i => Test(i, i * 2.0, s"$i", i * 1.2f)).toDF().schema
+    val schema = 0.to(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).toDF().schema
     val qid = QTableID("t")
     val revision =
       SparkRevisionFactory.createNewRevision(
@@ -60,7 +60,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
   })
   it should "createNewRevision with only indexed columns and no spec" in withSpark(spark => {
     import spark.implicits._
-    val schema = 0.to(10).map(i => Test(i, i * 2.0, s"$i", i * 1.2f)).toDF().schema
+    val schema = 0.to(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).toDF().schema
     val qid = QTableID("t")
     val revision =
       SparkRevisionFactory.createNewRevision(
@@ -91,7 +91,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
 
   it should "createNewRevision with only indexed columns with all hash" in withSpark(spark => {
     import spark.implicits._
-    val schema = 0.to(10).map(i => Test(i, i * 2.0, s"$i", i * 1.2f)).toDF().schema
+    val schema = 0.to(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).toDF().schema
     val qid = QTableID("t")
     val revision =
       SparkRevisionFactory.createNewRevision(

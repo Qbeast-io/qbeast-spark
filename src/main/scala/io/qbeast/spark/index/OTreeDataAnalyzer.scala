@@ -107,7 +107,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         }
     }
 
-  // TODO add more logic and set at configurable parameter
   private[index] def estimatePartitionCubeSize(
       desiredCubeSize: Int,
       numPartitions: Int): Double = {
@@ -116,14 +115,14 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       if (desiredPartitionCubeSize < minPartitionCubeSize) {
         logger.warn(
           s"Cube size per partition is less than $minPartitionCubeSize," +
-            s" set a bigger cubeSize before writing")
-        desiredCubeSize
+            s" Set a bigger cubeSize before writing")
       } else {
-        desiredPartitionCubeSize
+        return desiredPartitionCubeSize
       }
-    } else {
-      desiredCubeSize
     }
+
+    // TODO should fail if the desiredCubeSize is < than minPartitionCubeSize?
+    desiredCubeSize
 
   }
 
