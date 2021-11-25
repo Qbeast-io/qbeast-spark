@@ -10,15 +10,8 @@ import io.qbeast.spark.utils.TagUtils
 import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.scalatest.PrivateMethodTester
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
-class QbeastSnapshotTest
-    extends AnyFlatSpec
-    with Matchers
-    with PrivateMethodTester
-    with QbeastIntegrationTestSpec {
+class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
 
   def createDF(size: Int): DataFrame = {
     val spark = SparkSession.active
@@ -142,11 +135,12 @@ class QbeastSnapshotTest
 
           val df = createDF(100000)
           val names = List("age", "val2")
-
+          val cubeSize = 10000
           df.write
             .format("qbeast")
             .mode("overwrite")
-            .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> "10000"))
+            .options(
+              Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> cubeSize.toString))
             .save(tmpDir)
 
           val deltaLog = DeltaLog.forTable(spark, tmpDir)
@@ -166,7 +160,7 @@ class QbeastSnapshotTest
                 .map(a => a.tags(TagUtils.elementCount).toLong)
                 .sum
               assert(
-                size > 10000 * 0.9,
+                size > cubeSize * 0.9,
                 "assertion failed in cube " + cube +
                   " where size is " + size + " and weight is " + weight)
             }

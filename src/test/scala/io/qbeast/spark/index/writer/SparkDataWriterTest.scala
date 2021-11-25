@@ -6,17 +6,9 @@ import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionFactory}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.scalatest.PrivateMethodTester
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-
 import scala.reflect.io.Path
 
-class SparkDataWriterTest
-    extends AnyFlatSpec
-    with Matchers
-    with QbeastIntegrationTestSpec
-    with PrivateMethodTester {
+class SparkDataWriterTest extends QbeastIntegrationTestSpec {
 
   /**
    * Get values needed to test a DataWriter.
@@ -25,7 +17,8 @@ class SparkDataWriterTest
   def prepareDataWriter(
       spark: SparkSession,
       path: String,
-      size: Int): (QTableID, StructType, DataFrame, TableChanges) = {
+      size: Int,
+      cubeSize: Int): (QTableID, StructType, DataFrame, TableChanges) = {
     val df = spark.createDataFrame(
       spark.sparkContext.parallelize(0
         .to(size)
@@ -34,7 +27,7 @@ class SparkDataWriterTest
 
     val tableID = QTableID(path)
     val parameters: Map[String, String] =
-      Map("columnsToIndex" -> "age,val2", "desiredCubeSize" -> "1000")
+      Map("columnsToIndex" -> "age,val2", "cubeSize" -> cubeSize.toString)
     val indexStatus =
       IndexStatus(SparkRevisionFactory.createNewRevision(tableID, df.schema, parameters))
     val (qbeastData, tableChanges) = SparkOTreeManager.index(df, indexStatus)
@@ -45,7 +38,7 @@ class SparkDataWriterTest
   "SparkDataWriter" should "write the data correctly" in
     withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
       val (tableID, schema, qbeastData, tableChanges) =
-        prepareDataWriter(spark, tmpDir, 10000)
+        prepareDataWriter(spark, tmpDir, 10000, 1000)
       val fileActions = SparkDataWriter.write(tableID, schema, qbeastData, tableChanges)
 
       for (fa <- fileActions) {
