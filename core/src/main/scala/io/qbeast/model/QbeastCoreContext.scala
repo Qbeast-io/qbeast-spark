@@ -14,11 +14,30 @@ trait QbeastCoreContext[DATA, DataSchema, FileAction] {
 
 }
 
+/**
+ * RevisionFactory
+ *
+ * @tparam DataSchema
+ */
 trait RevisionFactory[DataSchema] {
 
+  /**
+   * Create a new revision for a table with given parameters
+   *
+   * @param qtableID      the table identifier
+   * @param schema        the schema
+   * @param options       the options
+   * @return
+   */
   def createNewRevision(
       qtableID: QTableID,
       schema: DataSchema,
       options: Map[String, String]): Revision
+
+  def createNextRevision(
+      qtableID: QTableID,
+      schema: DataSchema,
+      options: Map[String, String],
+      oldRevision: RevisionID): Revision
 
 }

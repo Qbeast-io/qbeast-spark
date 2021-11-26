@@ -64,7 +64,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
       val cubeNormalizedWeights =
         qbeastSnapshot.loadLatestIndexStatus.cubeNormalizedWeights
 
-      cubeNormalizedWeights.foreach(cubeInfo => cubeInfo._2 shouldBe <(1.0))
+      cubeNormalizedWeights.foreach(cubeInfo => cubeInfo._2 shouldBe 1.0)
   }
 
   "CubeWeights" should

@@ -37,7 +37,7 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
       (spark, tmpDir) =>
         {
           val data = loadTestData(spark)
-          writeTestData(data, Seq("user_id", "product_id"), 30000, tmpDir)
+          writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
 
           val indexed = spark.read.format("qbeast").load(tmpDir)
 
@@ -54,10 +54,10 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
     {
       val data = loadTestData(spark)
       // WRITE SOME DATA
-      writeTestData(data, Seq("user_id", "product_id"), 30000, tmpDir)
+      writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
 
       // OVERWRITE
-      writeTestData(data, Seq("user_id", "product_id"), 30000, tmpDir)
+      writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
 
       val indexed = spark.read.format("qbeast").load(tmpDir)
 
@@ -97,7 +97,7 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
             .withColumnRenamed("tmp_user_id", "user_id")
             .withColumnRenamed("tmp_norm_p", "product_id")
 
-          writeTestData(normalizedData, Seq("user_id", "product_id"), 30000, tmpDir)
+          writeTestData(normalizedData, Seq("user_id", "product_id"), 10000, tmpDir)
 
           val indexed = spark.read.format("qbeast").load(tmpDir)
 
@@ -114,7 +114,7 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
       (spark, tmpDir) =>
         {
           val data = loadTestData(spark)
-          writeTestData(data, Seq("user_id", "product_id"), 30000, tmpDir)
+          writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
 
           val indexed = spark.read.format("parquet").load(tmpDir)
           assertLargeDatasetEquality(indexed, data, orderedComparison = false)
@@ -127,7 +127,7 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
       {
         val data = loadTestData(spark)
 
-        writeTestData(data, Seq("user_id", "product_id"), 30000, tmpDir)
+        writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
 
         val df = spark.read.format("qbeast").load(tmpDir)
         val precision = 0.1
@@ -161,7 +161,7 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
         {
           val data = loadTestData(spark)
 
-          writeTestData(data, Seq("user_id", "product_id"), 30000, tmpDir)
+          writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
 
           val df = spark.read.format("qbeast").load(tmpDir)
           val dataSize = data.count()
@@ -193,7 +193,7 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
       {
         val data = loadTestData(spark)
         val columnsToIndex = Seq("user_id", "product_id")
-        val cubeSize = 30000
+        val cubeSize = 10000
         writeTestData(data, columnsToIndex, cubeSize, tmpDir)
 
         val appendData = spark.read
@@ -237,7 +237,7 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
       {
         val data = loadTestData(spark)
 
-        writeTestData(data, Seq("user_id", "product_id"), 30000, tmpDir)
+        writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
 
         val df = spark.read.format("qbeast").load(tmpDir)
 
@@ -265,13 +265,13 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
         // val tmpDir = "/tmp/qbeast3"
         val data = loadTestData(spark)
 
-        writeTestData(data, Seq("user_id", "product_id"), 30000, tmpDir)
+        writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
 
         // analyze and optimize the index 3 times
         optimize(spark, tmpDir, 3)
 
         // Overwrite table
-        writeTestData(data, Seq("user_id", "product_id"), 30000, tmpDir)
+        writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
 
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
 

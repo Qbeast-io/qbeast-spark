@@ -30,10 +30,10 @@ As an **_extra configuration_**, you can also change two global parameters of th
 ```
 --conf spark.driver.extraJavaOptions="-Dqbeast.index.defaultCubeSize=200000"
 ```
-2. The **default minimum number of records processed per partition** (1000)
+2. The **default minimum number of records processed per partition** (100)
 
 ```
---conf spark.driver.extraJavaOptions="-Dqbeast.index.minPartitionCubeSize=100"
+--conf spark.driver.extraJavaOptions="-Dqbeast.index.minPartitionCubeSize=1000"
 ```
 
 Read the ***store_sales*** public dataset from `TPC-DS`, the table has with **23** columns in total and was generated with a `scaleFactor` of 1. Check [The Making of TPC-DS](http://www.tpc.org/tpcds/presentations/the_making_of_tpcds.pdf) for more details on the dataset.

@@ -93,4 +93,36 @@ class NewRevisionTest
         }
     }
 
+  it should "create different revision when cubeSize changes" in withQbeastContextSparkAndTmpDir(
+    (spark, tmpDir) => {
+      val rdd =
+        spark.sparkContext.parallelize(
+          Seq(
+            Client3(1, s"student-1", 1, 1000 + 123, 2567.3432143),
+            Client3(2, s"student-2", 2, 2 * 1000 + 123, 2 * 2567.3432143)))
+
+      val df = spark.createDataFrame(rdd)
+      val names = List("age", "val2")
+
+      val cubeSize1 = 1
+      df.write
+        .format("qbeast")
+        .mode("overwrite")
+        .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> cubeSize1.toString))
+        .save(tmpDir)
+
+      val cubeSize2 = 2
+      df.write
+        .format("qbeast")
+        .mode("append")
+        .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> cubeSize2.toString))
+        .save(tmpDir)
+
+      val deltaLog = DeltaLog.forTable(spark, tmpDir)
+      val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
+
+      qbeastSnapshot.loadAllRevisions.length shouldBe 2
+      qbeastSnapshot.loadLatestRevision.desiredCubeSize shouldBe cubeSize2
+    })
+
 }

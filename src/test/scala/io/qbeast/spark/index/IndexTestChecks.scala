@@ -9,6 +9,8 @@ object IndexTestChecks {
   def checkCubeSize(tableChanges: TableChanges, revision: Revision, indexed: DataFrame): Unit = {
     val weightMap: Map[CubeId, Weight] = tableChanges.indexChanges.cubeWeights
     val desiredCubeSize = revision.desiredCubeSize
+    val minSize = desiredCubeSize * 0.9
+
     val cubeSizes = indexed
       .groupBy(cubeColumnName)
       .count()
@@ -22,18 +24,23 @@ object IndexTestChecks {
         case Some(weight) =>
           if (weight != Weight.MaxValue) {
             // If the weight is not set to MaxValue,
-            // then the size should be greater than more or less the desiredCubeSize
+            // then the size should be greater than the desiredCubeSize
             assert(
-              size > desiredCubeSize * 0.9,
+              size > minSize,
               s"cube ${cubeId.string} appear as overflowed but has size $size")
 
             // And parent cube should be overflowed as well
             cubeId.parent match {
               case None => // cube is root
-              case Some(parent) =>
+
+              case Some(parent) if weightMap.contains(parent) && cubeSizes.contains(parent) =>
+                val weightParent = weightMap(parent)
+                val parentSize = cubeSizes(parent)
                 assert(
-                  cubeSizes(parent) > desiredCubeSize * 0.9,
+                  weightParent != Weight.MaxValue && parentSize > minSize,
                   s"cube ${cubeId.string} is overflowed but parent ${parent.string} is not")
+
+              case _ => assert(false, s"Parent of ${cubeId.string} does not appear in weightMap")
             }
           }
         case None =>
@@ -93,6 +100,7 @@ object IndexTestChecks {
       val childrenWeights = weightMap.filter { case (candidate, _) =>
         children.contains(candidate)
       }
+      // scalastyle:off
       childrenWeights.foreach { case (child, childWeight) =>
         assert(
           childWeight >= maxWeight,

@@ -7,6 +7,7 @@ import io.qbeast.keeper.Keeper
 import io.qbeast.model._
 import io.qbeast.spark.delta.CubeDataLoader
 import io.qbeast.spark.index.QbeastColumns
+import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.sources.BaseRelation
@@ -123,16 +124,32 @@ private[table] class IndexedTableImpl(
 
   override def exists: Boolean = !snapshot.isInitial
 
+  private def checkRevisionParameters(
+      qbeastOptions: QbeastOptions,
+      latestRevision: Revision): Boolean = {
+    // TODO feature: columnsToIndex may change between revisions
+    latestRevision.desiredCubeSize == qbeastOptions.cubeSize
+
+  }
+
   override def save(
       data: DataFrame,
       parameters: Map[String, String],
       append: Boolean): BaseRelation = {
-    val indexStatus = if (exists) {
-      snapshot.loadLatestIndexStatus
-      // TODO check here if the parameters is compatible with the old revision
-    } else {
-      IndexStatus(revisionBuilder.createNewRevision(tableID, data.schema, parameters))
-    }
+    val indexStatus =
+      if (exists) {
+        val latestIndexStatus = snapshot.loadLatestIndexStatus
+        if (checkRevisionParameters(QbeastOptions(parameters), latestIndexStatus.revision)) {
+          latestIndexStatus
+        } else {
+          val oldRevisionID = latestIndexStatus.revision.revisionID
+          val newRevision = revisionBuilder
+            .createNextRevision(tableID, data.schema, parameters, oldRevisionID)
+          IndexStatus(newRevision)
+        }
+      } else {
+        IndexStatus(revisionBuilder.createNewRevision(tableID, data.schema, parameters))
+      }
 
     if (exists && append) {
       checkColumnsToMatchSchema(indexStatus)

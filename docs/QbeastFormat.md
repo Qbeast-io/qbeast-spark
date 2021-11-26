@@ -26,80 +26,120 @@ Following each write transaction is the creation of a new log file. **Table-leve
 
 **Qbeast-spark** extends Delta Lake to enhance **Data Lakehouses** with functionalities such as `multi-dimensional indexing`, efficient `sampling`, `table tolerance`, etc., through modifying the log files on the **record level**. Each record's `tags` field has information that describes the `OTree`, `cube`, and `block` involved in the operation.
 
-- Changes on the `AddFile` **`tags`** information
-```json
-{
-  "add": {
-    "path": "4b36340e-0bf7-44ec-97da-f7a03bf06ea3.parquet",
-    ...
-    "tags": {
-      "state": "FLOODED",
-      "rowCount": "3",
-      "cube": "gA",
-      "revision": "1634196697656",
-      "minWeight": "-2147483648",
-      "maxWeight": "-857060062"
-    }
-  }
-}
-```
-- Changes on `Metadata` `configuration` map
+Before showing the changes, let's take a look on the components of the index.
 
-```json
-{"metaData":{
-  "id":"a5c2699f-62dd-4750-8384-be3a2caa55c7",
-  ...
-  "configuration": {
-    "qbeast.lastRevisionID":"1634196697656",
-    "qbeast.revision.1634196697656":"{\"id\":1634196697656,\"timestamp\":1634196697656,\"desiredCubeSize\":10000,\"indexedColumns\":[\"user_id\",\"product_id\"],\"transformations\":[{\"min\":1.16396325E8,\"max\":7.13218881E8,\"scale\":1.675539890285246E-9},{\"min\":-2.87485335E7,\"max\":9.02495125E7,\"scale\":8.403499331409189E-9}]}"
-  },
-  "createdTime":1634196701990}}
-```
-We store two different values:
-- A pointer to the last revision available `qbeast.lastRevisionID`
-- The different characteristics of this revision (`qb.revision.1634196697656`). 
+### Components of the index
 
-A more closer look to the `qb.revision.1634196697656`:
+On a high level, the index consists of one or more `OTrees` that contain `cubes`(or nodes), and each cube is made of `blocks` that contain the actual data written by the user. All records from the log are of **block/file-level** information.
 
-```json
+- `revision` locates the particular tree
 
-{
-  "id": 1634196697656,
-  "timestamp": 1634196697656,
-  "desiredCubeSize": 10000,
-  "indexedColumns": ["user_id", "product_id"],
-  "transformations": [
-    {
-      "min": 1.16396325E8,
-      "max": 7.13218881E8,
-      "scale": 1.675539890285246E-9
-    },
-    {
-      "min": -2.87485335E7,
-      "max": 9.02495125E7,
-      "scale": 8.403499331409189E-9
-    }
-  ]
-}
-```
-
-On a high level, the index consists of one or more `OTrees` that contain `cubes`(or nodes), and each cube is made of `blocks` that contain the actual data written by the user. All records from the log are of **block-level** information.
-
-- `revision` locates the tree that contains the `block`
-  
 
 - `cube` identifies the current `block`'s `cube` from the `tree`
-  
+
 
 - `state` of the `block` determines the **READ** and **WRITE** protocols
-  
+
 
 - `weightMax/weightMin`: Each element gets assigned with a uniformly created `weight` parameter. `weightMin` and `weightMax` define the range of weights that the `block` can contain.
-  
+
 
 - `transformations` inside `revision` consist of two maps(in this case), each corresponding to one of the `indexedColumns`. Each pair of `min`/`max` defines the range of values of the associated indexed column that the `tree` can contain and is to be expanded to accommodate new rows that fall outside the current range.
 
-### State changes in Metadata
+### AddFile changes
+
+Here you can see the changes on the `AddFile` **`tags`** information
+```json
+{
+  "add": {
+    "path": "d54ba0cd-c315-4388-9bce-fe573f5d0a64.parquet",
+    ...
+    "tags": {
+      "state": "FLOODED",
+      "cube": "gw",
+      "revision": "1",
+      "elementCount": "12814",
+      "minWeight": "-1253864150",
+      "maxWeight": "1254740128"
+    }
+  }
+}
+
+```
+
+### MetaData changes
+
+And here the changes on `Metadata` `configuration` map
+
+```json
+{
+  "metaData": {
+    "id": "aa43874a-9688-4d14-8168-e16088641fdb",
+    ...
+    "configuration": {
+      "qbeast.lastRevisionID": "1",
+      "qbeast.revision.1": "{\"revisionID\":1,\"timestamp\":1637851757680,\"tableID\":\"/tmp/qb-testing1584592925006274975\",\"desiredCubeSize\":10000,\"columnTransformers\":[{\"className\":\"io.qbeast.transform.LinearTransformer\",\"columnName\":\"user_id\",\"dataType\":\"IntegerDataType\"},{\"className\":\"io.qbeast.transform.LinearTransformer\",\"columnName\":\"product_id\",\"dataType\":\"IntegerDataType\"}],\"transformations\":[{\"className\":\"io.qbeast.transform.LinearTransformation\",\"minNumber\":315309190,\"maxNumber\":566280860,\"orderedDataType\":\"IntegerDataType\"},{\"className\":\"io.qbeast.transform.LinearTransformation\",\"minNumber\":1000978,\"maxNumber\":60500010,\"orderedDataType\":\"IntegerDataType\"}]}"
+    },
+    "createdTime": 1637851765848
+  }
+}
+
+```
+We store two different values:
+- A pointer to the last revision available `qbeast.lastRevisionID`
+- The different characteristics of this revision (`qb.revision.1`). 
+
+### Revision information
+
+A more closer look to the `qb.revision.1`:
+
+```json
+
+{
+  "revisionID":1,
+  "timestamp":1637851757680,
+  "tableID":"/tmp/qb-testing1584592925006274975",
+  "desiredCubeSize":10000,
+  "columnTransformers":[
+    {
+      "className":"io.qbeast.transform.LinearTransformer",
+      "columnName":"user_id",
+      "dataType":"IntegerDataType"
+    },
+    {
+      "className":"io.qbeast.transform.LinearTransformer",
+      "columnName":"product_id",
+      "dataType":"IntegerDataType"
+    }
+  ],
+  "transformations":[
+    {
+      "className":"io.qbeast.transform.LinearTransformation",
+      "minNumber":315309190,
+      "maxNumber":566280860,
+      "orderedDataType":"IntegerDataType"
+    },
+    {
+      "className":"io.qbeast.transform.LinearTransformation",
+      "minNumber":1000978,
+      "maxNumber":60500010,
+      "orderedDataType":"IntegerDataType"}
+  ]
+}
+
+```
+
+In Revision, you can find different information about the tree status and configuration:
+
+- `timestamp` the time when the revision was created
+- `tableID` the identifier of the table that the revision belongs
+- `desiredCubeSize` the cube size from the option `cubeSize`
+- `columnTransformers` the metadata of the different columns indexed with the option `columnsToIndex`
+- `transformations` contains information about the **space** of the data indexed by column
+
+In this case, we index columns `user_id` and `product_id` (which are both `Integers`) with a linear transformation. This means that they will not suffer any transformation besides the normalization.
+
+### State changes in MetaData
 
 **Data de-normalization** is a crucial component behind our multi-dimensional index. Instead of storing an index in a separate tree-like data structure, we reorganize the data and their replications in an `OTree`, whose **hierarchical structure** is the actual index.
 
@@ -125,7 +165,7 @@ qbeastTable.optimize()
   "configuration":
   {
     ...
-    "qbeast.replicatedSet.1634196697656":"[\"\",\"g\",\"gQ\"]"},
+    "qbeast.replicatedSet.1":"[\"\",\"g\",\"gQ\"]"},
     ...
   }
 }

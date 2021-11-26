@@ -111,18 +111,18 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       desiredCubeSize: Int,
       numPartitions: Int): Double = {
     if (numPartitions > 0) {
-      val desiredPartitionCubeSize = desiredCubeSize.toDouble / numPartitions
+      val desiredPartitionCubeSize =
+        Math.ceil(desiredCubeSize.toDouble / numPartitions + 1) // Round to the next value
       if (desiredPartitionCubeSize < minPartitionCubeSize) {
         logger.warn(
           s"Cube size per partition is less than $minPartitionCubeSize," +
             s" Set a bigger cubeSize before writing")
-      } else {
-        return desiredPartitionCubeSize
-      }
+        minPartitionCubeSize
+      } else desiredPartitionCubeSize
+    } else {
+      // TODO should fail if the desiredCubeSize is < than minPartitionCubeSize?
+      Math.max(desiredCubeSize, minPartitionCubeSize)
     }
-
-    // TODO should fail if the desiredCubeSize is < than minPartitionCubeSize?
-    Math.max(desiredCubeSize, minPartitionCubeSize)
 
   }
 
