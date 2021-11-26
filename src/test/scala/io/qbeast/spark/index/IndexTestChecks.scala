@@ -37,10 +37,16 @@ object IndexTestChecks {
                 val weightParent = weightMap(parent)
                 val parentSize = cubeSizes(parent)
                 assert(
-                  weightParent != Weight.MaxValue && parentSize > minSize,
-                  s"cube ${cubeId.string} is overflowed but parent ${parent.string} is not")
+                  weightParent != Weight.MaxValue && size > minSize,
+                  s"cube ${cubeId.string} is overflowed but parent ${parent.string} is not" +
+                    s" It has weight ${weightParent} and size ${parentSize}")
 
-              case _ => assert(false, s"Parent of ${cubeId.string} does not appear in weightMap")
+              case Some(parent) =>
+                assert(
+                  false,
+                  s"Parent ${parent.string} of ${cubeId.string}" +
+                    s" does not appear in weight map or data")
+
             }
           }
         case None =>
@@ -50,7 +56,7 @@ object IndexTestChecks {
 
   def checkCubes(weightMap: Map[CubeId, Weight]): Unit = {
 
-    weightMap.foreach { case (cube, _) =>
+    def checkCubeParents(): Unit = weightMap.foreach { case (cube, _) =>
       cube.parent match {
         case Some(parent) =>
           assert(
@@ -59,6 +65,8 @@ object IndexTestChecks {
         case None => // root cube
       }
     }
+
+    checkCubeParents()
   }
 
   def checkCubesOnData(
@@ -66,27 +74,28 @@ object IndexTestChecks {
       indexed: DataFrame,
       dimensionCount: Int): Unit = {
 
-    val cubes = indexed
+    val cubesOnData = indexed
       .select(cubeColumnName)
       .distinct()
       .collect()
       .map(row => CubeId(dimensionCount, row.getAs[Array[Byte]](cubeColumnName)))
 
     def checkEmptyParents(): Unit = {
-      cubes.foreach { case cube =>
+      cubesOnData.foreach { cube =>
         cube.parent match {
           case Some(parent) =>
             assert(
-              cubes.contains(parent),
-              s"parent ${parent.string} of ${cube.string} does not appear in the indexed data")
+              cubesOnData.contains(parent),
+              s"Parent ${parent.string} of ${cube.string} does not appear in the indexed data")
           case None => // root cube
         }
       }
     }
 
     def checkDataWithWeightMap(): Unit = {
-      cubes.foreach(cube =>
-        assert(weightMap.contains(cube) || weightMap.contains(cube.parent.get)))
+      cubesOnData.foreach { cube =>
+        assert(weightMap.contains(cube) || weightMap.contains(cube.parent.get))
+      }
     }
 
     checkEmptyParents()
