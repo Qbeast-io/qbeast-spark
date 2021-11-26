@@ -88,10 +88,7 @@ case class OTreeIndex(index: TahoeLogFileIndex)
 
         val revisionData = qbeastSnapshot.loadIndexStatus(revision.revisionID)
         val dimensionCount = revision.columnTransformers.length
-
-        val originalFrom = Point(Vector.fill(dimensionCount)(Int.MinValue.doubleValue()))
-        val originalTo = Point(Vector.fill(dimensionCount)(Int.MaxValue.doubleValue()))
-        val querySpace = QuerySpaceFromTo(originalFrom, originalTo, revision)
+        val querySpace = AllSpace(dimensionCount)
 
         val cubeStatus = revisionData.cubesStatuses
         val replicatedSet = revisionData.replicatedSet

@@ -48,6 +48,19 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
     }
   }
 
+  it should "respect the size of the data" in withSpark { _ =>
+    withOTreeAlgorithm { oTreeAlgorithm =>
+      {
+        val df = createDF()
+        val rev = SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, options)
+
+        val (indexed, _) = oTreeAlgorithm.index(df, IndexStatus(rev))
+
+        checkDFSize(indexed, df)
+      }
+    }
+  }
+
   it should "not miss any cube" in withSpark { _ =>
     withOTreeAlgorithm { oTreeAlgorithm =>
       {
@@ -106,6 +119,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
         val (indexed, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
         val weightMap = tc.indexChanges.cubeWeights
 
+        checkDFSize(indexed, df)
         checkCubes(weightMap)
         checkWeightsIncrement(weightMap)
         checkCubesOnData(weightMap, indexed, 2)
@@ -132,6 +146,8 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
           Map("columnsToIndex" -> "user_id,product_id", "cubeSize" -> "10000"))
         val (indexed, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
         val weightMap = tc.indexChanges.cubeWeights
+
+        checkDFSize(indexed, df)
         checkCubes(weightMap)
         checkWeightsIncrement(weightMap)
         checkCubesOnData(weightMap, indexed, 2)
@@ -170,6 +186,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
         val (indexed, tc) =
           oTreeAlgorithm.index(appendData, qbeastSnapshot.loadLatestIndexStatus)
 
+        checkDFSize(indexed, df)
         checkCubes(tc.indexChanges.cubeWeights)
         checkWeightsIncrement(tc.indexChanges.cubeWeights)
         checkCubesOnData(tc.indexChanges.cubeWeights, indexed, 2)

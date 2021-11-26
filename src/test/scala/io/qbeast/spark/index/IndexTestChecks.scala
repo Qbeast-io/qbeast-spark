@@ -6,6 +6,14 @@ import org.apache.spark.sql.DataFrame
 
 object IndexTestChecks {
 
+  def checkDFSize(indexed: DataFrame, original: DataFrame): Unit = {
+    val indexedSize = indexed.count()
+    val originalSize = original.count()
+    assert(
+      indexedSize == originalSize,
+      s"Indexed dataset has size ${indexedSize} and original has size $originalSize")
+  }
+
   def checkCubeSize(tableChanges: TableChanges, revision: Revision, indexed: DataFrame): Unit = {
     val weightMap: Map[CubeId, Weight] = tableChanges.indexChanges.cubeWeights
     val desiredCubeSize = revision.desiredCubeSize
@@ -94,7 +102,15 @@ object IndexTestChecks {
 
     def checkDataWithWeightMap(): Unit = {
       cubesOnData.foreach { cube =>
-        assert(weightMap.contains(cube) || weightMap.contains(cube.parent.get))
+        if (cube.isRoot) {
+          assert(weightMap.contains(cube), s"Cube root appears in data but not in weight map")
+        } else {
+          val parent = cube.parent.get
+          assert(
+            weightMap.contains(cube) || weightMap.contains(parent),
+            s"Either weight map doesn't contain ${cube.string}" +
+              s" or doesn't contain it's parent ${parent.string}")
+        }
       }
     }
 
