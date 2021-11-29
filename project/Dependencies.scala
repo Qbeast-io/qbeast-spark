@@ -16,4 +16,7 @@ object Dependencies {
   val scalaTest = "org.scalatest" %% "scalatest" % "3.2.9"
   val mockito = "org.scalatestplus" %% "mockito-3-4" % "3.2.9.0"
   val apacheCommons = "org.apache.commons" % "commons-lang3" % "3.10"
+  val amazonAws = "com.amazonaws" % "aws-java-sdk" % "1.12.20"
+  val hadoopCommons = "org.apache.hadoop" % "hadoop-common" % hadoopVersion
+  val hadoopAws = "org.apache.hadoop" % "hadoop-aws" % hadoopVersion
 }

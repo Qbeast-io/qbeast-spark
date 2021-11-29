@@ -58,7 +58,7 @@ Here you can see the changes on the `AddFile` **`tags`** information
       "state": "FLOODED",
       "cube": "gw",
       "revision": "1",
-      "elementCount": "12814",
+      "elementCount": "10836",
       "minWeight": "-1253864150",
       "maxWeight": "1254740128"
     }

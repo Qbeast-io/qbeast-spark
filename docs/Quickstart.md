@@ -52,7 +52,7 @@ parquetDf.write
     .mode("overwrite")
     .format("qbeast")     // Saving the dataframe in a qbeast datasource
     .option("columnsToIndex", "ss_cdemo_sk,ss_cdemo_sk")      // Indexing the table
-    .option("cubeSize", "10000") // The desired number of records of the resulting files/cubes. Default is 100000
+    .option("cubeSize", 300000) // The desired number of records of the resulting files/cubes. Default is 100000
     .save(qbeastTablePath)
 ```
 

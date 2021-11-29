@@ -35,6 +35,23 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
   // This reduce the verbosity of Spark
   Logger.getLogger("org.apache").setLevel(Level.WARN)
 
+  def withExtendedSpark[T](testCode: SparkSession => T): T = {
+    val spark = SparkSession
+      .builder()
+      .master("local[8]")
+      .appName("QbeastDataSource")
+      .withExtensions(new QbeastSparkSessionExtension())
+      .config(
+        "spark.hadoop.fs.s3a.aws.credentials.provider",
+        "org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider")
+      .getOrCreate()
+    try {
+      testCode(spark)
+    } finally {
+      spark.close()
+    }
+  }
+
   def withSpark[T](testCode: SparkSession => T): T = {
     val spark = SparkSession
       .builder()
