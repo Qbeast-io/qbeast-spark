@@ -21,7 +21,7 @@ trait QDataType extends Serializable {
 
 object OrderedDataType {
 
-  val qtypes = Seq(DoubleDataType, IntegerDataType, FloatDataType, LongDataType)
+  val qtypes = Seq(DoubleDataType, IntegerDataType, FloatDataType, LongDataType, DecimalDataType)
     .map(dt => dt.name -> dt)
     .toMap
 
@@ -55,6 +55,11 @@ object LongDataType extends OrderedDataType {
 object FloatDataType extends OrderedDataType {
   override def name: String = "FloatDataType"
   override val ordering: Numeric[Any] = implicitly[Numeric[Float]].asInstanceOf[Numeric[Any]]
+}
+
+object DecimalDataType extends OrderedDataType {
+  override def name: String = "DecimalDataType"
+  override val ordering: Numeric[Any] = implicitly[Numeric[Double]].asInstanceOf[Numeric[Any]]
 }
 
 object StringDataType extends QDataType {

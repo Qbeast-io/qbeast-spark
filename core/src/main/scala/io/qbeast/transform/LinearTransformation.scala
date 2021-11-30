@@ -10,7 +10,14 @@ import com.fasterxml.jackson.databind.jsontype.TypeSerializer
 import com.fasterxml.jackson.databind.node.{DoubleNode, IntNode, NumericNode, TextNode}
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import com.fasterxml.jackson.databind.{DeserializationContext, SerializerProvider}
-import io.qbeast.model.{DoubleDataType, IntegerDataType, LongDataType, OrderedDataType}
+import io.qbeast.model.{
+  DecimalDataType,
+  DoubleDataType,
+  IntegerDataType,
+  LongDataType,
+  OrderedDataType
+}
+import java.math.BigDecimal
 
 @JsonSerialize(using = classOf[LinearTransformationSerializer])
 @JsonDeserialize(using = classOf[LinearTransformationDeserializer])
@@ -31,7 +38,7 @@ case class LinearTransformation(minNumber: Any, maxNumber: Any, orderedDataType:
     case v: Double => (v - mn) * scale
     case v: Long => (v - mn) * scale
     case v: Int => (v - mn) * scale
-
+    case v: BigDecimal => (v.doubleValue() - mn) * scale
     case v: Float => (v - mn) * scale
 
   }
@@ -113,11 +120,7 @@ class LinearTransformationDeserializer
     val json = p.getCodec
     val tree: TreeNode = json
       .readTree(p)
-    /* val odt = ctxt.readValue[OrderedDataType](
-      tree.get("orderedDataType").traverse(),
-      classOf[OrderedDataType])
 
-     */
     val odt = tree.get("orderedDataType") match {
       case tn: TextNode => OrderedDataType(tn.asText())
     }
@@ -128,6 +131,8 @@ class LinearTransformationDeserializer
         LinearTransformation(mn.asInt(), mx.asInt(), odt)
       case (LongDataType, mn: NumericNode, mx: NumericNode) =>
         LinearTransformation(mn.asLong(), mx.asLong(), odt)
+      case (DecimalDataType, mn: DoubleNode, mx: DoubleNode) =>
+        LinearTransformation(mn.doubleValue(), mx.doubleValue(), odt)
       case (a, b, c) =>
         throw new IllegalArgumentException(s"Invalid data type  ($a,$b,$c) ${b.getClass} ")
     }
