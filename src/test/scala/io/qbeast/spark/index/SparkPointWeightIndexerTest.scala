@@ -4,10 +4,10 @@
 package io.qbeast.spark.index
 
 import io.qbeast.TestClasses.T1
-import io.qbeast.model._
+import io.qbeast.core.model._
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.transform.{HashTransformation, LinearTransformation}
+import io.qbeast.core.transform.{HashTransformation, LinearTransformation}
 import org.apache.spark.SparkException
 import org.apache.spark.sql.functions.{col, udf}
 

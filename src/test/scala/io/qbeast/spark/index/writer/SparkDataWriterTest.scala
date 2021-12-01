@@ -1,7 +1,7 @@
 package io.qbeast.spark.index.writer
 
 import io.qbeast.TestClasses._
-import io.qbeast.model.{IndexStatus, QTableID, TableChanges}
+import io.qbeast.core.model.{IndexStatus, QTableID, TableChanges}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionFactory}
 import org.apache.spark.sql.types.StructType

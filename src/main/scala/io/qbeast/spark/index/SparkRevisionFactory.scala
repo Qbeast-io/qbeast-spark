@@ -3,10 +3,10 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.model.{QDataType, QTableID, Revision, RevisionFactory, RevisionID}
+import io.qbeast.core.model.{QDataType, QTableID, Revision, RevisionFactory, RevisionID}
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.utils.SparkToQTypesUtils
-import io.qbeast.transform.Transformer
+import io.qbeast.core.transform.Transformer
 import org.apache.spark.sql.types.StructType
 
 import scala.util.matching.Regex

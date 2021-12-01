@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.model.Weight
+import io.qbeast.core.model.Weight
 
 /**
  * Cube Information

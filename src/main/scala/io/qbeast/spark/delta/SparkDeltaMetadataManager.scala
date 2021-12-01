@@ -4,7 +4,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.IISeq
-import io.qbeast.model.{MetadataManager, _}
+import io.qbeast.core.model.{MetadataManager, _}
 import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions}
 import org.apache.spark.sql.delta.actions.FileAction

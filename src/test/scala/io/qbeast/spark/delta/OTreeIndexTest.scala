@@ -1,7 +1,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.TestClasses.T2
-import io.qbeast.model.{AllSpace, Weight, WeightRange}
+import io.qbeast.core.model.{AllSpace, Weight, WeightRange}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.SparkSession

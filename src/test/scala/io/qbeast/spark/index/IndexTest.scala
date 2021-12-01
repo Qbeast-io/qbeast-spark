@@ -4,7 +4,7 @@
 package io.qbeast.spark.index
 
 import io.qbeast.TestClasses.{Client3, Client4}
-import io.qbeast.model._
+import io.qbeast.core.model._
 import io.qbeast.spark.index.IndexTestChecks._
 import io.qbeast.spark.index.QbeastColumns.cubeColumnName
 import io.qbeast.spark.utils.TagUtils

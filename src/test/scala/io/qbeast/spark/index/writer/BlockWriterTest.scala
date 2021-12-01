@@ -4,7 +4,7 @@
 package io.qbeast.spark.index.writer
 
 import io.qbeast.TestClasses.IndexData
-import io.qbeast.model._
+import io.qbeast.core.model._
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.index.{QbeastColumns, SparkRevisionFactory}

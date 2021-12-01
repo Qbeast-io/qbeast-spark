@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.model.{IndexStatus, ReplicatedSet, RevisionChange, TableChanges, mapper}
+import io.qbeast.core.model.{IndexStatus, ReplicatedSet, RevisionChange, TableChanges, mapper}
 import io.qbeast.spark.utils.MetadataConfig
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.schema.{ImplicitMetadataOperation, SchemaUtils}

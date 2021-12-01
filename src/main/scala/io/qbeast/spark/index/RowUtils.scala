@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.model.{Point, Revision}
+import io.qbeast.core.model.{Point, Revision}
 import org.apache.spark.sql.{AnalysisExceptionFactory, Row}
 
 /**

@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.model.{CubeId, QTableID, Revision}
+import io.qbeast.core.model.{CubeId, QTableID, Revision}
 import io.qbeast.spark.utils.{State, TagUtils}
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.DeltaLog

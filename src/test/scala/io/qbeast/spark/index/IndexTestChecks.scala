@@ -1,6 +1,6 @@
 package io.qbeast.spark.index
 
-import io.qbeast.model.{CubeId, Revision, TableChanges, Weight}
+import io.qbeast.core.model.{CubeId, Revision, TableChanges, Weight}
 import io.qbeast.spark.index.QbeastColumns.cubeColumnName
 import org.apache.spark.sql.DataFrame
 

@@ -4,9 +4,9 @@
 package io.qbeast.spark.internal.sources
 
 import io.qbeast.IISeq
-import io.qbeast.model.{QTableID, Revision}
+import io.qbeast.core.model.{QTableID, Revision}
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
-import io.qbeast.transform.Transformer
+import io.qbeast.core.transform.Transformer
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType

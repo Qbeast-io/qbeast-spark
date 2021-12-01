@@ -4,7 +4,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.TestClasses.Client3
-import io.qbeast.model.{CubeStatus, IndexStatus, QTableID, Weight}
+import io.qbeast.core.model.{CubeStatus, IndexStatus, QTableID, Weight}
 import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.utils.TagUtils
 import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}

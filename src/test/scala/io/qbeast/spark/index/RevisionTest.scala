@@ -4,7 +4,7 @@
 package io.qbeast.spark.index
 
 import io.qbeast.TestClasses._
-import io.qbeast.model.Revision
+import io.qbeast.core.model.Revision
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import org.apache.spark.sql.{DataFrame, SparkSession}

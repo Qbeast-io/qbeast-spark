@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.internal
 
-import io.qbeast.model.{IndexStatus, QueryManager}
+import io.qbeast.core.model.{IndexStatus, QueryManager}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.{DataFrame, SparkSession}
 

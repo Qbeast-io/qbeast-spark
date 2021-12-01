@@ -3,8 +3,8 @@
  */
 package io.qbeast.spark.utils
 
-import io.qbeast.model.QTableID
-import io.qbeast.{model => qmodel}
+import io.qbeast.core.model.QTableID
+import io.qbeast.core.{model => qmodel}
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.types._
 
@@ -18,7 +18,7 @@ object SparkToQTypesUtils {
         }))
   }
 
-  def convertDataTypes(sparkType: DataType): qmodel.QDataType = sparkType match {
+  def convertDataTypes(sparkType: DataType): io.qbeast.core.model.QDataType = sparkType match {
     case _: DoubleType => qmodel.DoubleDataType
     case _: IntegerType => qmodel.IntegerDataType
     case _: FloatType => qmodel.FloatDataType

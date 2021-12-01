@@ -4,7 +4,7 @@
 package io.qbeast.spark.index
 
 import io.qbeast.IISeq
-import io.qbeast.model._
+import io.qbeast.core.model._
 import org.apache.spark.sql.DataFrame
 
 /**

@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.model._
+import io.qbeast.core.model._
 import io.qbeast.spark.utils.TagUtils
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.{Dataset, SparkSession}

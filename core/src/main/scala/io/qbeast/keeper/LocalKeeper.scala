@@ -3,7 +3,7 @@
  */
 package io.qbeast.keeper
 
-import io.qbeast.model.{CubeId, QTableID}
+import io.qbeast.core.model.{CubeId, QTableID}
 
 import java.util.concurrent.atomic.AtomicInteger
 

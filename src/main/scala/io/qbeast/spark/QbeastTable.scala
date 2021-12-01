@@ -4,7 +4,7 @@
 package io.qbeast.spark
 
 import io.qbeast.context.QbeastContext
-import io.qbeast.model.{QTableID, RevisionID}
+import io.qbeast.core.model.{QTableID, RevisionID}
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.table._
 import org.apache.spark.sql.SparkSession

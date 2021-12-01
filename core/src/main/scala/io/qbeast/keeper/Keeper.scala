@@ -4,7 +4,7 @@
 package io.qbeast.keeper
 
 import com.typesafe.config.Config
-import io.qbeast.model.{CubeId, QTableID}
+import io.qbeast.core.model.{CubeId, QTableID}
 
 import java.util.ServiceLoader
 

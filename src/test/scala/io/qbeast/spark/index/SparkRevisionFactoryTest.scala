@@ -1,10 +1,10 @@
 package io.qbeast.spark.index
 
 import io.qbeast.TestClasses.T3
-import io.qbeast.model._
+import io.qbeast.core.model._
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.transform.{HashTransformer, LinearTransformer}
+import io.qbeast.core.transform.{HashTransformer, LinearTransformer}
 
 class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
 

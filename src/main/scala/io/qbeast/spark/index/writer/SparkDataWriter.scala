@@ -4,7 +4,7 @@
 package io.qbeast.spark.index.writer
 
 import io.qbeast.IISeq
-import io.qbeast.model.{DataWriter, QTableID, TableChanges}
+import io.qbeast.core.model.{DataWriter, QTableID, TableChanges}
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.index.QbeastColumns.{cubeColumnName, stateColumnName}
 import org.apache.hadoop.mapreduce.Job

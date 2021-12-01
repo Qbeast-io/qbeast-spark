@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.internal.sources
 
-import io.qbeast.model.QTableID
+import io.qbeast.core.model.QTableID
 import io.qbeast.spark.table.{IndexedTable, IndexedTableFactory}
 import org.apache.spark.sql.connector.catalog.TableCapability._
 import org.apache.spark.sql.connector.expressions.Transform

@@ -4,7 +4,14 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.IISeq
-import io.qbeast.model.{IndexStatus, QbeastSnapshot, ReplicatedSet, Revision, RevisionID, mapper}
+import io.qbeast.core.model.{
+  IndexStatus,
+  QbeastSnapshot,
+  ReplicatedSet,
+  Revision,
+  RevisionID,
+  mapper
+}
 import io.qbeast.spark.utils.MetadataConfig
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.delta.Snapshot

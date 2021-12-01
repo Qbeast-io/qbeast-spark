@@ -3,10 +3,11 @@
  */
 package io.qbeast.spark.utils
 
-import io.qbeast.model.CubeId
+import io.qbeast.core.model.CubeId
 import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
 import io.qbeast.spark.delta.OTreeIndex
 import org.apache.spark.sql.execution.FileSourceScanExec
+import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
@@ -49,6 +50,29 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
 
         }
     }
+
+  it should "index correctly on bigger spaces" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      {
+        val data = loadTestData(spark)
+          .withColumn("user_id", lit(col("user_id") * Long.MaxValue))
+        // WRITE SOME DATA
+        data.write
+          .mode("overwrite")
+          .format("qbeast")
+          .option("columnsToIndex", "user_id,product_id")
+          .save(tmpDir)
+
+        val indexed = spark.read.format("qbeast").load(tmpDir)
+
+        data.count() shouldBe indexed.count()
+
+        assertLargeDatasetEquality(indexed, data, orderedComparison = false)
+
+        data.columns.toSet shouldBe indexed.columns.toSet
+
+      }
+  }
 
   it should "index correctly on overwrite" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
     {
@@ -130,9 +154,12 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
         writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
 
         val df = spark.read.format("qbeast").load(tmpDir)
+        val dfDelta = spark.read.format("delta").load(tmpDir)
         val precision = 0.1
 
         val query = df.sample(withReplacement = false, precision)
+        val deltaQuery = dfDelta.sample(withReplacement = false, precision)
+
         val executionPlan = query.queryExecution.executedPlan.collectLeaves()
 
         assert(
@@ -143,15 +170,21 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
               .location
               .isInstanceOf[OTreeIndex]))
 
-        executionPlan
-          .foreach {
-            case f: FileSourceScanExec if f.relation.location.isInstanceOf[OTreeIndex] =>
-              val index = f.relation.location
-              val matchingFiles =
-                index.listFiles(f.partitionFilters, f.dataFilters).flatMap(_.files)
-              val allFiles = index.inputFiles
-              matchingFiles.length shouldBe <(allFiles.length)
-          }
+        val filesDeltaQuery =
+          deltaQuery
+            .withColumn("input_file", input_file_name())
+            .select("input_file")
+            .distinct()
+            .collect()
+        val filesQbeastQuery = query
+          .withColumn("input_file", input_file_name())
+          .select("input_file")
+          .distinct()
+          .collect()
+
+        filesQbeastQuery.length shouldBe <=(filesDeltaQuery.length)
+        filesQbeastQuery.foreach(f => assert(filesDeltaQuery.contains(f)))
+
       }
     }
 

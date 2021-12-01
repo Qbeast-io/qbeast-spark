@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.index.writer
 
-import io.qbeast.model.Weight
+import io.qbeast.core.model.Weight
 
 /**
  * Stats of a data block.

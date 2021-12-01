@@ -4,7 +4,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.IISeq
-import io.qbeast.model._
+import io.qbeast.core.model._
 import io.qbeast.spark.utils.{State, TagUtils}
 import org.apache.spark.sql.catalyst.expressions
 import org.apache.spark.sql.catalyst.expressions.{Expression, Literal}

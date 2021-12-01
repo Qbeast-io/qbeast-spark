@@ -4,7 +4,7 @@
 package io.qbeast.spark.index
 
 import io.qbeast.TestClasses.Client3
-import io.qbeast.model.CubeId
+import io.qbeast.core.model.CubeId
 import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable, delta}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog

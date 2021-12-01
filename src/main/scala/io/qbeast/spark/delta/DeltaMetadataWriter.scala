@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.model.{QTableID, TableChanges}
+import io.qbeast.core.model.{QTableID, TableChanges}
 import io.qbeast.spark.utils.TagUtils
 import org.apache.spark.sql.delta.actions.{
   Action,
