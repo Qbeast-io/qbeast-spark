@@ -2,8 +2,8 @@ package io.qbeast.core.model
 
 /**
  * Query Manager template
- * @tparam QUERY
- * @tparam DATA
+ * @tparam QUERY type of the query
+ * @tparam DATA type of the data
  */
 trait QueryManager[QUERY, DATA] {
 

@@ -4,8 +4,8 @@ import io.qbeast.IISeq
 
 /**
  * Metadata Manager template
- * @tparam DataSchema
- * @tparam FileDescriptor
+ * @tparam DataSchema type of data schema
+ * @tparam FileDescriptor type of file descriptor
  */
 trait MetadataManager[DataSchema, FileDescriptor] {
 

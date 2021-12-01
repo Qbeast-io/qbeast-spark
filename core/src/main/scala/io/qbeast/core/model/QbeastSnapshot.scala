@@ -2,6 +2,9 @@ package io.qbeast.core.model
 
 import io.qbeast.IISeq
 
+/**
+ * A snapshot of the Qbeast table state.
+ */
 trait QbeastSnapshot {
 
   /**

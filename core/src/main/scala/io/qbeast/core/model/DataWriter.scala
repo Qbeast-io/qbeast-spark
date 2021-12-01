@@ -4,11 +4,11 @@ import io.qbeast.IISeq
 
 /**
  * Data Writer template
- * @tparam DATA
- * @tparam DataSchema
- * @tparam FileAction
+ * @tparam DATA type of data
+ * @tparam DataSchema type of the data schema
+ * @tparam FileDescriptor type of file descriptor
  */
-trait DataWriter[DATA, DataSchema, FileAction] {
+trait DataWriter[DATA, DataSchema, FileDescriptor] {
 
   /**
    * Write the index data to the files
@@ -22,6 +22,6 @@ trait DataWriter[DATA, DataSchema, FileAction] {
       tableID: QTableID,
       schema: DataSchema,
       data: DATA,
-      tableChanges: TableChanges): IISeq[FileAction]
+      tableChanges: TableChanges): IISeq[FileDescriptor]
 
 }

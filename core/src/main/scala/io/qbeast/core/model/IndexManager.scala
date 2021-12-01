@@ -4,7 +4,7 @@ import io.qbeast.IISeq
 
 /**
  * Index Manager template
- * @tparam DATA
+ * @tparam DATA type of data to index
  */
 trait IndexManager[DATA] {
 
