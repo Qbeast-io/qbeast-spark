@@ -5,7 +5,7 @@ package io.qbeast.spark
 
 import com.github.mrpowers.spark.fast.tests.DatasetComparer
 import com.typesafe.config.{Config, ConfigFactory}
-import io.qbeast.keeper.{Keeper, LocalKeeper}
+import io.qbeast.core.keeper.{Keeper, LocalKeeper}
 import io.qbeast.context.{QbeastContext, QbeastContextImpl}
 import io.qbeast.core.model.IndexManager
 import io.qbeast.spark.delta.SparkDeltaMetadataManager

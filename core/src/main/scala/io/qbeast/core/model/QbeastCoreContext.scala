@@ -1,6 +1,6 @@
 package io.qbeast.core.model
 
-import io.qbeast.keeper.Keeper
+import io.qbeast.core.keeper.Keeper
 
 import scala.reflect.ClassTag
 

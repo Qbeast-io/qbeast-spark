@@ -1,7 +1,7 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.keeper
+package io.qbeast.core.keeper
 
 import io.qbeast.core.model.{CubeId, QTableID}
 
