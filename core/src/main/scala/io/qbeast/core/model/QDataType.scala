@@ -2,6 +2,9 @@ package io.qbeast.core.model
 
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonIgnore, JsonValue}
 
+/**
+ * Companion object for QDataType
+ */
 object QDataType {
 
   val qtypes: Map[String, QDataType] =
@@ -12,6 +15,9 @@ object QDataType {
 
 }
 
+/**
+ * Data type for a Qbeast column
+ */
 trait QDataType extends Serializable {
 
   @JsonValue
@@ -19,6 +25,9 @@ trait QDataType extends Serializable {
 
 }
 
+/**
+ * Companion object for OrderedDataType
+ */
 object OrderedDataType {
 
   val qtypes = Seq(DoubleDataType, IntegerDataType, FloatDataType, LongDataType, DecimalDataType)
@@ -30,6 +39,9 @@ object OrderedDataType {
 
 }
 
+/**
+ * Data type with ordering properties
+ */
 trait OrderedDataType extends QDataType {
 
   @JsonIgnore

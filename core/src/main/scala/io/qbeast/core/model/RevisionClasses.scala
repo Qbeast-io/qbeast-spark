@@ -13,6 +13,10 @@ object QTableID {
 
 }
 
+/**
+ * Unique identifier class for Qbeast Table
+ * @param _id the identifier in string form
+ */
 final class QTableID(_id: String) extends Serializable {
 
   def id: String = _id
@@ -31,8 +35,18 @@ final class QTableID(_id: String) extends Serializable {
   override def hashCode(): Int = toString.hashCode
 }
 
+/**
+ * Companion object for Revision
+ */
 object Revision {
 
+  /**
+   * Create a new first revision for a table
+   * @param tableID the table identifier
+   * @param desiredCubeSize the desired cube size
+   * @param columnTransformers the column transformers
+   * @return the new Revision, without any data insights
+   */
   def firstRevision(
       tableID: QTableID,
       desiredCubeSize: Int,
@@ -137,8 +151,16 @@ case class RevisionChange(
     columnTransformersChanges: IISeq[Option[Transformer]] = Vector.empty,
     transformationsChanges: IISeq[Option[Transformation]] = Vector.empty) {
 
+  /**
+   * Returns the revision in json string format
+   * @return
+   */
   def toJson: String = newRevision.toJson
 
+  /**
+   * Creates a new revision based on the current revision and the changes
+   * @return
+   */
   def newRevision: Revision = supersededRevision match {
     case Revision(revisionID, _, tableID, desiredCubeSize, columnTransformers, transformations) =>
       Revision(
@@ -196,6 +218,12 @@ case class IndexStatus(
 
 }
 
+/**
+ * Container for the status information of a cube
+ * @param maxWeight the max weight of the cube
+ * @param normalizedWeight the normalized weight of the cube
+ * @param files the name of the files belonging to the cube
+ */
 case class CubeStatus(maxWeight: Weight, normalizedWeight: NormalizedWeight, files: IISeq[String])
     extends Serializable
 
@@ -240,6 +268,10 @@ case class TableChanges(
     revisionChanges: Option[RevisionChange],
     indexChanges: IndexStatusChange) {
 
+  /**
+   * Returns the most actual revision
+   * @return
+   */
   def updatedRevision: Revision = revisionChanges match {
     case Some(newRev) => newRev.newRevision
     case None => indexChanges.supersededIndexStatus.revision

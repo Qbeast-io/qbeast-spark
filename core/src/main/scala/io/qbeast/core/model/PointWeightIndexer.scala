@@ -51,14 +51,14 @@ object PointWeightIndexer {
 
   /**
    * Builds a new point weight indexer from the status changes
-   * @param isc the index status changes
+   * @param changes the index status changes
    * @return
    */
-  def buildNewWeightIndexer(isc: IndexStatusChange): PointWeightIndexer =
+  def apply(changes: IndexStatusChange): PointWeightIndexer =
     buildNewWeightIndexer(
-      isc.supersededIndexStatus.cubeNormalizedWeights,
-      isc.deltaNormalizedCubeWeights,
-      isc.announcedOrReplicatedSet)
+      changes.supersededIndexStatus.cubeNormalizedWeights,
+      changes.deltaNormalizedCubeWeights,
+      changes.announcedOrReplicatedSet)
 
   /**
    * Builds a new weight indexer.

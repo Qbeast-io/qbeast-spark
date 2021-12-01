@@ -82,6 +82,16 @@ case class DeltaQbeastSnapshot(snapshot: Snapshot) extends QbeastSnapshot {
   }
 
   /**
+   * Returns the replicated set for a revision identifier if exists
+   * @param revisionID the revision identifier
+   * @return the replicated set
+   */
+  private def getReplicatedSet(revisionID: RevisionID): ReplicatedSet = {
+    replicatedSetsMap
+      .getOrElse(revisionID, Set.empty)
+  }
+
+  /**
    * Returns true if a revision with a specific revision identifier exists
    *
    * @param revisionID the identifier of the revision
@@ -92,23 +102,14 @@ case class DeltaQbeastSnapshot(snapshot: Snapshot) extends QbeastSnapshot {
   }
 
   /**
-   * Returns the replicated set for a revision identifier if exists
-   * @param revisionID the revision identifier
-   * @return the replicated set
-   */
-  def getReplicatedSet(revisionID: RevisionID): ReplicatedSet = {
-    replicatedSetsMap
-      .getOrElse(revisionID, Set.empty)
-  }
-
-  /**
    * Obtains the latest IndexStatus for a given QTableID
    *
    * @return the latest IndexStatus for qtable
    */
   override def loadLatestIndexStatus: IndexStatus = {
     val revision = getRevision(lastRevisionID)
-    new IndexStatusBuilder(this, revision).build()
+    val replicatedSet = getReplicatedSet(lastRevisionID)
+    new IndexStatusBuilder(this, revision, replicatedSet).build()
   }
 
   /**
@@ -119,7 +120,8 @@ case class DeltaQbeastSnapshot(snapshot: Snapshot) extends QbeastSnapshot {
    */
   override def loadIndexStatus(revisionID: RevisionID): IndexStatus = {
     val revision = getRevision(revisionID)
-    new IndexStatusBuilder(this, revision).build()
+    val replicatedSet = getReplicatedSet(lastRevisionID)
+    new IndexStatusBuilder(this, revision, replicatedSet).build()
   }
 
   /**

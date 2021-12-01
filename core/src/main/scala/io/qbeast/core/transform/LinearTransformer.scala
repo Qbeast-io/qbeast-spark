@@ -10,6 +10,11 @@ object LinearTransformer extends TransformerType {
 
 }
 
+/**
+ * Linear Transformer specification of a column
+ * @param columnName the column name
+ * @param dataType the data type of the column
+ */
 case class LinearTransformer(columnName: String, dataType: QDataType) extends Transformer {
   private def colMax = s"${columnName}_max"
   private def colMin = s"${columnName}_min"

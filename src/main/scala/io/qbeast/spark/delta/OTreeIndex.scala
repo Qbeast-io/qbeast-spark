@@ -75,8 +75,11 @@ case class OTreeIndex(index: TahoeLogFileIndex)
   }
 
   /**
-   * Given a From-To range, initialize QuerySpace
+   * Given a From-To weight range, initialize QuerySpace
    * and find the files that satisfy the predicates
+   * @param weightRange the From-To weight range
+   * @param files the files available to be sampled
+   * return the sequence of files to read
    */
 
   def sample(weightRange: WeightRange, files: Seq[AddFile]): Seq[AddFile] = {
@@ -111,6 +114,8 @@ case class OTreeIndex(index: TahoeLogFileIndex)
    * @param weightRange the weight range
    * @param startCube the start cube
    * @param cubesStatuses the cube weights and files
+   * @param replicatedSet the replicated set
+   * @param previouslyMatchedFiles the files that have been matched
    * @return the files with sample data
    */
   def findSampleFiles(

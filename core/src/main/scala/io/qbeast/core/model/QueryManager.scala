@@ -1,5 +1,10 @@
 package io.qbeast.core.model
 
+/**
+ * Query Manager template
+ * @tparam QUERY
+ * @tparam DATA
+ */
 trait QueryManager[QUERY, DATA] {
 
   /**

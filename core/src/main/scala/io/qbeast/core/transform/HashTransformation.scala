@@ -2,6 +2,9 @@ package io.qbeast.core.transform
 
 import scala.util.hashing.MurmurHash3
 
+/**
+ * A hash transformation of a coordinate
+ */
 case class HashTransformation() extends Transformation {
 
   override def transform(value: Any): Double = {

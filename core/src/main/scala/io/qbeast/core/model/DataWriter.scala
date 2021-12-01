@@ -2,6 +2,12 @@ package io.qbeast.core.model
 
 import io.qbeast.IISeq
 
+/**
+ * Data Writer template
+ * @tparam DATA
+ * @tparam DataSchema
+ * @tparam FileAction
+ */
 trait DataWriter[DATA, DataSchema, FileAction] {
 
   /**

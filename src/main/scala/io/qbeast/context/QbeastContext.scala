@@ -63,9 +63,7 @@ object QbeastContext
   private var managedOption: Option[QbeastContext] = None
   private var unmanagedOption: Option[QbeastContext] = None
 
-  /**
-   * Override methods from QbeastContext
-   */
+  // Override methods from QbeastContext
 
   override def config: Config = current.config
 
@@ -73,9 +71,7 @@ object QbeastContext
 
   override def indexedTableFactory: IndexedTableFactory = current.indexedTableFactory
 
-  /**
-   * Override methods from QbeastCoreContext
-   */
+  // Override methods from QbeastCoreContext
 
   // TODO : Add query manager implementation
   override def queryManager[SparkPlan: ClassTag]: QueryManager[SparkPlan, DataFrame] = null

@@ -12,9 +12,10 @@ import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
 
 /**
- * Implementation of BaseRelation which wraps the HadoopFsRelation
+ * Implementation of BaseRelation which wraps the Delta relation.
  *
  * @param relation the wrapped instance
+ * @param revision the revision to use
  */
 case class QbeastBaseRelation(relation: BaseRelation, private val revision: Revision)
     extends BaseRelation {

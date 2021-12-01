@@ -99,7 +99,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
     }
 
   it should "respect the (0.0, 1.0] range" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
-    withOTreeAlgorithm { oTreeAlgorithm =>
+    withOTreeAlgorithm { _ =>
       val df = createDF(100000)
       val names = List("age", "val2")
 
@@ -139,7 +139,10 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
           val deltaLog = DeltaLog.forTable(spark, tmpDir)
           val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
           val builder =
-            new IndexStatusBuilder(qbeastSnapshot, qbeastSnapshot.loadLatestIndexStatus.revision)
+            new IndexStatusBuilder(
+              qbeastSnapshot,
+              qbeastSnapshot.loadLatestIndexStatus.revision,
+              Set.empty)
           val revisionState = builder.buildCubesStatuses
 
           val overflowed = qbeastSnapshot.loadLatestIndexStatus.overflowedSet

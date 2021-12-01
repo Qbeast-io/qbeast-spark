@@ -8,20 +8,29 @@ import io.qbeast.spark.utils.TagUtils
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.{Dataset, SparkSession}
 
+/**
+ * Builds the index status from a given snapshot and revision
+ * @param qbeastSnapshot the QbeastSnapshot
+ * @param revision the revision
+ * @param announcedSet the announced set available for the revision
+ * @param replicatedSet the replicated set available for the revision
+ */
 private[delta] class IndexStatusBuilder(
     qbeastSnapshot: DeltaQbeastSnapshot,
     revision: Revision,
+    replicatedSet: ReplicatedSet,
     announcedSet: Set[CubeId] = Set.empty)
     extends Serializable {
 
+  /**
+   * Dataset of files belonging to the specific revision
+   * @return the dataset of AddFile actions
+   */
   def revisionFiles: Dataset[AddFile] = {
     // this must be external to the lambda, to avoid SerializationErrors
     val revID = revision.revisionID.toString
     qbeastSnapshot.snapshot.allFiles.filter(_.tags(TagUtils.revision) == revID)
   }
-
-  def replicatedSet: ReplicatedSet =
-    qbeastSnapshot.getReplicatedSet(revision.revisionID)
 
   def build(): IndexStatus = {
     IndexStatus(

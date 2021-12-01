@@ -19,6 +19,12 @@ import io.qbeast.core.model.{
 }
 import java.math.BigDecimal
 
+/**
+ * A linear transformation of a coordinate based on min max values
+ * @param minNumber minimum value of the space
+ * @param maxNumber maximum value of the space
+ * @param orderedDataType ordered data type of the coordinate
+ */
 @JsonSerialize(using = classOf[LinearTransformationSerializer])
 @JsonDeserialize(using = classOf[LinearTransformationDeserializer])
 case class LinearTransformation(minNumber: Any, maxNumber: Any, orderedDataType: OrderedDataType)

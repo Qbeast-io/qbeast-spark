@@ -2,6 +2,10 @@ package io.qbeast.core.model
 
 import io.qbeast.IISeq
 
+/**
+ * Index Manager template
+ * @tparam DATA
+ */
 trait IndexManager[DATA] {
 
   /**

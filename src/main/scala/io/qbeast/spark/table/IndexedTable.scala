@@ -84,8 +84,11 @@ trait IndexedTableFactory {
 
 /**
  * Implementation of IndexedTableFactory.
- *
  * @param keeper the keeper
+ * @param indexManager the index manager
+ * @param metadataManager the metadata manager
+ * @param dataWriter the data writer
+ * @param revisionBuilder the revision builder
  */
 final class IndexedTableFactoryImpl(
     private val keeper: Keeper,
@@ -111,6 +114,10 @@ final class IndexedTableFactoryImpl(
  *
  * @param tableID the table identifier
  * @param keeper the keeper
+ * @param indexManager the index manager
+ * @param metadataManager the metadata manager
+ * @param dataWriter the data writer
+ * @param revisionBuilder the revision builder
  */
 private[table] class IndexedTableImpl(
     val tableID: QTableID,
@@ -175,7 +182,7 @@ private[table] class IndexedTableImpl(
     snapshotCache = None
   }
 
-  def checkColumnsToMatchSchema(indexStatus: IndexStatus): Unit = {
+  private def checkColumnsToMatchSchema(indexStatus: IndexStatus): Unit = {
     val columnsToIndex = indexStatus.revision.columnTransformers.map(_.columnName)
     if (!snapshot.loadLatestRevision.matchColumns(columnsToIndex)) {
       throw AnalysisExceptionFactory.create(

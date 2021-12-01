@@ -33,15 +33,16 @@ class SampleRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
   }
 
   /**
-   * Transforms the Sample Operator to a Filter if suited
+   * Transforms the Sample Operator to a Filter
    * @param sample the Sample Operator
-   * @param logicalRelation the relation underneath
-   * @return the new LogicalPlan containing the Filter
+   * @param logicalRelation the LogicalRelation underneath
+   * @param qbeastBaseRelation the wrapped QbeastBaseRelation
+   * @return the new Filter
    */
   private def transformSampleToFilter(
       sample: Sample,
       logicalRelation: LogicalRelation,
-      qbeastBaseRelation: QbeastBaseRelation): LogicalPlan = {
+      qbeastBaseRelation: QbeastBaseRelation): Filter = {
 
     val weightRange = extractWeightRange(sample)
 
@@ -49,28 +50,31 @@ class SampleRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
       qbeastBaseRelation.columnTransformers.map(c =>
         logicalRelation.output.find(_.name == c.columnName).get)
     val qbeastHash = new QbeastMurmur3Hash(columns)
-    val filter = And(
-      LessThan(qbeastHash, Literal(weightRange.to.value)),
-      GreaterThanOrEqual(qbeastHash, Literal(weightRange.from.value)))
-    Filter(filter, logicalRelation)
+
+    Filter(
+      And(
+        LessThan(qbeastHash, Literal(weightRange.to.value)),
+        GreaterThanOrEqual(qbeastHash, Literal(weightRange.from.value))),
+      sample.child)
 
   }
 
   override def apply(plan: LogicalPlan): LogicalPlan = {
-    plan transformDown {
+    plan transformDown { case s @ Sample(_, _, false, _, child) =>
+      child match {
+        case QbeastRelation(l, q) => transformSampleToFilter(s, l, q)
 
-      case s @ Sample(_, _, false, _, QbeastRelation(l, q)) => transformSampleToFilter(s, l, q)
+        case Project(_, Filter(_, QbeastRelation(l, q))) =>
+          transformSampleToFilter(s, l, q)
 
-      case s @ Sample(_, _, false, _, child) =>
-        child match {
-          case Project(projectList, Filter(condition, QbeastRelation(l, q))) =>
-            Project(projectList, Filter(condition, transformSampleToFilter(s, l, q)))
-          case Filter(condition, QbeastRelation(l, q)) =>
-            Filter(condition, transformSampleToFilter(s, l, q))
-          case Project(projectList, QbeastRelation(l, q)) =>
-            Project(projectList, transformSampleToFilter(s, l, q))
-          case _ => s
-        }
+        case Filter(_, QbeastRelation(l, q)) =>
+          transformSampleToFilter(s, l, q)
+
+        case Project(_, QbeastRelation(l, q)) =>
+          transformSampleToFilter(s, l, q)
+
+        case _ => s
+      }
 
     }
   }

@@ -4,6 +4,12 @@ import io.qbeast.core.keeper.Keeper
 
 import scala.reflect.ClassTag
 
+/**
+ * Qbeast Core main components
+ * @tparam DATA
+ * @tparam DataSchema
+ * @tparam FileAction
+ */
 trait QbeastCoreContext[DATA, DataSchema, FileAction] {
   def metadataManager: MetadataManager[DataSchema, FileAction]
   def dataWriter: DataWriter[DATA, DataSchema, FileAction]

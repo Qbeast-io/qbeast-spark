@@ -21,9 +21,11 @@ import org.apache.spark.sql.{AnalysisExceptionFactory, SaveMode, SparkSession}
  * DeltaMetadataWriter is in charge of writing data to a table
  * and report the necessary log information
  *
+ * @param tableID the table identifier
  * @param mode SaveMode of the writeMetadata
  * @param deltaLog deltaLog associated to the table
  * @param options options for writeMetadata operation
+ * @param schema the schema of the table
  */
 private[delta] case class DeltaMetadataWriter(
     tableID: QTableID,
