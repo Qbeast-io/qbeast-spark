@@ -49,25 +49,4 @@ class NormalizedWeightTest extends AnyFlatSpec with Matchers {
 
   }
 
-  it should "estimate correctly unbalanced distribution actual Paola's version" in {
-
-    def testDistrib(unbalancedDistribution: List[Int], desiredSize: Int = 10): Unit = {
-      val total = unbalancedDistribution.sum
-      val idealLoad = desiredSize.toDouble / total
-      val s = unbalancedDistribution.size
-      unbalancedDistribution
-        .map(NormalizedWeight(desiredSize / s, _))
-        .reduce(
-          NormalizedWeight.merge) * (desiredSize / s) shouldBe idealLoad +- (0.01 * idealLoad)
-    }
-    testDistrib(List(10, 10, 10, 2, 1, 10, 10, 1))
-    testDistrib(List(1000), desiredSize = 10)
-
-    /* testDistrib(List(10, 10, 10, 2, 1, 10, 10, 1), desiredSize = 1000)
-
-
-    testDistrib(List(1000), desiredSize = 10000)
-    testDistrib(List(1000, 1), desiredSize = 100) */
-
-  }
 }
