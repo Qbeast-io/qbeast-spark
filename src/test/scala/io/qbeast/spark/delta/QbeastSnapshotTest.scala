@@ -99,26 +99,23 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
     }
 
   it should "respect the (0.0, 1.0] range" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
-    withOTreeAlgorithm { _ =>
-      val df = createDF(100000)
-      val names = List("age", "val2")
+    val df = createDF(100000)
+    val names = List("age", "val2")
 
-      df.write
-        .format("qbeast")
-        .mode("overwrite")
-        .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> "10000"))
-        .save(tmpDir)
+    df.write
+      .format("qbeast")
+      .mode("overwrite")
+      .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> "10000"))
+      .save(tmpDir)
 
-      val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
-      val cubeWeights = qbeastSnapshot.loadLatestIndexStatus.cubesStatuses
+    val deltaLog = DeltaLog.forTable(spark, tmpDir)
+    val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
+    val cubeWeights = qbeastSnapshot.loadLatestIndexStatus.cubesStatuses
 
-      cubeWeights.values.foreach { case CubeStatus(weight, _, _) =>
-        weight shouldBe >(Weight.MinValue)
-        weight shouldBe <=(Weight.MaxValue)
-      }
+    cubeWeights.values.foreach { case CubeStatus(weight, _, _) =>
+      weight shouldBe >(Weight.MinValue)
+      weight shouldBe <=(Weight.MaxValue)
     }
-
   }
 
   "Overflowed set" should

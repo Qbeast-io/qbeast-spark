@@ -11,6 +11,9 @@ import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.functions.{col, udaf}
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
+/**
+ * Analyzes the data and extracts OTree structures
+ */
 trait OTreeDataAnalyzer {
 
   /**
@@ -174,13 +177,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         })
     }
 
-  // ANALYZE METHODS
-  /**
-   * @param dataFrame
-   * @param indexStatus
-   * @param isReplication
-   * @return
-   */
   override def analyze(
       dataFrame: DataFrame,
       indexStatus: IndexStatus,
