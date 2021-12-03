@@ -45,12 +45,15 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
   private lazy val logger = org.apache.log4j.LogManager.getLogger(this.getClass)
 
-  private[this] def calculateRevisionChanges(
+  private[index] def calculateRevisionChanges(
       data: DataFrame,
       revision: Revision): Option[RevisionChange] = {
+
     val columnStats = revision.columnTransformers.map(_.stats)
     val columnsExpr = columnStats.flatMap(_.columns)
-    val newTransformation = if (columnsExpr.isEmpty) {
+    def needStats = columnsExpr.nonEmpty
+
+    val newTransformation = if (!needStats) {
       revision.columnTransformers.map(_.makeTransformation(identity))
     } else {
       // This is a actions that will be executed on the dataframe

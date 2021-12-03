@@ -13,10 +13,12 @@ import com.fasterxml.jackson.databind.{DeserializationContext, SerializerProvide
 import io.qbeast.core.model.{
   DecimalDataType,
   DoubleDataType,
+  FloatDataType,
   IntegerDataType,
   LongDataType,
   OrderedDataType
 }
+
 import java.math.BigDecimal
 
 /**
@@ -133,6 +135,8 @@ class LinearTransformationDeserializer
     (odt, tree.get("minNumber"), tree.get("maxNumber")) match {
       case (DoubleDataType, mn: DoubleNode, mx: DoubleNode) =>
         LinearTransformation(mn.asDouble(), mx.asDouble(), odt)
+      case (FloatDataType, mn: DoubleNode, mx: DoubleNode) =>
+        LinearTransformation(mn.floatValue(), mx.floatValue(), odt)
       case (IntegerDataType, mn: IntNode, mx: IntNode) =>
         LinearTransformation(mn.asInt(), mx.asInt(), odt)
       case (LongDataType, mn: NumericNode, mx: NumericNode) =>

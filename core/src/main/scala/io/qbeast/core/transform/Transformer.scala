@@ -111,7 +111,7 @@ trait Transformer extends Serializable {
     }
   }
 
-  def spec: String = s"$columnName/${transformerType.transformerSimpleName}"
+  def spec: String = s"$columnName:${transformerType.transformerSimpleName}"
 
 }
 

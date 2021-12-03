@@ -7,6 +7,13 @@ object TestClasses {
 
   case class T3(a: Int, b: Double, c: String, d: Float)
 
+  case class TestStrings(a: String, b: String, c: String)
+  case class TestDouble(a: Double, b: Double, c: Double)
+  case class TestFloat(a: Float, b: Float, c: Float)
+  case class TestBigDecimal(a: BigDecimal, b: BigDecimal, c: BigDecimal)
+  case class TestInt(a: Int, b: Int, c: Int)
+  case class TestLong(a: Long, b: Long, c: Long)
+
   case class IndexData(id: Long, cube: Array[Byte], weight: Double, state: String)
 
   case class Client1(id: Option[Long], name: Option[String], age: Option[Int])
