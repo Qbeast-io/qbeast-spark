@@ -1,14 +1,7 @@
 import Dependencies._
 
-lazy val qbeastCore = (project in file("core")).settings(
-  name := "qbeast-core",
-  libraryDependencies ++= Seq(
-    "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.12.0",
-    typesafeConf,
-    sparkFastTests % Test,
-    scalaTest % Test,
-    mockito % Test,
-    apacheCommons % Test))
+lazy val qbeastCore = (project in file("core"))
+  .settings(name := "qbeast-core", libraryDependencies ++= Seq(apacheCommons % Test))
 
 // Projects
 lazy val qbeastSpark = (project in file("."))
@@ -16,15 +9,10 @@ lazy val qbeastSpark = (project in file("."))
   .settings(
     name := "qbeast-spark",
     libraryDependencies ++= Seq(
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.12.0",
       sparkCore % Provided,
       sparkSql % Provided,
       hadoopClient % Provided,
       deltaCore % Provided,
-      typesafeConf,
-      sparkFastTests % Test,
-      scalaTest % Test,
-      mockito % Test,
       amazonAws % Test,
       hadoopCommons % Test,
       hadoopAws % Test),
@@ -44,6 +32,12 @@ ThisBuild / organization := "io.qbeast"
 ThisBuild / organizationName := "Qbeast Analytics, S.L."
 ThisBuild / organizationHomepage := Some(url("https://qbeast.io/"))
 ThisBuild / startYear := Some(2021)
+ThisBuild / libraryDependencies ++= Seq(
+  fasterxml % Provided,
+  typesafeConf,
+  sparkFastTests % Test,
+  scalaTest % Test,
+  mockito % Test)
 
 // Scala compiler settings
 ThisBuild / scalaVersion := "2.12.12"

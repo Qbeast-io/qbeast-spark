@@ -19,4 +19,5 @@ object Dependencies {
   val amazonAws = "com.amazonaws" % "aws-java-sdk" % "1.12.20"
   val hadoopCommons = "org.apache.hadoop" % "hadoop-common" % hadoopVersion
   val hadoopAws = "org.apache.hadoop" % "hadoop-aws" % hadoopVersion
+  val fasterxml = "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.12.0"
 }
