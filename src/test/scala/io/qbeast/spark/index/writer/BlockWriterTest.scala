@@ -120,6 +120,6 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
         CubeId(dimensionCount, row.getAs[Array[Byte]](0)).string
       }
       .toSet
-    assert(files.map(_.tags(TagUtils.cube)).forall(cube => cubes.contains(cube)))
+    files.map(_.tags(TagUtils.cube)).forall(cube => cubes.contains(cube)) shouldBe true
   }
 }

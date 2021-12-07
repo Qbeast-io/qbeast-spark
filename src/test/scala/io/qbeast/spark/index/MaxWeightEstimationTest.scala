@@ -29,7 +29,7 @@ class MaxWeightEstimationTest extends AnyFlatSpec with Matchers with QbeastInteg
     MaxWeightEstimation.finish(finalWeight) shouldBe finalWeight
   }
 
-  "MaxWeight zero" should "be minium positive value" in {
+  "MaxWeight zero" should "be minimum positive value" in {
     MaxWeightEstimation.zero shouldBe 0.0
   }
 

@@ -3,6 +3,7 @@ package io.qbeast.docs
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.input_file_name
+import org.scalatest.AppendedClues.convertToClueful
 
 class DocumentationTests extends QbeastIntegrationTestSpec {
 
@@ -28,8 +29,10 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
           .format("qbeast")
           .load(tmp_dir)
 
-      assert(qbeast_df.count() == csv_df.count(), "Readme count does not match the original")
-      assert(qbeast_df.schema == csv_df.schema, "Readme schema does not match the original")
+      qbeast_df.count() shouldBe csv_df
+        .count() withClue "Readme count does not match the original"
+
+      qbeast_df.schema shouldBe csv_df.schema withClue "Readme schema does not match the original"
 
     }
   }
@@ -49,10 +52,10 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
 
       val qbeastDf = spark.read.format("qbeast").load(qbeastTablePath)
 
-      assert(
-        qbeastDf.count() == parquetDf.count(),
-        "Quickstart count does not match the original")
-      assert(qbeastDf.schema == parquetDf.schema, "Quickstart schema does not match the original")
+      qbeastDf.count() shouldBe parquetDf.count() withClue
+        "Quickstart count does not match the original"
+      qbeastDf.schema shouldBe parquetDf.schema withClue
+        "Quickstart schema does not match the original"
     }
   }
 
@@ -83,29 +86,27 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
       val df = spark.read.format("parquet").load(processed_parquet_dir)
       val qbeast_df = spark.read.format("qbeast").load(qbeast_table_path)
 
-      assert(
-        qbeast_df.count() == df.count(),
-        "Pushdown notebook count of indexed dataframe does not match the original")
+      qbeast_df.count() shouldBe df.count() withClue
+        "Pushdown notebook count of indexed dataframe does not match the original"
 
       // Table changes?
 
       val deltaLog = DeltaLog.forTable(spark, qbeast_table_path)
       val totalNumberOfFiles = deltaLog.snapshot.allFiles.count()
-      assert(
-        totalNumberOfFiles == 21,
-        "Total number of files in pushdown notebook changes to " + totalNumberOfFiles)
+
+      totalNumberOfFiles shouldBe 21 withClue
+        "Total number of files in pushdown notebook changes to " + totalNumberOfFiles
 
       val query = qbeast_df.sample(0.1)
       val numberOfFilesQuery = query.select(input_file_name()).distinct().count()
-      assert(
-        numberOfFilesQuery == 1,
-        "Number of files read in pushdown notebook changes to " + numberOfFilesQuery)
+      numberOfFilesQuery shouldBe 1 withClue
+        "Number of files read in pushdown notebook changes to " + numberOfFilesQuery
 
       val file = query.select(input_file_name()).distinct().head().getString(0)
       val numberOfRowsRead = spark.read.format("parquet").load(file).count()
-      assert(
-        numberOfRowsRead == 302715,
-        "Number of rows read in pushdown notebook changes to " + numberOfRowsRead)
+
+      numberOfRowsRead shouldBe 302715 withClue
+        "Number of rows read in pushdown notebook changes to " + numberOfRowsRead
 
     }
   }

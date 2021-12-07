@@ -60,7 +60,7 @@ class NewRevisionTest
           revisions
             .map(revision =>
               qbeastSnapshot.loadIndexStatus(revision.revisionID).cubeNormalizedWeights)
-        allWM.foreach(wm => assert(wm.nonEmpty))
+        allWM.foreach(wm => wm should not be empty)
     }
 
   it should

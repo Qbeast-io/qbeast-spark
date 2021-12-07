@@ -3,21 +3,22 @@ package io.qbeast.spark.index
 import io.qbeast.core.model.{CubeId, Revision, TableChanges, Weight}
 import io.qbeast.spark.index.QbeastColumns.cubeColumnName
 import org.apache.spark.sql.DataFrame
+import org.scalatest.AppendedClues.convertToClueful
+import org.scalatest.matchers.should.Matchers
 
-object IndexTestChecks {
+trait IndexTestChecks extends Matchers {
 
   def checkDFSize(indexed: DataFrame, original: DataFrame): Unit = {
     val indexedSize = indexed.count()
     val originalSize = original.count()
-    assert(
-      indexedSize == originalSize,
-      s"Indexed dataset has size ${indexedSize} and original has size $originalSize")
+    indexedSize shouldBe originalSize withClue
+      s"Indexed dataset has size $indexedSize and original has size $originalSize"
   }
 
   def checkCubeSize(tableChanges: TableChanges, revision: Revision, indexed: DataFrame): Unit = {
     val weightMap: Map[CubeId, Weight] = tableChanges.indexChanges.cubeWeights
     val desiredCubeSize = revision.desiredCubeSize
-    val minSize = desiredCubeSize * 0.9
+    val minSize = (desiredCubeSize * 0.9).toLong
 
     val cubeSizes = indexed
       .groupBy(cubeColumnName)
@@ -33,9 +34,8 @@ object IndexTestChecks {
           if (weight != Weight.MaxValue) {
             // If the weight is not set to MaxValue,
             // then the size should be greater than the desiredCubeSize
-            assert(
-              size > minSize,
-              s"cube ${cubeId.string} appear as overflowed but has size $size")
+            (size should be > minSize) withClue
+              s"cube ${cubeId.string} appear as overflowed but has size $size"
 
             // And parent cube should be overflowed as well
             cubeId.parent match {
@@ -44,14 +44,14 @@ object IndexTestChecks {
               case Some(parent) if weightMap.contains(parent) && cubeSizes.contains(parent) =>
                 val weightParent = weightMap(parent)
                 val parentSize = cubeSizes(parent)
-                assert(
-                  weightParent != Weight.MaxValue && size > minSize,
-                  s"cube ${cubeId.string} is overflowed but parent ${parent.string} is not" +
-                    s" It has weight ${weightParent} and size ${parentSize}")
+                weightParent should not be Weight.MaxValue
+
+                (size should be > minSize) withClue
+                  s"cube $cubeId is overflowed but parent ${parent.string} is not" +
+                  s" It has weight $weightParent and size $parentSize"
 
               case Some(parent) =>
-                assert(
-                  false,
+                fail(
                   s"Parent ${parent.string} of ${cubeId.string}" +
                     s" does not appear in weight map or data")
 
@@ -64,17 +64,14 @@ object IndexTestChecks {
 
   def checkCubes(weightMap: Map[CubeId, Weight]): Unit = {
 
-    def checkCubeParents(): Unit = weightMap.foreach { case (cube, _) =>
+    weightMap.foreach { case (cube, _) =>
       cube.parent match {
         case Some(parent) =>
-          assert(
-            weightMap.contains(parent),
-            s"parent ${parent.string} of ${cube.string} does not appear in the list of cubes")
+          (weightMap should contain key parent) withClue
+            s"parent ${parent.string} of ${cube.string} does not appear in the list of cubes"
         case None => // root cube
       }
     }
-
-    checkCubeParents()
   }
 
   def checkCubesOnData(
@@ -92,9 +89,9 @@ object IndexTestChecks {
       cubesOnData.foreach { cube =>
         cube.parent match {
           case Some(parent) =>
-            assert(
-              cubesOnData.contains(parent),
-              s"Parent ${parent.string} of ${cube.string} does not appear in the indexed data")
+            (cubesOnData should contain(parent)) withClue
+              s"Parent ${parent.string} of ${cube.string} does not appear in the indexed data"
+
           case None => // root cube
         }
       }
@@ -103,13 +100,15 @@ object IndexTestChecks {
     def checkDataWithWeightMap(): Unit = {
       cubesOnData.foreach { cube =>
         if (cube.isRoot) {
-          assert(weightMap.contains(cube), s"Cube root appears in data but not in weight map")
+
+          (weightMap should contain key cube) withClue
+            s"Cube root appears in data but not in weight map"
         } else {
           val parent = cube.parent.get
-          assert(
-            weightMap.contains(cube) || weightMap.contains(parent),
+
+          (weightMap should (contain key cube or contain key parent)) withClue
             s"Either weight map doesn't contain ${cube.string}" +
-              s" or doesn't contain it's parent ${parent.string}")
+            s" or doesn't contain it's parent ${parent.string}"
         }
       }
     }
@@ -127,10 +126,9 @@ object IndexTestChecks {
       }
       // scalastyle:off
       childrenWeights.foreach { case (child, childWeight) =>
-        assert(
-          childWeight >= maxWeight,
+        childWeight should be >= maxWeight withClue
           s"MaxWeight of child ${child.string} is ${childWeight.fraction} " +
-            s"and maxWeight of parent ${cube.string} is ${maxWeight.fraction}")
+          s"and maxWeight of parent ${cube.string} is ${maxWeight.fraction}"
       }
     }
   }

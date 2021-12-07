@@ -5,7 +5,6 @@ package io.qbeast.spark.index
 
 import io.qbeast.TestClasses.{Client3, Client4}
 import io.qbeast.core.model._
-import io.qbeast.spark.index.IndexTestChecks._
 import io.qbeast.spark.index.QbeastColumns.cubeColumnName
 import io.qbeast.spark.utils.TagUtils
 import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
@@ -17,7 +16,11 @@ import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec {
+class IndexTest
+    extends AnyFlatSpec
+    with Matchers
+    with QbeastIntegrationTestSpec
+    with IndexTestChecks {
 
   // TEST CONFIGURATIONS
   private val options = Map("columnsToIndex" -> "age,val2", "cubeSize" -> "10000")
@@ -95,7 +98,7 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
 
         val (indexed, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
-        checkCubesOnData(tc.indexChanges.cubeWeights, indexed, 2)
+        checkCubesOnData(tc.indexChanges.cubeWeights, indexed, dimensionCount = 2)
       }
     }
   }

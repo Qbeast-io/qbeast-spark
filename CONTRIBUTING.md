@@ -5,7 +5,7 @@ Welcome to the Qbeast community! Nice to meet you :)
 Either you want to know more about our guidelines or open a Pull Request, this is your page. We are pleased to help you through the different steps for contributing to our (your) project. 
 
 ## Licensing of contributed material
-All contributed code, docs, and otro materials are considered licensed under the same terms as the rest of the project. Check [LICENSE](./LICENCE) for more details.
+All contributed code, docs, and other materials are considered licensed under the same terms as the rest of the project. Check [LICENSE](./LICENCE) for more details.
 
 ## Version control branching
 - Always make a new branch for your work, no matter how small

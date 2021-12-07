@@ -390,4 +390,6 @@ case class CubeId(dimensionCount: Int, depth: Int, bitMask: Array[Long]) extends
     (Point(from.toIndexedSeq), Point(to.toIndexedSeq))
   }
 
+  override def toString: String = s"CubeId($dimensionCount, $depth, $string)"
+
 }

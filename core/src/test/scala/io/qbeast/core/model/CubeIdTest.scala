@@ -10,7 +10,7 @@ import org.scalatest.matchers.should.Matchers
  * Tests for CubeId.
  */
 class CubeIdTest extends AnyFlatSpec with Matchers {
-  "CubeId" should "implement equals corretly" in {
+  "CubeId" should "implement equals correctly" in {
     val id1 = CubeId.root(2)
     val id2 = id1.firstChild
     val id3 = id1.firstChild

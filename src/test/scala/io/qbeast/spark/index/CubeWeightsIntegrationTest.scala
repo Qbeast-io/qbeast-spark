@@ -44,7 +44,7 @@ class CubeWeightsIntegrationTest extends QbeastIntegrationTestSpec {
 
           // commitLogWeightMap shouldBe weightMap
           commitLogWeightMap.keys.foreach(cubeId => {
-            assert(weightMap.contains(cubeId) || weightMap.contains(cubeId.parent.get))
+            weightMap should contain key cubeId
           })
         }
 

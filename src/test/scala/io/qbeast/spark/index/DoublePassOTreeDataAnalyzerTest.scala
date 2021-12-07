@@ -199,7 +199,8 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val weightedDataFrame =
       data.withColumn(weightColumnName, lit(scala.util.Random.nextInt()))
     val cubeNormalizedWeights =
-      weightedDataFrame.transform(estimatePartitionCubeWeights(revision, indexStatus, false))
+      weightedDataFrame.transform(
+        estimatePartitionCubeWeights(revision, indexStatus, isReplication = false))
 
     val partitions = weightedDataFrame.rdd.getNumPartitions
 
@@ -225,7 +226,8 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val weightedDataFrame =
       data.withColumn(weightColumnName, lit(scala.util.Random.nextInt()))
     val cubeNormalizedWeights =
-      weightedDataFrame.transform(estimatePartitionCubeWeights(revision, indexStatus, false))
+      weightedDataFrame.transform(
+        estimatePartitionCubeWeights(revision, indexStatus, isReplication = false))
 
     val cubeWeights = cubeNormalizedWeights.transform(estimateCubeWeights(revision))
     cubeWeights.columns.length shouldBe 2
