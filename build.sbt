@@ -27,7 +27,7 @@ lazy val qbeastSparkNodep = (project in file("nodep"))
   .settings(name := "qbeast-spark-nodep", Compile / packageBin := (qbeastSpark / assembly).value)
 
 // Common metadata
-ThisBuild / version := "0.1.0"
+ThisBuild / version := "0.2.0"
 ThisBuild / organization := "io.qbeast"
 ThisBuild / organizationName := "Qbeast Analytics, S.L."
 ThisBuild / organizationHomepage := Some(url("https://qbeast.io/"))
