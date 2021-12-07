@@ -28,8 +28,8 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
 
     "column:LinearTransformer" match {
       case SpecExtractor(column, transformer) =>
-        assert(column == "column")
-        assert(transformer == "LinearTransformer")
+        column shouldBe "column"
+        transformer shouldBe "LinearTransformer"
       case _ => fail("It did not recognize the type")
     }
 
@@ -37,7 +37,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
       case SpecExtractor(column, transformer) =>
         fail("It shouldn't be here")
       case column =>
-        assert(column == "column")
+        column shouldBe "column"
     }
   }
 

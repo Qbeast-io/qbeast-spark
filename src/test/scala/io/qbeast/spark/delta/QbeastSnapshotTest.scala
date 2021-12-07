@@ -10,6 +10,7 @@ import io.qbeast.spark.utils.TagUtils
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{Dataset, SparkSession}
+import org.scalatest.AppendedClues.convertToClueful
 
 class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
 
@@ -133,10 +134,10 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
                 .map(fileInfo)
                 .map(a => a.tags(TagUtils.elementCount).toLong)
                 .sum
-              assert(
-                size > cubeSize * 0.9,
+
+              size should be > (cubeSize * 0.9).toLong withClue
                 "assertion failed in cube " + cube +
-                  " where size is " + size + " and weight is " + weight)
+                " where size is " + size + " and weight is " + weight
             }
         }
     }
