@@ -1,7 +1,11 @@
 import Dependencies._
 
+lazy val qbeastCore = (project in file("core"))
+  .settings(name := "qbeast-core", libraryDependencies ++= Seq(apacheCommons % Test))
+
 // Projects
 lazy val qbeastSpark = (project in file("."))
+  .dependsOn(qbeastCore)
   .settings(
     name := "qbeast-spark",
     libraryDependencies ++= Seq(
@@ -9,10 +13,9 @@ lazy val qbeastSpark = (project in file("."))
       sparkSql % Provided,
       hadoopClient % Provided,
       deltaCore % Provided,
-      typesafeConf,
-      sparkFastTests % Test,
-      scalaTest % Test,
-      mockito % Test),
+      amazonAws % Test,
+      hadoopCommons % Test,
+      hadoopAws % Test),
     Test / parallelExecution := false,
     assembly / test := {},
     assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false),
@@ -24,11 +27,17 @@ lazy val qbeastSparkNodep = (project in file("nodep"))
   .settings(name := "qbeast-spark-nodep", Compile / packageBin := (qbeastSpark / assembly).value)
 
 // Common metadata
-ThisBuild / version := "0.1.0"
+ThisBuild / version := "0.2.0"
 ThisBuild / organization := "io.qbeast"
 ThisBuild / organizationName := "Qbeast Analytics, S.L."
 ThisBuild / organizationHomepage := Some(url("https://qbeast.io/"))
 ThisBuild / startYear := Some(2021)
+ThisBuild / libraryDependencies ++= Seq(
+  fasterxml % Provided,
+  typesafeConf,
+  sparkFastTests % Test,
+  scalaTest % Test,
+  mockito % Test)
 
 // Scala compiler settings
 ThisBuild / scalaVersion := "2.12.12"

@@ -3,100 +3,26 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.index.OTreeAlgorithmTest.{Client3, Client4}
+import io.qbeast.TestClasses.{Client3, Client4}
+import io.qbeast.core.model._
+import io.qbeast.spark.index.IndexTestChecks._
 import io.qbeast.spark.index.QbeastColumns.cubeColumnName
-import io.qbeast.spark.sql.qbeast.QbeastSnapshot
+import io.qbeast.spark.utils.TagUtils
+import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
 import org.apache.spark.SparkException
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.types.{IntegerType, LongType}
 import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec {
 
-  def checkCubeSize(
-      weightMap: Map[CubeId, Weight],
-      indexed: DataFrame,
-      dimensionCount: Int,
-      desiredSize: Int): Unit = {
+  // TEST CONFIGURATIONS
+  private val options = Map("columnsToIndex" -> "age,val2", "cubeSize" -> "10000")
 
-    val cubeSizes = indexed
-      .groupBy(cubeColumnName)
-      .count()
-      .collect()
-      .map(row =>
-        (
-          CubeId(dimensionCount, row.getAs[Array[Byte]](cubeColumnName)),
-          row.getAs[Long]("count")))
-      .toMap
-
-    cubeSizes.foreach { case (cubeId: CubeId, size: Long) =>
-      weightMap.get(cubeId) match {
-        case Some(weight) =>
-          if (weight != Weight.MaxValue) {
-            assert(
-              size > desiredSize * 0.9,
-              s"cube ${cubeId.string} appear as overflowed but has size $size")
-
-            cubeId.parent match {
-              case None => // cube is root
-              case Some(parent) =>
-                assert(
-                  cubeSizes(parent) > desiredSize * 0.9,
-                  s"cube ${cubeId.string} is overflowed but parent ${parent.string} is not")
-            }
-          }
-        case None =>
-      }
-    }
-  }
-
-  def checkCubes(weightMap: Map[CubeId, Weight]): Unit = {
-
-    weightMap.foreach { case (cube, _) =>
-      cube.parent.foreach { parent =>
-        assert(
-          weightMap.contains(parent),
-          s"parent ${parent.string} of ${cube.string} does not appear in the list of cubes")
-      }
-    }
-  }
-
-  def checkCubesOnData(
-      weightMap: Map[CubeId, Weight],
-      indexed: DataFrame,
-      dimensionCount: Int): Unit = {
-
-    indexed
-      .select(cubeColumnName)
-      .distinct()
-      .collect()
-      .foreach(row => {
-        val cube = CubeId(dimensionCount, row.getAs[Array[Byte]](cubeColumnName))
-        assert(weightMap.contains(cube) || weightMap.contains(cube.parent.get))
-      })
-  }
-
-  def checkWeightsIncrement(weightMap: Map[CubeId, Weight]): Unit = {
-
-    weightMap.foreach { case (cube: CubeId, maxWeight: Weight) =>
-      val children = cube.children.toSet
-      val childrenWeights = weightMap.filter { case (candidate, _) =>
-        children.contains(candidate)
-      }
-      childrenWeights.foreach { case (child, childWeight) =>
-        assert(
-          childWeight >= maxWeight,
-          s"assertion failed" +
-            s" max weight of son ${child.string} is ${childWeight.fraction} " +
-            s"and max weight of parent ${cube.string} is ${maxWeight.fraction}")
-      }
-    }
-  }
-
-  def createDF(): DataFrame = {
+  private def createDF(): DataFrame = {
     val spark = SparkSession.active
 
     val rdd =
@@ -107,50 +33,97 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
     spark.createDataFrame(rdd)
   }
 
-  "Indexing method" should "respect the desired cube size" in withSpark { spark =>
+  // Check correctness
+
+  "Indexing method" should "respect the desired cube size" in withSpark { _ =>
     withOTreeAlgorithm { oTreeAlgorithm =>
       {
         val df = createDF()
-        val names = List("age", "val2")
-        val (indexed, _, weightMap) = oTreeAlgorithm.indexFirst(df, names)
+        val rev = SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, options)
 
-        checkCubeSize(weightMap, indexed, names.length, oTreeAlgorithm.desiredCubeSize)
+        val (indexed, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
+
+        checkCubeSize(tc, rev, indexed)
       }
     }
   }
 
-  it should "not miss any cube" in withSpark { spark =>
+  it should "respect the size of the data" in withSpark { _ =>
     withOTreeAlgorithm { oTreeAlgorithm =>
       {
         val df = createDF()
-        val names = List("age", "val2")
-        val (_, _, weightMap) = oTreeAlgorithm.indexFirst(df, names)
+        val rev = SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, options)
 
+        val (indexed, _) = oTreeAlgorithm.index(df, IndexStatus(rev))
+
+        checkDFSize(indexed, df)
+      }
+    }
+  }
+
+  it should "not miss any cube" in withSpark { _ =>
+    withOTreeAlgorithm { oTreeAlgorithm =>
+      {
+        val df = createDF()
+        val rev = SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, options)
+
+        val (_, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
+
+        checkCubes(tc.indexChanges.cubeWeights)
+      }
+    }
+  }
+
+  it should "respect the weight of the fathers" in withSpark { _ =>
+    withOTreeAlgorithm { oTreeAlgorithm =>
+      {
+        val df = createDF()
+        val rev = SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, options)
+
+        val (_, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
+
+        checkWeightsIncrement(tc.indexChanges.cubeWeights)
+      }
+    }
+  }
+
+  it should "add only leaves to indexed data" in withSpark { _ =>
+    withOTreeAlgorithm { oTreeAlgorithm =>
+      {
+        val df = createDF()
+        val rev = SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, options)
+
+        val (indexed, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
+
+        checkCubesOnData(tc.indexChanges.cubeWeights, indexed, 2)
+      }
+    }
+  }
+
+  it should "work with smaller values" in withSpark { spark =>
+    withOTreeAlgorithm { oTreeAlgorithm =>
+      {
+
+        val rdd =
+          spark.sparkContext.parallelize(
+            0.to(1000)
+              .map(i => Client3(i * i, s"student-$i", i, i * 1000 + 123, i * 2567.3432143)))
+
+        val df = spark.createDataFrame(rdd)
+        val smallCubeSize = 10
+        val rev = SparkRevisionFactory.createNewRevision(
+          QTableID("test"),
+          df.schema,
+          Map("columnsToIndex" -> "age,val2", "cubeSize" -> smallCubeSize.toString))
+
+        val (indexed, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
+        val weightMap = tc.indexChanges.cubeWeights
+
+        checkDFSize(indexed, df)
         checkCubes(weightMap)
-      }
-    }
-  }
-
-  it should "respect the weight of the fathers" in withSpark { spark =>
-    withOTreeAlgorithm { oTreeAlgorithm =>
-      {
-        val df = createDF()
-        val names = List("age", "val2")
-        val (_, _, weightMap) = oTreeAlgorithm.indexFirst(df, names)
-
         checkWeightsIncrement(weightMap)
-      }
-    }
-  }
-
-  it should "add only leaves to indexed data" in withSpark { spark =>
-    withOTreeAlgorithm { oTreeAlgorithm =>
-      {
-        val df = createDF()
-        val names = List("age", "val2")
-        val (indexed, _, weightMap) = oTreeAlgorithm.indexFirst(df, names)
-
-        checkCubesOnData(weightMap, indexed, names.length)
+        checkCubesOnData(weightMap, indexed, 2)
+        checkCubeSize(tc, rev, indexed)
       }
     }
   }
@@ -167,13 +140,18 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
           .load(inputPath + file1)
           .distinct()
 
-        val names = List("user_id", "product_id")
-        val (indexed, _, weightMap) = oTreeAlgorithm.indexFirst(df, names)
+        val rev = SparkRevisionFactory.createNewRevision(
+          QTableID("test"),
+          df.schema,
+          Map("columnsToIndex" -> "user_id,product_id", "cubeSize" -> "10000"))
+        val (indexed, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
+        val weightMap = tc.indexChanges.cubeWeights
 
+        checkDFSize(indexed, df)
         checkCubes(weightMap)
         checkWeightsIncrement(weightMap)
-        checkCubesOnData(weightMap, indexed, names.length)
-        checkCubeSize(weightMap, indexed, names.length, oTreeAlgorithm.desiredCubeSize)
+        checkCubesOnData(weightMap, indexed, 2)
+        checkCubeSize(tc, rev, indexed)
 
       }
     }
@@ -183,36 +161,41 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
     (spark, tmpDir) =>
       withOTreeAlgorithm { oTreeAlgorithm =>
         val df = createDF()
-        val names = List("age", "val2")
-        val (i, _, _) = oTreeAlgorithm.indexFirst(df, names)
+        val tableId = new QTableID(tmpDir)
+        val rev = SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, options)
+
+        val (i, _) = oTreeAlgorithm.index(df, IndexStatus(rev))
         val firstIndexed = i.withColumnRenamed(cubeColumnName, cubeColumnName + "First")
 
         df.write
           .format("qbeast")
           .mode("overwrite")
-          .option("columnsToIndex", names.mkString(","))
+          .options(options)
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
+        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
 
         val offset = 0.5
         val appendData = df
-          .withColumn("age", col("age") * offset)
-          .withColumn("val2", col("val2") * offset)
-        val (indexed, _, weightMap) =
-          oTreeAlgorithm.indexNext(appendData, qbeastSnapshot.lastRevisionData, Set.empty)
+          .withColumn("age", (col("age") * offset).cast(IntegerType))
+          .withColumn("val2", (col("val2") * offset).cast(LongType))
 
-        checkCubes(weightMap)
-        checkWeightsIncrement(weightMap)
-        checkCubesOnData(weightMap, indexed, names.length)
+        val appendRev =
+          SparkRevisionFactory.createNewRevision(tableId, appendData.schema, options)
+        val (indexed, tc) =
+          oTreeAlgorithm.index(appendData, qbeastSnapshot.loadLatestIndexStatus)
+
+        checkDFSize(indexed, df)
+        checkCubes(tc.indexChanges.cubeWeights)
+        checkWeightsIncrement(tc.indexChanges.cubeWeights)
+        checkCubesOnData(tc.indexChanges.cubeWeights, indexed, 2)
         checkCubeSize(
-          weightMap,
+          tc,
+          appendRev,
           indexed.join(
             firstIndexed,
-            firstIndexed(cubeColumnName + "First") === indexed(cubeColumnName)),
-          names.length,
-          oTreeAlgorithm.desiredCubeSize)
+            firstIndexed(cubeColumnName + "First") === indexed(cubeColumnName)))
 
       }
 
@@ -235,10 +218,10 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
                 } else Client4(i * i, s"student-$i", None, None, None)
               }))
         val df = spark.createDataFrame(rdd)
-        val names = List("age", "val2")
 
         try {
-          oTreeAlgorithm.indexFirst(df, names)
+          val rev = SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, options)
+          oTreeAlgorithm.index(df, IndexStatus(rev))
           fail()
         } catch {
           case e: SparkException if e.getCause.isInstanceOf[AnalysisException] =>
@@ -251,26 +234,25 @@ class IndexTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec
     withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
       withOTreeAlgorithm { oTreeAlgorithm =>
         val df = createDF()
-        val names = List("age", "val2")
-        val (_, _, weightMap) = oTreeAlgorithm.indexFirst(df, names)
-        val dimensionCount = names.length
+        val rev = SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, options)
+        val (_, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
         df.write
           .format("qbeast")
           .mode("overwrite")
-          .option("columnsToIndex", names.mkString(","))
+          .options(options)
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
 
         deltaLog.snapshot.allFiles.collect() foreach (f =>
           {
-            val cubeId = CubeId(dimensionCount, f.tags("cube"))
+            val cubeId = CubeId(2, f.tags("cube"))
             cubeId.parent match {
               case None => // cube is root
               case Some(parent) =>
-                val minWeight = Weight(f.tags("minWeight").toInt)
-                val parentMaxWeight = weightMap(parent)
+                val minWeight = Weight(f.tags(TagUtils.minWeight).toInt)
+                val parentMaxWeight = tc.indexChanges.cubeWeights(parent)
 
                 minWeight should be >= parentMaxWeight
             }

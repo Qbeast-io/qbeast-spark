@@ -25,15 +25,4 @@ object ColumnsToIndex {
    */
   def encode(columnsToIndex: Seq[String]): String = columnsToIndex.mkString(separator)
 
-  /**
-   * Returns whether two given sets of columns to index are the same,
-   * i.e. equals modulo some permutation.
-   *
-   * @param columnsToIndex the columns to index
-   * @param otherColumnsToIndex the other columns to index
-   * @return the seta are the same
-   */
-  def areSame(columnsToIndex: Seq[String], otherColumnsToIndex: Seq[String]): Boolean =
-    columnsToIndex.toSet == otherColumnsToIndex.toSet
-
 }
