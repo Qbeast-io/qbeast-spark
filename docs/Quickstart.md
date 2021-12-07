@@ -15,7 +15,7 @@ Inside the project folder, launch a spark-shell with the required **dependencies
 
 ```bash
 $SPARK_HOME/bin/spark-shell \
---jars ./target/scala-2.12/qbeast-spark-assembly-0.1.0.jar \
+--jars ./target/scala-2.12/qbeast-spark-assembly-0.2.0.jar \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
 --conf spark.hadoop.fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider \
 --packages io.delta:delta-core_2.12:1.0.0,\
@@ -48,12 +48,12 @@ Indexing the data with the desired columns, in this case `ss_cdemo_sk` and `ss_c
 ```scala
 val qbeastTablePath = "/tmp/qbeast-test-data/qtable"
 
-parquetDf.write
+(parquetDf.write
     .mode("overwrite")
     .format("qbeast")     // Saving the dataframe in a qbeast datasource
     .option("columnsToIndex", "ss_cdemo_sk,ss_cdemo_sk")      // Indexing the table
     .option("cubeSize", 300000) // The desired number of records of the resulting files/cubes. Default is 100000
-    .save(qbeastTablePath)
+    .save(qbeastTablePath))
 ```
 
 ## Sampling
