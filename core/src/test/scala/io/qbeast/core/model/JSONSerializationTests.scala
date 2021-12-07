@@ -77,7 +77,7 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
 
   }
 
-  "A revision" should "Serialize with all simple value a part from Transoform*" in {
+  "A revision" should "Serialize with all simple value a part from Transform*" in {
     val rev =
       Revision(
         12L,
@@ -96,7 +96,7 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
     mapper.readValue[Revision](json, classOf[Revision]) shouldBe rev
 
   }
-  "A revision" should "Serialize with all Long Transoform*" in {
+  "A revision" should "Serialize with all Long Transform*" in {
     val rev =
       Revision(
         12L,
@@ -115,7 +115,7 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
     mapper.readValue[Revision](json, classOf[Revision]) shouldBe rev
 
   }
-  "A revision" should "Serialize with all Hash Transoform*" in {
+  "A revision" should "Serialize with all Hash Transform*" in {
     val rev =
       Revision(
         12L,

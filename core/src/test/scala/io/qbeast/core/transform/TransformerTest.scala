@@ -6,7 +6,7 @@ import org.scalatest.matchers.should.Matchers
 
 class TransformerTest extends AnyFlatSpec with Matchers {
 
-  behavior of "Tranformer"
+  behavior of "Transformer"
 
   it should "return correct column name" in {
     val columnName = "a"
@@ -45,8 +45,8 @@ class TransformerTest extends AnyFlatSpec with Matchers {
     val transformation = Map("a_min" -> 0, "a_max" -> 1)
     val currentTransformation = transformer.makeTransformation(transformation)
 
-    val newTranformation = Map("a_min" -> 3, "a_max" -> 8)
-    transformer.maybeUpdateTransformation(currentTransformation, newTranformation) shouldBe Some(
+    val newTransformation = Map("a_min" -> 3, "a_max" -> 8)
+    transformer.maybeUpdateTransformation(currentTransformation, newTransformation) shouldBe Some(
       LinearTransformation(0, 8, dataType))
 
     transformer.maybeUpdateTransformation(currentTransformation, transformation) shouldBe None

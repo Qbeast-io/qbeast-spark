@@ -22,7 +22,7 @@ case class CubeDataLoader(tableID: QTableID) {
 
   /**
    * Loads the data from a set of cubes in a specific revision
-   * and adds column infomation
+   * and adds column information
    * @param cubeSet the set of cubes to load
    * @param revision the revision to load
    * @param columnName the column name to add
@@ -41,7 +41,7 @@ case class CubeDataLoader(tableID: QTableID) {
 
   /**
    * Loads the data from a single cube in a specific revision
-   * and adds column infomation
+   * and adds column information
    * @param cubeId the cube to load
    * @param revision the revision to load
    * @param columnName the column name to add
