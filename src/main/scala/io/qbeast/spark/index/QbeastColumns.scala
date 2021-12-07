@@ -36,7 +36,7 @@ object QbeastColumns {
    */
   val cubeToReplicateColumnName = "_qbeastCubeToReplicate"
 
-  private val columnNames = Set(
+  val columnNames = Set(
     weightColumnName,
     cubeColumnName,
     stateColumnName,

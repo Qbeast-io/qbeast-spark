@@ -14,8 +14,6 @@
 ---
 **Qbeast Spark** extension is a **data lakehouse** enhancement that enables **multi-dimensional indexing** and **efficient data sampling** with **ACID** properties.
 
-We achieve these functionalities by combining the **recursive space division** algorithm for indexing with data **de-normalization** and a set of query optimization rules developed for Spark.
-
 
 <br/>
  
@@ -85,8 +83,8 @@ You can find it in the [Packages section](https://github.com/orgs/Qbeast-io/pack
 ```bash
 $SPARK_HOME/bin/spark-shell \
 --jars ./target/scala-2.12/qbeast-spark-assembly-0.1.0.jar \
---conf spark.sql.extensions=io.qbeast.spark.sql.QbeastSparkSessionExtension \
---packages io.delta:delta-core_2.12:0.8.0
+--conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
+--packages io.delta:delta-core_2.12:1.0.0
 ```
 
 2- Indexing a dataset and examine the **query plan** for sampling:

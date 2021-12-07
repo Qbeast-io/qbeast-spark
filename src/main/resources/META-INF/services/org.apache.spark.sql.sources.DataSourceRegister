@@ -1,1 +1,1 @@
-io.qbeast.spark.sql.sources.QbeastDataSource
+io.qbeast.spark.internal.sources.QbeastDataSource

@@ -15,19 +15,25 @@ Inside the project folder, launch a spark-shell with the required **dependencies
 
 ```bash
 $SPARK_HOME/bin/spark-shell \
-  --jars ./target/scala-2.12/qbeast-spark-assembly-0.1.0.jar \
-  --conf spark.sql.extensions=io.qbeast.spark.sql.QbeastSparkSessionExtension \
-  --conf spark.hadoop.fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider \ 
-  --packages io.delta:delta-core_2.12:0.8.0,\
-    com.amazonaws:aws-java-sdk:1.12.20,\
-    org.apache.hadoop:hadoop-common:3.2.0,\
-    org.apache.hadoop:hadoop-client:3.2.0,\
-    org.apache.hadoop:hadoop-aws:3.2.0
+--jars ./target/scala-2.12/qbeast-spark-assembly-0.1.0.jar \
+--conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
+--conf spark.hadoop.fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider \
+--packages io.delta:delta-core_2.12:1.0.0,\
+com.amazonaws:aws-java-sdk:1.12.20,\
+org.apache.hadoop:hadoop-common:3.2.0,\
+org.apache.hadoop:hadoop-client:3.2.0,\
+org.apache.hadoop:hadoop-aws:3.2.0
 ```
-As an extra configuration, you can also change the number of records of the resulting files with:
+As an **_extra configuration_**, you can also change two global parameters of the index:
+
+1. The **default desired size** of the written files (100000)
+```
+--conf spark.driver.extraJavaOptions="-Dqbeast.index.defaultCubeSize=200000"
+```
+2. The **default minimum number of records processed per partition** (100)
 
 ```
---conf spark.driver.extraJavaOptions="-Dqbeast.index.size=200000"
+--conf spark.driver.extraJavaOptions="-Dqbeast.index.minPartitionCubeSize=1000"
 ```
 
 Read the ***store_sales*** public dataset from `TPC-DS`, the table has with **23** columns in total and was generated with a `scaleFactor` of 1. Check [The Making of TPC-DS](http://www.tpc.org/tpcds/presentations/the_making_of_tpcds.pdf) for more details on the dataset.
@@ -46,6 +52,7 @@ parquetDf.write
     .mode("overwrite")
     .format("qbeast")     // Saving the dataframe in a qbeast datasource
     .option("columnsToIndex", "ss_cdemo_sk,ss_cdemo_sk")      // Indexing the table
+    .option("cubeSize", 300000) // The desired number of records of the resulting files/cubes. Default is 100000
     .save(qbeastTablePath)
 ```
 
@@ -55,11 +62,10 @@ Allow the sample operator to be pushed down to the source when sampling, reducin
 
 Perform sampling, open your **Spark Web UI**, and observe how the sample operator is converted into a **filter** and pushed down to the source!
 ```scala
-val qbeastDf =
-  spark
-    .read
-    .format("qbeast")
-    .load(qbeastTablePath)
+val qbeastDf = (spark
+  .read
+  .format("qbeast")
+  .load(qbeastTablePath))
 
 qbeastDf.sample(0.1).explain()
 ```
