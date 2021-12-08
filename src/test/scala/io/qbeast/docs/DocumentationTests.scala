@@ -79,17 +79,7 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
         .option("cubeSize", 300000)
         .save(qbeast_table_path)
 
-      val processed_parquet_dir = DATA_ROOT + "/parquet/test_data"
-
-      processed_parquet_df.write.mode("overwrite").format("parquet").save(processed_parquet_dir)
-
-      val df = spark.read.format("parquet").load(processed_parquet_dir)
       val qbeast_df = spark.read.format("qbeast").load(qbeast_table_path)
-
-      qbeast_df.count() shouldBe df.count() withClue
-        "Pushdown notebook count of indexed dataframe does not match the original"
-
-      // Table changes?
 
       val deltaLog = DeltaLog.forTable(spark, qbeast_table_path)
       val totalNumberOfFiles = deltaLog.snapshot.allFiles.count()
@@ -99,16 +89,19 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
 
       val query = qbeast_df.sample(0.1)
       val queryCount = query.count()
-      val total = qbeast_df.count()
-      queryCount shouldBe total / 10L +- total / 100L withClue
+      val totalCount = qbeast_df.count()
+
+      queryCount shouldBe totalCount / 10L +- totalCount / 100L withClue
         "The sample should be more or less 10%"
-      val numberOfFilesQuery = query.select(input_file_name()).distinct().count()
+      import spark.implicits._
+
+      val files = query.select(input_file_name()).distinct().as[String].collect()
+
+      val numberOfFilesQuery = files.length.toLong
       (numberOfFilesQuery should be < totalNumberOfFiles) withClue
         "Number of files read in pushdown notebook changes to " + numberOfFilesQuery
 
-      import spark.implicits._
-      val file = query.select(input_file_name()).as[String].collect()
-      val numberOfRowsRead = spark.read.format("parquet").load(file: _*).count()
+      val numberOfRowsRead = spark.read.format("parquet").load(files: _*).count()
 
       numberOfRowsRead should be >= queryCount withClue
         "Number of rows read in pushdown notebook changes to " + numberOfRowsRead
