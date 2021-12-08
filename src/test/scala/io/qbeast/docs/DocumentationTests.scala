@@ -37,7 +37,7 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
     }
   }
 
-  ignore should "behave correctly in Quickstart" in withExtendedSpark { spark =>
+  it should "behave correctly in Quickstart" in withExtendedSpark { spark =>
     withTmpDir { qbeastTablePath =>
       val parquetTablePath = "s3a://qbeast-public-datasets/store_sales"
 
@@ -59,7 +59,7 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
     }
   }
 
-  ignore should "behave correctly on Sample Pushdown Notebook" in withExtendedSpark { spark =>
+  it should "behave correctly on Sample Pushdown Notebook" in withExtendedSpark { spark =>
     withTmpDir { DATA_ROOT =>
       val parquet_table_path = "s3a://qbeast-public-datasets/store_sales"
       val qbeast_table_path = DATA_ROOT + "/qbeast/qtable"
@@ -94,18 +94,23 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
       val deltaLog = DeltaLog.forTable(spark, qbeast_table_path)
       val totalNumberOfFiles = deltaLog.snapshot.allFiles.count()
 
-      totalNumberOfFiles shouldBe 21 withClue
+      (totalNumberOfFiles should be > 1L) withClue
         "Total number of files in pushdown notebook changes to " + totalNumberOfFiles
 
       val query = qbeast_df.sample(0.1)
+      val queryCount = query.count()
+      val total = qbeast_df.count()
+      queryCount shouldBe total / 10L +- total / 100L withClue
+        "The sample should be more or less 10%"
       val numberOfFilesQuery = query.select(input_file_name()).distinct().count()
-      numberOfFilesQuery shouldBe 1 withClue
+      (numberOfFilesQuery should be < totalNumberOfFiles) withClue
         "Number of files read in pushdown notebook changes to " + numberOfFilesQuery
 
-      val file = query.select(input_file_name()).distinct().head().getString(0)
-      val numberOfRowsRead = spark.read.format("parquet").load(file).count()
+      import spark.implicits._
+      val file = query.select(input_file_name()).as[String].collect()
+      val numberOfRowsRead = spark.read.format("parquet").load(file: _*).count()
 
-      numberOfRowsRead shouldBe 302715 withClue
+      numberOfRowsRead should be >= queryCount withClue
         "Number of rows read in pushdown notebook changes to " + numberOfRowsRead
 
     }
