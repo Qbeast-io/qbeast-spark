@@ -114,7 +114,7 @@ class GroupedCubeWeightsBuilder(indexStatus: IndexStatus, boostSize: Double, max
       parent: Option[CubeId]): CubeWeightsBuilder = {
     super.update(point, weight, parent)
     groupCount += 1
-    if (groupCount > boostSize) {
+    if (groupCount > maxGroupSize) {
       resultBuffer ++= super.result()
       groupCount = 0
       queue.clear()
