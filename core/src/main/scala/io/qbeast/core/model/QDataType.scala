@@ -30,9 +30,10 @@ trait QDataType extends Serializable {
  */
 object OrderedDataType {
 
-  val qtypes = Seq(DoubleDataType, IntegerDataType, FloatDataType, LongDataType, DecimalDataType)
-    .map(dt => dt.name -> dt)
-    .toMap
+  val qtypes: Map[String, OrderedDataType] =
+    Seq(DoubleDataType, IntegerDataType, FloatDataType, LongDataType, DecimalDataType)
+      .map(dt => dt.name -> dt)
+      .toMap
 
   @JsonCreator
   def apply(name: String): OrderedDataType = qtypes(name)
