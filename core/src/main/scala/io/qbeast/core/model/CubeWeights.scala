@@ -18,8 +18,16 @@ class CubeWeightsBuilder(
     announcedSet: Set[CubeId] = Set.empty,
     replicatedSet: Set[CubeId] = Set.empty)
     extends Serializable {
+
+  def this(indexStatus: IndexStatus, boostSize: Double) =
+    this(
+      indexStatus.revision.desiredCubeSize,
+      boostSize,
+      indexStatus.announcedSet,
+      indexStatus.replicatedSet)
+
   private val byWeight = Ordering.by[PointWeightAndParent, Weight](_.weight).reverse
-  private val queue = new mutable.PriorityQueue[PointWeightAndParent]()(byWeight)
+  protected val queue = new mutable.PriorityQueue[PointWeightAndParent]()(byWeight)
 
   /**
    * Updates the builder with given point with weight.
@@ -79,6 +87,50 @@ class CubeWeightsBuilder(
 }
 
 /**
+ * This class wraps the CubeWeightBuilder, but it limits the number of elements to keep in
+ * memory to groupSize. There is a trade off between having a large maxGroupSize and thus estimating
+ * a better index structure vs reducing the memory pressure.
+ * @param indexStatus the current index status
+ * @param boostSize   the boost size
+ * @param maxGroupSize   the maximum number of elements to keep in memory
+ */
+class GroupedCubeWeightsBuilder(indexStatus: IndexStatus, boostSize: Double, maxGroupSize: Long)
+    extends CubeWeightsBuilder(indexStatus, boostSize) {
+  var resultBuffer = Seq.empty[CubeNormalizedWeight]
+  var groupCount = 0
+
+  /**
+   * Updates the builder with given point with weight.
+   *
+   * @param point  the point
+   * @param weight the weight
+   * @param parent the parent cube identifier used to find
+   *               the container cube if available
+   * @return this instance
+   */
+  override def update(
+      point: Point,
+      weight: Weight,
+      parent: Option[CubeId]): CubeWeightsBuilder = {
+    super.update(point, weight, parent)
+    groupCount += 1
+    if (groupCount > boostSize) {
+      resultBuffer ++= super.result()
+      groupCount = 0
+      queue.clear()
+    }
+    this
+  }
+
+  /**
+   * Builds the resulting cube weights sequence.
+   *
+   * @return the resulting cube weights map
+   */
+  override def result(): Seq[CubeNormalizedWeight] = resultBuffer ++ super.result()
+}
+
+/**
  * Weight and count.
  *
  * @param weight the weight
@@ -93,7 +145,7 @@ private class WeightAndCount(var weight: Weight, var count: Int)
  * @param weight the weight
  * @param parent the parent
  */
-private case class PointWeightAndParent(point: Point, weight: Weight, parent: Option[CubeId])
+protected case class PointWeightAndParent(point: Point, weight: Weight, parent: Option[CubeId])
 
 /**
  * Cube and NormalizedWeight

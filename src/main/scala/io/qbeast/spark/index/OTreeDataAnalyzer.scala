@@ -4,6 +4,7 @@
 package io.qbeast.spark.index
 
 import com.typesafe.config.ConfigFactory
+import io.qbeast.context.QbeastContext
 import io.qbeast.core.model._
 import io.qbeast.spark.index.QbeastColumns.{cubeToReplicateColumnName, weightColumnName}
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
@@ -158,18 +159,20 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       val desiredPartitionCubeSize =
         estimatePartitionCubeSize(desiredCubeSize, numPartitions)
 
-      weightedDataFrame
+      val selected = weightedDataFrame
         .select(cols.map(col): _*)
+      val weightIndex = selected.schema.fieldIndex(weightColumnName)
+      val maxGroupSize = QbeastContext.config.getLong("qbeast.index.maxGroupSize")
+      selected
         .mapPartitions(rows => {
           val weights =
-            new CubeWeightsBuilder(
-              desiredCubeSize = desiredCubeSize,
+            new GroupedCubeWeightsBuilder(
+              indexStatus = indexStatus,
               boostSize = desiredPartitionCubeSize,
-              indexStatus.announcedSet,
-              indexStatus.replicatedSet)
+              maxGroupSize)
           rows.foreach { row =>
             val point = RowUtils.rowValuesToPoint(row, revision)
-            val weight = Weight(row.getAs[Int](weightColumnName))
+            val weight = Weight(row.getAs[Int](weightIndex))
             if (isReplication) {
               val parentBytes = row.getAs[Array[Byte]](cubeToReplicateColumnName)
               val parent = Some(revision.createCubeId(parentBytes))
