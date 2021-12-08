@@ -107,9 +107,7 @@ case class DeltaQbeastSnapshot(snapshot: Snapshot) extends QbeastSnapshot {
    * @return the latest IndexStatus for qtable
    */
   override def loadLatestIndexStatus: IndexStatus = {
-    val revision = getRevision(lastRevisionID)
-    val replicatedSet = getReplicatedSet(lastRevisionID)
-    new IndexStatusBuilder(this, revision, replicatedSet).build()
+    loadIndexStatus(lastRevisionID)
   }
 
   /**
