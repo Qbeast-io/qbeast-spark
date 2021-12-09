@@ -39,6 +39,9 @@ ThisBuild / libraryDependencies ++= Seq(
   scalaTest % Test,
   mockito % Test)
 
+Test / javaOptions += "-Xmx2G"
+Test / fork := true
+
 // Scala compiler settings
 ThisBuild / scalaVersion := "2.12.12"
 ThisBuild / scalacOptions ++= Seq(
