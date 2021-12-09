@@ -5,7 +5,7 @@ import io.qbeast.spark.delta.OTreeIndex
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.FileSourceScanExec
-import org.apache.spark.sql.execution.datasources.HadoopFsRelation
+import org.apache.spark.sql.functions.{avg, col}
 
 class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
@@ -26,22 +26,28 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
     leaves
       .foreach {
-        case f @ FileSourceScanExec(
-              HadoopFsRelation(index: OTreeIndex, _, _, _, _, _),
-              _,
-              _,
-              _,
-              _,
-              _,
-              _,
-              _,
-              _) =>
+        case f: FileSourceScanExec if f.relation.location.isInstanceOf[OTreeIndex] =>
+          val index = f.relation.location
           val matchingFiles =
             index.listFiles(f.partitionFilters, f.dataFilters).flatMap(_.files)
           val allFiles = index.inputFiles
           matchingFiles.length shouldBe <(allFiles.length)
       }
 
+  }
+
+  private def checkLogicalFilterPushdown(sqlFilters: Seq[String], query: DataFrame): Unit = {
+    val leaves = query.queryExecution.executedPlan.collectLeaves()
+
+    val dataFilters = leaves
+      .collectFirst {
+        case f: FileSourceScanExec if f.relation.location.isInstanceOf[OTreeIndex] =>
+          f.dataFilters.filterNot(_.isInstanceOf[QbeastMurmur3Hash])
+      }
+      .getOrElse(Seq.empty)
+
+    val dataFiltersSql = dataFilters.map(_.sql)
+    sqlFilters.foreach(filter => dataFiltersSql should contain(filter))
   }
 
   "Qbeast" should
@@ -109,20 +115,33 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
             filter_product_greaterThanOrEq)
           val filter = filters.mkString(" and ")
           val query = df.selectExpr("*").sample(0.1).filter(filter)
+          checkLogicalFilterPushdown(filters, query)
 
-          val leaves = query.queryExecution.executedPlan.collectLeaves()
-
-          val dataFilters = leaves
-            .collectFirst {
-              case f: FileSourceScanExec if f.relation.location.isInstanceOf[OTreeIndex] =>
-                f.dataFilters.filterNot(_.isInstanceOf[QbeastMurmur3Hash])
-            }
-            .getOrElse(Seq.empty)
-
-          val dataFiltersSql = dataFilters.map(_.sql)
-
-          filters.foreach(filter => dataFiltersSql should contain(filter))
         }
 
     }
+
+  it should "pushdown filters in complex queries" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      {
+        val data = loadTestData(spark)
+
+        writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
+
+        val df = spark.read.format("qbeast").load(tmpDir)
+        val joinData = data.withColumn("price", col("price") * 3)
+
+        val filters = Seq(
+          filter_user_lessThan,
+          filter_user_greaterThanOrEq,
+          filter_product_lessThan,
+          filter_product_greaterThanOrEq)
+        val filter = filters.mkString(" and ")
+        val query = df.union(joinData).filter(filter).agg(avg("price"))
+
+        checkLogicalFilterPushdown(filters, query)
+
+      }
+
+  }
 }
