@@ -1,5 +1,6 @@
 package io.qbeast.spark.index
 
+import io.qbeast.core.model.Weight
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.functions.{col, udaf}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -8,6 +9,9 @@ import org.scalatest.matchers.should.Matchers
 import scala.util.Random
 
 class MaxWeightEstimationTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec {
+
+  import io.qbeast.core.model.NormalizedWeight
+
   "MaxWeight merge" should "compute fraction correctly" in {
     val weightA = NormalizedWeight(Weight.MaxValue)
     val weightB = NormalizedWeight(Weight.MaxValue)
@@ -25,7 +29,7 @@ class MaxWeightEstimationTest extends AnyFlatSpec with Matchers with QbeastInteg
     MaxWeightEstimation.finish(finalWeight) shouldBe finalWeight
   }
 
-  "MaxWeight zero" should "be minium positive value" in {
+  "MaxWeight zero" should "be minimum positive value" in {
     MaxWeightEstimation.zero shouldBe 0.0
   }
 

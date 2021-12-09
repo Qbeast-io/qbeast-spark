@@ -5,7 +5,7 @@ Welcome to the Qbeast community! Nice to meet you :)
 Either you want to know more about our guidelines or open a Pull Request, this is your page. We are pleased to help you through the different steps for contributing to our (your) project. 
 
 ## Licensing of contributed material
-All contributed code, docs, and otro materials are considered licensed under the same terms as the rest of the project. Check [LICENSE](./LICENCE) for more details.
+All contributed code, docs, and other materials are considered licensed under the same terms as the rest of the project. Check [LICENSE](./LICENCE) for more details.
 
 ## Version control branching
 - Always make a new branch for your work, no matter how small
@@ -67,7 +67,7 @@ All contributed code, docs, and otro materials are considered licensed under the
   - To run a particular test only:
   
   ```bash
-  sbt "testOnly io.qbeast.spark.utils.BlockWriterTest"
+  sbt "testOnly io.qbeast.spark.index.writer.BlockWriterTest"
   ```
 
   7 - Commit your changes: `git commit -m "mychanges"`
@@ -88,9 +88,9 @@ For example:
 sbt assembly
 
 $SPARK_HOME/bin/spark-shell \
---jars ./target/scala-2.12/qbeast-spark-assembly-0.1.0.jar \
---conf spark.sql.extensions=io.qbeast.spark.sql.QbeastSparkSessionExtension \
---packages io.delta:delta-core_2.12:0.8.0
+--jars ./target/scala-2.12/qbeast-spark-assembly-0.2.0.jar \
+--conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
+--packages io.delta:delta-core_2.12:1.0.0
 ```
 
 ### Overriding configurations

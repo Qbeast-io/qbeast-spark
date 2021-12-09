@@ -16,8 +16,4 @@ class ColumnsToIndexTest extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "implement areSame correctly" in {
-    ColumnsToIndex.areSame(Seq("A", "B"), Seq("B", "A")) shouldBe true
-    ColumnsToIndex.areSame(Seq("A", "B"), Seq("A")) shouldBe false
-  }
 }

@@ -18,7 +18,9 @@ jobs:
     - name: Assembly
       run: sbt assembly
     - name: Test
-      run: sbt coverage 'test'
+      run: |
+        sbt coverage 'test'
+        sbt "project qbeastCore" coverage 'test'
     - name: Formatting of code and Scaladocs
       run: sbt scalafmtSbtCheck doc
 

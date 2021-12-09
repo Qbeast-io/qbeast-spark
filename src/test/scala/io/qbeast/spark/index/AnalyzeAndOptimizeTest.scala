@@ -3,10 +3,9 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.index.OTreeAlgorithmTest.Client3
-import io.qbeast.spark.sql.qbeast.QbeastSnapshot
-import io.qbeast.spark.table.QbeastTable
+import io.qbeast.TestClasses.Client3
+import io.qbeast.core.model.CubeId
+import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable, delta}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
 import org.scalatest.PrivateMethodTester
@@ -34,7 +33,7 @@ class AnalyzeAndOptimizeTest
     df.write
       .format("qbeast")
       .mode("append")
-      .option("columnsToIndex", names.mkString(","))
+      .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> "10000"))
       .save(tmpDir)
     names.length
   }
@@ -56,8 +55,8 @@ class AnalyzeAndOptimizeTest
     qbeastTable.optimize()
 
     val deltaLog = DeltaLog.forTable(spark, tmpDir)
-    val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
-    val replicatedCubes = qbeastSnapshot.lastRevisionData.replicatedSet
+    val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
+    val replicatedCubes = qbeastSnapshot.loadLatestIndexStatus.replicatedSet
 
     val announcedCubes = qbeastTable.analyze()
     announcedCubes.foreach(a => replicatedCubes shouldNot contain(a))
@@ -69,13 +68,13 @@ class AnalyzeAndOptimizeTest
 
       val qbeastTable = QbeastTable.forPath(spark, tmpDir)
 
-      (0 to 5).foreach(txn => {
+      (0 to 5).foreach(_ => {
         val announcedCubes = qbeastTable.analyze()
         qbeastTable.optimize()
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = QbeastSnapshot(deltaLog.snapshot)
+        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
         val replicatedCubes =
-          qbeastSnapshot.lastRevisionData.replicatedSet.map(_.string)
+          qbeastSnapshot.loadLatestIndexStatus.replicatedSet.map(_.string)
 
         announcedCubes.foreach(r => replicatedCubes should contain(r))
       })
