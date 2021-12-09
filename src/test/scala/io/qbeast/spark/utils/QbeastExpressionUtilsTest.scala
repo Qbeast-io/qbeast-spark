@@ -1,40 +1,43 @@
 package io.qbeast.spark.utils
 
+import io.qbeast.core.model.{
+  IntegerDataType,
+  Point,
+  QTableID,
+  QuerySpaceFromTo,
+  Revision,
+  Weight,
+  WeightRange
+}
+import io.qbeast.core.transform.{LinearTransformation, Transformer}
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.index.Weight
-import io.qbeast.spark.model.{LinearTransformation, Point, QuerySpaceFromTo, Revision}
-import io.qbeast.spark.sql.rules.QbeastMurmur3Hash
-import io.qbeast.spark.sql.utils.QbeastExpressionUtils
+import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.functions.expr
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class QbeastExpressionUtilsTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec {
 
-  private def weightFilters(from: Weight, to: Weight): Expression = {
+  private def weightFilters(weightRange: WeightRange): Expression = {
     val qbeast_hash = new QbeastMurmur3Hash(Seq(new Column("id").expr))
-    val lessThan = LessThan(qbeast_hash, Literal(to.value))
-    val greaterThanOrEqual = GreaterThanOrEqual(qbeast_hash, Literal(from.value))
+    val lessThan = LessThan(qbeast_hash, Literal(weightRange.to.value))
+    val greaterThanOrEqual = GreaterThanOrEqual(qbeast_hash, Literal(weightRange.from.value))
     And(lessThan, greaterThanOrEqual)
   }
 
-  private def rangeFilters(from: Int, to: Int, columnName: String): Expression = {
-
-    val column = new Column(columnName).expr
-    val lessThan = LessThan(column, Literal(to))
-    val greaterThanOrEqual = GreaterThanOrEqual(column, Literal(from))
-    And(lessThan, greaterThanOrEqual)
-  }
-
-  private def createRevision(columnNames: Seq[String]) = {
+  private def createRevision() = {
     val transformations =
-      columnNames.map(_ => LinearTransformation(Int.MinValue, Int.MaxValue)).toIndexedSeq
-    new Revision(
+      Seq(LinearTransformation(Int.MinValue, Int.MaxValue, IntegerDataType)).toIndexedSeq
+    val columnTransformers = Seq(Transformer("linear", "id", IntegerDataType)).toIndexedSeq
+
+    Revision(
+      0,
       System.currentTimeMillis(),
-      System.currentTimeMillis(),
-      10000,
-      columnNames,
+      QTableID("test"),
+      100,
+      columnTransformers,
       transformations)
   }
 
@@ -42,65 +45,66 @@ class QbeastExpressionUtilsTest extends AnyFlatSpec with Matchers with QbeastInt
     "extract all weight range when expressions is empty" in {
 
       QbeastExpressionUtils
-        .extractWeightRange(Seq.empty) shouldBe ((Weight.MinValue, Weight.MaxValue))
+        .extractWeightRange(Seq.empty) shouldBe WeightRange(Weight.MinValue, Weight.MaxValue)
     }
 
   it should "filter correctly the expressions for weight" in {
 
-    val (from, to) = (Weight(3), Weight(8))
-    val expression = weightFilters(from, to)
-    QbeastExpressionUtils.extractWeightRange(Seq(expression)) shouldBe ((from, to))
+    val weightRange = WeightRange(Weight(3), Weight(8))
+    val expression = weightFilters(weightRange)
+    QbeastExpressionUtils.extractWeightRange(Seq(expression)) shouldBe weightRange
 
   }
 
   "extractQueryRange" should "extract query range" in withSpark(spark => {
 
     val (from, to) = (3, 8)
-    val columnName = "id"
-    val expression = rangeFilters(from, to, columnName)
-    val revision = createRevision(Seq(columnName))
+    val expression = expr(s"id >= $from and id < $to").expr
+    val revision = createRevision()
     QbeastExpressionUtils
-      .extractQuerySpace(Seq(expression), revision, spark) shouldBe
-      QuerySpaceFromTo(Point(3.0), Point(8.0), revision)
+      .extractQuerySpace(Seq(expression), revision) shouldBe
+      QuerySpaceFromTo(Point(from.toDouble), Point(to.toDouble), revision)
+
+  })
+
+  it should "extract query range when equal to" in withSpark(spark => {
+
+    val revision = createRevision()
+    val expression = expr("id == 3").expr
+
+    QbeastExpressionUtils
+      .extractQuerySpace(Seq(expression), revision) shouldBe
+      QuerySpaceFromTo(Point(3.0), Point(Int.MaxValue), revision)
 
   })
 
   it should "extract all query range when expressions is empty" in withSpark(spark => {
 
-    val revision = createRevision(Seq("id"))
+    val revision = createRevision()
     QbeastExpressionUtils
-      .extractQuerySpace(Seq.empty, revision, spark) shouldBe
+      .extractQuerySpace(Seq.empty, revision) shouldBe
       QuerySpaceFromTo(Point(Int.MinValue), Point(Int.MaxValue), revision)
   })
 
   it should "not process disjunctive predicates" in withSpark(spark => {
 
-    val (from, to) = (3, 8)
-    val columnName = "id"
-    val revision = createRevision(Seq(columnName))
-
-    val expression =
-      Or(
-        LessThan(new Column(columnName).expr, Literal(from)),
-        GreaterThanOrEqual(new Column(columnName).expr, Literal(to))).canonicalized
+    val revision = createRevision()
+    val expression = expr(s"id >= 3 OR id < 8").expr
 
     QbeastExpressionUtils
-      .extractQuerySpace(Seq(expression), revision, spark) shouldBe
+      .extractQuerySpace(Seq(expression), revision) shouldBe
       QuerySpaceFromTo(Point(Int.MinValue), Point(Int.MaxValue), revision)
 
   })
 
   "extractDataFilters" should "extract qbeast filters correctly" in withSpark(spark => {
-
-    val (from, to) = (3, 8)
-    val columnName = "id"
-    val revision = createRevision(Seq(columnName))
-    val rangeExpression = rangeFilters(from, to, columnName)
-    val weightExpression = weightFilters(Weight(from), Weight(to))
+    val revision = createRevision()
+    val rangeExpression = expr(s"id >= 3 OR id < 8").expr
+    val weightExpression = weightFilters(WeightRange(Weight(Int.MinValue), Weight(Int.MaxValue)))
     val expressions = Seq(rangeExpression, weightExpression)
 
     QbeastExpressionUtils
-      .extractDataFilters(expressions, revision, spark) shouldBe expressions
+      .extractDataFilters(expressions, revision) shouldBe ((expressions, Seq.empty))
 
   })
 }

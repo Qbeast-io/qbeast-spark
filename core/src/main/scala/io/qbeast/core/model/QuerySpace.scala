@@ -45,17 +45,10 @@ case class AllSpace(dimensionCount: Int) extends QuerySpace {
  * Describe the query range in the area included in [originalFrom,originalTo)
  * (inclusive, exclusive).
  *
- * @param originalFrom inclusive starting range
- * @param originalTo   exclusive ending query range
- * @param revision revision applied on this space
+ * @param from inclusive starting range
+ * @param to   exclusive ending query range
  */
-case class QuerySpaceFromTo(originalFrom: Point, originalTo: Point, revision: Revision)
-    extends QuerySpace {
-
-  require(originalFrom <= originalTo, "from point must be < then to point")
-  require(originalFrom.dimensionCount == originalTo.dimensionCount)
-  val from: Point = Point(revision.transform(originalFrom.coordinates))
-  val to: Point = Point(revision.transform(originalTo.coordinates))
+case class QuerySpaceFromTo(from: Point, to: Point) extends QuerySpace {
 
   override def intersectsWith(cube: CubeId): Boolean = {
     val ranges = from.coordinates.zip(to.coordinates)
@@ -66,3 +59,20 @@ case class QuerySpaceFromTo(originalFrom: Point, originalTo: Point, revision: Re
   }
 
 }
+
+/**
+ * Companion object for QuerySpaceFromTo
+ */
+object QuerySpaceFromTo {
+
+  def apply(originalFrom: Point, originalTo: Point, revision: Revision): QuerySpaceFromTo = {
+    require(originalFrom <= originalTo, "from point must be < then to point")
+    require(originalFrom.dimensionCount == originalTo.dimensionCount)
+    val from: Point = Point(revision.transform(originalFrom.coordinates))
+    val to: Point = Point(revision.transform(originalTo.coordinates))
+    QuerySpaceFromTo(from, to)
+  }
+
+}
+
+case class Space(min: Any, max: Any)

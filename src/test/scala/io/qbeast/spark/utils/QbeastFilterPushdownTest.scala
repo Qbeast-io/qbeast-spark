@@ -1,9 +1,11 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.sql.files.OTreeIndex
-import io.qbeast.spark.sql.rules.QbeastMurmur3Hash
+import io.qbeast.spark.delta.OTreeIndex
+import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.FileSourceScanExec
+import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 
 class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
@@ -12,17 +14,44 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
   private val filter_product_lessThan = "(`product_id` >= 11522682)"
   private val filter_product_greaterThanOrEq = "(`product_id` < 50500010)"
 
+  private def checkFileFiltering(query: DataFrame): Unit = {
+    val leaves = query.queryExecution.executedPlan.collectLeaves()
+
+    leaves.exists(p =>
+      p
+        .asInstanceOf[FileSourceScanExec]
+        .relation
+        .location
+        .isInstanceOf[OTreeIndex]) shouldBe true
+
+    leaves
+      .foreach {
+        case f @ FileSourceScanExec(
+              HadoopFsRelation(index: OTreeIndex, _, _, _, _, _),
+              _,
+              _,
+              _,
+              _,
+              _,
+              _,
+              _,
+              _) =>
+          val matchingFiles =
+            index.listFiles(f.partitionFilters, f.dataFilters).flatMap(_.files)
+          val allFiles = index.inputFiles
+          matchingFiles.length shouldBe <(allFiles.length)
+      }
+
+  }
+
   "Qbeast" should
     "return a valid filtering of the original dataset " +
     "for one column" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
       {
         val data = loadTestData(spark)
 
-        data.write
-          .mode("error")
-          .format("qbeast")
-          .option("columnsToIndex", "user_id,product_id")
-          .save(tmpDir)
+        writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
+
         val df = spark.read.format("qbeast").load(tmpDir)
 
         val filters = Seq(filter_user_lessThan, filter_user_greaterThanOrEq)
@@ -43,11 +72,8 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
       {
         val data = loadTestData(spark)
 
-        data.write
-          .mode("error")
-          .format("qbeast")
-          .option("columnsToIndex", "user_id,product_id")
-          .save(tmpDir)
+        writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
+
         val df = spark.read.format("qbeast").load(tmpDir)
 
         val filters = Seq(
@@ -72,11 +98,7 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
         {
           val data = loadTestData(spark)
 
-          data.write
-            .mode("error")
-            .format("qbeast")
-            .option("columnsToIndex", "user_id,product_id")
-            .save(tmpDir)
+          writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
 
           val df = spark.read.format("qbeast").load(tmpDir)
 

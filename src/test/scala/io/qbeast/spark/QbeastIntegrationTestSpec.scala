@@ -35,6 +35,27 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
   // This reduce the verbosity of Spark
   Logger.getLogger("org.apache").setLevel(Level.WARN)
 
+  def loadTestData(spark: SparkSession): DataFrame = spark.read
+    .format("csv")
+    .option("header", "true")
+    .option("inferSchema", "true")
+    .load("src/test/resources/ecommerce100K_2019_Oct.csv")
+    .distinct()
+
+  def writeTestData(
+      data: DataFrame,
+      columnsToIndex: Seq[String],
+      cubeSize: Int,
+      tmpDir: String): Unit = {
+
+    data.write
+      .mode("overwrite")
+      .format("qbeast")
+      .options(
+        Map("columnsToIndex" -> columnsToIndex.mkString(","), "cubeSize" -> cubeSize.toString))
+      .save(tmpDir)
+  }
+
   def withExtendedSpark[T](testCode: SparkSession => T): T = {
     val spark = SparkSession
       .builder()
