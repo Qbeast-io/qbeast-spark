@@ -162,14 +162,15 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       val selected = weightedDataFrame
         .select(cols.map(col): _*)
       val weightIndex = selected.schema.fieldIndex(weightColumnName)
-      val maxGroupSize = QbeastContext.config.getLong("qbeast.index.maxGroupSize")
+      val cubeWeightsBufferCapacity =
+        QbeastContext.config.getLong("qbeast.index.cubeWeightsBufferCapacity")
       selected
         .mapPartitions(rows => {
           val weights =
-            new GroupedCubeWeightsBuilder(
+            new CubeWeightsBuilder(
               indexStatus = indexStatus,
               boostSize = desiredPartitionCubeSize,
-              maxGroupSize)
+              cubeWeightsBufferCapacity)
           rows.foreach { row =>
             val point = RowUtils.rowValuesToPoint(row, revision)
             val weight = Weight(row.getAs[Int](weightIndex))

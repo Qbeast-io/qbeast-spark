@@ -9,30 +9,33 @@ import scala.collection.mutable
  *
  * @param desiredCubeSize the desired cube size
  * @param boostSize       the boost size
- * @param announcedSet the announced cube identifiers
- * @param replicatedSet the replicated cube identifiers
+ * @param announcedSet    the announced cube identifiers
+ * @param replicatedSet   the replicated cube identifiers
  */
 class CubeWeightsBuilder(
     private val desiredCubeSize: Int,
     private val boostSize: Double,
+    private val cubeWeightsBufferCapacity: Long,
     announcedSet: Set[CubeId] = Set.empty,
     replicatedSet: Set[CubeId] = Set.empty)
     extends Serializable {
 
-  def this(indexStatus: IndexStatus, boostSize: Double) =
+  def this(indexStatus: IndexStatus, boostSize: Double, cubeWeightsBufferCapacity: Long) =
     this(
       indexStatus.revision.desiredCubeSize,
       boostSize,
+      cubeWeightsBufferCapacity,
       indexStatus.announcedSet,
       indexStatus.replicatedSet)
 
   private val byWeight = Ordering.by[PointWeightAndParent, Weight](_.weight).reverse
   protected val queue = new mutable.PriorityQueue[PointWeightAndParent]()(byWeight)
+  private var resultBuffer = Seq.empty[CubeNormalizedWeight]
 
   /**
    * Updates the builder with given point with weight.
    *
-   * @param point the point
+   * @param point  the point
    * @param weight the weight
    * @param parent the parent cube identifier used to find
    *               the container cube if available
@@ -40,6 +43,10 @@ class CubeWeightsBuilder(
    */
   def update(point: Point, weight: Weight, parent: Option[CubeId] = None): CubeWeightsBuilder = {
     queue.enqueue(PointWeightAndParent(point, weight, parent))
+    if (queue.size >= cubeWeightsBufferCapacity) {
+      resultBuffer ++= result()
+      queue.clear()
+    }
     this
   }
 
@@ -87,61 +94,17 @@ class CubeWeightsBuilder(
 }
 
 /**
- * This class wraps the CubeWeightBuilder, but it limits the number of elements to keep in
- * memory to groupSize. There is a trade off between having a large maxGroupSize and thus estimating
- * a better index structure vs reducing the memory pressure.
- * @param indexStatus the current index status
- * @param boostSize   the boost size
- * @param maxGroupSize   the maximum number of elements to keep in memory
- */
-class GroupedCubeWeightsBuilder(indexStatus: IndexStatus, boostSize: Double, maxGroupSize: Long)
-    extends CubeWeightsBuilder(indexStatus, boostSize) {
-  var resultBuffer = Seq.empty[CubeNormalizedWeight]
-  var groupCount = 0
-
-  /**
-   * Updates the builder with given point with weight.
-   *
-   * @param point  the point
-   * @param weight the weight
-   * @param parent the parent cube identifier used to find
-   *               the container cube if available
-   * @return this instance
-   */
-  override def update(
-      point: Point,
-      weight: Weight,
-      parent: Option[CubeId]): CubeWeightsBuilder = {
-    super.update(point, weight, parent)
-    groupCount += 1
-    if (groupCount > maxGroupSize) {
-      resultBuffer ++= super.result()
-      groupCount = 0
-      queue.clear()
-    }
-    this
-  }
-
-  /**
-   * Builds the resulting cube weights sequence.
-   *
-   * @return the resulting cube weights map
-   */
-  override def result(): Seq[CubeNormalizedWeight] = resultBuffer ++ super.result()
-}
-
-/**
  * Weight and count.
  *
  * @param weight the weight
- * @param count the count
+ * @param count  the count
  */
 private class WeightAndCount(var weight: Weight, var count: Int)
 
 /**
  * Point, weight and parent cube identifier if available.
  *
- * @param point the point
+ * @param point  the point
  * @param weight the weight
  * @param parent the parent
  */
@@ -150,7 +113,7 @@ protected case class PointWeightAndParent(point: Point, weight: Weight, parent: 
 /**
  * Cube and NormalizedWeight
  *
- * @param cubeBytes the cube
+ * @param cubeBytes        the cube
  * @param normalizedWeight the weight
  */
 case class CubeNormalizedWeight(cubeBytes: Array[Byte], normalizedWeight: NormalizedWeight)
