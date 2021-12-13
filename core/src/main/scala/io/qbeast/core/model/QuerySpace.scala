@@ -9,16 +9,6 @@ package io.qbeast.core.model
 trait QuerySpace {
 
   /**
-   * The point with minimum coordinates.
-   */
-  val from: Point
-
-  /**
-   * The point with maximum coordinates.
-   */
-  val to: Point
-
-  /**
    * Returns whether the space intersects with a given cube.
    *
    * @param cube the cube
@@ -29,13 +19,8 @@ trait QuerySpace {
 
 /**
  * Implementation of QuerySpace which represents the while domain.
- * @param dimensionCount the dimension count
  */
-case class AllSpace(dimensionCount: Int) extends QuerySpace {
-
-  val to: Point = Point(Vector.fill(dimensionCount)(1.0))
-
-  val from: Point = Point(Vector.fill(dimensionCount)(0.0))
+case class AllSpace() extends QuerySpace {
 
   override def intersectsWith(cube: CubeId): Boolean = true
 }
@@ -45,34 +30,48 @@ case class AllSpace(dimensionCount: Int) extends QuerySpace {
  * Describe the query range in the area included in [originalFrom,originalTo)
  * (inclusive, exclusive).
  *
- * @param from inclusive starting range
- * @param to   exclusive ending query range
+ * @param ranges the ranges
  */
-case class QuerySpaceFromTo(from: Point, to: Point) extends QuerySpace {
+case class QuerySpaceFromTo(ranges: Seq[(Option[Double], Option[Double])]) extends QuerySpace {
+
+  private def intersects(f: Double, t: Double, cube: CubeId, coordinate: Int): Boolean = {
+    val cf = cube.from.coordinates(coordinate)
+    val ct = cube.to.coordinates(coordinate)
+    (f <= cf && cf < t) || (cf <= f && f < ct)
+  }
 
   override def intersectsWith(cube: CubeId): Boolean = {
-    val ranges = from.coordinates.zip(to.coordinates)
-    val cubeRanges = cube.from.coordinates.zip(cube.to.coordinates)
-    ranges.zip(cubeRanges).forall { case ((f, t), (cf, ct)) =>
-      (f <= cf && cf < t) || (cf <= f && f < ct)
+    ranges.zipWithIndex.forall {
+      case ((Some(f), Some(t)), i) => intersects(f, t, cube, i)
+      case ((None, Some(t)), i) => intersects(0.0, t, cube, i)
+      case ((Some(f), None), i) => intersects(f, 1.0, cube, i)
+      case ((None, None), _) => true
     }
   }
 
 }
 
-/**
- * Companion object for QuerySpaceFromTo
- */
 object QuerySpaceFromTo {
 
-  def apply(originalFrom: Point, originalTo: Point, revision: Revision): QuerySpaceFromTo = {
-    require(originalFrom <= originalTo, "from point must be < then to point")
-    require(originalFrom.dimensionCount == originalTo.dimensionCount)
-    val from: Point = Point(revision.transform(originalFrom.coordinates))
-    val to: Point = Point(revision.transform(originalTo.coordinates))
+  def apply(from: Seq[Option[Double]], to: Seq[Option[Double]]): QuerySpaceFromTo = {
+    QuerySpaceFromTo(from.zip(to))
+  }
+
+  def apply(
+      originalFrom: Seq[Option[Any]],
+      originalTo: Seq[Option[Any]],
+      revision: Revision): QuerySpaceFromTo = {
+
+    val from = originalFrom.zipWithIndex.map {
+      case (Some(f), i) => Some(revision.transformations(i).transform(f))
+      case _ => None
+    }
+    val to = originalTo.zipWithIndex.map {
+      case (Some(t), i) => Some(revision.transformations(i).transform(t))
+      case _ => None
+    }
+
     QuerySpaceFromTo(from, to)
   }
 
 }
-
-case class Space(min: Any, max: Any)

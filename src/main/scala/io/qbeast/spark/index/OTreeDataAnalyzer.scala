@@ -182,19 +182,21 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
   override def analyze(
       dataFrame: DataFrame,
-      indexStatus: IndexStatus,
+      oldIndexStatus: IndexStatus,
       isReplication: Boolean): (DataFrame, TableChanges) = {
 
     val spaceChanges =
       if (isReplication) None
-      else calculateRevisionChanges(dataFrame, indexStatus.revision)
+      else calculateRevisionChanges(dataFrame, oldIndexStatus.revision)
+
+    // The indexStatus to use
+    val indexStatus = spaceChanges match {
+      case Some(revisionChange) => IndexStatus(revisionChange.newRevision)
+      case None => oldIndexStatus
+    }
 
     // The revision to use
-    val revision = spaceChanges match {
-      case Some(revisionChange) =>
-        revisionChange.newRevision
-      case None => indexStatus.revision
-    }
+    val revision = indexStatus.revision
 
     // Three step transformation
 

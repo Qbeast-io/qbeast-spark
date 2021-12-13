@@ -2,7 +2,6 @@ package io.qbeast.spark.utils
 
 import io.qbeast.core.model.{
   IntegerDataType,
-  Point,
   QTableID,
   QuerySpaceFromTo,
   Revision,
@@ -11,6 +10,7 @@ import io.qbeast.core.model.{
 }
 import io.qbeast.core.transform.{LinearTransformation, Transformer}
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.internal.{QuerySpecBuilder}
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.catalyst.expressions._
@@ -18,7 +18,7 @@ import org.apache.spark.sql.functions.expr
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class QbeastExpressionUtilsTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec {
+class QuerySpecBuilderTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec {
 
   private def weightFilters(weightRange: WeightRange): Expression = {
     val qbeast_hash = new QbeastMurmur3Hash(Seq(new Column("id").expr))
@@ -42,28 +42,29 @@ class QbeastExpressionUtilsTest extends AnyFlatSpec with Matchers with QbeastInt
   }
 
   "extractWeightRange" should
-    "extract all weight range when expressions is empty" in {
+    "extract all weight range when expressions is empty" in withSpark(spark => {
+      val revision = createRevision()
+      val querySpec = new QuerySpecBuilder(Seq.empty).build(revision)
 
-      QbeastExpressionUtils
-        .extractWeightRange(Seq.empty) shouldBe WeightRange(Weight.MinValue, Weight.MaxValue)
-    }
+      querySpec.weightRange shouldBe WeightRange(Weight.MinValue, Weight.MaxValue)
+    })
 
-  it should "filter correctly the expressions for weight" in {
-
+  it should "filter correctly the expressions for weight" in withSpark(spark => {
     val weightRange = WeightRange(Weight(3), Weight(8))
     val expression = weightFilters(weightRange)
-    QbeastExpressionUtils.extractWeightRange(Seq(expression)) shouldBe weightRange
+    val revision = createRevision()
+    val querySpec = new QuerySpecBuilder(Seq(expression)).build(revision)
+    querySpec.weightRange shouldBe weightRange
 
-  }
+  })
 
   "extractQueryRange" should "extract query range" in withSpark(spark => {
 
     val (from, to) = (3, 8)
     val expression = expr(s"id >= $from and id < $to").expr
     val revision = createRevision()
-    QbeastExpressionUtils
-      .extractQuerySpace(Seq(expression), revision) shouldBe
-      QuerySpaceFromTo(Point(from.toDouble), Point(to.toDouble), revision)
+    val querySpec = new QuerySpecBuilder(Seq(expression)).build(revision)
+    querySpec.querySpace shouldBe QuerySpaceFromTo(Seq(Some(from)), Seq(Some(to)), revision)
 
   })
 
@@ -71,29 +72,27 @@ class QbeastExpressionUtilsTest extends AnyFlatSpec with Matchers with QbeastInt
 
     val revision = createRevision()
     val expression = expr("id == 3").expr
+    val querySpec = new QuerySpecBuilder(Seq(expression)).build(revision)
 
-    QbeastExpressionUtils
-      .extractQuerySpace(Seq(expression), revision) shouldBe
-      QuerySpaceFromTo(Point(3.0), Point(Int.MaxValue), revision)
+    querySpec.querySpace shouldBe
+      QuerySpaceFromTo(Seq(Some(3.0)), Seq(None), revision)
 
   })
 
   it should "extract all query range when expressions is empty" in withSpark(spark => {
 
     val revision = createRevision()
-    QbeastExpressionUtils
-      .extractQuerySpace(Seq.empty, revision) shouldBe
-      QuerySpaceFromTo(Point(Int.MinValue), Point(Int.MaxValue), revision)
+    val querySpec = new QuerySpecBuilder(Seq.empty).build(revision)
+    querySpec.querySpace shouldBe QuerySpaceFromTo(Seq(None), Seq(None), revision)
   })
 
   it should "not process disjunctive predicates" in withSpark(spark => {
 
     val revision = createRevision()
     val expression = expr(s"id >= 3 OR id < 8").expr
-
-    QbeastExpressionUtils
-      .extractQuerySpace(Seq(expression), revision) shouldBe
-      QuerySpaceFromTo(Point(Int.MinValue), Point(Int.MaxValue), revision)
+    val querySpec = new QuerySpecBuilder(Seq(expression)).build(revision)
+    querySpec.querySpace shouldBe
+      QuerySpaceFromTo(Seq(None), Seq(None), revision)
 
   })
 
@@ -102,9 +101,9 @@ class QbeastExpressionUtilsTest extends AnyFlatSpec with Matchers with QbeastInt
     val rangeExpression = expr(s"id >= 3 OR id < 8").expr
     val weightExpression = weightFilters(WeightRange(Weight(Int.MinValue), Weight(Int.MaxValue)))
     val expressions = Seq(rangeExpression, weightExpression)
+    val querySpecBuilder = new QuerySpecBuilder(expressions)
 
-    QbeastExpressionUtils
-      .extractDataFilters(expressions, revision) shouldBe ((expressions, Seq.empty))
+    querySpecBuilder.extractDataFilters(expressions, revision) shouldBe expressions
 
   })
 }

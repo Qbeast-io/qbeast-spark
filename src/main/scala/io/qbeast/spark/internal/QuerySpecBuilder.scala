@@ -1,9 +1,9 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.utils
+package io.qbeast.spark.internal
 
-import io.qbeast.core.model._
+import io.qbeast.core.model.{QuerySpace, QuerySpaceFromTo, Revision, Weight, WeightRange}
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{
@@ -16,12 +16,13 @@ import org.apache.spark.sql.catalyst.expressions.{
   Literal,
   SubqueryExpression
 }
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.types.IntegerType
 
 /**
- * Object with utility methods to work with Spark expressions.
+ * Builds a query specification from a set of filters
+ * @param sparkFilters the filters
  */
-object QbeastExpressionUtils {
+private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression]) extends Serializable {
 
   lazy val spark = SparkSession.active
   lazy val nameEquality = spark.sessionState.analyzer.resolver
@@ -42,28 +43,6 @@ object QbeastExpressionUtils {
   private def isQbeastExpression(expression: Expression, indexedColumns: Seq[String]): Boolean =
     isQbeastWeightExpression(expression) || hasQbeastColumnReference(expression, indexedColumns)
 
-  /**
-   * Extracts the data filters from the query that can be used by qbeast
-   * @param dataFilters filters passed to the relation
-   * @param revision the revision of the index
-   * @return sequence of filters involving qbeast format
-   */
-  def extractDataFilters(
-      dataFilters: Seq[Expression],
-      revision: Revision): (Seq[Expression], Seq[Expression]) = {
-    dataFilters.partition(expression =>
-      isQbeastExpression(
-        expression,
-        revision.columnTransformers.map(_.columnName)) && !SubqueryExpression
-        .hasSubquery(expression))
-  }
-
-  /**
-   * Split conjuntive predicates from an Expression into different values for the sequence
-   * @param condition the Expression to analyze
-   * @return the sequence of all predicates
-   */
-
   private def splitConjunctivePredicates(condition: Expression): Seq[Expression] = {
     condition match {
       case And(cond1, cond2) =>
@@ -74,6 +53,20 @@ object QbeastExpressionUtils {
 
   private def hasColumnReference(expr: Expression, columnName: String): Boolean = {
     expr.references.forall(r => nameEquality(r.name, columnName))
+  }
+
+  /**
+   * Extracts the data filters from the query that can be used by qbeast
+   * @param dataFilters filters passed to the relation
+   * @param revision the revision of the index
+   * @return sequence of filters involving qbeast format
+   */
+  def extractDataFilters(dataFilters: Seq[Expression], revision: Revision): Seq[Expression] = {
+    dataFilters.filter(expression =>
+      isQbeastExpression(
+        expression,
+        revision.columnTransformers.map(_.columnName)) && !SubqueryExpression
+        .hasSubquery(expression))
   }
 
   /**
@@ -103,19 +96,14 @@ object QbeastExpressionUtils {
             case GreaterThanOrEqual(_, Literal(value, _)) => t.transform(value)
             case EqualTo(_, Literal(value, _)) => t.transform(value)
           }
-          .getOrElse(0.0)
 
         val to = columnFilters
           .collectFirst { case LessThan(_, Literal(value, _)) => t.transform(value) }
-          .getOrElse(1.0)
 
         (from, to)
       }
 
-    val from = Point(fromTo.map(_._1).toVector)
-    val to = Point(fromTo.map(_._2).toVector)
-
-    QuerySpaceFromTo(from, to)
+    QuerySpaceFromTo(fromTo)
   }
 
   /**
@@ -142,6 +130,17 @@ object QbeastExpressionUtils {
       .getOrElse(Int.MaxValue)
 
     WeightRange(Weight(min), Weight(max))
+  }
+
+  /**
+   * Builds the QuerySpec for the desired Revision
+   * @param revision the revision
+   * @return the QuerySpec
+   */
+
+  def build(revision: Revision): QuerySpec = {
+    val qbeastFilters = extractDataFilters(sparkFilters, revision)
+    QuerySpec(extractWeightRange(qbeastFilters), extractQuerySpace(qbeastFilters, revision))
   }
 
 }
