@@ -9,14 +9,12 @@ import scala.collection.mutable
  *
  * @param desiredCubeSize the desired cube size
  * @param boostSize       the boost size
- * @param announcedSet the announced cube identifiers
- * @param replicatedSet the replicated cube identifiers
+ * @param replicatedOrAnnouncedSet the announced or replicated cubes' identifiers
  */
 class CubeWeightsBuilder(
     private val desiredCubeSize: Int,
     private val boostSize: Double,
-    announcedSet: Set[CubeId] = Set.empty,
-    replicatedSet: Set[CubeId] = Set.empty)
+    private val replicatedOrAnnouncedSet: Set[CubeId] = Set.empty)
     extends Serializable {
   private val byWeight = Ordering.by[PointWeightAndParent, Weight](_.weight).reverse
   private val queue = new mutable.PriorityQueue[PointWeightAndParent]()(byWeight)
@@ -59,7 +57,7 @@ class CubeWeightsBuilder(
           } else if (weightAndCount.count == boostSize) {
             weightAndCount.weight = weight
           }
-          continue = announcedSet.contains(cubeId) || replicatedSet.contains(cubeId)
+          continue = replicatedOrAnnouncedSet.contains(cubeId)
         }
       }
     }

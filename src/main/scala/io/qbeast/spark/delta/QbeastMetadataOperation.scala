@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.{IndexStatus, ReplicatedSet, RevisionChange, TableChanges, mapper}
+import io.qbeast.core.model.{ReplicatedSet, Revision, TableChanges, mapper}
 import io.qbeast.spark.utils.MetadataConfig
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.schema.{ImplicitMetadataOperation, SchemaUtils}
@@ -39,21 +39,19 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
    * Updates Delta Metadata Configuration with new replicated set
    * for given revision
    * @param baseConfiguration Delta Metadata Configuration
-   * @param indexStatus the index status
+   * @param revision the new revision to persist
    * @param deltaReplicatedSet the new set of replicated cubes
    */
 
   private def updateQbeastReplicatedSet(
       baseConfiguration: Configuration,
-      indexStatus: IndexStatus,
+      revision: Revision,
       deltaReplicatedSet: ReplicatedSet): Configuration = {
 
-    val revisionID = indexStatus.revision.revisionID
+    val revisionID = revision.revisionID
     assert(baseConfiguration.contains(s"${MetadataConfig.revision}.$revisionID"))
 
-    val oldReplicatedSet = indexStatus.replicatedSet
-    val newReplicatedSet =
-      oldReplicatedSet.union(deltaReplicatedSet).map(_.string)
+    val newReplicatedSet = deltaReplicatedSet.map(_.string)
     // Save the replicated set of cube id's as String representation
 
     baseConfiguration.updated(
@@ -64,9 +62,9 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
 
   private def overwriteReplicatedSet(
       baseConfiguration: Configuration,
-      indexStatus: IndexStatus): Configuration = {
+      revision: Revision): Configuration = {
 
-    val revisionID = indexStatus.revision.revisionID
+    val revisionID = revision.revisionID
     assert(baseConfiguration.contains(s"${MetadataConfig.revision}.$revisionID"))
 
     baseConfiguration.updated(
@@ -78,13 +76,12 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
   /**
    * Update metadata with new Qbeast Revision
    * @param baseConfiguration the base configuration
-   * @param revisionChange the new revision
+   * @param newRevision the new revision
    */
   private def updateQbeastRevision(
       baseConfiguration: Configuration,
-      revisionChange: RevisionChange): Configuration = {
+      newRevision: Revision): Configuration = {
 
-    val newRevision = revisionChange.newRevision
     val newRevisionID = newRevision.revisionID
 
     // Qbeast configuration metadata
@@ -118,23 +115,24 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
       Seq.empty
 
     // Merged schema will contain additional columns at the end
-    def isNewSchema: Boolean = txn.metadata.schema != mergedSchema
-    def isNewRevision: Boolean = tableChanges.revisionChanges.isDefined
+    val isNewSchema: Boolean = txn.metadata.schema != mergedSchema
+    val isNewRevision: Boolean = tableChanges.revisionChanges.isDefined
 
+    val latestRevision = tableChanges.updatedRevision
     val baseConfiguration: Configuration =
       if (txn.readVersion == -1) Map.empty else txn.metadata.configuration
     // Qbeast configuration metadata
     val configuration = if (isNewRevision) {
-      updateQbeastRevision(baseConfiguration, tableChanges.revisionChanges.get)
+      updateQbeastRevision(baseConfiguration, latestRevision)
     } else if (isOverwriteMode) {
       // Be careful with overwrite mode when is within the same revision,
       // because it maintains old configuration if any
-      overwriteReplicatedSet(baseConfiguration, tableChanges.indexChanges.supersededIndexStatus)
+      overwriteReplicatedSet(baseConfiguration, latestRevision)
     } else if (isOptimizeOperation) {
       updateQbeastReplicatedSet(
         baseConfiguration,
-        tableChanges.indexChanges.supersededIndexStatus,
-        tableChanges.indexChanges.deltaReplicatedSet)
+        latestRevision,
+        tableChanges.indexChanges.replicatedSet)
     } else { baseConfiguration }
 
     if (txn.readVersion == -1) {

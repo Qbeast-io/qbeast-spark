@@ -128,19 +128,12 @@ class PointWeightIndexerTest extends AnyFlatSpec with Matchers {
       CubeWeightTesting(id1001, Weight(6).fraction))
   }
 
-  it should "add maxWeight to the child of announced cube" in {
-    val builder = new CubeWeightsBuilder(1, 1, announcedSet = Set(root))
+  it should "add maxWeight to the child of announced or replicated cube" in {
+    val builder = new CubeWeightsBuilder(1, 1, replicatedOrAnnouncedSet = Set(root))
     builder.update(point, Weight(2))
     builder.result().map(CubeWeightTesting.apply) shouldBe Seq(
       CubeWeightTesting(root, Weight(2).fraction),
       CubeWeightTesting(id10, Weight(2).fraction))
   }
 
-  it should "add maxWeight to the child of replicated cube" in {
-    val builder = new CubeWeightsBuilder(1, 1, replicatedSet = Set(root))
-    builder.update(point, Weight(2))
-    builder.result().map(CubeWeightTesting.apply) shouldBe Seq(
-      CubeWeightTesting(root, Weight(2).fraction),
-      CubeWeightTesting(id10, Weight(2).fraction))
-  }
 }

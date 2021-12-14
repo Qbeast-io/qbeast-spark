@@ -51,9 +51,8 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
     val columnStats = revision.columnTransformers.map(_.stats)
     val columnsExpr = columnStats.flatMap(_.columns)
-    def needStats = columnsExpr.nonEmpty
 
-    val newTransformation = if (!needStats) {
+    val newTransformation = if (columnsExpr.isEmpty) {
       revision.columnTransformers.map(_.makeTransformation(identity))
     } else {
       // This is a actions that will be executed on the dataframe
@@ -136,7 +135,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
   private[index] def estimatePartitionCubeWeights(
       revision: Revision,
-      indexStatus: IndexStatus,
+      replicatedOrAnnouncedSet: Set[CubeId],
       isReplication: Boolean): DataFrame => Dataset[CubeNormalizedWeight] =
     (weightedDataFrame: DataFrame) => {
 
@@ -154,7 +153,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       // If the user has specified a desiredSize too small
       // set it to minCubeSize
       val numPartitions: Int = weightedDataFrame.rdd.getNumPartitions
-      val desiredCubeSize: Int = indexStatus.revision.desiredCubeSize
+      val desiredCubeSize: Int = revision.desiredCubeSize
       val desiredPartitionCubeSize =
         estimatePartitionCubeSize(desiredCubeSize, numPartitions)
 
@@ -165,8 +164,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
             new CubeWeightsBuilder(
               desiredCubeSize = desiredCubeSize,
               boostSize = desiredPartitionCubeSize,
-              indexStatus.announcedSet,
-              indexStatus.replicatedSet)
+              replicatedOrAnnouncedSet)
           rows.foreach { row =>
             val point = RowUtils.rowValuesToPoint(row, revision)
             val weight = Weight(row.getAs[Int](weightColumnName))
@@ -182,35 +180,35 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
   override def analyze(
       dataFrame: DataFrame,
-      oldIndexStatus: IndexStatus,
+      indexStatus: IndexStatus,
       isReplication: Boolean): (DataFrame, TableChanges) = {
 
     val spaceChanges =
       if (isReplication) None
-      else calculateRevisionChanges(dataFrame, oldIndexStatus.revision)
-
-    // The indexStatus to use
-    val indexStatus = spaceChanges match {
-      case Some(revisionChange) => IndexStatus(revisionChange.newRevision)
-      case None => oldIndexStatus
-    }
+      else calculateRevisionChanges(dataFrame, indexStatus.revision)
 
     // The revision to use
-    val revision = indexStatus.revision
+    val newRevision = spaceChanges match {
+      case Some(revisionChange) => revisionChange.createNewRevision
+      case None => indexStatus.revision
+    }
 
     // Three step transformation
 
     // First, add a random weight column
-    val weightedDataFrame = dataFrame.transform(addRandomWeight(revision))
+    val weightedDataFrame = dataFrame.transform(addRandomWeight(newRevision))
 
     // Second, estimate the cube weights at partition level
     val partitionedEstimatedCubeWeights = weightedDataFrame.transform(
-      estimatePartitionCubeWeights(revision, indexStatus, isReplication))
+      estimatePartitionCubeWeights(
+        newRevision,
+        indexStatus.replicatedOrAnnouncedSet,
+        isReplication))
 
     // Third, compute the overall estimated cube weights
     val estimatedCubeWeights =
       partitionedEstimatedCubeWeights
-        .transform(estimateCubeWeights(revision))
+        .transform(estimateCubeWeights(newRevision))
         .collect()
         .toMap
 
