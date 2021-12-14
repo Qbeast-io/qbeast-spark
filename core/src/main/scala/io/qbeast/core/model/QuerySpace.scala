@@ -35,7 +35,7 @@ case class AllSpace() extends QuerySpace {
  * @param from inclusive starting range
  * @param to   exclusive ending query range
  */
-case class QuerySpaceFromTo(from: Seq[Option[Double]], to: Seq[Option[Double]])
+class QuerySpaceFromTo(private val from: Seq[Option[Double]], private val to: Seq[Option[Double]])
     extends QuerySpace {
 
   private def intersects(f: Double, t: Double, cube: CubeId, coordinate: Int): Boolean = {
@@ -73,7 +73,7 @@ object QuerySpaceFromTo {
       case _ => None
     }
 
-    QuerySpaceFromTo(from, to)
+    new QuerySpaceFromTo(from, to)
   }
 
 }
