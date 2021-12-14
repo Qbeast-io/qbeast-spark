@@ -1,6 +1,5 @@
 package io.qbeast.spark.index
 
-import com.typesafe.config.ConfigFactory
 import io.qbeast.IISeq
 import io.qbeast.TestClasses._
 import io.qbeast.core.model.{
@@ -27,6 +26,7 @@ import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer.{
 }
 import io.qbeast.spark.index.QbeastColumns.weightColumnName
 import io.qbeast.spark.utils.SparkToQTypesUtils
+import org.apache.spark.qbeast.config.MIN_PARTITION_CUBE_SIZE
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructField
@@ -34,8 +34,7 @@ import org.scalatest.matchers.must.Matchers.convertToAnyMustWrapper
 
 class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
-  private val defaultMinPartitionSize =
-    ConfigFactory.load().getInt("qbeast.index.minPartitionCubeSize")
+  private val defaultMinPartitionSize = MIN_PARTITION_CUBE_SIZE
 
   private def createDF(size: Int, spark: SparkSession): Dataset[T3] = {
     import spark.implicits._

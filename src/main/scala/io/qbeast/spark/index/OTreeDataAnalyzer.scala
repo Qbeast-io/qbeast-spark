@@ -3,10 +3,10 @@
  */
 package io.qbeast.spark.index
 
-import com.typesafe.config.ConfigFactory
 import io.qbeast.core.model._
 import io.qbeast.spark.index.QbeastColumns.{cubeToReplicateColumnName, weightColumnName}
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
+import org.apache.spark.qbeast.config.MIN_PARTITION_CUBE_SIZE
 import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.functions.{col, udaf}
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
@@ -40,8 +40,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
   /**
    * The minimum cube size per partition registered in configuration
    */
-  private val minPartitionCubeSize: Int =
-    ConfigFactory.load().getInt("qbeast.index.minPartitionCubeSize")
+  private val minPartitionCubeSize: Int = MIN_PARTITION_CUBE_SIZE
 
   private lazy val logger = org.apache.log4j.LogManager.getLogger(this.getClass)
 

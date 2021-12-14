@@ -3,13 +3,13 @@
  */
 package io.qbeast.context
 
-import com.typesafe.config.{Config, ConfigFactory}
 import io.qbeast.core.keeper.{Keeper, LocalKeeper}
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
 import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionFactory}
 import io.qbeast.spark.index.writer.SparkDataWriter
 import io.qbeast.spark.table.{IndexedTableFactory, IndexedTableFactoryImpl}
+import org.apache.spark.SparkConf
 import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationEnd}
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.types.StructType
@@ -28,7 +28,7 @@ trait QbeastContext {
    *
    * @return the configuration
    */
-  def config: Config
+  def config: SparkConf
 
   /**
    * Returns the keeper.
@@ -65,7 +65,7 @@ object QbeastContext
 
   // Override methods from QbeastContext
 
-  override def config: Config = current.config
+  override def config: SparkConf = SparkSession.active.sparkContext.getConf
 
   override def keeper: Keeper = LocalKeeper
 
@@ -119,14 +119,15 @@ object QbeastContext
   }
 
   private def createManaged(): QbeastContext = {
-    val config = ConfigFactory.load()
+    val config = SparkSession.active.sparkContext.getConf
     val keeper = createKeeper(config)
     val indexedTableFactory =
       createIndexedTableFactory(keeper)
     new QbeastContextImpl(config, keeper, indexedTableFactory)
   }
 
-  private def createKeeper(config: Config): Keeper = Keeper(config)
+  private def createKeeper(config: SparkConf): Keeper = Keeper(
+    config.getAll.filter(_._1.startsWith("qbeast.keeper")).toMap)
 
   private def createIndexedTableFactory(keeper: Keeper): IndexedTableFactory =
     new IndexedTableFactoryImpl(
@@ -154,7 +155,7 @@ object QbeastContext
  * Simple implementation of QbeastContext
  */
 class QbeastContextImpl(
-    val config: Config,
+    val config: SparkConf,
     val keeper: Keeper,
     val indexedTableFactory: IndexedTableFactory)
     extends QbeastContext {}
