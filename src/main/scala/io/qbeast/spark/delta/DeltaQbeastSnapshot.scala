@@ -102,9 +102,9 @@ case class DeltaQbeastSnapshot(snapshot: Snapshot) extends QbeastSnapshot {
   }
 
   /**
-   * Obtains the latest IndexStatus for a given QTableID
+   * Obtains the latest IndexStatus for the last RevisionID
    *
-   * @return the latest IndexStatus for qtable
+   * @return the latest IndexStatus for lastRevisionID
    */
   override def loadLatestIndexStatus: IndexStatus = {
     loadIndexStatus(lastRevisionID)

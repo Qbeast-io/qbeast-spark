@@ -52,9 +52,9 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
     val columnStats = revision.columnTransformers.map(_.stats)
     val columnsExpr = columnStats.flatMap(_.columns)
-    def needStats = columnsExpr.nonEmpty
 
-    val newTransformation = if (!needStats) {
+    val newTransformation = if (columnsExpr.isEmpty) {
+      // The columns do not need any stats.
       revision.columnTransformers.map(_.makeTransformation(identity))
     } else {
       // This is a actions that will be executed on the dataframe

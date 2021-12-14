@@ -84,7 +84,7 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
       val deltaLog = DeltaLog.forTable(spark, qbeast_table_path)
       val totalNumberOfFiles = deltaLog.snapshot.allFiles.count()
 
-      (totalNumberOfFiles should be > 1L) withClue
+      totalNumberOfFiles should be > 1L withClue
         "Total number of files in pushdown notebook changes to " + totalNumberOfFiles
 
       val query = qbeast_df.sample(0.1)
@@ -98,7 +98,7 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
       val files = query.select(input_file_name()).distinct().as[String].collect()
 
       val numberOfFilesQuery = files.length.toLong
-      (numberOfFilesQuery should be < totalNumberOfFiles) withClue
+      numberOfFilesQuery should be < totalNumberOfFiles withClue
         "Number of files read in pushdown notebook changes to " + numberOfFilesQuery
 
       val numberOfRowsRead = spark.read.format("parquet").load(files: _*).count()
