@@ -64,7 +64,10 @@ class QuerySpecBuilderTest extends AnyFlatSpec with Matchers with QbeastIntegrat
     val expression = expr(s"id >= $from and id < $to").expr
     val revision = createRevision()
     val querySpec = new QuerySpecBuilder(Seq(expression)).build(revision)
-    querySpec.querySpace shouldBe QuerySpaceFromTo(Seq(Some(from)), Seq(Some(to)), revision)
+    querySpec.querySpace shouldBe QuerySpaceFromTo(
+      Seq(Some(from)),
+      Seq(Some(to)),
+      revision.transformations)
 
   })
 
@@ -75,7 +78,7 @@ class QuerySpecBuilderTest extends AnyFlatSpec with Matchers with QbeastIntegrat
     val querySpec = new QuerySpecBuilder(Seq(expression)).build(revision)
 
     querySpec.querySpace shouldBe
-      QuerySpaceFromTo(Seq(Some(3.0)), Seq(None), revision)
+      QuerySpaceFromTo(Seq(Some(3.0)), Seq(None), revision.transformations)
 
   })
 
@@ -83,7 +86,7 @@ class QuerySpecBuilderTest extends AnyFlatSpec with Matchers with QbeastIntegrat
 
     val revision = createRevision()
     val querySpec = new QuerySpecBuilder(Seq.empty).build(revision)
-    querySpec.querySpace shouldBe QuerySpaceFromTo(Seq(None), Seq(None), revision)
+    querySpec.querySpace shouldBe QuerySpaceFromTo(Seq(None), Seq(None), revision.transformations)
   })
 
   it should "not process disjunctive predicates" in withSpark(spark => {
@@ -92,7 +95,7 @@ class QuerySpecBuilderTest extends AnyFlatSpec with Matchers with QbeastIntegrat
     val expression = expr(s"id >= 3 OR id < 8").expr
     val querySpec = new QuerySpecBuilder(Seq(expression)).build(revision)
     querySpec.querySpace shouldBe
-      QuerySpaceFromTo(Seq(None), Seq(None), revision)
+      QuerySpaceFromTo(Seq(None), Seq(None), revision.transformations)
 
   })
 

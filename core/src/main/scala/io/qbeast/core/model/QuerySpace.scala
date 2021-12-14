@@ -3,6 +3,8 @@
  */
 package io.qbeast.core.model
 
+import io.qbeast.core.transform.Transformation
+
 /**
  * Query space defines the domain area requested by the query.
  */
@@ -30,9 +32,11 @@ case class AllSpace() extends QuerySpace {
  * Describe the query range in the area included in [originalFrom,originalTo)
  * (inclusive, exclusive).
  *
- * @param ranges the ranges
+ * @param from inclusive starting range
+ * @param to   exclusive ending query range
  */
-case class QuerySpaceFromTo(ranges: Seq[(Option[Double], Option[Double])]) extends QuerySpace {
+case class QuerySpaceFromTo(from: Seq[Option[Double]], to: Seq[Option[Double]])
+    extends QuerySpace {
 
   private def intersects(f: Double, t: Double, cube: CubeId, coordinate: Int): Boolean = {
     val cf = cube.from.coordinates(coordinate)
@@ -41,7 +45,7 @@ case class QuerySpaceFromTo(ranges: Seq[(Option[Double], Option[Double])]) exten
   }
 
   override def intersectsWith(cube: CubeId): Boolean = {
-    ranges.zipWithIndex.forall {
+    from.zip(to).zipWithIndex.forall {
       case ((Some(f), Some(t)), i) => intersects(f, t, cube, i)
       case ((None, Some(t)), i) => intersects(0.0, t, cube, i)
       case ((Some(f), None), i) => intersects(f, 1.0, cube, i)
@@ -53,21 +57,19 @@ case class QuerySpaceFromTo(ranges: Seq[(Option[Double], Option[Double])]) exten
 
 object QuerySpaceFromTo {
 
-  def apply(from: Seq[Option[Double]], to: Seq[Option[Double]]): QuerySpaceFromTo = {
-    QuerySpaceFromTo(from.zip(to))
-  }
-
   def apply(
       originalFrom: Seq[Option[Any]],
       originalTo: Seq[Option[Any]],
-      revision: Revision): QuerySpaceFromTo = {
+      transformations: Seq[Transformation]): QuerySpaceFromTo = {
 
-    val from = originalFrom.zipWithIndex.map {
-      case (Some(f), i) => Some(revision.transformations(i).transform(f))
+    assert(originalTo.size == originalFrom.size)
+    assert(transformations.size == originalTo.size)
+    val from = originalFrom.zip(transformations).map {
+      case (Some(f), transformation) => Some(transformation.transform(f))
       case _ => None
     }
-    val to = originalTo.zipWithIndex.map {
-      case (Some(t), i) => Some(revision.transformations(i).transform(t))
+    val to = originalTo.zip(transformations).map {
+      case (Some(t), transformation) => Some(transformation.transform(t))
       case _ => None
     }
 

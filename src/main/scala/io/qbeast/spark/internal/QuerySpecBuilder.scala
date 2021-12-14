@@ -82,10 +82,8 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression]) extends Ser
     val filters = dataFilters.flatMap(filter => splitConjunctivePredicates(filter))
 
     val indexedColumns = revision.columnTransformers.map(_.columnName)
-    val transformations = revision.transformations
-
     val fromTo =
-      indexedColumns.zip(transformations).map { case (columnName, t) =>
+      indexedColumns.map { columnName =>
         // Get the filters related to the column
         val columnFilters = filters.filter(hasColumnReference(_, columnName))
 
@@ -93,17 +91,19 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression]) extends Ser
         // if not found, use the overall coordinates
         val from = columnFilters
           .collectFirst {
-            case GreaterThanOrEqual(_, Literal(value, _)) => t.transform(value)
-            case EqualTo(_, Literal(value, _)) => t.transform(value)
+            case GreaterThanOrEqual(_, Literal(value, _)) => value
+            case EqualTo(_, Literal(value, _)) => value
           }
 
         val to = columnFilters
-          .collectFirst { case LessThan(_, Literal(value, _)) => t.transform(value) }
+          .collectFirst { case LessThan(_, Literal(value, _)) => value }
 
         (from, to)
       }
 
-    QuerySpaceFromTo(fromTo)
+    val from = fromTo.map(_._1)
+    val to = fromTo.map(_._2)
+    QuerySpaceFromTo(from, to, revision.transformations)
   }
 
   /**
