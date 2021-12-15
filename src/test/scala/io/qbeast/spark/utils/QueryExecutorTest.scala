@@ -116,7 +116,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
         .withColumn("a", col("a") * 5)
         .withColumn("c", col("c") * 6)
 
-    writeTestData(differentRevision, Seq("a", "c"), 10, tmpdir)
+    writeTestData(differentRevision, Seq("a", "c"), 10, tmpdir, "append")
 
     val deltaLog = DeltaLog.forTable(spark, tmpdir)
     val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)

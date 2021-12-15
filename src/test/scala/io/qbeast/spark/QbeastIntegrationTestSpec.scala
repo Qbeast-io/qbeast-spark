@@ -46,10 +46,11 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
       data: DataFrame,
       columnsToIndex: Seq[String],
       cubeSize: Int,
-      tmpDir: String): Unit = {
+      tmpDir: String,
+      mode: String = "overwrite"): Unit = {
 
     data.write
-      .mode("overwrite")
+      .mode(mode)
       .format("qbeast")
       .options(
         Map("columnsToIndex" -> columnsToIndex.mkString(","), "cubeSize" -> cubeSize.toString))
