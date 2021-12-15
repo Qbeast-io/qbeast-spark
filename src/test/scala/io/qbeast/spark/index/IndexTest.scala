@@ -72,7 +72,7 @@ class IndexTest
 
         val (_, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
-        checkCubes(tc.indexChanges.cubeWeights)
+        checkCubes(tc.cubeWeights)
       }
     }
   }
@@ -85,7 +85,7 @@ class IndexTest
 
         val (_, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
-        checkWeightsIncrement(tc.indexChanges.cubeWeights)
+        checkWeightsIncrement(tc.cubeWeights)
       }
     }
   }
@@ -98,7 +98,7 @@ class IndexTest
 
         val (indexed, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
-        checkCubesOnData(tc.indexChanges.cubeWeights, indexed, dimensionCount = 2)
+        checkCubesOnData(tc.cubeWeights, indexed, dimensionCount = 2)
       }
     }
   }
@@ -120,7 +120,7 @@ class IndexTest
           Map("columnsToIndex" -> "age,val2", "cubeSize" -> smallCubeSize.toString))
 
         val (indexed, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
-        val weightMap = tc.indexChanges.cubeWeights
+        val weightMap = tc.cubeWeights
 
         checkDFSize(indexed, df)
         checkCubes(weightMap)
@@ -148,7 +148,7 @@ class IndexTest
           df.schema,
           Map("columnsToIndex" -> "user_id,product_id", "cubeSize" -> "10000"))
         val (indexed, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
-        val weightMap = tc.indexChanges.cubeWeights
+        val weightMap = tc.cubeWeights
 
         checkDFSize(indexed, df)
         checkCubes(weightMap)
@@ -188,11 +188,12 @@ class IndexTest
           SparkRevisionFactory.createNewRevision(tableId, appendData.schema, options)
         val (indexed, tc) =
           oTreeAlgorithm.index(appendData, qbeastSnapshot.loadLatestIndexStatus)
+        val weightMap = tc.cubeWeights
 
         checkDFSize(indexed, df)
-        checkCubes(tc.indexChanges.cubeWeights)
-        checkWeightsIncrement(tc.indexChanges.cubeWeights)
-        checkCubesOnData(tc.indexChanges.cubeWeights, indexed, 2)
+        checkCubes(weightMap)
+        checkWeightsIncrement(weightMap)
+        checkCubesOnData(weightMap, indexed, 2)
         checkCubeSize(
           tc,
           appendRev,
@@ -255,7 +256,7 @@ class IndexTest
               case None => // cube is root
               case Some(parent) =>
                 val minWeight = Weight(f.tags(TagUtils.minWeight).toInt)
-                val parentMaxWeight = tc.indexChanges.cubeWeights(parent)
+                val parentMaxWeight = tc.cubeWeights(parent)
 
                 minWeight should be >= parentMaxWeight
             }

@@ -60,17 +60,14 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
 
   }
 
-  private def overwriteReplicatedSet(
-      baseConfiguration: Configuration,
-      revision: Revision): Configuration = {
-
-    val revisionID = revision.revisionID
-    assert(baseConfiguration.contains(s"${MetadataConfig.revision}.$revisionID"))
-
-    baseConfiguration.updated(
-      s"${MetadataConfig.replicatedSet}.$revisionID",
-      mapper.writeValueAsString(Set.empty))
-
+  private def overwriteQbeastConfiguration(baseConfiguration: Configuration): Configuration = {
+    val revisionKeys = baseConfiguration.keys.filter(_.startsWith(MetadataConfig.revision))
+    val replicatedSetKeys = {
+      baseConfiguration.keys.filter(_.startsWith(MetadataConfig.replicatedSet))
+    }
+    val other = baseConfiguration.keys.filter(_ == MetadataConfig.lastRevisionID)
+    val qbeastKeys = revisionKeys ++ replicatedSetKeys ++ other
+    baseConfiguration -- qbeastKeys
   }
 
   /**
@@ -120,19 +117,14 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
 
     val latestRevision = tableChanges.updatedRevision
     val baseConfiguration: Configuration =
-      if (txn.readVersion == -1) Map.empty else txn.metadata.configuration
+      if (txn.readVersion == -1) Map.empty
+      else if (isOverwriteMode) overwriteQbeastConfiguration(txn.metadata.configuration)
+      else txn.metadata.configuration
     // Qbeast configuration metadata
-    val configuration = if (isNewRevision) {
+    val configuration = if (isNewRevision || isOverwriteMode) {
       updateQbeastRevision(baseConfiguration, latestRevision)
-    } else if (isOverwriteMode) {
-      // Be careful with overwrite mode when is within the same revision,
-      // because it maintains old configuration if any
-      overwriteReplicatedSet(baseConfiguration, latestRevision)
     } else if (isOptimizeOperation) {
-      updateQbeastReplicatedSet(
-        baseConfiguration,
-        latestRevision,
-        tableChanges.indexChanges.replicatedSet)
+      updateQbeastReplicatedSet(baseConfiguration, latestRevision, tableChanges.replicatedSet)
     } else { baseConfiguration }
 
     if (txn.readVersion == -1) {
