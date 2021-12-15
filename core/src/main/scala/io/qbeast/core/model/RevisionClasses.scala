@@ -238,18 +238,7 @@ case class IndexStatusChange(
     deltaNormalizedCubeWeights: Map[CubeId, NormalizedWeight],
     deltaReplicatedSet: Set[CubeId] = Set.empty,
     deltaAnnouncedSet: Set[CubeId] = Set.empty)
-    extends Serializable {
-
-  def cubeWeights: Map[CubeId, Weight] = CubeNormalizedWeights.mergeNormalizedWeights(
-    supersededIndexStatus.cubeNormalizedWeights,
-    deltaNormalizedCubeWeights)
-
-  def announcedSet: Set[CubeId] = supersededIndexStatus.announcedSet ++ deltaAnnouncedSet
-
-  def replicatedSet: Set[CubeId] = supersededIndexStatus.replicatedSet ++ deltaReplicatedSet
-
-  def announcedOrReplicatedSet: Set[CubeId] = announcedSet ++ replicatedSet
-}
+    extends Serializable {}
 
 /**
  * Container for the table changes
@@ -269,5 +258,39 @@ case class TableChanges(
     case None => indexChanges.supersededIndexStatus.revision
 
   }
+
+  def cubeWeights: Map[CubeId, Weight] = {
+    if (revisionChanges.isEmpty) {
+
+      CubeNormalizedWeights.mergeNormalizedWeights(
+        indexChanges.supersededIndexStatus.cubeNormalizedWeights,
+        indexChanges.deltaNormalizedCubeWeights)
+    } else {
+      CubeNormalizedWeights.mergeNormalizedWeights(
+        Map.empty,
+        indexChanges.deltaNormalizedCubeWeights)
+    }
+  }
+
+  def announcedSet: Set[CubeId] = {
+    if (revisionChanges.isEmpty) {
+
+      indexChanges.supersededIndexStatus.announcedSet ++ indexChanges.deltaAnnouncedSet
+    } else {
+      indexChanges.deltaAnnouncedSet
+    }
+
+  }
+
+  def replicatedSet: Set[CubeId] = {
+    if (revisionChanges.isEmpty) {
+
+      indexChanges.supersededIndexStatus.replicatedSet ++ indexChanges.deltaReplicatedSet
+    } else {
+      indexChanges.deltaReplicatedSet
+    }
+  }
+
+  def announcedOrReplicatedSet: Set[CubeId] = announcedSet ++ replicatedSet
 
 }
