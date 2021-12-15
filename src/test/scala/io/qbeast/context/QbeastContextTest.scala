@@ -14,7 +14,7 @@ import org.scalatest.matchers.should.Matchers
 
 class QbeastContextTest extends AnyFlatSpec with Matchers {
 
-  it should "use the unmanaged context if provided" in {
+  it should "use the unmanaged context if provided" in withSpark {
     val keeper = LocalKeeper
     val indexedTableFactory = new IndexedTableFactoryImpl(
       keeper,
@@ -28,15 +28,13 @@ class QbeastContextTest extends AnyFlatSpec with Matchers {
       indexedTableFactory = indexedTableFactory)
     QbeastContext.setUnmanaged(unmanaged)
     try {
-      withSpark {
-        QbeastContext.keeper.isInstanceOf[Keeper]
-      }
+      QbeastContext.keeper.isInstanceOf[Keeper]
     } finally {
       QbeastContext.unsetUnmanaged() shouldBe Some(unmanaged)
     }
   }
 
-  it should "use the managed context after the unmanaged is unset" in {
+  it should "use the managed context after the unmanaged is unset" in withSpark {
     val keeper = LocalKeeper
     val indexedTableFactory = new IndexedTableFactoryImpl(
       keeper,
@@ -50,9 +48,7 @@ class QbeastContextTest extends AnyFlatSpec with Matchers {
       indexedTableFactory = indexedTableFactory)
     QbeastContext.setUnmanaged(unmanaged)
     QbeastContext.unsetUnmanaged() shouldBe Some(unmanaged)
-    withSpark {
-      QbeastContext.keeper shouldBe LocalKeeper
-    }
+    QbeastContext.keeper shouldBe LocalKeeper
   }
 
   private def withSpark[T](code: => T): T = {
