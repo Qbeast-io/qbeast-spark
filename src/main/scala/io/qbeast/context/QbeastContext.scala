@@ -127,7 +127,7 @@ object QbeastContext
   }
 
   private def createKeeper(config: SparkConf): Keeper = Keeper(
-    config.getAll.filter(_._1.startsWith("qbeast.keeper")).toMap)
+    config.getAll.filter(_._1.startsWith("spark.qbeast.keeper")).toMap)
 
   private def createIndexedTableFactory(keeper: Keeper): IndexedTableFactory =
     new IndexedTableFactoryImpl(

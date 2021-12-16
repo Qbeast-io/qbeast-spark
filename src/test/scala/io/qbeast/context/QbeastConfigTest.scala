@@ -22,6 +22,22 @@ class QbeastConfigTest extends AnyFlatSpec with Matchers {
     }
   }
 
+  "Spark.qbeast.keeper" should "not be defined" in withSpark(new SparkConf()) {
+    val keeperString = SparkSession.active.sparkContext.getConf
+      .getOption("spark.qbeast.keeper")
+    keeperString shouldBe None
+  }
+
+  it should "be defined" in {
+    val sparkConfig = new SparkConf()
+      .set("spark.qbeast.keeper", "myKeeper")
+    withSpark(sparkConfig) {
+      val keeperString = SparkSession.active.sparkContext.getConf
+        .getOption("spark.qbeast.keeper")
+      keeperString.get shouldBe "myKeeper"
+    }
+  }
+
   private def withSpark[T](conf: SparkConf)(code: => T): T = {
     val session = SparkSession.builder().master("local[*]").config(conf).getOrCreate()
     try {
