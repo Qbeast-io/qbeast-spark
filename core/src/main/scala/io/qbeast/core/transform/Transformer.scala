@@ -75,6 +75,10 @@ trait Transformer extends Serializable {
 
   protected def transformerType: TransformerType
 
+  /**
+   * Returns the data type of the transformer
+   * @return
+   */
   def dataType: QDataType
 
   /**
@@ -85,7 +89,7 @@ trait Transformer extends Serializable {
 
   /**
    * Returns the Transformation given a row representation of the values
-   * @param row the values
+   * @param columnStats the column stats for the transformation
    * @return the transformation
    */
   def makeTransformation(columnStats: ColumnStats): Transformation
@@ -93,7 +97,7 @@ trait Transformer extends Serializable {
   /**
    * Returns the new Transformation if the space has changed
    * @param currentTransformation the current transformation
-   * @param row the row containing the new space values
+   * @param columnStats the column stats for the transformation
    * @return an optional new transformation
    */
   def maybeUpdateTransformation(
@@ -118,8 +122,11 @@ object NoColumnStats extends ColumnStats(Nil, Nil, 0, 0.0, Nil)
 
 /**
  * Stores the stats of the column
- * @param names the stats names
- * @param columns the stats column operation
+ * @param min    min value of the column
+ * @param max    max value of the column
+ * @param count  number of values in the column
+ * @param stddev standard deviation of the column
+ * @param mean   mean of the column
  */
 case class ColumnStats(min: Any, max: Any, count: Long, stddev: Double, mean: Any)
     extends Serializable {}

@@ -7,10 +7,11 @@ import scala.collection.mutable
 /**
  * Builder for creating cube weights.
  *
- * @param desiredCubeSize the desired cube size
- * @param boostSize       the boost size
- * @param announcedSet    the announced cube identifiers
- * @param replicatedSet   the replicated cube identifiers
+ * @param desiredCubeSize           the desired cube size
+ * @param boostSize                 the boost size
+ * @param cubeWeightsBufferCapacity the buffer capacity to store the cube weights in memory
+ * @param announcedSet              the announced cube identifiers
+ * @param replicatedSet             the replicated cube identifiers
  */
 class CubeWeightsBuilder(
     private val desiredCubeSize: Int,
