@@ -16,14 +16,14 @@ class EstimateGroupCubeSizeTest extends AnyWordSpec with Matchers with AppendedC
             desiredCubeSize = 1000000,
             numPartitions = 1,
             numElements = 10000,
-            maxWorkingSetSize = 100000) shouldBe 1000000 +- 1
+            maxWorkingSetSize = 100000) shouldBe 1000000.0 +- 1
       }
     }
 
     "numElements == desiredCubeSize and numElements > maxWorkingSetSize" should {
       "create the correct number of groups for different number of partitions" in {
         val numPartitions = Seq(1, 10, 20)
-        val groupCubeSizes = Seq(100000, 100000, 50000)
+        val groupCubeSizes = Seq(100000.0, 100000.0, 50000.0)
 
         for ((nP, gS) <- numPartitions zip groupCubeSizes) {
           DoublePassOTreeDataAnalyzer
@@ -43,7 +43,7 @@ class EstimateGroupCubeSizeTest extends AnyWordSpec with Matchers with AppendedC
           desiredCubeSize = 1000000,
           numPartitions = 15,
           numElements = 2000000,
-          maxWorkingSetSize = 100000) shouldBe 50000 +- 1
+          maxWorkingSetSize = 100000) shouldBe 50000.0 +- 1
       }
     }
   }
