@@ -24,7 +24,7 @@ object NormalizedWeight {
     if (cubeSize == 0) {
       throw new IllegalArgumentException("Cube size is zero.")
     }
-    desiredCubeSize / cubeSize
+    desiredCubeSize.toDouble / cubeSize
   }
 
   /**

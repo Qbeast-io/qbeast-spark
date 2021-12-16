@@ -56,6 +56,10 @@ class CubeWeightsBuilder(
    * @return the resulting cube weights map
    */
   def result(): Seq[CubeNormalizedWeight] = {
+    resultInternal() ++ resultBuffer
+  }
+
+  def resultInternal(): Seq[CubeNormalizedWeight] = {
     val weights = mutable.Map.empty[CubeId, WeightAndCount]
     while (queue.nonEmpty) {
       val PointWeightAndParent(point, weight, parent) = queue.dequeue()
