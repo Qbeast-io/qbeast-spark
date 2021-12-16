@@ -75,6 +75,8 @@ trait Transformer extends Serializable {
 
   protected def transformerType: TransformerType
 
+  def dataType: QDataType
+
   /**
    * Returns the name of the column
    * @return
@@ -82,17 +84,11 @@ trait Transformer extends Serializable {
   def columnName: String
 
   /**
-   * Returns the stats
-   * @return
-   */
-  def stats: ColumnStats
-
-  /**
    * Returns the Transformation given a row representation of the values
    * @param row the values
    * @return the transformation
    */
-  def makeTransformation(row: String => Any): Transformation
+  def makeTransformation(columnStats: ColumnStats): Transformation
 
   /**
    * Returns the new Transformation if the space has changed
@@ -102,8 +98,8 @@ trait Transformer extends Serializable {
    */
   def maybeUpdateTransformation(
       currentTransformation: Transformation,
-      row: Map[String, Any]): Option[Transformation] = {
-    val newDataTransformation = makeTransformation(row)
+      columnStats: ColumnStats): Option[Transformation] = {
+    val newDataTransformation = makeTransformation(columnStats)
     if (currentTransformation.isSupersededBy(newDataTransformation)) {
       Some(currentTransformation.merge(newDataTransformation))
     } else {
@@ -118,19 +114,12 @@ trait Transformer extends Serializable {
 /**
  * Empty ColumnStats
  */
-object NoColumnStats extends ColumnStats(Nil, Nil)
+object NoColumnStats extends ColumnStats(Nil, Nil, 0, 0.0, Nil)
 
 /**
  * Stores the stats of the column
  * @param names the stats names
  * @param columns the stats column operation
  */
-case class ColumnStats(names: Seq[String], columns: Seq[String]) extends Serializable {
-
-  /**
-   * Gets the values of the stats
-   * @param row the row of values
-   * @return the stats values
-   */
-  def getValues(row: Map[String, Any]): Seq[Any] = names.map(column => row(column))
-}
+case class ColumnStats(min: Any, max: Any, count: Long, stddev: Double, mean: Any)
+    extends Serializable {}
