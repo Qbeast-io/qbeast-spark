@@ -1,12 +1,10 @@
-package io.qbeast.spark.utils
+package io.qbeast.spark.index.query
 
 import io.qbeast.TestClasses.T2
 import io.qbeast.core.model.{QbeastFile, Weight, WeightRange}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
-import io.qbeast.spark.internal.{QueryExecutor, QuerySpecBuilder}
-import org.apache.spark.sql.{Column, SparkSession}
 import org.apache.spark.sql.catalyst.expressions.{
   And,
   Expression,
@@ -16,6 +14,7 @@ import org.apache.spark.sql.catalyst.expressions.{
 }
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.{col, expr}
+import org.apache.spark.sql.{Column, SparkSession}
 
 class QueryExecutorTest extends QbeastIntegrationTestSpec {
 
@@ -120,7 +119,9 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
 
     val deltaLog = DeltaLog.forTable(spark, tmpdir)
     val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
-    assert(qbeastSnapshot.loadAllRevisions.size == 2)
+
+    qbeastSnapshot.loadAllRevisions.size shouldBe 2
+
     val filters = Seq.empty
 
     val querySpec = new QuerySpecBuilder(filters)

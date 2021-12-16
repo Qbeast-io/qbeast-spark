@@ -4,6 +4,8 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.delta.DeltaQbeastSnapshot
+import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions._
 
 class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
@@ -65,9 +67,28 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
       assertLargeDatasetEquality(indexed, data, orderedComparison = false)
 
       data.columns.toSet shouldBe indexed.columns.toSet
-
     }
   }
+
+  it should "clean previous metadata on overwrite" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      {
+        val data = loadTestData(spark)
+        // WRITE SOME DATA
+        writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
+
+        // OVERWRITE
+        writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
+
+        val deltaLog = DeltaLog.forTable(spark, tmpDir)
+        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+
+        qbeastSnapshot.loadAllRevisions.size shouldBe 1
+        qbeastSnapshot.loadLatestRevision.revisionID shouldBe 1L
+
+      }
+  }
+
   it should
     "work with indexed columns within 0 and 1" in withQbeastContextSparkAndTmpDir {
       (spark, tmpDir) =>

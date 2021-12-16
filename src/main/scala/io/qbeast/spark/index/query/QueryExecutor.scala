@@ -1,7 +1,7 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.internal
+package io.qbeast.spark.index.query
 
 import io.qbeast.core.model.{QbeastFile, QbeastSnapshot}
 
@@ -12,9 +12,9 @@ import io.qbeast.core.model.{QbeastFile, QbeastSnapshot}
 class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSnapshot) {
 
   /**
-   * Executes the query
+   * Executes the query given a previous matched files
    * @param previouslyMatchedFiles the sequence of files that have already been matched
-   * @return the sequence of files that match the query
+   * @return the final sequence of files that match the query
    */
   def execute(previouslyMatchedFiles: Seq[QbeastFile]): Seq[QbeastFile] = {
 

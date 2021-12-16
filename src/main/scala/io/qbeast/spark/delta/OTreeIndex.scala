@@ -4,7 +4,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model.QbeastFile
-import io.qbeast.spark.internal.{QueryExecutor, QuerySpecBuilder}
+import io.qbeast.spark.index.query.{QueryExecutor, QuerySpecBuilder}
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.delta.actions.AddFile

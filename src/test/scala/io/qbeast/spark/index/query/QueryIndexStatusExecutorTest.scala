@@ -1,10 +1,9 @@
-package io.qbeast.spark.utils
+package io.qbeast.spark.index.query
 
 import io.qbeast.TestClasses.T2
 import io.qbeast.core.model.{AllSpace, QbeastFile, Weight, WeightRange}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.internal.{QueryIndexStatusExecutor, QuerySpec}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
 

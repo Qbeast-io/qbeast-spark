@@ -1,16 +1,8 @@
-package io.qbeast.spark.utils
+package io.qbeast.spark.index.query
 
-import io.qbeast.core.model.{
-  IntegerDataType,
-  QTableID,
-  QuerySpaceFromTo,
-  Revision,
-  Weight,
-  WeightRange
-}
+import io.qbeast.core.model._
 import io.qbeast.core.transform.{LinearTransformation, Transformer}
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.internal.QuerySpecBuilder
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.catalyst.expressions._

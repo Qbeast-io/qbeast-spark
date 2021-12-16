@@ -1,9 +1,10 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.internal
+package io.qbeast.spark.index.query
 
-import io.qbeast.core.model.{QuerySpace, QuerySpaceFromTo, Revision, Weight, WeightRange}
+import io.qbeast.core.model._
+import io.qbeast.spark.index.query
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{
@@ -140,7 +141,7 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression]) extends Ser
 
   def build(revision: Revision): QuerySpec = {
     val qbeastFilters = extractDataFilters(sparkFilters, revision)
-    QuerySpec(extractWeightRange(qbeastFilters), extractQuerySpace(qbeastFilters, revision))
+    query.QuerySpec(extractWeightRange(qbeastFilters), extractQuerySpace(qbeastFilters, revision))
   }
 
 }
