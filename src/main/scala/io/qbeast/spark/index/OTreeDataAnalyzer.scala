@@ -51,25 +51,13 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       dataFrameStats: Array[Row],
       revision: Revision): Option[RevisionChange] = {
 
-    val columnNames = revision.columnTransformers.map(_.columnName)
-
-    val mins = dataFrameStats.filter(_.get(0) == "min").head.getValuesMap(columnNames)
-    val maxs = dataFrameStats.filter(_.get(0) == "max").head.getValuesMap(columnNames)
-
     val newTransformation = revision.columnTransformers.map(ct => {
-      val minVal: String = mins(ct.columnName)
-      val maxVal: String = maxs(ct.columnName)
-      val columnStats: ColumnStats = {
-        ct.dataType match {
-          case DoubleDataType => ColumnStats(minVal.toDouble, maxVal.toDouble, 0, 0.0, Nil)
-          case IntegerDataType => ColumnStats(minVal.toInt, maxVal.toInt, 0, 0.0, Nil)
-          case LongDataType => ColumnStats(minVal.toLong, maxVal.toLong, 0, 0.0, Nil)
-          case FloatDataType => ColumnStats(minVal.toFloat, maxVal.toFloat, 0, 0.0, Nil)
-          case DecimalDataType => ColumnStats(minVal.toDouble, maxVal.toDouble, 0, 0.0, Nil)
-          case StringDataType => ColumnStats(Nil, Nil, 0, 0.0, Nil)
-        }
-      }
-      ct.makeTransformation(columnStats)
+      val stats = dataFrameStats
+        .map(row => {
+          (row.getAs[String](0), row.getAs[String](ct.columnName))
+        })
+        .toMap
+      ct.makeTransformation(ColumnStats(stats, ct.dataType))
     })
 
     val transformationDelta = if (revision.transformations.isEmpty) {

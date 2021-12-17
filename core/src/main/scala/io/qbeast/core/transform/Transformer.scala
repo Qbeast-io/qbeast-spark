@@ -4,7 +4,16 @@
 package io.qbeast.core.transform
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import io.qbeast.core.model.{OrderedDataType, QDataType, StringDataType}
+import io.qbeast.core.model.{
+  DecimalDataType,
+  DoubleDataType,
+  FloatDataType,
+  IntegerDataType,
+  LongDataType,
+  OrderedDataType,
+  QDataType,
+  StringDataType
+}
 
 import java.util.Locale
 
@@ -130,3 +139,27 @@ object NoColumnStats extends ColumnStats(Nil, Nil, 0, 0.0, Nil)
  */
 case class ColumnStats(min: Any, max: Any, count: Long, stddev: Double, mean: Any)
     extends Serializable {}
+
+object ColumnStats {
+
+  def apply(stats: Map[String, String], dataType: QDataType): ColumnStats = {
+
+    val min = stats("min")
+    val max = stats("max")
+    val count = stats("count").toLong
+    val stddev = stats("stddev").toDouble
+    val mean = stats("mean").toDouble
+
+    val (minVal, maxVal) = dataType match {
+      case DoubleDataType => (min.toDouble, max.toDouble)
+      case IntegerDataType => (min.toInt, max.toInt)
+      case LongDataType => (min.toLong, max.toLong)
+      case FloatDataType => (min.toFloat, max.toFloat)
+      case DecimalDataType => (min.toDouble, max.toDouble)
+      case StringDataType => (Nil, Nil)
+    }
+
+    ColumnStats(minVal, maxVal, count, stddev, mean)
+  }
+
+}
