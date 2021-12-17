@@ -110,12 +110,23 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         }
     }
 
+  /**
+   * Estimates the groupCubeSize depending on the input parameters.
+   * The formula to compute the estimated value is the following:
+   *   numGroups = MAX(numPartitions, (numElements / cubeWeightsBufferCapacity))
+   *   groupCubeSize = desiredCubeSize / numGroups
+   * @param desiredCubeSize the desired cube size
+   * @param numPartitions the number of partitions
+   * @param numElements the total number of elements in the input data
+   * @param cubeWeightsBufferCapacity buffer capacity; number of elements that fit in memory
+   * @return the estimated groupCubeSize as a Double.
+   */
   private[index] def estimateGroupCubeSize(
       desiredCubeSize: Int,
       numPartitions: Int,
       numElements: Long,
-      maxWorkingSetSize: Long): Double = {
-    val numGroups = Math.max(numPartitions, numElements / maxWorkingSetSize)
+      cubeWeightsBufferCapacity: Long): Double = {
+    val numGroups = Math.max(numPartitions, numElements / cubeWeightsBufferCapacity)
     if (numGroups > 0) {
       val groupCubeSize =
         Math.ceil(desiredCubeSize.toDouble / numGroups + 1)
@@ -159,7 +170,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
           desiredCubeSize = desiredCubeSize,
           numPartitions = numPartitions,
           numElements = stats.filter(_.get(0) == "count").head.getAs[String](1).toLong,
-          maxWorkingSetSize =
+          cubeWeightsBufferCapacity =
             QbeastContext.config.getLong("qbeast.index.cubeWeightsBufferCapacity"))
 
       val selected = weightedDataFrame
