@@ -4,14 +4,15 @@
 package io.qbeast.spark.index
 
 import com.typesafe.config.ConfigFactory
+import io.qbeast.IISeq
 import io.qbeast.context.QbeastContext
 import io.qbeast.core.model._
-import io.qbeast.core.transform.ColumnStats
+import io.qbeast.core.transform.{ColumnStats, Transformer}
 import io.qbeast.spark.index.QbeastColumns.{cubeToReplicateColumnName, weightColumnName}
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
 import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.functions.{col, udaf}
-import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
 /**
  * Analyzes the data and extracts OTree structures
@@ -48,17 +49,12 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
   private lazy val logger = org.apache.log4j.LogManager.getLogger(this.getClass)
 
   private[index] def calculateRevisionChanges(
-      dataFrameStats: Array[Row],
+      columnStats: Seq[ColumnStats],
       revision: Revision): Option[RevisionChange] = {
 
-    val newTransformation = revision.columnTransformers.map(ct => {
-      val stats = dataFrameStats
-        .map(row => {
-          (row.getAs[String](0), row.getAs[String](ct.columnName))
-        })
-        .toMap
-      ct.makeTransformation(ColumnStats(stats, ct.dataType))
-    })
+    val newTransformation = revision.columnTransformers.zip(columnStats).map { case (ct, cs) =>
+      ct.makeTransformation(cs)
+    }
 
     val transformationDelta = if (revision.transformations.isEmpty) {
       newTransformation.map(a => Some(a))
@@ -147,7 +143,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       revision: Revision,
       indexStatus: IndexStatus,
       isReplication: Boolean,
-      stats: Array[Row]): DataFrame => Dataset[CubeNormalizedWeight] =
+      stats: Seq[ColumnStats]): DataFrame => Dataset[CubeNormalizedWeight] =
     (weightedDataFrame: DataFrame) => {
 
       val spark = SparkSession.active
@@ -169,7 +165,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         estimateGroupCubeSize(
           desiredCubeSize = desiredCubeSize,
           numPartitions = numPartitions,
-          numElements = stats.filter(_.get(0) == "count").head.getAs[String](1).toLong,
+          numElements = stats.head.count,
           cubeWeightsBufferCapacity =
             QbeastContext.config.getLong("qbeast.index.cubeWeightsBufferCapacity"))
 
@@ -198,25 +194,41 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         })
     }
 
+  def getColumnStats(
+      dataFrame: DataFrame,
+      columnTransformers: IISeq[Transformer]): Seq[ColumnStats] = {
+    val dataFrameStats = dataFrame
+      .describe(columnTransformers.map(_.columnName): _*)
+      .collect()
+
+    columnTransformers
+      .map(ct => {
+        val s = dataFrameStats
+          .map(row => {
+            (row.getAs[String](0), row.getAs[String](ct.columnName))
+          })
+          .toMap
+        ColumnStats(s, ct.dataType)
+      })
+  }
+
   override def analyze(
       dataFrame: DataFrame,
       indexStatus: IndexStatus,
       isReplication: Boolean): (DataFrame, TableChanges) = {
 
     // Compute the statistics for the indexedColumns
-    val stats = dataFrame
-      .describe(indexStatus.revision.columnTransformers.map(_.columnName): _*)
-      .collect()
+    val columnStats = getColumnStats(dataFrame, indexStatus.revision.columnTransformers)
 
     // Check if the DataFrame is empty
-    if (stats.filter(_.get(0) == "count").head.get(1) == "0") {
+    if (columnStats.head.count == 0) {
       throw new RuntimeException(
         "The DataFrame is empty. Are you trying to index an empty dataset?")
     }
 
     val spaceChanges =
       if (isReplication) None
-      else calculateRevisionChanges(stats, indexStatus.revision)
+      else calculateRevisionChanges(columnStats, indexStatus.revision)
 
     // The revision to use
     val revision = spaceChanges match {
@@ -232,7 +244,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
     // Second, estimate the cube weights at partition level
     val partitionedEstimatedCubeWeights = weightedDataFrame.transform(
-      estimatePartitionCubeWeights(revision, indexStatus, isReplication, stats))
+      estimatePartitionCubeWeights(revision, indexStatus, isReplication, columnStats))
 
     // Third, compute the overall estimated cube weights
     val estimatedCubeWeights =
