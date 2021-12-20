@@ -103,34 +103,6 @@ class IndexTest
     }
   }
 
-  it should "work with smaller values" in withSpark { spark =>
-    withOTreeAlgorithm { oTreeAlgorithm =>
-      {
-
-        val rdd =
-          spark.sparkContext.parallelize(
-            0.to(1000)
-              .map(i => Client3(i * i, s"student-$i", i, i * 1000 + 123, i * 2567.3432143)))
-
-        val df = spark.createDataFrame(rdd)
-        val smallCubeSize = 10
-        val rev = SparkRevisionFactory.createNewRevision(
-          QTableID("test"),
-          df.schema,
-          Map("columnsToIndex" -> "age,val2", "cubeSize" -> smallCubeSize.toString))
-
-        val (indexed, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
-        val weightMap = tc.indexChanges.cubeWeights
-
-        checkDFSize(indexed, df)
-        checkCubes(weightMap)
-        checkWeightsIncrement(weightMap)
-        checkCubesOnData(weightMap, indexed, 2)
-        checkCubeSize(tc, rev, indexed)
-      }
-    }
-  }
-
   it should "work with real data" in withSpark { spark =>
     withOTreeAlgorithm { oTreeAlgorithm =>
       {
