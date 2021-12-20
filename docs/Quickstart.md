@@ -57,19 +57,19 @@ val qbeastTablePath = "/tmp/qbeast-test-data/qtable"
 ```
 
 ### Trade-off between memory pressure and index quality: `cubeWeightsBufferCapacity`
-As a result of not having unlimited memory when indexing, the index quality is affected. There is a trade-off
-between these two values, which can be controlled by the `cubeWeightsBufferCapacity` property. The value of
-this property is the maximum number of elements that can be stored in the memory buffer  when indexing.
-It basically follows the next formula, which you can see in the method `estimateGroupCubeSize()` from
-`io.qbeast.core.model.CubeWeights.scala`:
+The current indexing algorithm uses a greedy approach to estimate the data distribution without additional shuffling.
+Still, there's a tradeoff between the goodness of such estimation and the memory required during the computation.
+The cubeWeightsBufferCapacity property controls such tradeoff by defining the maximum number of elements stored in
+a memory buffer when indexing. It basically follows the next formula, which you can see in the method
+`estimateGroupCubeSize()` from `io.qbeast.core.model.CubeWeights.scala`:
 ```
 numGroups = MAX(numPartitions, (numElements / cubeWeightsBufferCapacity))
 groupCubeSize = desiredCubeSize / numGroups
 ```
 
-As you can infer from the formula, the index quality is limited by the number groups the dataset is divided into. A
-lower number of groups will result in a higher index quality, while having more groups and fewer elements per group
-will lead to worse indexes.
+As you can infer from the formula, the number of working groups used when scanning the dataset influences the quality
+of the data distribution. A lower number of groups will result in a higher index precision, while having more groups
+and fewer elements per group will lead to worse indexes.
 
 ## Sampling
 
