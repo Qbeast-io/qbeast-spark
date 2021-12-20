@@ -39,8 +39,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
    */
   private val maxWeightEstimation: UserDefinedFunction = udaf(MaxWeightEstimation)
 
-  val bufferCapacity: Long = CUBE_WEIGHTS_BUFFER_CAPACITY
-
   private[index] def calculateRevisionChanges(
       columnStats: Seq[ColumnStats],
       revision: Revision): Option[RevisionChange] = {
@@ -121,6 +119,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       // set it to minCubeSize
       val numPartitions: Int = weightedDataFrame.rdd.getNumPartitions
       val numElements: Long = stats.head.count
+      val bufferCapacity: Long = CUBE_WEIGHTS_BUFFER_CAPACITY
 
       val selected = weightedDataFrame
         .select(cols.map(col): _*)
