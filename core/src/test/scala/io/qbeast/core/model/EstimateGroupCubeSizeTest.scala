@@ -20,7 +20,7 @@ class EstimateGroupCubeSizeTest
           1000000,
           1,
           10000L,
-          100000L) shouldBe 1000000.0 +- 1
+          100000L) shouldBe 1000000.0
       }
     }
 
@@ -36,7 +36,7 @@ class EstimateGroupCubeSizeTest
             1000000,
             nP,
             1000000L,
-            100000L) shouldBe gS +- 1 withClue ("Number of partitions: " + nP)
+            100000L) shouldBe gS withClue ("Number of partitions: " + nP)
         }
       }
     }
@@ -48,7 +48,7 @@ class EstimateGroupCubeSizeTest
           1000000,
           15,
           2000000L,
-          100000L) shouldBe 50000.0 +- 1
+          100000L) shouldBe 50000.0
       }
     }
   }

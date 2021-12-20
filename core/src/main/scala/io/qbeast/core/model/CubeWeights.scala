@@ -24,8 +24,7 @@ object CubeWeightsBuilder {
       numElements: Long,
       bufferCapacity: Long): Double = {
     val numGroups = Math.max(numPartitions, numElements / bufferCapacity)
-    val groupCubeSize =
-      Math.ceil(desiredCubeSize.toDouble / numGroups + 1)
+    val groupCubeSize = desiredCubeSize.toDouble / numGroups
     groupCubeSize
   }
 
