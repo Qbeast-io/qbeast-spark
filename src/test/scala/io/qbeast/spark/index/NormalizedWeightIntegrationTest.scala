@@ -59,7 +59,7 @@ class NormalizedWeightIntegrationTest extends QbeastIntegrationTestSpec {
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
       val files = deltaLog.snapshot.allFiles.collect()
-      files.length shouldBe 2
+      files.length shouldBe 1
 
       val tags = files.map(_.tags)
       val root = tags.filter(_(TagUtils.cube) == "").head
