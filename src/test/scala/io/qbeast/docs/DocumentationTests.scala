@@ -1,15 +1,20 @@
 package io.qbeast.docs
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.input_file_name
 import org.scalatest.AppendedClues.convertToClueful
 
 class DocumentationTests extends QbeastIntegrationTestSpec {
 
+  val config: SparkConf = new SparkConf().set(
+    "spark.hadoop.fs.s3a.aws.credentials.provider",
+    "org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider")
+
   behavior of "Documentation"
 
-  it should "behave correctly Readme" in withExtendedSpark { spark =>
+  it should "behave correctly Readme" in withSpark { spark =>
     withTmpDir { tmp_dir =>
       val csv_df = spark.read
         .format("csv")
@@ -37,7 +42,7 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
     }
   }
 
-  ignore should "behave correctly in Quickstart" in withExtendedSpark { spark =>
+  ignore should "behave correctly in Quickstart" in withExtendedSpark(config) { spark =>
     withTmpDir { qbeastTablePath =>
       val parquetTablePath = "s3a://qbeast-public-datasets/store_sales"
 
@@ -59,55 +64,61 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
     }
   }
 
-  ignore should "behave correctly on Sample Pushdown Notebook" in withExtendedSpark { spark =>
-    withTmpDir { DATA_ROOT =>
-      val parquet_table_path = "s3a://qbeast-public-datasets/store_sales"
-      val qbeast_table_path = DATA_ROOT + "/qbeast/qtable"
+  ignore should "behave correctly on Sample Pushdown Notebook" in withExtendedSpark(config) {
+    spark =>
+      withTmpDir { DATA_ROOT =>
+        val parquet_table_path = "s3a://qbeast-public-datasets/store_sales"
+        val qbeast_table_path = DATA_ROOT + "/qbeast/qtable"
 
-      val parquet_df = spark.read.format("parquet").load(parquet_table_path)
+        val parquet_df = spark.read.format("parquet").load(parquet_table_path)
 
-      val processed_parquet_df =
-        parquet_df
-          .select("ss_sold_time_sk", "ss_item_sk", "ss_customer_sk", "ss_cdemo_sk", "ss_hdemo_sk")
-          .na
-          .drop()
+        val processed_parquet_df =
+          parquet_df
+            .select(
+              "ss_sold_time_sk",
+              "ss_item_sk",
+              "ss_customer_sk",
+              "ss_cdemo_sk",
+              "ss_hdemo_sk")
+            .na
+            .drop()
 
-      processed_parquet_df.write
-        .mode("overwrite")
-        .format("qbeast")
-        .option("columnsToIndex", "ss_cdemo_sk,ss_hdemo_sk")
-        .option("cubeSize", 300000)
-        .save(qbeast_table_path)
+        processed_parquet_df.write
+          .mode("overwrite")
+          .format("qbeast")
+          .option("columnsToIndex", "ss_cdemo_sk,ss_hdemo_sk")
+          .option("cubeSize", 300000)
+          .save(qbeast_table_path)
 
-      val processed_parquet_dir = DATA_ROOT + "/parquet/test_data"
+        val processed_parquet_dir = DATA_ROOT + "/parquet/test_data"
 
-      processed_parquet_df.write.mode("overwrite").format("parquet").save(processed_parquet_dir)
+        processed_parquet_df.write.mode("overwrite").format("parquet").save(processed_parquet_dir)
 
-      val df = spark.read.format("parquet").load(processed_parquet_dir)
-      val qbeast_df = spark.read.format("qbeast").load(qbeast_table_path)
+        val df = spark.read.format("parquet").load(processed_parquet_dir)
+        val qbeast_df = spark.read.format("qbeast").load(qbeast_table_path)
 
-      qbeast_df.count() shouldBe df.count() withClue
-        "Pushdown notebook count of indexed dataframe does not match the original"
+        qbeast_df.count() shouldBe df.count() withClue
+          "Pushdown notebook count of indexed dataframe does not match the original"
 
-      // Table changes?
+        // Table changes?
 
-      val deltaLog = DeltaLog.forTable(spark, qbeast_table_path)
-      val totalNumberOfFiles = deltaLog.snapshot.allFiles.count()
+        val deltaLog = DeltaLog.forTable(spark, qbeast_table_path)
+        val totalNumberOfFiles = deltaLog.snapshot.allFiles.count()
 
-      totalNumberOfFiles shouldBe 21 withClue
-        "Total number of files in pushdown notebook changes to " + totalNumberOfFiles
+        totalNumberOfFiles shouldBe 21 withClue
+          "Total number of files in pushdown notebook changes to " + totalNumberOfFiles
 
-      val query = qbeast_df.sample(0.1)
-      val numberOfFilesQuery = query.select(input_file_name()).distinct().count()
-      numberOfFilesQuery shouldBe 1 withClue
-        "Number of files read in pushdown notebook changes to " + numberOfFilesQuery
+        val query = qbeast_df.sample(0.1)
+        val numberOfFilesQuery = query.select(input_file_name()).distinct().count()
+        numberOfFilesQuery shouldBe 1 withClue
+          "Number of files read in pushdown notebook changes to " + numberOfFilesQuery
 
-      val file = query.select(input_file_name()).distinct().head().getString(0)
-      val numberOfRowsRead = spark.read.format("parquet").load(file).count()
+        val file = query.select(input_file_name()).distinct().head().getString(0)
+        val numberOfRowsRead = spark.read.format("parquet").load(file).count()
 
-      numberOfRowsRead shouldBe 302715 withClue
-        "Number of rows read in pushdown notebook changes to " + numberOfRowsRead
+        numberOfRowsRead shouldBe 302715 withClue
+          "Number of rows read in pushdown notebook changes to " + numberOfRowsRead
 
-    }
+      }
   }
 }

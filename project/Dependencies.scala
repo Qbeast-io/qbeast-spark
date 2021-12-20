@@ -11,7 +11,6 @@ object Dependencies {
   val sparkSql = "org.apache.spark" %% "spark-sql" % sparkVersion
   val hadoopClient = "org.apache.hadoop" % "hadoop-client" % hadoopVersion
   val deltaCore = "io.delta" %% "delta-core" % "1.0.0"
-  val typesafeConf = "com.typesafe" % "config" % "1.2.0"
   val sparkFastTests = "com.github.mrpowers" %% "spark-fast-tests" % "1.0.0"
   val scalaTest = "org.scalatest" %% "scalatest" % "3.2.9"
   val mockito = "org.scalatestplus" %% "mockito-3-4" % "3.2.9.0"

@@ -1,6 +1,5 @@
 package io.qbeast.spark.index
 
-import com.typesafe.config.ConfigFactory
 import io.qbeast.IISeq
 import io.qbeast.TestClasses._
 import io.qbeast.core.model.{
@@ -27,15 +26,13 @@ import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer.{
 }
 import io.qbeast.spark.index.QbeastColumns.weightColumnName
 import io.qbeast.spark.utils.SparkToQTypesUtils
+import org.apache.spark.qbeast.config.MIN_PARTITION_CUBE_SIZE
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructField
 import org.scalatest.matchers.must.Matchers.convertToAnyMustWrapper
 
 class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
-
-  private val defaultMinPartitionSize =
-    ConfigFactory.load().getInt("qbeast.index.minPartitionCubeSize")
 
   private def createDF(size: Int, spark: SparkSession): Dataset[T3] = {
     import spark.implicits._
@@ -55,12 +52,13 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
   behavior of "DoublePassOTreeDataAnalyzerTest"
 
-  it should "estimatePartitionCubeSize with less than default min partition size" in {
-    val desiredCubeSize = defaultMinPartitionSize - 2
-    estimatePartitionCubeSize(desiredCubeSize, 1) shouldBe (defaultMinPartitionSize)
+  it should "estimatePartitionCubeSize with less than default min partition size" in withSpark {
+    spark =>
+      val desiredCubeSize = MIN_PARTITION_CUBE_SIZE - 2
+      estimatePartitionCubeSize(desiredCubeSize, 1) shouldBe (MIN_PARTITION_CUBE_SIZE)
   }
 
-  it should "estimatePartitionCubeSize correctly" in {
+  it should "estimatePartitionCubeSize correctly" in withSpark { spark =>
     val desiredCubeSize = 100000
     val numPartitions = 10
     estimatePartitionCubeSize(
