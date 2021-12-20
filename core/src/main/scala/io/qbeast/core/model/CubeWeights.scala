@@ -40,12 +40,12 @@ object CubeWeightsBuilder {
  * @param announcedSet              the announced cube identifiers
  * @param replicatedSet             the replicated cube identifiers
  */
-class CubeWeightsBuilder private (
+class CubeWeightsBuilder protected (
     private val desiredCubeSize: Int,
     private val groupSize: Double,
     private val bufferCapacity: Long,
-    private val announcedSet: Set[CubeId] = Set.empty,
-    private val replicatedSet: Set[CubeId] = Set.empty)
+    private val announcedSet: Set[CubeId],
+    private val replicatedSet: Set[CubeId])
     extends Serializable {
 
   def this(

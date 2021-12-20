@@ -3,7 +3,6 @@
  */
 package io.qbeast.spark.index
 
-import com.typesafe.config.ConfigFactory
 import io.qbeast.IISeq
 import io.qbeast.context.QbeastContext
 import io.qbeast.core.model._
@@ -39,14 +38,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
    * Estimates MaxWeight on DataFrame
    */
   private val maxWeightEstimation: UserDefinedFunction = udaf(MaxWeightEstimation)
-
-  /**
-   * The minimum cube size per partition registered in configuration
-   */
-  private val minPartitionCubeSize: Int =
-    ConfigFactory.load().getInt("qbeast.index.minPartitionCubeSize")
-
-  private lazy val logger = org.apache.log4j.LogManager.getLogger(this.getClass)
 
   private[index] def calculateRevisionChanges(
       columnStats: Seq[ColumnStats],
@@ -127,24 +118,22 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       // If the user has specified a desiredSize too small
       // set it to minCubeSize
       val numPartitions: Int = weightedDataFrame.rdd.getNumPartitions
-      val desiredCubeSize: Int = indexStatus.revision.desiredCubeSize
-      val estimatedGroupCubeSize =
-        estimateGroupCubeSize(
-          desiredCubeSize = desiredCubeSize,
-          numPartitions = numPartitions,
-          numElements = stats.head.count,
-          cubeWeightsBufferCapacity =
-            QbeastContext.config.getLong("qbeast.index.cubeWeightsBufferCapacity"))
+      val numElements: Long = stats.head.count
+      val bufferCapacity: Long =
+        QbeastContext.config.getLong("qbeast.index.cubeWeightsBufferCapacity")
 
       val selected = weightedDataFrame
         .select(cols.map(col): _*)
       val weightIndex = selected.schema.fieldIndex(weightColumnName)
-      val cubeWeightsBufferCapacity =
-        QbeastContext.config.getLong("qbeast.index.cubeWeightsBufferCapacity")
+
       selected
         .mapPartitions(rows => {
           val weights =
-            new CubeWeightsBuilder(indexStatus = indexStatus)
+            new CubeWeightsBuilder(
+              indexStatus = indexStatus,
+              numPartitions = numPartitions,
+              numElements = numElements,
+              bufferCapacity = bufferCapacity)
           rows.foreach { row =>
             val point = RowUtils.rowValuesToPoint(row, revision)
             val weight = Weight(row.getAs[Int](weightIndex))
