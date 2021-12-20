@@ -118,6 +118,9 @@ case class OTreeIndex(index: TahoeLogFileIndex)
    * @param previouslyMatchedFiles the files that have been matched
    * @return the files with sample data
    */
+
+  // TODO: turn this into a iterative function
+  //  and substitute the MAP for a PatriciaTree solution
   def findSampleFiles(
       space: QuerySpace,
       weightRange: WeightRange,
