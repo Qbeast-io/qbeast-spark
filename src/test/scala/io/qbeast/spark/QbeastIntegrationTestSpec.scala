@@ -4,7 +4,6 @@
 package io.qbeast.spark
 
 import com.github.mrpowers.spark.fast.tests.DatasetComparer
-import com.typesafe.config.{Config, ConfigFactory}
 import io.qbeast.core.keeper.{Keeper, LocalKeeper}
 import io.qbeast.context.{QbeastContext, QbeastContextImpl}
 import io.qbeast.core.model.IndexManager
@@ -14,6 +13,7 @@ import io.qbeast.spark.index.writer.SparkDataWriter
 import io.qbeast.spark.internal.QbeastSparkSessionExtension
 import io.qbeast.spark.table.IndexedTableFactoryImpl
 import org.apache.log4j.{Level, Logger}
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -35,15 +35,21 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
   // This reduce the verbosity of Spark
   Logger.getLogger("org.apache").setLevel(Level.WARN)
 
-  def withExtendedSpark[T](testCode: SparkSession => T): T = {
+  /**
+   * This function is used to create a spark session with the given configuration.
+   * @param sparkConf the configuration
+   * @param testCode the code to run within the spark session
+   * @tparam T
+   * @return
+   */
+  def withExtendedSpark[T](sparkConf: SparkConf = new SparkConf())(
+      testCode: SparkSession => T): T = {
     val spark = SparkSession
       .builder()
       .master("local[8]")
       .appName("QbeastDataSource")
       .withExtensions(new QbeastSparkSessionExtension())
-      .config(
-        "spark.hadoop.fs.s3a.aws.credentials.provider",
-        "org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider")
+      .config(sparkConf)
       .getOrCreate()
     try {
       testCode(spark)
@@ -52,6 +58,12 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
     }
   }
 
+  /**
+   * This function is used to create a spark session
+   * @param testCode the code to test within the spark session
+   * @tparam T
+   * @return
+   */
   def withSpark[T](testCode: SparkSession => T): T = {
     val spark = SparkSession
       .builder()
@@ -89,8 +101,9 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
    * @tparam T the test result type
    * @return the test result
    */
-  def withQbeastContext[T](keeper: Keeper = LocalKeeper, config: Config = ConfigFactory.load())(
-      testCode: => T): T = {
+  def withQbeastContext[T](
+      keeper: Keeper = LocalKeeper,
+      config: SparkConf = SparkSession.active.sparkContext.getConf)(testCode: => T): T = {
     val indexedTableFactory = new IndexedTableFactoryImpl(
       keeper,
       SparkOTreeManager,

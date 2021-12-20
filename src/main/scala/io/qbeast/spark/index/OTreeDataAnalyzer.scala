@@ -4,11 +4,11 @@
 package io.qbeast.spark.index
 
 import io.qbeast.IISeq
-import io.qbeast.context.QbeastContext
 import io.qbeast.core.model._
 import io.qbeast.core.transform.{ColumnStats, Transformer}
 import io.qbeast.spark.index.QbeastColumns.{cubeToReplicateColumnName, weightColumnName}
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
+import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
 import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.functions.{col, udaf}
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
@@ -39,8 +39,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
    */
   private val maxWeightEstimation: UserDefinedFunction = udaf(MaxWeightEstimation)
 
-  val bufferCapacity: Long =
-    QbeastContext.config.getLong("qbeast.index.cubeWeightsBufferCapacity")
+  val bufferCapacity: Long = CUBE_WEIGHTS_BUFFER_CAPACITY
 
   private[index] def calculateRevisionChanges(
       columnStats: Seq[ColumnStats],

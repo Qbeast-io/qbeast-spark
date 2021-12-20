@@ -1,15 +1,20 @@
 package io.qbeast.docs
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.input_file_name
 import org.scalatest.AppendedClues.convertToClueful
 
 class DocumentationTests extends QbeastIntegrationTestSpec {
 
+  val config: SparkConf = new SparkConf().set(
+    "spark.hadoop.fs.s3a.aws.credentials.provider",
+    "org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider")
+
   behavior of "Documentation"
 
-  it should "behave correctly Readme" in withExtendedSpark { spark =>
+  it should "behave correctly Readme" in withSpark { spark =>
     withTmpDir { tmp_dir =>
       val csv_df = spark.read
         .format("csv")
@@ -37,7 +42,7 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
     }
   }
 
-  it should "behave correctly in Quickstart" in withExtendedSpark { spark =>
+  it should "behave correctly in Quickstart" in withExtendedSpark(config) { spark =>
     withTmpDir { qbeastTablePath =>
       val parquetTablePath = "s3a://qbeast-public-datasets/store_sales"
 
@@ -59,7 +64,7 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
     }
   }
 
-  it should "behave correctly on Sample Pushdown Notebook" in withExtendedSpark { spark =>
+  it should "behave correctly on Sample Pushdown Notebook" in withExtendedSpark(config) { spark =>
     withTmpDir { DATA_ROOT =>
       val parquet_table_path = "s3a://qbeast-public-datasets/store_sales"
       val qbeast_table_path = DATA_ROOT + "/qbeast/qtable"

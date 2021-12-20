@@ -19,7 +19,6 @@ lazy val qbeastSpark = (project in file("."))
     Test / parallelExecution := false,
     assembly / test := {},
     assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false),
-    assembly / assemblyShadeRules := shadingRules,
     publish / skip := true)
   .settings(noWarningInConsole)
 
@@ -34,7 +33,6 @@ ThisBuild / organizationHomepage := Some(url("https://qbeast.io/"))
 ThisBuild / startYear := Some(2021)
 ThisBuild / libraryDependencies ++= Seq(
   fasterxml % Provided,
-  typesafeConf,
   sparkFastTests % Test,
   scalaTest % Test,
   mockito % Test)
@@ -107,7 +105,3 @@ Test / compile := (Test / compile).dependsOn((Test / scalastyle).toTask("")).val
 headerLicense := Some(HeaderLicense.Custom("Copyright 2021 Qbeast Analytics, S.L."))
 headerEmptyLine := false
 Compile / compile := (Compile / compile).dependsOn(Compile / headerCheck).value
-
-lazy val shadingRules =
-  Seq("com.typesafe")
-    .map(pack => ShadeRule.rename(f"$pack.**" -> f"io.qbeast.spark.shaded.$pack.@1").inAll)
