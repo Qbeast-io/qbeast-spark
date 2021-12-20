@@ -4,6 +4,7 @@
 package io.qbeast.context
 
 import io.qbeast.core.keeper.{Keeper, LocalKeeper}
+import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
 import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionFactory}
 import io.qbeast.spark.index.writer.SparkDataWriter
@@ -12,9 +13,9 @@ import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class QbeastContextTest extends AnyFlatSpec with Matchers {
+class QbeastContextTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec {
 
-  it should "use the unmanaged context if provided" in withSpark {
+  it should "use the unmanaged context if provided" in withSpark { spark =>
     val keeper = LocalKeeper
     val indexedTableFactory = new IndexedTableFactoryImpl(
       keeper,
@@ -34,7 +35,7 @@ class QbeastContextTest extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "use the managed context after the unmanaged is unset" in withSpark {
+  it should "use the managed context after the unmanaged is unset" in withSpark { spark =>
     val keeper = LocalKeeper
     val indexedTableFactory = new IndexedTableFactoryImpl(
       keeper,
@@ -49,15 +50,6 @@ class QbeastContextTest extends AnyFlatSpec with Matchers {
     QbeastContext.setUnmanaged(unmanaged)
     QbeastContext.unsetUnmanaged() shouldBe Some(unmanaged)
     QbeastContext.keeper shouldBe LocalKeeper
-  }
-
-  private def withSpark[T](code: => T): T = {
-    val session = SparkSession.builder().master("local[*]").getOrCreate()
-    try {
-      code
-    } finally {
-      session.close()
-    }
   }
 
 }
