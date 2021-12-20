@@ -37,11 +37,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
    */
   private val maxWeightEstimation: UserDefinedFunction = udaf(MaxWeightEstimation)
 
-  /**
-   * The minimum cube size per partition registered in configuration
-   */
-  private val minPartitionCubeSize: Int = MIN_PARTITION_CUBE_SIZE
-
   private lazy val logger = org.apache.log4j.LogManager.getLogger(this.getClass)
 
   private[index] def calculateRevisionChanges(
@@ -120,15 +115,15 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     if (numPartitions > 0) {
       val desiredPartitionCubeSize =
         Math.ceil(desiredCubeSize.toDouble / numPartitions + 1) // Round to the next value
-      if (desiredPartitionCubeSize < minPartitionCubeSize) {
+      if (desiredPartitionCubeSize < MIN_PARTITION_CUBE_SIZE) {
         logger.warn(
-          s"Cube size per partition is less than $minPartitionCubeSize," +
+          s"Cube size per partition is less than $MIN_PARTITION_CUBE_SIZE," +
             s" Set a bigger cubeSize before writing")
-        minPartitionCubeSize
+        MIN_PARTITION_CUBE_SIZE
       } else desiredPartitionCubeSize
     } else {
       // TODO should fail if the desiredCubeSize is < than minPartitionCubeSize?
-      Math.max(desiredCubeSize, minPartitionCubeSize)
+      Math.max(desiredCubeSize, MIN_PARTITION_CUBE_SIZE)
     }
 
   }

@@ -3,7 +3,7 @@
  */
 package io.qbeast.context
 
-import io.qbeast.core.keeper.{Keeper, LocalKeeper}
+import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
 import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionFactory}
@@ -65,9 +65,9 @@ object QbeastContext
 
   // Override methods from QbeastContext
 
-  override def config: SparkConf = SparkSession.active.sparkContext.getConf
+  override def config: SparkConf = current.config
 
-  override def keeper: Keeper = LocalKeeper
+  override def keeper: Keeper = current.keeper
 
   override def indexedTableFactory: IndexedTableFactory = current.indexedTableFactory
 
