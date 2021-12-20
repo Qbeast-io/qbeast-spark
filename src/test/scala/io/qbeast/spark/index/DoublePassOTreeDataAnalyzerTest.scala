@@ -34,8 +34,6 @@ import org.scalatest.matchers.must.Matchers.convertToAnyMustWrapper
 
 class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
-  private val defaultMinPartitionSize = MIN_PARTITION_CUBE_SIZE
-
   private def createDF(size: Int, spark: SparkSession): Dataset[T3] = {
     import spark.implicits._
 
@@ -54,12 +52,13 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
   behavior of "DoublePassOTreeDataAnalyzerTest"
 
-  it should "estimatePartitionCubeSize with less than default min partition size" in {
-    val desiredCubeSize = defaultMinPartitionSize - 2
-    estimatePartitionCubeSize(desiredCubeSize, 1) shouldBe (defaultMinPartitionSize)
+  it should "estimatePartitionCubeSize with less than default min partition size" in withSpark {
+    spark =>
+      val desiredCubeSize = MIN_PARTITION_CUBE_SIZE - 2
+      estimatePartitionCubeSize(desiredCubeSize, 1) shouldBe (MIN_PARTITION_CUBE_SIZE)
   }
 
-  it should "estimatePartitionCubeSize correctly" in {
+  it should "estimatePartitionCubeSize correctly" in withSpark { spark =>
     val desiredCubeSize = 100000
     val numPartitions = 10
     estimatePartitionCubeSize(
