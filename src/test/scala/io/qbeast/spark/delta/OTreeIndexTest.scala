@@ -24,12 +24,12 @@ class OTreeIndexTest extends QbeastIntegrationTestSpec {
 
   it should "findSampleFiles" in withSparkAndTmpDir((spark, tmpdir) => {
 
-    val source = createDF(1000, spark)
+    val source = createDF(100000, spark)
 
     source.write
       .format("qbeast")
       .option("columnsToIndex", "a,c")
-      .option("cubeSize", 10)
+      .option("cubeSize", 1000)
       .save(tmpdir)
 
     val deltaLog = DeltaLog.forTable(spark, tmpdir)
@@ -68,12 +68,12 @@ class OTreeIndexTest extends QbeastIntegrationTestSpec {
 
   it should "inputFiles" in withSparkAndTmpDir((spark, tmpdir) => {
 
-    val source = createDF(1000, spark)
+    val source = createDF(10000, spark)
 
     source.write
       .format("qbeast")
       .option("columnsToIndex", "a,c")
-      .option("cubeSize", 10)
+      .option("cubeSize", 1000)
       .save(tmpdir)
 
     val deltaLog = DeltaLog.forTable(spark, tmpdir)
@@ -90,12 +90,12 @@ class OTreeIndexTest extends QbeastIntegrationTestSpec {
   it should "filter correctly the files in matchingFiles" in withSparkAndTmpDir(
     (spark, tmpdir) => {
 
-      val source = createDF(1000, spark)
+      val source = createDF(10000, spark)
 
       source.write
         .format("qbeast")
         .option("columnsToIndex", "a,c")
-        .option("cubeSize", 10)
+        .option("cubeSize", 1000)
         .save(tmpdir)
 
       val deltaLog = DeltaLog.forTable(spark, tmpdir)
@@ -110,12 +110,12 @@ class OTreeIndexTest extends QbeastIntegrationTestSpec {
 
   it should "sizeInBytes" in withSparkAndTmpDir((spark, tmpdir) => {
 
-    val source = createDF(1000, spark)
+    val source = createDF(10000, spark)
 
     source.write
       .format("qbeast")
       .option("columnsToIndex", "a,c")
-      .option("cubeSize", 10)
+      .option("cubeSize", 1000)
       .save(tmpdir)
 
     val deltaLog = DeltaLog.forTable(spark, tmpdir)

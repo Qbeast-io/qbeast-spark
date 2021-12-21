@@ -33,7 +33,7 @@ class TransformerTest extends AnyFlatSpec with Matchers {
     val dataType = IntegerDataType
     val transformer = Transformer(columnName, dataType)
 
-    val transformation = Map("a_min" -> 0, "a_max" -> 1)
+    val transformation = ColumnStats(min = 0, max = 1, 0, 0.0, Nil)
     transformer.makeTransformation(transformation) shouldBe LinearTransformation(0, 1, dataType)
   }
 
@@ -42,10 +42,10 @@ class TransformerTest extends AnyFlatSpec with Matchers {
     val dataType = IntegerDataType
     val transformer = Transformer(columnName, dataType)
 
-    val transformation = Map("a_min" -> 0, "a_max" -> 1)
+    val transformation = ColumnStats(min = 0, max = 1, 0, 0.0, Nil)
     val currentTransformation = transformer.makeTransformation(transformation)
 
-    val newTransformation = Map("a_min" -> 3, "a_max" -> 8)
+    val newTransformation = ColumnStats(min = 3, max = 8, 0, 0.0, Nil)
     transformer.maybeUpdateTransformation(currentTransformation, newTransformation) shouldBe Some(
       LinearTransformation(0, 8, dataType))
 

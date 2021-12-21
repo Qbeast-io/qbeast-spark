@@ -14,16 +14,16 @@ package object config {
       .intConf
       .createWithDefault(100000)
 
-  private[config] val min_partition_cube_size: ConfigEntry[Int] =
-    ConfigBuilder("spark.qbeast.index.minPartitionCubeSize")
+  private[config] val cube_weights_buffer_capacity: ConfigEntry[Long] =
+    ConfigBuilder("spark.qbeast.index.cubeWeightsBufferCapacity")
       .version("0.2.0")
-      .intConf
-      .createWithDefault(100)
+      .longConf
+      .createWithDefault(100000L)
 
   def DEFAULT_CUBE_SIZE: Int = QbeastContext.config
     .get(default_cube_size)
 
-  def MIN_PARTITION_CUBE_SIZE: Int = QbeastContext.config
-    .get(min_partition_cube_size)
+  def CUBE_WEIGHTS_BUFFER_CAPACITY: Long = QbeastContext.config
+    .get(cube_weights_buffer_capacity)
 
 }
