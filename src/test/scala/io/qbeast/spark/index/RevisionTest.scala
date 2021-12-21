@@ -41,7 +41,7 @@ class RevisionTest
   def getMaxMinFromRevision(revision: Revision, spark: SparkSession): Seq[Seq[Any]] = {
     for (t <- revision.columnTransformers)
       yield spark
-        .sql(s"SELECT %s FROM dfqbeast".format(t.stats.columns.mkString(",")))
+        .sql(s"SELECT max(%s), min(%s) FROM dfqbeast".format(t.columnName, t.columnName))
         .collect()(0)
         .toSeq
         .toVector
