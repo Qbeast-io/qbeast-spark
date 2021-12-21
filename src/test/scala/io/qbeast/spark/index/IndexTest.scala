@@ -164,8 +164,7 @@ class IndexTest
 
         checkDFSize(indexed, df)
         checkCubes(weightMap)
-        checkWeightsIncrement(weightMap)    val revisionChanges =
-
+        checkWeightsIncrement(weightMap)
         checkCubesOnData(weightMap, indexed, 2)
         checkCubeSize(
           tc,

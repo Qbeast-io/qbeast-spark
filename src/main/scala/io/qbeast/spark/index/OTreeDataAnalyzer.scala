@@ -3,10 +3,12 @@
  */
 package io.qbeast.spark.index
 
+import io.qbeast.IISeq
 import io.qbeast.core.model._
 import io.qbeast.core.transform.{ColumnStats, Transformer}
 import io.qbeast.spark.index.QbeastColumns.{cubeToReplicateColumnName, weightColumnName}
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
+import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
 import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.functions.{col, udaf}
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
@@ -183,7 +185,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     // The revision to use
     val revision = spaceChanges match {
       case Some(revisionChange) =>
-        revisionChange.newRevision
+        revisionChange.createNewRevision
       case None => indexStatus.revision
     }
 
