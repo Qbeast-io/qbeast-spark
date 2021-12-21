@@ -13,7 +13,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
     source.write
       .format("qbeast")
       .option("columnsToIndex", source.columns.mkString(","))
-      .option("cubeSize", 10)
+      .option("cubeSize", 10000)
       .save(tmpDir)
 
     spark.read
@@ -25,7 +25,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
     import spark.implicits._
     val source = 0
-      .to(1000)
+      .to(100000)
       .map(i => T1(i, s"$i", i.toDouble))
       .toDF()
       .as[T1]
@@ -33,7 +33,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
     source.write
       .format("qbeast")
       .option("columnsToIndex", "a,b,c")
-      .option("cubeSize", 10)
+      .option("cubeSize", 10000)
       .save(tmpDir)
 
     val indexed = spark.read
@@ -55,7 +55,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
     "index tables with hashing configuration" in withSparkAndTmpDir((spark, tmpDir) => {
       import spark.implicits._
       val source = 0
-        .to(1000)
+        .to(100000)
         .map(i => T2(i, i.toDouble))
         .toDF()
         .as[T2]
@@ -63,7 +63,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
       source.write
         .format("qbeast")
         .option("columnsToIndex", "a:hashing,c:hashing")
-        .option("cubeSize", 10)
+        .option("cubeSize", 10000)
         .save(tmpDir)
 
       val indexed = spark.read
@@ -84,7 +84,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
   it should "index tables with all String" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
     val source = 0
-      .to(1000)
+      .to(100000)
       .map(i => TestStrings(s"${i * 2}", s"$i", s"$i$i"))
       .toDF()
       .as[TestStrings]
@@ -99,7 +99,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
   it should "index tables with all Double" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
     val source = 0
-      .to(1000)
+      .to(100000)
       .map(i => TestDouble((i * i).toDouble, i.toDouble, (i * 2).toDouble))
       .toDF()
       .as[TestDouble]
@@ -115,7 +115,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
   it should "index tables with all Int" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
     val source = 0
-      .to(1000)
+      .to(100000)
       .map(i => TestInt(i * i, i, i * 2))
       .toDF()
       .as[TestInt]
@@ -131,7 +131,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
   it should "index tables with BigDecimal" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
     val source = 0
-      .to(1000)
+      .to(100000)
       .map(i => TestBigDecimal(i * i, i, i * 2))
       .toDF()
       .as[TestBigDecimal]
@@ -147,7 +147,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
   it should "index tables with all Float" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
     val source = 0
-      .to(1000)
+      .to(100000)
       .map(i => TestFloat(i * i, i, i * 2))
       .toDF()
       .as[TestFloat]
@@ -163,7 +163,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
   it should "index tables with all Long" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
     val source = 0
-      .to(1000)
+      .to(100000)
       .map(i => TestLong(i * i, i, i * 2))
       .toDF()
       .as[TestLong]

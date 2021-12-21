@@ -3,7 +3,6 @@
  */
 package io.qbeast.core.keeper
 
-import com.typesafe.config.Config
 import io.qbeast.core.model.{CubeId, QTableID}
 
 import java.util.ServiceLoader
@@ -120,7 +119,7 @@ object Keeper {
    * @param config the configuration
    * @return a Keeper instance
    */
-  def apply(config: Config): Keeper = {
+  def apply(config: Map[String, String]): Keeper = {
     val loader = ServiceLoader.load(classOf[KeeperFactory])
     val iterator = loader.iterator()
     if (iterator.hasNext) {
@@ -149,5 +148,5 @@ trait KeeperFactory {
    * @param config the configuration
    * @return a new keeper
    */
-  def createKeeper(config: Config): Keeper
+  def createKeeper(config: Map[String, String]): Keeper
 }

@@ -3,8 +3,8 @@
  */
 package io.qbeast.spark.internal
 
-import com.typesafe.config.ConfigFactory
 import io.qbeast.spark.index.ColumnsToIndex
+import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
 import org.apache.spark.sql.AnalysisExceptionFactory
 
 /**
@@ -21,9 +21,6 @@ object QbeastOptions {
   val COLUMNS_TO_INDEX = "columnsToIndex"
   val CUBE_SIZE = "cubeSize"
 
-  private def getDefaultDesiredSize =
-    ConfigFactory.load().getInt("qbeast.index.defaultCubeSize")
-
   private def getColumnsToIndex(options: Map[String, String]): Seq[String] = {
     val encodedColumnsToIndex = options.getOrElse(
       COLUMNS_TO_INDEX, {
@@ -37,7 +34,7 @@ object QbeastOptions {
   private def getDesiredCubeSize(options: Map[String, String]): Int = {
     options.get(CUBE_SIZE) match {
       case Some(value) => value.toInt
-      case None => getDefaultDesiredSize
+      case None => DEFAULT_CUBE_SIZE
     }
   }
 
