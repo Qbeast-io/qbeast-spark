@@ -45,7 +45,7 @@ private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication:
     extends Serializable {
 
   val pointIndexer: PointWeightIndexer =
-    PointWeightIndexer(tableChanges.indexChanges)
+    PointWeightIndexer(tableChanges)
 
   val pwiBC: Broadcast[PointWeightIndexer] =
     SparkSession.active.sparkContext.broadcast(pointIndexer)
@@ -70,8 +70,8 @@ private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication:
   def buildIndex: DataFrame => DataFrame = (weightedDataFrame: DataFrame) => {
 
     val revision = tableChanges.updatedRevision
-    val replicatedSet = tableChanges.indexChanges.replicatedSet
-    val announcedSet = tableChanges.indexChanges.announcedSet
+    val replicatedSet = tableChanges.replicatedSet
+    val announcedSet = tableChanges.announcedSet
     val columnsToIndex = revision.columnTransformers.map(_.columnName)
 
     weightedDataFrame

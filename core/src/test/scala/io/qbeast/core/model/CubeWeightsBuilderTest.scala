@@ -24,14 +24,12 @@ class CubeWeightsBuilderTest extends AnyFlatSpec with Matchers {
       desiredCubeSize: Int,
       groupSize: Int,
       bufferCapacity: Int,
-      replicatedSet: Set[CubeId] = Set.empty,
-      announcedSet: Set[CubeId] = Set.empty)
+      announcedOrReplicatedSet: Set[CubeId] = Set.empty)
       extends CubeWeightsBuilder(
         desiredCubeSize,
         groupSize,
         bufferCapacity,
-        replicatedSet,
-        announcedSet)
+        announcedOrReplicatedSet)
 
   "CubeWeightsBuilder" should "calculate maxWeight for the roots" in {
     val builder = new CubeWeightsBuilderTesting(10, 10, 100000)
@@ -92,7 +90,8 @@ class CubeWeightsBuilderTest extends AnyFlatSpec with Matchers {
   }
 
   it should "add maxWeight to the child of announced cube" in {
-    val builder = new CubeWeightsBuilderTesting(1, 1, 100000, announcedSet = Set(root))
+    val builder =
+      new CubeWeightsBuilderTesting(1, 1, 100000, announcedOrReplicatedSet = Set(root))
     builder.update(point, Weight(2))
     builder.result().map(CubeWeightTesting.apply) shouldBe Seq(
       CubeWeightTesting(root, Weight(2).fraction),
@@ -100,7 +99,8 @@ class CubeWeightsBuilderTest extends AnyFlatSpec with Matchers {
   }
 
   it should "add maxWeight to the child of replicated cube" in {
-    val builder = new CubeWeightsBuilderTesting(1, 1, 100000, replicatedSet = Set(root))
+    val builder =
+      new CubeWeightsBuilderTesting(1, 1, 100000, announcedOrReplicatedSet = Set(root))
     builder.update(point, Weight(2))
     builder.result().map(CubeWeightTesting.apply) shouldBe Seq(
       CubeWeightTesting(root, Weight(2).fraction),

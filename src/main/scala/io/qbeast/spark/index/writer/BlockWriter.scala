@@ -49,7 +49,7 @@ case class BlockWriter(
       return Iterator.empty
     }
     val revision = tableChanges.updatedRevision
-    val cubeWeights = tableChanges.indexChanges.cubeWeights
+    val cubeWeights = tableChanges.cubeWeights
     iter
       .foldLeft[Map[CubeId, BlockContext]](Map()) { case (blocks, row) =>
         val cubeId = revision.createCubeId(row.getBinary(qbeastColumns.cubeColumnIndex))

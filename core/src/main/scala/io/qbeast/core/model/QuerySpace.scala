@@ -3,20 +3,12 @@
  */
 package io.qbeast.core.model
 
+import io.qbeast.core.transform.Transformation
+
 /**
  * Query space defines the domain area requested by the query.
  */
 trait QuerySpace {
-
-  /**
-   * The point with minimum coordinates.
-   */
-  val from: Point
-
-  /**
-   * The point with maximum coordinates.
-   */
-  val to: Point
 
   /**
    * Returns whether the space intersects with a given cube.
@@ -29,13 +21,8 @@ trait QuerySpace {
 
 /**
  * Implementation of QuerySpace which represents the while domain.
- * @param dimensionCount the dimension count
  */
-case class AllSpace(dimensionCount: Int) extends QuerySpace {
-
-  val to: Point = Point(Vector.fill(dimensionCount)(1.0))
-
-  val from: Point = Point(Vector.fill(dimensionCount)(0.0))
+case class AllSpace() extends QuerySpace {
 
   override def intersectsWith(cube: CubeId): Boolean = true
 }
@@ -45,24 +32,48 @@ case class AllSpace(dimensionCount: Int) extends QuerySpace {
  * Describe the query range in the area included in [originalFrom,originalTo)
  * (inclusive, exclusive).
  *
- * @param originalFrom inclusive starting range
- * @param originalTo   exclusive ending query range
- * @param revision revision applied on this space
+ * @param from inclusive starting range
+ * @param to   exclusive ending query range
  */
-case class QuerySpaceFromTo(originalFrom: Point, originalTo: Point, revision: Revision)
+class QuerySpaceFromTo(private val from: Seq[Option[Double]], private val to: Seq[Option[Double]])
     extends QuerySpace {
 
-  require(originalFrom <= originalTo, "from point must be < then to point")
-  require(originalFrom.dimensionCount == originalTo.dimensionCount)
-  val from: Point = Point(revision.transform(originalFrom.coordinates))
-  val to: Point = Point(revision.transform(originalTo.coordinates))
+  private def intersects(f: Double, t: Double, cube: CubeId, coordinate: Int): Boolean = {
+    val cf = cube.from.coordinates(coordinate)
+    val ct = cube.to.coordinates(coordinate)
+    (f <= cf && cf < t) || (cf <= f && f < ct)
+  }
 
   override def intersectsWith(cube: CubeId): Boolean = {
-    val ranges = from.coordinates.zip(to.coordinates)
-    val cubeRanges = cube.from.coordinates.zip(cube.to.coordinates)
-    ranges.zip(cubeRanges).forall { case ((f, t), (cf, ct)) =>
-      (f <= cf && cf < t) || (cf <= f && f < ct)
+    from.zip(to).zipWithIndex.forall {
+      case ((Some(f), Some(t)), i) => intersects(f, t, cube, i)
+      case ((None, Some(t)), i) => intersects(0.0, t, cube, i)
+      case ((Some(f), None), i) => intersects(f, 1.0, cube, i)
+      case ((None, None), _) => true
     }
+  }
+
+}
+
+object QuerySpaceFromTo {
+
+  def apply(
+      originalFrom: Seq[Option[Any]],
+      originalTo: Seq[Option[Any]],
+      transformations: Seq[Transformation]): QuerySpaceFromTo = {
+
+    assert(originalTo.size == originalFrom.size)
+    assert(transformations.size == originalTo.size)
+    val from = originalFrom.zip(transformations).map {
+      case (Some(f), transformation) => Some(transformation.transform(f))
+      case _ => None
+    }
+    val to = originalTo.zip(transformations).map {
+      case (Some(t), transformation) => Some(transformation.transform(t))
+      case _ => None
+    }
+
+    new QuerySpaceFromTo(from, to)
   }
 
 }
