@@ -105,7 +105,7 @@ class CubeWeightsBuilder protected (
         val weightAndCount = weights.getOrElseUpdate(cubeId, new WeightAndCount(MaxValue, 0))
         if (weightAndCount.count < groupSize) {
           weightAndCount.count += 1
-          if (weightAndCount.count >= desiredCubeSize || weightAndCount.count == groupSize) {
+          if (weightAndCount.count == groupSize) {
             weightAndCount.weight = weight
           }
           continue = replicatedOrAnnouncedSet.contains(cubeId)
@@ -113,8 +113,6 @@ class CubeWeightsBuilder protected (
       }
     }
     weights.map {
-      case (cubeId, weightAndCount) if weightAndCount.count > desiredCubeSize =>
-        CubeNormalizedWeight(cubeId.bytes, NormalizedWeight(weightAndCount.weight))
       case (cubeId, weightAndCount) if weightAndCount.count == groupSize =>
         val s = desiredCubeSize / groupSize
         CubeNormalizedWeight(cubeId.bytes, NormalizedWeight(weightAndCount.weight) * s)
