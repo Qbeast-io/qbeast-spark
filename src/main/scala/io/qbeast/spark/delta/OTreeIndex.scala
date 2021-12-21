@@ -128,6 +128,12 @@ case class OTreeIndex(index: TahoeLogFileIndex)
       cubesStatuses: Map[CubeId, CubeStatus],
       replicatedSet: Set[CubeId],
       previouslyMatchedFiles: Seq[AddFile]): IISeq[AddFile] = {
+
+    val keys = cubesStatuses.keys.map(_.string).toVector
+    def haveImissingDescendands(cube: CubeId): Boolean = {
+      val c = cube.string
+      keys.count(cubeString => cubeString.startsWith(c)) > 1
+    }
     val fileMap = previouslyMatchedFiles.map(a => (a.path, a)).toMap
     def doFindSampleFiles(cube: CubeId): IISeq[AddFile] = {
       cubesStatuses.get(cube) match {
@@ -149,7 +155,14 @@ case class OTreeIndex(index: TahoeLogFileIndex)
           }
         case None =>
           // TODO how we manage non-existing/empty cubes if the children are present?
-          Vector.empty
+          if (haveImissingDescendands(cube)) {
+            cube.children
+              .filter(space.intersectsWith)
+              .flatMap(doFindSampleFiles)
+              .toVector
+          } else {
+            Vector.empty
+          }
       }
     }
 
