@@ -51,10 +51,10 @@ object PointWeightIndexer {
 
   /**
    * Builds a new point weight indexer from the status changes
-   * @param changes the index status changes
+   * @param changes the table changes
    * @return the PointWeightIndexer
    */
-  def apply(changes: IndexStatusChange): PointWeightIndexer =
+  def apply(changes: TableChanges): PointWeightIndexer =
     new PointWeightIndexer(changes.cubeWeights, changes.announcedOrReplicatedSet)
 
 }

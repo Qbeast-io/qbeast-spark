@@ -130,10 +130,6 @@ final case class Revision(
     vb.result()
   }
 
-  def toJson: String = {
-    mapper.writeValueAsString(this)
-  }
-
 }
 
 /**
@@ -152,16 +148,10 @@ case class RevisionChange(
     transformationsChanges: IISeq[Option[Transformation]] = Vector.empty) {
 
   /**
-   * Returns the revision in json string format
-   * @return
-   */
-  def toJson: String = newRevision.toJson
-
-  /**
    * Creates a new revision based on the current revision and the changes
    * @return
    */
-  def newRevision: Revision = supersededRevision match {
+  def createNewRevision: Revision = supersededRevision match {
     case Revision(revisionID, _, tableID, desiredCubeSize, columnTransformers, transformations) =>
       Revision(
         revisionID + 1,
@@ -216,6 +206,8 @@ case class IndexStatus(
   def cubeNormalizedWeights: Map[CubeId, NormalizedWeight] =
     cubesStatuses.mapValues(_.normalizedWeight)
 
+  def replicatedOrAnnouncedSet: Set[CubeId] = replicatedSet ++ announcedSet
+
 }
 
 /**
@@ -242,22 +234,11 @@ object IndexStatus {
  * @param deltaAnnouncedSet the new entries to the announced set
  */
 case class IndexStatusChange(
-    supersededIndexStatus: IndexStatus,
+    private[model] val supersededIndexStatus: IndexStatus,
     deltaNormalizedCubeWeights: Map[CubeId, NormalizedWeight],
     deltaReplicatedSet: Set[CubeId] = Set.empty,
     deltaAnnouncedSet: Set[CubeId] = Set.empty)
-    extends Serializable {
-
-  def cubeWeights: Map[CubeId, Weight] = CubeNormalizedWeights.mergeNormalizedWeights(
-    supersededIndexStatus.cubeNormalizedWeights,
-    deltaNormalizedCubeWeights)
-
-  def announcedSet: Set[CubeId] = supersededIndexStatus.announcedSet ++ deltaAnnouncedSet
-
-  def replicatedSet: Set[CubeId] = supersededIndexStatus.replicatedSet ++ deltaReplicatedSet
-
-  def announcedOrReplicatedSet: Set[CubeId] = announcedSet ++ replicatedSet
-}
+    extends Serializable {}
 
 /**
  * Container for the table changes
@@ -273,9 +254,43 @@ case class TableChanges(
    * @return
    */
   def updatedRevision: Revision = revisionChanges match {
-    case Some(newRev) => newRev.newRevision
+    case Some(newRev) => newRev.createNewRevision
     case None => indexChanges.supersededIndexStatus.revision
 
   }
+
+  def cubeWeights: Map[CubeId, Weight] = {
+    if (revisionChanges.isEmpty) {
+
+      CubeNormalizedWeights.mergeNormalizedWeights(
+        indexChanges.supersededIndexStatus.cubeNormalizedWeights,
+        indexChanges.deltaNormalizedCubeWeights)
+    } else {
+      CubeNormalizedWeights.mergeNormalizedWeights(
+        Map.empty,
+        indexChanges.deltaNormalizedCubeWeights)
+    }
+  }
+
+  def announcedSet: Set[CubeId] = {
+    if (revisionChanges.isEmpty) {
+
+      indexChanges.supersededIndexStatus.announcedSet ++ indexChanges.deltaAnnouncedSet
+    } else {
+      indexChanges.deltaAnnouncedSet
+    }
+
+  }
+
+  def replicatedSet: Set[CubeId] = {
+    if (revisionChanges.isEmpty) {
+
+      indexChanges.supersededIndexStatus.replicatedSet ++ indexChanges.deltaReplicatedSet
+    } else {
+      indexChanges.deltaReplicatedSet
+    }
+  }
+
+  def announcedOrReplicatedSet: Set[CubeId] = announcedSet ++ replicatedSet
 
 }

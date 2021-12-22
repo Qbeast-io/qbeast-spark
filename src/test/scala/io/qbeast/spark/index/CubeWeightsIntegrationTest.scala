@@ -31,7 +31,7 @@ class CubeWeightsIntegrationTest extends QbeastIntegrationTestSpec {
                 df.schema,
                 Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> "10000")))
           val (_, tc) = oTreeAlgorithm.index(df.toDF(), indexStatus)
-          val weightMap = tc.indexChanges.cubeWeights
+          val weightMap = tc.cubeWeights
           df.write
             .format("qbeast")
             .mode("overwrite")

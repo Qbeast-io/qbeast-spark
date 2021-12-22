@@ -1,7 +1,6 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.TestClasses.T2
-import io.qbeast.core.model.{AllSpace, Weight, WeightRange}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.SparkSession
@@ -22,7 +21,7 @@ class OTreeIndexTest extends QbeastIntegrationTestSpec {
 
   behavior of "OTreeIndexTest"
 
-  it should "findSampleFiles" in withSparkAndTmpDir((spark, tmpdir) => {
+  it should "find all matching files" in withSparkAndTmpDir((spark, tmpdir) => {
 
     val source = createDF(100000, spark)
 
@@ -37,26 +36,10 @@ class OTreeIndexTest extends QbeastIntegrationTestSpec {
       TahoeLogFileIndex(spark, deltaLog, deltaLog.dataPath, deltaLog.snapshot, Seq.empty, false)
     }
     val oTreeIndex = OTreeIndex(tahoeFileIndex)
-    val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
 
     val allFiles = deltaLog.snapshot.allFiles.collect()
 
-    val revision = qbeastSnapshot.loadLatestRevision
-    val dimensionCount = revision.columnTransformers.length
-
-    val querySpace = AllSpace(dimensionCount)
-    val startCube = revision.createCubeIdRoot()
-    val weightRange = WeightRange(Weight.MinValue, Weight.MaxValue)
-
-    val b = new IndexStatusBuilder(qbeastSnapshot, qbeastSnapshot.loadLatestRevision, Set.empty)
-    val indexStatus = b.build()
-    val matchFiles = oTreeIndex.findSampleFiles(
-      querySpace,
-      weightRange,
-      startCube,
-      indexStatus.cubesStatuses,
-      Set.empty,
-      allFiles)
+    val matchFiles = oTreeIndex.matchingFiles(Seq.empty, Seq.empty)
 
     val diff = (allFiles.toSet -- matchFiles.toSet)
 

@@ -16,7 +16,7 @@ trait IndexTestChecks extends Matchers {
   }
 
   def checkCubeSize(tableChanges: TableChanges, revision: Revision, indexed: DataFrame): Unit = {
-    val weightMap: Map[CubeId, Weight] = tableChanges.indexChanges.cubeWeights
+    val weightMap: Map[CubeId, Weight] = tableChanges.cubeWeights
     val desiredCubeSize = revision.desiredCubeSize
     val minSize = (desiredCubeSize * 0.9).toLong
 

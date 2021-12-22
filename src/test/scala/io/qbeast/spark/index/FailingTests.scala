@@ -25,7 +25,7 @@ class FailingTests extends QbeastIntegrationTestSpec with IndexTestChecks {
           Map("columnsToIndex" -> "age,val2", "cubeSize" -> smallCubeSize.toString))
 
         val (indexed, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
-        val weightMap = tc.indexChanges.cubeWeights
+        val weightMap = tc.cubeWeights
 
         checkDFSize(indexed, df)
         checkCubes(weightMap)

@@ -185,7 +185,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     // The revision to use
     val revision = spaceChanges match {
       case Some(revisionChange) =>
-        revisionChange.newRevision
+        revisionChange.createNewRevision
       case None => indexStatus.revision
     }
 

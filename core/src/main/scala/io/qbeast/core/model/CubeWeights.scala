@@ -36,15 +36,13 @@ object CubeWeightsBuilder {
  * @param desiredCubeSize           the desired cube size
  * @param groupSize                 the boost size
  * @param bufferCapacity the buffer capacity to store the cube weights in memory
- * @param announcedSet              the announced cube identifiers
- * @param replicatedSet             the replicated cube identifiers
+ * @param replicatedOrAnnouncedSet the announced or replicated cubes' identifiers
  */
 class CubeWeightsBuilder protected (
     private val desiredCubeSize: Int,
     private val groupSize: Double,
     private val bufferCapacity: Long,
-    private val announcedSet: Set[CubeId],
-    private val replicatedSet: Set[CubeId])
+    private val replicatedOrAnnouncedSet: Set[CubeId] = Set.empty)
     extends Serializable {
 
   def this(
@@ -60,8 +58,7 @@ class CubeWeightsBuilder protected (
         numElements,
         bufferCapacity),
       bufferCapacity,
-      indexStatus.announcedSet,
-      indexStatus.replicatedSet)
+      indexStatus.replicatedOrAnnouncedSet)
 
   private val byWeight = Ordering.by[PointWeightAndParent, Weight](_.weight).reverse
   protected val queue = new mutable.PriorityQueue[PointWeightAndParent]()(byWeight)
@@ -108,16 +105,14 @@ class CubeWeightsBuilder protected (
         val weightAndCount = weights.getOrElseUpdate(cubeId, new WeightAndCount(MaxValue, 0))
         if (weightAndCount.count < groupSize) {
           weightAndCount.count += 1
-          if (weightAndCount.count >= desiredCubeSize || weightAndCount.count == groupSize) {
+          if (weightAndCount.count == groupSize) {
             weightAndCount.weight = weight
           }
-          continue = announcedSet.contains(cubeId) || replicatedSet.contains(cubeId)
+          continue = replicatedOrAnnouncedSet.contains(cubeId)
         }
       }
     }
     weights.map {
-      case (cubeId, weightAndCount) if weightAndCount.count > desiredCubeSize =>
-        CubeNormalizedWeight(cubeId.bytes, NormalizedWeight(weightAndCount.weight))
       case (cubeId, weightAndCount) if weightAndCount.count == groupSize =>
         val s = desiredCubeSize / groupSize
         CubeNormalizedWeight(cubeId.bytes, NormalizedWeight(weightAndCount.weight) * s)
