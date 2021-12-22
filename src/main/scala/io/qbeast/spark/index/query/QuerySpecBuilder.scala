@@ -71,6 +71,13 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression]) extends Ser
         .hasSubquery(expression))
   }
 
+  private def sparkTypeToCoreType(value: Any): Any = {
+    value match {
+      case s: UTF8String => s.toString
+      case _ => value
+    }
+  }
+
   /**
    * Extracts the space of the query
    * @param dataFilters the filters passed by the spark engine
@@ -93,17 +100,12 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression]) extends Ser
         // if not found, use the overall coordinates
         val from = columnFilters
           .collectFirst {
-            case GreaterThanOrEqual(_, Literal(value: UTF8String, _)) => value.getBytes
-            case GreaterThanOrEqual(_, Literal(value, _)) => value
-            case EqualTo(_, Literal(value: UTF8String, _)) => value.getBytes
-            case EqualTo(_, Literal(value, _)) => value
+            case GreaterThanOrEqual(_, Literal(value, _)) => sparkTypeToCoreType(value)
+            case EqualTo(_, Literal(value, _)) => sparkTypeToCoreType(value)
           }
 
         val to = columnFilters
-          .collectFirst {
-            case LessThan(_, Literal(value: UTF8String, _)) => value.getBytes
-            case LessThan(_, Literal(value, _)) => value
-          }
+          .collectFirst { case LessThan(_, Literal(value, _)) => sparkTypeToCoreType(value) }
 
         (from, to)
       }
