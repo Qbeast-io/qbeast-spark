@@ -18,6 +18,7 @@ import org.apache.spark.sql.catalyst.expressions.{
   SubqueryExpression
 }
 import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.unsafe.types.UTF8String
 
 /**
  * Builds a query specification from a set of filters
@@ -92,12 +93,17 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression]) extends Ser
         // if not found, use the overall coordinates
         val from = columnFilters
           .collectFirst {
+            case GreaterThanOrEqual(_, Literal(value: UTF8String, _)) => value.getBytes
             case GreaterThanOrEqual(_, Literal(value, _)) => value
+            case EqualTo(_, Literal(value: UTF8String, _)) => value.getBytes
             case EqualTo(_, Literal(value, _)) => value
           }
 
         val to = columnFilters
-          .collectFirst { case LessThan(_, Literal(value, _)) => value }
+          .collectFirst {
+            case LessThan(_, Literal(value: UTF8String, _)) => value.getBytes
+            case LessThan(_, Literal(value, _)) => value
+          }
 
         (from, to)
       }

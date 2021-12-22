@@ -1,7 +1,7 @@
 package io.qbeast.spark.index.query
 
 import io.qbeast.core.model._
-import io.qbeast.core.transform.{LinearTransformation, Transformer}
+import io.qbeast.core.transform.{HashTransformation, LinearTransformation, Transformer}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import org.apache.spark.sql.Column
@@ -38,8 +38,8 @@ class QuerySpecBuilderTest
       transformations)
   }
 
-  val privateFrom = PrivateMethod[QuerySpaceFromTo]('from)
-  val privateTo = PrivateMethod[QuerySpaceFromTo]('to)
+  val privateFrom: PrivateMethod[QuerySpaceFromTo] = PrivateMethod[QuerySpaceFromTo]('from)
+  val privateTo: PrivateMethod[QuerySpaceFromTo] = PrivateMethod[QuerySpaceFromTo]('to)
 
   "extractWeightRange" should
     "extract all weight range when expressions is empty" in withSpark(spark => {
@@ -81,6 +81,37 @@ class QuerySpecBuilderTest
 
     querySpace invokePrivate privateFrom() shouldBe Seq(Some(tFrom))
     querySpace invokePrivate privateTo() shouldBe Seq(None)
+
+  })
+
+  it should "extract query range when column is string" in withSpark(spark => {
+
+    val nameTransformation = HashTransformation()
+    val transformations = Seq(nameTransformation).toIndexedSeq
+    val columnTransformers = Seq(Transformer("hashing", "name", StringDataType)).toIndexedSeq
+
+    val revision = Revision(
+      0,
+      System.currentTimeMillis(),
+      QTableID("test"),
+      100,
+      columnTransformers,
+      transformations)
+
+    val (from, to) = ("qbeast", "QBEAST")
+
+    val expression = expr(s"name == '$from'").expr
+    val querySpace = new QuerySpecBuilder(Seq(expression)).build(revision).querySpace
+    querySpace invokePrivate privateFrom() shouldBe Seq(
+      Some(nameTransformation.transform("qbeast")))
+    querySpace invokePrivate privateTo() shouldBe Seq(None)
+
+    val rangeExpression = expr(s"name >= '$from' and name < '$to'").expr
+    val rangeQuerySpace = new QuerySpecBuilder(Seq(rangeExpression)).build(revision).querySpace
+    val resultFrom = Seq(Some(nameTransformation.transform(from)))
+    val resultTo = Seq(Some(nameTransformation.transform(to)))
+    rangeQuerySpace invokePrivate privateFrom() shouldBe resultFrom
+    rangeQuerySpace invokePrivate privateTo() shouldBe resultTo
 
   })
 
