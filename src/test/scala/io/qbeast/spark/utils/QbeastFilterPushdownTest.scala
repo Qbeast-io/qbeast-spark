@@ -102,19 +102,14 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
     "return a valid filtering of the original dataset " +
     "for all string columns" in withSparkAndTmpDir { (spark, tmpDir) =>
       {
-        val data = loadTestData(spark)
+        val data = loadTestData(spark).na.drop()
 
-        writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
+        writeTestData(data, Seq("brand", "product_id"), 10000, tmpDir)
 
         val df = spark.read.format("qbeast").load(tmpDir)
-        val filter_brand_greaterThanOrEq = "(`brand` >= 'a')"
-        val filter_brand_lessThan = "(`brand` < 'c')"
+        val filter_brand = "(`brand` == 'versace')"
 
-        val filters = Seq(
-          filter_user_lessThan,
-          filter_user_greaterThanOrEq,
-          filter_brand_lessThan,
-          filter_brand_greaterThanOrEq)
+        val filters = Seq(filter_user_lessThan, filter_user_greaterThanOrEq, filter_brand)
         val filter = filters.mkString(" and ")
         val qbeastQuery = df.filter(filter)
         val normalQuery = data.filter(filter)
