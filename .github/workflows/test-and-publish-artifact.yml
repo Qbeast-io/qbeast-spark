@@ -25,7 +25,7 @@ jobs:
       run: sbt scalafmtSbtCheck doc
 
     # Publish only if it is on the main branch
-    - if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    - if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'Qbeast-io/qbeast-spark' }}
       name: Publish artifact
       run: |
         QBEAST_SPARK_VERSION="nightly-$(git rev-parse --short ${GITHUB_SHA})"
