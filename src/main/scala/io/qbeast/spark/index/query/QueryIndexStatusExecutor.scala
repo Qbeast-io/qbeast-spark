@@ -6,6 +6,7 @@ package io.qbeast.spark.index.query
 import io.qbeast.IISeq
 import io.qbeast.core.model._
 import io.qbeast.spark.utils.State
+import scala.collection.immutable.SortedMap
 
 /**
  * Executes a query against a index status
@@ -47,44 +48,46 @@ class QueryIndexStatusExecutor(querySpec: QuerySpec, indexStatus: IndexStatus) {
       replicatedSet: Set[CubeId],
       previouslyMatchedFiles: Seq[QbeastFile]): IISeq[QbeastFile] = {
 
-    val keys = cubesStatuses.keys.map(_.string).toVector
-    def haveImissingDescendands(cube: CubeId): Boolean = {
-      val c = cube.string
-      keys.count(cubeString => cubeString.startsWith(c)) > 1
-    }
+    implicit val cubeIdOrdering: Ordering[CubeId] = Ordering.by(_.string)
+    val sortedCubeStatuses = SortedMap[CubeId, CubeStatus]() ++ cubesStatuses
+
     val fileMap = previouslyMatchedFiles.map(a => (a.path, a)).toMap
-    def doFindSampleFiles(cube: CubeId): IISeq[QbeastFile] = {
-      cubesStatuses.get(cube) match {
-        case Some(CubeStatus(maxWeight, _, files)) if weightRange.to < maxWeight =>
-          files.flatMap(fileMap.get)
-        case Some(CubeStatus(maxWeight, _, files)) =>
-          val childFiles: Iterator[QbeastFile] = cube.children
-            .filter(space.intersectsWith)
-            .flatMap(doFindSampleFiles)
-          if (!replicatedSet.contains(cube) && weightRange.from < maxWeight) {
-            val cubeFiles = files.flatMap(fileMap.get)
-            if (childFiles.nonEmpty) {
-              cubeFiles.filterNot(_.state == State.ANNOUNCED) ++ childFiles
+
+    def doFindSampleFilesWithSortedMap(cube: CubeId): IISeq[QbeastFile] = {
+      val cubeIter = sortedCubeStatuses.iteratorFrom(cube)
+      if (cubeIter.hasNext) {
+        val currentCube = cubeIter.next()
+        currentCube match {
+          case (c: CubeId, CubeStatus(maxWeight, _, files)) if c == cube =>
+            if (maxWeight > weightRange.to) {
+              files.flatMap(fileMap.get)
             } else {
-              cubeFiles
+              val childFiles = c.children
+                .filter(space.intersectsWith)
+                .flatMap(doFindSampleFilesWithSortedMap)
+              if (replicatedSet.contains(cube) || weightRange.from >= maxWeight) {
+                childFiles.toVector
+              } else {
+                val cubeFiles = files.flatMap(fileMap.get)
+                if (childFiles.nonEmpty) {
+                  cubeFiles.filterNot(_.state == State.ANNOUNCED) ++ childFiles
+                } else {
+                  cubeFiles
+                }
+              }
             }
-          } else {
-            childFiles.toVector
-          }
-        case None =>
-          // TODO how we manage non-existing/empty cubes if the children are present?
-          if (haveImissingDescendands(cube)) {
+          case (c: CubeId, CubeStatus(maxWeight, _, files)) if c.string.startsWith(cube.string) =>
             cube.children
               .filter(space.intersectsWith)
-              .flatMap(doFindSampleFiles)
+              .flatMap(doFindSampleFilesWithSortedMap)
               .toVector
-          } else {
-            Vector.empty
-          }
+          case _ => Vector.empty
+        }
+      } else {
+        Vector.empty
       }
     }
-
-    doFindSampleFiles(startCube)
+    doFindSampleFilesWithSortedMap(startCube)
   }
 
 }
