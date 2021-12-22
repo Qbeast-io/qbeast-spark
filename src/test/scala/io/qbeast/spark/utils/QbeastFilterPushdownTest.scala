@@ -52,7 +52,7 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
   "Qbeast" should
     "return a valid filtering of the original dataset " +
-    "for one column" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
+    "for one column" in withSparkAndTmpDir { (spark, tmpDir) =>
       {
         val data = loadTestData(spark)
 
@@ -74,7 +74,7 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
   it should
     "return a valid filtering of the original dataset " +
-    "for all columns indexed" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
+    "for all columns indexed" in withSparkAndTmpDir { (spark, tmpDir) =>
       {
         val data = loadTestData(spark)
 
@@ -87,6 +87,29 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
           filter_user_greaterThanOrEq,
           filter_product_lessThan,
           filter_product_greaterThanOrEq)
+        val filter = filters.mkString(" and ")
+        val qbeastQuery = df.filter(filter)
+        val normalQuery = data.filter(filter)
+
+        checkFileFiltering(qbeastQuery)
+        qbeastQuery.count() shouldBe normalQuery.count()
+        assertLargeDatasetEquality(qbeastQuery, normalQuery, orderedComparison = false)
+
+      }
+    }
+
+  it should
+    "return a valid filtering of the original dataset " +
+    "for all string columns" in withSparkAndTmpDir { (spark, tmpDir) =>
+      {
+        val data = loadTestData(spark).na.drop()
+
+        writeTestData(data, Seq("brand", "product_id"), 10000, tmpDir)
+
+        val df = spark.read.format("qbeast").load(tmpDir)
+        val filter_brand = "(`brand` == 'versace')"
+
+        val filters = Seq(filter_user_lessThan, filter_user_greaterThanOrEq, filter_brand)
         val filter = filters.mkString(" and ")
         val qbeastQuery = df.filter(filter)
         val normalQuery = data.filter(filter)
