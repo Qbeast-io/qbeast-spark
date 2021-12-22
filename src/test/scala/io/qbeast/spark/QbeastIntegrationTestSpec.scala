@@ -119,7 +119,6 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
    * instance is used to customize the QbeastContext.
    *
    * @param keeper the keeper
-   * @param config the configuration
    * @param testCode the test code
    * @tparam T the test result type
    * @return the test result
@@ -143,7 +142,7 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
   }
 
   def withQbeastContextSparkAndTmpDir[T](testCode: (SparkSession, String) => T): T =
-    withTmpDir(tmpDir => withSpark(spark => withQbeastContext()(testCode(spark, tmpDir))))
+    withQbeastContext()(withTmpDir(tmpDir => withSpark(spark => testCode(spark, tmpDir))))
 
   def withOTreeAlgorithm[T](code: IndexManager[DataFrame] => T): T = {
     code(SparkOTreeManager)
