@@ -5,8 +5,9 @@ package io.qbeast.spark.index.query
 
 import io.qbeast.IISeq
 import io.qbeast.core.model._
-import io.qbeast.spark.utils.State
 import scala.collection.immutable.SortedMap
+import scala.collection.mutable.Queue
+import io.qbeast.spark.utils.State
 
 /**
  * Executes a query against a index status
@@ -53,41 +54,68 @@ class QueryIndexStatusExecutor(querySpec: QuerySpec, indexStatus: IndexStatus) {
 
     val fileMap = previouslyMatchedFiles.map(a => (a.path, a)).toMap
 
-    def doFindSampleFilesWithSortedMap(cube: CubeId): IISeq[QbeastFile] = {
-      val cubeIter = sortedCubeStatuses.iteratorFrom(cube)
-      if (cubeIter.hasNext) {
-        val currentCube = cubeIter.next()
-        currentCube match {
-          case (c: CubeId, CubeStatus(maxWeight, _, files)) if c == cube =>
-            if (maxWeight > weightRange.to) {
-              files.flatMap(fileMap.get)
-            } else {
-              val childFiles = c.children
-                .filter(space.intersectsWith)
-                .flatMap(doFindSampleFilesWithSortedMap)
-              if (replicatedSet.contains(cube) || weightRange.from >= maxWeight) {
-                childFiles.toVector
-              } else {
-                val cubeFiles = files.flatMap(fileMap.get)
-                if (childFiles.nonEmpty) {
-                  cubeFiles.filterNot(_.state == State.ANNOUNCED) ++ childFiles
+    def doFindSampleFilesIterative(cube: CubeId): IISeq[QbeastFile] = {
+      val outputFiles = Vector.newBuilder[QbeastFile]
+      outputFiles.sizeHint(sortedCubeStatuses.size)
+      val firstLevel = Vector(cube)
+      val queue = Queue(firstLevel)
+      while (queue.nonEmpty) {
+        val currentLevel = queue.dequeue()
+        currentLevel.foreach(currentCube => {
+          val cubeIter = sortedCubeStatuses.iteratorFrom(currentCube)
+          // Contains cases for the next element from the iterator being
+          // 1. the cube itself
+          // 2. one of the cube's children
+          // 3. this currentCube's sibling or their subtree
+          // 4. empty, the currentCube is the right-most cube in the tree
+          if (cubeIter.hasNext) { // For cases 1 to 3
+            cubeIter.next() match {
+              case (c, CubeStatus(maxWeight, _, files)) if c == currentCube => // Case 1
+                if (weightRange.to < maxWeight) {
+                  // cube maxWeight is larger than the sample fraction, weightRange.to,
+                  // it means that currentCube is the last cube to visit from the current branch.
+                  // All files are retrieved and no more cubes from the branch will be visited.
+                  outputFiles ++= files.flatMap(fileMap.get)
                 } else {
-                  cubeFiles
+                  // Otherwise,
+                  // 1. if the currentCube is REPLICATED, we skip the cube
+                  // 2. if the state is ANNOUNCED, ignore the After Announcement elements
+                  // 3. if FLOODED, retrieve all files from the cube
+                  val skipCube = replicatedSet.contains(c) || weightRange.from >= maxWeight
+                  if (!skipCube) {
+                    val isLeaf = maxWeight == Weight.MaxValue
+                    val cubeFiles = {
+                      if (isLeaf) files.flatMap(fileMap.get)
+                      else files.flatMap(fileMap.get).filterNot(_.state == State.ANNOUNCED)
+                      // Files in an ANNOUNCED cube can either be ANNOUNCED
+                    }
+                    outputFiles ++= cubeFiles
+                  }
+                  // In all cases, the subtree is to be visited.
+                  queue.enqueue(
+                    c.children
+                      .filter(space.intersectsWith)
+                      .toVector)
                 }
-              }
+
+              case (c: CubeId, _) if c.string.startsWith(currentCube.string) => // Case 2
+                // If c is a child cube of currentCube, it means that currentCube is
+                // not part of the cubesStatuses and aside from c, we also need to
+                // consider c's sibling cubes.
+                queue.enqueue(
+                  currentCube.children
+                    .filter(space.intersectsWith)
+                    .toVector)
+
+              case _ => // Case 3
             }
-          case (c: CubeId, CubeStatus(maxWeight, _, files)) if c.string.startsWith(cube.string) =>
-            cube.children
-              .filter(space.intersectsWith)
-              .flatMap(doFindSampleFilesWithSortedMap)
-              .toVector
-          case _ => Vector.empty
-        }
-      } else {
-        Vector.empty
+          }
+        })
       }
+      outputFiles.result()
     }
-    doFindSampleFilesWithSortedMap(startCube)
+
+    doFindSampleFilesIterative(startCube)
   }
 
 }
