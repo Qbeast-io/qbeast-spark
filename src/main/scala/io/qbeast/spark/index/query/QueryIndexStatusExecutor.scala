@@ -24,6 +24,7 @@ class QueryIndexStatusExecutor(querySpec: QuerySpec, indexStatus: IndexStatus) {
       indexStatus.revision.createCubeIdRoot(),
       indexStatus.cubesStatuses,
       indexStatus.replicatedSet,
+      indexStatus.announcedSet,
       previouslyMatchedFiles)
   }
 
@@ -47,6 +48,7 @@ class QueryIndexStatusExecutor(querySpec: QuerySpec, indexStatus: IndexStatus) {
       startCube: CubeId,
       cubesStatuses: Map[CubeId, CubeStatus],
       replicatedSet: Set[CubeId],
+      announcedSet: Set[CubeId],
       previouslyMatchedFiles: Seq[QbeastFile]): IISeq[QbeastFile] = {
 
     implicit val cubeIdOrdering: Ordering[CubeId] = Ordering.by(_.string)
@@ -68,9 +70,11 @@ class QueryIndexStatusExecutor(querySpec: QuerySpec, indexStatus: IndexStatus) {
           // 2. one of the cube's children
           // 3. this currentCube's sibling or their subtree
           // 4. empty, the currentCube is the right-most cube in the tree
-          if (cubeIter.hasNext) { // For cases 1 to 3
+          // and is not in cubesStatuses
+          if (cubeIter.hasNext) { // cases 1 to 3
             cubeIter.next() match {
-              case (c, CubeStatus(maxWeight, _, files)) if c == currentCube => // Case 1
+              case (c: CubeId, CubeStatus(maxWeight, _, files))
+                  if c == currentCube && weightRange.from < maxWeight => // Case 1
                 if (weightRange.to < maxWeight) {
                   // cube maxWeight is larger than the sample fraction, weightRange.to,
                   // it means that currentCube is the last cube to visit from the current branch.
@@ -81,26 +85,27 @@ class QueryIndexStatusExecutor(querySpec: QuerySpec, indexStatus: IndexStatus) {
                   // 1. if the currentCube is REPLICATED, we skip the cube
                   // 2. if the state is ANNOUNCED, ignore the After Announcement elements
                   // 3. if FLOODED, retrieve all files from the cube
-                  val skipCube = replicatedSet.contains(c) || weightRange.from >= maxWeight
-                  if (!skipCube) {
-                    val isLeaf = maxWeight == Weight.MaxValue
-                    val cubeFiles = {
-                      if (isLeaf) files.flatMap(fileMap.get)
-                      else files.flatMap(fileMap.get).filterNot(_.state == State.ANNOUNCED)
-                      // Files in an ANNOUNCED cube can either be ANNOUNCED
+                  val (isReplicated, isAnnounced, hasChildren) =
+                    (replicatedSet.contains(c), announcedSet.contains(c), c.children.nonEmpty)
+                  val cubeFiles =
+                    if (isReplicated) {
+                      Vector.empty
+                    } else if (isAnnounced && hasChildren) {
+                      files.flatMap(fileMap.get).filterNot(_.state == State.ANNOUNCED)
+                    } else {
+                      files.flatMap(fileMap.get)
                     }
-                    outputFiles ++= cubeFiles
-                  }
-                  // In all cases, the subtree is to be visited.
+                  outputFiles ++= cubeFiles
                   queue.enqueue(
                     c.children
                       .filter(space.intersectsWith)
                       .toVector)
                 }
 
-              case (c: CubeId, _) if c.string.startsWith(currentCube.string) => // Case 2
-                // If c is a child cube of currentCube, it means that currentCube is
-                // not part of the cubesStatuses and aside from c, we also need to
+              case (c: CubeId, CubeStatus(maxWeight, _, _))
+                  if c.string.startsWith(
+                    currentCube.string) && weightRange.from < maxWeight => // Case 2
+                // c is a child cube of currentCube. Aside from c, we also need to
                 // consider c's sibling cubes.
                 queue.enqueue(
                   currentCube.children
