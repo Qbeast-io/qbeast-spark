@@ -1,7 +1,7 @@
 package io.qbeast.spark.index.query
 
 import io.qbeast.TestClasses.T2
-import io.qbeast.core.model.{AllSpace, QbeastFile, Weight, WeightRange}
+import io.qbeast.core.model.QbeastFile
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import org.apache.spark.sql.SparkSession
@@ -34,17 +34,15 @@ class QueryIndexStatusExecutorTest extends QbeastIntegrationTestSpec {
     val deltaLog = DeltaLog.forTable(spark, tmpdir)
     val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
 
-    val latestStatus = qbeastSnapshot.loadLatestIndexStatus
-    val querySpec = QuerySpec(WeightRange(Weight(Int.MinValue), Weight(Int.MaxValue)), AllSpace())
-    val queryRevisionExecutor =
-      new QueryIndexStatusExecutor(querySpec, latestStatus)
+    val querySpecBuilder = new QuerySpecBuilder(Seq.empty)
+    val queryExecutor = new QueryExecutor(querySpecBuilder, qbeastSnapshot)
 
     val allDeltaFiles = deltaLog.snapshot.allFiles.collect()
     val allFiles = allDeltaFiles.map(a => QbeastFile(a.path, a.tags))
 
-    val matchFiles = queryRevisionExecutor.execute(allFiles)
+    val matchFiles = queryExecutor.execute(allFiles)
 
-    val diff = (allFiles.toSet -- matchFiles.toSet)
+    val diff = allFiles.toSet -- matchFiles.toSet
 
     diff.size shouldBe 0
     matchFiles.size shouldBe allFiles.length
