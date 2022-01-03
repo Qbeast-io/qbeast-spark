@@ -4,7 +4,15 @@
 package io.qbeast.spark.index.query
 
 import io.qbeast.IISeq
-import io.qbeast.core.model.{CubeId, CubeStatus, IndexStatus, QbeastFile, QbeastSnapshot, QuerySpace, WeightRange}
+import io.qbeast.core.model.{
+  CubeId,
+  CubeStatus,
+  IndexStatus,
+  QbeastFile,
+  QbeastSnapshot,
+  QuerySpace,
+  WeightRange
+}
 import io.qbeast.spark.utils.State
 
 import scala.collection.immutable.SortedMap
@@ -68,13 +76,13 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
     // TODO: turn this into a iterative function
     //  and substitute the MAP for a PatriciaTree solution
     def findSampleFiles(
-                         space: QuerySpace,
-                         weightRange: WeightRange,
-                         startCube: CubeId,
-                         cubesStatuses: Map[CubeId, CubeStatus],
-                         replicatedSet: Set[CubeId],
-                         announcedSet: Set[CubeId],
-                         previouslyMatchedFiles: Seq[QbeastFile]): IISeq[QbeastFile] = {
+        space: QuerySpace,
+        weightRange: WeightRange,
+        startCube: CubeId,
+        cubesStatuses: Map[CubeId, CubeStatus],
+        replicatedSet: Set[CubeId],
+        announcedSet: Set[CubeId],
+        previouslyMatchedFiles: Seq[QbeastFile]): IISeq[QbeastFile] = {
 
       implicit val cubeIdOrdering: Ordering[CubeId] = Ordering.by(_.string)
       val sortedCubeStatuses = SortedMap[CubeId, CubeStatus]() ++ cubesStatuses
@@ -98,7 +106,7 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
           if (cubeIter.hasNext) { // cases 1 to 3
             cubeIter.next() match {
               case (c: CubeId, CubeStatus(maxWeight, _, files))
-                if c == currentCube && weightRange.from < maxWeight => // Case 1
+                  if c == currentCube && weightRange.from < maxWeight => // Case 1
                 if (weightRange.to < maxWeight) {
                   // cube maxWeight is larger than the sample fraction, weightRange.to,
                   // it means that currentCube is the last cube to visit from the current branch.
@@ -110,7 +118,7 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
                   // 2. if the state is ANNOUNCED, ignore the After Announcement elements
                   // 3. if FLOODED, retrieve all files from the cube
                   val (isReplicated, isAnnounced, hasChildren) =
-                  (replicatedSet.contains(c), announcedSet.contains(c), c.children.nonEmpty)
+                    (replicatedSet.contains(c), announcedSet.contains(c), c.children.nonEmpty)
                   val cubeFiles =
                     if (isReplicated) {
                       Vector.empty
@@ -127,8 +135,8 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
                 }
 
               case (c: CubeId, CubeStatus(maxWeight, _, _))
-                if c.string.startsWith(
-                  currentCube.string) && weightRange.from < maxWeight => // Case 2
+                  if c.string.startsWith(
+                    currentCube.string) && weightRange.from < maxWeight => // Case 2
                 // c is a child cube of currentCube. Aside from c, we also need to
                 // consider c's sibling cubes.
                 queue.enqueue(
