@@ -243,8 +243,36 @@ object CubeId {
  * @param depth the cube depth
  * @param bitMask the bitMask representing the cube z-index.
  */
-case class CubeId(dimensionCount: Int, depth: Int, bitMask: Array[Long]) extends Serializable {
+case class CubeId(dimensionCount: Int, depth: Int, bitMask: Array[Long])
+    extends Serializable
+    with Ordered[CubeId] {
   private lazy val range = getRange
+
+  /*
+   * @param that
+   * @return
+   */
+  override def compare(that: CubeId): Int = {
+
+    val firstIter = mutable.BitSet.fromBitMask(bitMask)
+    val secondIter = mutable.BitSet.fromBitMask(that.bitMask)
+    val commonDepth = math.min(depth, that.depth)
+    for (d <- 0.until(commonDepth * dimensionCount, dimensionCount)) {
+      for (i <- 0 until dimensionCount) {
+        val firstBit = firstIter.contains(i + d)
+        val secondBit = secondIter.contains(i + d)
+        if (firstBit != secondBit) {
+          if (firstBit) {
+            return 1
+          } else {
+            return -1
+          }
+        }
+      }
+    }
+    depth.compare(that.depth)
+
+  }
 
   /**
    * Returns whether the identifier represents the root cube.

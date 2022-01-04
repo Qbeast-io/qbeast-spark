@@ -6,6 +6,8 @@ package io.qbeast.core.model
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.util.Random
+
 /**
  * Tests for CubeId.
  */
@@ -152,5 +154,36 @@ class CubeIdTest extends AnyFlatSpec with Matchers {
     cubeId.contains(Point(0.0, 0.0)) shouldBe false
     cubeId.contains(Point(1.0, 1.0)) shouldBe false
     cubeId.contains(Point(0.5, 0.75)) shouldBe true
+  }
+
+  it should "compare parent and children correctly" in {
+
+    val root = CubeId.root(2)
+    val kids = root.children.toVector
+    val grandChildren = Random.shuffle(kids.flatMap(_.children)).sorted
+    for (kid <- kids) {
+      root should be < kid
+    }
+    for (kid <- grandChildren) {
+      root should be < kid
+    }
+    for (k <- kids) {
+      for (kk <- k.children) {
+        k should be < kk
+      }
+    }
+    for (group <- grandChildren.grouped(4)) {
+      group.map(_.parent).distinct.size shouldBe 1
+    }
+    //scalastyle:off
+    grandChildren.foreach(a => println(a.string))
+
+    val twoGens = Random.shuffle(kids ++ grandChildren).sorted
+    println("TWO GENS BI2!")
+    twoGens.foreach(a => println(a.string))
+    for (group <- twoGens.grouped(5)) {
+      group.takeRight(4).map(_.parent).distinct.size shouldBe 1
+    }
+
   }
 }
