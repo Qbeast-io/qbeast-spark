@@ -88,4 +88,18 @@ class CubeIdSpeedTest extends AnyFlatSpec with Matchers with TimeLimits {
     // scalastyle:off println
     println(s"3D completed in $time msseconds - ${count.toDouble / time * 1000} IOPS")
   }
+
+  "The sorting of CubeId" should "be faster than comparing using strings " in {
+    val root = CubeId.root(10)
+    val oneMillion = Random.shuffle(root.children.flatMap(_.children)).toVector
+    val t1 = System.currentTimeMillis()
+    val s1 = oneMillion.sorted
+    println(System.currentTimeMillis() - t1)
+
+    val t2 = System.currentTimeMillis()
+    val s2 = oneMillion.sortBy(_.string)
+    println(System.currentTimeMillis() - t2)
+    println(s"The first is ${s1.head} and the second ${s2.head}")
+    s1.head shouldBe s2.head
+  }
 }
