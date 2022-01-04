@@ -7,7 +7,6 @@ import io.qbeast.IISeq
 import io.qbeast.core.model._
 import io.qbeast.spark.utils.State
 
-import scala.collection.immutable.SortedMap
 import scala.collection.mutable.Queue
 
 /**
@@ -37,8 +36,6 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
       indexStatus: IndexStatus,
       previouslyMatchedFiles: Seq[QbeastFile]): IISeq[QbeastFile] = {
 
-    val sortedCubeStatuses = SortedMap[CubeId, CubeStatus]() ++ indexStatus.cubesStatuses
-
     val fileMap = previouslyMatchedFiles.map(a => (a.path, a)).toMap
 
     val outputFiles = Vector.newBuilder[QbeastFile]
@@ -46,7 +43,7 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
     while (queue.nonEmpty) {
       val currentCube = queue.dequeue()
 
-      val cubeIter = sortedCubeStatuses.iteratorFrom(currentCube)
+      val cubeIter = indexStatus.cubesStatuses.iteratorFrom(currentCube)
       // Contains cases for the next element from the iterator being
       // 1. the cube itself
       // 2. one of the cube's children
@@ -84,10 +81,9 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
                 .foreach(queue.enqueue(_))
             }
 
-          case (cube, CubeStatus(maxWeight, _, _)) if currentCube.isAncestorOf(cube) => // Case 2
+          case (cube, _) if currentCube.isAncestorOf(cube) => // Case 2
             // c is a child cube of currentCube. Aside from c, we also need to
             // consider c's sibling cubes.
-
             currentCube.children
               .filter(querySpec.querySpace.intersectsWith)
               .foreach(queue.enqueue(_))

@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize.Typing
 import io.qbeast.IISeq
 import io.qbeast.core.transform.{Transformation, Transformer}
 
+import scala.collection.immutable.SortedMap
+
 object QTableID {
 
   @JsonCreator
@@ -188,7 +190,7 @@ case class IndexStatus(
     revision: Revision,
     replicatedSet: ReplicatedSet = Set.empty,
     announcedSet: Set[CubeId] = Set.empty,
-    cubesStatuses: Map[CubeId, CubeStatus] = Map.empty)
+    cubesStatuses: SortedMap[CubeId, CubeStatus] = SortedMap.empty)
     extends Serializable {
 
   def addAnnouncements(newAnnouncedSet: Set[CubeId]): IndexStatus =

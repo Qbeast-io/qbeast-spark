@@ -209,4 +209,29 @@ class CubeIdTest extends AnyFlatSpec with Matchers {
     }
 
   }
+
+  it should "check ancestors correctly" in {
+    val root = CubeId.root(2)
+    val kids = root.children.toVector
+
+    var otherKid: CubeId = null // This helps to test against other CubeIds
+    for (kid <- kids) {
+      root.isAncestorOf(kid) shouldBe true
+      kid.isAncestorOf(root) shouldBe false
+
+      for (gc <- kid.children) {
+        root.isAncestorOf(gc) shouldBe true
+        gc.isAncestorOf(root) shouldBe false
+
+        kid.isAncestorOf(gc) shouldBe true
+        gc.isAncestorOf(kid) shouldBe false
+
+        if (otherKid != null) {
+          otherKid.isAncestorOf(gc) shouldBe false
+          gc.isAncestorOf(otherKid) shouldBe false
+        }
+      }
+      otherKid = kid
+    }
+  }
 }
