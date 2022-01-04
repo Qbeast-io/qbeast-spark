@@ -275,6 +275,34 @@ case class CubeId(dimensionCount: Int, depth: Int, bitMask: Array[Long])
   }
 
   /**
+   * Returns true if this cube is the ancestor of the other cube.
+   * In case this and other are
+   * the same cube, it returns true.
+   * @param other cube to check
+   * @return
+   */
+  def isAncestorOf(other: CubeId): Boolean = {
+    require(
+      other.dimensionCount == dimensionCount,
+      "The two cubes must have the same dimension count.")
+
+    if (depth > other.depth) {
+      false
+    } else {
+
+      val end = dimensionCount * depth
+      val possibleDescendantBits = BitSet.fromBitMaskNoCopy(other.bitMask).until(end).toBitMask
+
+      for (i <- possibleDescendantBits.indices) {
+        if (possibleDescendantBits(i) != bitMask(i)) {
+          return false
+        }
+      }
+      true
+    }
+  }
+
+  /**
    * Returns whether the identifier represents the root cube.
    *
    * @return the identifier represents the root cube.
