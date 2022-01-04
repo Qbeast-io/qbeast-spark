@@ -77,7 +77,7 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
                   files.flatMap(fileMap.get)
                 }
               outputFiles ++= cubeFiles.filter(file =>
-                file.maxWeight < querySpec.weightRange.from)
+                file.maxWeight > querySpec.weightRange.from)
 
               cube.children
                 .filter(querySpec.querySpace.intersectsWith)
