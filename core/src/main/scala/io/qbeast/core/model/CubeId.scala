@@ -253,23 +253,25 @@ case class CubeId(dimensionCount: Int, depth: Int, bitMask: Array[Long])
    * @return
    */
   override def compare(that: CubeId): Int = {
-
-    val firstIter = mutable.BitSet.fromBitMask(bitMask)
-    val secondIter = mutable.BitSet.fromBitMask(that.bitMask)
+    val firstIter = BitSet.fromBitMaskNoCopy(bitMask)
+    val secondIter = BitSet.fromBitMaskNoCopy(that.bitMask)
     val commonDepth = math.min(depth, that.depth)
-    for (d <- 0.until(commonDepth * dimensionCount, dimensionCount)) {
-      for (i <- 0 until dimensionCount) {
-        val firstBit = firstIter.contains(i + d)
-        val secondBit = secondIter.contains(i + d)
-        if (firstBit != secondBit) {
-          if (firstBit) {
-            return 1
-          } else {
-            return -1
-          }
+    for (depthOffset <- 0.until(commonDepth * dimensionCount)) {
+      val firstBit = firstIter.contains(depthOffset)
+      val secondBit = secondIter.contains(depthOffset)
+      if (firstBit != secondBit) {
+        if (firstBit) {
+          return 1
+        } else {
+          return -1
         }
       }
+
     }
+    // We end up here, if one of the 2 cubes is an ancestor of the other.
+    // If positive, that < this => this is of deeper level
+    // If negative, that > this => that is of deeper level
+    // If equal, both are of the same level
     depth.compare(that.depth)
 
   }
