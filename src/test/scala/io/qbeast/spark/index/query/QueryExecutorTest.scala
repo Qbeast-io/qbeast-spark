@@ -28,6 +28,13 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
 
   }
 
+  private def weightFilters(weightRange: WeightRange): Expression = {
+    val qbeast_hash = new QbeastMurmur3Hash(Seq(new Column("a").expr, new Column("c").expr))
+    val lessThan = LessThan(qbeast_hash, Literal(weightRange.to.value))
+    val greaterThanOrEqual = GreaterThanOrEqual(qbeast_hash, Literal(weightRange.from.value))
+    And(lessThan, greaterThanOrEqual)
+  }
+
   behavior of "QueryExecutor"
 
   it should "find all sample files" in withSparkAndTmpDir((spark, tmpdir) => {
@@ -47,7 +54,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
 
     val matchFiles = queryExecutor.execute(allFiles)
 
-    val diff = (allFiles.toSet -- matchFiles.toSet)
+    val diff = allFiles.toSet -- matchFiles.toSet
 
     diff.size shouldBe 0
     matchFiles.size shouldBe allFiles.length
@@ -63,12 +70,6 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
     val deltaLog = DeltaLog.forTable(spark, tmpdir)
     val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
 
-    def weightFilters(weightRange: WeightRange): Expression = {
-      val qbeast_hash = new QbeastMurmur3Hash(Seq(new Column("a").expr, new Column("c").expr))
-      val lessThan = LessThan(qbeast_hash, Literal(weightRange.to.value))
-      val greaterThanOrEqual = GreaterThanOrEqual(qbeast_hash, Literal(weightRange.from.value))
-      And(lessThan, greaterThanOrEqual)
-    }
     val filters = Seq(weightFilters(WeightRange(Weight.MinValue, Weight(0.001))))
     val querySpec = new QuerySpecBuilder(filters)
     val queryExecutor = new QueryExecutor(querySpec, qbeastSnapshot)
@@ -132,10 +133,44 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
 
     val matchFiles = queryExecutor.execute(allFiles)
 
-    val diff = (allFiles.toSet -- matchFiles.toSet)
+    val diff = allFiles.toSet -- matchFiles.toSet
     diff.size shouldBe 0
     matchFiles.size shouldBe allFiles.length
     matchFiles.toSet shouldBe allFiles.toSet
 
   })
+
+  it should "skip files with maxWeight < weightRange.from" in withSparkAndTmpDir(
+    (spark, tmpDir) => {
+      val df = createDF(50000, spark).toDF()
+
+      writeTestData(df, Seq("a", "c"), 1000, tmpDir)
+
+      val deltaLog = DeltaLog.forTable(spark, tmpDir)
+      val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+
+      val weightRange = WeightRange(Weight(3), Weight(5))
+      val expressionFilters = weightFilters(weightRange)
+      val querySpecBuilder = new QuerySpecBuilder(Seq(expressionFilters))
+
+      val queryExecutor = new QueryExecutor(querySpecBuilder, qbeastSnapshot)
+
+      val allDeltaFiles = deltaLog.snapshot.allFiles.collect()
+      val allFiles = allDeltaFiles.map(a => QbeastFile(a.path, a.tags))
+
+      val matchFiles = queryExecutor.execute(allFiles)
+      val diff = allFiles.toSet -- matchFiles.toSet
+
+      // scalastyle:off println
+      println(
+        s"Number of files: ${allFiles.length}, Matching files: ${matchFiles.length}, " +
+          s"Skipped files: ${diff.size}")
+
+      for (f <- allFiles) {
+        if (f.maxWeight < weightRange.from) {
+          diff should contain(f)
+          matchFiles should not contain (f)
+        }
+      }
+    })
 }
