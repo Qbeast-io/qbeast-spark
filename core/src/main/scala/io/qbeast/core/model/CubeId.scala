@@ -248,9 +248,11 @@ case class CubeId(dimensionCount: Int, depth: Int, bitMask: Array[Long])
     with Ordered[CubeId] {
   private lazy val range = getRange
 
-  /*
-   * @param that
-   * @return
+  /**
+   * Compare two CubeIds.
+   * @param that the other CubeId
+   * @return a negative integer, zero, or a positive integer as this CubeId
+   *         is less than, equal to, or greater than the other CubeId.
    */
   override def compare(that: CubeId): Int = {
     val firstIter = BitSet.fromBitMaskNoCopy(bitMask)
@@ -273,13 +275,11 @@ case class CubeId(dimensionCount: Int, depth: Int, bitMask: Array[Long])
     // If negative, that > this => that is of deeper level
     // If equal, both are of the same level
     depth.compare(that.depth)
-
   }
 
   /**
    * Returns true if this cube is the ancestor of the other cube.
-   * In case this and other are
-   * the same cube, it returns true.
+   * In case this and other are the same cube, it returns true.
    * @param other cube to check
    * @return
    */
@@ -291,7 +291,6 @@ case class CubeId(dimensionCount: Int, depth: Int, bitMask: Array[Long])
     if (depth > other.depth) {
       false
     } else {
-
       val end = dimensionCount * depth
       val possibleDescendantBits = BitSet.fromBitMaskNoCopy(other.bitMask).until(end).toBitMask
 

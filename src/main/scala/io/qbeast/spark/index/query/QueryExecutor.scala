@@ -48,8 +48,7 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
       // 1. the cube itself
       // 2. one of the cube's children
       // 3. this currentCube's sibling or their subtree
-      // 4. empty, the currentCube is the right-most cube in the tree
-      // and is not in cubesStatuses
+      // 4. empty, the currentCube is the right-most cube in the tree and it is not in cubesStatuses
       if (cubeIter.hasNext) { // cases 1 to 3
         cubeIter.next() match {
           case (cube, CubeStatus(maxWeight, _, files)) if cube == currentCube => // Case 1
