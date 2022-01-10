@@ -9,7 +9,6 @@ import org.apache.spark.sql.delta.actions.{
   Action,
   AddFile,
   FileAction,
-  Protocol,
   RemoveFile,
   SetTransaction
 }
@@ -45,34 +44,10 @@ private[delta] case class DeltaMetadataWriter(
     DeltaOperations.Write(mode, None, options.replaceWhere, options.userMetadata)
   }
 
-  /**
-   * TODO: create QbeastProtocol, which stores information about the versions for QbeastReaderVersion and
-   * QbeastWriterVersion. This information will help to control data versioning.
-   */
-  private[delta] class QbeastProtocol(minQbReaderVersion: Int, minQbWriterVersion: Int)
-      extends Protocol {
-    val minQbeastReaderVersion: Int = minQbReaderVersion
-    val minQbeastWriterVersion: Int = minQbWriterVersion
-
-    override def simpleString: String =
-      s"($minReaderVersion, $minWriterVersion, " +
-        s"$minQbeastReaderVersion, $minQbeastWriterVersion)"
-
-  }
-
-  object QbeastProtocol extends Protocol {
-
-    def apply(minR: Int, minW: Int): QbeastProtocol = {
-      new QbeastProtocol(minR, minW)
-    }
-
-  }
-
   def writeWithTransaction(writer: => (TableChanges, Seq[FileAction])): Unit = {
     deltaLog.withNewTransaction { txn =>
       val (changes, newFiles) = writer
-      val newQbeastProtocol: Option[Protocol] = Some(QbeastProtocol(2, 2))
-      val finalActions = newQbeastProtocol.toSeq ++ updateMetadata(txn, changes, newFiles)
+      val finalActions = updateMetadata(txn, changes, newFiles)
       txn.commit(finalActions, deltaOperation)
     }
   }
