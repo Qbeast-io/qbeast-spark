@@ -118,7 +118,7 @@ case class DeltaQbeastSnapshot(snapshot: Snapshot) extends QbeastSnapshot {
    */
   override def loadIndexStatus(revisionID: RevisionID): IndexStatus = {
     val revision = getRevision(revisionID)
-    val replicatedSet = getReplicatedSet(lastRevisionID)
+    val replicatedSet = getReplicatedSet(revisionID)
     new IndexStatusBuilder(this, revision, replicatedSet).build()
   }
 
