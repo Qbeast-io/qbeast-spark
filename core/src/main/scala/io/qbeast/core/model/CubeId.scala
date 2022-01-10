@@ -222,7 +222,7 @@ object CubeId {
       } else if (symbol == '/') {
         63
       } else {
-        throw new IllegalArgumentException(s"Invalid symbol '${symbol}'.")
+        throw new IllegalArgumentException(s"Invalid symbol '$symbol'.")
       }
       for (i <- 0 until math.min(6, end - begin)) {
         val mask = 1 << (5 - i)
@@ -255,12 +255,12 @@ case class CubeId(dimensionCount: Int, depth: Int, bitMask: Array[Long])
    *         is less than, equal to, or greater than the other CubeId.
    */
   override def compare(that: CubeId): Int = {
-    val firstIter = BitSet.fromBitMaskNoCopy(bitMask)
-    val secondIter = BitSet.fromBitMaskNoCopy(that.bitMask)
+    val thisBitset = BitSet.fromBitMaskNoCopy(bitMask)
+    val thatBitset = BitSet.fromBitMaskNoCopy(that.bitMask)
     val commonDepth = math.min(depth, that.depth)
     for (depthOffset <- 0.until(commonDepth * dimensionCount)) {
-      val firstBit = firstIter.contains(depthOffset)
-      val secondBit = secondIter.contains(depthOffset)
+      val firstBit = thisBitset.contains(depthOffset)
+      val secondBit = thatBitset.contains(depthOffset)
       if (firstBit != secondBit) {
         if (firstBit) {
           return 1
