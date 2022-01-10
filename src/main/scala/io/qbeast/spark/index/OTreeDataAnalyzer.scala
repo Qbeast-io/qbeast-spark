@@ -115,8 +115,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       val cols = revision.columnTransformers.map(_.columnName) ++ indexColumns
 
       // Estimate the desiredSize of the cube at partition level
-      // If the user has specified a desiredSize too small
-      // set it to minCubeSize
       val numPartitions: Int = weightedDataFrame.rdd.getNumPartitions
       val numElements: Long = stats.head.count
       val bufferCapacity: Long = CUBE_WEIGHTS_BUFFER_CAPACITY
