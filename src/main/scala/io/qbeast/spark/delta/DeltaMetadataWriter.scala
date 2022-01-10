@@ -49,17 +49,14 @@ private[delta] case class DeltaMetadataWriter(
    * TODO: create QbeastProtocol, which stores information about the versions for QbeastReaderVersion and
    * QbeastWriterVersion. This information will help to control data versioning.
    */
-  class QbeastProtocol(
-      minQbeastReaderVersion: Int = Action.readerVersion,
-      minQbeastWriterVersion: Int = Action.writerVersion)
+  private[delta] class QbeastProtocol(minQbReaderVersion: Int, minQbWriterVersion: Int)
       extends Protocol {
+    val minQbeastReaderVersion: Int = minQbReaderVersion
+    val minQbeastWriterVersion: Int = minQbWriterVersion
 
-    // Mock method
-    def show(): Unit = {
-      printf(
-        s"minQbeastReaderVersion: ${minQbeastReaderVersion}, " +
-          s"minQbeastWriterVersion: ${minQbeastWriterVersion}\n")
-    }
+    override def simpleString: String =
+      s"($minReaderVersion, $minWriterVersion, " +
+        s"$minQbeastReaderVersion, $minQbeastWriterVersion)"
 
   }
 
