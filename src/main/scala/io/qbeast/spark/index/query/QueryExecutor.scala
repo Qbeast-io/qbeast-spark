@@ -7,7 +7,7 @@ import io.qbeast.IISeq
 import io.qbeast.core.model._
 import io.qbeast.spark.utils.State
 
-import scala.collection.mutable.Queue
+import scala.collection.mutable
 
 /**
  * Executes a query against a Qbeast snapshot
@@ -39,9 +39,9 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
     val fileMap = previouslyMatchedFiles.map(a => (a.path, a)).toMap
 
     val outputFiles = Vector.newBuilder[QbeastFile]
-    val queue = Queue(indexStatus.revision.createCubeIdRoot())
-    while (queue.nonEmpty) {
-      val currentCube = queue.dequeue()
+    val stack = mutable.Stack(indexStatus.revision.createCubeIdRoot())
+    while (stack.nonEmpty) {
+      val currentCube = stack.pop()
 
       val cubeIter = indexStatus.cubesStatuses.iteratorFrom(currentCube)
       // Contains cases for the next element from the iterator being
@@ -52,11 +52,11 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
       if (cubeIter.hasNext) { // cases 1 to 3
         cubeIter.next() match {
           case (cube, CubeStatus(maxWeight, _, files)) if cube == currentCube => // Case 1
-            if (querySpec.weightRange.to < maxWeight) {
+            val unfilteredFiles = if (querySpec.weightRange.to < maxWeight) {
               // cube maxWeight is larger than the sample fraction, weightRange.to,
               // it means that currentCube is the last cube to visit from the current branch.
               // All files are retrieved and no more cubes from the branch will be visited.
-              outputFiles ++= files.flatMap(fileMap.get)
+              files.flatMap(fileMap.get)
             } else {
               // Otherwise,
               // 1. if the currentCube is REPLICATED, we skip the cube
@@ -72,20 +72,21 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
                 } else {
                   files.flatMap(fileMap.get)
                 }
-              outputFiles ++= cubeFiles.filter(file =>
-                file.maxWeight > querySpec.weightRange.from)
-
-              cube.children
+              val nextLevel = cube.children
                 .filter(querySpec.querySpace.intersectsWith)
-                .foreach(queue.enqueue(_))
+              stack.pushAll(nextLevel)
+              cubeFiles
             }
+
+            outputFiles ++= unfilteredFiles.filter(file =>
+              file.maxWeight > querySpec.weightRange.from)
 
           case (cube, _) if currentCube.isAncestorOf(cube) => // Case 2
             // c is a child cube of currentCube. Aside from c, we also need to
             // consider c's sibling cubes.
-            currentCube.children
+            val nextLevel = currentCube.children
               .filter(querySpec.querySpace.intersectsWith)
-              .foreach(queue.enqueue(_))
+            stack.pushAll(nextLevel)
 
           case _ => // Case 3
         }
