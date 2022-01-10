@@ -22,10 +22,21 @@ object TagUtils {
   final val state = "state"
   final val revision = "revision"
   final val elementCount = "elementCount"
+  final val protocolVersion = "protocolVersion"
 }
 
 object MetadataConfig {
   final val revision = "qbeast.revision"
   final val replicatedSet = "qbeast.replicatedSet"
   final val lastRevisionID = "qbeast.lastRevisionID"
+}
+
+/**
+ * Qbeast-spark metadata protocol versioning.
+ * This value is used to identify the version of the data format.
+ * Read more in https://github.com/Qbeast-io/qbeast-spark/issues/44
+ * TODO: Add reference to protocol versioning documentation
+ */
+object QbeastProtocol {
+  final val protocolVersion = "2"
 }

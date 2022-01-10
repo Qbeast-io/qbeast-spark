@@ -5,7 +5,7 @@ package io.qbeast.spark.index.writer
 
 import io.qbeast.core.model.{CubeId, TableChanges, Weight}
 import io.qbeast.spark.index.QbeastColumns
-import io.qbeast.spark.utils.TagUtils
+import io.qbeast.spark.utils.{QbeastProtocol, TagUtils}
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapred.{JobConf, TaskAttemptContextImpl, TaskAttemptID}
 import org.apache.hadoop.mapreduce.TaskType
@@ -91,7 +91,8 @@ case class BlockWriter(
             TagUtils.maxWeight -> maxWeight.value.toString,
             TagUtils.state -> state,
             TagUtils.revision -> revision.revisionID.toString,
-            TagUtils.elementCount -> rowCount.toString)
+            TagUtils.elementCount -> rowCount.toString,
+            TagUtils.protocolVersion -> QbeastProtocol.protocolVersion)
 
           writer.close()
 
