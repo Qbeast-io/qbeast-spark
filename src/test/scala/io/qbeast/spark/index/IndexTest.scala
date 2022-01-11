@@ -5,7 +5,6 @@ package io.qbeast.spark.index
 
 import io.qbeast.TestClasses.{Client3, Client4}
 import io.qbeast.core.model._
-import io.qbeast.spark.index.QbeastColumns.cubeColumnName
 import io.qbeast.spark.utils.TagUtils
 import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
 import org.apache.spark.SparkException
@@ -38,20 +37,7 @@ class IndexTest
 
   // Check correctness
 
-  "Indexing method" should "respect the desired cube size" in withSpark { _ =>
-    withOTreeAlgorithm { oTreeAlgorithm =>
-      {
-        val df = createDF()
-        val rev = SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, options)
-
-        val (indexed, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
-
-        checkCubeSize(tc, rev, indexed)
-      }
-    }
-  }
-
-  it should "respect the size of the data" in withSpark { _ =>
+  "Indexing method" should "respect the size of the data" in withSpark { _ =>
     withOTreeAlgorithm { oTreeAlgorithm =>
       {
         val df = createDF()
@@ -126,7 +112,6 @@ class IndexTest
         checkCubes(weightMap)
         checkWeightsIncrement(weightMap)
         checkCubesOnData(weightMap, indexed, 2)
-        checkCubeSize(tc, rev, indexed)
 
       }
     }
@@ -136,11 +121,6 @@ class IndexTest
     (spark, tmpDir) =>
       withOTreeAlgorithm { oTreeAlgorithm =>
         val df = createDF()
-        val tableId = new QTableID(tmpDir)
-        val rev = SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, options)
-
-        val (i, _) = oTreeAlgorithm.index(df, IndexStatus(rev))
-        val firstIndexed = i.withColumnRenamed(cubeColumnName, cubeColumnName + "First")
 
         df.write
           .format("qbeast")
@@ -156,8 +136,6 @@ class IndexTest
           .withColumn("age", (col("age") * offset).cast(IntegerType))
           .withColumn("val2", (col("val2") * offset).cast(LongType))
 
-        val appendRev =
-          SparkRevisionFactory.createNewRevision(tableId, appendData.schema, options)
         val (indexed, tc) =
           oTreeAlgorithm.index(appendData, qbeastSnapshot.loadLatestIndexStatus)
         val weightMap = tc.cubeWeights
@@ -166,12 +144,6 @@ class IndexTest
         checkCubes(weightMap)
         checkWeightsIncrement(weightMap)
         checkCubesOnData(weightMap, indexed, 2)
-        checkCubeSize(
-          tc,
-          appendRev,
-          indexed.join(
-            firstIndexed,
-            firstIndexed(cubeColumnName + "First") === indexed(cubeColumnName)))
 
       }
 
@@ -257,7 +229,6 @@ class IndexTest
       checkCubes(weightMap)
       checkWeightsIncrement(weightMap)
       checkCubesOnData(weightMap, indexed, 2)
-      checkCubeSize(tc, rev, indexed)
     }
   }
 
