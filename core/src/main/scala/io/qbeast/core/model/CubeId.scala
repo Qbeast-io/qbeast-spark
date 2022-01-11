@@ -222,7 +222,7 @@ object CubeId {
       } else if (symbol == '/') {
         63
       } else {
-        throw new IllegalArgumentException(s"Invalid symbol '${symbol}'.")
+        throw new IllegalArgumentException(s"Invalid symbol '$symbol'.")
       }
       for (i <- 0 until math.min(6, end - begin)) {
         val mask = 1 << (5 - i)
@@ -243,8 +243,65 @@ object CubeId {
  * @param depth the cube depth
  * @param bitMask the bitMask representing the cube z-index.
  */
-case class CubeId(dimensionCount: Int, depth: Int, bitMask: Array[Long]) extends Serializable {
+case class CubeId(dimensionCount: Int, depth: Int, bitMask: Array[Long])
+    extends Serializable
+    with Ordered[CubeId] {
   private lazy val range = getRange
+
+  /**
+   * Compare two CubeIds.
+   * @param that the other CubeId
+   * @return a negative integer, zero, or a positive integer as this CubeId
+   *         is less than, equal to, or greater than the other CubeId.
+   */
+  override def compare(that: CubeId): Int = {
+    val thisBitset = BitSet.fromBitMaskNoCopy(bitMask)
+    val thatBitset = BitSet.fromBitMaskNoCopy(that.bitMask)
+    val commonDepth = math.min(depth, that.depth)
+    for (depthOffset <- 0.until(commonDepth * dimensionCount)) {
+      val firstBit = thisBitset.contains(depthOffset)
+      val secondBit = thatBitset.contains(depthOffset)
+      if (firstBit != secondBit) {
+        if (firstBit) {
+          return 1
+        } else {
+          return -1
+        }
+      }
+
+    }
+    // We end up here, if one of the 2 cubes is an ancestor of the other.
+    // If positive, that < this => this is of deeper level
+    // If negative, that > this => that is of deeper level
+    // If equal, both are of the same level
+    depth.compare(that.depth)
+  }
+
+  /**
+   * Returns true if this cube is the ancestor of the other cube.
+   * In case this and other are the same cube, it returns true.
+   * @param other cube to check
+   * @return
+   */
+  def isAncestorOf(other: CubeId): Boolean = {
+    require(
+      other.dimensionCount == dimensionCount,
+      "The two cubes must have the same dimension count.")
+
+    if (depth > other.depth) {
+      false
+    } else {
+      val end = dimensionCount * depth
+      val possibleDescendantBits = BitSet.fromBitMaskNoCopy(other.bitMask).until(end).toBitMask
+
+      for (i <- possibleDescendantBits.indices) {
+        if (possibleDescendantBits(i) != bitMask(i)) {
+          return false
+        }
+      }
+      true
+    }
+  }
 
   /**
    * Returns whether the identifier represents the root cube.

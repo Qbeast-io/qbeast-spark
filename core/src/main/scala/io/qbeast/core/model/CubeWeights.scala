@@ -22,10 +22,10 @@ object CubeWeightsBuilder {
       desiredCubeSize: Int,
       numPartitions: Int,
       numElements: Long,
-      bufferCapacity: Long): Double = {
+      bufferCapacity: Long): Int = {
     val numGroups = Math.max(numPartitions, numElements / bufferCapacity)
-    val groupCubeSize = desiredCubeSize.toDouble / numGroups
-    groupCubeSize
+    val groupCubeSize = desiredCubeSize / numGroups
+    Math.max(1, groupCubeSize.toInt)
   }
 
 }
@@ -34,13 +34,13 @@ object CubeWeightsBuilder {
  * Builder for creating cube weights.
  *
  * @param desiredCubeSize           the desired cube size
- * @param groupSize                 the boost size
+ * @param groupSize                 the number of elements for each group
  * @param bufferCapacity the buffer capacity to store the cube weights in memory
  * @param replicatedOrAnnouncedSet the announced or replicated cubes' identifiers
  */
 class CubeWeightsBuilder protected (
     private val desiredCubeSize: Int,
-    private val groupSize: Double,
+    private val groupSize: Int,
     private val bufferCapacity: Long,
     private val replicatedOrAnnouncedSet: Set[CubeId] = Set.empty)
     extends Serializable {

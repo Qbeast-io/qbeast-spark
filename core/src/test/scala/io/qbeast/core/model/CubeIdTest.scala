@@ -6,6 +6,8 @@ package io.qbeast.core.model
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.util.Random
+
 /**
  * Tests for CubeId.
  */
@@ -152,5 +154,84 @@ class CubeIdTest extends AnyFlatSpec with Matchers {
     cubeId.contains(Point(0.0, 0.0)) shouldBe false
     cubeId.contains(Point(1.0, 1.0)) shouldBe false
     cubeId.contains(Point(0.5, 0.75)) shouldBe true
+  }
+
+  it should "compare parent and children correctly with 2 dimensions" in {
+
+    val root = CubeId.root(2)
+    val kids = root.children.toVector
+    val grandChildren = Random.shuffle(kids.flatMap(_.children)).sorted
+    for (kid <- kids) {
+      root should be < kid
+    }
+    for (kid <- grandChildren) {
+      root should be < kid
+    }
+    for (k <- kids) {
+      for (kk <- k.children) {
+        k should be < kk
+      }
+    }
+    for (group <- grandChildren.grouped(4)) {
+      group.map(_.parent).distinct.size shouldBe 1
+    }
+
+    val twoGens = Random.shuffle(kids ++ grandChildren).sorted
+    for (group <- twoGens.grouped(5)) {
+      group.takeRight(4).map(_.parent).distinct.head.get shouldBe group.head
+    }
+
+  }
+
+  it should "compare parent and children correctly with 8 dimensions" in {
+
+    val root = CubeId.root(8)
+    val kids = root.children.toVector
+    val grandChildren = Random.shuffle(kids.flatMap(_.children)).sorted
+    for (kid <- kids) {
+      root should be < kid
+    }
+    for (kid <- grandChildren) {
+      root should be < kid
+    }
+    for (k <- kids) {
+      for (kk <- k.children) {
+        k should be < kk
+      }
+    }
+    for (group <- grandChildren.grouped(256)) {
+      group.map(_.parent).distinct.size shouldBe 1
+    }
+
+    val twoGens = Random.shuffle(kids ++ grandChildren).sorted
+    for (group <- twoGens.grouped(257)) {
+      group.takeRight(4).map(_.parent).distinct.head.get shouldBe group.head
+    }
+
+  }
+
+  it should "check ancestors correctly" in {
+    val root = CubeId.root(2)
+    val kids = root.children.toVector
+
+    var otherKid: CubeId = null // This helps to test against other CubeIds
+    for (kid <- kids) {
+      root.isAncestorOf(kid) shouldBe true
+      kid.isAncestorOf(root) shouldBe false
+
+      for (gc <- kid.children) {
+        root.isAncestorOf(gc) shouldBe true
+        gc.isAncestorOf(root) shouldBe false
+
+        kid.isAncestorOf(gc) shouldBe true
+        gc.isAncestorOf(kid) shouldBe false
+
+        if (otherKid != null) {
+          otherKid.isAncestorOf(gc) shouldBe false
+          gc.isAncestorOf(otherKid) shouldBe false
+        }
+      }
+      otherKid = kid
+    }
   }
 }

@@ -42,33 +42,6 @@ class NormalizedWeightIntegrationTest extends QbeastIntegrationTestSpec {
         files.map(_.tags(TagUtils.state)).collect()(0) shouldBe "FLOODED"
 
     }
-  it should
-    "write a the right Weight with a full cube split in 3 blocks" in
-    withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
-      val cubeSize = 10000
-      val df = createDF(cubeSize).repartition(3)
-      val names = List("age", "val2")
-      // val dimensionCount = names.length
-      df.write
-        .format("qbeast")
-        .mode("overwrite")
-        .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> cubeSize.toString))
-        .save(tmpDir)
-
-      spark.read.format("qbeast").load(tmpDir).count() shouldBe cubeSize
-
-      val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val files = deltaLog.snapshot.allFiles.collect()
-      files.length shouldBe 1
-
-      val tags = files.map(_.tags)
-      val root = tags.filter(_(TagUtils.cube) == "").head
-
-      root(TagUtils.maxWeight).toInt shouldBe <=(Int.MaxValue)
-      root(TagUtils.state) shouldBe "FLOODED"
-      root(TagUtils.elementCount).toInt shouldBe <=(cubeSize)
-
-    }
 
   it should
     "normalize weights when cubes are half full" in withQbeastContextSparkAndTmpDir {

@@ -8,6 +8,8 @@ import io.qbeast.spark.utils.TagUtils
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.{Dataset, SparkSession}
 
+import scala.collection.immutable.SortedMap
+
 /**
  * Builds the index status from a given snapshot and revision
  * @param qbeastSnapshot the QbeastSnapshot
@@ -44,11 +46,12 @@ private[delta] class IndexStatusBuilder(
    * Returns the index state for the given space revision
    * @return Dataset containing cube information
    */
-  def buildCubesStatuses: Map[CubeId, CubeStatus] = {
+  def buildCubesStatuses: SortedMap[CubeId, CubeStatus] = {
 
     val spark = SparkSession.active
     import spark.implicits._
     val rev = revision
+    val builder = SortedMap.newBuilder[CubeId, CubeStatus]
     revisionFiles
       .groupByKey(_.tags(TagUtils.cube))
       .mapGroups((cube, f) => {
@@ -75,7 +78,8 @@ private[delta] class IndexStatusBuilder(
         (rev.createCubeId(cube), cubeStatus)
       })
       .collect()
-      .toMap
+      .foreach(builder += _)
+    builder.result()
   }
 
 }
