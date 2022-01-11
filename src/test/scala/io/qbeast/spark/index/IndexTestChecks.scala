@@ -85,18 +85,6 @@ trait IndexTestChecks extends Matchers {
       .collect()
       .map(row => CubeId(dimensionCount, row.getAs[Array[Byte]](cubeColumnName)))
 
-    def checkEmptyParents(): Unit = {
-      cubesOnData.foreach { cube =>
-        cube.parent match {
-          case Some(parent) =>
-            (cubesOnData should contain(parent)) withClue
-              s"Parent ${parent.string} of ${cube.string} does not appear in the indexed data"
-
-          case None => // root cube
-        }
-      }
-    }
-
     def checkDataWithWeightMap(): Unit = {
       cubesOnData.foreach { cube =>
         if (cube.isRoot) {
@@ -113,7 +101,6 @@ trait IndexTestChecks extends Matchers {
       }
     }
 
-    checkEmptyParents()
     checkDataWithWeightMap()
   }
 
