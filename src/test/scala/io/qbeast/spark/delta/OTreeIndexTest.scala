@@ -37,9 +37,9 @@ class OTreeIndexTest extends QbeastIntegrationTestSpec {
     }
     val oTreeIndex = OTreeIndex(tahoeFileIndex)
 
-    val allFiles = deltaLog.snapshot.allFiles.collect()
+    val allFiles = deltaLog.snapshot.allFiles.collect().map(_.path)
 
-    val matchFiles = oTreeIndex.matchingFiles(Seq.empty, Seq.empty)
+    val matchFiles = oTreeIndex.matchingFiles(Seq.empty, Seq.empty).map(_.path)
 
     val diff = (allFiles.toSet -- matchFiles.toSet)
 
@@ -86,9 +86,9 @@ class OTreeIndexTest extends QbeastIntegrationTestSpec {
         TahoeLogFileIndex(spark, deltaLog, deltaLog.dataPath, deltaLog.snapshot, Seq.empty, false)
       }
       val oTreeIndex = OTreeIndex(tahoeFileIndex)
-      val allFiles = deltaLog.snapshot.allFiles.collect()
+      val allFiles = deltaLog.snapshot.allFiles.collect().map(_.path)
 
-      oTreeIndex.matchingFiles(Seq.empty, Seq.empty).toSet shouldBe allFiles.toSet
+      oTreeIndex.matchingFiles(Seq.empty, Seq.empty).map(_.path).toSet shouldBe allFiles.toSet
     })
 
   it should "sizeInBytes" in withSparkAndTmpDir((spark, tmpdir) => {

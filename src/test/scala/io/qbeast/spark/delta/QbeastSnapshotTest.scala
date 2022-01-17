@@ -6,7 +6,6 @@ package io.qbeast.spark.delta
 import io.qbeast.TestClasses.Client3
 import io.qbeast.core.model.{CubeStatus, QTableID}
 import io.qbeast.spark.index.SparkRevisionFactory
-import io.qbeast.spark.utils.TagUtils
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{Dataset, SparkSession}
@@ -125,14 +124,12 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
           val revisionState = builder.buildCubesStatuses
 
           val overflowed = qbeastSnapshot.loadLatestIndexStatus.overflowedSet
-          val fileInfo = qbeastSnapshot.snapshot.allFiles.collect().map(a => (a.path, a)).toMap
 
           revisionState
             .filter { case (cube, _) => overflowed.contains(cube) }
             .foreach { case (cube, CubeStatus(weight, _, files)) =>
               val size = files
-                .map(fileInfo)
-                .map(a => a.tags(TagUtils.elementCount).toLong)
+                .map(a => a.elementCount)
                 .sum
 
               size should be > (cubeSize * 0.9).toLong withClue

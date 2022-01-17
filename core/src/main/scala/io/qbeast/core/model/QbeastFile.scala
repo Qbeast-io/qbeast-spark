@@ -9,6 +9,8 @@ package io.qbeast.core.model
  * @param maxWeight
  * @param state
  * @param elementCount
+ * @param size
+ * @param modificationTime
  */
 case class QbeastFile(
     path: String,
@@ -17,7 +19,9 @@ case class QbeastFile(
     minWeight: Weight,
     maxWeight: Weight,
     state: String,
-    elementCount: Long)
+    elementCount: Long,
+    size: Long,
+    modificationTime: Long)
 
 /**
  * Companion object for QbeastFile
@@ -38,9 +42,15 @@ object QbeastFile {
    * Creates a QbeastFile from a file path and metadata map
    * @param path
    * @param fileMetadata
+   * @param size
+   * @param modificationTime
    * @return
    */
-  def apply(path: String, fileMetadata: Map[String, String]): QbeastFile = {
+  def apply(
+      path: String,
+      fileMetadata: Map[String, String],
+      size: Long,
+      modificationTime: Long): QbeastFile = {
     checkFileMetadata(fileMetadata)
 
     QbeastFile(
@@ -50,7 +60,9 @@ object QbeastFile {
       Weight(fileMetadata("minWeight").toInt),
       Weight(fileMetadata("maxWeight").toInt),
       fileMetadata("state"),
-      fileMetadata("elementCount").toLong)
+      fileMetadata("elementCount").toLong,
+      size,
+      modificationTime)
   }
 
 }

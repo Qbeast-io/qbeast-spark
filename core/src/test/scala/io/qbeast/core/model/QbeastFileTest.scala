@@ -13,7 +13,7 @@ class QbeastFileTest extends AnyFlatSpec with Matchers {
       "revision" -> "1",
       "elementCount" -> "777")
 
-    val qbeastFile = QbeastFile("path", fileMetadata)
+    val qbeastFile = QbeastFile("path", fileMetadata, 0L, 0L)
     qbeastFile.cube shouldBe CubeId.root(1).string
     qbeastFile.minWeight shouldBe Weight(19217)
     qbeastFile.maxWeight shouldBe Weight(11111111)
@@ -24,7 +24,7 @@ class QbeastFileTest extends AnyFlatSpec with Matchers {
 
   it should "throw exception if key not found" in {
     val fileMetadata = Map.empty[String, String]
-    a[IllegalArgumentException] shouldBe thrownBy(QbeastFile("path", fileMetadata))
+    a[IllegalArgumentException] shouldBe thrownBy(QbeastFile("path", fileMetadata, 0L, 0L))
   }
 
   it should "throw error if the types are different" in {
@@ -36,6 +36,6 @@ class QbeastFileTest extends AnyFlatSpec with Matchers {
       "revision" -> "bad_type",
       "elementCount" -> "777")
 
-    a[IllegalArgumentException] shouldBe thrownBy(QbeastFile("path", fileMetadata))
+    a[IllegalArgumentException] shouldBe thrownBy(QbeastFile("path", fileMetadata, 0L, 0L))
   }
 }

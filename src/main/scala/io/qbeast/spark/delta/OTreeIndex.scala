@@ -5,18 +5,21 @@ package io.qbeast.spark.delta
 
 import io.qbeast.core.model.QbeastFile
 import io.qbeast.spark.index.query.{QueryExecutor, QuerySpecBuilder}
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.hadoop.fs.{FileStatus, Path}
+import org.apache.spark.sql.catalyst.expressions.{Expression, GenericInternalRow}
 import org.apache.spark.sql.delta.Snapshot
-import org.apache.spark.sql.delta.actions.AddFile
-import org.apache.spark.sql.delta.files.{TahoeFileIndex, TahoeLogFileIndex}
+import org.apache.spark.sql.delta.files.TahoeLogFileIndex
+import org.apache.spark.sql.execution.datasources.{FileIndex, PartitionDirectory}
+import org.apache.spark.sql.types.StructType
+
+import java.net.URI
 
 /**
  * FileIndex to prune files
  *
  * @param index the Tahoe log file index
  */
-case class OTreeIndex(index: TahoeLogFileIndex)
-    extends TahoeFileIndex(index.spark, index.deltaLog, index.path) {
+case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
 
   /**
    * Snapshot to analyze
@@ -26,19 +29,40 @@ case class OTreeIndex(index: TahoeLogFileIndex)
 
   private def qbeastSnapshot = DeltaQbeastSnapshot(snapshot)
 
-  override def matchingFiles(
-      partitionFilters: Seq[Expression],
-      dataFilters: Seq[Expression]): Seq[AddFile] = {
+  protected def absolutePath(child: String): Path = {
+    val p = new Path(new URI(child))
+    if (p.isAbsolute) {
+      p
+    } else {
+      new Path(index.path, p)
+    }
+  }
 
-    val tahoeMatchingFiles = index.matchingFiles(partitionFilters, dataFilters)
-    val previouslyMatchedFiles =
-      tahoeMatchingFiles.map(addFile => QbeastFile(addFile.path, addFile.tags))
+  def matchingFiles(
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): Seq[QbeastFile] = {
 
     val querySpecBuilder = new QuerySpecBuilder(dataFilters ++ partitionFilters)
     val queryExecutor = new QueryExecutor(querySpecBuilder, qbeastSnapshot)
-    val qbeastMatchingFiles = queryExecutor.execute(previouslyMatchedFiles)
+    queryExecutor.execute()
+  }
 
-    tahoeMatchingFiles.filter { a => qbeastMatchingFiles.exists(_.path == a.path) }
+  override def listFiles(
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
+
+    val fileStats = matchingFiles(partitionFilters, dataFilters).map { f =>
+      new FileStatus(
+        /* length */ f.size,
+        /* isDir */ false,
+        /* blockReplication */ 0,
+        /* blockSize */ 1,
+        /* modificationTime */ f.modificationTime,
+        absolutePath(f.path))
+    }.toArray
+
+    Seq(PartitionDirectory(new GenericInternalRow(Array.empty[Any]), fileStats))
+
   }
 
   override def inputFiles: Array[String] = {
@@ -48,4 +72,8 @@ case class OTreeIndex(index: TahoeLogFileIndex)
   override def refresh(): Unit = index.refresh()
 
   override def sizeInBytes: Long = index.sizeInBytes
+
+  override def rootPaths: Seq[Path] = index.rootPaths
+
+  override def partitionSchema: StructType = index.partitionSchema
 }

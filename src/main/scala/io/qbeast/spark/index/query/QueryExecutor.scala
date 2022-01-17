@@ -16,27 +16,23 @@ import scala.collection.mutable
 class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSnapshot) {
 
   /**
-   * Executes the query given a previous matched files
-   * @param previouslyMatchedFiles the sequence of files that have already been matched
+   * Executes the query
    * @return the final sequence of files that match the query
    */
-  def execute(previouslyMatchedFiles: Seq[QbeastFile]): Seq[QbeastFile] = {
+  def execute(): Seq[QbeastFile] = {
 
     qbeastSnapshot.loadAllRevisions.flatMap { revision =>
       val querySpec = querySpecBuilder.build(revision)
       val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
 
-      val matchingFiles = executeRevision(querySpec, indexStatus, previouslyMatchedFiles)
+      val matchingFiles = executeRevision(querySpec, indexStatus)
       matchingFiles
     }
   }
 
   private[query] def executeRevision(
       querySpec: QuerySpec,
-      indexStatus: IndexStatus,
-      previouslyMatchedFiles: Seq[QbeastFile]): IISeq[QbeastFile] = {
-
-    val fileMap = previouslyMatchedFiles.map(a => (a.path, a)).toMap
+      indexStatus: IndexStatus): IISeq[QbeastFile] = {
 
     val outputFiles = Vector.newBuilder[QbeastFile]
     val stack = mutable.Stack(indexStatus.revision.createCubeIdRoot())
@@ -56,7 +52,7 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
               // cube maxWeight is larger than the sample fraction, weightRange.to,
               // it means that currentCube is the last cube to visit from the current branch.
               // All files are retrieved and no more cubes from the branch will be visited.
-              files.flatMap(fileMap.get)
+              files
             } else {
               // Otherwise,
               // 1. if the currentCube is REPLICATED, we skip the cube
@@ -68,9 +64,9 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
                 if (isReplicated) {
                   Vector.empty
                 } else if (isAnnounced) {
-                  files.flatMap(fileMap.get).filterNot(_.state == State.ANNOUNCED)
+                  files.filterNot(_.state == State.ANNOUNCED)
                 } else {
-                  files.flatMap(fileMap.get)
+                  files
                 }
               val nextLevel = cube.children
                 .filter(querySpec.querySpace.intersectsWith)

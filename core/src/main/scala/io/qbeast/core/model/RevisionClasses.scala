@@ -218,7 +218,10 @@ case class IndexStatus(
  * @param normalizedWeight the normalized weight of the cube
  * @param files the name of the files belonging to the cube
  */
-case class CubeStatus(maxWeight: Weight, normalizedWeight: NormalizedWeight, files: IISeq[String])
+case class CubeStatus(
+    maxWeight: Weight,
+    normalizedWeight: NormalizedWeight,
+    files: IISeq[QbeastFile])
     extends Serializable
 
 /**

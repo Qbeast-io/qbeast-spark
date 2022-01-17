@@ -5,7 +5,6 @@ package io.qbeast.spark.delta
 
 import io.qbeast.core.model._
 import io.qbeast.spark.utils.TagUtils
-import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.{Dataset, SparkSession}
 
 import scala.collection.immutable.SortedMap
@@ -28,10 +27,16 @@ private[delta] class IndexStatusBuilder(
    * Dataset of files belonging to the specific revision
    * @return the dataset of AddFile actions
    */
-  def revisionFiles: Dataset[AddFile] = {
+  def revisionFiles: Dataset[QbeastFile] = {
+    val spark = SparkSession.active
+    import spark.implicits._
+
     // this must be external to the lambda, to avoid SerializationErrors
     val revID = revision.revisionID.toString
-    qbeastSnapshot.snapshot.allFiles.filter(_.tags(TagUtils.revision) == revID)
+    qbeastSnapshot.snapshot.allFiles
+      .filter(_.tags(TagUtils.revision) == revID)
+      .map(addFile =>
+        QbeastFile(addFile.path, addFile.tags, addFile.size, addFile.modificationTime))
   }
 
   def build(): IndexStatus = {
@@ -53,18 +58,18 @@ private[delta] class IndexStatusBuilder(
     val rev = revision
     val builder = SortedMap.newBuilder[CubeId, CubeStatus]
     revisionFiles
-      .groupByKey(_.tags(TagUtils.cube))
+      .groupByKey(_.cube)
       .mapGroups((cube, f) => {
         var minMaxWeight = Int.MaxValue
         var elementCount = 0L
-        val files = Vector.newBuilder[String]
+        val files = Vector.newBuilder[QbeastFile]
         for (file <- f) {
-          elementCount += file.tags(TagUtils.elementCount).toLong
-          val maxWeight = file.tags(TagUtils.maxWeight).toInt
+          elementCount += file.elementCount
+          val maxWeight = file.maxWeight.value
           if (maxWeight < minMaxWeight) {
             minMaxWeight = maxWeight
           }
-          files += file.path
+          files += file
         }
         val cubeStatus = if (minMaxWeight == Int.MaxValue) {
           CubeStatus(
