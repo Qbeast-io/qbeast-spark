@@ -216,7 +216,7 @@ case class IndexStatus(
  * Container for the status information of a cube
  * @param maxWeight the max weight of the cube
  * @param normalizedWeight the normalized weight of the cube
- * @param files the name of the files belonging to the cube
+ * @param files the files belonging to the cube
  */
 case class CubeStatus(
     maxWeight: Weight,
