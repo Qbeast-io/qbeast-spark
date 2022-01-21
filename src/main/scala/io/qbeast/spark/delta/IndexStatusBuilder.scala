@@ -53,37 +53,30 @@ private[delta] class IndexStatusBuilder(
    */
   def buildCubesStatuses: SortedMap[CubeId, CubeStatus] = {
 
-    val spark = SparkSession.active
-    import spark.implicits._
     val rev = revision
     val builder = SortedMap.newBuilder[CubeId, CubeStatus]
     revisionFiles
-      .groupByKey(_.cube)
-      .mapGroups((cube, f) => {
+      .collect()
+      .toVector
+      .groupBy(_.cube)
+      .map { case (cube, files) =>
         var minMaxWeight = Int.MaxValue
         var elementCount = 0L
-        val files = Vector.newBuilder[QbeastFile]
-        for (file <- f) {
+        for (file <- files) {
           elementCount += file.elementCount
           val maxWeight = file.maxWeight.value
           if (maxWeight < minMaxWeight) {
             minMaxWeight = maxWeight
           }
-          files += file
         }
         val cubeStatus = if (minMaxWeight == Int.MaxValue) {
-          CubeStatus(
-            Weight.MaxValue,
-            NormalizedWeight(rev.desiredCubeSize, elementCount),
-            files.result())
+          CubeStatus(Weight.MaxValue, NormalizedWeight(rev.desiredCubeSize, elementCount), files)
         } else {
           val w = Weight(minMaxWeight)
-          CubeStatus(w, NormalizedWeight(w), files.result())
+          CubeStatus(w, NormalizedWeight(w), files)
         }
-        (rev.createCubeId(cube), cubeStatus)
-      })
-      .collect()
-      .foreach(builder += _)
+        builder += ((rev.createCubeId(cube), cubeStatus))
+      }
     builder.result()
   }
 
