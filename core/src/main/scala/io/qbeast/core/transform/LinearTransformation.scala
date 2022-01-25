@@ -29,7 +29,11 @@ import java.math.BigDecimal
  */
 @JsonSerialize(using = classOf[LinearTransformationSerializer])
 @JsonDeserialize(using = classOf[LinearTransformationDeserializer])
-case class LinearTransformation(minNumber: Any, maxNumber: Any, orderedDataType: OrderedDataType)
+case class LinearTransformation(
+    minNumber: Any,
+    maxNumber: Any,
+    nullValue: Any,
+    orderedDataType: OrderedDataType)
     extends Transformation {
 
   import orderedDataType.ordering._
@@ -38,17 +42,21 @@ case class LinearTransformation(minNumber: Any, maxNumber: Any, orderedDataType:
 
   private val scale: Double = {
     val mx = maxNumber.toDouble
+    val nv = nullValue.toDouble
     require(mx > mn, "Range cannot be not null, and max must be > min")
+    require(mx >= nv && nv >= mn, "Null value must be > min and < max")
     1.0 / (mx - mn)
   }
 
-  override def transform(value: Any): Double = value match {
-    case v: Double => (v - mn) * scale
-    case v: Long => (v - mn) * scale
-    case v: Int => (v - mn) * scale
-    case v: BigDecimal => (v.doubleValue() - mn) * scale
-    case v: Float => (v - mn) * scale
-
+  override def transform(value: Any): Double = {
+    val v = if (value == null) nullValue else value
+    v match {
+      case v: Double => (v - mn) * scale
+      case v: Long => (v - mn) * scale
+      case v: Int => (v - mn) * scale
+      case v: BigDecimal => (v.doubleValue() - mn) * scale
+      case v: Float => (v - mn) * scale
+    }
   }
 
   /**
@@ -57,12 +65,18 @@ case class LinearTransformation(minNumber: Any, maxNumber: Any, orderedDataType:
    * @param other
    * @return a new Transformation that contains both this and other.
    */
+  // TODO check if this is correct
   override def merge(other: Transformation): Transformation = {
     other match {
-      case LinearTransformation(otherMin, otherMax, otherOrdering)
+      case LinearTransformation(otherMin, otherMax, otherNullValue, otherOrdering)
           if orderedDataType == otherOrdering =>
-        LinearTransformation(min(minNumber, otherMin), max(maxNumber, otherMax), orderedDataType)
+        LinearTransformation(
+          min(minNumber, otherMin),
+          max(maxNumber, otherMax),
+          nullValue, // we should keep the original null value?
+          orderedDataType)
           .asInstanceOf[Transformation]
+
     }
   }
 
@@ -74,7 +88,7 @@ case class LinearTransformation(minNumber: Any, maxNumber: Any, orderedDataType:
    */
   override def isSupersededBy(newTransformation: Transformation): Boolean =
     newTransformation match {
-      case LinearTransformation(newMin, newMax, otherOrdering)
+      case LinearTransformation(newMin, newMax, _, otherOrdering)
           if orderedDataType == otherOrdering =>
         gt(minNumber, newMin) || lt(maxNumber, newMax)
     }
@@ -104,6 +118,7 @@ class LinearTransformationSerializer
 
     writeNumb(gen, "minNumber", value.minNumber)
     writeNumb(gen, "maxNumber", value.maxNumber)
+    writeNumb(gen, "nullValue", value.nullValue)
     gen.writeObjectField("orderedDataType", value.orderedDataType)
     gen.writeEndObject()
   }
@@ -115,6 +130,7 @@ class LinearTransformationSerializer
     gen.writeStartObject()
     writeNumb(gen, "minNumber", value.minNumber)
     writeNumb(gen, "maxNumber", value.maxNumber)
+    writeNumb(gen, "nullValue", value.nullValue)
     gen.writeObjectField("orderedDataType", value.orderedDataType)
     gen.writeEndObject()
   }
@@ -132,19 +148,19 @@ class LinearTransformationDeserializer
     val odt = tree.get("orderedDataType") match {
       case tn: TextNode => OrderedDataType(tn.asText())
     }
-    (odt, tree.get("minNumber"), tree.get("maxNumber")) match {
-      case (DoubleDataType, mn: DoubleNode, mx: DoubleNode) =>
-        LinearTransformation(mn.asDouble(), mx.asDouble(), odt)
-      case (FloatDataType, mn: DoubleNode, mx: DoubleNode) =>
-        LinearTransformation(mn.floatValue(), mx.floatValue(), odt)
-      case (IntegerDataType, mn: IntNode, mx: IntNode) =>
-        LinearTransformation(mn.asInt(), mx.asInt(), odt)
-      case (LongDataType, mn: NumericNode, mx: NumericNode) =>
-        LinearTransformation(mn.asLong(), mx.asLong(), odt)
-      case (DecimalDataType, mn: DoubleNode, mx: DoubleNode) =>
-        LinearTransformation(mn.doubleValue(), mx.doubleValue(), odt)
-      case (a, b, c) =>
-        throw new IllegalArgumentException(s"Invalid data type  ($a,$b,$c) ${b.getClass} ")
+    (odt, tree.get("minNumber"), tree.get("maxNumber"), tree.get("nullValue")) match {
+      case (DoubleDataType, mn: DoubleNode, mx: DoubleNode, n: DoubleNode) =>
+        LinearTransformation(mn.asDouble(), mx.asDouble(), n.asDouble(), odt)
+      case (FloatDataType, mn: DoubleNode, mx: DoubleNode, n: DoubleNode) =>
+        LinearTransformation(mn.floatValue(), mx.floatValue(), n.floatValue(), odt)
+      case (IntegerDataType, mn: IntNode, mx: IntNode, n: IntNode) =>
+        LinearTransformation(mn.asInt(), mx.asInt(), n.asInt(), odt)
+      case (LongDataType, mn: NumericNode, mx: NumericNode, n: NumericNode) =>
+        LinearTransformation(mn.asLong(), mx.asLong(), n.asLong(), odt)
+      case (DecimalDataType, mn: DoubleNode, mx: DoubleNode, n: DoubleNode) =>
+        LinearTransformation(mn.doubleValue(), mx.doubleValue(), n.doubleValue(), odt)
+      case (a, b, c, d) =>
+        throw new IllegalArgumentException(s"Invalid data type  ($a,$b,$c,$d) ${b.getClass} ")
     }
 
   }

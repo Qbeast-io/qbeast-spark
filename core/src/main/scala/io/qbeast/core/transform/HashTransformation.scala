@@ -1,14 +1,16 @@
 package io.qbeast.core.transform
 
+import scala.util.Random
 import scala.util.hashing.MurmurHash3
 
 /**
  * A hash transformation of a coordinate
  */
-case class HashTransformation() extends Transformation {
+case class HashTransformation(nullValue: Any) extends Transformation {
 
   override def transform(value: Any): Double = {
-    val hash = value match {
+    val v = if (value == null) nullValue else value
+    val hash = v match {
       case s: String =>
         MurmurHash3.bytesHash(s.getBytes)
       case n: Number =>
@@ -27,4 +29,11 @@ case class HashTransformation() extends Transformation {
   override def isSupersededBy(newTransformation: Transformation): Boolean = false
 
   override def merge(other: Transformation): Transformation = this
+}
+
+object HashTransformation {
+
+  def apply(): HashTransformation = new HashTransformation(Random.nextString(10))
+
+  def apply(nullValue: Any): HashTransformation = new HashTransformation(nullValue)
 }

@@ -16,7 +16,10 @@ import scala.util.matching.Regex
  */
 object SparkRevisionFactory extends RevisionFactory[StructType] {
 
+  // TODO check spece extarctor
+  // Usage: columnName:transformerType(nullValue)
   val SpecExtractor: Regex = "([^:]+):([A-z]+)".r
+  val NullSpec: Regex = """(?<=\()[^)]+(?=\))""".r
 
   def getColumnQType(columnName: String, schema: StructType): QDataType = {
     SparkToQTypesUtils.convertDataTypes(schema(columnName).dataType)
@@ -30,10 +33,17 @@ object SparkRevisionFactory extends RevisionFactory[StructType] {
     val qbeastOptions = QbeastOptions(options)
     val columnSpecs = qbeastOptions.columnsToIndex
     val desiredCubeSize = qbeastOptions.cubeSize
-
     val transformers = columnSpecs.map {
       case SpecExtractor(columnName, transformerType) =>
-        Transformer(transformerType, columnName, getColumnQType(columnName, schema))
+        transformerType match {
+          case NullSpec(nullValue) =>
+            Transformer(
+              transformerType,
+              columnName,
+              nullValue,
+              getColumnQType(columnName, schema))
+          case _ => Transformer(transformerType, columnName, getColumnQType(columnName, schema))
+        }
 
       case columnName =>
         Transformer(columnName, getColumnQType(columnName, schema))

@@ -54,7 +54,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
     revision.tableID shouldBe qid
     revision.revisionID shouldBe 0
     revision.desiredCubeSize shouldBe 10
-    revision.columnTransformers shouldBe Vector(LinearTransformer("a", IntegerDataType))
+    revision.columnTransformers shouldBe Vector(LinearTransformer("a", IntegerDataType, None))
     revision.transformations shouldBe Vector.empty
 
   })
@@ -72,10 +72,10 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
     revision.revisionID shouldBe 0
     revision.desiredCubeSize shouldBe 10
     revision.columnTransformers shouldBe Vector(
-      LinearTransformer("a", IntegerDataType),
-      LinearTransformer("b", DoubleDataType),
-      HashTransformer("c", StringDataType),
-      LinearTransformer("d", FloatDataType))
+      LinearTransformer("a", IntegerDataType, None),
+      LinearTransformer("b", DoubleDataType, None),
+      HashTransformer("c", StringDataType, None),
+      LinearTransformer("d", FloatDataType, None))
     revision.transformations shouldBe Vector.empty
 
     val revisionExplicit =
@@ -105,10 +105,10 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
     revision.revisionID shouldBe 0
     revision.desiredCubeSize shouldBe 10
     revision.columnTransformers shouldBe Vector(
-      HashTransformer("a", IntegerDataType),
-      HashTransformer("b", DoubleDataType),
-      HashTransformer("c", StringDataType),
-      HashTransformer("d", FloatDataType))
+      HashTransformer("a", IntegerDataType, None),
+      HashTransformer("b", DoubleDataType, None),
+      HashTransformer("c", StringDataType, None),
+      HashTransformer("d", FloatDataType, None))
     revision.transformations shouldBe Vector.empty
 
   })

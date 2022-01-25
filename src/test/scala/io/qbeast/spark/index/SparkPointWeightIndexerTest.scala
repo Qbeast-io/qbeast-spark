@@ -89,9 +89,9 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
           desiredCubeSizeChange = None,
           columnTransformersChanges = Nil,
           transformationsChanges = Vector(
-            Some(LinearTransformation(0, 10, IntegerDataType)),
+            Some(LinearTransformation(0, 10, Random.nextInt(10), IntegerDataType)),
             Some(HashTransformation()),
-            Some(LinearTransformation(0.0, 10.0, DoubleDataType))))),
+            Some(LinearTransformation(0.0, 10.0, Random.nextDouble(), DoubleDataType))))),
       isc)
 
     val r = udf(() => {

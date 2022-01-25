@@ -11,6 +11,8 @@ import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.util.Random
+
 class QuerySpecBuilderTest
     extends AnyFlatSpec
     with Matchers
@@ -26,7 +28,12 @@ class QuerySpecBuilderTest
 
   private def createRevision() = {
     val transformations =
-      Seq(LinearTransformation(Int.MinValue, Int.MaxValue, IntegerDataType)).toIndexedSeq
+      Seq(
+        LinearTransformation(
+          Int.MinValue,
+          Int.MaxValue,
+          Random.nextInt(),
+          IntegerDataType)).toIndexedSeq
     val columnTransformers = Seq(Transformer("linear", "id", IntegerDataType)).toIndexedSeq
 
     Revision(
@@ -88,7 +95,8 @@ class QuerySpecBuilderTest
 
     val nameTransformation = HashTransformation()
     val transformations = Seq(nameTransformation).toIndexedSeq
-    val columnTransformers = Seq(Transformer("hashing", "name", StringDataType)).toIndexedSeq
+    val columnTransformers =
+      Seq(Transformer("hashing", "name", StringDataType)).toIndexedSeq
 
     val revision = Revision(
       0,

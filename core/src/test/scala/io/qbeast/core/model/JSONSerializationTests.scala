@@ -41,28 +41,28 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
   }
 
   "A LinearTransformation" should "serializer with the class type con Double" in {
-    val tr: Transformation = LinearTransformation(0.0, 10.0, DoubleDataType)
+    val tr: Transformation = LinearTransformation(0.0, 10.0, 5.0, DoubleDataType)
     val ser =
       """{"className":"io.qbeast.core.transform.LinearTransformation",""" +
-        """"minNumber":0.0,"maxNumber":10.0,"orderedDataType":"DoubleDataType"}"""
+        """"minNumber":0.0,"maxNumber":10.0,"nullValue":5.0,"orderedDataType":"DoubleDataType"}"""
     mapper.writeValueAsString(tr) shouldBe ser
     mapper.readValue[Transformation](ser, classOf[Transformation]) shouldBe tr
 
   }
   "A LinearTransformation" should "serializer with the class type con Integer" in {
-    val tr: Transformation = LinearTransformation(0, 10, IntegerDataType)
+    val tr: Transformation = LinearTransformation(0, 10, 5, IntegerDataType)
     val ser =
       """{"className":"io.qbeast.core.transform.LinearTransformation",""" +
-        """"minNumber":0,"maxNumber":10,"orderedDataType":"IntegerDataType"}"""
+        """"minNumber":0,"maxNumber":10,"nullValue":5,"orderedDataType":"IntegerDataType"}"""
     mapper.writeValueAsString(tr) shouldBe ser
     mapper.readValue[Transformation](ser, classOf[Transformation]) shouldBe tr
 
   }
   "A LinearTransformation" should "serializer with the class type con Long" in {
-    val tr: Transformation = LinearTransformation(0L, 10L, LongDataType)
+    val tr: Transformation = LinearTransformation(0L, 10L, 5L, LongDataType)
     val ser =
       """{"className":"io.qbeast.core.transform.LinearTransformation",""" +
-        """"minNumber":0,"maxNumber":10,"orderedDataType":"LongDataType"}"""
+        """"minNumber":0,"maxNumber":10,"nullValue":5,"orderedDataType":"LongDataType"}"""
     mapper.writeValueAsString(tr) shouldBe ser
     mapper.readValue[Transformation](ser, classOf[Transformation]) shouldBe tr
 
@@ -84,14 +84,14 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
         12L,
         QTableID("test"),
         100,
-        Vector(Transformer("linear", "test1", DoubleDataType)),
-        List(LinearTransformation(0.0, 10.0, DoubleDataType)))
+        Vector(Transformer("linear", "test1", "5.0", DoubleDataType)),
+        List(LinearTransformation(0.0, 10.0, 5.0, DoubleDataType)))
     val json =
       """{"revisionID":12,"timestamp":12,"tableID":"test","desiredCubeSize":100,""" +
         """"columnTransformers":[{"className":"io.qbeast.core.transform.LinearTransformer",""" +
         """"columnName":"test1","dataType":"DoubleDataType"}],"transformations":""" +
         """[{"className":"io.qbeast.core.transform.LinearTransformation","minNumber":0.0,""" +
-        """"maxNumber":10.0,"orderedDataType":"DoubleDataType"}]}"""
+        """"maxNumber":10.0,nullValue:5.0,"orderedDataType":"DoubleDataType"}]}"""
     mapper.writeValueAsString(rev) shouldBe json
     mapper.readValue[Revision](json, classOf[Revision]) shouldBe rev
 
@@ -103,14 +103,14 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
         12L,
         QTableID("test"),
         100,
-        Vector(Transformer("linear", "test1", LongDataType)),
-        List(LinearTransformation(0L, 100L, LongDataType)))
+        Vector(Transformer("linear", "test1", "5", LongDataType)),
+        List(LinearTransformation(0L, 100L, 5L, LongDataType)))
     val json =
       """{"revisionID":12,"timestamp":12,"tableID":"test","desiredCubeSize":100,""" +
         """"columnTransformers":[{"className":"io.qbeast.core.transform.LinearTransformer",""" +
         """"columnName":"test1","dataType":"LongDataType"}],"transformations":""" +
         """[{"className":"io.qbeast.core.transform.LinearTransformation","minNumber":0,""" +
-        """"maxNumber":100,"orderedDataType":"LongDataType"}]}"""
+        """"maxNumber":100,"nullValue":5,"orderedDataType":"LongDataType"}]}"""
     mapper.writeValueAsString(rev) shouldBe json
     mapper.readValue[Revision](json, classOf[Revision]) shouldBe rev
 
@@ -122,7 +122,7 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
         12L,
         QTableID("test"),
         100,
-        List(Transformer("hashing", "test1", StringDataType)),
+        List(Transformer("hashing", "test1", "null", StringDataType)),
         List(HashTransformation()))
     val json =
       """{"revisionID":12,"timestamp":12,"tableID":"test","desiredCubeSize":100,""" +

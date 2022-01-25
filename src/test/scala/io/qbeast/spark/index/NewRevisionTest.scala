@@ -33,38 +33,36 @@ class NewRevisionTest
       .save(tmpDir)
   }
 
-  "new revision" should "create different revisions" in withQbeastContextSparkAndTmpDir {
-    (spark, tmpDir) =>
-      val spaceMultipliers = List(1, 3, 8)
-      spaceMultipliers.foreach(i => appendNewRevision(spark, tmpDir, i))
+  "new revision" should "create different revisions" in withSparkAndTmpDir { (spark, tmpDir) =>
+    val spaceMultipliers = List(1, 3, 8)
+    spaceMultipliers.foreach(i => appendNewRevision(spark, tmpDir, i))
 
-      val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
-      val spaceRevisions = qbeastSnapshot.loadAllRevisions
+    val deltaLog = DeltaLog.forTable(spark, tmpDir)
+    val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
+    val spaceRevisions = qbeastSnapshot.loadAllRevisions
 
-      spaceRevisions.size shouldBe spaceMultipliers.length
+    spaceRevisions.size shouldBe spaceMultipliers.length
 
   }
 
   it should
-    "create different index structure for each one" in withQbeastContextSparkAndTmpDir {
-      (spark, tmpDir) =>
-        appendNewRevision(spark, tmpDir, 1)
-        appendNewRevision(spark, tmpDir, 3)
+    "create different index structure for each one" in withSparkAndTmpDir { (spark, tmpDir) =>
+      appendNewRevision(spark, tmpDir, 1)
+      appendNewRevision(spark, tmpDir, 3)
 
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
+      val deltaLog = DeltaLog.forTable(spark, tmpDir)
+      val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
 
-        val revisions = qbeastSnapshot.loadAllRevisions
-        val allWM =
-          revisions
-            .map(revision =>
-              qbeastSnapshot.loadIndexStatus(revision.revisionID).cubeNormalizedWeights)
-        allWM.foreach(wm => wm should not be empty)
+      val revisions = qbeastSnapshot.loadAllRevisions
+      val allWM =
+        revisions
+          .map(revision =>
+            qbeastSnapshot.loadIndexStatus(revision.revisionID).cubeNormalizedWeights)
+      allWM.foreach(wm => wm should not be empty)
     }
 
   it should
-    "create different revision on different desired cube size" in withQbeastContextSparkAndTmpDir {
+    "create different revision on different desired cube size" in withSparkAndTmpDir {
       (spark, tmpDir) =>
         {
           val rdd =
@@ -93,7 +91,7 @@ class NewRevisionTest
         }
     }
 
-  it should "create different revision when cubeSize changes" in withQbeastContextSparkAndTmpDir(
+  it should "create different revision when cubeSize changes" in withSparkAndTmpDir(
     (spark, tmpDir) => {
       val rdd =
         spark.sparkContext.parallelize(

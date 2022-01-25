@@ -7,11 +7,10 @@ import io.qbeast.TestClasses.{Client3, Client4}
 import io.qbeast.core.model._
 import io.qbeast.spark.utils.TagUtils
 import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
-import org.apache.spark.SparkException
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.{IntegerType, LongType}
-import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -149,33 +148,32 @@ class IndexTest
 
   }
 
-  it should "throw an exception on null values" in withSpark { spark =>
-    {
-      withOTreeAlgorithm { oTreeAlgorithm =>
-        val rdd =
-          spark.sparkContext.parallelize(
-            0.to(2)
-              .map(i => {
-                if (i % 2 == 0) {
-                  Client4(
-                    i * i,
-                    s"student-$i",
-                    Some(i),
-                    Some(i * 1000 + 123),
-                    Some(i * 2567.3432143))
-                } else Client4(i * i, s"student-$i", None, None, None)
-              }))
-        val df = spark.createDataFrame(rdd)
+  it should "support null values" in withSparkAndTmpDir { (spark, tmpDir) =>
+    val clients = Seq(
+      Client4(0, "student-0", Some(0), Some(123), Some(4.5)),
+      Client4(1, "student-1", Some(6), Some(789), Some(0.1)),
+      Client4(2, "student-2", None, None, None))
+    val rdd = spark.sparkContext.makeRDD(clients)
+    spark
+      .createDataFrame(rdd)
+      .write
+      .format("qbeast")
+      .mode("overwrite")
+      .option("columnsToIndex", "age,val2")
+      .save(tmpDir)
 
-        try {
-          val rev = SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, options)
-          oTreeAlgorithm.index(df, IndexStatus(rev))
-          fail()
-        } catch {
-          case e: SparkException if e.getCause.isInstanceOf[AnalysisException] =>
-        }
-      }
-    }
+    val anotherClients = Seq(
+      Client4(3, "student-3", Some(2), Some(345), Some(6.7)),
+      Client4(4, "student-4", None, None, None),
+      Client4(3, "student-5", Some(3), Some(349), Some(10.5)))
+    val anotherRdd = spark.sparkContext.makeRDD(anotherClients)
+    spark
+      .createDataFrame(anotherRdd)
+      .write
+      .format("qbeast")
+      .mode("append")
+      .option("columnsToIndex", "age,val2")
+      .save(tmpDir)
   }
 
   it should "follow the rule of children's minWeight >= parent's maxWeight" in

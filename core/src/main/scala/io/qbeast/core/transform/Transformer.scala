@@ -26,16 +26,41 @@ object Transformer {
     Seq(LinearTransformer, HashTransformer).map(a => (a.transformerSimpleName, a)).toMap
 
   /**
-   * Returns the transformer for the given column and type of transformer
+   * Returns the transformer for the given column and type of transformer and null value
+   * @param transformerTypeName the name of the transformer type: could be hashing or linear
+   * @param columnName the name of the column
+   * @param dataType the type of the data
+   * @param nullValue the value to use for the null records
+   * @return the Transformer
+   */
+  def apply(
+      transformerTypeName: String,
+      columnName: String,
+      nullValue: String,
+      dataType: QDataType): Transformer = {
+
+    val tt = transformerTypeName.toLowerCase(Locale.ROOT)
+    val nullValueTyped = dataType match {
+      case StringDataType => nullValue
+      case IntegerDataType => nullValue.toInt
+      case LongDataType => nullValue.toLong
+      case FloatDataType => nullValue.toFloat
+      case DoubleDataType => nullValue.toDouble
+      case DecimalDataType => nullValue.toDouble
+    }
+    transformersRegistry(tt)(columnName, dataType, Some(nullValueTyped))
+  }
+
+  /**
+   * Returns the transformer for a given column and type of transformer
    * @param transformerTypeName the name of the transformer type: could be hashing or linear
    * @param columnName the name of the column
    * @param dataType the type of the data
    * @return the Transformer
    */
   def apply(transformerTypeName: String, columnName: String, dataType: QDataType): Transformer = {
-
     val tt = transformerTypeName.toLowerCase(Locale.ROOT)
-    transformersRegistry(tt)(columnName, dataType)
+    transformersRegistry(tt)(columnName, dataType, None)
   }
 
   /**
@@ -45,7 +70,7 @@ object Transformer {
    * @return the Transformer
    */
   def apply(columnName: String, dataType: QDataType): Transformer = {
-    getDefaultTransformerForType(dataType)(columnName, dataType)
+    getDefaultTransformerForType(dataType)(columnName, dataType, None)
   }
 
   /**
@@ -70,7 +95,7 @@ object Transformer {
 private[transform] trait TransformerType {
   def transformerSimpleName: String
 
-  def apply(columnName: String, dataType: QDataType): Transformer
+  def apply(columnName: String, dataType: QDataType, optionalNullValue: Option[Any]): Transformer
 }
 
 /**
@@ -97,6 +122,12 @@ trait Transformer extends Serializable {
   def columnName: String
 
   /**
+   * Returns the user-inferred null value of the transformer, if any
+   * @return
+   */
+  def optionalNullValue: Option[Any]
+
+  /**
    * Returns the Transformation given a row representation of the values
    * @param columnStats the column stats for the transformation
    * @return the transformation
@@ -109,6 +140,7 @@ trait Transformer extends Serializable {
    * @param columnStats the column stats for the transformation
    * @return an optional new transformation
    */
+  // TODO check here if the optional null value has changed?
   def maybeUpdateTransformation(
       currentTransformation: Transformation,
       columnStats: ColumnStats): Option[Transformation] = {
@@ -137,7 +169,7 @@ object NoColumnStats extends ColumnStats(Nil, Nil, 0, 0.0, Nil)
  * @param stddev standard deviation of the column
  * @param mean   mean of the column
  */
-case class ColumnStats(min: Any, max: Any, count: Long, stddev: Double, mean: Any)
+case class ColumnStats(min: Any, max: Any, count: Long, stddev: Any, mean: Any)
     extends Serializable {}
 
 object ColumnStats {
@@ -147,8 +179,8 @@ object ColumnStats {
     val min = stats("min")
     val max = stats("max")
     val count = stats("count").toLong
-    val stddev = stats("stddev").toDouble
-    val mean = stats("mean").toDouble
+    val stddev = stats("stddev")
+    val mean = stats("mean")
 
     val (minVal, maxVal) = dataType match {
       case DoubleDataType => (min.toDouble, max.toDouble)

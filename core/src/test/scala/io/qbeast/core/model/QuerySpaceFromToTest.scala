@@ -4,6 +4,8 @@ import io.qbeast.core.transform.LinearTransformation
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.util.Random
+
 class QuerySpaceFromToTest extends AnyFlatSpec with Matchers {
 
   "QuerySpace from to" should "intersect correctly" in {
@@ -11,9 +13,9 @@ class QuerySpaceFromToTest extends AnyFlatSpec with Matchers {
     val from = Seq(Some(1), Some(2), Some(3))
     val to = Seq(Some(2), Some(4), Some(5))
     val transformation = Seq(
-      LinearTransformation(Int.MinValue, Int.MaxValue, IntegerDataType),
-      LinearTransformation(Int.MinValue, Int.MaxValue, IntegerDataType),
-      LinearTransformation(Int.MinValue, Int.MaxValue, IntegerDataType))
+      LinearTransformation(Int.MinValue, Int.MaxValue, Random.nextInt(), IntegerDataType),
+      LinearTransformation(Int.MinValue, Int.MaxValue, Random.nextInt(), IntegerDataType),
+      LinearTransformation(Int.MinValue, Int.MaxValue, Random.nextInt(), IntegerDataType))
     val querySpaceFromTo = QuerySpaceFromTo(from, to, transformation)
 
     val cube = CubeId.root(3)
@@ -23,7 +25,7 @@ class QuerySpaceFromToTest extends AnyFlatSpec with Matchers {
   it should "detect a wrong intersection" in {
     val from = Seq(Some(2))
     val to = Seq(Some(4))
-    val transformation = Seq(LinearTransformation(1, 2, IntegerDataType))
+    val transformation = Seq(LinearTransformation(1, 2, Random.nextInt(), IntegerDataType))
     val querySpaceFromTo = QuerySpaceFromTo(from, to, transformation)
 
     val cube = CubeId.root(3)
@@ -33,7 +35,8 @@ class QuerySpaceFromToTest extends AnyFlatSpec with Matchers {
   it should "throw error if dimensions size is different" in {
     val from = Seq(Some(1), Some(2), Some(3))
     val to = Seq(Some(2), Some(4), Some(5))
-    val transformation = Seq(LinearTransformation(Int.MinValue, Int.MaxValue, IntegerDataType))
+    val transformation =
+      Seq(LinearTransformation(Int.MinValue, Int.MaxValue, Random.nextInt(), IntegerDataType))
     a[AssertionError] shouldBe thrownBy(QuerySpaceFromTo(from, to, transformation))
   }
 
@@ -41,8 +44,8 @@ class QuerySpaceFromToTest extends AnyFlatSpec with Matchers {
     val from = Seq(Some(1))
     val to = Seq(Some(2), Some(4))
     val transformation = Seq(
-      LinearTransformation(Int.MinValue, Int.MaxValue, IntegerDataType),
-      LinearTransformation(Int.MinValue, Int.MaxValue, IntegerDataType))
+      LinearTransformation(Int.MinValue, Int.MaxValue, Random.nextInt(), IntegerDataType),
+      LinearTransformation(Int.MinValue, Int.MaxValue, Random.nextInt(), IntegerDataType))
     a[AssertionError] shouldBe thrownBy(QuerySpaceFromTo(from, to, transformation))
   }
 }

@@ -37,9 +37,28 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
   }
 
+  private val randomNullString = "10"
+
   private def createTransformers(columnsSchema: Seq[StructField]): IISeq[Transformer] = {
+
     columnsSchema
-      .map(field => Transformer(field.name, SparkToQTypesUtils.convertDataTypes(field.dataType)))
+      .map(field => {
+        field.dataType match {
+          // for easier patter matching we would use HashTransformation("null")
+          case org.apache.spark.sql.types.StringType =>
+            Transformer(
+              "hashing",
+              field.name,
+              randomNullString,
+              SparkToQTypesUtils.convertDataTypes(field.dataType))
+          case _ =>
+            Transformer(
+              "linear",
+              field.name,
+              randomNullString,
+              SparkToQTypesUtils.convertDataTypes(field.dataType))
+        }
+      })
       .toIndexedSeq
   }
 
@@ -88,7 +107,8 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
     revision.columnTransformers.length shouldBe columnsToIndex.length
     revision.transformations.length shouldBe columnsToIndex.length
-    revision.transformations shouldBe Vector.fill(columnsToIndex.length)(HashTransformation())
+    revision.transformations shouldBe Vector.fill(columnsToIndex.length)(
+      HashTransformation(randomNullString))
   }
 
   it should "calculateRevisionChanges correctly on different types" in withSpark { spark =>
@@ -116,10 +136,10 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     revision.transformations.size shouldBe columnsToIndex.length
 
     revision.transformations shouldBe Vector(
-      LinearTransformation(0, 10000, IntegerDataType),
-      LinearTransformation(0.0, 10000.0, DoubleDataType),
-      HashTransformation(),
-      LinearTransformation(0.0.toFloat, 10000.0.toFloat, FloatDataType))
+      LinearTransformation(0, 10000, randomNullString.toInt, IntegerDataType),
+      LinearTransformation(0.0, 10000.0, randomNullString.toDouble, DoubleDataType),
+      HashTransformation(randomNullString),
+      LinearTransformation(0.0.toFloat, 10000.0.toFloat, randomNullString.toFloat, FloatDataType))
 
   }
 
@@ -158,10 +178,18 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     newRevision.transformations.size shouldBe columnsToIndex.length
 
     newRevision.transformations shouldBe Vector(
-      LinearTransformation(0, 10000 * spaceMultiplier, IntegerDataType),
-      LinearTransformation(0.0, 10000.0 * spaceMultiplier, DoubleDataType),
-      HashTransformation(),
-      LinearTransformation(0.0.toFloat, (10000.0 * spaceMultiplier).toFloat, FloatDataType))
+      LinearTransformation(0, 10000 * spaceMultiplier, randomNullString.toInt, IntegerDataType),
+      LinearTransformation(
+        0.0,
+        10000.0 * spaceMultiplier,
+        randomNullString.toDouble,
+        DoubleDataType),
+      HashTransformation(randomNullString),
+      LinearTransformation(
+        0.0.toFloat,
+        (10000.0 * spaceMultiplier).toFloat,
+        randomNullString.toFloat,
+        FloatDataType))
 
   }
 
