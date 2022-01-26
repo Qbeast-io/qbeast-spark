@@ -99,7 +99,7 @@ case class BlockWriter(
             .getFileSystem(serConf.value)
             .getFileStatus(path)
 
-          // TODO create a QbeastFile to not use anything from Delta to write
+          // TODO create a QbeastBlock to not use anything from Delta to write
           Iterator(
             AddFile(
               path = path.getName(),

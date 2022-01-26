@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.QbeastFile
+import io.qbeast.core.model.QbeastBlock
 import io.qbeast.spark.index.query.{QueryExecutor, QuerySpecBuilder}
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.spark.sql.catalyst.expressions.{Expression, GenericInternalRow}
@@ -38,9 +38,9 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
     }
   }
 
-  def matchingFiles(
+  protected def matchingBlocks(
       partitionFilters: Seq[Expression],
-      dataFilters: Seq[Expression]): Seq[QbeastFile] = {
+      dataFilters: Seq[Expression]): Seq[QbeastBlock] = {
 
     val querySpecBuilder = new QuerySpecBuilder(dataFilters ++ partitionFilters)
     val queryExecutor = new QueryExecutor(querySpecBuilder, qbeastSnapshot)
@@ -51,14 +51,14 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
 
-    val fileStats = matchingFiles(partitionFilters, dataFilters).map { f =>
+    val fileStats = matchingBlocks(partitionFilters, dataFilters).map { qbeastBlock =>
       new FileStatus(
-        /* length */ f.size,
+        /* length */ qbeastBlock.size,
         /* isDir */ false,
         /* blockReplication */ 0,
         /* blockSize */ 1,
-        /* modificationTime */ f.modificationTime,
-        absolutePath(f.path))
+        /* modificationTime */ qbeastBlock.modificationTime,
+        absolutePath(qbeastBlock.path))
     }.toArray
 
     Seq(PartitionDirectory(new GenericInternalRow(Array.empty[Any]), fileStats))

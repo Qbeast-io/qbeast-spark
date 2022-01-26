@@ -221,7 +221,7 @@ case class IndexStatus(
 case class CubeStatus(
     maxWeight: Weight,
     normalizedWeight: NormalizedWeight,
-    files: IISeq[QbeastFile])
+    files: IISeq[QbeastBlock])
     extends Serializable
 
 /**

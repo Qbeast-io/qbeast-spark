@@ -6,14 +6,15 @@ package io.qbeast.spark.delta
 import io.qbeast.IISeq
 import io.qbeast.core.model.{
   IndexStatus,
+  QbeastBlock,
   QbeastSnapshot,
   ReplicatedSet,
   Revision,
   RevisionID,
   mapper
 }
-import io.qbeast.spark.utils.MetadataConfig
-import org.apache.spark.sql.AnalysisExceptionFactory
+import io.qbeast.spark.utils.{MetadataConfig, TagUtils}
+import org.apache.spark.sql.{AnalysisExceptionFactory, Dataset, SparkSession}
 import org.apache.spark.sql.delta.Snapshot
 
 /**
@@ -21,7 +22,7 @@ import org.apache.spark.sql.delta.Snapshot
  *
  * @param snapshot the internal Delta Lakes log snapshot
  */
-case class DeltaQbeastSnapshot(snapshot: Snapshot) extends QbeastSnapshot {
+case class DeltaQbeastSnapshot(private val snapshot: Snapshot) extends QbeastSnapshot {
 
   def isInitial: Boolean = snapshot.version == -1
 
@@ -158,6 +159,20 @@ case class DeltaQbeastSnapshot(snapshot: Snapshot) extends QbeastSnapshot {
     revisionsMap.values.find(_.timestamp <= timestamp).getOrElse {
       throw AnalysisExceptionFactory.create(s"No space revision available before $timestamp")
     }
+  }
+
+  /**
+   * Loads the dataset of qbeast blocks for a given revision
+   * @param revisionID the revision identifier
+   * @return the Dataset of QbeastBlocks
+   */
+  def loadRevisionBlocks(revisionID: RevisionID): Dataset[QbeastBlock] = {
+    val spark = SparkSession.active
+    import spark.implicits._
+    snapshot.allFiles
+      .filter(_.tags(TagUtils.revision) == revisionID.toString)
+      .map(addFile =>
+        QbeastBlock(addFile.path, addFile.tags, addFile.size, addFile.modificationTime))
   }
 
 }

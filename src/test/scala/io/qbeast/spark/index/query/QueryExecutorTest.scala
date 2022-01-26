@@ -1,7 +1,7 @@
 package io.qbeast.spark.index.query
 
 import io.qbeast.TestClasses.T2
-import io.qbeast.core.model.{QbeastFile, Weight, WeightRange}
+import io.qbeast.core.model.{QbeastBlock, Weight, WeightRange}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
@@ -167,7 +167,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
           s"Skipped files: ${diff.size}")
 
       val allQbeastFiles = allDeltaFiles.map(addFile =>
-        QbeastFile(addFile.path, addFile.tags, addFile.size, addFile.modificationTime))
+        QbeastBlock(addFile.path, addFile.tags, addFile.size, addFile.modificationTime))
 
       for (f <- allQbeastFiles) {
         if (f.maxWeight < weightRange.from) {

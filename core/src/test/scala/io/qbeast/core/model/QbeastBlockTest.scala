@@ -3,8 +3,8 @@ package io.qbeast.core.model
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class QbeastFileTest extends AnyFlatSpec with Matchers {
-  "QbeastFile" should "find all the keys in the map" in {
+class QbeastBlockTest extends AnyFlatSpec with Matchers {
+  "QbeastBlock" should "find all the keys in the map" in {
     val fileMetadata: Map[String, String] = Map(
       "cube" -> CubeId.root(1).string,
       "minWeight" -> "19217",
@@ -13,7 +13,7 @@ class QbeastFileTest extends AnyFlatSpec with Matchers {
       "revision" -> "1",
       "elementCount" -> "777")
 
-    val qbeastFile = QbeastFile("path", fileMetadata, 0L, 0L)
+    val qbeastFile = QbeastBlock("path", fileMetadata, 0L, 0L)
     qbeastFile.cube shouldBe CubeId.root(1).string
     qbeastFile.minWeight shouldBe Weight(19217)
     qbeastFile.maxWeight shouldBe Weight(11111111)
@@ -24,7 +24,7 @@ class QbeastFileTest extends AnyFlatSpec with Matchers {
 
   it should "throw exception if key not found" in {
     val fileMetadata = Map.empty[String, String]
-    a[IllegalArgumentException] shouldBe thrownBy(QbeastFile("path", fileMetadata, 0L, 0L))
+    a[IllegalArgumentException] shouldBe thrownBy(QbeastBlock("path", fileMetadata, 0L, 0L))
   }
 
   it should "throw error if the types are different" in {
@@ -36,6 +36,6 @@ class QbeastFileTest extends AnyFlatSpec with Matchers {
       "revision" -> "bad_type",
       "elementCount" -> "777")
 
-    a[IllegalArgumentException] shouldBe thrownBy(QbeastFile("path", fileMetadata, 0L, 0L))
+    a[IllegalArgumentException] shouldBe thrownBy(QbeastBlock("path", fileMetadata, 0L, 0L))
   }
 }

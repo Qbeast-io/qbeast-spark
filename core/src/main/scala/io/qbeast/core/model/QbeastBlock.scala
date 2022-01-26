@@ -12,7 +12,7 @@ package io.qbeast.core.model
  * @param size
  * @param modificationTime
  */
-case class QbeastFile(
+case class QbeastBlock(
     path: String,
     revision: Long,
     cube: String,
@@ -24,43 +24,43 @@ case class QbeastFile(
     modificationTime: Long)
 
 /**
- * Companion object for QbeastFile
+ * Companion object for QbeastBlock
  */
-object QbeastFile {
+object QbeastBlock {
 
   private val metadataKeys =
     Set("cube", "minWeight", "maxWeight", "state", "revision", "elementCount")
 
-  private def checkFileMetadata(fileMetadata: Map[String, String]): Unit = {
+  private def checkBlockMetadata(blockMetadata: Map[String, String]): Unit = {
     metadataKeys.foreach(key =>
-      if (!fileMetadata.contains(key)) {
+      if (!blockMetadata.contains(key)) {
         throw new IllegalArgumentException(s"Missing metadata key $key")
       })
   }
 
   /**
-   * Creates a QbeastFile from a file path and metadata map
+   * Creates a QbeastBlock from a file path and metadata map
    * @param path
-   * @param fileMetadata
+   * @param blockMetadata
    * @param size
    * @param modificationTime
    * @return
    */
   def apply(
       path: String,
-      fileMetadata: Map[String, String],
+      blockMetadata: Map[String, String],
       size: Long,
-      modificationTime: Long): QbeastFile = {
-    checkFileMetadata(fileMetadata)
+      modificationTime: Long): QbeastBlock = {
+    checkBlockMetadata(blockMetadata)
 
-    QbeastFile(
+    QbeastBlock(
       path,
-      fileMetadata("revision").toLong,
-      fileMetadata("cube"),
-      Weight(fileMetadata("minWeight").toInt),
-      Weight(fileMetadata("maxWeight").toInt),
-      fileMetadata("state"),
-      fileMetadata("elementCount").toLong,
+      blockMetadata("revision").toLong,
+      blockMetadata("cube"),
+      Weight(blockMetadata("minWeight").toInt),
+      Weight(blockMetadata("maxWeight").toInt),
+      blockMetadata("state"),
+      blockMetadata("elementCount").toLong,
       size,
       modificationTime)
   }
