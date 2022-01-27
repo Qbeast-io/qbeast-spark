@@ -69,7 +69,7 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
   }
 
   "A HashTransformation" should "serialize correctly" in {
-    val tr: Transformation = HashTransformation()
+    val tr: Transformation = HashTransformation("null")
     val ser =
       """{"className":"io.qbeast.core.transform.HashTransformation"}"""
     mapper.writeValueAsString(tr) shouldBe ser
@@ -89,9 +89,9 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
     val json =
       """{"revisionID":12,"timestamp":12,"tableID":"test","desiredCubeSize":100,""" +
         """"columnTransformers":[{"className":"io.qbeast.core.transform.LinearTransformer",""" +
-        """"columnName":"test1","dataType":"DoubleDataType"}],"transformations":""" +
+        """"columnName":"test1","dataType":"DoubleDataType","optionalNullValue":5.0}],"transformations":""" +
         """[{"className":"io.qbeast.core.transform.LinearTransformation","minNumber":0.0,""" +
-        """"maxNumber":10.0,nullValue:5.0,"orderedDataType":"DoubleDataType"}]}"""
+        """"maxNumber":10.0,"nullValue":5.0,"orderedDataType":"DoubleDataType"}]}"""
     mapper.writeValueAsString(rev) shouldBe json
     mapper.readValue[Revision](json, classOf[Revision]) shouldBe rev
 
@@ -108,7 +108,7 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
     val json =
       """{"revisionID":12,"timestamp":12,"tableID":"test","desiredCubeSize":100,""" +
         """"columnTransformers":[{"className":"io.qbeast.core.transform.LinearTransformer",""" +
-        """"columnName":"test1","dataType":"LongDataType"}],"transformations":""" +
+        """"columnName":"test1","dataType":"LongDataType","optionalNullValue":5}],"transformations":""" +
         """[{"className":"io.qbeast.core.transform.LinearTransformation","minNumber":0,""" +
         """"maxNumber":100,"nullValue":5,"orderedDataType":"LongDataType"}]}"""
     mapper.writeValueAsString(rev) shouldBe json
@@ -123,12 +123,12 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
         QTableID("test"),
         100,
         List(Transformer("hashing", "test1", "null", StringDataType)),
-        List(HashTransformation()))
+        List(HashTransformation("null")))
     val json =
       """{"revisionID":12,"timestamp":12,"tableID":"test","desiredCubeSize":100,""" +
         """"columnTransformers":[{"className":"io.qbeast.core.transform.HashTransformer",""" +
-        """"columnName":"test1","dataType":"StringDataType"}],"transformations":""" +
-        """[{"className":"io.qbeast.core.transform.HashTransformation"}]}"""
+        """"columnName":"test1","dataType":"StringDataType","optionalNullValue":"null"}],"transformations":""" +
+        """[{"className":"io.qbeast.core.transform.HashTransformation","nullValue":"null"}]}"""
     mapper.writeValueAsString(rev) shouldBe json
     mapper.readValue[Revision](json, classOf[Revision]) shouldBe rev
 

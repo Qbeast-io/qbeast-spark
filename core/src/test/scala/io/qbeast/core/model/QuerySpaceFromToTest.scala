@@ -25,7 +25,7 @@ class QuerySpaceFromToTest extends AnyFlatSpec with Matchers {
   it should "detect a wrong intersection" in {
     val from = Seq(Some(2))
     val to = Seq(Some(4))
-    val transformation = Seq(LinearTransformation(1, 2, Random.nextInt(), IntegerDataType))
+    val transformation = Seq(LinearTransformation(0, 2, 1, IntegerDataType))
     val querySpaceFromTo = QuerySpaceFromTo(from, to, transformation)
 
     val cube = CubeId.root(3)

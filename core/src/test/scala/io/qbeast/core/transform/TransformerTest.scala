@@ -31,24 +31,24 @@ class TransformerTest extends AnyFlatSpec with Matchers {
   it should "makeTransformation" in {
     val columnName = "a"
     val dataType = IntegerDataType
-    val transformer = Transformer("linear", columnName, "0", dataType)
+    val transformer = Transformer("linear", columnName, "1", dataType)
 
-    val transformation = ColumnStats(min = 0, max = 1, 0, 0.0, Nil)
+    val transformation = ColumnStats(min = 0, max = 2, 0, 0.0, Nil)
     transformer
-      .makeTransformation(transformation) shouldBe LinearTransformation(0, 1, 0, dataType)
+      .makeTransformation(transformation) shouldBe LinearTransformation(0, 2, 1, dataType)
   }
 
   it should "return new transformation on maybeUpdateTransformation" in {
     val columnName = "a"
     val dataType = IntegerDataType
-    val transformer = Transformer(columnName, dataType)
+    val transformer = Transformer("linear", columnName, "4", dataType)
 
-    val transformation = ColumnStats(min = 0, max = 1, 0, 0.0, Nil)
+    val transformation = ColumnStats(min = 0, max = 5, 0, 0.0, Nil)
     val currentTransformation = transformer.makeTransformation(transformation)
 
     val newTransformation = ColumnStats(min = 3, max = 8, 0, 0.0, Nil)
     transformer.maybeUpdateTransformation(currentTransformation, newTransformation) shouldBe Some(
-      LinearTransformation(0, 8, _, dataType))
+      LinearTransformation(0, 8, 4, dataType))
 
     transformer.maybeUpdateTransformation(currentTransformation, transformation) shouldBe None
   }

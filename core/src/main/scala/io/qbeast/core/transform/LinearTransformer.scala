@@ -13,7 +13,7 @@ import io.qbeast.core.model.{
   QDataType
 }
 
-import java.util.concurrent.ThreadLocalRandom
+import scala.util.Random
 
 object LinearTransformer extends TransformerType {
   override def transformerSimpleName: String = "linear"
@@ -39,15 +39,21 @@ case class LinearTransformer(
   }
 
   private def generateRandomNumber(min: Any, max: Any): Any = {
-    val random: ThreadLocalRandom = ThreadLocalRandom.current()
     dataType match {
-      case DoubleDataType => random.nextDouble(min.asInstanceOf[Double], max.asInstanceOf[Double])
-      case IntegerDataType => random.nextInt(min.asInstanceOf[Int], max.asInstanceOf[Int])
-      case LongDataType => random.nextLong(min.asInstanceOf[Long], max.asInstanceOf[Long])
+      case DoubleDataType =>
+        min.asInstanceOf[Double] + (Random
+          .nextDouble() * (max.asInstanceOf[Double] - min.asInstanceOf[Double]))
+      case IntegerDataType =>
+        Random.nextInt(max.asInstanceOf[Int] - min.asInstanceOf[Int]) + min.asInstanceOf[Int]
+      case LongDataType =>
+        min.asInstanceOf[Long] + (Random
+          .nextDouble() * (max.asInstanceOf[Long] - min.asInstanceOf[Long]))
       case FloatDataType =>
-        random.nextDouble(min.asInstanceOf[Float], max.asInstanceOf[Float]).toFloat
+        min.asInstanceOf[Float] + (Random
+          .nextDouble() * (max.asInstanceOf[Float] - min.asInstanceOf[Float]))
       case DecimalDataType =>
-        random.nextDouble(min.asInstanceOf[Double], max.asInstanceOf[Double])
+        min.asInstanceOf[Double] + (Random
+          .nextDouble() * (max.asInstanceOf[Double] - min.asInstanceOf[Double]))
     }
   }
 

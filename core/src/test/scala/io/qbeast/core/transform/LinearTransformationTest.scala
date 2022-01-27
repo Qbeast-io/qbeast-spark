@@ -4,8 +4,6 @@ import io.qbeast.core.model.IntegerDataType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import scala.util.Random
-
 class LinearTransformationTest extends AnyFlatSpec with Matchers {
 
   behavior of "LinearTransformation"
@@ -13,7 +11,7 @@ class LinearTransformationTest extends AnyFlatSpec with Matchers {
   it should "always generated values between the range" in {
     val min = Int.MinValue
     val max = Int.MaxValue
-    val linearT = LinearTransformation(0, 10000, Random.nextInt(), IntegerDataType)
+    val linearT = LinearTransformation(0, 10000, 5000, IntegerDataType)
 
     var i = 100000
     while (i > 0) {
@@ -29,55 +27,43 @@ class LinearTransformationTest extends AnyFlatSpec with Matchers {
     an[IllegalArgumentException] should be thrownBy LinearTransformation(
       10000,
       0,
-      Random.nextInt(),
+      5000,
       IntegerDataType)
   }
 
   it should "save min and max values" in {
-    val linearT = LinearTransformation(0, 10000, Random.nextInt(), IntegerDataType)
+    val linearT = LinearTransformation(0, 10000, 5000, IntegerDataType)
     linearT.minNumber should be(0)
     linearT.maxNumber should be(10000)
   }
 
   // TODO check merge
   it should "merge transformations correctly" in {
-    val randomNullValue = Random.nextInt()
-    val linearT = LinearTransformation(0, 10000, randomNullValue, IntegerDataType)
+    val nullValue = 5000
+    val linearT = LinearTransformation(0, 10000, nullValue, IntegerDataType)
 
     linearT.merge(
-      LinearTransformation(
-        0,
-        90000,
-        randomNullValue,
-        IntegerDataType)) shouldBe LinearTransformation(
+      LinearTransformation(0, 90000, nullValue, IntegerDataType)) shouldBe LinearTransformation(
       0,
       90000,
-      randomNullValue,
+      nullValue,
       IntegerDataType)
 
     linearT.merge(
       LinearTransformation(
         -100,
         10000,
-        randomNullValue,
-        IntegerDataType)) shouldBe LinearTransformation(
-      -100,
-      10000,
-      randomNullValue,
-      IntegerDataType)
+        nullValue,
+        IntegerDataType)) shouldBe LinearTransformation(-100, 10000, nullValue, IntegerDataType)
 
     linearT.merge(
       LinearTransformation(
         -100,
         90000,
-        randomNullValue,
-        IntegerDataType)) shouldBe LinearTransformation(
-      -100,
-      90000,
-      randomNullValue,
-      IntegerDataType)
+        nullValue,
+        IntegerDataType)) shouldBe LinearTransformation(-100, 90000, nullValue, IntegerDataType)
 
-    linearT.merge(LinearTransformation(6, 9, randomNullValue, IntegerDataType)) shouldBe linearT
+    linearT.merge(LinearTransformation(6, 9, 7, IntegerDataType)) shouldBe linearT
 
   }
 
