@@ -137,7 +137,7 @@ object NoColumnStats extends ColumnStats(Nil, Nil, 0, 0.0, Nil)
  * @param stddev standard deviation of the column
  * @param mean   mean of the column
  */
-case class ColumnStats(min: Any, max: Any, count: Long, stddev: Double, mean: Any)
+case class ColumnStats(min: Any, max: Any, count: Long, stddev: Any, mean: Any)
     extends Serializable {}
 
 object ColumnStats {
@@ -147,8 +147,8 @@ object ColumnStats {
     val min = stats("min")
     val max = stats("max")
     val count = stats("count").toLong
-    val stddev = stats("stddev").toDouble
-    val mean = stats("mean").toDouble
+    val stddev = stats("stddev")
+    val mean = stats("mean")
 
     val (minVal, maxVal) = dataType match {
       case DoubleDataType => (min.toDouble, max.toDouble)
@@ -157,6 +157,7 @@ object ColumnStats {
       case FloatDataType => (min.toFloat, max.toFloat)
       case DecimalDataType => (min.toDouble, max.toDouble)
       case StringDataType => (Nil, Nil)
+      case _ => throw new RuntimeException(s"Data type $dataType not supported")
     }
 
     ColumnStats(minVal, maxVal, count, stddev, mean)
