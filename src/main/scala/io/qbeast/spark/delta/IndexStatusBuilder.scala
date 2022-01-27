@@ -4,7 +4,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model._
-import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.{Dataset, SparkSession}
 
 import scala.collection.immutable.SortedMap
 
@@ -44,30 +44,37 @@ private[delta] class IndexStatusBuilder(
    */
   def buildCubesStatuses: SortedMap[CubeId, CubeStatus] = {
 
+    val spark = SparkSession.active
+    import spark.implicits._
     val rev = revision
     val builder = SortedMap.newBuilder[CubeId, CubeStatus]
     revisionFiles
-      .collect()
-      .toVector
-      .groupBy(_.cube)
-      .map { case (cube, files) =>
+      .groupByKey(_.cube)
+      .mapGroups((cube, f) => {
         var minMaxWeight = Int.MaxValue
         var elementCount = 0L
-        for (file <- files) {
+        val files = Vector.newBuilder[QbeastBlock]
+        for (file <- f) {
           elementCount += file.elementCount
           val maxWeight = file.maxWeight.value
           if (maxWeight < minMaxWeight) {
             minMaxWeight = maxWeight
           }
+          files += file
         }
         val cubeStatus = if (minMaxWeight == Int.MaxValue) {
-          CubeStatus(Weight.MaxValue, NormalizedWeight(rev.desiredCubeSize, elementCount), files)
+          CubeStatus(
+            Weight.MaxValue,
+            NormalizedWeight(rev.desiredCubeSize, elementCount),
+            files.result())
         } else {
           val w = Weight(minMaxWeight)
-          CubeStatus(w, NormalizedWeight(w), files)
+          CubeStatus(w, NormalizedWeight(w), files.result())
         }
-        builder += ((rev.createCubeId(cube), cubeStatus))
-      }
+        (rev.createCubeId(cube), cubeStatus)
+      })
+      .collect()
+      .foreach(builder += _)
     builder.result()
   }
 
