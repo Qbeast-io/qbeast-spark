@@ -42,9 +42,7 @@ case class LinearTransformation(
 
   private val scale: Double = {
     val mx = maxNumber.toDouble
-    val nv = nullValue.toDouble
     require(mx > mn, "Range cannot be not null, and max must be > min")
-    require(mx >= nv && nv >= mn, "Null value must be > min and < max")
     1.0 / (mx - mn)
   }
 

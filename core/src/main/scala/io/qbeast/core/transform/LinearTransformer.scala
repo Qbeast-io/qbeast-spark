@@ -44,7 +44,8 @@ case class LinearTransformer(
         min.asInstanceOf[Double] + (Random
           .nextDouble() * (max.asInstanceOf[Double] - min.asInstanceOf[Double]))
       case IntegerDataType =>
-        Random.nextInt(max.asInstanceOf[Int] - min.asInstanceOf[Int]) + min.asInstanceOf[Int]
+        min.asInstanceOf[Int] + (Random
+          .nextDouble() * (max.asInstanceOf[Int] - min.asInstanceOf[Int])).toInt
       case LongDataType =>
         min.asInstanceOf[Long] + (Random
           .nextDouble() * (max.asInstanceOf[Long] - min.asInstanceOf[Long])).toLong
@@ -60,8 +61,8 @@ case class LinearTransformer(
   override def makeTransformation(columnStats: ColumnStats): Transformation = {
     val min = getValue(columnStats.min)
     val max = getValue(columnStats.max)
-    val nulls = optionalNullValue.getOrElse(generateRandomNumber(min, max))
-    val nullValue = getValue(nulls)
+    val nullV = optionalNullValue.getOrElse(generateRandomNumber(min, max))
+    val nullValue = getValue(nullV)
     assert(min != null && max != null)
     dataType match {
       case ordered: OrderedDataType =>
