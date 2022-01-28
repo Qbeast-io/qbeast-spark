@@ -71,7 +71,7 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
   "A HashTransformation" should "serialize correctly" in {
     val tr: Transformation = HashTransformation("null")
     val ser =
-      """{"className":"io.qbeast.core.transform.HashTransformation"}"""
+      """{"className":"io.qbeast.core.transform.HashTransformation","nullValue":"null"}"""
     mapper.writeValueAsString(tr) shouldBe ser
     mapper.readValue[Transformation](ser, classOf[Transformation]) shouldBe tr
 
