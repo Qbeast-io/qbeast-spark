@@ -47,10 +47,10 @@ case class LinearTransformer(
         Random.nextInt(max.asInstanceOf[Int] - min.asInstanceOf[Int]) + min.asInstanceOf[Int]
       case LongDataType =>
         min.asInstanceOf[Long] + (Random
-          .nextDouble() * (max.asInstanceOf[Long] - min.asInstanceOf[Long]))
+          .nextDouble() * (max.asInstanceOf[Long] - min.asInstanceOf[Long])).toLong
       case FloatDataType =>
         min.asInstanceOf[Float] + (Random
-          .nextDouble() * (max.asInstanceOf[Float] - min.asInstanceOf[Float]))
+          .nextDouble() * (max.asInstanceOf[Float] - min.asInstanceOf[Float])).toFloat
       case DecimalDataType =>
         min.asInstanceOf[Double] + (Random
           .nextDouble() * (max.asInstanceOf[Double] - min.asInstanceOf[Double]))
