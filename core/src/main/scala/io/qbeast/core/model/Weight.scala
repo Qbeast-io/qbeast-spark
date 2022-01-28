@@ -20,8 +20,8 @@ object Weight {
    */
   val MinValue: Weight = Weight(Int.MinValue)
 
-  private val offset: Double = MinValue.value.toDouble
-  private val range: Double = MaxValue.value.toDouble - offset
+  private[qbeast] val offset: Double = MinValue.value.toDouble
+  private[qbeast] val range: Double = MaxValue.value.toDouble - offset
 
   /**
    * Creates a weight from a given fraction. The fraction must

@@ -219,6 +219,7 @@ case class IndexStatus(
  * @param files the files belonging to the cube
  */
 case class CubeStatus(
+    cubeId: CubeId,
     maxWeight: Weight,
     normalizedWeight: NormalizedWeight,
     files: IISeq[QbeastBlock])

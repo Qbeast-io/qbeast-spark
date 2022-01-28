@@ -47,7 +47,7 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
       // 4. empty, the currentCube is the right-most cube in the tree and it is not in cubesStatuses
       if (cubeIter.hasNext) { // cases 1 to 3
         cubeIter.next() match {
-          case (cube, CubeStatus(maxWeight, _, files)) if cube == currentCube => // Case 1
+          case (cube, CubeStatus(_, maxWeight, _, files)) if cube == currentCube => // Case 1
             val unfilteredFiles = if (querySpec.weightRange.to < maxWeight) {
               // cube maxWeight is larger than the sample fraction, weightRange.to,
               // it means that currentCube is the last cube to visit from the current branch.

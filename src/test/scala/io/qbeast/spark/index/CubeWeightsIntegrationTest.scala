@@ -64,7 +64,7 @@ class CubeWeightsIntegrationTest extends QbeastIntegrationTestSpec {
     val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
     val cubeWeights = qbeastSnapshot.loadLatestIndexStatus.cubesStatuses
 
-    cubeWeights.values.foreach { case CubeStatus(weight, _, _) =>
+    cubeWeights.values.foreach { case CubeStatus(_, weight, _, _) =>
       weight shouldBe >(Weight.MinValue)
       weight shouldBe <=(Weight.MaxValue)
     }

@@ -127,7 +127,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
 
           revisionState
             .filter { case (cube, _) => overflowed.contains(cube) }
-            .foreach { case (cube, CubeStatus(weight, _, files)) =>
+            .foreach { case (cube, CubeStatus(_, weight, _, files)) =>
               val size = files
                 .map(a => a.elementCount)
                 .sum
