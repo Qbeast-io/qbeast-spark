@@ -4,7 +4,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model.{QTableID, TableChanges}
-import io.qbeast.spark.utils.TagUtils
+import io.qbeast.spark.utils.TagColumns
 import org.apache.spark.sql.delta.actions.{
   Action,
   AddFile,
@@ -14,6 +14,7 @@ import org.apache.spark.sql.delta.actions.{
 }
 import org.apache.spark.sql.delta.commands.DeltaCommand
 import org.apache.spark.sql.delta.{DeltaLog, DeltaOperations, DeltaOptions, OptimisticTransaction}
+import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{AnalysisExceptionFactory, SaveMode, SparkSession}
 
@@ -60,9 +61,8 @@ private[delta] case class DeltaMetadataWriter(
     val cubeStrings = deltaReplicatedSet.map(_.string)
     val cubeBlocks =
       deltaLog.snapshot.allFiles
-        .filter(file =>
-          file.tags(TagUtils.revision) == revision.revisionID.toString &&
-            cubeStrings.contains(file.tags(TagUtils.cube)))
+        .where(TagColumns.revision === lit(revision.revisionID.toString) &&
+          TagColumns.cube.isInCollection(cubeStrings))
         .collect()
 
     val newReplicatedFiles = cubeBlocks.map(ReplicatedFile(_))

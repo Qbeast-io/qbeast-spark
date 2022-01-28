@@ -13,9 +13,11 @@ import io.qbeast.core.model.{
   RevisionID,
   mapper
 }
-import io.qbeast.spark.utils.{MetadataConfig, TagUtils}
+import io.qbeast.spark.utils.{MetadataConfig, TagColumns}
 import org.apache.spark.sql.{AnalysisExceptionFactory, Dataset, SparkSession}
 import org.apache.spark.sql.delta.Snapshot
+import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.functions.lit
 
 /**
  * Qbeast Snapshot that provides information about the current index state.
@@ -166,13 +168,9 @@ case class DeltaQbeastSnapshot(private val snapshot: Snapshot) extends QbeastSna
    * @param revisionID the revision identifier
    * @return the Dataset of QbeastBlocks
    */
-  def loadRevisionBlocks(revisionID: RevisionID): Dataset[QbeastBlock] = {
-    val spark = SparkSession.active
-    import spark.implicits._
+  def loadRevisionBlocks(revisionID: RevisionID): Dataset[AddFile] = {
     snapshot.allFiles
-      .filter(_.tags(TagUtils.revision) == revisionID.toString)
-      .map(addFile =>
-        QbeastBlock(addFile.path, addFile.tags, addFile.size, addFile.modificationTime))
+      .where(TagColumns.revision === lit(revisionID.toString))
   }
 
 }
