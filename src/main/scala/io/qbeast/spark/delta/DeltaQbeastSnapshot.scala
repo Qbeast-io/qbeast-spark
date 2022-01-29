@@ -6,7 +6,6 @@ package io.qbeast.spark.delta
 import io.qbeast.IISeq
 import io.qbeast.core.model.{
   IndexStatus,
-  QbeastBlock,
   QbeastSnapshot,
   ReplicatedSet,
   Revision,
@@ -14,7 +13,7 @@ import io.qbeast.core.model.{
   mapper
 }
 import io.qbeast.spark.utils.{MetadataConfig, TagColumns}
-import org.apache.spark.sql.{AnalysisExceptionFactory, Dataset, SparkSession}
+import org.apache.spark.sql.{AnalysisExceptionFactory, Dataset}
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.functions.lit
