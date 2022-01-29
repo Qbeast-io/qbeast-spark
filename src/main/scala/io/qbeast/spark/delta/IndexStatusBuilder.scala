@@ -80,7 +80,7 @@ object IndexStatusBuilder {
   val weight: UserDefinedFunction = udf((weight: Int) => Weight(weight))
 
   val norm: UserDefinedFunction = udf((mw: Weight, elementCount: Long, desiredSize: Int) =>
-    if (mw == Weight.MaxValue) {
+    if (mw < Weight.MaxValue) {
       mw.fraction
     } else {
       NormalizedWeight.apply(desiredSize, elementCount)
