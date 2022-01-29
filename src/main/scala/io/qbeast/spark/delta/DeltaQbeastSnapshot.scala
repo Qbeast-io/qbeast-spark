@@ -4,20 +4,12 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.IISeq
-import io.qbeast.core.model.{
-  IndexStatus,
-  QbeastBlock,
-  QbeastSnapshot,
-  ReplicatedSet,
-  Revision,
-  RevisionID,
-  mapper
-}
+import io.qbeast.core.model._
 import io.qbeast.spark.utils.{MetadataConfig, TagColumns}
-import org.apache.spark.sql.{AnalysisExceptionFactory, Dataset, SparkSession}
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.{AnalysisExceptionFactory, Dataset}
 
 /**
  * Qbeast Snapshot that provides information about the current index state.

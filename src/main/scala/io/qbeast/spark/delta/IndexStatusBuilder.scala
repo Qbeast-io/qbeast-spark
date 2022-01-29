@@ -26,9 +26,17 @@ private[delta] class IndexStatusBuilder(
    * Dataset of files belonging to the specific revision
    * @return the dataset of AddFile actions
    */
-  def revisionFiles: Dataset[QbeastBlock] =
+  def revisionFiles: Dataset[(String, QbeastBlock)] = {
     // this must be external to the lambda, to avoid SerializationErrors
-    qbeastSnapshot.loadRevisionBlocks(revision.revisionID)
+    val spark = SparkSession.active
+    import spark.implicits._
+    qbeastSnapshot
+      .loadRevisionBlocks(revision.revisionID)
+      .map(addFile =>
+        (
+          addFile.tags("cube"),
+          QbeastBlock(addFile.path, addFile.tags, addFile.size, addFile.modificationTime)))
+  }
 
   def build(): IndexStatus = {
     IndexStatus(
@@ -49,12 +57,12 @@ private[delta] class IndexStatusBuilder(
     val rev = revision
     val builder = SortedMap.newBuilder[CubeId, CubeStatus]
     revisionFiles
-      .groupByKey(_.cube)
+      .groupByKey(_._1)
       .mapGroups((cube, f) => {
         var minMaxWeight = Int.MaxValue
         var elementCount = 0L
         val files = Vector.newBuilder[QbeastBlock]
-        for (file <- f) {
+        for ((_, file) <- f) {
           elementCount += file.elementCount
           val maxWeight = file.maxWeight.value
           if (maxWeight < minMaxWeight) {
@@ -62,16 +70,18 @@ private[delta] class IndexStatusBuilder(
           }
           files += file
         }
+        val cubeId = rev.createCubeId(cube)
         val cubeStatus = if (minMaxWeight == Int.MaxValue) {
           CubeStatus(
+            cubeId,
             Weight.MaxValue,
             NormalizedWeight(rev.desiredCubeSize, elementCount),
             files.result())
         } else {
           val w = Weight(minMaxWeight)
-          CubeStatus(w, NormalizedWeight(w), files.result())
+          CubeStatus(cubeId, w, NormalizedWeight(w), files.result())
         }
-        (rev.createCubeId(cube), cubeStatus)
+        (cubeStatus.cubeId, cubeStatus)
       })
       .collect()
       .foreach(builder += _)
