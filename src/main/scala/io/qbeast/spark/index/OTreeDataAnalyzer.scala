@@ -9,8 +9,7 @@ import io.qbeast.core.transform.{ColumnStats, Transformer}
 import io.qbeast.spark.index.QbeastColumns.{cubeToReplicateColumnName, weightColumnName}
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
 import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
-import org.apache.spark.sql.expressions.UserDefinedFunction
-import org.apache.spark.sql.functions.{col, udaf}
+import org.apache.spark.sql.functions.{col, lit, sum}
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
 /**
@@ -37,7 +36,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
   /**
    * Estimates MaxWeight on DataFrame
    */
-  private val maxWeightEstimation: UserDefinedFunction = udaf(MaxWeightEstimation)
 
   private[index] def calculateRevisionChanges(
       columnStats: Seq[ColumnStats],
@@ -89,7 +87,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       // These column names are the ones specified in case class CubeNormalizedWeight
       partitionedEstimatedCubeWeights
         .groupBy("cubeBytes")
-        .agg(maxWeightEstimation(col("normalizedWeight")))
+        .agg(lit(1) / sum(lit(1.0) / col("normalizedWeight")))
         .map { row =>
           val bytes = row.getAs[Array[Byte]](0)
           val estimatedWeight = row.getAs[Double](1)
