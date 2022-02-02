@@ -7,10 +7,11 @@ object HashTransformer extends TransformerType {
 
 }
 
-case class HashTransformer(columnName: String, override val dataType: QDataType)
-    extends Transformer {
+case class HashTransformer(columnName: String, dataType: QDataType) extends Transformer {
   override protected def transformerType: TransformerType = HashTransformer
 
-  override def makeTransformation(columnStats: ColumnStats): Transformation = HashTransformation()
+  override def stats: ColumnStats = NoColumnStats
+
+  override def makeTransformation(row: String => Any): Transformation = HashTransformation()
 
 }
