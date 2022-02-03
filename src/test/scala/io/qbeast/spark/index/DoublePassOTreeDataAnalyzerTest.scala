@@ -54,9 +54,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
     val dataFrameStats = getDataFrameStats(dataFrame, columnTransformers)
     val revision =
-      calculateRevisionChanges(
-        dataFrameStats.transformations,
-        emptyRevision).get.createNewRevision
+      calculateRevisionChanges(dataFrameStats, emptyRevision).get.createNewRevision
 
     revision.revisionID shouldBe 1L
     revision.columnTransformers.size shouldBe 1
@@ -88,9 +86,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
     val dataFrameStats = getDataFrameStats(dataFrame.toDF(), columnTransformers)
     val revision =
-      calculateRevisionChanges(
-        dataFrameStats.transformations,
-        emptyRevision).get.createNewRevision
+      calculateRevisionChanges(dataFrameStats, emptyRevision).get.createNewRevision
 
     revision.columnTransformers.length shouldBe columnsToIndex.length
     revision.transformations.length shouldBe columnsToIndex.length
@@ -108,7 +104,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
     val dataFrameStats = getDataFrameStats(dataFrame, columnTransformers)
     val revisionChanges =
-      calculateRevisionChanges(dataFrameStats.transformations, emptyRevision)
+      calculateRevisionChanges(dataFrameStats, emptyRevision)
     revisionChanges shouldBe defined
     revisionChanges.get.supersededRevision shouldBe emptyRevision
     revisionChanges.get.transformationsChanges.count(_.isDefined) shouldBe columnsToIndex.length
@@ -143,9 +139,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
     val dataFrameStats = getDataFrameStats(data.toDF(), columnTransformers)
     val revision =
-      calculateRevisionChanges(
-        dataFrameStats.transformations,
-        emptyRevision).get.createNewRevision
+      calculateRevisionChanges(dataFrameStats, emptyRevision).get.createNewRevision
 
     val spaceMultiplier = 2
     val newRevisionDataFrame =
@@ -157,7 +151,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
     val newDataFrameStats = getDataFrameStats(newRevisionDataFrame.toDF(), columnTransformers)
     val revisionChanges =
-      calculateRevisionChanges(newDataFrameStats.transformations, revision)
+      calculateRevisionChanges(newDataFrameStats, revision)
     val newRevision = revisionChanges.get.createNewRevision
 
     newRevision.revisionID shouldBe 2L
@@ -182,20 +176,14 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
       Revision(0, 1000, QTableID("test"), 1000, columnTransformers, Seq.empty.toIndexedSeq)
     val dataFrameStats = getDataFrameStats(data.toDF(), columnTransformers)
     val revision =
-      calculateRevisionChanges(
-        dataFrameStats.transformations,
-        emptyRevision).get.createNewRevision
+      calculateRevisionChanges(dataFrameStats, emptyRevision).get.createNewRevision
 
     val indexStatus = IndexStatus(revision, Set.empty)
     val weightedDataFrame =
       data.withColumn(weightColumnName, lit(scala.util.Random.nextInt()))
     val cubeNormalizedWeights =
       weightedDataFrame.transform(
-        estimatePartitionCubeWeights(
-          dataFrameStats.numElements,
-          revision,
-          indexStatus,
-          isReplication = false))
+        estimatePartitionCubeWeights(10000, revision, indexStatus, isReplication = false))
 
     val partitions = weightedDataFrame.rdd.getNumPartitions
 
@@ -218,20 +206,14 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
     val dataFrameStats = getDataFrameStats(data.toDF(), columnTransformers)
     val revision =
-      calculateRevisionChanges(
-        dataFrameStats.transformations,
-        emptyRevision).get.createNewRevision
+      calculateRevisionChanges(dataFrameStats, emptyRevision).get.createNewRevision
 
     val indexStatus = IndexStatus(revision, Set.empty)
     val weightedDataFrame =
       data.withColumn(weightColumnName, lit(scala.util.Random.nextInt()))
     val cubeNormalizedWeights =
       weightedDataFrame.transform(
-        estimatePartitionCubeWeights(
-          dataFrameStats.numElements,
-          revision,
-          indexStatus,
-          isReplication = false))
+        estimatePartitionCubeWeights(10000, revision, indexStatus, isReplication = false))
 
     val cubeWeights = cubeNormalizedWeights.transform(estimateCubeWeights(revision))
     cubeWeights.columns.length shouldBe 2
