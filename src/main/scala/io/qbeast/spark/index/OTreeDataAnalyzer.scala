@@ -46,29 +46,24 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
    */
   private[index] def getDataFrameStats(
       data: DataFrame,
-      columnTransformers: IISeq[Transformer]): Array[Row] = {
+      columnTransformers: IISeq[Transformer]): Row = {
     val columnStats = columnTransformers.map(_.stats)
-    val columnsExpr = columnStats.flatMap(_.columns)
-    data.selectExpr(columnsExpr ++ Seq("count(1) AS count"): _*).collect()
+    val columnsExpr = columnStats.flatMap(_.aggregations)
+    data.selectExpr(columnsExpr ++ Seq("count(1) AS count"): _*).first()
   }
 
   /**
    * Given a Row with Statistics, outputs the RevisionChange
-   * @param rows
-   * @param revision
+   * @param row the row with statistics
+   * @param revision the current revision
    * @return
    */
   private[index] def calculateRevisionChanges(
-      rows: Array[Row],
+      row: Row,
       revision: Revision): Option[RevisionChange] = {
 
-    val row = rows.head
-    val newTransformation = if (row.size == 1) {
-      revision.columnTransformers.map(_.makeTransformation(identity))
-    } else {
+    val newTransformation =
       revision.columnTransformers.map(_.makeTransformation(colName => row.getAs[Object](colName)))
-
-    }
 
     val transformationDelta = if (revision.transformations.isEmpty) {
       newTransformation.map(a => Some(a))
@@ -176,11 +171,11 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     val columnTransformers = indexStatus.revision.columnTransformers
     val dataFrameStats = getDataFrameStats(dataFrame, columnTransformers)
 
-    if (dataFrameStats.isEmpty) {
+    val numElements = dataFrameStats.getAs[Long]("count")
+    if (numElements == 0) {
       throw new RuntimeException(
         "The DataFrame is empty, why are you trying to index an empty dataset?")
     }
-    val numElements = dataFrameStats.head.getAs[Long]("count")
 
     val spaceChanges =
       if (isReplication) None
