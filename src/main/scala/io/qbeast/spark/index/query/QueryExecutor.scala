@@ -16,29 +16,25 @@ import scala.collection.mutable
 class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSnapshot) {
 
   /**
-   * Executes the query given a previous matched files
-   * @param previouslyMatchedFiles the sequence of files that have already been matched
-   * @return the final sequence of files that match the query
+   * Executes the query
+   * @return the final sequence of blocks that match the query
    */
-  def execute(previouslyMatchedFiles: Seq[QbeastFile]): Seq[QbeastFile] = {
+  def execute(): Seq[QbeastBlock] = {
 
     qbeastSnapshot.loadAllRevisions.flatMap { revision =>
       val querySpec = querySpecBuilder.build(revision)
       val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
 
-      val matchingFiles = executeRevision(querySpec, indexStatus, previouslyMatchedFiles)
-      matchingFiles
+      val matchingBlocks = executeRevision(querySpec, indexStatus)
+      matchingBlocks
     }
   }
 
   private[query] def executeRevision(
       querySpec: QuerySpec,
-      indexStatus: IndexStatus,
-      previouslyMatchedFiles: Seq[QbeastFile]): IISeq[QbeastFile] = {
+      indexStatus: IndexStatus): IISeq[QbeastBlock] = {
 
-    val fileMap = previouslyMatchedFiles.map(a => (a.path, a)).toMap
-
-    val outputFiles = Vector.newBuilder[QbeastFile]
+    val outputFiles = Vector.newBuilder[QbeastBlock]
     val stack = mutable.Stack(indexStatus.revision.createCubeIdRoot())
     while (stack.nonEmpty) {
       val currentCube = stack.pop()
@@ -51,12 +47,12 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
       // 4. empty, the currentCube is the right-most cube in the tree and it is not in cubesStatuses
       if (cubeIter.hasNext) { // cases 1 to 3
         cubeIter.next() match {
-          case (cube, CubeStatus(maxWeight, _, files)) if cube == currentCube => // Case 1
+          case (cube, CubeStatus(_, maxWeight, _, files)) if cube == currentCube => // Case 1
             val unfilteredFiles = if (querySpec.weightRange.to < maxWeight) {
               // cube maxWeight is larger than the sample fraction, weightRange.to,
               // it means that currentCube is the last cube to visit from the current branch.
               // All files are retrieved and no more cubes from the branch will be visited.
-              files.flatMap(fileMap.get)
+              files
             } else {
               // Otherwise,
               // 1. if the currentCube is REPLICATED, we skip the cube
@@ -68,9 +64,9 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
                 if (isReplicated) {
                   Vector.empty
                 } else if (isAnnounced) {
-                  files.flatMap(fileMap.get).filterNot(_.state == State.ANNOUNCED)
+                  files.filterNot(_.state == State.ANNOUNCED)
                 } else {
-                  files.flatMap(fileMap.get)
+                  files
                 }
               val nextLevel = cube.children
                 .filter(querySpec.querySpace.intersectsWith)
