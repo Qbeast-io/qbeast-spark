@@ -1,7 +1,7 @@
 package io.qbeast.spark.index.query
 
 import io.qbeast.TestClasses.T2
-import io.qbeast.core.model.{QbeastFile, Weight, WeightRange}
+import io.qbeast.core.model.{QbeastBlock, Weight, WeightRange}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
@@ -50,9 +50,9 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
     val queryExecutor = new QueryExecutor(querySpec, qbeastSnapshot)
 
     val allDeltaFiles = deltaLog.snapshot.allFiles.collect()
-    val allFiles = allDeltaFiles.map(a => QbeastFile(a.path, a.tags))
+    val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute(allFiles)
+    val matchFiles = queryExecutor.execute().map(_.path)
 
     val diff = allFiles.toSet -- matchFiles.toSet
 
@@ -75,9 +75,9 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
     val queryExecutor = new QueryExecutor(querySpec, qbeastSnapshot)
 
     val allDeltaFiles = deltaLog.snapshot.allFiles.collect()
-    val allFiles = allDeltaFiles.map(a => QbeastFile(a.path, a.tags))
+    val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute(allFiles)
+    val matchFiles = queryExecutor.execute().map(_.path)
 
     matchFiles.size shouldBe <(allFiles.length)
     matchFiles.foreach(file => allFiles should contain(file))
@@ -97,9 +97,9 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
     val queryExecutor = new QueryExecutor(querySpec, qbeastSnapshot)
 
     val allDeltaFiles = deltaLog.snapshot.allFiles.collect()
-    val allFiles = allDeltaFiles.map(a => QbeastFile(a.path, a.tags))
+    val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute(allFiles)
+    val matchFiles = queryExecutor.execute().map(_.path)
 
     matchFiles.size shouldBe <(allFiles.length)
     matchFiles.foreach(file => allFiles should contain(file))
@@ -129,9 +129,9 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
     val queryExecutor = new QueryExecutor(querySpec, qbeastSnapshot)
 
     val allDeltaFiles = deltaLog.snapshot.allFiles.collect()
-    val allFiles = allDeltaFiles.map(a => QbeastFile(a.path, a.tags))
+    val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute(allFiles)
+    val matchFiles = queryExecutor.execute().map(_.path)
 
     val diff = allFiles.toSet -- matchFiles.toSet
     diff.size shouldBe 0
@@ -156,9 +156,9 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
       val queryExecutor = new QueryExecutor(querySpecBuilder, qbeastSnapshot)
 
       val allDeltaFiles = deltaLog.snapshot.allFiles.collect()
-      val allFiles = allDeltaFiles.map(a => QbeastFile(a.path, a.tags))
+      val allFiles = allDeltaFiles.map(_.path)
 
-      val matchFiles = queryExecutor.execute(allFiles)
+      val matchFiles = queryExecutor.execute().map(_.path)
       val diff = allFiles.toSet -- matchFiles.toSet
 
       // scalastyle:off println
@@ -166,10 +166,13 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
         s"Number of files: ${allFiles.length}, Matching files: ${matchFiles.length}, " +
           s"Skipped files: ${diff.size}")
 
-      for (f <- allFiles) {
+      val allQbeastFiles = allDeltaFiles.map(addFile =>
+        QbeastBlock(addFile.path, addFile.tags, addFile.size, addFile.modificationTime))
+
+      for (f <- allQbeastFiles) {
         if (f.maxWeight < weightRange.from) {
-          diff should contain(f)
-          matchFiles should not contain (f)
+          diff should contain(f.path)
+          matchFiles should not contain (f.path)
         }
       }
     })

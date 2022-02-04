@@ -123,27 +123,27 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
    * @tparam T the test result type
    * @return the test result
    */
-  def withQbeastContext[T](
-      keeper: Keeper = LocalKeeper,
-      config: SparkConf = SparkSession.active.sparkContext.getConf)(testCode: => T): T = {
-    val indexedTableFactory = new IndexedTableFactoryImpl(
-      keeper,
-      SparkOTreeManager,
-      SparkDeltaMetadataManager,
-      SparkDataWriter,
-      SparkRevisionFactory)
-    val context = new QbeastContextImpl(config, keeper, indexedTableFactory)
-    try {
-      QbeastContext.setUnmanaged(context)
-      testCode
-    } finally {
-      QbeastContext.unsetUnmanaged()
+  def withQbeastAndSparkContext[T](keeper: Keeper = LocalKeeper)(
+      testCode: SparkSession => T): T = {
+    withSpark { spark =>
+      val indexedTableFactory = new IndexedTableFactoryImpl(
+        keeper,
+        SparkOTreeManager,
+        SparkDeltaMetadataManager,
+        SparkDataWriter,
+        SparkRevisionFactory)
+      val context = new QbeastContextImpl(spark.sparkContext.getConf, keeper, indexedTableFactory)
+      try {
+        QbeastContext.setUnmanaged(context)
+        testCode(spark)
+      } finally {
+        QbeastContext.unsetUnmanaged()
+      }
     }
   }
 
-  def withQbeastContextSparkAndTmpDir[T](testCode: (SparkSession, String) => T): T = {
-    withSpark(spark => withQbeastContext()(withTmpDir(tmpDir => testCode(spark, tmpDir))))
-  }
+  def withQbeastContextSparkAndTmpDir[T](testCode: (SparkSession, String) => T): T =
+    withTmpDir(tmpDir => withQbeastAndSparkContext()(spark => testCode(spark, tmpDir)))
 
   def withOTreeAlgorithm[T](code: IndexManager[DataFrame] => T): T = {
     code(SparkOTreeManager)

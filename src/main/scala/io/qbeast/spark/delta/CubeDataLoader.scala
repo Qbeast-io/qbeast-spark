@@ -4,7 +4,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model.{CubeId, QTableID, Revision}
-import io.qbeast.spark.utils.{State, TagUtils}
+import io.qbeast.spark.utils.{State, TagColumns}
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -61,10 +61,10 @@ case class CubeDataLoader(tableID: QTableID) {
   def loadCubeData(cube: CubeId, revision: Revision): DataFrame = {
 
     val cubeBlocks = snapshot.allFiles
-      .filter(file =>
-        file.tags(TagUtils.revision) == revision.revisionID.toString &&
-          cube.string == file.tags(TagUtils.cube) &&
-          file.tags(TagUtils.state) != State.ANNOUNCED)
+      .where(
+        TagColumns.revision === lit(revision.revisionID.toString) &&
+          TagColumns.cube === lit(cube.string) &&
+          TagColumns.state != lit(State.ANNOUNCED))
       .collect()
 
     val fileNames = cubeBlocks.map(f => new Path(tableID.id, f.path).toString)
