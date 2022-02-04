@@ -28,8 +28,8 @@ case class LinearTransformer(columnName: String, dataType: QDataType) extends Tr
 
   override def stats: ColumnStats =
     ColumnStats(
-      columns = Seq(colMax, colMin),
-      aggregations = Seq(s"max($columnName) AS $colMax", s"min($columnName) AS $colMin"))
+      statsNames = Seq(colMax, colMin),
+      statsSqlPredicates = Seq(s"max($columnName) AS $colMax", s"min($columnName) AS $colMin"))
 
   override def makeTransformation(row: String => Any): Transformation = {
     val min = getValue(row(colMin))

@@ -122,15 +122,16 @@ object NoColumnStats extends ColumnStats(Nil, Nil)
 
 /**
  * Stores the stats of the column
- * @param columns the names of the stats
- * @param aggregations the stats column operation
+ * @param statsNames the names of the stats
+ * @param statsSqlPredicates the stats column predicates
  */
-case class ColumnStats(columns: Seq[String], aggregations: Seq[String]) extends Serializable {
+case class ColumnStats(statsNames: Seq[String], statsSqlPredicates: Seq[String])
+    extends Serializable {
 
   /**
    * Gets the values of the stats
    * @param row the row of values
    * @return the stats values
    */
-  def getValues(row: Map[String, Any]): Seq[Any] = columns.map(column => row(column))
+  def getValues(row: Map[String, Any]): Seq[Any] = statsNames.map(column => row(column))
 }

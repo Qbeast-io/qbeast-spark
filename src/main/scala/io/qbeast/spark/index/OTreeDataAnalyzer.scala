@@ -48,7 +48,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       data: DataFrame,
       columnTransformers: IISeq[Transformer]): Row = {
     val columnStats = columnTransformers.map(_.stats)
-    val columnsExpr = columnStats.flatMap(_.aggregations)
+    val columnsExpr = columnStats.flatMap(_.statsSqlPredicates)
     data.selectExpr(columnsExpr ++ Seq("count(1) AS count"): _*).first()
   }
 
