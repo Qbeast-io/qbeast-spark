@@ -4,16 +4,7 @@
 package io.qbeast.core.transform
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import io.qbeast.core.model.{
-  DecimalDataType,
-  DoubleDataType,
-  FloatDataType,
-  IntegerDataType,
-  LongDataType,
-  OrderedDataType,
-  QDataType,
-  StringDataType
-}
+import io.qbeast.core.model.{OrderedDataType, QDataType, StringDataType}
 
 import java.util.Locale
 
@@ -85,34 +76,34 @@ trait Transformer extends Serializable {
   protected def transformerType: TransformerType
 
   /**
-   * Returns the data type of the transformer
-   * @return
-   */
-  def dataType: QDataType
-
-  /**
    * Returns the name of the column
    * @return
    */
   def columnName: String
 
   /**
+   * Returns the stats
+   * @return
+   */
+  def stats: ColumnStats
+
+  /**
    * Returns the Transformation given a row representation of the values
-   * @param columnStats the column stats for the transformation
+   * @param row the values
    * @return the transformation
    */
-  def makeTransformation(columnStats: ColumnStats): Transformation
+  def makeTransformation(row: String => Any): Transformation
 
   /**
    * Returns the new Transformation if the space has changed
    * @param currentTransformation the current transformation
-   * @param columnStats the column stats for the transformation
+   * @param row the row containing the new space values
    * @return an optional new transformation
    */
   def maybeUpdateTransformation(
       currentTransformation: Transformation,
-      columnStats: ColumnStats): Option[Transformation] = {
-    val newDataTransformation = makeTransformation(columnStats)
+      row: Map[String, Any]): Option[Transformation] = {
+    val newDataTransformation = makeTransformation(row)
     if (currentTransformation.isSupersededBy(newDataTransformation)) {
       Some(currentTransformation.merge(newDataTransformation))
     } else {
@@ -127,39 +118,20 @@ trait Transformer extends Serializable {
 /**
  * Empty ColumnStats
  */
-object NoColumnStats extends ColumnStats(Nil, Nil, 0, 0.0, Nil)
+object NoColumnStats extends ColumnStats(Nil, Nil)
 
 /**
  * Stores the stats of the column
- * @param min    min value of the column
- * @param max    max value of the column
- * @param count  number of values in the column
- * @param stddev standard deviation of the column
- * @param mean   mean of the column
+ * @param statsNames the names of the stats
+ * @param statsSqlPredicates the stats column predicates
  */
-case class ColumnStats(min: Any, max: Any, count: Long, stddev: Double, mean: Any)
-    extends Serializable {}
+case class ColumnStats(statsNames: Seq[String], statsSqlPredicates: Seq[String])
+    extends Serializable {
 
-object ColumnStats {
-
-  def apply(stats: Map[String, String], dataType: QDataType): ColumnStats = {
-
-    val min = stats("min")
-    val max = stats("max")
-    val count = stats("count").toLong
-    val stddev = stats("stddev").toDouble
-    val mean = stats("mean").toDouble
-
-    val (minVal, maxVal) = dataType match {
-      case DoubleDataType => (min.toDouble, max.toDouble)
-      case IntegerDataType => (min.toInt, max.toInt)
-      case LongDataType => (min.toLong, max.toLong)
-      case FloatDataType => (min.toFloat, max.toFloat)
-      case DecimalDataType => (min.toDouble, max.toDouble)
-      case StringDataType => (Nil, Nil)
-    }
-
-    ColumnStats(minVal, maxVal, count, stddev, mean)
-  }
-
+  /**
+   * Gets the values of the stats
+   * @param row the row of values
+   * @return the stats values
+   */
+  def getValues(row: Map[String, Any]): Seq[Any] = statsNames.map(column => row(column))
 }

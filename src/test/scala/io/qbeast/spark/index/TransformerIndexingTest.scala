@@ -96,6 +96,23 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   })
 
+  it should "index tables with non-numeric string" in withSparkAndTmpDir((spark, tmpDir) => {
+
+    import spark.implicits._
+    val source = 0
+      .to(100000)
+      .map(i => TestStrings(s"some_string$i", s"some_other_string$i", i.toString))
+      .toDF()
+      .as[TestStrings]
+
+    val indexed = writeAndReadDF(source, tmpDir, spark).as[TestStrings]
+
+    indexed.count() shouldBe source.count()
+
+    assertSmallDatasetEquality(source, indexed, ignoreNullable = true, orderedComparison = false)
+
+  })
+
   it should "index tables with all Double" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
     val source = 0

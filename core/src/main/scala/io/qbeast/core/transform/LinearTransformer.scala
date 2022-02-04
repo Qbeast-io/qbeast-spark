@@ -15,19 +15,25 @@ object LinearTransformer extends TransformerType {
  * @param columnName the column name
  * @param dataType the data type of the column
  */
-case class LinearTransformer(columnName: String, override val dataType: QDataType)
-    extends Transformer {
+case class LinearTransformer(columnName: String, dataType: QDataType) extends Transformer {
+  private def colMax = s"${columnName}_max"
+  private def colMin = s"${columnName}_min"
 
-  private def getValue(value: Any): Any = {
-    value match {
+  private def getValue(row: Any): Any = {
+    row match {
       case d: java.math.BigDecimal => d.doubleValue()
       case other => other
     }
   }
 
-  override def makeTransformation(columnStats: ColumnStats): Transformation = {
-    val min = getValue(columnStats.min)
-    val max = getValue(columnStats.max)
+  override def stats: ColumnStats =
+    ColumnStats(
+      statsNames = Seq(colMax, colMin),
+      statsSqlPredicates = Seq(s"max($columnName) AS $colMax", s"min($columnName) AS $colMin"))
+
+  override def makeTransformation(row: String => Any): Transformation = {
+    val min = getValue(row(colMin))
+    val max = getValue(row(colMax))
     assert(min != null && max != null)
     dataType match {
       case ordered: OrderedDataType =>
