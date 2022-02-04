@@ -32,12 +32,11 @@ class QbeastTable private (
 
   private def indexedTable: IndexedTable = indexedTableFactory.getIndexedTable(tableID)
 
-  private def getAvailableRevision(revisionID: Option[RevisionID]): RevisionID = {
-    revisionID match {
-      case Some(id) if qbeastSnapshot.existsRevision(id) =>
-        id
-      case None => qbeastSnapshot.loadLatestRevision.revisionID
-    }
+  private def latestRevisionAvailable = qbeastSnapshot.loadLatestRevision.revisionID
+
+  private def getAvailableRevision(revisionID: RevisionID): RevisionID = {
+    if (qbeastSnapshot.existsRevision(revisionID)) revisionID
+    else latestRevisionAvailable
   }
 
   /**
@@ -46,7 +45,7 @@ class QbeastTable private (
    * @param revisionID the identifier of the revision to optimize.
    *                          If doesn't exist or none is specified, would be the last available
    */
-  def optimize(revisionID: Option[RevisionID] = None): Unit = {
+  def optimize(revisionID: RevisionID = -1L): Unit = {
     OptimizeTableCommand(getAvailableRevision(revisionID), indexedTable)
       .run(sparkSession)
 
@@ -59,10 +58,50 @@ class QbeastTable private (
    *                          If doesn't exist or none is specified, would be the last available
    * @return the sequence of cubes to optimize in string representation
    */
-  def analyze(revisionID: Option[RevisionID] = None): Seq[String] = {
+  def analyze(revisionID: RevisionID = -1L): Seq[String] = {
     AnalyzeTableCommand(getAvailableRevision(revisionID), indexedTable)
       .run(sparkSession)
       .map(_.getString(0))
+  }
+
+  /**
+   * Outputs the indexed columns of the table
+   * @param revisionID the identifier of the revision.
+   *                          If doesn't exist or none is specified, would be the last available
+   * @return
+   */
+  def indexedColumns(revisionID: RevisionID = -1L): Seq[String] = {
+    val revID = getAvailableRevision(revisionID)
+    qbeastSnapshot.loadRevision(revID).columnTransformers.map(_.columnName)
+  }
+
+  /**
+   * Outputs the cubeSize of the table
+   * @param revisionID the identifier of the revision.
+   *                          If doesn't exist or none is specified, would be the last available
+   * @return
+   */
+  def cubeSize(revisionID: RevisionID = -1L): Int = {
+    val revID = getAvailableRevision(revisionID)
+    qbeastSnapshot.loadRevision(revID).desiredCubeSize
+  }
+
+  /**
+   * Outputs all the revision identifiers available for the table
+   * @return
+   */
+
+  def revisions(): Seq[RevisionID] = {
+    qbeastSnapshot.loadAllRevisions.map(_.revisionID)
+  }
+
+  /**
+   * Outputs the identifier of the latest revision available
+   * @return
+   */
+
+  def latestRevision(): RevisionID = {
+    qbeastSnapshot.loadLatestRevision.revisionID
   }
 
 }
