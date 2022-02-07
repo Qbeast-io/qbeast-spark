@@ -6,7 +6,7 @@ package io.qbeast.core.model
  * @param announcedOrReplicatedSet the set of cubes in announced or replicated state
  */
 class PointWeightIndexer(
-    val cubeWeights: Map[CubeId, Weight],
+    val tableChanges: TableChanges,
     val announcedOrReplicatedSet: Set[CubeId])
     extends Serializable {
 
@@ -31,7 +31,7 @@ class PointWeightIndexer(
     var continue = true
     while (continue && containers.hasNext) {
       val cubeId = containers.next()
-      cubeWeights.get(cubeId) match {
+      tableChanges.cubeWeights(cubeId) match {
         case Some(cubeWeight) if weight <= cubeWeight =>
           builder += cubeId
           continue = announcedOrReplicatedSet.contains(cubeId)
@@ -55,6 +55,6 @@ object PointWeightIndexer {
    * @return the PointWeightIndexer
    */
   def apply(changes: TableChanges): PointWeightIndexer =
-    new PointWeightIndexer(changes.cubeWeights, changes.announcedOrReplicatedSet)
+    new PointWeightIndexer(changes, changes.announcedOrReplicatedSet)
 
 }

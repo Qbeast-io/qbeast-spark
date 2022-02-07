@@ -6,6 +6,7 @@ package io.qbeast.spark.index
 import io.qbeast.IISeq
 import io.qbeast.core.model._
 import io.qbeast.core.transform.Transformer
+import io.qbeast.io.qbeast.core.model.BroadcastedTableChanges
 import io.qbeast.spark.index.QbeastColumns.{cubeToReplicateColumnName, weightColumnName}
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
 import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
@@ -205,14 +206,12 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         .toMap
 
     // Gather the new changes
-    val tableChanges = TableChanges(
+    val tableChanges = BroadcastedTableChanges(
       spaceChanges,
-      IndexStatusChange(
-        indexStatus,
-        estimatedCubeWeights,
-        deltaReplicatedSet =
-          if (isReplication) indexStatus.cubesToOptimize
-          else Set.empty[CubeId]))
+      indexStatus,
+      estimatedCubeWeights,
+      if (isReplication) indexStatus.cubesToOptimize
+      else Set.empty[CubeId])
 
     (weightedDataFrame, tableChanges)
   }

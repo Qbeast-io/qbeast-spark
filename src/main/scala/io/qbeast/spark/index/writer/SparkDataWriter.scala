@@ -6,7 +6,7 @@ package io.qbeast.spark.index.writer
 import io.qbeast.IISeq
 import io.qbeast.core.model.{DataWriter, QTableID, TableChanges}
 import io.qbeast.spark.index.QbeastColumns
-import io.qbeast.spark.index.QbeastColumns.{cubeColumnName, stateColumnName}
+import io.qbeast.spark.index.QbeastColumns.cubeColumnName
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.delta.actions.FileAction
@@ -49,7 +49,7 @@ object SparkDataWriter extends DataWriter[DataFrame, StructType, FileAction] {
         qbeastColumns = qbeastColumns,
         tableChanges = tableChanges)
     qbeastData
-      .repartition(col(cubeColumnName), col(stateColumnName))
+      .repartition(col(cubeColumnName))
       .queryExecution
       .executedPlan
       .execute

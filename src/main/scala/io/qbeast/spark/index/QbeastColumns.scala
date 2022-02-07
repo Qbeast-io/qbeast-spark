@@ -22,11 +22,6 @@ object QbeastColumns {
   val cubeColumnName = "_qbeastCube"
 
   /**
-   * State column name.
-   */
-  val stateColumnName = "_qbeastState"
-
-  /**
    * Revision column name.
    */
   val revisionColumnName = "_qbeastRevision"
@@ -36,12 +31,8 @@ object QbeastColumns {
    */
   val cubeToReplicateColumnName = "_qbeastCubeToReplicate"
 
-  val columnNames = Set(
-    weightColumnName,
-    cubeColumnName,
-    stateColumnName,
-    revisionColumnName,
-    cubeToReplicateColumnName)
+  val columnNames =
+    Set(weightColumnName, cubeColumnName, revisionColumnName, cubeToReplicateColumnName)
 
   /**
    * Creates an instance for a given data frame.
@@ -62,7 +53,6 @@ object QbeastColumns {
     QbeastColumns(
       weightColumnIndex = columnIndexes.getOrElse(weightColumnName, -1),
       cubeColumnIndex = columnIndexes.getOrElse(cubeColumnName, -1),
-      stateColumnIndex = columnIndexes.getOrElse(stateColumnName, -1),
       revisionColumnIndex = columnIndexes.getOrElse(revisionColumnName, -1),
       cubeToReplicateColumnIndex = columnIndexes.getOrElse(cubeToReplicateColumnName, -1))
   }
@@ -105,7 +95,6 @@ object QbeastColumns {
 case class QbeastColumns(
     weightColumnIndex: Int,
     cubeColumnIndex: Int,
-    stateColumnIndex: Int,
     revisionColumnIndex: Int,
     cubeToReplicateColumnIndex: Int) {
 
@@ -118,7 +107,6 @@ case class QbeastColumns(
   def contains(columnIndex: Int): Boolean = {
     columnIndex == weightColumnIndex ||
     columnIndex == cubeColumnIndex ||
-    columnIndex == stateColumnIndex ||
     columnIndex == revisionColumnIndex ||
     columnIndex == cubeToReplicateColumnIndex
   }
@@ -136,13 +124,6 @@ case class QbeastColumns(
    * @return the cube column exists
    */
   def hasCubeColumn: Boolean = cubeColumnIndex >= 0
-
-  /**
-   * Returns whether the state column exists.
-   *
-   * @return the state column exists
-   */
-  def hasStateColumn: Boolean = stateColumnIndex >= 0
 
   /**
    * Returns whether the revision column exists.

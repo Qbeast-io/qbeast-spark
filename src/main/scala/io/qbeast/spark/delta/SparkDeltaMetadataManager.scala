@@ -36,10 +36,6 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction]
 
   override def updateRevision(tableID: QTableID, revisionChange: RevisionChange): Unit = {}
 
-  override def updateIndexStatus(
-      tableID: QTableID,
-      indexStatusChange: IndexStatusChange): Unit = {}
-
   override def updateTable(tableID: QTableID, tableChanges: TableChanges): Unit = {}
 
   /**
