@@ -104,7 +104,7 @@ private[delta] case class DeltaMetadataWriter(
     }
     val rearrangeOnly = options.rearrangeOnly
 
-    val isOptimizeOperation: Boolean = tableChanges.deltaReplicatedSet.nonEmpty
+    val isOptimizeOperation: Boolean = tableChanges.isOptimizeOperation
 
     // The Metadata can be updated only once in a single transaction
     // If a new space revision or a new replicated set is detected,

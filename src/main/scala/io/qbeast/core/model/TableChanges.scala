@@ -3,6 +3,7 @@
  */
 package io.qbeast.core.model
 
+import io.qbeast.spark.utils.State
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.SparkSession
 
@@ -50,25 +51,37 @@ object BroadcastedTableChanges {
 
     BroadcastedTableChanges(
       isNewRevision = revisionChanges.isDefined,
-      deltaReplicatedSet = deltaReplicatedSet,
-      cubeWeights = SparkSession.active.sparkContext.broadcast(cubeWeights),
+      isOptimizeOperation = deltaReplicatedSet.nonEmpty,
       updatedRevision = updatedRevision,
+      deltaReplicatedSet = deltaReplicatedSet,
       announcedSet = announcedSet,
-      replicatedSet = replicatedSet)
+      replicatedSet = replicatedSet,
+      cubeWeights = SparkSession.active.sparkContext.broadcast(cubeWeights))
   }
 
 }
 
 case class BroadcastedTableChanges(
     isNewRevision: Boolean,
-    deltaReplicatedSet: Set[CubeId],
-    cubeWeights: Broadcast[Map[CubeId, Weight]],
+    isOptimizeOperation: Boolean,
     updatedRevision: Revision,
+    deltaReplicatedSet: Set[CubeId],
     announcedSet: Set[CubeId],
-    replicatedSet: Set[CubeId])
+    replicatedSet: Set[CubeId],
+    cubeWeights: Broadcast[Map[CubeId, Weight]])
     extends TableChanges {
 
   override val announcedOrReplicatedSet: Set[CubeId] = announcedSet ++ replicatedSet
 
   override def cubeWeights(cubeId: CubeId): Option[Weight] = cubeWeights.value.get(cubeId)
+
+  override def cubeState(cubeId: CubeId): String =
+    if (announcedSet.contains(cubeId) && !replicatedSet.contains(cubeId)) {
+      State.ANNOUNCED
+    } else if (replicatedSet.contains(cubeId)) {
+      State.REPLICATED
+    } else {
+      State.FLOODED
+    }
+
 }

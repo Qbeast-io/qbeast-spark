@@ -234,10 +234,12 @@ object IndexStatus {
 
 trait TableChanges {
   val isNewRevision: Boolean
-  val deltaReplicatedSet: Set[CubeId]
+  val isOptimizeOperation: Boolean
   val updatedRevision: Revision
+  val deltaReplicatedSet: Set[CubeId]
   val replicatedSet: Set[CubeId]
   val announcedSet: Set[CubeId]
   val announcedOrReplicatedSet: Set[CubeId]
+  def cubeState(cubeId: CubeId): String
   def cubeWeights(cubeId: CubeId): Option[Weight]
 }
