@@ -27,8 +27,8 @@ object LinearTransformer extends TransformerType {
  */
 case class LinearTransformer(
     columnName: String,
-    override val dataType: QDataType,
-    override val optionalNullValue: Option[Any])
+    dataType: QDataType,
+    optionalNullValue: Option[Any])
     extends Transformer {
   private def colMax = s"${columnName}_max"
   private def colMin = s"${columnName}_min"
@@ -41,22 +41,23 @@ case class LinearTransformer(
   }
 
   private def generateRandomNumber(min: Any, max: Any): Any = {
+    val random = Random.nextDouble()
+
     dataType match {
       case DoubleDataType =>
-        min.asInstanceOf[Double] + (Random
-          .nextDouble() * (max.asInstanceOf[Double] - min.asInstanceOf[Double]))
+        min
+          .asInstanceOf[Double] + (random * (max.asInstanceOf[Double] - min.asInstanceOf[Double]))
       case IntegerDataType =>
-        min.asInstanceOf[Int] + (Random
-          .nextDouble() * (max.asInstanceOf[Int] - min.asInstanceOf[Int])).toInt
+        min.asInstanceOf[Int] + (random * (max.asInstanceOf[Int] - min.asInstanceOf[Int])).toInt
       case LongDataType =>
-        min.asInstanceOf[Long] + (Random
-          .nextDouble() * (max.asInstanceOf[Long] - min.asInstanceOf[Long])).toLong
+        min.asInstanceOf[Long] + (random * (max.asInstanceOf[Long] - min
+          .asInstanceOf[Long])).toLong
       case FloatDataType =>
-        min.asInstanceOf[Float] + (Random
-          .nextDouble() * (max.asInstanceOf[Float] - min.asInstanceOf[Float])).toFloat
+        min.asInstanceOf[Float] + (random * (max.asInstanceOf[Float] - min
+          .asInstanceOf[Float])).toFloat
       case DecimalDataType =>
-        min.asInstanceOf[Double] + (Random
-          .nextDouble() * (max.asInstanceOf[Double] - min.asInstanceOf[Double]))
+        min
+          .asInstanceOf[Double] + (random * (max.asInstanceOf[Double] - min.asInstanceOf[Double]))
     }
   }
 

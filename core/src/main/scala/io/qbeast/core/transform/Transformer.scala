@@ -4,7 +4,16 @@
 package io.qbeast.core.transform
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import io.qbeast.core.model.{OrderedDataType, QDataType, StringDataType}
+import io.qbeast.core.model.{
+  DecimalDataType,
+  DoubleDataType,
+  FloatDataType,
+  IntegerDataType,
+  LongDataType,
+  OrderedDataType,
+  QDataType,
+  StringDataType
+}
 
 import java.util.Locale
 
