@@ -65,6 +65,82 @@ class QbeastTable private (
       .map(_.getString(0))
   }
 
+  def getIndexMetrics(revisionID: Option[RevisionID] = None): IndexMetrics = {
+    val allCubeStatuses = qbeastSnapshot.loadLatestIndexStatus.cubesStatuses
+    val allCubeSizes = allCubeStatuses.flatMap(_._2.files.map(_.size))
+    val cubeCounts = allCubeStatuses.size
+    val maxCubeSize = allCubeSizes.max
+    val depth = allCubeStatuses.map(_._1.depth).max
+    val row_count = allCubeStatuses.flatMap(_._2.files.map(_.elementCount)).sum
+    val dimensionCount = allCubeStatuses.toList.head._1.dimensionCount
+    val desiredCubeSize = qbeastSnapshot.loadLatestRevision.desiredCubeSize
+
+    val nonLeafStatuses =
+      allCubeStatuses.filter(_._1.children.exists(allCubeStatuses.contains)).values
+    val nonLeafCubeSizes = nonLeafStatuses.flatMap(_.files.map(_.size)).toSeq
+    val nonLeafCubeSizeDeviation =
+      nonLeafCubeSizes
+        .map(cubeSize => math.pow(cubeSize - desiredCubeSize, 2) / nonLeafCubeSizes.size)
+        .sum
+
+    val fanOut = nonLeafStatuses.map(_.cubeId.children.count(allCubeStatuses.contains)).toSeq
+
+    val depthOverLogNumNodes = depth / logOfBase(dimensionCount, cubeCounts)
+    val depthOnBalance = depth / logOfBase(dimensionCount, row_count / desiredCubeSize)
+
+    val details = NonLeafCubeSizeDetails(
+      nonLeafCubeSizes.min,
+      nonLeafCubeSizes((nonLeafCubeSizes.size * 0.25).toInt),
+      nonLeafCubeSizes((nonLeafCubeSizes.size * 0.50).toInt),
+      nonLeafCubeSizes((nonLeafCubeSizes.size * 0.75).toInt),
+      nonLeafCubeSizes.max,
+      nonLeafCubeSizeDeviation)
+
+    val metadata = Metadata(
+      dimensionCount,
+      row_count,
+      depth,
+      cubeCounts,
+      maxCubeSize,
+      desiredCubeSize,
+      fanOut,
+      depthOverLogNumNodes,
+      depthOnBalance)
+
+    val cubeSizes = CubeSizes(allCubeSizes, nonLeafCubeSizes, details)
+    IndexMetrics(cubeSizes, metadata)
+  }
+
+  def logOfBase(base: Int, value: Double): Double = {
+    math.log10(value) / math.log10(base)
+  }
+
+  private case class IndexMetrics(cubeSizes: CubeSizes, metadata: Metadata)
+
+  private case class CubeSizes(
+      allCubeSizes: Iterable[Long],
+      nonLeafCubeSizes: Iterable[Long],
+      nonLeafCubeSizeDetails: NonLeafCubeSizeDetails)
+
+  private case class Metadata(
+      dimensionCount: Int,
+      row_count: Long,
+      depth: Int,
+      cubeCounts: Int,
+      maxCubeSize: Long,
+      desiredCubeSize: Int,
+      fanOut: Seq[Int],
+      depthOverLogNumNodes: Double,
+      depthOnBalance: Double)
+
+  private case class NonLeafCubeSizeDetails(
+      min: Long,
+      firstQuartile: Long,
+      secondQuartile: Long,
+      thirdQuartile: Long,
+      max: Long,
+      dev: Double)
+
 }
 
 object QbeastTable {
