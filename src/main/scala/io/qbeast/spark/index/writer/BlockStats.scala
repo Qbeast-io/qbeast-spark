@@ -18,6 +18,7 @@ case class BlockStats protected (
     cube: String,
     maxWeight: Weight,
     minWeight: Weight,
+    state: String,
     elementCount: Long) {
 
   /**
@@ -32,7 +33,7 @@ case class BlockStats protected (
   }
 
   override def toString: String =
-    s"BlocksStats($cube,$maxWeight,$minWeight,$elementCount)"
+    s"BlocksStats($cube,$maxWeight,$minWeight,$state,$elementCount)"
 
 }
 
@@ -48,7 +49,7 @@ object BlockStats {
    * @param maxWeight the maxWeight of the block
    * @return a new empty instance of BlockStats
    */
-  def apply(cube: String, maxWeight: Weight): BlockStats =
-    BlockStats(cube, maxWeight, minWeight = Weight.MaxValue, 0)
+  def apply(cube: String, state: String, maxWeight: Weight): BlockStats =
+    BlockStats(cube, maxWeight, minWeight = Weight.MaxValue, state, 0)
 
 }

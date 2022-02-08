@@ -4,7 +4,7 @@
 package io.qbeast.spark.index
 
 import io.qbeast.TestClasses.T1
-import io.qbeast.core.model._
+import io.qbeast.core.model.{BroadcastedTableChanges, _}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.core.transform.{HashTransformation, LinearTransformation}
@@ -20,7 +20,19 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
   it should "addState" in withSpark(spark => {
 
     import spark.implicits._
-    val addState = SparkPointWeightIndexer.addState(
+    val qid = QTableID("t")
+    val df = 0.to(10).map(a => T1(a, a.toString, a.toDouble)).toDF()
+    val rev = SparkRevisionFactory.createNewRevision(
+      qid,
+      df.schema,
+      Map(QbeastOptions.COLUMNS_TO_INDEX -> "a,b,c"))
+
+    val indexStatus = IndexStatus(rev)
+    val tc = BroadcastedTableChanges(None, indexStatus, Map.empty)
+    val sparkPointWeightIndexer =
+      new SparkPointWeightIndexer(tc, false)
+
+    val addState = sparkPointWeightIndexer.addState(
       3,
       Set(CubeId.root(3).firstChild.firstChild),
       Set(CubeId.root(3), CubeId.root(3).firstChild))
@@ -56,12 +68,12 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
       Map(QbeastOptions.COLUMNS_TO_INDEX -> "a,b,c"))
 
     val indexStatus = IndexStatus(rev)
-    val isc = IndexStatusChange(indexStatus, Map.empty)
+    val tableChanges = BroadcastedTableChanges(None, indexStatus, Map.empty)
     val r = udf(() => {
       Random.nextInt
     })
     val df2 = df.withColumn(QbeastColumns.weightColumnName, r())
-    val spwi = new SparkPointWeightIndexer(TableChanges(None, isc), false)
+    val spwi = new SparkPointWeightIndexer(tableChanges, false)
 
     the[SparkException] thrownBy {
       df2.transform(spwi.buildIndex).select(col(QbeastColumns.cubeColumnName)).distinct.first()
@@ -79,20 +91,17 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
       Map(QbeastOptions.COLUMNS_TO_INDEX -> "a,b,c"))
     val indexStatus = IndexStatus(rev)
 
-    val isc = IndexStatusChange(indexStatus, Map.empty)
-
-    val tc = TableChanges(
-      Some(
-        RevisionChange(
-          0,
-          supersededRevision = rev,
-          desiredCubeSizeChange = None,
-          columnTransformersChanges = Nil,
-          transformationsChanges = Vector(
-            Some(LinearTransformation(0, 10, IntegerDataType)),
-            Some(HashTransformation()),
-            Some(LinearTransformation(0.0, 10.0, DoubleDataType))))),
-      isc)
+    val revisionChange =
+      RevisionChange(
+        0,
+        supersededRevision = rev,
+        desiredCubeSizeChange = None,
+        columnTransformersChanges = Nil,
+        transformationsChanges = Vector(
+          Some(LinearTransformation(0, 10, IntegerDataType)),
+          Some(HashTransformation()),
+          Some(LinearTransformation(0.0, 10.0, DoubleDataType))))
+    val tc = BroadcastedTableChanges(Some(revisionChange), indexStatus, Map.empty)
 
     val r = udf(() => {
       Random.nextInt
@@ -116,20 +125,17 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
       Map(QbeastOptions.COLUMNS_TO_INDEX -> "a:hashing,b:hashing,c:hashing"))
     val indexStatus = IndexStatus(rev)
 
-    val isc = IndexStatusChange(indexStatus, Map.empty)
-
-    val tc = TableChanges(
-      Some(
-        RevisionChange(
-          0,
-          supersededRevision = rev,
-          desiredCubeSizeChange = None,
-          columnTransformersChanges = Nil,
-          transformationsChanges = Vector(
-            Some(HashTransformation()),
-            Some(HashTransformation()),
-            Some(HashTransformation())))),
-      isc)
+    val revisionChange =
+      RevisionChange(
+        0,
+        supersededRevision = rev,
+        desiredCubeSizeChange = None,
+        columnTransformersChanges = Nil,
+        transformationsChanges = Vector(
+          Some(HashTransformation()),
+          Some(HashTransformation()),
+          Some(HashTransformation())))
+    val tc = BroadcastedTableChanges(Some(revisionChange), indexStatus, Map.empty)
 
     val r = udf(() => {
       Random.nextInt

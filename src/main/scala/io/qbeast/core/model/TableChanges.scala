@@ -1,26 +1,13 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.io.qbeast.core.model
+package io.qbeast.core.model
 
-import io.qbeast.core.model.{
-  CubeId,
-  CubeNormalizedWeights,
-  IndexStatus,
-  NormalizedWeight,
-  Revision,
-  RevisionChange,
-  TableChanges,
-  Weight
-}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.SparkSession
 
 /**
  * Container for the table changes
- *
- * @param revisionChanges the optional revision changes
- * @param indexChanges the index status changes
  */
 
 object BroadcastedTableChanges {
@@ -31,6 +18,7 @@ object BroadcastedTableChanges {
       deltaNormalizedCubeWeights: Map[CubeId, NormalizedWeight],
       deltaReplicatedSet: Set[CubeId] = Set.empty,
       deltaAnnouncedSet: Set[CubeId] = Set.empty): TableChanges = {
+
     val updatedRevision = revisionChanges match {
       case Some(newRev) => newRev.createNewRevision
       case None => supersededIndexStatus.revision
@@ -43,22 +31,30 @@ object BroadcastedTableChanges {
     } else {
       CubeNormalizedWeights.mergeNormalizedWeights(Map.empty, deltaNormalizedCubeWeights)
     }
-    val announcedOrReplicatedSet: Set[CubeId] =
-      if (revisionChanges.isEmpty) {
 
-        supersededIndexStatus.replicatedOrAnnouncedSet ++
-          deltaAnnouncedSet ++ deltaReplicatedSet
+    val replicatedSet = if (revisionChanges.isEmpty) {
 
-      } else {
-        deltaAnnouncedSet ++ deltaReplicatedSet
-      }
+      supersededIndexStatus.replicatedSet ++ deltaReplicatedSet
+
+    } else {
+      deltaReplicatedSet
+    }
+
+    val announcedSet = if (revisionChanges.isEmpty) {
+
+      supersededIndexStatus.announcedSet ++ deltaAnnouncedSet
+
+    } else {
+      deltaAnnouncedSet
+    }
 
     BroadcastedTableChanges(
-      revisionChanges.isDefined,
-      deltaReplicatedSet,
-      SparkSession.active.sparkContext.broadcast(cubeWeights),
-      updatedRevision,
-      announcedOrReplicatedSet)
+      isNewRevision = revisionChanges.isDefined,
+      deltaReplicatedSet = deltaReplicatedSet,
+      cubeWeights = SparkSession.active.sparkContext.broadcast(cubeWeights),
+      updatedRevision = updatedRevision,
+      announcedSet = announcedSet,
+      replicatedSet = replicatedSet)
   }
 
 }
@@ -68,7 +64,11 @@ case class BroadcastedTableChanges(
     deltaReplicatedSet: Set[CubeId],
     cubeWeights: Broadcast[Map[CubeId, Weight]],
     updatedRevision: Revision,
-    announcedOrReplicatedSet: Set[CubeId])
+    announcedSet: Set[CubeId],
+    replicatedSet: Set[CubeId])
     extends TableChanges {
+
+  override val announcedOrReplicatedSet: Set[CubeId] = announcedSet ++ replicatedSet
+
   override def cubeWeights(cubeId: CubeId): Option[Weight] = cubeWeights.value.get(cubeId)
 }

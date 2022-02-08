@@ -52,12 +52,13 @@ case class BlockWriter(
     iter
       .foldLeft[Map[CubeId, BlockContext]](Map()) { case (blocks, row) =>
         val cubeId = revision.createCubeId(row.getBinary(qbeastColumns.cubeColumnIndex))
+        val state = row.getString(qbeastColumns.stateColumnIndex)
         // TODO make sure this does not compromise the structure of the index
         // It could happen than estimated weights
         // doesn't include all the cubes present in the final indexed dataframe
         // we save those newly added leaves with the max weight possible
         val maxWeight = tableChanges.cubeWeights(cubeId).getOrElse(Weight.MaxValue)
-        val blockCtx = blocks.getOrElse(cubeId, buildWriter(cubeId, maxWeight))
+        val blockCtx = blocks.getOrElse(cubeId, buildWriter(cubeId, state, maxWeight))
 
         // The row with only the original columns
         val cleanRow = Seq.newBuilder[Any]
@@ -79,12 +80,15 @@ case class BlockWriter(
       .flatMap {
         case BlockContext(blockStats, _, _) if blockStats.elementCount == 0 =>
           Iterator.empty // Do nothing, this  is a empty partition
-        case BlockContext(BlockStats(cube, maxWeight, minWeight, rowCount), writer, path) =>
+        case BlockContext(
+              BlockStats(cube, maxWeight, minWeight, state, rowCount),
+              writer,
+              path) =>
           val tags = Map(
             TagUtils.cube -> cube,
             TagUtils.minWeight -> minWeight.value.toString,
             TagUtils.maxWeight -> maxWeight.value.toString,
-            TagUtils.state -> "FLOODED",
+            TagUtils.state -> state,
             TagUtils.revision -> revision.revisionID.toString,
             TagUtils.elementCount -> rowCount.toString)
 
@@ -114,7 +118,7 @@ case class BlockWriter(
    * @param state the status of cube
    * @return
    */
-  private def buildWriter(cubeId: CubeId, maxWeight: Weight): BlockContext = {
+  private def buildWriter(cubeId: CubeId, state: String, maxWeight: Weight): BlockContext = {
     val writtenPath = new Path(dataPath, s"${UUID.randomUUID()}.parquet")
     val writer: OutputWriter = factory.newInstance(
       writtenPath.toString,
@@ -122,7 +126,7 @@ case class BlockWriter(
       new TaskAttemptContextImpl(
         new JobConf(serConf.value),
         new TaskAttemptID("", 0, TaskType.REDUCE, 0, 0)))
-    BlockContext(BlockStats(cubeId.string, maxWeight), writer, writtenPath)
+    BlockContext(BlockStats(cubeId.string, state, maxWeight), writer, writtenPath)
   }
 
   /*
