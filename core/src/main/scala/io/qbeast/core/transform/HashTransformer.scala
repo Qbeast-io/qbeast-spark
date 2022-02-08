@@ -14,11 +14,8 @@ case class HashTransformer(
     extends Transformer {
   override protected def transformerType: TransformerType = HashTransformer
 
-  override def makeTransformation(columnStats: ColumnStats): Transformation = {
-    optionalNullValue match {
-      case Some(value) => HashTransformation(value)
-      case None => HashTransformation()
-    }
-  }
+  override def stats: ColumnStats = NoColumnStats
+
+  override def makeTransformation(row: String => Any): Transformation = HashTransformation()
 
 }

@@ -30,9 +30,11 @@ case class LinearTransformer(
     override val dataType: QDataType,
     override val optionalNullValue: Option[Any])
     extends Transformer {
+  private def colMax = s"${columnName}_max"
+  private def colMin = s"${columnName}_min"
 
-  private def getValue(value: Any): Any = {
-    value match {
+  private def getValue(row: Any): Any = {
+    row match {
       case d: java.math.BigDecimal => d.doubleValue()
       case other => other
     }
@@ -58,9 +60,14 @@ case class LinearTransformer(
     }
   }
 
-  override def makeTransformation(columnStats: ColumnStats): Transformation = {
-    val min = getValue(columnStats.min)
-    val max = getValue(columnStats.max)
+  override def stats: ColumnStats =
+    ColumnStats(
+      statsNames = Seq(colMax, colMin),
+      statsSqlPredicates = Seq(s"max($columnName) AS $colMax", s"min($columnName) AS $colMin"))
+
+  override def makeTransformation(row: String => Any): Transformation = {
+    val min = getValue(row(colMin))
+    val max = getValue(row(colMax))
     val nullV = optionalNullValue.getOrElse(generateRandomNumber(min, max))
     val nullValue = getValue(nullV)
     assert(min != null && max != null)

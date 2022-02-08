@@ -4,9 +4,12 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model._
-import io.qbeast.spark.utils.TagUtils
+import io.qbeast.spark.delta.IndexStatusBuilder.{createCube, norm, qblock, weight}
+import io.qbeast.spark.utils.TagColumns
 import org.apache.spark.sql.delta.actions.AddFile
-import org.apache.spark.sql.{Dataset, SparkSession}
+import org.apache.spark.sql.expressions.UserDefinedFunction
+import org.apache.spark.sql.functions.{col, collect_list, lit, min, struct, sum, udf}
+import org.apache.spark.sql.{Column, Dataset, SparkSession}
 
 import scala.collection.immutable.SortedMap
 
@@ -28,11 +31,9 @@ private[delta] class IndexStatusBuilder(
    * Dataset of files belonging to the specific revision
    * @return the dataset of AddFile actions
    */
-  def revisionFiles: Dataset[AddFile] = {
+  def revisionFiles: Dataset[AddFile] =
     // this must be external to the lambda, to avoid SerializationErrors
-    val revID = revision.revisionID.toString
-    qbeastSnapshot.snapshot.allFiles.filter(_.tags(TagUtils.revision) == revID)
-  }
+    qbeastSnapshot.loadRevisionBlocks(revision.revisionID)
 
   def build(): IndexStatus = {
     IndexStatus(
@@ -49,37 +50,55 @@ private[delta] class IndexStatusBuilder(
   def buildCubesStatuses: SortedMap[CubeId, CubeStatus] = {
 
     val spark = SparkSession.active
-    import spark.implicits._
-    val rev = revision
     val builder = SortedMap.newBuilder[CubeId, CubeStatus]
+
+    val rev = revision
+
+    import spark.implicits._
+    val ndims: Int = rev.transformations.size
     revisionFiles
-      .groupByKey(_.tags(TagUtils.cube))
-      .mapGroups((cube, f) => {
-        var minMaxWeight = Int.MaxValue
-        var elementCount = 0L
-        val files = Vector.newBuilder[String]
-        for (file <- f) {
-          elementCount += file.tags(TagUtils.elementCount).toLong
-          val maxWeight = file.tags(TagUtils.maxWeight).toInt
-          if (maxWeight < minMaxWeight) {
-            minMaxWeight = maxWeight
-          }
-          files += file.path
-        }
-        val cubeStatus = if (minMaxWeight == Int.MaxValue) {
-          CubeStatus(
-            Weight.MaxValue,
-            NormalizedWeight(rev.desiredCubeSize, elementCount),
-            files.result())
-        } else {
-          val w = Weight(minMaxWeight)
-          CubeStatus(w, NormalizedWeight(w), files.result())
-        }
-        (rev.createCubeId(cube), cubeStatus)
-      })
+      .groupBy(TagColumns.cube)
+      .agg(
+        weight(min(TagColumns.maxWeight)).as("maxWeight"),
+        sum(TagColumns.elementCount).as("elementCount"),
+        collect_list(qblock).as("files"))
+      .select(
+        createCube(col("cube"), lit(ndims)).as("cubeId"),
+        col("maxWeight"),
+        norm(col("maxWeight"), col("elementCount"), lit(rev.desiredCubeSize)).as(
+          "normalizedWeight"),
+        col("files"))
+      .as[CubeStatus]
       .collect()
-      .foreach(builder += _)
+      .foreach(row => builder += row.cubeId -> row)
     builder.result()
   }
+
+}
+
+object IndexStatusBuilder {
+  val weight: UserDefinedFunction = udf((weight: Int) => Weight(weight))
+
+  val norm: UserDefinedFunction = udf((mw: Weight, elementCount: Long, desiredSize: Int) =>
+    if (mw < Weight.MaxValue) {
+      mw.fraction
+    } else {
+      NormalizedWeight.apply(desiredSize, elementCount)
+    })
+
+  val createCube: UserDefinedFunction =
+    udf((cube: String, dimensions: Int) => CubeId(dimensions, cube))
+
+  val qblock: Column =
+    struct(
+      col("path"),
+      col("size"),
+      col("modificationTime"),
+      weight(TagColumns.minWeight).as("minWeight"),
+      weight(TagColumns.maxWeight)
+        .as("maxWeight"),
+      TagColumns.state,
+      TagColumns.revision.cast("bigint").as("revision"),
+      TagColumns.elementCount.cast("bigint").as("elementCount"))
 
 }
