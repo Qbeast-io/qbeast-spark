@@ -12,28 +12,20 @@ import org.apache.spark.sql.{DataFrame, Row}
 private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication: Boolean)
     extends Serializable {
 
-  private val revision = tableChanges.updatedRevision
-  private val pointIndexer: PointWeightIndexer = PointWeightIndexer(tableChanges)
-
   private val findTargetCubeIdsUDF: UserDefinedFunction = {
 
-    udf((rowValues: Row, weightValue: Int) => {
+    val revision = tableChanges.updatedRevision
+    val pointIndexer: PointWeightIndexer = PointWeightIndexer(tableChanges)
+
+    udf((rowValues: Row, weightValue: Int, parentBytes: Any) => {
       val point = RowUtils.rowValuesToPoint(rowValues, revision)
       val weight = Weight(weightValue)
+      val parent = parentBytes match {
+        case bytes: Array[Byte] => Some(revision.createCubeId(bytes))
+        case _ => None
+      }
       pointIndexer
-        .findTargetCubeIds(point, weight)
-        .map(_.bytes)
-        .toArray
-    })
-  }
-
-  private val replicateTargetCubeIds: UserDefinedFunction = {
-
-    udf((rowValues: Row, weightValue: Int, parent: Array[Byte]) => {
-      val point = RowUtils.rowValuesToPoint(rowValues, revision)
-      val weight = Weight(weightValue)
-      pointIndexer
-        .findTargetCubeIds(point, weight, Some(revision.createCubeId(parent)))
+        .findTargetCubeIds(point, weight, parent)
         .map(_.bytes)
         .toArray
     })
@@ -43,24 +35,24 @@ private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication:
 
     val revision = tableChanges.updatedRevision
     val columnsToIndex = revision.columnTransformers.map(_.columnName)
-
-    if (!isReplication) {
+    if (isReplication) {
       weightedDataFrame
         .withColumn(
           cubeColumnName,
           explode(
-            findTargetCubeIdsUDF(struct(columnsToIndex.map(col): _*), col(weightColumnName))))
-
+            findTargetCubeIdsUDF(
+              struct(columnsToIndex.map(col): _*),
+              col(weightColumnName),
+              col(cubeToReplicateColumnName))))
     } else {
       weightedDataFrame
         .withColumn(
           cubeColumnName,
           explode(
-            replicateTargetCubeIds(
+            findTargetCubeIdsUDF(
               struct(columnsToIndex.map(col): _*),
               col(weightColumnName),
-              col(cubeToReplicateColumnName))))
-        .drop(cubeToReplicateColumnName)
+              lit(null))))
     }
 
   }

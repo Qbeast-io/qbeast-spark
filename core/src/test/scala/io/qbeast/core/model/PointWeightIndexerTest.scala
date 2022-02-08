@@ -27,7 +27,7 @@ class PointWeightIndexerTest extends AnyFlatSpec with Matchers {
     val replicatedSet: Set[CubeId] = Set.empty
     val announcedSet: Set[CubeId] = Set.empty
     def cubeWeights(cubeId: CubeId): Option[Weight] = mapCubeWeights.get(cubeId)
-    def cubeState(cubeId: CubeId): String = "FLOODED"
+    def cubeState(cubeId: CubeId): Option[String] = Some("FLOODED")
   }
 
   "findTargetCubeIds" should "return the root cube if cube weights is empty" in {
