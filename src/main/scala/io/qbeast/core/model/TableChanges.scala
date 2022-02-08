@@ -49,13 +49,24 @@ object BroadcastedTableChanges {
       deltaAnnouncedSet
     }
 
+    val cubeStates = cubeWeights.map { case (cubeId, _) =>
+      val state = if (replicatedSet.contains(cubeId)) {
+        State.REPLICATED
+      } else if (announcedSet.contains(cubeId)) {
+        State.ANNOUNCED
+      } else {
+        State.FLOODED
+      }
+      (cubeId, state)
+    }
+
     BroadcastedTableChanges(
       isNewRevision = revisionChanges.isDefined,
       isOptimizeOperation = deltaReplicatedSet.nonEmpty,
       updatedRevision = updatedRevision,
       deltaReplicatedSet = deltaReplicatedSet,
-      announcedSet = announcedSet,
-      replicatedSet = replicatedSet,
+      announcedOrReplicatedSet = announcedSet ++ replicatedSet,
+      cubeStates = SparkSession.active.sparkContext.broadcast(cubeStates),
       cubeWeights = SparkSession.active.sparkContext.broadcast(cubeWeights))
   }
 
@@ -66,22 +77,13 @@ case class BroadcastedTableChanges(
     isOptimizeOperation: Boolean,
     updatedRevision: Revision,
     deltaReplicatedSet: Set[CubeId],
-    announcedSet: Set[CubeId],
-    replicatedSet: Set[CubeId],
+    announcedOrReplicatedSet: Set[CubeId],
+    cubeStates: Broadcast[Map[CubeId, String]],
     cubeWeights: Broadcast[Map[CubeId, Weight]])
     extends TableChanges {
 
-  override val announcedOrReplicatedSet: Set[CubeId] = announcedSet ++ replicatedSet
-
   override def cubeWeights(cubeId: CubeId): Option[Weight] = cubeWeights.value.get(cubeId)
 
-  override def cubeState(cubeId: CubeId): String =
-    if (announcedSet.contains(cubeId) && !replicatedSet.contains(cubeId)) {
-      State.ANNOUNCED
-    } else if (replicatedSet.contains(cubeId)) {
-      State.REPLICATED
-    } else {
-      State.FLOODED
-    }
+  override def cubeState(cubeId: CubeId): Option[String] = cubeStates.value.get(cubeId)
 
 }
