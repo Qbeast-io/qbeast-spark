@@ -115,14 +115,14 @@ class QbeastTable private (
     math.log10(value) / math.log10(base)
   }
 
-  private case class IndexMetrics(cubeSizes: CubeSizes, metadata: Metadata)
+  case class IndexMetrics(cubeSizes: CubeSizes, metadata: Metadata)
 
-  private case class CubeSizes(
+  case class CubeSizes(
       allCubeSizes: Iterable[Long],
       nonLeafCubeSizes: Iterable[Long],
       nonLeafCubeSizeDetails: NonLeafCubeSizeDetails)
 
-  private case class Metadata(
+  case class Metadata(
       dimensionCount: Int,
       row_count: Long,
       depth: Int,
@@ -133,7 +133,7 @@ class QbeastTable private (
       depthOverLogNumNodes: Double,
       depthOnBalance: Double)
 
-  private case class NonLeafCubeSizeDetails(
+  case class NonLeafCubeSizeDetails(
       min: Long,
       firstQuartile: Long,
       secondQuartile: Long,
