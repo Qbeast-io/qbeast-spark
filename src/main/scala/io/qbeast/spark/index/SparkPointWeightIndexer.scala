@@ -12,20 +12,29 @@ import org.apache.spark.sql.{DataFrame, Row}
 private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication: Boolean)
     extends Serializable {
 
+  private val revision = tableChanges.updatedRevision
+  private val pointIndexer: PointWeightIndexer = PointWeightIndexer(tableChanges)
+
   private val findTargetCubeIdsUDF: UserDefinedFunction = {
 
-    val revision = tableChanges.updatedRevision
-    val pointIndexer: PointWeightIndexer = PointWeightIndexer(tableChanges)
-
-    udf((rowValues: Row, weightValue: Int, parentBytes: Any) => {
+    udf((rowValues: Row, weightValue: Int) => {
       val point = RowUtils.rowValuesToPoint(rowValues, revision)
       val weight = Weight(weightValue)
-      val parent = parentBytes match {
-        case bytes: Array[Byte] => Some(revision.createCubeId(bytes))
-        case _ => None
-      }
       pointIndexer
-        .findTargetCubeIds(point, weight, parent)
+        .findTargetCubeIds(point, weight)
+        .map(_.bytes)
+        .toArray
+    })
+  }
+
+  private val replicateTargetCubeIds: UserDefinedFunction = {
+
+    udf((rowValues: Row, weightValue: Int, parentBytes: Array[Byte]) => {
+      val point = RowUtils.rowValuesToPoint(rowValues, revision)
+      val weight = Weight(weightValue)
+      val parent = revision.createCubeId(parentBytes)
+      pointIndexer
+        .findTargetCubeIds(point, weight, Some(parent))
         .map(_.bytes)
         .toArray
     })
@@ -40,7 +49,7 @@ private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication:
         .withColumn(
           cubeColumnName,
           explode(
-            findTargetCubeIdsUDF(
+            replicateTargetCubeIds(
               struct(columnsToIndex.map(col): _*),
               col(weightColumnName),
               col(cubeToReplicateColumnName))))
@@ -49,10 +58,7 @@ private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication:
         .withColumn(
           cubeColumnName,
           explode(
-            findTargetCubeIdsUDF(
-              struct(columnsToIndex.map(col): _*),
-              col(weightColumnName),
-              lit(null))))
+            findTargetCubeIdsUDF(struct(columnsToIndex.map(col): _*), col(weightColumnName))))
     }
 
   }
