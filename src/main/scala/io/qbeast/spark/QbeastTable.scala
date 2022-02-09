@@ -90,7 +90,6 @@ class QbeastTable private (
    * Outputs all the revision identifiers available for the table
    * @return
    */
-
   def revisionsID(): Seq[RevisionID] = {
     qbeastSnapshot.loadAllRevisions.map(_.revisionID)
   }
@@ -99,9 +98,8 @@ class QbeastTable private (
    * Outputs the identifier of the latest revision available
    * @return
    */
-
   def latestRevisionID(): RevisionID = {
-    qbeastSnapshot.loadLatestRevision.revisionID
+    latestRevisionAvailable
   }
 
 }
