@@ -91,7 +91,7 @@ class QbeastTable private (
    * @return
    */
 
-  def revisions(): Seq[RevisionID] = {
+  def revisionsID(): Seq[RevisionID] = {
     qbeastSnapshot.loadAllRevisions.map(_.revisionID)
   }
 
@@ -100,7 +100,7 @@ class QbeastTable private (
    * @return
    */
 
-  def latestRevision(): RevisionID = {
+  def latestRevisionID(): RevisionID = {
     qbeastSnapshot.loadLatestRevision.revisionID
   }
 

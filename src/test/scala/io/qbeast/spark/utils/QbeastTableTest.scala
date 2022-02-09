@@ -52,7 +52,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
         writeTestData(data, columnsToIndex, cubeSize, tmpDir)
 
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-        qbeastTable.latestRevision() shouldBe 1L
+        qbeastTable.latestRevisionID() shouldBe 1L
       }
   }
 
@@ -72,7 +72,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
         writeTestData(revision3, columnsToIndex, cubeSize, tmpDir, "append")
 
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-        qbeastTable.latestRevision() shouldBe 3L
+        qbeastTable.latestRevisionID() shouldBe 3L
       }
     }
 
@@ -92,8 +92,8 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
         writeTestData(revision3, columnsToIndex, cubeSize, tmpDir, "append")
 
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-        qbeastTable.revisions().size shouldBe 3
-        qbeastTable.revisions() shouldBe Seq(1L, 2L, 3L)
+        qbeastTable.revisionsID().size shouldBe 3
+        qbeastTable.revisionsID() shouldBe Seq(1L, 2L, 3L)
       }
   }
 }
