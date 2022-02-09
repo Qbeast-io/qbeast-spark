@@ -92,8 +92,8 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
         writeTestData(revision3, columnsToIndex, cubeSize, tmpDir, "append")
 
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-        qbeastTable.revisionsID().size shouldBe 3
-        qbeastTable.revisionsID() shouldBe Seq(1L, 2L, 3L)
+        qbeastTable.revisionsIDs().size shouldBe 3
+        qbeastTable.revisionsIDs() shouldBe Seq(1L, 2L, 3L)
       }
   }
 }

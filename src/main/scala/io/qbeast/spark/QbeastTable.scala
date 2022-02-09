@@ -34,10 +34,38 @@ class QbeastTable private (
 
   private def latestRevisionAvailable = qbeastSnapshot.loadLatestRevision.revisionID
 
-  private def getAvailableRevision(revisionID: RevisionID): RevisionID = {
-    if (qbeastSnapshot.existsRevision(revisionID)) revisionID
-    else latestRevisionAvailable
+  private def getAvailableRevision(revisionID: Option[RevisionID]): RevisionID = {
+    revisionID match {
+      case Some(id) if qbeastSnapshot.existsRevision(id) => id
+      case None => latestRevisionAvailable
+    }
   }
+
+  // ////// PRIVATE METHODS ///////
+
+  private def optimize(revisionID: Option[RevisionID]): Unit = {
+    OptimizeTableCommand(getAvailableRevision(revisionID), indexedTable)
+      .run(sparkSession)
+
+  }
+
+  private def analyze(revisionID: Option[RevisionID]): Seq[String] = {
+    AnalyzeTableCommand(getAvailableRevision(revisionID), indexedTable)
+      .run(sparkSession)
+      .map(_.getString(0))
+  }
+
+  private def indexedColumns(revisionID: Option[RevisionID]): Seq[String] = {
+    val revID = getAvailableRevision(revisionID)
+    qbeastSnapshot.loadRevision(revID).columnTransformers.map(_.columnName)
+  }
+
+  private def cubeSize(revisionID: Option[RevisionID]): Int = {
+    val revID = getAvailableRevision(revisionID)
+    qbeastSnapshot.loadRevision(revID).desiredCubeSize
+  }
+
+  // ////// PUBLIC METHODS ///////
 
   /**
    * The optimize operation should read the data of those cubes announced
@@ -45,24 +73,18 @@ class QbeastTable private (
    * @param revisionID the identifier of the revision to optimize.
    *                          If doesn't exist or none is specified, would be the last available
    */
-  def optimize(revisionID: RevisionID = -1L): Unit = {
-    OptimizeTableCommand(getAvailableRevision(revisionID), indexedTable)
-      .run(sparkSession)
+  def optimize(revisionID: RevisionID): Unit = optimize(Some(revisionID))
 
-  }
+  def optimize(): Unit = optimize(None)
 
   /**
    * The analyze operation should analyze the index structure
    * and find the cubes that need optimization
-   * @param revisionID the identifier of the revision to optimize.
-   *                          If doesn't exist or none is specified, would be the last available
    * @return the sequence of cubes to optimize in string representation
    */
-  def analyze(revisionID: RevisionID = -1L): Seq[String] = {
-    AnalyzeTableCommand(getAvailableRevision(revisionID), indexedTable)
-      .run(sparkSession)
-      .map(_.getString(0))
-  }
+  def analyze(revisionID: RevisionID): Seq[String] = analyze(Some(revisionID))
+
+  def analyze(): Seq[String] = analyze(None)
 
   /**
    * Outputs the indexed columns of the table
@@ -70,10 +92,10 @@ class QbeastTable private (
    *                          If doesn't exist or none is specified, would be the last available
    * @return
    */
-  def indexedColumns(revisionID: RevisionID = -1L): Seq[String] = {
-    val revID = getAvailableRevision(revisionID)
-    qbeastSnapshot.loadRevision(revID).columnTransformers.map(_.columnName)
-  }
+
+  def indexedColumns(revisionID: RevisionID): Seq[String] = indexedColumns(Some(revisionID))
+
+  def indexedColumns(): Seq[String] = indexedColumns(None)
 
   /**
    * Outputs the cubeSize of the table
@@ -81,16 +103,15 @@ class QbeastTable private (
    *                          If doesn't exist or none is specified, would be the last available
    * @return
    */
-  def cubeSize(revisionID: RevisionID = -1L): Int = {
-    val revID = getAvailableRevision(revisionID)
-    qbeastSnapshot.loadRevision(revID).desiredCubeSize
-  }
+  def cubeSize(revisionID: RevisionID): Int = cubeSize(Some(revisionID))
+
+  def cubeSize(): Int = cubeSize(None)
 
   /**
    * Outputs all the revision identifiers available for the table
    * @return
    */
-  def revisionsID(): Seq[RevisionID] = {
+  def revisionsIDs(): Seq[RevisionID] = {
     qbeastSnapshot.loadAllRevisions.map(_.revisionID)
   }
 
