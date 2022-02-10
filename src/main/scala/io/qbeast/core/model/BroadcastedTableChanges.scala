@@ -49,8 +49,7 @@ object BroadcastedTableChanges {
       deltaAnnouncedSet
     }
 
-    val cubeStates = replicatedSet
-      .map(id => id -> State.REPLICATED) ++
+    val cubeStates = replicatedSet.map(id => id -> State.REPLICATED) ++
       (announcedSet -- replicatedSet).map(id => id -> State.ANNOUNCED)
 
     BroadcastedTableChanges(
@@ -59,7 +58,7 @@ object BroadcastedTableChanges {
       updatedRevision = updatedRevision,
       deltaReplicatedSet = deltaReplicatedSet,
       announcedOrReplicatedSet = announcedSet ++ replicatedSet,
-      cubeStates = SparkSession.active.sparkContext.broadcast(cubeStates),
+      cubeStates = SparkSession.active.sparkContext.broadcast(cubeStates.toMap),
       cubeWeights = SparkSession.active.sparkContext.broadcast(cubeWeights))
   }
 
