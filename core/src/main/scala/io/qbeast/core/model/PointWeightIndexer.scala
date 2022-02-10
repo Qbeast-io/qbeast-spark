@@ -2,7 +2,7 @@ package io.qbeast.core.model
 
 /**
  * Indexes a point by its weight and cube transformation.
- * @param tableChanges the map of cube and weight
+ * @param tableChanges the table changes
  */
 class PointWeightIndexer(val tableChanges: TableChanges) extends Serializable {
 
@@ -46,7 +46,7 @@ class PointWeightIndexer(val tableChanges: TableChanges) extends Serializable {
 object PointWeightIndexer {
 
   /**
-   * Builds a new point weight indexer from the status changes
+   * Builds a new point weight indexer from the table changes
    * @param changes the table changes
    * @return the PointWeightIndexer
    */

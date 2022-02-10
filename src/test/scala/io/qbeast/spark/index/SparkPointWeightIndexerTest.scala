@@ -17,47 +17,6 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
 
   behavior of "SparkPointWeightIndexerTest"
 
-//  it should "addState" in withSpark(spark => {
-//
-//    import spark.implicits._
-//    val qid = QTableID("t")
-//    val df = 0.to(10).map(a => T1(a, a.toString, a.toDouble)).toDF()
-//    val rev = SparkRevisionFactory.createNewRevision(
-//      qid,
-//      df.schema,
-//      Map(QbeastOptions.COLUMNS_TO_INDEX -> "a,b,c"))
-//
-//    val indexStatus = IndexStatus(rev)
-//    val tc = BroadcastedTableChanges(None, indexStatus, Map.empty)
-//    val sparkPointWeightIndexer =
-//      new SparkPointWeightIndexer(tc, false)
-//
-//    val addState = sparkPointWeightIndexer.addState(
-//      3,
-//      Set(CubeId.root(3).firstChild.firstChild),
-//      Set(CubeId.root(3), CubeId.root(3).firstChild))
-//
-//    val cubes = (Seq(CubeId.root(3), CubeId.root(3).firstChild.firstChild) ++
-//      CubeId.root(3).children.take(8))
-//      .map(_.bytes)
-//      .toDF(QbeastColumns.cubeColumnName)
-//
-//    val indexed = cubes
-//      .transform(addState)
-//      .collect()
-//      .map(b => (CubeId(3, b.getAs[Array[Byte]](0)), b.getString(1)))
-//
-//    indexed.find(_._1.isRoot) shouldBe Some((CubeId.root(3), "REPLICATED"))
-//    val sec = CubeId.root(3).firstChild
-//    indexed.find(_._1 == sec) shouldBe Some((sec, "REPLICATED"))
-//
-//    val gen3 = CubeId.root(3).firstChild.firstChild
-//    indexed.find(_._1 == gen3) shouldBe Some((gen3, "ANNOUNCED"))
-//
-//    indexed.count(_._2 == "FLOODED") shouldBe 7
-//
-//  })
-
   it should "buildIndex should fail with empty transformation" in withSpark(spark => {
     import spark.implicits._
     val qid = QTableID("t")
