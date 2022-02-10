@@ -49,16 +49,9 @@ object BroadcastedTableChanges {
       deltaAnnouncedSet
     }
 
-    val cubeStates = cubeWeights.map { case (cubeId, _) =>
-      val state = if (replicatedSet.contains(cubeId)) {
-        State.REPLICATED
-      } else if (announcedSet.contains(cubeId)) {
-        State.ANNOUNCED
-      } else {
-        State.FLOODED
-      }
-      (cubeId, state)
-    }
+    val cubeStates = replicatedSet
+      .map(id => id -> State.REPLICATED) ++
+      (announcedSet -- replicatedSet).map(id => id -> State.ANNOUNCED)
 
     BroadcastedTableChanges(
       isNewRevision = revisionChanges.isDefined,
