@@ -31,7 +31,6 @@ class CubeWeightsIntegrationTest extends QbeastIntegrationTestSpec {
                 df.schema,
                 Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> "10000")))
           val (_, tc) = oTreeAlgorithm.index(df.toDF(), indexStatus)
-          val weightMap = tc.cubeWeights
           df.write
             .format("qbeast")
             .mode("overwrite")
@@ -44,7 +43,7 @@ class CubeWeightsIntegrationTest extends QbeastIntegrationTestSpec {
 
           // commitLogWeightMap shouldBe weightMap
           commitLogWeightMap.keys.foreach(cubeId => {
-            weightMap should contain key cubeId
+            tc.cubeWeights(cubeId) should be('defined)
           })
         }
 

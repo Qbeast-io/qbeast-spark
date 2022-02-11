@@ -4,8 +4,7 @@
 package io.qbeast.spark.index
 
 import io.qbeast.TestClasses.{Client3, Client4}
-import io.qbeast.core.model._
-import io.qbeast.spark.utils.TagUtils
+import io.qbeast.core.model.{BroadcastedTableChanges, _}
 import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.col
@@ -55,9 +54,9 @@ class IndexTest
         val df = createDF()
         val rev = SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, options)
 
-        val (_, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
+        val (_, tc: BroadcastedTableChanges) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
-        checkCubes(tc.cubeWeights)
+        checkCubes(tc.cubeWeights.value)
       }
     }
   }
@@ -68,9 +67,9 @@ class IndexTest
         val df = createDF()
         val rev = SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, options)
 
-        val (_, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
+        val (_, tc: BroadcastedTableChanges) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
-        checkWeightsIncrement(tc.cubeWeights)
+        checkWeightsIncrement(tc.cubeWeights.value)
       }
     }
   }
@@ -81,9 +80,9 @@ class IndexTest
         val df = createDF()
         val rev = SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, options)
 
-        val (indexed, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
+        val (indexed, tc: BroadcastedTableChanges) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
-        checkCubesOnData(tc.cubeWeights, indexed, dimensionCount = 2)
+        checkCubesOnData(tc.cubeWeights.value, indexed, dimensionCount = 2)
       }
     }
   }
@@ -104,8 +103,8 @@ class IndexTest
           QTableID("test"),
           df.schema,
           Map("columnsToIndex" -> "user_id,product_id", "cubeSize" -> "10000"))
-        val (indexed, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
-        val weightMap = tc.cubeWeights
+        val (indexed, tc: BroadcastedTableChanges) = oTreeAlgorithm.index(df, IndexStatus(rev))
+        val weightMap = tc.cubeWeights.value
 
         checkDFSize(indexed, df)
         checkCubes(weightMap)
@@ -135,9 +134,9 @@ class IndexTest
           .withColumn("age", (col("age") * offset).cast(IntegerType))
           .withColumn("val2", (col("val2") * offset).cast(LongType))
 
-        val (indexed, tc) =
+        val (indexed, tc: BroadcastedTableChanges) =
           oTreeAlgorithm.index(appendData, qbeastSnapshot.loadLatestIndexStatus)
-        val weightMap = tc.cubeWeights
+        val weightMap = tc.cubeWeights.value
 
         checkDFSize(indexed, df)
         checkCubes(weightMap)
@@ -197,8 +196,8 @@ class IndexTest
             cubeId.parent match {
               case None => // cube is root
               case Some(parent) =>
-                val minWeight = Weight(f.tags(TagUtils.minWeight).toInt)
-                val parentMaxWeight = tc.cubeWeights(parent)
+                val minWeight = Weight(f.tags("minWeight").toInt)
+                val parentMaxWeight = tc.cubeWeights(parent).get
 
                 minWeight should be >= parentMaxWeight
             }
@@ -220,8 +219,8 @@ class IndexTest
         df.schema,
         Map("columnsToIndex" -> "age,val2", "cubeSize" -> smallCubeSize.toString))
 
-      val (indexed, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
-      val weightMap = tc.cubeWeights
+      val (indexed, tc: BroadcastedTableChanges) = oTreeAlgorithm.index(df, IndexStatus(rev))
+      val weightMap = tc.cubeWeights.value
 
       checkDFSize(indexed, df)
       checkCubes(weightMap)

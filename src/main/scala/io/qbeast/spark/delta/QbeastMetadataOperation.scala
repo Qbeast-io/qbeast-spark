@@ -113,7 +113,7 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
 
     // Merged schema will contain additional columns at the end
     val isNewSchema: Boolean = txn.metadata.schema != mergedSchema
-    val isNewRevision: Boolean = tableChanges.revisionChanges.isDefined
+    val isNewRevision: Boolean = tableChanges.isNewRevision
 
     val latestRevision = tableChanges.updatedRevision
     val baseConfiguration: Configuration =
@@ -124,7 +124,10 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
     val configuration = if (isNewRevision || isOverwriteMode) {
       updateQbeastRevision(baseConfiguration, latestRevision)
     } else if (isOptimizeOperation) {
-      updateQbeastReplicatedSet(baseConfiguration, latestRevision, tableChanges.replicatedSet)
+      updateQbeastReplicatedSet(
+        baseConfiguration,
+        latestRevision,
+        tableChanges.announcedOrReplicatedSet)
     } else { baseConfiguration }
 
     if (txn.readVersion == -1) {

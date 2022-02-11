@@ -4,7 +4,7 @@
 package io.qbeast.spark.index.writer
 
 import io.qbeast.TestClasses.IndexData
-import io.qbeast.core.model._
+import io.qbeast.core.model.{BroadcastedTableChanges, _}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.index.{QbeastColumns, SparkRevisionFactory}
@@ -52,6 +52,11 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
         QTableID("test"),
         data.schema,
         Map("columnsToIndex" -> "id", "cubeSize" -> "10000"))
+    val tableChanges = BroadcastedTableChanges(
+      None,
+      IndexStatus(rev),
+      deltaNormalizedCubeWeights = weightMap.toMap)
+
     val writer = BlockWriter(
       dataPath = tmpDir,
       schema = data.schema,
@@ -59,11 +64,9 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
       factory = factory,
       serConf = serConf,
       qbeastColumns = qbeastColumns,
-      tableChanges = TableChanges(
-        None,
-        IndexStatusChange(IndexStatus(rev), deltaNormalizedCubeWeights = weightMap.toMap)))
+      tableChanges = tableChanges)
     val files = indexed
-      .repartition(col(cubeColumnName), col(weightColumnName))
+      .repartition(col(cubeColumnName))
       .queryExecution
       .executedPlan
       .execute()
@@ -91,6 +94,11 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
       QTableID("test"),
       data.schema,
       Map("columnsToIndex" -> "id", "cubeSize" -> "10000"))
+    val tableChanges = BroadcastedTableChanges(
+      None,
+      IndexStatus(rev),
+      deltaNormalizedCubeWeights = weightMap.toMap)
+
     val qbeastColumns = QbeastColumns(indexed)
     val (factory, serConf) = loadConf(data)
     val writer = BlockWriter(
@@ -100,12 +108,10 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
       factory = factory,
       serConf = serConf,
       qbeastColumns = qbeastColumns,
-      tableChanges = TableChanges(
-        None,
-        IndexStatusChange(IndexStatus(rev), deltaNormalizedCubeWeights = weightMap.toMap)))
+      tableChanges = tableChanges)
 
     val files = indexed
-      .repartition(col(cubeColumnName), col(weightColumnName))
+      .repartition(col(cubeColumnName))
       .queryExecution
       .executedPlan
       .execute()
