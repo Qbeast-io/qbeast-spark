@@ -10,7 +10,7 @@ import org.scalatest.matchers.should.Matchers
 class QbeastConfigTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec {
 
   "Qbeast config" should "use default configurations" in withSpark { _ =>
-    config.DEFAULT_CUBE_SIZE shouldBe 100000
+    config.DEFAULT_CUBE_SIZE shouldBe 5000000
     config.CUBE_WEIGHTS_BUFFER_CAPACITY shouldBe 100000
   }
 

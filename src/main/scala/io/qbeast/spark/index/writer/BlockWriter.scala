@@ -5,7 +5,7 @@ package io.qbeast.spark.index.writer
 
 import io.qbeast.core.model.{CubeId, TableChanges, Weight}
 import io.qbeast.spark.index.QbeastColumns
-import io.qbeast.spark.utils.TagUtils
+import io.qbeast.spark.utils.{State, TagUtils}
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapred.{JobConf, TaskAttemptContextImpl, TaskAttemptID}
 import org.apache.hadoop.mapreduce.TaskType
@@ -49,16 +49,16 @@ case class BlockWriter(
       return Iterator.empty
     }
     val revision = tableChanges.updatedRevision
-    val cubeWeights = tableChanges.cubeWeights
     iter
       .foldLeft[Map[CubeId, BlockContext]](Map()) { case (blocks, row) =>
         val cubeId = revision.createCubeId(row.getBinary(qbeastColumns.cubeColumnIndex))
-        val state = row.getString(qbeastColumns.stateColumnIndex)
         // TODO make sure this does not compromise the structure of the index
         // It could happen than estimated weights
         // doesn't include all the cubes present in the final indexed dataframe
         // we save those newly added leaves with the max weight possible
-        val maxWeight = cubeWeights.getOrElse(cubeId, Weight.MaxValue)
+
+        val state = tableChanges.cubeState(cubeId).getOrElse(State.FLOODED)
+        val maxWeight = tableChanges.cubeWeights(cubeId).getOrElse(Weight.MaxValue)
         val blockCtx = blocks.getOrElse(cubeId, buildWriter(cubeId, state, maxWeight))
 
         // The row with only the original columns

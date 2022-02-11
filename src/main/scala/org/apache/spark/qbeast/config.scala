@@ -12,7 +12,7 @@ package object config {
     ConfigBuilder("spark.qbeast.index.defaultCubeSize")
       .version("0.2.0")
       .intConf
-      .createWithDefault(100000)
+      .createWithDefault(5000000)
 
   private[config] val cube_weights_buffer_capacity: ConfigEntry[Long] =
     ConfigBuilder("spark.qbeast.index.cubeWeightsBufferCapacity")
