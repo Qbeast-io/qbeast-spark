@@ -71,6 +71,7 @@ case class LinearTransformer(
     val max = getValue(row(colMax))
     val nullV = optionalNullValue.getOrElse(generateRandomNumber(min, max))
     val nullValue = getValue(nullV)
+    // TODO case in which all values are null
     assert(min != null && max != null)
     dataType match {
       case ordered: OrderedDataType =>
