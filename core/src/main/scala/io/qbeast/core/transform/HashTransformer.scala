@@ -7,19 +7,16 @@ object HashTransformer extends TransformerType {
 
 }
 
-case class HashTransformer(
-    columnName: String,
-    dataType: QDataType,
-    override val optionalNullValue: Option[Any])
+case class HashTransformer(columnName: String, dataType: QDataType, nullValue: Any = null)
     extends Transformer {
   override protected def transformerType: TransformerType = HashTransformer
 
   override def stats: ColumnStats = NoColumnStats
 
   override def makeTransformation(row: String => Any): Transformation = {
-    optionalNullValue match {
-      case Some(value) => HashTransformation(value)
-      case None => HashTransformation()
+    nullValue match {
+      case null => HashTransformation()
+      case v => HashTransformation(v.toString)
     }
   }
 

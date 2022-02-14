@@ -95,8 +95,7 @@ class QuerySpecBuilderTest
 
     val nameTransformation = HashTransformation()
     val transformations = Seq(nameTransformation).toIndexedSeq
-    val columnTransformers =
-      Seq(Transformer("hashing", "name", StringDataType)).toIndexedSeq
+    val columnTransformers = Seq(Transformer("hashing", "name", StringDataType)).toIndexedSeq
 
     val revision = Revision(
       0,

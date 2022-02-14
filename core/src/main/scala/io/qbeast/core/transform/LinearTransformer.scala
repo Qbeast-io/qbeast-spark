@@ -25,10 +25,7 @@ object LinearTransformer extends TransformerType {
  * @param columnName the column name
  * @param dataType the data type of the column
  */
-case class LinearTransformer(
-    columnName: String,
-    dataType: QDataType,
-    optionalNullValue: Option[Any])
+case class LinearTransformer(columnName: String, dataType: QDataType, nullValue: Any = null)
     extends Transformer {
   private def colMax = s"${columnName}_max"
   private def colMin = s"${columnName}_min"
@@ -61,21 +58,42 @@ case class LinearTransformer(
     }
   }
 
+  private lazy val (minValue, maxValue): (Any, Any) = {
+    dataType match {
+      case DoubleDataType => (Double.MinValue, Double.MaxValue)
+      case IntegerDataType => (Int.MinValue, Int.MaxValue)
+      case LongDataType => (Long.MinValue, Long.MaxValue)
+      case FloatDataType => (Float.MinValue, Float.MaxValue)
+      case DecimalDataType => (Double.MinValue, Double.MaxValue)
+    }
+  }
+
   override def stats: ColumnStats =
     ColumnStats(
       statsNames = Seq(colMax, colMin),
       statsSqlPredicates = Seq(s"max($columnName) AS $colMax", s"min($columnName) AS $colMin"))
 
   override def makeTransformation(row: String => Any): Transformation = {
-    val min = getValue(row(colMin))
-    val max = getValue(row(colMax))
-    val nullV = optionalNullValue.getOrElse(generateRandomNumber(min, max))
-    val nullValue = getValue(nullV)
-    // TODO case in which all values are null
-    assert(min != null && max != null)
+    val minAux = row(colMin)
+    val maxAux = row(colMax)
+    val (min, max) = {
+      // TODO If all values are null...
+      if (minAux == null && maxAux == null) {
+        (minValue, maxValue)
+      } else {
+        val min = getValue(row(colMin))
+        val max = getValue(row(colMax))
+        (min, max)
+      }
+    }
+
+    val n = if (nullValue == null) {
+      getValue(generateRandomNumber(min, max))
+    } else getValue(nullValue)
+
     dataType match {
       case ordered: OrderedDataType =>
-        LinearTransformation(min, max, nullValue, ordered)
+        LinearTransformation(min, max, n, ordered)
 
     }
   }
