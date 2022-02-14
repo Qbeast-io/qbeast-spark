@@ -89,7 +89,7 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
     val json =
       """{"revisionID":12,"timestamp":12,"tableID":"test","desiredCubeSize":100,""" +
         """"columnTransformers":[{"className":"io.qbeast.core.transform.LinearTransformer",""" +
-        """"columnName":"test1","dataType":"DoubleDataType","optionalNullValue":5.0}],"transformations":""" +
+        """"columnName":"test1","dataType":"DoubleDataType","nullValue":5.0}],"transformations":""" +
         """[{"className":"io.qbeast.core.transform.LinearTransformation","minNumber":0.0,""" +
         """"maxNumber":10.0,"nullValue":5.0,"orderedDataType":"DoubleDataType"}]}"""
     mapper.writeValueAsString(rev) shouldBe json
@@ -108,7 +108,7 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
     val json =
       """{"revisionID":12,"timestamp":12,"tableID":"test","desiredCubeSize":100,""" +
         """"columnTransformers":[{"className":"io.qbeast.core.transform.LinearTransformer",""" +
-        """"columnName":"test1","dataType":"LongDataType","optionalNullValue":5}],"transformations":""" +
+        """"columnName":"test1","dataType":"LongDataType","nullValue":5}],"transformations":""" +
         """[{"className":"io.qbeast.core.transform.LinearTransformation","minNumber":0,""" +
         """"maxNumber":100,"nullValue":5,"orderedDataType":"LongDataType"}]}"""
     mapper.writeValueAsString(rev) shouldBe json
@@ -127,7 +127,7 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
     val json =
       """{"revisionID":12,"timestamp":12,"tableID":"test","desiredCubeSize":100,""" +
         """"columnTransformers":[{"className":"io.qbeast.core.transform.HashTransformer",""" +
-        """"columnName":"test1","dataType":"StringDataType","optionalNullValue":"null"}],"transformations":""" +
+        """"columnName":"test1","dataType":"StringDataType","nullValue":"null"}],"transformations":""" +
         """[{"className":"io.qbeast.core.transform.HashTransformation","nullValue":"null"}]}"""
     mapper.writeValueAsString(rev) shouldBe json
     mapper.readValue[Revision](json, classOf[Revision]) shouldBe rev
