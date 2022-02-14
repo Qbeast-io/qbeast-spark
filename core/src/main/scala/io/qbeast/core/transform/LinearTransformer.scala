@@ -60,7 +60,7 @@ case class LinearTransformer(columnName: String, dataType: QDataType, nullValue:
 
   private lazy val (minValue, maxValue): (Any, Any) = {
     dataType match {
-      case DoubleDataType => (Double.MinValue, Double.MaxValue)
+      case DoubleDataType => (Double.MinPositiveValue, Double.MaxValue)
       case IntegerDataType => (Int.MinValue, Int.MaxValue)
       case LongDataType => (Long.MinValue, Long.MaxValue)
       case FloatDataType => (Float.MinValue, Float.MaxValue)
@@ -76,16 +76,13 @@ case class LinearTransformer(columnName: String, dataType: QDataType, nullValue:
   override def makeTransformation(row: String => Any): Transformation = {
     val minAux = row(colMin)
     val maxAux = row(colMax)
-    val (min, max) = {
+    val (min, max) =
       // TODO If all values are null...
       if (minAux == null && maxAux == null) {
         (minValue, maxValue)
       } else {
-        val min = getValue(row(colMin))
-        val max = getValue(row(colMax))
-        (min, max)
+        (getValue(row(colMin)), getValue(row(colMax)))
       }
-    }
 
     val n = if (nullValue == null) {
       getValue(generateRandomNumber(min, max))
