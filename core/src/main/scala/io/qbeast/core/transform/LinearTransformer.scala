@@ -25,7 +25,10 @@ object LinearTransformer extends TransformerType {
  * @param columnName the column name
  * @param dataType the data type of the column
  */
-case class LinearTransformer(columnName: String, dataType: QDataType, nullValue: Any = null)
+case class LinearTransformer(
+    columnName: String,
+    dataType: QDataType,
+    optionalNullValue: Any = null)
     extends Transformer {
   private def colMax = s"${columnName}_max"
   private def colMin = s"${columnName}_min"
@@ -84,13 +87,13 @@ case class LinearTransformer(columnName: String, dataType: QDataType, nullValue:
         (getValue(row(colMin)), getValue(row(colMax)))
       }
 
-    val n = if (nullValue == null) {
+    val nullValue = if (optionalNullValue == null) {
       getValue(generateRandomNumber(min, max))
-    } else getValue(nullValue)
+    } else getValue(optionalNullValue)
 
     dataType match {
       case ordered: OrderedDataType =>
-        LinearTransformation(min, max, n, ordered)
+        LinearTransformation(min, max, nullValue, ordered)
 
     }
   }

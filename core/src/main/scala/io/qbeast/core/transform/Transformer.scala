@@ -95,7 +95,7 @@ object Transformer {
 private[transform] trait TransformerType {
   def transformerSimpleName: String
 
-  def apply(columnName: String, dataType: QDataType, nullValue: Any): Transformer
+  def apply(columnName: String, dataType: QDataType, optionalNullValue: Any): Transformer
 }
 
 /**
@@ -119,7 +119,7 @@ trait Transformer extends Serializable {
    * Returns the user-inferred null value of the transformer, if any
    * @return
    */
-  def nullValue: Any
+  def optionalNullValue: Any
 
   /**
    * Returns the stats
