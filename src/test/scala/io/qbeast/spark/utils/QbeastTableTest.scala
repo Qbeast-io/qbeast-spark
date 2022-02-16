@@ -33,6 +33,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
       metrics.nonLeafCubeSizeDetails.secondQuartile shouldBe <=(
         metrics.nonLeafCubeSizeDetails.thirdQuartile)
       metrics.nonLeafCubeSizeDetails.thirdQuartile shouldBe <=(metrics.nonLeafCubeSizeDetails.max)
+      metrics.desiredCubeSize shouldBe cubeSize
 
     }
   }
