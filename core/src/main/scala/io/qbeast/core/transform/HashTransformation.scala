@@ -5,6 +5,7 @@ import scala.util.hashing.MurmurHash3
 
 /**
  * A hash transformation of a coordinate
+ * @param nullValue the value to use for null coordinates
  */
 case class HashTransformation(nullValue: Any) extends Transformation {
 

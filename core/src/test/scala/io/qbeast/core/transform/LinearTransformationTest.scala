@@ -37,7 +37,6 @@ class LinearTransformationTest extends AnyFlatSpec with Matchers {
     linearT.maxNumber should be(10000)
   }
 
-  // TODO check merge
   it should "merge transformations correctly" in {
     val nullValue = 5000
     val linearT = LinearTransformation(0, 10000, nullValue, IntegerDataType)
@@ -63,7 +62,11 @@ class LinearTransformationTest extends AnyFlatSpec with Matchers {
         nullValue,
         IntegerDataType)) shouldBe LinearTransformation(-100, 90000, nullValue, IntegerDataType)
 
-    linearT.merge(LinearTransformation(6, 9, 7, IntegerDataType)) shouldBe linearT
+    linearT.merge(LinearTransformation(6, 9, 7, IntegerDataType)) shouldBe LinearTransformation(
+      0,
+      10000,
+      7,
+      IntegerDataType)
 
   }
 

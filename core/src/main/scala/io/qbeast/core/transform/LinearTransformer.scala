@@ -24,6 +24,7 @@ object LinearTransformer extends TransformerType {
  * Linear Transformer specification of a column
  * @param columnName the column name
  * @param dataType the data type of the column
+ * @param optionalNullValue the optional null value
  */
 case class LinearTransformer(
     columnName: String,
