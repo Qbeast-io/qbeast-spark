@@ -141,15 +141,45 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         .select(cols.map(col): _*)
       val weightIndex = selected.schema.fieldIndex(weightColumnName)
 
+      // Define a container for Min/Max values for each column
+      // These values for each column have to be specific for each column's dataType
+
+      // revision.columnTransformers.map(
+      // _.makeTransformation(colName => row.getAs[Object](colName)))
+      // var transformers
+      // var globalTransformations
+
       selected
         .mapPartitions(rows => {
+          // TODO:
+          // Think of a way to iterate twice over the Iterator
+          // One solution can be making a duplication:
+          // val (rows1, rows2) = rows.duplicate
+
+          // Initialize the min/max values on a partition level and
+          // iterate through the iterator to update both the local and
+          // global min/max's for each column
+
+          // Once done, initialize the transformations that are to be used
+          // in the second iteration to map rows to points
+
+          // Find a way to store and return the partition level min/max and global
+          // min/max. Both are used to do the CubeId mapping from local index to
+          // global index.
+          val (iterForStats, iterForCubeWeights) = rows.duplicate
+
+          iterForStats.foreach { row =>
+            // extract min/max for the columns to index => columnStats
+            // globalTransformations.update(columnStata)
+
+          }
           val weights =
             new CubeWeightsBuilder(
               indexStatus = indexStatus,
               numPartitions = numPartitions,
               numElements = numElements,
               bufferCapacity = bufferCapacity)
-          rows.foreach { row =>
+          iterForCubeWeights.foreach { row =>
             val point = RowUtils.rowValuesToPoint(row, revision)
             val weight = Weight(row.getAs[Int](weightIndex))
             if (isReplication) {
@@ -171,8 +201,8 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     val columnTransformers = indexStatus.revision.columnTransformers
     val dataFrameStats = getDataFrameStats(dataFrame, columnTransformers)
 
-    val numElements = dataFrameStats.getAs[Long]("count")
-    if (numElements == 0) {
+//    val numElements = dataFrameStats.getAs[Long]("count")
+    if (dataFrame.take(1).isEmpty) {
       throw new RuntimeException(
         "The DataFrame is empty, why are you trying to index an empty dataset?")
     }
@@ -181,32 +211,33 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       if (isReplication) None
       else calculateRevisionChanges(dataFrameStats, indexStatus.revision)
 
-    // The revision to use
-    val revision = spaceChanges match {
-      case Some(revisionChange) =>
-        revisionChange.createNewRevision
-      case None => indexStatus.revision
-    }
+//     The revision to use
+//    val revision = spaceChanges match {
+//      case Some(revisionChange) =>
+//        revisionChange.createNewRevision
+//      case None => indexStatus.revision
+//    }
 
     // Three step transformation
 
     // First, add a random weight column
-    val weightedDataFrame = dataFrame.transform(addRandomWeight(revision))
+    val weightedDataFrame =
+      dataFrame.transform(addRandomWeight(indexStatus.revision))
 
     // Second, estimate the cube weights at partition level
     val partitionedEstimatedCubeWeights = weightedDataFrame.transform(
-      estimatePartitionCubeWeights(numElements, revision, indexStatus, isReplication))
+      estimatePartitionCubeWeights(0, indexStatus.revision, indexStatus, isReplication))
 
     // Third, compute the overall estimated cube weights
     val estimatedCubeWeights =
       partitionedEstimatedCubeWeights
-        .transform(estimateCubeWeights(revision))
+        .transform(estimateCubeWeights(indexStatus.revision))
         .collect()
         .toMap
 
     // Gather the new changes
     val tableChanges = TableChanges(
-      spaceChanges,
+      None,
       IndexStatusChange(
         indexStatus,
         estimatedCubeWeights,
@@ -218,3 +249,5 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
   }
 
 }
+
+//case class columnStats()
