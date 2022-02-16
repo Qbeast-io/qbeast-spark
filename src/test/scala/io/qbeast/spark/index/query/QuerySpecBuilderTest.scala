@@ -91,6 +91,18 @@ class QuerySpecBuilderTest
 
   })
 
+  it should "extract query range when is null" in withSpark(spark => {
+
+    val revision = createRevision()
+    val expression = expr("id is null").expr
+    val querySpace = new QuerySpecBuilder(Seq(expression)).build(revision).querySpace
+    val tFrom = revision.transformations.head.transform(null)
+
+    querySpace invokePrivate privateFrom() shouldBe Seq(Some(tFrom))
+    querySpace invokePrivate privateTo() shouldBe Seq(None)
+
+  })
+
   it should "extract query range when column is string" in withSpark(spark => {
 
     val nameTransformation = HashTransformation()
