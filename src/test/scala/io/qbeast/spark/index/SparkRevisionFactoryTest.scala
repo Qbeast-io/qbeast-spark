@@ -49,7 +49,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
       case TransformerExtractor(transformer, nullValue) =>
         transformer shouldBe "LinearTransformer"
         nullValue shouldBe "nullValue"
-      case _ => fail("It did not recognize the type")
+      case _ => fail("It did not recognize the nullValue")
     }
 
     "column" match {
@@ -147,10 +147,10 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
           QbeastOptions.CUBE_SIZE -> "10"))
 
     revisionExplicit.columnTransformers shouldBe Vector(
-      LinearTransformer("a", IntegerDataType, 245),
-      LinearTransformer("b", DoubleDataType, 4.0),
-      HashTransformer("c", StringDataType, "null"),
-      LinearTransformer("d", FloatDataType, 1.0))
+      LinearTransformer("a", IntegerDataType, Some(245)),
+      LinearTransformer("b", DoubleDataType, Some(4.0)),
+      HashTransformer("c", StringDataType, Some("null")),
+      LinearTransformer("d", FloatDataType, Some(1.0)))
 
   })
 }

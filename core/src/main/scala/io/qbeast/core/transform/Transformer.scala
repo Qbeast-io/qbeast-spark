@@ -47,8 +47,9 @@ object Transformer {
       case FloatDataType => nullValue.toFloat
       case DoubleDataType => nullValue.toDouble
       case DecimalDataType => nullValue.toDouble
+      case _ => throw new IllegalArgumentException(s"Unsupported data type: $dataType")
     }
-    transformersRegistry(tt)(columnName, dataType, nullValueTyped)
+    transformersRegistry(tt)(columnName, dataType, Some(nullValueTyped))
   }
 
   /**
@@ -60,7 +61,7 @@ object Transformer {
    */
   def apply(transformerTypeName: String, columnName: String, dataType: QDataType): Transformer = {
     val tt = transformerTypeName.toLowerCase(Locale.ROOT)
-    transformersRegistry(tt)(columnName, dataType, null)
+    transformersRegistry(tt)(columnName, dataType)
   }
 
   /**
@@ -70,7 +71,7 @@ object Transformer {
    * @return the Transformer
    */
   def apply(columnName: String, dataType: QDataType): Transformer = {
-    getDefaultTransformerForType(dataType)(columnName, dataType, null)
+    getDefaultTransformerForType(dataType)(columnName, dataType)
   }
 
   /**
@@ -95,7 +96,11 @@ object Transformer {
 private[transform] trait TransformerType {
   def transformerSimpleName: String
 
-  def apply(columnName: String, dataType: QDataType, optionalNullValue: Any): Transformer
+  def apply(
+      columnName: String,
+      dataType: QDataType,
+      optionalNullValue: Option[Any] = None): Transformer
+
 }
 
 /**
@@ -119,7 +124,7 @@ trait Transformer extends Serializable {
    * Returns the user-inferred null value of the transformer, if any
    * @return
    */
-  def optionalNullValue: Any
+  def optionalNullValue: Option[Any]
 
   /**
    * Returns the stats

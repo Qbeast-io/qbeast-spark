@@ -7,7 +7,10 @@ object HashTransformer extends TransformerType {
 
 }
 
-case class HashTransformer(columnName: String, dataType: QDataType, optionalNullValue: Any = null)
+case class HashTransformer(
+    columnName: String,
+    dataType: QDataType,
+    optionalNullValue: Option[Any] = None)
     extends Transformer {
   override protected def transformerType: TransformerType = HashTransformer
 
@@ -15,8 +18,8 @@ case class HashTransformer(columnName: String, dataType: QDataType, optionalNull
 
   override def makeTransformation(row: String => Any): Transformation = {
     optionalNullValue match {
-      case null => HashTransformation()
-      case nullValue => HashTransformation(nullValue)
+      case Some(nullValue) => HashTransformation(nullValue)
+      case None => HashTransformation()
     }
   }
 

@@ -28,7 +28,7 @@ object LinearTransformer extends TransformerType {
 case class LinearTransformer(
     columnName: String,
     dataType: QDataType,
-    optionalNullValue: Any = null)
+    optionalNullValue: Option[Any] = None)
     extends Transformer {
   private def colMax = s"${columnName}_max"
   private def colMin = s"${columnName}_min"
@@ -61,16 +61,6 @@ case class LinearTransformer(
     }
   }
 
-  private lazy val (minValue, maxValue): (Any, Any) = {
-    dataType match {
-      case DoubleDataType => (Double.MinPositiveValue, Double.MaxValue)
-      case IntegerDataType => (Int.MinValue, Int.MaxValue)
-      case LongDataType => (Long.MinValue, Long.MaxValue)
-      case FloatDataType => (Float.MinValue, Float.MaxValue)
-      case DecimalDataType => (Double.MinValue, Double.MaxValue)
-    }
-  }
-
   override def stats: ColumnStats =
     ColumnStats(
       statsNames = Seq(colMax, colMin),
@@ -79,18 +69,14 @@ case class LinearTransformer(
   override def makeTransformation(row: String => Any): Transformation = {
     val minAux = row(colMin)
     val maxAux = row(colMax)
-    val (min, max) =
-      // TODO If all values are null...
-      if (minAux == null && maxAux == null) {
-        (minValue, maxValue)
-      } else {
-        (getValue(row(colMin)), getValue(row(colMax)))
-      }
+    if (minAux == null && maxAux == null) {
+      throw new RuntimeException(s"Column $columnName has only null values")
+    }
 
-    val nullValue = if (optionalNullValue == null) {
-      getValue(generateRandomNumber(min, max))
-    } else getValue(optionalNullValue)
-
+    val min = getValue(minAux)
+    val max = getValue(maxAux)
+    val nullAux = optionalNullValue.getOrElse(generateRandomNumber(min, max))
+    val nullValue = getValue(nullAux)
     dataType match {
       case ordered: OrderedDataType =>
         LinearTransformation(min, max, nullValue, ordered)

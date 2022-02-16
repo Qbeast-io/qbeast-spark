@@ -63,7 +63,6 @@ case class LinearTransformation(
    * @param other
    * @return a new Transformation that contains both this and other.
    */
-  // TODO check if this is correct
   override def merge(other: Transformation): Transformation = {
     other match {
       case LinearTransformation(otherMin, otherMax, otherNullValue, otherOrdering)
@@ -71,7 +70,7 @@ case class LinearTransformation(
         LinearTransformation(
           min(minNumber, otherMin),
           max(maxNumber, otherMax),
-          nullValue, // we should keep the original null value?
+          otherNullValue,
           orderedDataType)
           .asInstanceOf[Transformation]
 
