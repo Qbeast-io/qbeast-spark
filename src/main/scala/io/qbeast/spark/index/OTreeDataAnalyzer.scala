@@ -5,12 +5,19 @@ package io.qbeast.spark.index
 
 import io.qbeast.IISeq
 import io.qbeast.core.model._
-import io.qbeast.core.transform.Transformer
+import io.qbeast.core.transform.{
+  HashTransformation,
+  LinearTransformation,
+  Transformation,
+  Transformer
+}
 import io.qbeast.spark.index.QbeastColumns.{cubeToReplicateColumnName, weightColumnName}
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
 import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
+
+import scala.collection.JavaConverters._
 
 /**
  * Analyzes the data and extracts OTree structures
@@ -32,6 +39,8 @@ trait OTreeDataAnalyzer {
 }
 
 object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
+
+  private var globalColumnStats: Seq[ColStats] = Seq.empty
 
   /**
    * Estimates MaxWeight on DataFrame
@@ -141,46 +150,44 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         .select(cols.map(col): _*)
       val weightIndex = selected.schema.fieldIndex(weightColumnName)
 
-      // Define a container for Min/Max values for each column
-      // These values for each column have to be specific for each column's dataType
+      val statsExpr = revision.columnTransformers.flatMap(_.stats.statsSqlPredicates)
 
-      // revision.columnTransformers.map(
-      // _.makeTransformation(colName => row.getAs[Object](colName)))
-      // var transformers
-      // var globalTransformations
+      val columnsToIndex = revision.columnTransformers.map(_.columnName)
+      globalColumnStats = columnsToIndex.map(name =>
+        SparkRevisionFactory.getColumnQType(name, selected.schema) match {
+          case dType: OrderedDataType => NumericColumnStats(name, dType)
+          case dType => StringColumnStats(name, dType)
+        })
 
       selected
         .mapPartitions(rows => {
-          // TODO:
-          // Think of a way to iterate twice over the Iterator
-          // One solution can be making a duplication:
-          // val (rows1, rows2) = rows.duplicate
-
-          // Initialize the min/max values on a partition level and
-          // iterate through the iterator to update both the local and
-          // global min/max's for each column
-
-          // Once done, initialize the transformations that are to be used
-          // in the second iteration to map rows to points
-
-          // Find a way to store and return the partition level min/max and global
-          // min/max. Both are used to do the CubeId mapping from local index to
-          // global index.
           val (iterForStats, iterForCubeWeights) = rows.duplicate
 
-          iterForStats.foreach { row =>
-            // extract min/max for the columns to index => columnStats
-            // globalTransformations.update(columnStata)
+          val partitionStats =
+            spark
+              .createDataFrame(iterForStats.toList.asJava, selected.schema)
+              .selectExpr(statsExpr: _*)
+              .first()
 
+          globalColumnStats.foreach(colStats => colStats.update(partitionStats))
+
+          val transformations: Seq[Transformation] = globalColumnStats.map {
+            case stats: NumericColumnStats =>
+              LinearTransformation(stats.min, stats.max, stats.dType)
+            case StringColumnStats(_, _) => HashTransformation()
           }
+
+          val rev = revision.copy(transformations = transformations.toIndexedSeq)
+
           val weights =
             new CubeWeightsBuilder(
               indexStatus = indexStatus,
               numPartitions = numPartitions,
               numElements = numElements,
               bufferCapacity = bufferCapacity)
+
           iterForCubeWeights.foreach { row =>
-            val point = RowUtils.rowValuesToPoint(row, revision)
+            val point = RowUtils.rowValuesToPoint(row, rev)
             val weight = Weight(row.getAs[Int](weightIndex))
             if (isReplication) {
               val parentBytes = row.getAs[Array[Byte]](cubeToReplicateColumnName)
@@ -250,4 +257,26 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
 }
 
-//case class columnStats()
+trait ColStats {
+  def update(row: Row): Unit
+}
+
+case class NumericColumnStats(colName: String, dType: OrderedDataType) extends ColStats {
+  private val minValueName = s"{colName}_min"
+  private val maxValueName = s"{colName}_max"
+
+  var (min, max) = (Double.MaxValue, Double.MinValue)
+  def scale: Double = max - min
+
+  override def update(row: Row): Unit = {
+    min = min.min(row.getAs[Long](minValueName))
+    max = max.max(row.getAs[Long](maxValueName))
+  }
+
+}
+
+case class StringColumnStats(colName: String, dType: QDataType) extends ColStats {
+  var (min, max) = (Double.MinValue, Double.MaxValue)
+
+  override def update(row: Row): Unit = {}
+}
