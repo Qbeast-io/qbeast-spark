@@ -237,6 +237,7 @@ private[table] class IndexedTableImpl(
     // begin keeper transaction
     val bo = keeper.beginOptimization(tableID.id, revisionID)
 
+    // Load the index status
     val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
     val cubesToOptimize = bo.cubesToOptimize.map(currentIndexStatus.revision.createCubeId)
     val indexStatus = currentIndexStatus.addAnnouncements(cubesToOptimize)
@@ -244,7 +245,9 @@ private[table] class IndexedTableImpl(
     val schema = metadataManager.loadCurrentSchema(tableID)
 
     if (cubesToReplicate.nonEmpty) {
-      metadataManager.updateWithTransaction(tableID, schema, append = true) {
+      var tries = 2
+      try {
+        // Here new data is processed
         val dataToReplicate =
           CubeDataLoader(tableID).loadSetWithCubeColumn(
             cubesToReplicate,
@@ -254,12 +257,20 @@ private[table] class IndexedTableImpl(
           indexManager.optimize(dataToReplicate, indexStatus)
         val fileActions =
           dataWriter.write(tableID, schema, qbeastData, tableChanges)
-        (tableChanges, fileActions)
-      }
-    }
+        while (tries > 0) {
+          metadataManager.updateWithTransaction(tableID, schema, append = true) {
+            (tableChanges, fileActions)
+          }
+        }
 
-    bo.end(cubesToReplicate.map(_.string))
-    // end keeper transaction
+      } finally {
+        // end keeper transaction
+        bo.end(cubesToReplicate.map(_.string))
+      }
+    } else {
+      // end keeper transaction
+      bo.end(cubesToReplicate.map(_.string))
+    }
 
     clearCaches()
   }
