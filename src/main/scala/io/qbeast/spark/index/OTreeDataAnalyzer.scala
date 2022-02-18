@@ -40,8 +40,6 @@ trait OTreeDataAnalyzer {
 
 object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
-  private var globalColumnStats: Seq[ColStats] = Seq.empty
-
   /**
    * Estimates MaxWeight on DataFrame
    */
@@ -108,8 +106,8 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     }
 
   private[index] def estimateCubeWeights(
-      revision: Revision): Dataset[CubeNormalizedWeight] => Dataset[(CubeId, NormalizedWeight)] =
-    (partitionedEstimatedCubeWeights: Dataset[CubeNormalizedWeight]) => {
+      revision: Revision): Dataset[CubeWeightAndStats] => Dataset[(CubeId, NormalizedWeight)] =
+    (partitionedEstimatedCubeWeights: Dataset[CubeWeightAndStats]) => {
 
       val sqlContext = SparkSession.active.sqlContext
       import sqlContext.implicits._
@@ -129,7 +127,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       numElements: Long,
       revision: Revision,
       indexStatus: IndexStatus,
-      isReplication: Boolean): DataFrame => Dataset[CubeNormalizedWeight] =
+      isReplication: Boolean): DataFrame => Dataset[CubeWeightAndStats] =
     (weightedDataFrame: DataFrame) => {
 
       val spark = SparkSession.active
@@ -153,11 +151,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       val statsExpr = revision.columnTransformers.flatMap(_.stats.statsSqlPredicates)
 
       val columnsToIndex = revision.columnTransformers.map(_.columnName)
-      globalColumnStats = columnsToIndex.map(name =>
-        SparkRevisionFactory.getColumnQType(name, selected.schema) match {
-          case dType: OrderedDataType => NumericColumnStats(name, dType)
-          case dType => StringColumnStats(name, dType)
-        })
 
       selected
         .mapPartitions(rows => {
@@ -169,9 +162,15 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
               .selectExpr(statsExpr: _*)
               .first()
 
-          globalColumnStats.foreach(colStats => colStats.update(partitionStats))
+          val allColStats: Seq[ColStats] = columnsToIndex.map(name =>
+            SparkRevisionFactory.getColumnQType(name, selected.schema) match {
+              case dType: OrderedDataType => NumericColumnStats(name, dType)
+              case dType => StringColumnStats(name, dType)
+            })
 
-          val transformations: Seq[Transformation] = globalColumnStats.map {
+          allColStats.foreach(colStats => colStats.update(partitionStats))
+
+          val transformations: Seq[Transformation] = allColStats.map {
             case stats: NumericColumnStats =>
               LinearTransformation(stats.min, stats.max, stats.dType)
             case StringColumnStats(_, _) => HashTransformation()
@@ -195,7 +194,12 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
               weights.update(point, weight, parent)
             } else weights.update(point, weight)
           }
-          weights.result().iterator
+          weights
+            .result()
+            .map { case CubeNormalizedWeight(cubeBytes, weight) =>
+              CubeWeightAndStats(cubeBytes, weight, allColStats)
+            }
+            .iterator
         })
     }
 
@@ -280,3 +284,8 @@ case class StringColumnStats(colName: String, dType: QDataType) extends ColStats
 
   override def update(row: Row): Unit = {}
 }
+
+case class CubeWeightAndStats(
+    cubeBytes: Array[Byte],
+    normalizedWeight: NormalizedWeight,
+    colStats: Seq[ColStats])
