@@ -47,10 +47,13 @@ trait OrdinalTransformation extends Transformation {
 /**
  * Identity transformation.
  */
-object IdentityTransformation extends Transformation {
+case class IdentityTransformation(nullValue: Any) extends Transformation {
+
+  private val nullValueNumber = nullValue.asInstanceOf[Number]
 
   @inline
   override def transform(value: Any): Double = value match {
+    case null => nullValueNumber.byteValue()
     case v: Number =>
       v.byteValue()
   }

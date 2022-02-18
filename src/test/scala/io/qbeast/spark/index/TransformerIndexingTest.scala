@@ -207,11 +207,11 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
     indexed.count() shouldBe source.count()
 
-    assertSmallDatasetEquality(source, indexed, ignoreNullable = true, orderedComparison = false)
+    assertSmallDatasetEquality(source, indexed, orderedComparison = false)
 
   })
 
-  it should "NOT index tables with ALL null values" in withSparkAndTmpDir((spark, tmpDir) => {
+  it should "index tables with ALL null values" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
     val source = 0
       .to(100000)
@@ -219,13 +219,28 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
       .toDF()
       .as[TestNull]
 
-    a[RuntimeException] shouldBe thrownBy(
-      source.write
-        .format("qbeast")
-        .option("columnsToIndex", source.columns.mkString(","))
-        .option("cubeSize", 10000)
-        .save(tmpDir))
+    val indexed = writeAndReadDF(source, tmpDir, spark).as[TestNull]
+
+    indexed.count() shouldBe source.count()
+
+    assertSmallDatasetEquality(source, indexed, orderedComparison = false)
 
   })
+
+  it should "index tables with the same value in all rows" in withSparkAndTmpDir(
+    (spark, tmpDir) => {
+      import spark.implicits._
+      val source = 0
+        .to(100000)
+        .map(i => TestNull(Some(s"student$i"), Some(1), Some(i * 2)))
+        .toDF()
+        .as[TestNull]
+
+      val indexed = writeAndReadDF(source, tmpDir, spark).as[TestNull]
+
+      indexed.count() shouldBe source.count()
+
+      assertSmallDatasetEquality(source, indexed, orderedComparison = false)
+    })
 
 }

@@ -62,6 +62,14 @@ case class LinearTransformer(
     }
   }
 
+  private val zeroValue = dataType match {
+    case DoubleDataType => 0.0
+    case IntegerDataType => 0
+    case LongDataType => 0L
+    case FloatDataType => 0.0f
+    case DecimalDataType => 0.0
+  }
+
   override def stats: ColumnStats =
     ColumnStats(
       statsNames = Seq(colMax, colMin),
@@ -70,14 +78,17 @@ case class LinearTransformer(
   override def makeTransformation(row: String => Any): Transformation = {
     val minAux = row(colMin)
     val maxAux = row(colMax)
-    if (minAux == null && maxAux == null) {
-      throw new RuntimeException(s"Column $columnName has only null values")
-    }
-
-    val min = getValue(minAux)
-    val max = getValue(maxAux)
-    val nullAux = optionalNullValue.getOrElse(generateRandomNumber(min, max))
-    val nullValue = getValue(nullAux)
+    val (min, max, nullValue) =
+      if (minAux == null && maxAux == null) {
+        val aux = getValue(optionalNullValue.getOrElse(zeroValue))
+        (aux, aux, aux)
+      } else {
+        val min = getValue(minAux)
+        val max = getValue(maxAux)
+        val nullAux = optionalNullValue.getOrElse(generateRandomNumber(min, max))
+        val nullValue = getValue(nullAux)
+        (min, max, nullValue)
+      }
     dataType match {
       case ordered: OrderedDataType =>
         LinearTransformation(min, max, nullValue, ordered)
