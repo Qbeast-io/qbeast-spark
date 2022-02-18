@@ -78,17 +78,19 @@ case class LinearTransformer(
   override def makeTransformation(row: String => Any): Transformation = {
     val minAux = row(colMin)
     val maxAux = row(colMax)
-    val (min, max, nullValue) =
+    val (min, max, nullValue) = {
+      // If all values are null we pick the same value for all three variables
       if (minAux == null && maxAux == null) {
         val aux = getValue(optionalNullValue.getOrElse(zeroValue))
         (aux, aux, aux)
-      } else {
+      } else { // otherwhise we pick the min and max
         val min = getValue(minAux)
         val max = getValue(maxAux)
         val nullAux = optionalNullValue.getOrElse(generateRandomNumber(min, max))
         val nullValue = getValue(nullAux)
         (min, max, nullValue)
       }
+    }
     dataType match {
       case ordered: OrderedDataType =>
         LinearTransformation(min, max, nullValue, ordered)
