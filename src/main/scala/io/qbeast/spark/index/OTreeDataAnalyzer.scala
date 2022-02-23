@@ -18,6 +18,7 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 /**
  * Analyzes the data and extracts OTree structures
@@ -239,6 +240,74 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     val partitionedEstimatedCubeWeights = weightedDataFrame.transform(
       estimatePartitionCubeWeights(0, indexStatus.revision, indexStatus, isReplication))
 
+    val columnsToIndex = indexStatus.revision.columnTransformers.map(_.columnName)
+    val selected = weightedDataFrame.select(columnsToIndex.map(col): _*)
+    val globalColStats: Seq[ColStats] = columnsToIndex.map(name =>
+      SparkRevisionFactory.getColumnQType(name, selected.schema) match {
+        case dType: OrderedDataType => NumericColumnStats(name, dType)
+        case dType => StringColumnStats(name, dType)
+      })
+    val partitionColumnStats = partitionedEstimatedCubeWeights.collect().map(_.colStats).toSet
+
+    partitionColumnStats.foreach { partitionCol =>
+      globalColStats zip partitionCol foreach (tup => tup._1.merge(tup._2))
+    }
+
+    val dimensionCount = indexStatus.revision.transformations.size
+    val spark = SparkSession.active
+    import spark.implicits._
+
+    val globalCubeWeights = Map[CubeId, NormalizedWeight]()
+    partitionedEstimatedCubeWeights
+      .repartition(col("colStats"))
+      .mapPartitions { iter =>
+        val (firstIter, secondIter) = iter.duplicate
+        firstIter.foreach {
+          case CubeWeightAndStats(
+                cubeBytes: Array[Byte],
+                normalizedWeight: NormalizedWeight,
+                colStats: Seq[ColStats]) =>
+            val cube = CubeId(dimensionCount, cubeBytes)
+            val cubeDepth = cube.depth
+//            val cubeVolume = cube.from.coordinates
+//              .zip(cube.to.coordinates)
+//              .foldLeft(1.0)((vol, point) => vol * (point._2 - point._1))
+            val depthCubeSize = math.pow(2, -cubeDepth)
+            val limits = {
+              cube.from.coordinates zip cube.to.coordinates zip colStats zip globalColStats map {
+                case (
+                      ((l: Double, r: Double), partitionColStats: StringColumnStats),
+                      globalColStats: StringColumnStats) =>
+                  getOverlappingCubeLimits(l, r, depthCubeSize)
+                case (
+                      ((l: Double, r: Double), partitionColStats: NumericColumnStats),
+                      globalColStats: NumericColumnStats) =>
+                  val (cubeLeftLimit, cubeRightLimit) =
+                    (
+                      toGlobalLimit(l, partitionColStats, globalColStats),
+                      toGlobalLimit(r, partitionColStats, globalColStats))
+                  getOverlappingCubeLimits(cubeLeftLimit, cubeRightLimit, depthCubeSize)
+              }
+            }
+            val overlappingCubes: Seq[Seq[OverlappingCubeLimits]] =
+              getCubeRangeCombinations(limits)
+
+            val res = overlappingCubes.map { limitSeq =>
+              limitSeq.foldLeft(OverlappingCube(Seq[Double](), Seq[Double](), 1.0))(
+                (olCube, colCubeLimits) => {
+                  OverlappingCube(
+                    olCube.from :+ colCubeLimits.leftLimit,
+                    olCube.to :+ colCubeLimits.rightLimit,
+                    olCube.overlap * colCubeLimits.dimensionOverlap)
+                })
+            }
+//            res.foreach ()
+        }
+//        secondIter foreach {}
+
+        iter
+      }
+
     // Third, compute the overall estimated cube weights
     val estimatedCubeWeights =
       partitionedEstimatedCubeWeights
@@ -259,10 +328,56 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     (weightedDataFrame, tableChanges)
   }
 
+  def toGlobalLimit(
+      value: Double,
+      partitionStats: NumericColumnStats,
+      globalStats: NumericColumnStats): Double = {
+    val partitionValue = value * partitionStats.scale + partitionStats.min
+    (partitionValue - globalStats.min) / globalStats.scale
+  }
+
+  def getOverlappingCubeLimits(
+      partitionLeft: Double,
+      partitionRight: Double,
+      depthCubeSize: Double): Seq[OverlappingCubeLimits] = {
+    val globalLeft = (partitionLeft / depthCubeSize).toInt * depthCubeSize
+    val globalRight = globalLeft + depthCubeSize
+    val overlappingCubeLimits =
+      OverlappingCubeLimits(globalLeft, globalRight, globalRight - partitionLeft)
+
+    if (overlappingCubeLimits.dimensionOverlap == partitionRight - partitionLeft) {
+      overlappingCubeLimits :: Nil
+    } else {
+      overlappingCubeLimits :: OverlappingCubeLimits(
+        globalRight,
+        globalRight + depthCubeSize,
+        partitionRight - globalRight) :: Nil
+    }
+  }
+
+  def getCubeRangeCombinations(
+      overlappingLimits: Seq[Seq[OverlappingCubeLimits]]): Seq[Seq[OverlappingCubeLimits]] = {
+    val outputSequences = mutable.Buffer[Seq[OverlappingCubeLimits]]()
+    def getRangeCombinationsHelper(
+        seqIdx: Int,
+        combinations: Seq[OverlappingCubeLimits]): Unit = {
+      if (seqIdx == overlappingLimits.size) {
+        outputSequences.append(combinations)
+      } else {
+        overlappingLimits(seqIdx) foreach { overlap =>
+          getRangeCombinationsHelper(seqIdx + 1, combinations :+ overlap)
+        }
+      }
+    }
+    getRangeCombinationsHelper(0, Seq())
+    outputSequences
+  }
+
 }
 
 trait ColStats {
   def update(row: Row): Unit
+  def merge(that: ColStats): Unit
 }
 
 case class NumericColumnStats(colName: String, dType: OrderedDataType) extends ColStats {
@@ -277,15 +392,52 @@ case class NumericColumnStats(colName: String, dType: OrderedDataType) extends C
     max = max.max(row.getAs[Long](maxValueName))
   }
 
+  override def merge(colStats: ColStats): Unit = colStats match {
+    case numeric: NumericColumnStats
+        if minValueName == numeric.minValueName && maxValueName == numeric.maxValueName =>
+      min = min.min(numeric.min)
+      max = max.max(numeric.max)
+  }
+
 }
 
 case class StringColumnStats(colName: String, dType: QDataType) extends ColStats {
   var (min, max) = (Double.MinValue, Double.MaxValue)
 
   override def update(row: Row): Unit = {}
+
+  override def merge(that: ColStats): Unit = {}
 }
 
 case class CubeWeightAndStats(
     cubeBytes: Array[Byte],
     normalizedWeight: NormalizedWeight,
     colStats: Seq[ColStats])
+
+object OverlappingCubeLimits {
+
+  def apply(
+      leftLimit: Double,
+      rightLimit: Double,
+      dimensionOverlap: Double): OverlappingCubeLimits = {
+    assert(leftLimit >= 0.0 && leftLimit <= 1.0)
+    assert(rightLimit >= 0.0 && rightLimit <= 1.0)
+    assert(dimensionOverlap >= 0.0 && dimensionOverlap <= 1.0)
+    new OverlappingCubeLimits(leftLimit: Double, rightLimit: Double, dimensionOverlap: Double)
+  }
+
+}
+
+class OverlappingCubeLimits(
+    val leftLimit: Double,
+    val rightLimit: Double,
+    val dimensionOverlap: Double)
+
+case class OverlappingCube(from: Seq[Double], to: Seq[Double], overlap: Double) {
+
+  def toCubeId(dimensionCount: Int, depth: Int): CubeId = {
+    assert(from.size == to.size && from.size == dimensionCount)
+    CubeId.root(dimensionCount)
+  }
+
+}
