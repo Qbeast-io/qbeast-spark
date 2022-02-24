@@ -107,7 +107,11 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression]) extends Ser
           }
 
         val to = columnFilters
-          .collectFirst { case LessThan(_, Literal(value, _)) => sparkTypeToCoreType(value) }
+          .collectFirst {
+            case LessThan(_, Literal(value, _)) => sparkTypeToCoreType(value)
+            case EqualTo(_, Literal(value, _)) => sparkTypeToCoreType(value)
+            case IsNull(_) => null
+          }
 
         (from, to)
       }
