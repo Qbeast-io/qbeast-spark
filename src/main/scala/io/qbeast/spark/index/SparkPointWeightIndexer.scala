@@ -3,7 +3,9 @@
  */
 package io.qbeast.spark.index
 
+import io.qbeast.IISeq
 import io.qbeast.core.model.{CubeId, PointWeightIndexer, TableChanges, Weight}
+import io.qbeast.core.transform.Transformation
 import io.qbeast.spark.index.QbeastColumns.{
   cubeColumnName,
   cubeToReplicateColumnName,
@@ -41,7 +43,10 @@ private object SparkPointWeightIndexer {
 
 }
 
-private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication: Boolean)
+private class SparkPointWeightIndexer(
+    tableChanges: TableChanges,
+    isReplication: Boolean,
+    transformations: IISeq[Transformation] = Seq().toIndexedSeq)
     extends Serializable {
 
   val pointIndexer: PointWeightIndexer =
@@ -51,7 +56,10 @@ private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication:
     SparkSession.active.sparkContext.broadcast(pointIndexer)
 
   val findTargetCubeIdsUDF: UserDefinedFunction = {
-    val revision = tableChanges.updatedRevision
+    var revision = tableChanges.updatedRevision
+    if (transformations.nonEmpty) {
+      revision = revision.copy(transformations = transformations)
+    }
 
     udf((rowValues: Row, weightValue: Int, parentBytes: Any) => {
       val point = RowUtils.rowValuesToPoint(rowValues, revision)
