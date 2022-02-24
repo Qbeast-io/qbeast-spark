@@ -164,18 +164,15 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
               .selectExpr(statsExpr: _*)
               .first()
 
-          val allColStats: Seq[ColStats] = columnsToIndex.map(name =>
-            SparkRevisionFactory.getColumnQType(name, selected.schema) match {
-              case dType: OrderedDataType => NumericColumnStats(name, dType)
-              case dType => StringColumnStats(name, dType)
-            })
-
-          allColStats.foreach(colStats => colStats.update(partitionStats))
+          val allColStats: Seq[ColStats] =
+            initializeColStats(columnsToIndex, selected.schema).map(colStats =>
+              updateColStats(colStats, partitionStats))
 
           val transformations: Seq[Transformation] = allColStats.map {
-            case stats: NumericColumnStats =>
-              LinearTransformation(stats.min, stats.max, stats.dType)
-            case StringColumnStats(_, _) => HashTransformation()
+            case ColStats(_, dType: OrderedDataType, min: Double, max: Double) =>
+              LinearTransformation(min, max, dType)
+            case _ =>
+              HashTransformation()
           }
 
           val rev = revision.copy(transformations = transformations.toIndexedSeq)
@@ -226,6 +223,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     val globalColStats: Seq[ColStats] = initializeColStats(
       indexStatus.revision.columnTransformers.map(_.columnName),
       weightedDataFrame.schema)
+
     val partitionColumnStats = partitionedEstimatedCubeWeights.collect().map(_.colStats).toSet
     partitionColumnStats.foreach { partitionCol =>
       globalColStats zip partitionCol foreach (tup => tup._1.merge(tup._2))
@@ -234,6 +232,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     val dimensionCount = indexStatus.revision.transformations.size
     val spark = SparkSession.active
     import spark.implicits._
+//    implicit val colStatsEncoder: Encoder[ColStats] = Encoders.kryo[ColStats]
 
     val adjustedCubeWeights = partitionedEstimatedCubeWeights
       .repartition(col("colStats"))
@@ -319,48 +318,67 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
   }
 
   def initializeColStats(columnsToIndex: Seq[String], schema: StructType): Seq[ColStats] = {
-    columnsToIndex.map(name =>
-      SparkRevisionFactory.getColumnQType(name, schema) match {
-        case dType: OrderedDataType => NumericColumnStats(name, dType)
-        case dType => StringColumnStats(name, dType)
-      })
+    columnsToIndex.map(name => ColStats(name, SparkRevisionFactory.getColumnQType(name, schema)))
+  }
+
+  def mergeColStats(global: ColStats, local: ColStats): ColStats = {
+    assert(global.colName == local.colName && global.dType == local.dType)
+    global match {
+      case ColStats(_, _: OrderedDataType, min, max) =>
+        global.copy(min = min.min(local.min), max = max.max(local.max))
+      case _ => global
+    }
+  }
+
+  def updateColStats(stats: ColStats, partitionStats: Row): ColStats = stats match {
+    case ColStats(colName, _: OrderedDataType, min, max) =>
+      stats.copy(
+        min = min.min(partitionStats.getAs[Long](s"${colName}_min")),
+        max = max.max(partitionStats.getAs[Long](s"${colName}_max")))
+    case _ => stats
   }
 
 }
 
-trait ColStats {
-  def update(row: Row): Unit
-  def merge(that: ColStats): Unit
-}
+case class ColStats(
+    colName: String,
+    dType: QDataType,
+    min: Double = Double.MaxValue,
+    max: Double = Double.MinValue)
 
-case class NumericColumnStats(colName: String, dType: OrderedDataType) extends ColStats {
-  private val minValueName = s"{colName}_min"
-  private val maxValueName = s"{colName}_max"
+//trait ColStats {
+//  def update(row: Row): Unit
+//  def merge(that: ColStats): Unit
+//}
 
-  var (min, max) = (Double.MaxValue, Double.MinValue)
-  def scale: Double = max - min
-
-  override def update(row: Row): Unit = {
-    min = min.min(row.getAs[Long](minValueName))
-    max = max.max(row.getAs[Long](maxValueName))
-  }
-
-  override def merge(colStats: ColStats): Unit = colStats match {
-    case numeric: NumericColumnStats
-        if minValueName == numeric.minValueName && maxValueName == numeric.maxValueName =>
-      min = min.min(numeric.min)
-      max = max.max(numeric.max)
-  }
-
-}
-
-case class StringColumnStats(colName: String, dType: QDataType) extends ColStats {
-  var (min, max) = (Double.MinValue, Double.MaxValue)
-
-  override def update(row: Row): Unit = {}
-
-  override def merge(that: ColStats): Unit = {}
-}
+//case class NumericColumnStats(colName: String, dType: OrderedDataType) extends ColStats {
+//  private val minValueName = s"{colName}_min"
+//  private val maxValueName = s"{colName}_max"
+//
+//  var (min, max) = (Double.MaxValue, Double.MinValue)
+//  def scale: Double = max - min
+//
+//  override def update(row: Row): Unit = {
+//    min = min.min(row.getAs[Long](minValueName))
+//    max = max.max(row.getAs[Long](maxValueName))
+//  }
+//
+//  override def merge(colStats: ColStats): Unit = colStats match {
+//    case numeric: NumericColumnStats
+//        if minValueName == numeric.minValueName && maxValueName == numeric.maxValueName =>
+//      min = min.min(numeric.min)
+//      max = max.max(numeric.max)
+//  }
+//
+//}
+//
+//case class StringColumnStats(colName: String, dType: QDataType) extends ColStats {
+//  var (min, max) = (Double.MinValue, Double.MaxValue)
+//
+//  override def update(row: Row): Unit = {}
+//
+//  override def merge(that: ColStats): Unit = {}
+//}
 
 case class CubeWeightAndStats(
     cubeBytes: Array[Byte],
