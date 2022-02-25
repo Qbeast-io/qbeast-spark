@@ -35,7 +35,7 @@ trait OTreeDataAnalyzer {
   def analyze(
       data: DataFrame,
       indexStatus: IndexStatus,
-      isReplication: Boolean): (DataFrame, TableChanges, IISeq[Transformation])
+      isReplication: Boolean): (DataFrame, TableChanges)
 
 }
 
