@@ -12,7 +12,7 @@ import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, SparkSession}
+import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame}
 
 import java.util.ConcurrentModificationException
 
@@ -241,15 +241,15 @@ private[table] class IndexedTableImpl(
 
     // Load the index status
     val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
-    val cubesToOptimize = bo.cubesToOptimize.map(currentIndexStatus.revision.createCubeId)
-    val indexStatus = currentIndexStatus.addAnnouncements(cubesToOptimize)
+    val indexStatus = currentIndexStatus.addAnnouncements(
+      bo.cubesToOptimize.map(currentIndexStatus.revision.createCubeId))
     val cubesToReplicate = indexStatus.cubesToOptimize
     val currentReplicatedSet = indexStatus.replicatedSet
     val schema = metadataManager.loadCurrentSchema(tableID)
 
     if (cubesToReplicate.nonEmpty) {
+      var tries = 2
       try {
-        var tries = 2
         while (tries > 0) {
           try {
             // Try to commit transaction
@@ -278,13 +278,12 @@ private[table] class IndexedTableImpl(
               // Trying one more time if the conflict is solvable
               tries -= 1
 
-          } finally {
-            // end keeper transaction
-            bo.end(cubesToReplicate.map(_.string))
           }
         }
+      } finally {
+        // end keeper transaction
+        bo.end(cubesToReplicate.map(_.string))
       }
-
     } else {
       // end keeper transaction
       bo.end(cubesToReplicate.map(_.string))
