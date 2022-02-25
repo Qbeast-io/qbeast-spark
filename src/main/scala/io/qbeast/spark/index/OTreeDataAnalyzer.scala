@@ -130,7 +130,8 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       indexStatus: IndexStatus,
       isReplication: Boolean): DataFrame => Dataset[CubeWeightAndStats] =
     (weightedDataFrame: DataFrame) => {
-
+      // scalastyle:off println
+      println(">>> estimatePartitionCubeWeights")
       val spark = SparkSession.active
       import spark.implicits._
 
@@ -152,10 +153,13 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       val columnsToIndex = revision.columnTransformers.map(_.columnName)
       var partitionColStats = initializeColStats(columnsToIndex, selected.schema)
 
+      println(">>> estimatePartitionCubeWeights -> Entering mapPartitions!!!")
+
       selected
         .mapPartitions(rows => {
           val (iterForStats, iterForCubeWeights) = rows.duplicate
 
+          println(">>> estimatePartitionCubeWeights -> Iterating through iterForStats")
           iterForStats.foreach { row =>
             partitionColStats = partitionColStats.map { stats =>
               if (stats.dType == "StringDataType") {
@@ -188,6 +192,10 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
           val partitionRevision =
             revision.copy(transformations = updatedTransformations(partitionColStats))
+
+          // scalastyle:off println
+          println(">>> estimatePartitionCubeWeights -> Iterating through iterForCubeWeights")
+
           iterForCubeWeights.foreach { row =>
             val point = RowUtils.rowValuesToPoint(row, partitionRevision)
             val weight = Weight(row.getAs[Int](weightIndex))
@@ -210,12 +218,15 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       partitionedEstimatedCubeWeights: Dataset[CubeWeightAndStats],
       revision: Revision,
       schema: StructType): (Dataset[CubeNormalizedWeight], IISeq[Transformation]) = {
+    // scalastyle:off println
+    println(">>> toGlobalCubeWeights")
     val partitionColumnStats: Set[Seq[ColStats]] =
       partitionedEstimatedCubeWeights.collect().map(_.colStats).toSet
 
+    val colsToIndex = revision.columnTransformers.map(_.columnName)
     // Initialize global column stats
     var globalColStats: Seq[ColStats] =
-      initializeColStats(revision.columnTransformers.map(_.columnName), schema)
+      initializeColStats(colsToIndex, schema)
 
     // Update global column stats
     partitionColumnStats.foreach { partitionColStats =>
@@ -225,9 +236,11 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     }
     val globalTransformations = updatedTransformations(globalColStats)
 
-    val dimensionCount = revision.transformations.size
+    val dimensionCount = colsToIndex.size
+    println(s"dimensionCount: ${dimensionCount}")
     val spark = SparkSession.active
     import spark.implicits._
+    println(">>> toGlobalCubeWeights -> Entering mapPartitions")
     val globalCubeWeights = partitionedEstimatedCubeWeights
       .repartition(col("colStats"))
       .mapPartitions { iter =>
