@@ -265,6 +265,7 @@ private[table] class IndexedTableImpl(
                 dataWriter.write(tableID, schema, qbeastData, tableChanges)
               (tableChanges, fileActions)
             }
+            tries = 0
           } catch {
             case cme: ConcurrentModificationException
                 if metadataManager.isConflicted(
