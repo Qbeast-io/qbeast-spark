@@ -63,10 +63,10 @@ object SparkOTreeManager extends IndexManager[DataFrame] with Serializable {
       indexStatus: IndexStatus,
       isReplication: Boolean): (DataFrame, TableChanges) = {
     // Analyze the data and compute weight and estimated weight map of the result
-    val (weightedDataFrame, tc, transformations) =
+    val (weightedDataFrame, tc) =
       DoublePassOTreeDataAnalyzer.analyze(dataFrame, indexStatus, isReplication)
 
-    val pointWeightIndexer = new SparkPointWeightIndexer(tc, isReplication, transformations)
+    val pointWeightIndexer = new SparkPointWeightIndexer(tc, isReplication)
 
     // Add cube and state information to the dataframe
     val indexedDataFrame =
