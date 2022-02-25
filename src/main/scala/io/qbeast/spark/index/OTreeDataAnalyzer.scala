@@ -161,26 +161,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
           println(">>> estimatePartitionCubeWeights -> Iterating through iterForStats")
           iterForStats.foreach { row =>
-            partitionColStats = partitionColStats.map { stats =>
-              if (stats.dType == "StringDataType") {
-                stats
-              } else {
-                val value = stats match {
-                  case ColStats(colName, "DoubleDataType", _, _) =>
-                    row.getAs[Double](colName)
-                  case ColStats(colName, "IntegerDataType", _, _) =>
-                    row.getAs[Int](colName).toDouble
-                  case ColStats(colName, "FloatDataType", _, _) =>
-                    row.getAs[Float](colName).toDouble
-                  case ColStats(colName, "DecimalDataType", _, _) =>
-                    row.getAs[Double](colName)
-                  case ColStats(colName, "LongDataType", _, _) =>
-                    row.getAs[Long](colName).toDouble
-                  case _ => throw new RuntimeException(s"Type currently not supported")
-                }
-                stats.copy(min = stats.min.min(value), max = stats.max.max(value))
-              }
-            }
+            partitionColStats = partitionColStats.map(stats => updatedColStats(stats, row))
           }
 
           val weights =
@@ -237,7 +218,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     val globalTransformations = updatedTransformations(globalColStats)
 
     val dimensionCount = colsToIndex.size
-    println(s"dimensionCount: ${dimensionCount}")
+    println(s"dimensionCount: $dimensionCount")
     val spark = SparkSession.active
     import spark.implicits._
     println(">>> toGlobalCubeWeights -> Entering mapPartitions")
@@ -339,90 +320,108 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
   def toGlobalCoordinates(
       from: Double,
       to: Double,
-      partitionStats: ColStats,
-      globalStats: ColStats): (Double, Double) = {
-    assert(
-      partitionStats.colName == globalStats.colName && partitionStats.dType == globalStats.dType)
-
-    globalStats match {
-      case ColStats(_, "StringDataType", _, _) => (from, to)
-      case ColStats(_, _, min, max) =>
-        val partitionScale = partitionStats.max - partitionStats.min
-        val globalScale = max - min
-        val fromValue = from * partitionScale + partitionStats.min
-        val toValue = to * partitionScale + partitionStats.min
-        ((fromValue - min) / globalScale, (toValue - min) / globalScale)
-
+      local: ColStats,
+      global: ColStats): (Double, Double) = {
+    assert(local.colName == global.colName && local.dType == global.dType)
+    if (global.dType == "StringDataType") {
+      (from, to)
+    } else {
+      val (gMN: Double, gMX: Double, lMN: Double, lMX: Double) =
+        (
+          convertToDouble(global.dType, global.min),
+          convertToDouble(global.dType, global.max),
+          convertToDouble(global.dType, local.min),
+          convertToDouble(global.dType, local.max))
+      val (gScale, lScale) = (gMX - gMN, lMX - lMN)
+      (((from * lScale + lMN) - gMN) / gScale, ((to * lScale + lMN) - gMN) / gScale)
     }
-
   }
-
-//  def getPartitionColStats(
-//      iter: Iterator[Row],
-//      columnsToIndex: Seq[String],
-//      schema: StructType): Seq[ColStats] = {
-//    var partitionColStats = initializeColStats(columnsToIndex, schema)
-//    iter.foreach { row =>
-//      partitionColStats = partitionColStats.map { stats =>
-//        if (stats.dType == "StringDataType") {
-//          stats
-//        } else {
-//          val value = stats match {
-//            case ColStats(colName, "DoubleDataType", _, _) =>
-//              row.getAs[Double](colName)
-//            case ColStats(colName, "IntegerDataType", _, _) =>
-//              row.getAs[Int](colName).toDouble
-//            case ColStats(colName, "FloatDataType", _, _) =>
-//              row.getAs[Float](colName).toDouble
-//            case ColStats(colName, "DecimalDataType", _, _) =>
-//              row.getAs[Double](colName)
-//            case ColStats(colName, "LongDataType", _, _) =>
-//              row.getAs[Long](colName).toDouble
-//            case _ => throw new RuntimeException(s"Type currently not supported")
-//          }
-//          stats.copy(min = stats.min.min(value), max = stats.max.max(value))
-//        }
-//      }
-//    }
-//    partitionColStats
-//  }
 
   def initializeColStats(columnsToIndex: Seq[String], schema: StructType): Seq[ColStats] = {
     columnsToIndex.map { name =>
-      ColStats(
-        name,
-        SparkRevisionFactory.getColumnQType(name, schema).name,
-        Double.MaxValue,
-        Double.MinValue)
+      val dType = SparkRevisionFactory.getColumnQType(name, schema).name
+      val (min, max) = dType match {
+        case "DoubleDataType" | "DecimalDataType" =>
+          (Double.MaxValue, Double.MinValue)
+        case "StringDataType" | "IntegerDataType" => (Int.MaxValue, Int.MinValue)
+        case "FloatDataType" => (Float.MaxValue, Float.MinValue)
+        case "LongDataType" => (Long.MaxValue, Long.MinValue)
+        case t => throw new RuntimeException(s"Type $t currently not supported")
+      }
+      ColStats(name, dType, min, max)
     }
   }
 
   def mergedColStats(global: ColStats, local: ColStats): ColStats = {
     assert(global.colName == local.colName && global.dType == local.dType)
-    global match {
-      case ColStats(_, "StringDataType", _, _) => global
-      case ColStats(_, _, min, max) =>
-        global.copy(min = min.min(local.min), max = max.max(local.max))
+    if (global.dType == "StringDataType") {
+      global
+    } else {
+      val (newMin, newMax) = global.dType match {
+        case "DoubleDataType" | "DecimalDataType" =>
+          (
+            global.min.asInstanceOf[Double].min(local.min.asInstanceOf[Double]),
+            global.max.asInstanceOf[Double].max(local.max.asInstanceOf[Double]))
+        case "IntegerDataType" =>
+          (
+            global.min.asInstanceOf[Int].min(local.min.asInstanceOf[Int]),
+            global.max.asInstanceOf[Int].max(local.max.asInstanceOf[Int]))
+        case "FloatDataType" =>
+          (
+            global.min.asInstanceOf[Float].min(local.min.asInstanceOf[Float]),
+            global.max.asInstanceOf[Float].max(local.max.asInstanceOf[Float]))
+        case "LongDataType" =>
+          (
+            global.min.asInstanceOf[Long].min(local.min.asInstanceOf[Long]),
+            global.max.asInstanceOf[Long].max(local.max.asInstanceOf[Long]))
+        case t => throw new RuntimeException(s"Type $t currently not supported")
+      }
+      global.copy(min = newMin, max = newMax)
     }
   }
 
-//  def updatedColStats(stats: ColStats, row: Row): ColStats = stats match {
-//    case ColStats(_, "StringDataType", _, _) => stats
-//    case ColStats(colName, _, min, max) =>
-//      stats.copy(min = min.min(row.getAs[Long](colName)), max = max.max(row.getAs[Long](colName)))
-//  }
+  def convertToDouble(t: String, num: Any): Double = t match {
+    case "DoubleDataType" | "DecimalDataType" => num.asInstanceOf[Double]
+    case "IntegerDataType" => num.asInstanceOf[Int].toDouble
+    case "FloatDataType" => num.asInstanceOf[Float].toDouble
+    case "LongDataType" => num.asInstanceOf[Long].toDouble
+    case _ => throw new RuntimeException(s"Type currently not supported")
+  }
+
+  def updatedColStats(stats: ColStats, row: Row): ColStats = {
+    if (stats.dType == "StringDataType") {
+      stats
+    } else {
+      val (newMin, newMax) = stats match {
+        case ColStats(colName, _, min: Double, max: Double) =>
+          val value = row.getAs[Double](colName)
+          (min.min(value), max.max(value))
+        case ColStats(colName, _, min: Int, max: Int) =>
+          val value = row.getAs[Int](colName)
+          (min.min(value), max.max(value))
+        case ColStats(colName, _, min: Float, max: Float) =>
+          val value = row.getAs[Float](colName)
+          (min.min(value), max.max(value))
+        case ColStats(colName, _, min: Long, max: Long) =>
+          val value = row.getAs[Long](colName)
+          (min.min(value), max.max(value))
+        case _ => throw new RuntimeException(s"Type currently not supported")
+      }
+      stats.copy(min = newMin, max = newMax)
+    }
+  }
 
   def updatedTransformations(columnStats: Seq[ColStats]): IISeq[Transformation] = {
     columnStats.map {
       case ColStats(_, "StringDataType", _, _) => HashTransformation()
-      case ColStats(_, dType, min: Double, max: Double) =>
+      case ColStats(_, dType, min, max) =>
         LinearTransformation(min, max, OrderedDataType(dType))
     }.toIndexedSeq
   }
 
 }
 
-case class ColStats(colName: String, dType: String, min: Double, max: Double)
+case class ColStats(colName: String, dType: String, min: Any, max: Any)
 
 case class CubeWeightAndStats(
     cubeBytes: Array[Byte],
