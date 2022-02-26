@@ -217,13 +217,39 @@ private[table] class IndexedTableImpl(
   private def doWrite(data: DataFrame, indexStatus: IndexStatus, append: Boolean): Unit = {
 
     val schema = data.schema
-    metadataManager.updateWithTransaction(tableID, schema, append) {
-      val (qbeastData, tableChanges) =
-        indexManager.index(data, indexStatus)
-      val fileActions = dataWriter.write(tableID, schema, qbeastData, tableChanges)
-      (tableChanges, fileActions)
-    }
+    val revisionID = indexStatus.revision.revisionID
+    val oldAnnouncedSet = indexStatus.announcedSet
+    val oldReplicatedSet = indexStatus.replicatedSet
 
+    var tries = 2
+    try {
+      while (tries > 0) {
+        try {
+          // Try to commit transaction
+          metadataManager.updateWithTransaction(tableID, schema, append) {
+            val (qbeastData, tableChanges) =
+              indexManager.index(data, indexStatus)
+            val fileActions = dataWriter.write(tableID, schema, qbeastData, tableChanges)
+            (tableChanges, fileActions)
+          }
+          tries = 0
+        } catch {
+          case cme: ConcurrentModificationException
+              if metadataManager.isConflicted(
+                tableID,
+                revisionID,
+                oldReplicatedSet,
+                oldAnnouncedSet) || tries == 0 =>
+            // Nothing to do, the conflict is unsolvable
+            throw cme
+
+          case _: ConcurrentModificationException =>
+            // Trying one more time if the conflict is solvable
+            tries -= 1
+
+        }
+      }
+    }
   }
 
   override def analyze(revisionID: RevisionID): Seq[String] = {
@@ -238,59 +264,37 @@ private[table] class IndexedTableImpl(
 
     // begin keeper transaction
     val bo = keeper.beginOptimization(tableID.id, revisionID)
-    val cubesToOptimize = bo.cubesToOptimize
 
-    // Load the index status
     val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
-    val revision = currentIndexStatus.revision
-    val indexStatus =
-      currentIndexStatus.addAnnouncements(cubesToOptimize.map(revision.createCubeId))
-
-    val cubesToReplicate = indexStatus.cubesToOptimize
-    val currentReplicatedSet = indexStatus.replicatedSet
+    val cubesToReplicate = bo.cubesToOptimize.map(currentIndexStatus.revision.createCubeId)
+    val indexStatus = currentIndexStatus.addAnnouncements(cubesToReplicate)
     val schema = metadataManager.loadCurrentSchema(tableID)
 
     if (cubesToReplicate.nonEmpty) {
-      var tries = 2
       try {
-        while (tries > 0) {
-          try {
-            // Try to commit transaction
-            metadataManager.updateWithTransaction(tableID, schema, append = true) {
-              val dataToReplicate =
-                CubeDataLoader(tableID).loadSetWithCubeColumn(
-                  cubesToReplicate,
-                  indexStatus.revision,
-                  QbeastColumns.cubeToReplicateColumnName)
-              val (qbeastData, tableChanges) =
-                indexManager.optimize(dataToReplicate, indexStatus)
-              val fileActions =
-                dataWriter.write(tableID, schema, qbeastData, tableChanges)
-              (tableChanges, fileActions)
-            }
-            tries = 0
-          } catch {
-            case cme: ConcurrentModificationException
-                if metadataManager.isConflicted(
-                  tableID,
-                  revisionID,
-                  currentReplicatedSet) || tries == 0 =>
-              // Nothing to do, the conflict is unsolvable
-              throw cme
-
-            case _: ConcurrentModificationException =>
-              // Trying one more time if the conflict is solvable
-              tries -= 1
-
-          }
+        // Try to commit transaction
+        metadataManager.updateWithTransaction(tableID, schema, append = true) {
+          val dataToReplicate =
+            CubeDataLoader(tableID).loadSetWithCubeColumn(
+              cubesToReplicate,
+              indexStatus.revision,
+              QbeastColumns.cubeToReplicateColumnName)
+          val (qbeastData, tableChanges) =
+            indexManager.optimize(dataToReplicate, indexStatus)
+          val fileActions =
+            dataWriter.write(tableID, schema, qbeastData, tableChanges)
+          (tableChanges, fileActions)
         }
+      } catch {
+        case _: ConcurrentModificationException =>
+          bo.end(Set())
       } finally {
         // end keeper transaction
         bo.end(cubesToReplicate.map(_.string))
       }
     } else {
       // end keeper transaction
-      bo.end(cubesToReplicate.map(_.string))
+      bo.end(Set())
     }
 
     clearCaches()

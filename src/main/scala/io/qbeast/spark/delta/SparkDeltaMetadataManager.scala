@@ -56,14 +56,16 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction]
    * @param oldReplicatedSet the cubes we know they were announced when the write operation started.
    * @return true if there a conflict, false otherwise
    */
-  def isConflicted(
+  override def isConflicted(
       tableID: QTableID,
       revisionID: RevisionID,
+      knownAnnounced: Set[CubeId],
       oldReplicatedSet: ReplicatedSet): Boolean = {
 
     val newReplicatedSet = loadSnapshot(tableID).loadIndexStatus(revisionID).replicatedSet
-    val deltaReplicatedSet = (newReplicatedSet -- oldReplicatedSet)
-    deltaReplicatedSet.nonEmpty
+    val deltaReplicatedSet = newReplicatedSet -- oldReplicatedSet
+    val diff = deltaReplicatedSet -- knownAnnounced
+    diff.nonEmpty
   }
 
 }
