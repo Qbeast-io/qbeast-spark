@@ -249,7 +249,6 @@ private[table] class IndexedTableImpl(
 
         }
       }
-
     } finally {
       // do nothing
     }
@@ -269,8 +268,10 @@ private[table] class IndexedTableImpl(
     val bo = keeper.beginOptimization(tableID.id, revisionID)
 
     val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
-    val cubesToReplicate = bo.cubesToOptimize.map(currentIndexStatus.revision.createCubeId)
-    val indexStatus = currentIndexStatus.addAnnouncements(cubesToReplicate)
+    val cubesToOptimize = bo.cubesToOptimize.map(currentIndexStatus.revision.createCubeId)
+    val indexStatus = currentIndexStatus.addAnnouncements(cubesToOptimize)
+
+    val cubesToReplicate = indexStatus.cubesToOptimize
     val schema = metadataManager.loadCurrentSchema(tableID)
 
     if (cubesToReplicate.nonEmpty) {
