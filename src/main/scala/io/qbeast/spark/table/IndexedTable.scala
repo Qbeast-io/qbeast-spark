@@ -221,8 +221,8 @@ private[table] class IndexedTableImpl(
     val oldAnnouncedSet = indexStatus.announcedSet
     val oldReplicatedSet = indexStatus.replicatedSet
 
-    var tries = 2
     try {
+      var tries = 2
       while (tries > 0) {
         try {
           // Try to commit transaction
@@ -249,6 +249,9 @@ private[table] class IndexedTableImpl(
 
         }
       }
+
+    } finally {
+      // do nothing
     }
   }
 
