@@ -238,11 +238,14 @@ private[table] class IndexedTableImpl(
 
     // begin keeper transaction
     val bo = keeper.beginOptimization(tableID.id, revisionID)
+    val cubesToOptimize = bo.cubesToOptimize
 
     // Load the index status
     val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
-    val indexStatus = currentIndexStatus.addAnnouncements(
-      bo.cubesToOptimize.map(currentIndexStatus.revision.createCubeId))
+    val revision = currentIndexStatus.revision
+    val indexStatus =
+      currentIndexStatus.addAnnouncements(cubesToOptimize.map(revision.createCubeId))
+
     val cubesToReplicate = indexStatus.cubesToOptimize
     val currentReplicatedSet = indexStatus.replicatedSet
     val schema = metadataManager.loadCurrentSchema(tableID)

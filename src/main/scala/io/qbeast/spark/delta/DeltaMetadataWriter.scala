@@ -72,7 +72,6 @@ private[delta] case class DeltaMetadataWriter(
 
   }
 
-  // TODO add revisionID in transactionID
   private def updateTransactionVersion(
       txn: OptimisticTransaction,
       revisionID: RevisionID): SetTransaction = {
@@ -90,7 +89,7 @@ private[delta] case class DeltaMetadataWriter(
    * @param newFiles files to add or remove
    * @return the sequence of file actions to save in the commit log(add, remove...)
    */
-  def updateMetadata(
+  private def updateMetadata(
       txn: OptimisticTransaction,
       tableChanges: TableChanges,
       newFiles: Seq[FileAction]): Seq[Action] = {
@@ -104,13 +103,7 @@ private[delta] case class DeltaMetadataWriter(
       } else if (mode == SaveMode.Overwrite) {
         deltaLog.assertRemovable()
       }
-    } else {
-      // Initialize the log path
-      val fs = deltaLog.logPath.getFileSystem(sparkSession.sessionState.newHadoopConf)
-
-      fs.mkdirs(deltaLog.logPath)
     }
-
     val rearrangeOnly = options.rearrangeOnly
 
     val isOptimizeOperation: Boolean = tableChanges.isOptimizeOperation
@@ -125,6 +118,13 @@ private[delta] case class DeltaMetadataWriter(
       isOptimizeOperation,
       rearrangeOnly,
       tableChanges)
+
+    if (txn.readVersion < 0) {
+      // Initialize the log path
+      val fs = deltaLog.logPath.getFileSystem(sparkSession.sessionState.newHadoopConf)
+
+      fs.mkdirs(deltaLog.logPath)
+    }
 
     val addFiles = newFiles.collect { case a: AddFile => a }
     val deletedFiles = mode match {
@@ -141,8 +141,9 @@ private[delta] case class DeltaMetadataWriter(
     }
 
     if (isOptimizeOperation) {
+      val revisionID = tableChanges.updatedRevision.revisionID
       val transactionRecord =
-        updateTransactionVersion(txn, tableChanges.updatedRevision.revisionID)
+        updateTransactionVersion(txn, revisionID)
       val replicatedFiles = updateReplicatedFiles(tableChanges)
       allFileActions ++ replicatedFiles ++ Seq(transactionRecord)
     } else allFileActions
