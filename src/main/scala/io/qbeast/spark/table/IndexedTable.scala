@@ -13,7 +13,6 @@ import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame}
-
 import java.util.ConcurrentModificationException
 
 /**
@@ -221,36 +220,30 @@ private[table] class IndexedTableImpl(
     val oldAnnouncedSet = indexStatus.announcedSet
     val oldReplicatedSet = indexStatus.replicatedSet
 
-    try {
-      var tries = 2
-      while (tries > 0) {
-        try {
-          // Try to commit transaction
-          metadataManager.updateWithTransaction(tableID, schema, append) {
-            val (qbeastData, tableChanges) =
-              indexManager.index(data, indexStatus)
-            val fileActions = dataWriter.write(tableID, schema, qbeastData, tableChanges)
-            (tableChanges, fileActions)
-          }
-          tries = 0
-        } catch {
-          case cme: ConcurrentModificationException
-              if metadataManager.isConflicted(
-                tableID,
-                revisionID,
-                oldReplicatedSet,
-                oldAnnouncedSet) || tries == 0 =>
-            // Nothing to do, the conflict is unsolvable
-            throw cme
-
-          case _: ConcurrentModificationException =>
-            // Trying one more time if the conflict is solvable
-            tries -= 1
-
+    var tries = 2
+    while (tries > 0) {
+      try {
+        // Try to commit transaction
+        metadataManager.updateWithTransaction(tableID, schema, append) {
+          val (qbeastData, tableChanges) =
+            indexManager.index(data, indexStatus)
+          val fileActions = dataWriter.write(tableID, schema, qbeastData, tableChanges)
+          (tableChanges, fileActions)
         }
+        tries = 0
+      } catch {
+        case cme: ConcurrentModificationException
+            if metadataManager.isConflicted(
+              tableID,
+              revisionID,
+              oldReplicatedSet,
+              oldAnnouncedSet) || tries == 0 =>
+          // Nothing to do, the conflict is unsolvable
+          throw cme
+        case _: ConcurrentModificationException =>
+          // Trying one more time if the conflict is solvable
+          tries -= 1
       }
-    } finally {
-      // do nothing
     }
   }
 
@@ -270,7 +263,6 @@ private[table] class IndexedTableImpl(
     val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
     val cubesToOptimize = bo.cubesToOptimize.map(currentIndexStatus.revision.createCubeId)
     val indexStatus = currentIndexStatus.addAnnouncements(cubesToOptimize)
-
     val cubesToReplicate = indexStatus.cubesToOptimize
     val schema = metadataManager.loadCurrentSchema(tableID)
 
@@ -297,7 +289,6 @@ private[table] class IndexedTableImpl(
         bo.end(cubesToReplicate.map(_.string))
       }
     } else {
-      // end keeper transaction
       bo.end(Set())
     }
 
