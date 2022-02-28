@@ -80,7 +80,7 @@ class QbeastTable private (
     val cubeCounts = allCubeStatuses.size
     val depth = allCubeStatuses.map(_._1.depth).max
     val row_count = allCubeStatuses.flatMap(_._2.files.map(_.elementCount)).sum
-    
+
     val dimensionCount = indexedColumns().size
     val desiredCubeSize = cubeSize()
 
@@ -127,6 +127,7 @@ class QbeastTable private (
 
   def logOfBase(base: Int, value: Double): Double = {
     math.log10(value) / math.log10(base)
+  }
 
   /**
    * Outputs the indexed columns of the table

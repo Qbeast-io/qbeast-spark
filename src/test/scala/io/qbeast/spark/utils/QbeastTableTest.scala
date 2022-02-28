@@ -11,7 +11,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
     val rdd =
       spark.sparkContext.parallelize(
         0.to(1000)
-          .map(i => Client3(i * i, s"student-$i", i, (i * 1000 + 123), i * 2567.3432143)))
+          .map(i => Client3(i * i, s"student-$i", i, i * 1000 + 123, i * 2567.3432143)))
     spark.createDataFrame(rdd)
   }
 
@@ -42,8 +42,8 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
     }
   }
 
-  "Latest revision" should "output the lastest revision available" in withQbeastContextSparkAndTmpDir {
-    (spark, tmpDir) =>
+  "Latest revision" should "output the latest revision available" in
+    withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
       {
         val data = createDF(spark)
         val columnsToIndex = Seq("age", "val2")
@@ -54,9 +54,9 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
         qbeastTable.latestRevisionID() shouldBe 1L
       }
-  }
+    }
 
-  it should "output the lastest revision from all revisions" in
+  it should "output the latest revision from all revisions" in
     withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
       {
         val revision1 = createDF(spark)
@@ -98,7 +98,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
   }
 
   "Metrics" should "return index metrics" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
-  {
+    {
       val data = createDF(spark)
       val columnsToIndex = Seq("age", "val2")
       val cubeSize = 100
