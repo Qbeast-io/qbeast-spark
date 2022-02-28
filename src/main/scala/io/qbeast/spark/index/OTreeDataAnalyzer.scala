@@ -152,7 +152,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
       val columnsToIndex = revision.columnTransformers.map(_.columnName)
       var partitionColStats = initializeColStats(columnsToIndex, selected.schema)
-      println(s"ColStats before update: $partitionColStats")
+
       println(">>> estimatePartitionCubeWeights -> Entering mapPartitions!!!")
 
       selected
@@ -175,7 +175,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
           val partitionRevision =
             revision.copy(transformations = updatedTransformations(partitionColStats))
 
-          // scalastyle:off println
           println(">>> estimatePartitionCubeWeights -> Iterating through iterForCubeWeights")
 
           iterForCubeWeights.foreach { row =>
@@ -209,14 +208,14 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     // Initialize global column stats
     var globalColStats: Seq[ColStats] =
       initializeColStats(colsToIndex, schema)
-    println(s"globalColStats before merge: $globalColStats")
+
     // Update global column stats
     partitionColumnStats.foreach { partitionColStats =>
       globalColStats = globalColStats.zip(partitionColStats).map { case (global, local) =>
         mergedColStats(global, local)
       }
     }
-    println(s"globalColStats after merge: $globalColStats")
+
     val globalTransformations = updatedTransformations(globalColStats)
 
     val dimensionCount = colsToIndex.size
@@ -225,7 +224,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     import spark.implicits._
 
     val globalCubeWeights = partitionedEstimatedCubeWeights
-//      .repartition(col("colStats"))
       .mapPartitions { iter =>
         val partitionCubeWeights = mutable.ArrayBuffer[CubeNormalizedWeight]()
         iter.foreach {
@@ -235,34 +233,40 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
                 colStats: Seq[ColStats]) =>
             val cube = CubeId(dimensionCount, cubeBytes)
 
-            val cubePartitionCoordinates = cube.from.coordinates.zip(cube.to.coordinates)
-            val cubeVolume =
-              cubePartitionCoordinates.foldLeft(1.0)((vol, dimRange) =>
-                vol * (dimRange._2 - dimRange._1))
-
-            val cubeGlobalCoordinates = {
-              cubePartitionCoordinates
-                .zip(colStats.zip(globalColStats))
-                .map { case ((l, r), (local, global)) =>
-                  toGlobalCoordinates(l, r, local, global)
-                }
-            }
+            val cubeGlobalCoordinates = 0
+              .until(dimensionCount)
+              .map(i =>
+                toGlobalCoordinates(
+                  cube.from.coordinates(i),
+                  cube.to.coordinates(i),
+                  colStats(i),
+                  globalColStats(i)))
 
             var cubeCandidates = Seq(CubeId.root(dimensionCount))
-            println(s"cube: $cube")
-            println(s"candidates count before update: ${cubeCandidates.size}")
             (0 until cube.depth).foreach { _ =>
               cubeCandidates = cubeCandidates.flatMap(c => c.children)
             }
-            println(s"candidates count after update: ${cubeCandidates.size}")
 
+            cubeCandidates foreach (c => assert(c.depth == cube.depth))
+
+            val cubeOverlaps = mutable.ArrayBuffer[Double]()
             cubeCandidates.foreach { candidate =>
               var isOverlapping = true
               val candidateCoordinates = candidate.from.coordinates.zip(candidate.to.coordinates)
               val dimensionOverlaps = candidateCoordinates.zip(cubeGlobalCoordinates).map {
                 case ((candidateFrom, candidateTo), (cubeFrom, cubeTo)) =>
                   if (candidateFrom < cubeTo && cubeFrom < candidateTo) {
-                    (candidateTo - cubeFrom).min(cubeTo - candidateFrom)
+                    val cubeDimWidth = cubeTo - cubeFrom
+                    val ol =
+                      (candidateTo - cubeFrom)
+                        .min(cubeTo - candidateFrom)
+                        .min(cubeDimWidth) / cubeDimWidth
+                    println(s""">>> Overlap:
+                    |candidate range: ($candidateFrom, $candidateTo)
+                    |cube range: ($cubeFrom, $cubeTo)
+                    |overlap: ${ol * cubeDimWidth}, cube dim size: ${cubeDimWidth}
+                    |""".stripMargin)
+                    ol
                   } else {
                     isOverlapping = false
                     0.0
@@ -270,17 +274,20 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
               }
               if (isOverlapping) {
                 val candidateOverlap = dimensionOverlaps
-                  .foldLeft(1.0 / cubeVolume)((acc, dimOverlap) => acc * dimOverlap)
+                  .foldLeft(1.0)((acc, dimOverlap) => acc * dimOverlap)
+                cubeOverlaps += candidateOverlap
                 val overlappingWeight = normalizedWeight * candidateOverlap
-                println(s"""cubeWeight: $normalizedWeight,
+                println(s"""
+                     |cubeWeight: $normalizedWeight,
                      |candidateWeight: $overlappingWeight,
                      |overlap: $candidateOverlap""".stripMargin)
-                partitionCubeWeights += CubeNormalizedWeight(cubeBytes, overlappingWeight)
                 println()
+                partitionCubeWeights += CubeNormalizedWeight(cubeBytes, overlappingWeight)
               }
             }
+            assert(cubeOverlaps.sum == 1.0)
         }
-        println(s"How many overlapping cubes we have? ${partitionCubeWeights.size}")
+        println(s"Number of overlapping candidates for partition: ${partitionCubeWeights.size}")
         println()
         println()
         println()
@@ -307,7 +314,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       estimatePartitionCubeWeights(0, indexStatus.revision, indexStatus, isReplication))
 
     // Map partition cubes and weights to global cubes and weights
-    val (adjustedCubeWeights, transformations) =
+    val (globalEstimatedCubeWeights, transformations) =
       toGlobalCubeWeights(
         partitionedEstimatedCubeWeights,
         indexStatus.revision,
@@ -316,19 +323,24 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
     // Third, compute the overall estimated cube weights
     val estimatedCubeWeights =
-      adjustedCubeWeights
+      globalEstimatedCubeWeights
         .transform(estimateCubeWeights(lastRevision))
         .collect()
         .toMap
 
-    val weights = weightedDataFrame.select(s"$weightColumnName").collect().toSeq
     println()
     println()
     println()
     println()
-    println(s"cubeWeights: $estimatedCubeWeights")
-    println(s"sorted values: ${estimatedCubeWeights.values.toSeq.sorted}")
     println()
+    val cubeWeights = estimatedCubeWeights.values.toList.sorted
+    val l = cubeWeights.size
+    Seq(
+      cubeWeights.head,
+      cubeWeights((l * 0.25).toInt),
+      cubeWeights((l * 0.5).toInt),
+      cubeWeights((l * 0.75).toInt),
+      cubeWeights.last) foreach println
 
     // Gather the new changes
     val tableChanges = TableChanges(
@@ -349,13 +361,17 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       local: ColStats,
       global: ColStats): (Double, Double) = {
     assert(local.colName == global.colName && local.dType == global.dType)
-    if (global.dType == "StringDataType") {
+    if (global.dType == "StringDataType" || global.min == local.min && global.max == local.max) {
       (from, to)
     } else {
       val (gScale, lScale) = (global.max - global.min, local.max - local.min)
-      (
-        ((from * lScale + local.min) - global.min) / gScale,
-        ((to * lScale + local.min) - global.min) / gScale)
+      val scale = lScale / gScale
+      val offset = (local.min - global.min) / gScale
+      val (newFrom, newTo) = (from * scale + offset, to * scale + offset)
+      if (from != newFrom || to != newTo) {
+        println(s"(from,to): ($from, $to), (newFrom,newTo): ($newFrom, $newTo)")
+      }
+      (newFrom, newTo)
     }
   }
 
