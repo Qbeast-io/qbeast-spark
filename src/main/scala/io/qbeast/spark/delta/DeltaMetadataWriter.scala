@@ -56,7 +56,7 @@ private[delta] case class DeltaMetadataWriter(
   private def updateReplicatedFiles(tableChanges: TableChanges): Seq[Action] = {
 
     val revision = tableChanges.updatedRevision
-    val deltaReplicatedSet = tableChanges.indexChanges.deltaReplicatedSet
+    val deltaReplicatedSet = tableChanges.deltaReplicatedSet
 
     val cubeStrings = deltaReplicatedSet.map(_.string)
     val cubeBlocks =
@@ -104,7 +104,7 @@ private[delta] case class DeltaMetadataWriter(
     }
     val rearrangeOnly = options.rearrangeOnly
 
-    val isOptimizeOperation: Boolean = tableChanges.indexChanges.deltaReplicatedSet.nonEmpty
+    val isOptimizeOperation: Boolean = tableChanges.isOptimizeOperation
 
     // The Metadata can be updated only once in a single transaction
     // If a new space revision or a new replicated set is detected,

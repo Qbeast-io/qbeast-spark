@@ -232,71 +232,12 @@ object IndexStatus {
   def empty(revision: Revision): IndexStatus = IndexStatus(revision)
 }
 
-/**
- * Container for the changes to the index status
- * @param supersededIndexStatus the superseded index status
- * @param deltaNormalizedCubeWeights the new entries to the normalized cube weights
- * @param deltaReplicatedSet the new entries to the replicated set
- * @param deltaAnnouncedSet the new entries to the announced set
- */
-case class IndexStatusChange(
-    private[model] val supersededIndexStatus: IndexStatus,
-    deltaNormalizedCubeWeights: Map[CubeId, NormalizedWeight],
-    deltaReplicatedSet: Set[CubeId] = Set.empty,
-    deltaAnnouncedSet: Set[CubeId] = Set.empty)
-    extends Serializable {}
-
-/**
- * Container for the table changes
- * @param revisionChanges the optional revision changes
- * @param indexChanges the index status changes
- */
-case class TableChanges(
-    revisionChanges: Option[RevisionChange],
-    indexChanges: IndexStatusChange) {
-
-  /**
-   * Returns the most actual revision
-   * @return
-   */
-  def updatedRevision: Revision = revisionChanges match {
-    case Some(newRev) => newRev.createNewRevision
-    case None => indexChanges.supersededIndexStatus.revision
-
-  }
-
-  def cubeWeights: Map[CubeId, Weight] = {
-    if (revisionChanges.isEmpty) {
-
-      CubeNormalizedWeights.mergeNormalizedWeights(
-        indexChanges.supersededIndexStatus.cubeNormalizedWeights,
-        indexChanges.deltaNormalizedCubeWeights)
-    } else {
-      CubeNormalizedWeights.mergeNormalizedWeights(
-        Map.empty,
-        indexChanges.deltaNormalizedCubeWeights)
-    }
-  }
-
-  def announcedSet: Set[CubeId] = {
-    if (revisionChanges.isEmpty) {
-
-      indexChanges.supersededIndexStatus.announcedSet ++ indexChanges.deltaAnnouncedSet
-    } else {
-      indexChanges.deltaAnnouncedSet
-    }
-
-  }
-
-  def replicatedSet: Set[CubeId] = {
-    if (revisionChanges.isEmpty) {
-
-      indexChanges.supersededIndexStatus.replicatedSet ++ indexChanges.deltaReplicatedSet
-    } else {
-      indexChanges.deltaReplicatedSet
-    }
-  }
-
-  def announcedOrReplicatedSet: Set[CubeId] = announcedSet ++ replicatedSet
-
+trait TableChanges {
+  val isNewRevision: Boolean
+  val isOptimizeOperation: Boolean
+  val updatedRevision: Revision
+  val deltaReplicatedSet: Set[CubeId]
+  val announcedOrReplicatedSet: Set[CubeId]
+  def cubeState(cubeId: CubeId): Option[String]
+  def cubeWeights(cubeId: CubeId): Option[Weight]
 }

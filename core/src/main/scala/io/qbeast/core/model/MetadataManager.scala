@@ -41,13 +41,6 @@ trait MetadataManager[DataSchema, FileDescriptor] {
   def updateRevision(tableID: QTableID, revisionChange: RevisionChange): Unit
 
   /**
-   * Updates the IndexStatus with the given IndexStatusChanges
-   * @param tableID the QTableID
-   * @param indexStatusChange the collection of IndexStatusChanges
-   */
-  def updateIndexStatus(tableID: QTableID, indexStatusChange: IndexStatusChange): Unit
-
-  /**
    * Updates the Table with the given TableChanges
    * @param tableID the QTableID
    * @param tableChanges the collection of TableChanges
