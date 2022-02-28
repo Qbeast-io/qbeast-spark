@@ -152,7 +152,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
       val columnsToIndex = revision.columnTransformers.map(_.columnName)
       var partitionColStats = initializeColStats(columnsToIndex, selected.schema)
-
+      println(s"ColStats before update: $partitionColStats")
       println(">>> estimatePartitionCubeWeights -> Entering mapPartitions!!!")
 
       selected
@@ -163,6 +163,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
           iterForStats.foreach { row =>
             partitionColStats = partitionColStats.map(stats => updatedColStats(stats, row))
           }
+          println(s"ColStats after update: $partitionColStats")
 
           val weights =
             new CubeWeightsBuilder(
@@ -208,22 +209,23 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     // Initialize global column stats
     var globalColStats: Seq[ColStats] =
       initializeColStats(colsToIndex, schema)
-
+    println(s"globalColStats before merge: $globalColStats")
     // Update global column stats
     partitionColumnStats.foreach { partitionColStats =>
       globalColStats = globalColStats.zip(partitionColStats).map { case (global, local) =>
         mergedColStats(global, local)
       }
     }
+    println(s"globalColStats after merge: $globalColStats")
     val globalTransformations = updatedTransformations(globalColStats)
 
     val dimensionCount = colsToIndex.size
-    println(s"dimensionCount: $dimensionCount")
+
     val spark = SparkSession.active
     import spark.implicits._
-    println(">>> toGlobalCubeWeights -> Entering mapPartitions")
+
     val globalCubeWeights = partitionedEstimatedCubeWeights
-      .repartition(col("colStats"))
+//      .repartition(col("colStats"))
       .mapPartitions { iter =>
         val partitionCubeWeights = mutable.ArrayBuffer[CubeNormalizedWeight]()
         iter.foreach {
@@ -235,7 +237,8 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
             val cubePartitionCoordinates = cube.from.coordinates.zip(cube.to.coordinates)
             val cubeVolume =
-              cubePartitionCoordinates.foldLeft(1.0)((vol, range) => vol * (range._2 - range._1))
+              cubePartitionCoordinates.foldLeft(1.0)((vol, dimRange) =>
+                vol * (dimRange._2 - dimRange._1))
 
             val cubeGlobalCoordinates = {
               cubePartitionCoordinates
@@ -246,27 +249,41 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
             }
 
             var cubeCandidates = Seq(CubeId.root(dimensionCount))
+            println(s"cube: $cube")
+            println(s"candidates count before update: ${cubeCandidates.size}")
             (0 until cube.depth).foreach { _ =>
               cubeCandidates = cubeCandidates.flatMap(c => c.children)
             }
+            println(s"candidates count after update: ${cubeCandidates.size}")
 
             cubeCandidates.foreach { candidate =>
+              var isOverlapping = true
               val candidateCoordinates = candidate.from.coordinates.zip(candidate.to.coordinates)
               val dimensionOverlaps = candidateCoordinates.zip(cubeGlobalCoordinates).map {
                 case ((candidateFrom, candidateTo), (cubeFrom, cubeTo)) =>
                   if (candidateFrom < cubeTo && cubeFrom < candidateTo) {
                     (candidateTo - cubeFrom).min(cubeTo - candidateFrom)
-                  } else 0.0
+                  } else {
+                    isOverlapping = false
+                    0.0
+                  }
               }
-              val candidateOverlap = dimensionOverlaps
-                .foldLeft(1.0 / cubeVolume)((acc, overlap) => acc * overlap)
-              if (candidateOverlap != 0.0) {
-                partitionCubeWeights :+ CubeNormalizedWeight(
-                  cubeBytes,
-                  normalizedWeight / candidateOverlap)
+              if (isOverlapping) {
+                val candidateOverlap = dimensionOverlaps
+                  .foldLeft(1.0 / cubeVolume)((acc, dimOverlap) => acc * dimOverlap)
+                val overlappingWeight = normalizedWeight * candidateOverlap
+                println(s"""cubeWeight: $normalizedWeight,
+                     |candidateWeight: $overlappingWeight,
+                     |overlap: $candidateOverlap""".stripMargin)
+                partitionCubeWeights += CubeNormalizedWeight(cubeBytes, overlappingWeight)
+                println()
               }
             }
         }
+        println(s"How many overlapping cubes we have? ${partitionCubeWeights.size}")
+        println()
+        println()
+        println()
         partitionCubeWeights.toIterator
       }
     (globalCubeWeights, globalTransformations)
@@ -303,6 +320,15 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         .transform(estimateCubeWeights(lastRevision))
         .collect()
         .toMap
+
+    val weights = weightedDataFrame.select(s"$weightColumnName").collect().toSeq
+    println()
+    println()
+    println()
+    println()
+    println(s"cubeWeights: $estimatedCubeWeights")
+    println(s"sorted values: ${estimatedCubeWeights.values.toSeq.sorted}")
+    println()
 
     // Gather the new changes
     val tableChanges = TableChanges(
