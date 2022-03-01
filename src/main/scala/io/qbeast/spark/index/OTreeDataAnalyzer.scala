@@ -261,11 +261,13 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
                       (candidateTo - cubeFrom)
                         .min(cubeTo - candidateFrom)
                         .min(cubeDimWidth) / cubeDimWidth
-                    println(s""">>> Overlap:
-                    |candidate range: ($candidateFrom, $candidateTo)
-                    |cube range: ($cubeFrom, $cubeTo)
-                    |overlap: ${ol * cubeDimWidth}, cube dim size: ${cubeDimWidth}
-                    |""".stripMargin)
+                    if (candidateFrom != cubeFrom || candidateTo != cubeTo) {
+                      println(s""">>> Overlap:
+                           |candidate range: ($candidateFrom, $candidateTo)
+                           |cube range: ($cubeFrom, $cubeTo)
+                           |overlap: ${ol * cubeDimWidth}, cube dim size: $cubeDimWidth
+                           |""".stripMargin)
+                    }
                     ol
                   } else {
                     isOverlapping = false
