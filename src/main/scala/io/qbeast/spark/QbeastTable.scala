@@ -89,7 +89,7 @@ class QbeastTable private (
 
     val nonLeafStatuses =
       allCubeStatuses.filter(_._1.children.exists(allCubeStatuses.contains)).values
-    val nonLeafCubeSizes = nonLeafStatuses.flatMap(_.files.map(_.elementCount)).toSeq.sorted
+    val nonLeafCubeSizes = nonLeafStatuses.map(_.files.map(_.elementCount).sum).toSeq.sorted
 
     val (avgFanOut, details) =
       if (nonLeafStatuses.isEmpty || nonLeafCubeSizes.isEmpty) {
