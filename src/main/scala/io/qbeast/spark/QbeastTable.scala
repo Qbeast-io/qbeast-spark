@@ -194,7 +194,7 @@ case class NonLeafCubeSizeDetails(
     dev: Double) {
 
   override def toString: String = {
-    s"""Non-lead Cube Size Stats
+    s"""Non-leaf Cube Size Stats
        |(All values are 0 if there's no non-leaf cubes):
        |- min: $min
        |- firstQuartile: $firstQuartile
