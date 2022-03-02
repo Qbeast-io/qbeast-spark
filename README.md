@@ -18,19 +18,27 @@
 
 ## Features
 
-<div>
-<img src="./docs/images/features.png" alt="Qbeast-Spark features" />
+1. **Data Lakehouse** - Data lake with **ACID** properties, thanks to the underlying Delta Lake architecture
 
-</div>
 
-## Demo
-It allows **faster** queries with statistically **accurate** sampling.
+2. **Multi-column indexing**:  Filter your data with multiple columns using the Qbeast Format.
+   
+
+3. **Improved Sampling operator** - Efficiently reading statistically significant subsets. 
+   
+
+4. **Table Tolerance** - Model for sampling fraction and query accuracy trade-off. 
+
+
+### What does it mean? - Let's see an example:
 
 <div>
 <img src="./docs/images/spark_delta_demo.gif" width="49%" alt="Demo for Delta format GIF" />
 
 <img src="./docs/images/spark_qbeast_demo.gif" width="49%" alt="Demo for Qbeast format GIF" />
 </div>
+
+As you can see above, the Qbeast Spark extension allows **faster** queries with statistically **accurate** sampling.
 
 
 | Format | Execution Time |   Result  |
