@@ -5,13 +5,9 @@ package io.qbeast.spark.index
 
 import io.qbeast.IISeq
 import io.qbeast.core.model._
-import io.qbeast.core.transform.{
-  HashTransformation,
-  LinearTransformation,
-  Transformation,
-  Transformer
-}
+import io.qbeast.core.transform.{Transformation, Transformer}
 import io.qbeast.spark.index.QbeastColumns.{cubeToReplicateColumnName, weightColumnName}
+import io.qbeast.spark.index.SinglePassColStatsUtils._
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
 import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
 import org.apache.spark.sql.functions._
@@ -130,8 +126,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       indexStatus: IndexStatus,
       isReplication: Boolean): DataFrame => Dataset[CubeWeightAndStats] =
     (weightedDataFrame: DataFrame) => {
-      // scalastyle:off println
-      println(">>> estimatePartitionCubeWeights")
       val spark = SparkSession.active
       import spark.implicits._
 
@@ -142,7 +136,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       }
       val cols = revision.columnTransformers.map(_.columnName) ++ indexColumns
 
-      // Estimate the desiredSize of the cube at partition level
       val numPartitions: Int = weightedDataFrame.rdd.getNumPartitions
       val bufferCapacity: Long = CUBE_WEIGHTS_BUFFER_CAPACITY
 
@@ -153,17 +146,13 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       val columnsToIndex = revision.columnTransformers.map(_.columnName)
       var partitionColStats = initializeColStats(columnsToIndex, selected.schema)
 
-      println(">>> estimatePartitionCubeWeights -> Entering mapPartitions!!!")
-
       selected
         .mapPartitions(rows => {
           val (iterForStats, iterForCubeWeights) = rows.duplicate
 
-          println(">>> estimatePartitionCubeWeights -> Iterating through iterForStats")
           iterForStats.foreach { row =>
             partitionColStats = partitionColStats.map(stats => updatedColStats(stats, row))
           }
-          println(s"ColStats after update: $partitionColStats")
 
           val weights =
             new CubeWeightsBuilder(
@@ -173,9 +162,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
               bufferCapacity = bufferCapacity)
 
           val partitionRevision =
-            revision.copy(transformations = updatedTransformations(partitionColStats))
-
-          println(">>> estimatePartitionCubeWeights -> Iterating through iterForCubeWeights")
+            revision.copy(transformations = getTransformations(partitionColStats))
 
           iterForCubeWeights.foreach { row =>
             val point = RowUtils.rowValuesToPoint(row, partitionRevision)
@@ -199,30 +186,30 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       partitionedEstimatedCubeWeights: Dataset[CubeWeightAndStats],
       revision: Revision,
       schema: StructType): (Dataset[CubeNormalizedWeight], IISeq[Transformation]) = {
-    // scalastyle:off println
-    println(">>> toGlobalCubeWeights")
-    val partitionColumnStats: Set[Seq[ColStats]] =
-      partitionedEstimatedCubeWeights.collect().map(_.colStats).toSet
 
     val colsToIndex = revision.columnTransformers.map(_.columnName)
     // Initialize global column stats
     var globalColStats: Seq[ColStats] =
       initializeColStats(colsToIndex, schema)
 
-    // Update global column stats
+    // Gather all column stats
+    val partitionColumnStats: Set[Seq[ColStats]] =
+      partitionedEstimatedCubeWeights.collect().map(_.colStats).toSet
+
+    // Merge to get global column stats. Ths process can be simplified
+    // by using Customized Accumulators
     partitionColumnStats.foreach { partitionColStats =>
       globalColStats = globalColStats.zip(partitionColStats).map { case (global, local) =>
         mergedColStats(global, local)
       }
     }
 
-    val globalTransformations = updatedTransformations(globalColStats)
+    val globalTransformations = getTransformations(globalColStats)
 
     val dimensionCount = colsToIndex.size
 
     val spark = SparkSession.active
     import spark.implicits._
-
     val globalCubeWeights = partitionedEstimatedCubeWeights
       .mapPartitions { iter =>
         val partitionCubeWeights = mutable.ArrayBuffer[CubeNormalizedWeight]()
@@ -248,7 +235,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
             }
 
             cubeCandidates foreach (c => assert(c.depth == cube.depth))
-
+            // scalastyle:off println
             val cubeOverlaps = mutable.ArrayBuffer[Double]()
             cubeCandidates.foreach { candidate =>
               var isOverlapping = true
@@ -289,10 +276,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
             }
             assert(cubeOverlaps.sum == 1.0)
         }
-        println(s"Number of overlapping candidates for partition: ${partitionCubeWeights.size}")
-        println()
-        println()
-        println()
         partitionCubeWeights.toIterator
       }
     (globalCubeWeights, globalTransformations)
@@ -307,15 +290,15 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         "The DataFrame is empty, why are you trying to index an empty dataset?")
     }
 
-    // First, add a random weight column
+    // Add weight column to dataFrame
     val weightedDataFrame =
       dataFrame.transform(addRandomWeight(indexStatus.revision))
 
-    // Second, estimate the cube weights at partition level
+    // Estimate the cube weights at partition level
     val partitionedEstimatedCubeWeights = weightedDataFrame.transform(
       estimatePartitionCubeWeights(0, indexStatus.revision, indexStatus, isReplication))
 
-    // Map partition cubes and weights to global cubes and weights
+    // Map partition cube weights to global cube weights
     val (globalEstimatedCubeWeights, transformations) =
       toGlobalCubeWeights(
         partitionedEstimatedCubeWeights,
@@ -323,26 +306,12 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         weightedDataFrame.schema)
     val lastRevision = indexStatus.revision.copy(transformations = transformations)
 
-    // Third, compute the overall estimated cube weights
+    // Compute the overall estimated cube weights
     val estimatedCubeWeights =
       globalEstimatedCubeWeights
         .transform(estimateCubeWeights(lastRevision))
         .collect()
         .toMap
-
-    println()
-    println()
-    println()
-    println()
-    println()
-    val cubeWeights = estimatedCubeWeights.values.toList.sorted
-    val l = cubeWeights.size
-    Seq(
-      cubeWeights.head,
-      cubeWeights((l * 0.25).toInt),
-      cubeWeights((l * 0.5).toInt),
-      cubeWeights((l * 0.75).toInt),
-      cubeWeights.last) foreach println
 
     // Gather the new changes
     val tableChanges = TableChanges(
@@ -369,82 +338,8 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       val (gScale, lScale) = (global.max - global.min, local.max - local.min)
       val scale = lScale / gScale
       val offset = (local.min - global.min) / gScale
-      val (newFrom, newTo) = (from * scale + offset, to * scale + offset)
-      if (from != newFrom || to != newTo) {
-        println(s"(from,to): ($from, $to), (newFrom,newTo): ($newFrom, $newTo)")
-      }
-      (newFrom, newTo)
+      (from * scale + offset, to * scale + offset)
     }
-  }
-
-  def initializeColStats(columnsToIndex: Seq[String], schema: StructType): Seq[ColStats] = {
-    columnsToIndex.map { name =>
-      val dType = SparkRevisionFactory.getColumnQType(name, schema).name
-      val supportedTypes = Set(
-        "DoubleDataType",
-        "DecimalDataType",
-        "StringDataType",
-        "IntegerDataType",
-        "FloatDataType",
-        "LongDataType")
-      require(supportedTypes.contains(dType), s"Type: $dType is not currently supported.")
-      ColStats(name, dType)
-    }
-  }
-
-  def mergedColStats(global: ColStats, local: ColStats): ColStats = {
-    assert(global.colName == local.colName && global.dType == local.dType)
-    if (global.dType == "StringDataType") {
-      global
-    } else {
-      global.copy(min = global.min.min(local.min), max = global.max.max(local.max))
-    }
-  }
-
-  def updatedColStats(stats: ColStats, row: Row): ColStats = {
-    if (stats.dType == "StringDataType") {
-      stats
-    } else {
-      val value = stats.dType match {
-        case "DoubleDataType" | "DecimalDataType" => row.getAs[Double](stats.colName)
-        case "IntegerDataType" => row.getAs[Int](stats.colName).asInstanceOf[Double]
-        case "FloatDataType" => row.getAs[Float](stats.colName).asInstanceOf[Double]
-        case "LongDataType" => row.getAs[Long](stats.colName).asInstanceOf[Double]
-//        case _ => throw new RuntimeException(s"Type currently not supported")
-      }
-      stats.copy(min = stats.min.min(value), max = stats.max.max(value))
-    }
-  }
-
-  def updatedTransformations(columnStats: Seq[ColStats]): IISeq[Transformation] = {
-    columnStats.map { stats =>
-      if (stats.dType == "StringDataType") {
-        HashTransformation()
-      } else {
-        val (minNumber, maxNumber) = stats.dType match {
-          case "DoubleDataType" | "DecimalDataType" =>
-            (stats.min, stats.max)
-          case "IntegerDataType" =>
-            (stats.min.asInstanceOf[Int], stats.max.asInstanceOf[Int])
-          case "FloatDataType" =>
-            (stats.min.asInstanceOf[Float], stats.max.asInstanceOf[Float])
-          case "LongDataType" =>
-            (stats.min.asInstanceOf[Long], stats.max.asInstanceOf[Long])
-        }
-        LinearTransformation(minNumber, maxNumber, OrderedDataType(stats.dType))
-      }
-    }.toIndexedSeq
   }
 
 }
-
-case class ColStats(
-    colName: String,
-    dType: String,
-    min: Double = Double.MaxValue,
-    max: Double = Double.MinValue)
-
-case class CubeWeightAndStats(
-    cubeBytes: Array[Byte],
-    normalizedWeight: NormalizedWeight,
-    colStats: Seq[ColStats])
