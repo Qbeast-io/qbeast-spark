@@ -157,6 +157,10 @@ class LinearTransformationDeserializer
         LinearTransformation(mn.asLong(), mx.asLong(), n.asLong(), odt)
       case (DecimalDataType, mn: DoubleNode, mx: DoubleNode, n: DoubleNode) =>
         LinearTransformation(mn.doubleValue(), mx.doubleValue(), n.doubleValue(), odt)
+      case (_, _, _, null) =>
+        throw new IllegalArgumentException(
+          s"Are you reading an old version of the format? " +
+            s"The null value of the Transformation is missing.")
       case (a, b, c, d) =>
         throw new IllegalArgumentException(s"Invalid data type  ($a,$b,$c,$d) ${b.getClass} ")
     }

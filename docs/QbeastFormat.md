@@ -78,7 +78,7 @@ And here the changes on `Metadata` `configuration` map
     ...
     "configuration": {
       "qbeast.lastRevisionID": "1",
-      "qbeast.revision.1": "{\"revisionID\":1,\"timestamp\":1637851757680,\"tableID\":\"/tmp/qb-testing1584592925006274975\",\"desiredCubeSize\":10000,\"columnTransformers\":[{\"className\":\"io.qbeast.core.transform.LinearTransformer\",\"columnName\":\"user_id\",\"dataType\":\"IntegerDataType\"},{\"className\":\"io.qbeast.core.transform.LinearTransformer\",\"columnName\":\"product_id\",\"dataType\":\"IntegerDataType\"}],\"transformations\":[{\"className\":\"io.qbeast.core.transform.LinearTransformation\",\"minNumber\":315309190,\"maxNumber\":566280860,\"orderedDataType\":\"IntegerDataType\"},{\"className\":\"io.qbeast.core.transform.LinearTransformation\",\"minNumber\":1000978,\"maxNumber\":60500010,\"orderedDataType\":\"IntegerDataType\"}]}"
+      "qbeast.revision.1": "{\"revisionID\":1,\"timestamp\":1637851757680,\"tableID\":\"/tmp/qb-testing1584592925006274975\",\"desiredCubeSize\":10000,\"columnTransformers\":..}"
     },
     "createdTime": 1637851765848
   }
@@ -104,12 +104,14 @@ A more closer look to the `qb.revision.1`:
     {
       "className":"io.qbeast.core.transform.LinearTransformer",
       "columnName":"user_id",
-      "dataType":"IntegerDataType"
+      "dataType":"IntegerDataType",
+      "optionalNullValue": "None"
     },
     {
       "className":"io.qbeast.core.transform.LinearTransformer",
       "columnName":"product_id",
-      "dataType":"IntegerDataType"
+      "dataType":"IntegerDataType",
+      "optionalNullValue": "None"
     }
   ],
   "transformations":[
@@ -117,12 +119,14 @@ A more closer look to the `qb.revision.1`:
       "className":"io.qbeast.core.transform.LinearTransformation",
       "minNumber":315309190,
       "maxNumber":566280860,
+      "nullValue":476392009,
       "orderedDataType":"IntegerDataType"
     },
     {
       "className":"io.qbeast.core.transform.LinearTransformation",
       "minNumber":1000978,
       "maxNumber":60500010,
+      "nullValue":6437856,
       "orderedDataType":"IntegerDataType"}
   ]
 }
