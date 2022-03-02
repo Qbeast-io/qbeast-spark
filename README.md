@@ -12,18 +12,19 @@
 </p>
 
 ---
-**Qbeast Spark** is an **open source** extension for **data lakehouse** that enables **multi-dimensional indexing** and **efficient data sampling**
+**Qbeast Spark** is an **open source** extension for **data lakehouse** that enables **multi-dimensional indexing** and **sampling pushdown**
 
 <br/>
 
-
+## Features
 
 <div>
 <img src="./docs/images/features.png" alt="Qbeast-Spark features" />
 
 </div>
 
-## Quick demo
+## Demo
+It allows **faster** queries with statistically **accurate** sampling.
 
 <div>
 <img src="./docs/images/spark_delta_demo.gif" width="49%" alt="Demo for Delta format GIF" />
@@ -31,7 +32,6 @@
 <img src="./docs/images/spark_qbeast_demo.gif" width="49%" alt="Demo for Qbeast format GIF" />
 </div>
 
-As you can see above, the Qbeast Spark extension allows **faster** queries with statistically **accurate** sampling.
 
 | Format | Execution Time |   Result  |
 |--------|:--------------:|:---------:|
