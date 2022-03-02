@@ -12,26 +12,21 @@
 </p>
 
 ---
-**Qbeast Spark** extension is a **data lakehouse** enhancement that enables **multi-dimensional indexing** and **efficient data sampling** with **ACID** properties.
-
+**Qbeast Spark** is an **open source** extension for **data lakehouse** that enables **multi-dimensional indexing** and **efficient data sampling**
 
 <br/>
  
 ## Features
 
-1. **Data Lakehouse** - Data lake with **ACID** properties, thanks to the underlying Delta Lake architecture
+Based on [Delta Lake](https://github.com/delta-io/delta) (and fully compatible!), **Qbeast Format** provides the following features to the Lake Architecture:
 
 
-2. **Multi-column indexing**:  Instead of partitioning or bucketing, index,  organize and filter your data with multiple columns using the Qbeast Format.
-   
+<div>
+<img src="./docs/images/features.png" alt="Qbeast-Spark features" />
 
-3. **Improved Sampling operator** - Efficiently reading statistically significant subsets. Thanks to our Sampling push down operator, samples do not need to load all data in memory. You retrieve only the data you need.
-   
+</div>
 
-4. **Table Tolerance** - Model for sampling fraction and query accuracy trade-off. How big should be a sample? Don't worry about that, Qbeast can calculate the sample size that for your query.
-
-
-### What does it mean? - Let's see an example:
+### What does that mean?
 
 <div>
 <img src="./docs/images/spark_delta_demo.gif" width="49%" alt="Demo for Delta format GIF" />
@@ -153,16 +148,6 @@ Check [here](https://docs.delta.io/latest/releases.html) for **Delta Lake** and 
 
 
 ## Contribution Guide
-
-
-Help is always welcome! There’s always code that can be clarified and variables or functions that can be renamed or commented on. A need for more test coverage or documentation (like the text you are reading now) can always use improvement. The point is - if you see something you think should be fixed, own it. Now let's get started.
-
-
-To find Qbeast issues that make good entry points:
-
-- Start with issues labelled **good first issue**. For example, see the good first issues in the repository for updates to the core Qbeast Spark code.
-
-- For issues that require deeper knowledge of one or more technical aspects, look at issues labelled **help wanted**.
 
 See [Contribution Guide](/CONTRIBUTING.md) for more information. 
 

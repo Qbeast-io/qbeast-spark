@@ -2,7 +2,13 @@
 
 Welcome to the Qbeast community! Nice to meet you :)
 
-Either you want to know more about our guidelines or open a Pull Request, this is your page. We are pleased to help you through the different steps for contributing to our (your) project. 
+Either you want to know more about our guidelines or open a Pull Request, this is your page. We are pleased to help you through the different steps for contributing to our (your) project.
+
+To find Qbeast issues that make good entry points:
+
+- Start with issues labelled **good first issue**. For example, see the good first issues in the repository for updates to the core Qbeast Spark code.
+
+- For issues that require deeper knowledge of one or more technical aspects, look at issues labelled **help wanted**.
 
 ## Licensing of contributed material
 All contributed code, docs, and other materials are considered licensed under the same terms as the rest of the project. Check [LICENSE](./LICENCE) for more details.
