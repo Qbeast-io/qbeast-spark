@@ -149,10 +149,12 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       selected
         .mapPartitions(rows => {
           val (iterForStats, iterForCubeWeights) = rows.duplicate
-
           iterForStats.foreach { row =>
             partitionColStats = partitionColStats.map(stats => updatedColStats(stats, row))
           }
+
+          val partitionRevision =
+            revision.copy(transformations = getTransformations(partitionColStats))
 
           val weights =
             new CubeWeightsBuilder(
@@ -160,9 +162,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
               numPartitions = numPartitions,
               numElements = numElements,
               bufferCapacity = bufferCapacity)
-
-          val partitionRevision =
-            revision.copy(transformations = getTransformations(partitionColStats))
 
           iterForCubeWeights.foreach { row =>
             val point = RowUtils.rowValuesToPoint(row, partitionRevision)
@@ -210,74 +209,57 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
     val spark = SparkSession.active
     import spark.implicits._
-    val globalCubeWeights = partitionedEstimatedCubeWeights
-      .mapPartitions { iter =>
-        val partitionCubeWeights = mutable.ArrayBuffer[CubeNormalizedWeight]()
-        iter.foreach {
-          case CubeWeightAndStats(
-                cubeBytes: Array[Byte],
-                normalizedWeight: NormalizedWeight,
-                colStats: Seq[ColStats]) =>
-            val cube = CubeId(dimensionCount, cubeBytes)
+    val globalCubeWeights = partitionedEstimatedCubeWeights.flatMap {
+      case CubeWeightAndStats(
+            cubeBytes: Array[Byte],
+            normalizedWeight: NormalizedWeight,
+            colStats: Seq[ColStats]) =>
+        val overlappingCubeWeights = mutable.ArrayBuffer[CubeNormalizedWeight]()
 
-            val cubeGlobalCoordinates = 0
-              .until(dimensionCount)
-              .map(i =>
-                toGlobalCoordinates(
-                  cube.from.coordinates(i),
-                  cube.to.coordinates(i),
-                  colStats(i),
-                  globalColStats(i)))
+        val cube = CubeId(dimensionCount, cubeBytes)
 
-            var cubeCandidates = Seq(CubeId.root(dimensionCount))
-            (0 until cube.depth).foreach { _ =>
-              cubeCandidates = cubeCandidates.flatMap(c => c.children)
-            }
+        val cubeGlobalCoordinates = 0
+          .until(dimensionCount)
+          .map(i =>
+            toGlobalCoordinates(
+              cube.from.coordinates(i),
+              cube.to.coordinates(i),
+              colStats(i),
+              globalColStats(i)))
 
-            cubeCandidates foreach (c => assert(c.depth == cube.depth))
-            // scalastyle:off println
-            val cubeOverlaps = mutable.ArrayBuffer[Double]()
-            cubeCandidates.foreach { candidate =>
-              var isOverlapping = true
-              val candidateCoordinates = candidate.from.coordinates.zip(candidate.to.coordinates)
-              val dimensionOverlaps = candidateCoordinates.zip(cubeGlobalCoordinates).map {
-                case ((candidateFrom, candidateTo), (cubeFrom, cubeTo)) =>
-                  if (candidateFrom < cubeTo && cubeFrom < candidateTo) {
-                    val cubeDimWidth = cubeTo - cubeFrom
-                    val ol =
-                      (candidateTo - cubeFrom)
-                        .min(cubeTo - candidateFrom)
-                        .min(cubeDimWidth) / cubeDimWidth
-                    if (candidateFrom != cubeFrom || candidateTo != cubeTo) {
-                      println(s""">>> Overlap:
-                           |candidate range: ($candidateFrom, $candidateTo)
-                           |cube range: ($cubeFrom, $cubeTo)
-                           |overlap: ${ol * cubeDimWidth}, cube dim size: $cubeDimWidth
-                           |""".stripMargin)
-                    }
-                    ol
-                  } else {
-                    isOverlapping = false
-                    0.0
-                  }
-              }
-              if (isOverlapping) {
-                val candidateOverlap = dimensionOverlaps
-                  .foldLeft(1.0)((acc, dimOverlap) => acc * dimOverlap)
-                cubeOverlaps += candidateOverlap
-                val overlappingWeight = normalizedWeight * candidateOverlap
-                println(s"""
-                     |cubeWeight: $normalizedWeight,
-                     |candidateWeight: $overlappingWeight,
-                     |overlap: $candidateOverlap""".stripMargin)
-                println()
-                partitionCubeWeights += CubeNormalizedWeight(cubeBytes, overlappingWeight)
-              }
-            }
-            assert(cubeOverlaps.sum == 1.0)
+        var cubeCandidates = Seq(CubeId.root(dimensionCount))
+        (0 until cube.depth).foreach { _ =>
+          cubeCandidates = cubeCandidates.flatMap(c => c.children)
         }
-        partitionCubeWeights.toIterator
-      }
+
+        val cubeOverlaps = mutable.ArrayBuffer[Double]()
+        cubeCandidates.foreach { candidate =>
+          var isOverlapping = true
+          val candidateCoordinates = candidate.from.coordinates.zip(candidate.to.coordinates)
+          val dimensionOverlaps = candidateCoordinates.zip(cubeGlobalCoordinates).map {
+            case ((candidateFrom, candidateTo), (cubeFrom, cubeTo)) =>
+              if (candidateFrom < cubeTo && cubeFrom < candidateTo) {
+                val cubeDimWidth = cubeTo - cubeFrom
+                (candidateTo - cubeFrom)
+                  .min(cubeTo - candidateFrom)
+                  .min(cubeDimWidth) / cubeDimWidth
+              } else {
+                isOverlapping = false
+                0.0
+              }
+          }
+          if (isOverlapping) {
+            val candidateOverlap = dimensionOverlaps
+              .foldLeft(1.0)((acc, dimOverlap) => acc * dimOverlap)
+            cubeOverlaps += candidateOverlap
+            val overlappingWeight = normalizedWeight * candidateOverlap
+            overlappingCubeWeights += CubeNormalizedWeight(cubeBytes, overlappingWeight)
+          }
+        }
+        assert(cubeOverlaps.sum == 1.0)
+        overlappingCubeWeights
+    }
+
     (globalCubeWeights, globalTransformations)
   }
 
