@@ -15,10 +15,7 @@
 **Qbeast Spark** is an **open source** extension for **data lakehouse** that enables **multi-dimensional indexing** and **efficient data sampling**
 
 <br/>
- 
-## Features
 
-Based on [Delta Lake](https://github.com/delta-io/delta) (and fully compatible!), **Qbeast Format** provides the following features to the Lake Architecture:
 
 
 <div>
@@ -26,7 +23,7 @@ Based on [Delta Lake](https://github.com/delta-io/delta) (and fully compatible!)
 
 </div>
 
-### What does that mean?
+## Quick demo
 
 <div>
 <img src="./docs/images/spark_delta_demo.gif" width="49%" alt="Demo for Delta format GIF" />
@@ -43,7 +40,7 @@ As you can see above, the Qbeast Spark extension allows **faster** queries with 
 
 In this example, **1% sampling** provides the result **x22 times faster** compared to using Delta format, with an **error of 0,034%**.
 
-## Getting Started
+# Getting Started
 
 >### Warning: DO NOT USE IN PRODUCTION!
 > This project is in an early development phase: there are missing functionalities and the API might change drastically.
@@ -54,10 +51,10 @@ In this example, **1% sampling** provides the result **x22 times faster** compar
 
 
 
-### Setting up
-1 - Install [**sbt**(>=1.4.7)](https://www.scala-sbt.org/download.html).
+# Setting up
+### 1. Install [**sbt**(>=1.4.7)](https://www.scala-sbt.org/download.html).
 
-2 - Install **Spark**:
+### 2. Install **Spark**
 Download **Spark 3.1.1 with Hadoop 3.2***, unzip it, and create the `SPARK_HOME` environment variable:<br />
 *: You can use Hadoop 2.7 if desired, but you could have some troubles with different cloud providers' storage, read more about it [here](docs/CloudStorages.md).
 
@@ -68,12 +65,13 @@ tar xzvf spark-3.1.1-bin-hadoop3.2.tgz
 
 export SPARK_HOME=$PWD/spark-3.1.1-bin-hadoop3.2
  ```
- 
-3 - Project packaging:
- 
+
+### 3. Project packaging:
 Clone the repo, navigate to the repository folder, and package the project through **sbt**. [JDK 8](https://www.azul.com/downloads/?version=java-8-lts&package=jdk) is recommended.  
-ℹ️ **Note**: You can specify **custom** Spark or Hadoop **versions** when packaging by using `-Dspark.version=3.2.0` or `-Dhadoop.version=2.7.4` when running `sbt assembly`.
+
+**Note**: You can specify **custom** Spark or Hadoop **versions** when packaging by using `-Dspark.version=3.2.0` or `-Dhadoop.version=2.7.4` when running `sbt assembly`.
 If you have troubles with the versions you use, don't hesitate to **ask the community** in [GitHub discussions](https://github.com/Qbeast-io/qbeast-spark/discussions).
+
 ``` bash
 git clone https://github.com/Qbeast-io/qbeast-spark.git
 
@@ -82,11 +80,11 @@ cd qbeast-spark
 sbt assembly
 ```
 
-### Quickstart
+# Quickstart
 You can run the qbeast-spark application locally on your computer, or using a Docker image we already prepared with the dependencies.
 You can find it in the [Packages section](https://github.com/orgs/Qbeast-io/packages?repo_name=qbeast-spark).
 
-1 - Launch a **spark-shell**
+### 1. Launch a spark-shell
 
 **Inside the project folder**, launch a **spark shell** with the required dependencies:
 
@@ -97,7 +95,7 @@ $SPARK_HOME/bin/spark-shell \
 --packages io.delta:delta-core_2.12:1.0.0
 ```
 
-2- Indexing a dataset and examine the **query plan** for sampling:
+### 2. Indexing a dataset
 
 Read the CSV source file placed inside the project.
 
@@ -120,6 +118,7 @@ csv_df.write
 	.save(tmp_dir)
 ```
 
+###  3. Load the dataset
 Load the newly indexed dataset.
 
 ```scala
@@ -130,6 +129,7 @@ val qbeast_df =
      .load(tmp_dir)
 ```
 
+### 4. Examine the Query plan for sampling
 Sampling the data, notice how the sampler is converted into filters and pushed down to the source!
 
 ```scala
@@ -138,7 +138,7 @@ qbeast_df.sample(0.1).explain(true)
 
 Go to the [Quickstart](./docs/Quickstart.md) or [notebook](docs/sample_pushdown_demo.ipynb) for more details.
 
-## Dependencies and Version Compatibility
+# Dependencies and Version Compatibility
 |Version     |Spark       |Delta Lake  |sbt         |
 |------------|:----------:|:----------:|:----------:|
 |0.1.0       |=> 3.0.0    |=> 0.7.0    |=> 1.4.7    |
@@ -147,14 +147,14 @@ Check [here](https://docs.delta.io/latest/releases.html) for **Delta Lake** and 
 **Note**: Different Spark and Hadoop versions can be specified when packaging the project. Read how to do it in the _Setting Up_ section.
 
 
-## Contribution Guide
+# Contribution Guide
 
 See [Contribution Guide](/CONTRIBUTING.md) for more information. 
 
-## License
+# License
 See [LICENSE](/LICENSE).
 
-## Code of conduct
+# Code of conduct
 
 See [Code of conduct](/CODE_OF_CONDUCT.md)
 
