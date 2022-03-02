@@ -4,7 +4,7 @@
 package io.qbeast.spark
 
 import io.qbeast.context.QbeastContext
-import io.qbeast.core.model.{QTableID, RevisionID}
+import io.qbeast.core.model.{CubeId, CubeStatus, QTableID, RevisionID}
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.commands.{AnalyzeTableCommand, OptimizeTableCommand}
 import io.qbeast.spark.table._
@@ -77,14 +77,14 @@ class QbeastTable private (
   def getIndexMetrics(revisionID: Option[RevisionID] = None): IndexMetrics = {
     val allCubeStatuses = qbeastSnapshot.loadLatestIndexStatus.cubesStatuses
 
-    val cubeCounts = allCubeStatuses.size
+    val cubeCount = allCubeStatuses.size
     val depth = allCubeStatuses.map(_._1.depth).max
     val row_count = allCubeStatuses.flatMap(_._2.files.map(_.elementCount)).sum
 
     val dimensionCount = indexedColumns().size
     val desiredCubeSize = cubeSize()
 
-    val depthOverLogNumNodes = depth / logOfBase(dimensionCount, cubeCounts)
+    val depthOverLogNumNodes = depth / logOfBase(dimensionCount, cubeCount)
     val depthOnBalance = depth / logOfBase(dimensionCount, row_count / desiredCubeSize)
 
     val nonLeafStatuses =
@@ -114,10 +114,11 @@ class QbeastTable private (
       }
 
     IndexMetrics(
+      allCubeStatuses,
       dimensionCount,
       row_count,
       depth,
-      cubeCounts,
+      cubeCount,
       desiredCubeSize,
       avgFanOut,
       depthOverLogNumNodes,
@@ -208,6 +209,7 @@ case class NonLeafCubeSizeDetails(
 }
 
 case class IndexMetrics(
+    cubeStatuses: Map[CubeId, CubeStatus],
     dimensionCount: Int,
     row_count: Long,
     depth: Int,
