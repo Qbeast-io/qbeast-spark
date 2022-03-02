@@ -107,7 +107,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
       val qbeastTable = QbeastTable.forPath(spark, tmpDir)
       val metrics = qbeastTable.getIndexMetrics()
 
-      metrics.row_count shouldBe data.count()
+      metrics.elementCount shouldBe data.count()
       metrics.dimensionCount shouldBe columnsToIndex.size
       metrics.nonLeafCubeSizeDetails.min shouldBe <=(metrics.nonLeafCubeSizeDetails.firstQuartile)
       metrics.nonLeafCubeSizeDetails.firstQuartile shouldBe <=(

@@ -79,13 +79,13 @@ class QbeastTable private (
 
     val cubeCount = allCubeStatuses.size
     val depth = allCubeStatuses.map(_._1.depth).max
-    val row_count = allCubeStatuses.flatMap(_._2.files.map(_.elementCount)).sum
+    val elementCount = allCubeStatuses.flatMap(_._2.files.map(_.elementCount)).sum
 
     val dimensionCount = indexedColumns().size
     val desiredCubeSize = cubeSize()
 
     val depthOverLogNumNodes = depth / logOfBase(dimensionCount, cubeCount)
-    val depthOnBalance = depth / logOfBase(dimensionCount, row_count / desiredCubeSize)
+    val depthOnBalance = depth / logOfBase(dimensionCount, elementCount / desiredCubeSize)
 
     val nonLeafStatuses =
       allCubeStatuses.filter(_._1.children.exists(allCubeStatuses.contains)).values
@@ -116,7 +116,7 @@ class QbeastTable private (
     IndexMetrics(
       allCubeStatuses,
       dimensionCount,
-      row_count,
+      elementCount,
       depth,
       cubeCount,
       desiredCubeSize,
@@ -211,7 +211,7 @@ case class NonLeafCubeSizeDetails(
 case class IndexMetrics(
     cubeStatuses: Map[CubeId, CubeStatus],
     dimensionCount: Int,
-    row_count: Long,
+    elementCount: Long,
     depth: Int,
     cubeCounts: Int,
     desiredCubeSize: Int,
@@ -223,7 +223,7 @@ case class IndexMetrics(
   override def toString: String = {
     s"""OTree Index Metrics:
        |dimensionCount: $dimensionCount
-       |row_count: $row_count
+       |elementCount: $elementCount
        |depth: $depth
        |cubeCounts: $cubeCounts
        |desiredCubeSize: $desiredCubeSize
