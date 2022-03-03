@@ -30,8 +30,23 @@
 
 4. **Table Tolerance** - Model for sampling fraction and query accuracy trade-off. How big should be a sample? Don't worry about that, Qbeast can calculate the sample size that for your query.
 
- 
-<br/>
+
+### What does it mean? - Let's see an example:
+
+<div>
+<img src="./docs/images/spark_delta_demo.gif" width="49%" alt="Demo for Delta format GIF" />
+
+<img src="./docs/images/spark_qbeast_demo.gif" width="49%" alt="Demo for Qbeast format GIF" />
+</div>
+
+As you can see above, the Qbeast Spark extension allows **faster** queries with statistically **accurate** sampling.
+
+| Format | Execution Time |   Result  |
+|--------|:--------------:|:---------:|
+| Delta  | ~ 2.5 min.     | 37.869383 |
+| Qbeast | ~ 6.6 sec.     | 37.856333 |
+
+In this example, **1% sampling** provides the result **x22 times faster** compared to using Delta format, with an **error of 0,034%**.
 
 ## Getting Started
 

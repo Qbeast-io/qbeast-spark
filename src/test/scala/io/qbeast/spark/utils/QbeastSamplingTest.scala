@@ -35,11 +35,8 @@ class QbeastSamplingTest extends QbeastIntegrationTestSpec {
         {
           val data = loadTestData(spark)
 
-          data.write
-            .mode("error")
-            .format("qbeast")
-            .option("columnsToIndex", "user_id,product_id")
-            .save(tmpDir)
+          writeTestData(data, Seq("user_id", "product_id"), 1000, tmpDir)
+
           val df = spark.read.format("qbeast").load(tmpDir)
           val dataSize = data.count()
           // We allow a 1% of tolerance in the sampling
@@ -70,11 +67,8 @@ class QbeastSamplingTest extends QbeastIntegrationTestSpec {
       {
         val data = loadTestData(spark)
 
-        data.write
-          .mode("error")
-          .format("qbeast")
-          .option("columnsToIndex", "user_id,product_id")
-          .save(tmpDir)
+        writeTestData(data, Seq("user_id", "product_id"), 1000, tmpDir)
+
         val df = spark.read.format("qbeast").load(tmpDir)
         val precision = 0.1
 
@@ -96,11 +90,7 @@ class QbeastSamplingTest extends QbeastIntegrationTestSpec {
       {
         val data = loadTestData(spark)
 
-        data.write
-          .mode("error")
-          .format("qbeast")
-          .option("columnsToIndex", "user_id,product_id")
-          .save(tmpDir)
+        writeTestData(data, Seq("user_id", "product_id"), 1000, tmpDir)
 
         val df = spark.read.format("qbeast").load(tmpDir)
 

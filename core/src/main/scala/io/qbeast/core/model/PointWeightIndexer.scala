@@ -2,13 +2,9 @@ package io.qbeast.core.model
 
 /**
  * Indexes a point by its weight and cube transformation.
- * @param cubeWeights the map of cube and weight
- * @param announcedOrReplicatedSet the set of cubes in announced or replicated state
+ * @param tableChanges the table changes
  */
-class PointWeightIndexer(
-    val cubeWeights: Map[CubeId, Weight],
-    val announcedOrReplicatedSet: Set[CubeId])
-    extends Serializable {
+class PointWeightIndexer(val tableChanges: TableChanges) extends Serializable {
 
   /**
    * Finds the target cube identifiers for given point with the specified weight.
@@ -31,10 +27,10 @@ class PointWeightIndexer(
     var continue = true
     while (continue && containers.hasNext) {
       val cubeId = containers.next()
-      cubeWeights.get(cubeId) match {
+      tableChanges.cubeWeights(cubeId) match {
         case Some(cubeWeight) if weight <= cubeWeight =>
           builder += cubeId
-          continue = announcedOrReplicatedSet.contains(cubeId)
+          continue = tableChanges.announcedOrReplicatedSet.contains(cubeId)
         case None =>
           builder += cubeId
           continue = false
@@ -50,11 +46,11 @@ class PointWeightIndexer(
 object PointWeightIndexer {
 
   /**
-   * Builds a new point weight indexer from the status changes
+   * Builds a new point weight indexer from the table changes
    * @param changes the table changes
    * @return the PointWeightIndexer
    */
   def apply(changes: TableChanges): PointWeightIndexer =
-    new PointWeightIndexer(changes.cubeWeights, changes.announcedOrReplicatedSet)
+    new PointWeightIndexer(changes)
 
 }
