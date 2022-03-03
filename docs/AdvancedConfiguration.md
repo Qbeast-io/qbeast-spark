@@ -1,15 +1,15 @@
 # Advanced configurations
 
-There's different configurations for the index that can affect the performance on read or the writing process. Here is a resumee of some of them.
+There's different configurations for the index that can affect the performance on read or the writing process. Here is a resume of some of them.
 
 ## ColumnsToIndex
 
-This are the columns you want to index. Try to find those which are interesting for your queries, or your data pipelines. 
+These are the columns you want to index. Try to find those which are interesting for your queries, or your data pipelines. 
 
 You can specify different advanced options to the columns to index:
 
-- **Type**: The type of the index you want to create in that column. Can be linear (numeric) or hash (string). By default it would use the type of data.
-- **Null Value**: You can specify a value to be used when the column is null. By default it would generate a random value between the ranges of the data.
+- **Type**: The type of the index you want to create in that column. Can be linear (numeric) or hash (string). By default, it would use the type of data.
+- **Null Value**: You can specify a value to be used when the column is null. By default, it would generate a random value between the ranges of the data.
 
 
 ```scala
@@ -19,7 +19,7 @@ df.write.format("qbeast")
 
 ## CubeSize
 
-CubeSize option let's you specify the maximum size of the cube, in number of records. By default it's set to 5M.
+CubeSize option lets you specify the maximum size of the cube, in number of records. By default, it's set to 5M.
 
 ```scala
 df.write.format("qbeast")
