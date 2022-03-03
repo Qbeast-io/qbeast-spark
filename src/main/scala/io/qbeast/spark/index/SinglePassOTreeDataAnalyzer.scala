@@ -5,12 +5,13 @@ package io.qbeast.spark.index
 
 import io.qbeast.IISeq
 import io.qbeast.core.model.{
+  BroadcastedTableChanges,
   CubeId,
   CubeNormalizedWeight,
   CubeWeightsBuilder,
   IndexStatus,
-  IndexStatusChange,
   Revision,
+  RevisionChange,
   TableChanges,
   Weight
 }
@@ -172,7 +173,7 @@ object SinglePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
           cubeCandidates = cubeCandidates.flatMap(c => c.children)
         }
 
-        val cubeOverlaps = mutable.ArrayBuffer[Double]()
+        var cubeOverlaps = 0.0
         cubeCandidates.foreach { candidate =>
           var isOverlapping = true
           val candidateCoordinates = candidate.from.coordinates.zip(candidate.to.coordinates)
@@ -196,7 +197,8 @@ object SinglePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
             overlappingCubeWeights += CubeNormalizedWeight(cubeBytes, overlappingWeight)
           }
         }
-        assert(cubeOverlaps.sum == 1.0)
+        // Make sure that all overlapping cubes from the same depth are found
+        assert(1.0 - cubeOverlaps < 1e-15)
         overlappingCubeWeights
     }
 
@@ -235,15 +237,18 @@ object SinglePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         .collect()
         .toMap
 
+    val revChange = Some(
+      RevisionChange(
+        supersededRevision = indexStatus.revision,
+        timestamp = System.currentTimeMillis(),
+        transformationsChanges = transformations.map(Option(_))))
     // Gather the new changes
-    val tableChanges = TableChanges(
-      None,
-      IndexStatusChange(
-        indexStatus.copy(revision = lastRevision),
-        estimatedCubeWeights,
-        deltaReplicatedSet =
-          if (isReplication) indexStatus.cubesToOptimize
-          else Set.empty[CubeId]))
+    val tableChanges = BroadcastedTableChanges(
+      revChange,
+      indexStatus.copy(revision = lastRevision),
+      estimatedCubeWeights,
+      if (isReplication) indexStatus.cubesToOptimize
+      else Set.empty[CubeId])
 
     (weightedDataFrame, tableChanges)
   }
