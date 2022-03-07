@@ -20,6 +20,7 @@ import io.qbeast.core.model.{
 }
 
 import java.math.BigDecimal
+import scala.util.Random
 
 /**
  * A linear transformation of a coordinate based on min max values
@@ -135,6 +136,39 @@ class LinearTransformationSerializer
 
 }
 
+object LinearTransformation {
+
+  private def generateRandomNumber(min: Any, max: Any, orderedDataType: OrderedDataType): Any = {
+    val random = Random.nextDouble()
+
+    orderedDataType match {
+      case DoubleDataType =>
+        min
+          .asInstanceOf[Double] + (random * (max.asInstanceOf[Double] - min.asInstanceOf[Double]))
+      case IntegerDataType =>
+        min.asInstanceOf[Int] + (random * (max.asInstanceOf[Int] - min.asInstanceOf[Int])).toInt
+      case LongDataType =>
+        min.asInstanceOf[Long] + (random * (max.asInstanceOf[Long] - min
+          .asInstanceOf[Long])).toLong
+      case FloatDataType =>
+        min.asInstanceOf[Float] + (random * (max.asInstanceOf[Float] - min
+          .asInstanceOf[Float])).toFloat
+      case DecimalDataType =>
+        min
+          .asInstanceOf[Double] + (random * (max.asInstanceOf[Double] - min.asInstanceOf[Double]))
+    }
+  }
+
+  def apply(
+      minNumber: Any,
+      maxNumber: Any,
+      orderedDataType: OrderedDataType): LinearTransformation = {
+    val nullAux = generateRandomNumber(minNumber, maxNumber, orderedDataType)
+    LinearTransformation(minNumber, maxNumber, nullAux, orderedDataType)
+  }
+
+}
+
 class LinearTransformationDeserializer
     extends StdDeserializer[LinearTransformation](classOf[LinearTransformation]) {
 
@@ -146,23 +180,39 @@ class LinearTransformationDeserializer
     val odt = tree.get("orderedDataType") match {
       case tn: TextNode => OrderedDataType(tn.asText())
     }
-    (odt, tree.get("minNumber"), tree.get("maxNumber"), tree.get("nullValue")) match {
-      case (DoubleDataType, mn: DoubleNode, mx: DoubleNode, n: DoubleNode) =>
-        LinearTransformation(mn.asDouble(), mx.asDouble(), n.asDouble(), odt)
-      case (FloatDataType, mn: DoubleNode, mx: DoubleNode, n: DoubleNode) =>
-        LinearTransformation(mn.floatValue(), mx.floatValue(), n.floatValue(), odt)
-      case (IntegerDataType, mn: IntNode, mx: IntNode, n: IntNode) =>
-        LinearTransformation(mn.asInt(), mx.asInt(), n.asInt(), odt)
-      case (LongDataType, mn: NumericNode, mx: NumericNode, n: NumericNode) =>
-        LinearTransformation(mn.asLong(), mx.asLong(), n.asLong(), odt)
-      case (DecimalDataType, mn: DoubleNode, mx: DoubleNode, n: DoubleNode) =>
-        LinearTransformation(mn.doubleValue(), mx.doubleValue(), n.doubleValue(), odt)
-      case (_, _, _, null) =>
-        throw new IllegalArgumentException(
-          s"Are you reading an old version of the format? " +
-            s"The null value of the Transformation is missing.")
-      case (a, b, c, d) =>
-        throw new IllegalArgumentException(s"Invalid data type  ($a,$b,$c,$d) ${b.getClass} ")
+    val nullValue = tree.get("nullValue")
+
+    if (nullValue == null) {
+      (odt, tree.get("minNumber"), tree.get("maxNumber")) match {
+        case (DoubleDataType, mn: DoubleNode, mx: DoubleNode) =>
+          LinearTransformation(mn.asDouble(), mx.asDouble(), odt)
+        case (FloatDataType, mn: DoubleNode, mx: DoubleNode) =>
+          LinearTransformation(mn.floatValue(), mx.floatValue(), odt)
+        case (IntegerDataType, mn: IntNode, mx: IntNode) =>
+          LinearTransformation(mn.asInt(), mx.asInt(), odt)
+        case (LongDataType, mn: NumericNode, mx: NumericNode) =>
+          LinearTransformation(mn.asLong(), mx.asLong(), odt)
+        case (DecimalDataType, mn: DoubleNode, mx: DoubleNode) =>
+          LinearTransformation(mn.doubleValue(), mx.doubleValue(), odt)
+        case (a, b, c) =>
+          throw new IllegalArgumentException(s"Invalid data type  ($a,$b,$c) ${b.getClass} ")
+      }
+    } else {
+      (odt, tree.get("minNumber"), tree.get("maxNumber"), nullValue) match {
+        case (DoubleDataType, mn: DoubleNode, mx: DoubleNode, n: DoubleNode) =>
+          LinearTransformation(mn.asDouble(), mx.asDouble(), n.asDouble(), odt)
+        case (FloatDataType, mn: DoubleNode, mx: DoubleNode, n: DoubleNode) =>
+          LinearTransformation(mn.floatValue(), mx.floatValue(), n.floatValue(), odt)
+        case (IntegerDataType, mn: IntNode, mx: IntNode, n: IntNode) =>
+          LinearTransformation(mn.asInt(), mx.asInt(), n.asInt(), odt)
+        case (LongDataType, mn: NumericNode, mx: NumericNode, n: NumericNode) =>
+          LinearTransformation(mn.asLong(), mx.asLong(), n.asLong(), odt)
+        case (DecimalDataType, mn: DoubleNode, mx: DoubleNode, n: DoubleNode) =>
+          LinearTransformation(mn.doubleValue(), mx.doubleValue(), n.doubleValue(), odt)
+
+        case (a, b, c, d) =>
+          throw new IllegalArgumentException(s"Invalid data type  ($a,$b,$c,$d) ${b.getClass} ")
+      }
     }
 
   }

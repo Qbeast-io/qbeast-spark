@@ -13,8 +13,6 @@ import io.qbeast.core.model.{
   QDataType
 }
 
-import scala.util.Random
-
 object LinearTransformer extends TransformerType {
   override def transformerSimpleName: String = "linear"
 
@@ -41,28 +39,7 @@ case class LinearTransformer(
     }
   }
 
-  private def generateRandomNumber(min: Any, max: Any): Any = {
-    val random = Random.nextDouble()
-
-    dataType match {
-      case DoubleDataType =>
-        min
-          .asInstanceOf[Double] + (random * (max.asInstanceOf[Double] - min.asInstanceOf[Double]))
-      case IntegerDataType =>
-        min.asInstanceOf[Int] + (random * (max.asInstanceOf[Int] - min.asInstanceOf[Int])).toInt
-      case LongDataType =>
-        min.asInstanceOf[Long] + (random * (max.asInstanceOf[Long] - min
-          .asInstanceOf[Long])).toLong
-      case FloatDataType =>
-        min.asInstanceOf[Float] + (random * (max.asInstanceOf[Float] - min
-          .asInstanceOf[Float])).toFloat
-      case DecimalDataType =>
-        min
-          .asInstanceOf[Double] + (random * (max.asInstanceOf[Double] - min.asInstanceOf[Double]))
-    }
-  }
-
-  private val zeroValue = dataType match {
+  private def zeroValue = dataType match {
     case DoubleDataType => 0.0
     case IntegerDataType => 0
     case LongDataType => 0L
@@ -78,22 +55,23 @@ case class LinearTransformer(
   override def makeTransformation(row: String => Any): Transformation = {
     val minAux = row(colMin)
     val maxAux = row(colMax)
-    val (min, max, nullValue) = {
-      // If all values are null we pick the same value for all three variables
-      if (minAux == null && maxAux == null) {
-        val aux = getValue(optionalNullValue.getOrElse(zeroValue))
-        (aux, aux, aux)
-      } else { // otherwhise we pick the min and max
-        val min = getValue(minAux)
-        val max = getValue(maxAux)
-        val nullAux = optionalNullValue.getOrElse(generateRandomNumber(min, max))
-        val nullValue = getValue(nullAux)
-        (min, max, nullValue)
-      }
+    val (min, max) = if (minAux == null && maxAux == null) {
+      // If all values are null we pick the same value for min and max
+      val aux = getValue(optionalNullValue.getOrElse(zeroValue))
+      (aux, aux)
+    } else { // otherwhise we pick the min and max
+      val min = getValue(minAux)
+      val max = getValue(maxAux)
+      (min, max)
     }
     dataType match {
+      case ordered: OrderedDataType if optionalNullValue.isDefined =>
+        LinearTransformation(min, max, getValue(optionalNullValue.get), ordered)
       case ordered: OrderedDataType =>
-        LinearTransformation(min, max, nullValue, ordered)
+        LinearTransformation(min, max, ordered)
+      case _ =>
+        throw new IllegalArgumentException(
+          s"LinearTransformer can only be used with OrderedDataType, not $dataType")
 
     }
   }
