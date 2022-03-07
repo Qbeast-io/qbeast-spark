@@ -213,7 +213,7 @@ case class IndexMetrics(
     dimensionCount: Int,
     elementCount: Long,
     depth: Int,
-    cubeCounts: Int,
+    cubeCount: Int,
     desiredCubeSize: Int,
     avgFanOut: Double,
     depthOverLogNumNodes: Double,
@@ -225,7 +225,7 @@ case class IndexMetrics(
        |dimensionCount: $dimensionCount
        |elementCount: $elementCount
        |depth: $depth
-       |cubeCounts: $cubeCounts
+       |cubeCount: $cubeCount
        |desiredCubeSize: $desiredCubeSize
        |avgFanOut: $avgFanOut
        |depthOverLogNumNodes: $depthOverLogNumNodes
