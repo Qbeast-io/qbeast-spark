@@ -171,7 +171,7 @@ object LinearTransformation {
       maxNumber: Any,
       orderedDataType: OrderedDataType,
       seed: Option[Long] = None): LinearTransformation = {
-    val nullAux = generateRandomNumber(minNumber, maxNumber, orderedDataType)
+    val nullAux = generateRandomNumber(minNumber, maxNumber, orderedDataType, seed)
     LinearTransformation(minNumber, maxNumber, nullAux, orderedDataType)
   }
 
