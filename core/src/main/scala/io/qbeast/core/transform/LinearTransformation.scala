@@ -138,8 +138,15 @@ class LinearTransformationSerializer
 
 object LinearTransformation {
 
-  private def generateRandomNumber(min: Any, max: Any, orderedDataType: OrderedDataType): Any = {
-    val random = Random.nextDouble()
+  // It's only called when the transformation is deserialized from JSON
+  // Or initialized from a default transformer
+  private def generateRandomNumber(
+      min: Any,
+      max: Any,
+      orderedDataType: OrderedDataType,
+      seed: Option[Long] = None): Any = {
+    val r = if (seed.isDefined) new Random(seed.get) else new Random()
+    val random = r.nextDouble()
 
     orderedDataType match {
       case DoubleDataType =>
@@ -162,7 +169,8 @@ object LinearTransformation {
   def apply(
       minNumber: Any,
       maxNumber: Any,
-      orderedDataType: OrderedDataType): LinearTransformation = {
+      orderedDataType: OrderedDataType,
+      seed: Option[Long] = None): LinearTransformation = {
     val nullAux = generateRandomNumber(minNumber, maxNumber, orderedDataType)
     LinearTransformation(minNumber, maxNumber, nullAux, orderedDataType)
   }
@@ -172,6 +180,21 @@ object LinearTransformation {
 class LinearTransformationDeserializer
     extends StdDeserializer[LinearTransformation](classOf[LinearTransformation]) {
 
+  private def handleType(odt: OrderedDataType, tree: TreeNode): Any = {
+    (odt, tree) match {
+      case (IntegerDataType, int: IntNode) => int.asInt
+      case (DoubleDataType, double: DoubleNode) => double.asDouble
+      case (LongDataType, long: NumericNode) => long.asLong
+      case (FloatDataType, float: DoubleNode) => float.asDouble
+      case (DecimalDataType, decimal: DoubleNode) => decimal.asDouble
+      case (_, null) => null
+      case (a, b) =>
+        throw new IllegalArgumentException(s"Invalid data type  ($a,$b) ${b.getClass} ")
+
+    }
+
+  }
+
   override def deserialize(p: JsonParser, ctxt: DeserializationContext): LinearTransformation = {
     val json = p.getCodec
     val tree: TreeNode = json
@@ -180,40 +203,11 @@ class LinearTransformationDeserializer
     val odt = tree.get("orderedDataType") match {
       case tn: TextNode => OrderedDataType(tn.asText())
     }
-    val nullValue = tree.get("nullValue")
-
-    if (nullValue == null) {
-      (odt, tree.get("minNumber"), tree.get("maxNumber")) match {
-        case (DoubleDataType, mn: DoubleNode, mx: DoubleNode) =>
-          LinearTransformation(mn.asDouble(), mx.asDouble(), odt)
-        case (FloatDataType, mn: DoubleNode, mx: DoubleNode) =>
-          LinearTransformation(mn.floatValue(), mx.floatValue(), odt)
-        case (IntegerDataType, mn: IntNode, mx: IntNode) =>
-          LinearTransformation(mn.asInt(), mx.asInt(), odt)
-        case (LongDataType, mn: NumericNode, mx: NumericNode) =>
-          LinearTransformation(mn.asLong(), mx.asLong(), odt)
-        case (DecimalDataType, mn: DoubleNode, mx: DoubleNode) =>
-          LinearTransformation(mn.doubleValue(), mx.doubleValue(), odt)
-        case (a, b, c) =>
-          throw new IllegalArgumentException(s"Invalid data type  ($a,$b,$c) ${b.getClass} ")
-      }
-    } else {
-      (odt, tree.get("minNumber"), tree.get("maxNumber"), nullValue) match {
-        case (DoubleDataType, mn: DoubleNode, mx: DoubleNode, n: DoubleNode) =>
-          LinearTransformation(mn.asDouble(), mx.asDouble(), n.asDouble(), odt)
-        case (FloatDataType, mn: DoubleNode, mx: DoubleNode, n: DoubleNode) =>
-          LinearTransformation(mn.floatValue(), mx.floatValue(), n.floatValue(), odt)
-        case (IntegerDataType, mn: IntNode, mx: IntNode, n: IntNode) =>
-          LinearTransformation(mn.asInt(), mx.asInt(), n.asInt(), odt)
-        case (LongDataType, mn: NumericNode, mx: NumericNode, n: NumericNode) =>
-          LinearTransformation(mn.asLong(), mx.asLong(), n.asLong(), odt)
-        case (DecimalDataType, mn: DoubleNode, mx: DoubleNode, n: DoubleNode) =>
-          LinearTransformation(mn.doubleValue(), mx.doubleValue(), n.doubleValue(), odt)
-
-        case (a, b, c, d) =>
-          throw new IllegalArgumentException(s"Invalid data type  ($a,$b,$c,$d) ${b.getClass} ")
-      }
-    }
+    val min = handleType(odt, tree.get("minNumber"))
+    val max = handleType(odt, tree.get("maxNumber"))
+    val nullValue = handleType(odt, tree.get("nullValue"))
+    if (nullValue == null) LinearTransformation(min, max, odt, seed = Some(tree.hashCode()))
+    else LinearTransformation(min, max, nullValue, odt)
 
   }
 
