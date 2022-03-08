@@ -185,7 +185,7 @@ class LinearTransformationDeserializer
       case (IntegerDataType, int: IntNode) => int.asInt
       case (DoubleDataType, double: DoubleNode) => double.asDouble
       case (LongDataType, long: NumericNode) => long.asLong
-      case (FloatDataType, float: DoubleNode) => float.asDouble
+      case (FloatDataType, float: DoubleNode) => float.floatValue
       case (DecimalDataType, decimal: DoubleNode) => decimal.asDouble
       case (_, null) => null
       case (a, b) =>
