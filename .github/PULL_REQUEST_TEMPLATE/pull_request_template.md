@@ -1,8 +1,11 @@
 ## Description
 
-Clear, concise explanation about the changes made in this pull request
 
-Fixes # (issue)
+- Fixes # (issue) -> A reference to a related issue in your repository
+
+- A clear, concise description of the changes proposed in the pull request
+
+- @mentions of the person or team responsible for reviewing proposed changes (Optional)
 
 ## Type of change
 
