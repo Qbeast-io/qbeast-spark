@@ -138,8 +138,6 @@ class LinearTransformationSerializer
 
 object LinearTransformation {
 
-  // It's only called when the transformation is deserialized from JSON
-  // Or initialized from a default transformer
   private def generateRandomNumber(
       min: Any,
       max: Any,
@@ -166,13 +164,22 @@ object LinearTransformation {
     }
   }
 
+  /**
+   * Creates a LinearTransformation that has random value for the nulls
+   * within the [minNumber, maxNumber] range
+   * @param minNumber
+   * @param maxNumber
+   * @param orderedDataType
+   * @param seed
+   * @return
+   */
   def apply(
       minNumber: Any,
       maxNumber: Any,
       orderedDataType: OrderedDataType,
       seed: Option[Long] = None): LinearTransformation = {
-    val nullAux = generateRandomNumber(minNumber, maxNumber, orderedDataType, seed)
-    LinearTransformation(minNumber, maxNumber, nullAux, orderedDataType)
+    val randomNull = generateRandomNumber(minNumber, maxNumber, orderedDataType, seed)
+    LinearTransformation(minNumber, maxNumber, randomNull, orderedDataType)
   }
 
 }
@@ -180,7 +187,7 @@ object LinearTransformation {
 class LinearTransformationDeserializer
     extends StdDeserializer[LinearTransformation](classOf[LinearTransformation]) {
 
-  private def handleType(odt: OrderedDataType, tree: TreeNode): Any = {
+  private def getTypedValue(odt: OrderedDataType, tree: TreeNode): Any = {
     (odt, tree) match {
       case (IntegerDataType, int: IntNode) => int.asInt
       case (DoubleDataType, double: DoubleNode) => double.asDouble
@@ -203,11 +210,16 @@ class LinearTransformationDeserializer
     val odt = tree.get("orderedDataType") match {
       case tn: TextNode => OrderedDataType(tn.asText())
     }
-    val min = handleType(odt, tree.get("minNumber"))
-    val max = handleType(odt, tree.get("maxNumber"))
-    val nullValue = handleType(odt, tree.get("nullValue"))
-    if (nullValue == null) LinearTransformation(min, max, odt, seed = Some(tree.hashCode()))
-    else LinearTransformation(min, max, nullValue, odt)
+
+    val min = getTypedValue(odt, tree.get("minNumber"))
+    val max = getTypedValue(odt, tree.get("maxNumber"))
+    val nullValue = getTypedValue(odt, tree.get("nullValue"))
+
+    if (nullValue == null) {
+      // the hash acts like a seed to generate the same random null value
+      val hash = scala.util.hashing.MurmurHash3.stringHash(tree.toString)
+      LinearTransformation(min, max, odt, seed = Some(hash))
+    } else LinearTransformation(min, max, nullValue, odt)
 
   }
 

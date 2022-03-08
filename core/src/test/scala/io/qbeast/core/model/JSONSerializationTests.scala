@@ -9,6 +9,8 @@ import io.qbeast.core.transform.{
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.util.Random
+
 class JSONSerializationTests extends AnyFlatSpec with Matchers {
   "QTableID" should "have a small json representation serializable" in {
     val tableID = new QTableID("test")
@@ -66,6 +68,23 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
     mapper.writeValueAsString(tr) shouldBe ser
     mapper.readValue[Transformation](ser, classOf[Transformation]) shouldBe tr
 
+  }
+
+  it should "deserialize old LinearTransformation with the same random null value" in {
+    val min = 0
+    val max = 10
+    val ser =
+      """{"className":"io.qbeast.core.transform.LinearTransformation",""" +
+        """"minNumber":0,"maxNumber":10,"orderedDataType":"IntegerDataType"}"""
+    val tree = """{"minNumber":0,"maxNumber":10,"orderedDataType":"IntegerDataType"}"""
+
+    val hash = scala.util.hashing.MurmurHash3.stringHash(tree)
+    val random = new Random(hash).nextDouble()
+    val nullValue = 0 + (random * (10 - 0)).toInt
+
+    val tr: Transformation = LinearTransformation(min, max, nullValue, IntegerDataType)
+
+    mapper.readValue[Transformation](ser, classOf[Transformation]) shouldBe tr
   }
 
   "A HashTransformation" should "serialize correctly" in {
