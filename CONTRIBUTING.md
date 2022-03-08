@@ -10,6 +10,7 @@ To find Qbeast issues that make good entry points:
 
 - For issues that require deeper knowledge of one or more technical aspects, look at issues labelled **help wanted**.
 
+
 ## Licensing of contributed material
 All contributed code, docs, and other materials are considered licensed under the same terms as the rest of the project. Check [LICENSE](./LICENCE) for more details.
 
@@ -84,7 +85,35 @@ All contributed code, docs, and other materials are considered licensed under th
 
   10 - Wait for the maintainers to get back to you as soon as they can!
 
-## How to use the code
+## Development set up
+
+### 1. Install [**sbt**(>=1.4.7)](https://www.scala-sbt.org/download.html).
+
+### 2. Install **Spark**
+Download **Spark 3.1.1 with Hadoop 3.2***, unzip it, and create the `SPARK_HOME` environment variable:<br />
+*: You can use Hadoop 2.7 if desired, but you could have some troubles with different cloud providers' storage, read more about it [here](docs/CloudStorages.md).
+
+```bash
+wget https://archive.apache.org/dist/spark/spark-3.1.1/spark-3.1.1-bin-hadoop3.2.tgz
+
+tar xzvf spark-3.1.1-bin-hadoop3.2.tgz
+
+export SPARK_HOME=$PWD/spark-3.1.1-bin-hadoop3.2
+ ```
+
+### 3. Project packaging:
+Clone the repo, navigate to the repository folder, and package the project through **sbt**. [JDK 8](https://www.azul.com/downloads/?version=java-8-lts&package=jdk) is recommended.
+
+**Note**: You can specify **custom** Spark or Hadoop **versions** when packaging by using `-Dspark.version=3.2.0` or `-Dhadoop.version=2.7.4` when running `sbt assembly`.
+If you have troubles with the versions you use, don't hesitate to **ask the community** in [GitHub discussions](https://github.com/Qbeast-io/qbeast-spark/discussions).
+
+``` bash
+git clone https://github.com/Qbeast-io/qbeast-spark.git
+
+cd qbeast-spark
+
+sbt assembly
+```
 This code generates a fat jar with all required dependencies (or most of them) shaded.
 
 The jar does not include scala nor spark nor delta, and it is supposed to be used inside spark. 
@@ -98,18 +127,6 @@ $SPARK_HOME/bin/spark-shell \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
 --packages io.delta:delta-core_2.12:1.0.0
 ```
-
-### Overriding configurations
-
-There are some default configuration for the qbeast index parameters:
-
-- `index.size` determines the number of elements that could fit into each cube
-
-These parameters can be modified as below when starting the spark shell:
-
-  ```bash
-  --driver-java-options "-Dqbeast.index.size=28927386"
-  ```
 
 <br/>
 
