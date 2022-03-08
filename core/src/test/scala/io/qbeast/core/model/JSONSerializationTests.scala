@@ -10,6 +10,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.util.Random
+import scala.util.hashing.MurmurHash3
 
 class JSONSerializationTests extends AnyFlatSpec with Matchers {
   "QTableID" should "have a small json representation serializable" in {
@@ -78,7 +79,7 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
         """"minNumber":0,"maxNumber":10,"orderedDataType":"IntegerDataType"}"""
     val tree = """{"minNumber":0,"maxNumber":10,"orderedDataType":"IntegerDataType"}"""
 
-    val hash = scala.util.hashing.MurmurHash3.stringHash(tree)
+    val hash = MurmurHash3.stringHash(tree)
     val random = new Random(hash).nextDouble()
     val nullValue = 0 + (random * (10 - 0)).toInt
 

@@ -21,6 +21,7 @@ import io.qbeast.core.model.{
 
 import java.math.BigDecimal
 import scala.util.Random
+import scala.util.hashing.MurmurHash3
 
 /**
  * A linear transformation of a coordinate based on min max values
@@ -217,7 +218,7 @@ class LinearTransformationDeserializer
 
     if (nullValue == null) {
       // the hash acts like a seed to generate the same random null value
-      val hash = scala.util.hashing.MurmurHash3.stringHash(tree.toString)
+      val hash = MurmurHash3.stringHash(tree.toString)
       LinearTransformation(min, max, odt, seed = Some(hash))
     } else LinearTransformation(min, max, nullValue, odt)
 
