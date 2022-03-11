@@ -198,8 +198,8 @@ private[table] class IndexedTableImpl(
     val revision = indexStatus.revision
 
     if (exists) {
-      keeper.withWrite(indexStatus.revision.tableID, revision.revisionID) { write =>
-        val announcedSet = write.announcedCubes
+      keeper.withWrite(tableID.id, revision.revisionID) { write =>
+        val announcedSet = write.announcedCubes.map(revision.createCubeId)
         val updatedStatus = indexStatus.addAnnouncements(announcedSet)
         doWrite(data, updatedStatus, append)
       }
@@ -224,19 +224,20 @@ private[table] class IndexedTableImpl(
 
   override def analyze(revisionID: RevisionID): Seq[String] = {
     val indexStatus = snapshot.loadIndexStatus(revisionID)
-    val cubesToAnnounce = indexManager.analyze(indexStatus)
-    keeper.announce(tableID, revisionID, cubesToAnnounce)
-    cubesToAnnounce.map(_.string)
+    val cubesToAnnounce = indexManager.analyze(indexStatus).map(_.string)
+    keeper.announce(tableID.id, revisionID, cubesToAnnounce)
+    cubesToAnnounce
 
   }
 
   override def optimize(revisionID: RevisionID): Unit = {
 
     // begin keeper transaction
-    val bo = keeper.beginOptimization(tableID, revisionID)
+    val bo = keeper.beginOptimization(tableID.id, revisionID)
 
     val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
-    val indexStatus = currentIndexStatus.addAnnouncements(bo.cubesToOptimize)
+    val cubesToOptimize = bo.cubesToOptimize.map(currentIndexStatus.revision.createCubeId)
+    val indexStatus = currentIndexStatus.addAnnouncements(cubesToOptimize)
     val cubesToReplicate = indexStatus.cubesToOptimize
     val schema = metadataManager.loadCurrentSchema(tableID)
 
@@ -255,7 +256,7 @@ private[table] class IndexedTableImpl(
       }
     }
 
-    bo.end(cubesToReplicate)
+    bo.end(cubesToReplicate.map(_.string))
     // end keeper transaction
 
     clearCaches()
