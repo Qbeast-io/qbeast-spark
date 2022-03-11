@@ -204,7 +204,9 @@ private[table] class IndexedTableImpl(
         doWrite(data, updatedStatus, append)
       }
     } else {
-      doWrite(data, indexStatus, append)
+      keeper.withWrite(tableID.id, revision.revisionID) { write =>
+        doWrite(data, indexStatus, append)
+      }
     }
     clearCaches()
     createQbeastBaseRelation()
