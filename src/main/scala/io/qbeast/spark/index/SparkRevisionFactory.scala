@@ -16,7 +16,7 @@ import scala.util.matching.Regex
  */
 object SparkRevisionFactory extends RevisionFactory[StructType] {
 
-  // Usage: columnName:transformerType(nullValue)
+  // Usage: columnName:transformerType
   val SpecExtractor: Regex = """([^:]+):(.+)""".r
 
   def getColumnQType(columnName: String, schema: StructType): QDataType = {

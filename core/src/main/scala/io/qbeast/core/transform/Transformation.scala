@@ -51,6 +51,7 @@ object IdentityTransformation extends Transformation {
 
   @inline
   override def transform(value: Any): Double = value match {
+    case null => 0.0
     case v: Number =>
       v.byteValue()
   }

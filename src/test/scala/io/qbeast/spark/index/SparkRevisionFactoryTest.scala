@@ -112,26 +112,4 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
     revision.transformations shouldBe Vector.empty
 
   })
-
-  it should "createNewRevision with null values" in withSpark(spark => {
-    import spark.implicits._
-    val schema = 0.to(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).toDF().schema
-    val qid = QTableID("t")
-
-    val revisionExplicit =
-      SparkRevisionFactory.createNewRevision(
-        qid,
-        schema,
-        Map(
-          QbeastOptions.COLUMNS_TO_INDEX ->
-            "a:linear(245),b:linear(4.0),c:hashing(null),d:linear(1.0)",
-          QbeastOptions.CUBE_SIZE -> "10"))
-
-    revisionExplicit.columnTransformers shouldBe Vector(
-      LinearTransformer("a", IntegerDataType),
-      LinearTransformer("b", DoubleDataType),
-      HashTransformer("c", StringDataType),
-      LinearTransformer("d", FloatDataType))
-
-  })
 }
