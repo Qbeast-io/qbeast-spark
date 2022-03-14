@@ -48,7 +48,6 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
         Transformer(
           transformerType,
           field.name,
-          randomNullString,
           SparkToQTypesUtils.convertDataTypes(field.dataType))
       })
       .toIndexedSeq

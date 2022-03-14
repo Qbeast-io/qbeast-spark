@@ -41,25 +41,6 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
     }
   }
 
-  it should "should extract correctly the nullValue" in {
-
-    import SparkRevisionFactory.TransformerExtractor
-
-    "LinearTransformer(nullValue)" match {
-      case TransformerExtractor(transformer, nullValue) =>
-        transformer shouldBe "LinearTransformer"
-        nullValue shouldBe "nullValue"
-      case _ => fail("It did not recognize the nullValue")
-    }
-
-    "column" match {
-      case TransformerExtractor(transformer, nullValue) =>
-        fail("It shouldn't be here")
-      case column =>
-        column shouldBe "column"
-    }
-  }
-
   it should "createNewRevision with only one columns" in withSpark(spark => {
     import spark.implicits._
     val schema = 0.to(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).toDF().schema
@@ -147,10 +128,10 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
           QbeastOptions.CUBE_SIZE -> "10"))
 
     revisionExplicit.columnTransformers shouldBe Vector(
-      LinearTransformer("a", IntegerDataType, Some(245)),
-      LinearTransformer("b", DoubleDataType, Some(4.0)),
-      HashTransformer("c", StringDataType, Some("null")),
-      LinearTransformer("d", FloatDataType, Some(1.0)))
+      LinearTransformer("a", IntegerDataType),
+      LinearTransformer("b", DoubleDataType),
+      HashTransformer("c", StringDataType),
+      LinearTransformer("d", FloatDataType))
 
   })
 }

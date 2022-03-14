@@ -4,16 +4,7 @@
 package io.qbeast.core.transform
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import io.qbeast.core.model.{
-  DecimalDataType,
-  DoubleDataType,
-  FloatDataType,
-  IntegerDataType,
-  LongDataType,
-  OrderedDataType,
-  QDataType,
-  StringDataType
-}
+import io.qbeast.core.model.{OrderedDataType, QDataType, StringDataType}
 
 import java.util.Locale
 
@@ -24,33 +15,6 @@ object Transformer {
 
   private val transformersRegistry: Map[String, TransformerType] =
     Seq(LinearTransformer, HashTransformer).map(a => (a.transformerSimpleName, a)).toMap
-
-  /**
-   * Returns the transformer for the given column and type of transformer and null value
-   * @param transformerTypeName the name of the transformer type: could be hashing or linear
-   * @param columnName the name of the column
-   * @param dataType the type of the data
-   * @param nullValue the value to use for the null records
-   * @return the Transformer
-   */
-  def apply(
-      transformerTypeName: String,
-      columnName: String,
-      nullValue: String,
-      dataType: QDataType): Transformer = {
-
-    val tt = transformerTypeName.toLowerCase(Locale.ROOT)
-    val nullValueTyped = dataType match {
-      case StringDataType => nullValue
-      case IntegerDataType => nullValue.toInt
-      case LongDataType => nullValue.toLong
-      case FloatDataType => nullValue.toFloat
-      case DoubleDataType => nullValue.toDouble
-      case DecimalDataType => nullValue.toDouble
-      case _ => throw new IllegalArgumentException(s"Unsupported data type: $dataType")
-    }
-    transformersRegistry(tt)(columnName, dataType, Some(nullValueTyped))
-  }
 
   /**
    * Returns the transformer for a given column and type of transformer
@@ -96,10 +60,7 @@ object Transformer {
 private[transform] trait TransformerType {
   def transformerSimpleName: String
 
-  def apply(
-      columnName: String,
-      dataType: QDataType,
-      optionalNullValue: Option[Any] = None): Transformer
+  def apply(columnName: String, dataType: QDataType): Transformer
 
 }
 
@@ -119,12 +80,6 @@ trait Transformer extends Serializable {
    * @return
    */
   def columnName: String
-
-  /**
-   * Returns the user-inferred null value of the transformer, if any
-   * @return
-   */
-  def optionalNullValue: Option[Any]
 
   /**
    * Returns the stats

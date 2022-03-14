@@ -18,7 +18,6 @@ object SparkRevisionFactory extends RevisionFactory[StructType] {
 
   // Usage: columnName:transformerType(nullValue)
   val SpecExtractor: Regex = """([^:]+):(.+)""".r
-  val TransformerExtractor: Regex = """([A-z]+)\((.+)\)""".r
 
   def getColumnQType(columnName: String, schema: StructType): QDataType = {
     SparkToQTypesUtils.convertDataTypes(schema(columnName).dataType)
@@ -33,8 +32,6 @@ object SparkRevisionFactory extends RevisionFactory[StructType] {
     val columnSpecs = qbeastOptions.columnsToIndex
     val desiredCubeSize = qbeastOptions.cubeSize
     val transformers = columnSpecs.map {
-      case SpecExtractor(columnName, TransformerExtractor(transformerType, nullValue)) =>
-        Transformer(transformerType, columnName, nullValue, getColumnQType(columnName, schema))
       case SpecExtractor(columnName, transformerType) =>
         Transformer(transformerType, columnName, getColumnQType(columnName, schema))
       case columnName => Transformer(columnName, getColumnQType(columnName, schema))
