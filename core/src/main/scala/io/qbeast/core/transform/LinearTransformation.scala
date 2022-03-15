@@ -139,29 +139,19 @@ class LinearTransformationSerializer
 
 object LinearTransformation {
 
-  private def generateRandomNumber(
-      min: Any,
-      max: Any,
-      orderedDataType: OrderedDataType,
-      seed: Option[Long]): Any = {
+  private def generateRandomNumber(min: Any, max: Any, seed: Option[Long]): Any = {
     val r = if (seed.isDefined) new Random(seed.get) else new Random()
     val random = r.nextDouble()
 
-    orderedDataType match {
-      case DoubleDataType =>
-        min
-          .asInstanceOf[Double] + (random * (max.asInstanceOf[Double] - min.asInstanceOf[Double]))
-      case IntegerDataType =>
-        min.asInstanceOf[Int] + (random * (max.asInstanceOf[Int] - min.asInstanceOf[Int])).toInt
-      case LongDataType =>
-        min.asInstanceOf[Long] + (random * (max.asInstanceOf[Long] - min
-          .asInstanceOf[Long])).toLong
-      case FloatDataType =>
-        min.asInstanceOf[Float] + (random * (max.asInstanceOf[Float] - min
-          .asInstanceOf[Float])).toFloat
-      case DecimalDataType =>
-        min
-          .asInstanceOf[Double] + (random * (max.asInstanceOf[Double] - min.asInstanceOf[Double]))
+    (min, max) match {
+      case (min: Double, max: Double) => min + (random * (max - min))
+      case (min: Long, max: Long) => min + (random * (max - min)).toLong
+      case (min: Int, max: Int) => min + (random * (max - min)).toInt
+      case (min: Float, max: Float) => min + (random * (max - min)).toFloat
+      case (min, max) =>
+        throw new IllegalArgumentException(
+          s"Cannot generate random number for type ${min.getClass.getName}")
+
     }
   }
 
@@ -179,7 +169,7 @@ object LinearTransformation {
       maxNumber: Any,
       orderedDataType: OrderedDataType,
       seed: Option[Long] = None): LinearTransformation = {
-    val randomNull = generateRandomNumber(minNumber, maxNumber, orderedDataType, seed)
+    val randomNull = generateRandomNumber(minNumber, maxNumber, seed)
     LinearTransformation(minNumber, maxNumber, randomNull, orderedDataType)
   }
 
