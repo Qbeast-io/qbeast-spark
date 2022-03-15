@@ -3,7 +3,7 @@
  */
 package io.qbeast.core.keeper
 
-import io.qbeast.SerializedCubeID
+import io.qbeast.{SerializedCubeID, SerializedTableID}
 
 import java.util.ServiceLoader
 
@@ -19,7 +19,7 @@ trait Keeper {
    * @param revision the domain revision
    * @return the write operation
    */
-  def beginWrite(tableID: String, revision: Long): Write
+  def beginWrite(tableID: SerializedTableID, revision: Long): Write
 
   /**
    * Runs an action as part of write operation for the specified index revision.
@@ -29,7 +29,7 @@ trait Keeper {
    * @tparam T the result type
    * @return the result
    */
-  def withWrite[T](tableID: String, revision: Long)(action: Write => T): T = {
+  def withWrite[T](tableID: SerializedTableID, revision: Long)(action: Write => T): T = {
     val write = beginWrite(tableID, revision)
     try {
       action(write)
@@ -44,7 +44,7 @@ trait Keeper {
    * @param revision the domain revision
    * @param cubes the announced cube identifiers
    */
-  def announce(tableID: String, revision: Long, cubes: Seq[SerializedCubeID]): Unit
+  def announce(tableID: SerializedTableID, revision: Long, cubes: Seq[SerializedCubeID]): Unit
 
   /**
    * Begins an optimization for given index domain revision.
@@ -54,7 +54,7 @@ trait Keeper {
    * @return the optimization operation
    */
   def beginOptimization(
-      tableID: String,
+      tableID: SerializedTableID,
       revision: Long,
       cubeLimit: Integer = Integer.MAX_VALUE): Optimization
 
