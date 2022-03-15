@@ -66,7 +66,11 @@ Here you can see the changes on the `AddFile` **`tags`** information
 }
 
 ```
-
+- `cube` the serialized representation of the Cube
+- `revision`: the metadata of the tree
+- `elementCount`: the number of elements in the block
+- `minWeight`: the minimum weight of the block
+- `maxWeight`: the maximum weight of the block
 ### MetaData changes
 
 And here the changes on `Metadata` `configuration` map
@@ -104,14 +108,12 @@ A more closer look to the `qb.revision.1`:
     {
       "className":"io.qbeast.core.transform.LinearTransformer",
       "columnName":"user_id",
-      "dataType":"IntegerDataType",
-      "optionalNullValue": "None"
+      "dataType":"IntegerDataType"
     },
     {
       "className":"io.qbeast.core.transform.LinearTransformer",
       "columnName":"product_id",
-      "dataType":"IntegerDataType",
-      "optionalNullValue": "None"
+      "dataType":"IntegerDataType"
     }
   ],
   "transformations":[
@@ -139,7 +141,15 @@ In Revision, you can find different information about the tree status and config
 - `tableID` the identifier of the table that the revision belongs
 - `desiredCubeSize` the cube size from the option `cubeSize`
 - `columnTransformers` the metadata of the different columns indexed with the option `columnsToIndex`
+
+    - `columnTransformers.columnName` the name of the column
+    - `columnTransformers.dataType` the data type of the column
 - `transformations` contains information about the **space** of the data indexed by column
+
+    - `transformations.className` the name of the class that implements the transformation
+    - `transformations.minNumber` the minimum value
+    - `transformations.maxNumber` the maximum value
+    - `transformations.nullValue` the value that represents the null in the space
 
 In this case, we index columns `user_id` and `product_id` (which are both `Integers`) with a linear transformation. This means that they will not suffer any transformation besides the normalization.
 

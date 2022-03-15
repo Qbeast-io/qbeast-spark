@@ -9,12 +9,11 @@ These are the columns you want to index. Try to find those which are interesting
 You can specify different advanced options to the columns to index:
 
 - **Type**: The type of the index you want to create in that column. Can be linear (numeric) or hash (string). By default, it would use the type of data.
-- **Null Value**: You can specify a value to be used when the column is null. By default, it would generate a random value between the ranges of the data.
 
 
 ```scala
 df.write.format("qbeast")
-  .option("columnsToIndex", "column:type(nullValue),column2:type(nullValue2)...")
+  .option("columnsToIndex", "column:type,column2:type...")
 ```
 
 ## CubeSize
