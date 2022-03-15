@@ -76,7 +76,7 @@ class CubeWeightsBuilder protected (
   def update(point: Point, weight: Weight, parent: Option[CubeId] = None): CubeWeightsBuilder = {
     queue.enqueue(PointWeightAndParent(point, weight, parent))
     if (queue.size >= bufferCapacity) {
-      resultBuffer ++= result()
+      resultBuffer ++= resultInternal()
       queue.clear()
     }
     this
