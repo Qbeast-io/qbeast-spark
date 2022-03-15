@@ -17,13 +17,14 @@ object Transformer {
     Seq(LinearTransformer, HashTransformer).map(a => (a.transformerSimpleName, a)).toMap
 
   /**
-   * Returns the transformer for a given column and type of transformer
+   * Returns the transformer for the given column and type of transformer
    * @param transformerTypeName the name of the transformer type: could be hashing or linear
    * @param columnName the name of the column
    * @param dataType the type of the data
    * @return the Transformer
    */
   def apply(transformerTypeName: String, columnName: String, dataType: QDataType): Transformer = {
+
     val tt = transformerTypeName.toLowerCase(Locale.ROOT)
     transformersRegistry(tt)(columnName, dataType)
   }
@@ -61,7 +62,6 @@ private[transform] trait TransformerType {
   def transformerSimpleName: String
 
   def apply(columnName: String, dataType: QDataType): Transformer
-
 }
 
 /**
@@ -100,7 +100,6 @@ trait Transformer extends Serializable {
    * @param row the row containing the new space values
    * @return an optional new transformation
    */
-  // TODO check here if the optional null value has changed?
   def maybeUpdateTransformation(
       currentTransformation: Transformation,
       row: Map[String, Any]): Option[Transformation] = {

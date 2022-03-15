@@ -23,7 +23,7 @@ import io.qbeast.spark.index.QbeastColumns.weightColumnName
 import io.qbeast.spark.utils.SparkToQTypesUtils
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types.{StringType, StructField}
+import org.apache.spark.sql.types.StructField
 import org.scalatest.matchers.must.Matchers.convertToAnyMustWrapper
 
 class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
@@ -39,15 +39,8 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
   }
 
   private def createTransformers(columnsSchema: Seq[StructField]): IISeq[Transformer] = {
-
     columnsSchema
-      .map(field => {
-        val transformerType = if (field.dataType == StringType) "hashing" else "linear"
-        Transformer(
-          transformerType,
-          field.name,
-          SparkToQTypesUtils.convertDataTypes(field.dataType))
-      })
+      .map(field => Transformer(field.name, SparkToQTypesUtils.convertDataTypes(field.dataType)))
       .toIndexedSeq
   }
 

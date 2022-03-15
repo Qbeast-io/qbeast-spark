@@ -1,7 +1,7 @@
 package io.qbeast.spark.index
 
 import io.qbeast.TestClasses._
-import io.qbeast.spark.{QbeastIntegrationTestSpec}
+import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -133,7 +133,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
     import spark.implicits._
     val source = 0
       .to(100000)
-      .map(i => TestInt(i + 2, i, i * 2))
+      .map(i => TestInt(i * i, i, i * 2))
       .toDF()
       .as[TestInt]
 

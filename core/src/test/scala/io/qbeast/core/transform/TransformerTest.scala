@@ -31,19 +31,19 @@ class TransformerTest extends AnyFlatSpec with Matchers {
   it should "makeTransformation" in {
     val columnName = "a"
     val dataType = IntegerDataType
-    val transformer = Transformer("linear", columnName, dataType)
+    val transformer = Transformer(columnName, dataType)
 
-    val transformation = Map("a_min" -> 0, "a_max" -> 2)
+    val transformation = Map("a_min" -> 0, "a_max" -> 1)
     transformer
       .makeTransformation(transformation) should matchPattern {
-      case LinearTransformation(0, 2, _, IntegerDataType) =>
+      case LinearTransformation(0, 1, _, IntegerDataType) =>
     }
   }
 
   it should "return new transformation on maybeUpdateTransformation" in {
     val columnName = "a"
     val dataType = IntegerDataType
-    val transformer = Transformer("linear", columnName, dataType)
+    val transformer = Transformer(columnName, dataType)
 
     val transformation = Map("a_min" -> 0, "a_max" -> 1)
     val currentTransformation = transformer.makeTransformation(transformation)

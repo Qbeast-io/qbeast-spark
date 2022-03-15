@@ -12,8 +12,6 @@ case class HashTransformer(columnName: String, dataType: QDataType) extends Tran
 
   override def stats: ColumnStats = NoColumnStats
 
-  override def makeTransformation(row: String => Any): Transformation = {
-    HashTransformation()
-  }
+  override def makeTransformation(row: String => Any): Transformation = HashTransformation()
 
 }

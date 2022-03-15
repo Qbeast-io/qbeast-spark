@@ -11,8 +11,6 @@ import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import scala.util.Random
-
 class QuerySpecBuilderTest
     extends AnyFlatSpec
     with Matchers
@@ -28,12 +26,7 @@ class QuerySpecBuilderTest
 
   private def createRevision() = {
     val transformations =
-      Seq(
-        LinearTransformation(
-          Int.MinValue,
-          Int.MaxValue,
-          Random.nextInt(),
-          IntegerDataType)).toIndexedSeq
+      Seq(LinearTransformation(Int.MinValue, Int.MaxValue, IntegerDataType)).toIndexedSeq
     val columnTransformers = Seq(Transformer("linear", "id", IntegerDataType)).toIndexedSeq
 
     Revision(
@@ -92,7 +85,6 @@ class QuerySpecBuilderTest
   })
 
   it should "extract query range when is null" in withSpark(spark => {
-
     val revision = createRevision()
     val expression = expr("id is null").expr
     val querySpace = new QuerySpecBuilder(Seq(expression)).build(revision).querySpace

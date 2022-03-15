@@ -45,8 +45,8 @@ case class LinearTransformation(
 
   private val scale: Double = {
     val mx = maxNumber.toDouble
-    require(mx >= mn, "Range cannot be not null, and max must be >= min")
-    if (mx == mn) 0.0 else 1.0 / (mx - mn)
+    require(mx > mn, "Range cannot be not null, and max must be > min")
+    1.0 / (mx - mn)
   }
 
   override def transform(value: Any): Double = {
