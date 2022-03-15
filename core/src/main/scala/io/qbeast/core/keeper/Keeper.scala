@@ -3,6 +3,8 @@
  */
 package io.qbeast.core.keeper
 
+import io.qbeast.SerializedCubeID
+
 import java.util.ServiceLoader
 
 /**
@@ -42,7 +44,7 @@ trait Keeper {
    * @param revision the domain revision
    * @param cubes the announced cube identifiers
    */
-  def announce(tableID: String, revision: Long, cubes: Seq[String]): Unit
+  def announce(tableID: String, revision: Long, cubes: Seq[SerializedCubeID]): Unit
 
   /**
    * Begins an optimization for given index domain revision.
@@ -75,14 +77,14 @@ trait Optimization {
   /**
    * The cubes to optimize.
    */
-  val cubesToOptimize: Set[String]
+  val cubesToOptimize: Set[SerializedCubeID]
 
   /**
    * Ends the optimization.
    *
    * @param replicatedCubes the replicated cube identifiers
    */
-  def end(replicatedCubes: Set[String]): Unit
+  def end(replicatedCubes: Set[SerializedCubeID]): Unit
 }
 
 /**
@@ -98,7 +100,7 @@ trait Write {
   /**
    * The announced cube identifiers
    */
-  val announcedCubes: Set[String]
+  val announcedCubes: Set[SerializedCubeID]
 
   /**
    * Ends the write.
