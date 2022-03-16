@@ -77,10 +77,21 @@ class QuerySpecBuilderTest
     val revision = createRevision()
     val expression = expr("id == 3").expr
     val querySpace = new QuerySpecBuilder(Seq(expression)).build(revision).querySpace
-    val tFrom = revision.transformations.head.transform(3)
+    val t = revision.transformations.head.transform(3)
 
-    querySpace invokePrivate privateFrom() shouldBe Seq(Some(tFrom))
-    querySpace invokePrivate privateTo() shouldBe Seq(None)
+    querySpace invokePrivate privateFrom() shouldBe Seq(Some(t))
+    querySpace invokePrivate privateTo() shouldBe Seq(Some(t))
+
+  })
+
+  it should "extract query range when is null" in withSpark(spark => {
+    val revision = createRevision()
+    val expression = expr("id is null").expr
+    val querySpace = new QuerySpecBuilder(Seq(expression)).build(revision).querySpace
+    val t = revision.transformations.head.transform(null)
+
+    querySpace invokePrivate privateFrom() shouldBe Seq(Some(t))
+    querySpace invokePrivate privateTo() shouldBe Seq(Some(t))
 
   })
 
@@ -101,10 +112,10 @@ class QuerySpecBuilderTest
     val (from, to) = ("qbeast", "QBEAST")
 
     val expression = expr(s"name == '$from'").expr
+    val t = nameTransformation.transform("qbeast")
     val querySpace = new QuerySpecBuilder(Seq(expression)).build(revision).querySpace
-    querySpace invokePrivate privateFrom() shouldBe Seq(
-      Some(nameTransformation.transform("qbeast")))
-    querySpace invokePrivate privateTo() shouldBe Seq(None)
+    querySpace invokePrivate privateFrom() shouldBe Seq(Some(t))
+    querySpace invokePrivate privateTo() shouldBe Seq(Some(t))
 
     val rangeExpression = expr(s"name >= '$from' and name < '$to'").expr
     val rangeQuerySpace = new QuerySpecBuilder(Seq(rangeExpression)).build(revision).querySpace

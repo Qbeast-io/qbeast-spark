@@ -32,14 +32,25 @@ case class LinearTransformer(columnName: String, dataType: QDataType) extends Tr
       statsSqlPredicates = Seq(s"max($columnName) AS $colMax", s"min($columnName) AS $colMin"))
 
   override def makeTransformation(row: String => Any): Transformation = {
-    val min = getValue(row(colMin))
-    val max = getValue(row(colMax))
-    assert(min != null && max != null)
-    dataType match {
-      case ordered: OrderedDataType =>
-        LinearTransformation(min, max, ordered)
+    val minAux = row(colMin)
+    val maxAux = row(colMax)
+    if (minAux == null && maxAux == null) {
+      // If all values are null,
+      // we return a Transformation where null values are transformed to 0
+      NullToZeroTransformation
+    } else if (minAux == maxAux) {
+      // If all values are equal we return an IdentityTransformation
+      IdentityTransformation
+    } else { // otherwhise we pick the min and max
+      val min = getValue(minAux)
+      val max = getValue(maxAux)
+      dataType match {
+        case ordered: OrderedDataType =>
+          LinearTransformation(min, max, ordered)
 
+      }
     }
+
   }
 
   override protected def transformerType: TransformerType = LinearTransformer

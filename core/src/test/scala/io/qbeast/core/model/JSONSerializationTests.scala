@@ -9,6 +9,9 @@ import io.qbeast.core.transform.{
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.util.Random
+import scala.util.hashing.MurmurHash3
+
 class JSONSerializationTests extends AnyFlatSpec with Matchers {
   "QTableID" should "have a small json representation serializable" in {
     val tableID = new QTableID("test")
@@ -41,37 +44,54 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
   }
 
   "A LinearTransformation" should "serializer with the class type con Double" in {
-    val tr: Transformation = LinearTransformation(0.0, 10.0, DoubleDataType)
+    val tr: Transformation = LinearTransformation(0.0, 10.0, 5.0, DoubleDataType)
     val ser =
       """{"className":"io.qbeast.core.transform.LinearTransformation",""" +
-        """"minNumber":0.0,"maxNumber":10.0,"orderedDataType":"DoubleDataType"}"""
+        """"minNumber":0.0,"maxNumber":10.0,"nullValue":5.0,"orderedDataType":"DoubleDataType"}"""
     mapper.writeValueAsString(tr) shouldBe ser
     mapper.readValue[Transformation](ser, classOf[Transformation]) shouldBe tr
 
   }
   "A LinearTransformation" should "serializer with the class type con Integer" in {
-    val tr: Transformation = LinearTransformation(0, 10, IntegerDataType)
+    val tr: Transformation = LinearTransformation(0, 10, 5, IntegerDataType)
     val ser =
       """{"className":"io.qbeast.core.transform.LinearTransformation",""" +
-        """"minNumber":0,"maxNumber":10,"orderedDataType":"IntegerDataType"}"""
+        """"minNumber":0,"maxNumber":10,"nullValue":5,"orderedDataType":"IntegerDataType"}"""
     mapper.writeValueAsString(tr) shouldBe ser
     mapper.readValue[Transformation](ser, classOf[Transformation]) shouldBe tr
 
   }
   "A LinearTransformation" should "serializer with the class type con Long" in {
-    val tr: Transformation = LinearTransformation(0L, 10L, LongDataType)
+    val tr: Transformation = LinearTransformation(0L, 10L, 5L, LongDataType)
     val ser =
       """{"className":"io.qbeast.core.transform.LinearTransformation",""" +
-        """"minNumber":0,"maxNumber":10,"orderedDataType":"LongDataType"}"""
+        """"minNumber":0,"maxNumber":10,"nullValue":5,"orderedDataType":"LongDataType"}"""
     mapper.writeValueAsString(tr) shouldBe ser
     mapper.readValue[Transformation](ser, classOf[Transformation]) shouldBe tr
 
   }
 
-  "A HashTransformation" should "serialize correctly" in {
-    val tr: Transformation = HashTransformation()
+  it should "deserialize old LinearTransformation with the same random null value" in {
+    val min = 0
+    val max = 10
     val ser =
-      """{"className":"io.qbeast.core.transform.HashTransformation"}"""
+      """{"className":"io.qbeast.core.transform.LinearTransformation",""" +
+        """"minNumber":0,"maxNumber":10,"orderedDataType":"IntegerDataType"}"""
+    val tree = """{"minNumber":0,"maxNumber":10,"orderedDataType":"IntegerDataType"}"""
+
+    val hash = MurmurHash3.stringHash(tree)
+    val random = new Random(hash).nextDouble()
+    val nullValue = 0 + (random * (10 - 0)).toInt
+
+    val tr: Transformation = LinearTransformation(min, max, nullValue, IntegerDataType)
+
+    mapper.readValue[Transformation](ser, classOf[Transformation]) shouldBe tr
+  }
+
+  "A HashTransformation" should "serialize correctly" in {
+    val tr: Transformation = HashTransformation("null")
+    val ser =
+      """{"className":"io.qbeast.core.transform.HashTransformation","nullValue":"null"}"""
     mapper.writeValueAsString(tr) shouldBe ser
     mapper.readValue[Transformation](ser, classOf[Transformation]) shouldBe tr
 
@@ -85,13 +105,13 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
         QTableID("test"),
         100,
         Vector(Transformer("linear", "test1", DoubleDataType)),
-        List(LinearTransformation(0.0, 10.0, DoubleDataType)))
+        List(LinearTransformation(0.0, 10.0, 5.0, DoubleDataType)))
     val json =
       """{"revisionID":12,"timestamp":12,"tableID":"test","desiredCubeSize":100,""" +
         """"columnTransformers":[{"className":"io.qbeast.core.transform.LinearTransformer",""" +
         """"columnName":"test1","dataType":"DoubleDataType"}],"transformations":""" +
         """[{"className":"io.qbeast.core.transform.LinearTransformation","minNumber":0.0,""" +
-        """"maxNumber":10.0,"orderedDataType":"DoubleDataType"}]}"""
+        """"maxNumber":10.0,"nullValue":5.0,"orderedDataType":"DoubleDataType"}]}"""
     mapper.writeValueAsString(rev) shouldBe json
     mapper.readValue[Revision](json, classOf[Revision]) shouldBe rev
 
@@ -104,13 +124,13 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
         QTableID("test"),
         100,
         Vector(Transformer("linear", "test1", LongDataType)),
-        List(LinearTransformation(0L, 100L, LongDataType)))
+        List(LinearTransformation(0L, 100L, 5L, LongDataType)))
     val json =
       """{"revisionID":12,"timestamp":12,"tableID":"test","desiredCubeSize":100,""" +
         """"columnTransformers":[{"className":"io.qbeast.core.transform.LinearTransformer",""" +
         """"columnName":"test1","dataType":"LongDataType"}],"transformations":""" +
         """[{"className":"io.qbeast.core.transform.LinearTransformation","minNumber":0,""" +
-        """"maxNumber":100,"orderedDataType":"LongDataType"}]}"""
+        """"maxNumber":100,"nullValue":5,"orderedDataType":"LongDataType"}]}"""
     mapper.writeValueAsString(rev) shouldBe json
     mapper.readValue[Revision](json, classOf[Revision]) shouldBe rev
 
@@ -123,12 +143,12 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
         QTableID("test"),
         100,
         List(Transformer("hashing", "test1", StringDataType)),
-        List(HashTransformation()))
+        List(HashTransformation("null")))
     val json =
       """{"revisionID":12,"timestamp":12,"tableID":"test","desiredCubeSize":100,""" +
         """"columnTransformers":[{"className":"io.qbeast.core.transform.HashTransformer",""" +
         """"columnName":"test1","dataType":"StringDataType"}],"transformations":""" +
-        """[{"className":"io.qbeast.core.transform.HashTransformation"}]}"""
+        """[{"className":"io.qbeast.core.transform.HashTransformation","nullValue":"null"}]}"""
     mapper.writeValueAsString(rev) shouldBe json
     mapper.readValue[Revision](json, classOf[Revision]) shouldBe rev
 

@@ -1,14 +1,17 @@
 package io.qbeast.core.transform
 
+import scala.util.Random
 import scala.util.hashing.MurmurHash3
 
 /**
  * A hash transformation of a coordinate
+ * @param nullValue the value to use for null coordinates
  */
-case class HashTransformation() extends Transformation {
+case class HashTransformation(nullValue: Any = Random.nextString(10)) extends Transformation {
 
   override def transform(value: Any): Double = {
-    val hash = value match {
+    val v = if (value == null) nullValue else value
+    val hash = v match {
       case s: String =>
         MurmurHash3.bytesHash(s.getBytes)
       case n: Number =>

@@ -20,16 +20,23 @@ import io.qbeast.core.model.{
 }
 
 import java.math.BigDecimal
+import scala.util.Random
+import scala.util.hashing.MurmurHash3
 
 /**
  * A linear transformation of a coordinate based on min max values
  * @param minNumber minimum value of the space
  * @param maxNumber maximum value of the space
+ * @param nullValue the value to use for null coordinates
  * @param orderedDataType ordered data type of the coordinate
  */
 @JsonSerialize(using = classOf[LinearTransformationSerializer])
 @JsonDeserialize(using = classOf[LinearTransformationDeserializer])
-case class LinearTransformation(minNumber: Any, maxNumber: Any, orderedDataType: OrderedDataType)
+case class LinearTransformation(
+    minNumber: Any,
+    maxNumber: Any,
+    nullValue: Any,
+    orderedDataType: OrderedDataType)
     extends Transformation {
 
   import orderedDataType.ordering._
@@ -42,13 +49,15 @@ case class LinearTransformation(minNumber: Any, maxNumber: Any, orderedDataType:
     1.0 / (mx - mn)
   }
 
-  override def transform(value: Any): Double = value match {
-    case v: Double => (v - mn) * scale
-    case v: Long => (v - mn) * scale
-    case v: Int => (v - mn) * scale
-    case v: BigDecimal => (v.doubleValue() - mn) * scale
-    case v: Float => (v - mn) * scale
-
+  override def transform(value: Any): Double = {
+    val v = if (value == null) nullValue else value
+    v match {
+      case v: Double => (v - mn) * scale
+      case v: Long => (v - mn) * scale
+      case v: Int => (v - mn) * scale
+      case v: BigDecimal => (v.doubleValue() - mn) * scale
+      case v: Float => (v - mn) * scale
+    }
   }
 
   /**
@@ -59,10 +68,15 @@ case class LinearTransformation(minNumber: Any, maxNumber: Any, orderedDataType:
    */
   override def merge(other: Transformation): Transformation = {
     other match {
-      case LinearTransformation(otherMin, otherMax, otherOrdering)
+      case LinearTransformation(otherMin, otherMax, otherNullValue, otherOrdering)
           if orderedDataType == otherOrdering =>
-        LinearTransformation(min(minNumber, otherMin), max(maxNumber, otherMax), orderedDataType)
+        LinearTransformation(
+          min(minNumber, otherMin),
+          max(maxNumber, otherMax),
+          otherNullValue,
+          orderedDataType)
           .asInstanceOf[Transformation]
+
     }
   }
 
@@ -74,7 +88,7 @@ case class LinearTransformation(minNumber: Any, maxNumber: Any, orderedDataType:
    */
   override def isSupersededBy(newTransformation: Transformation): Boolean =
     newTransformation match {
-      case LinearTransformation(newMin, newMax, otherOrdering)
+      case LinearTransformation(newMin, newMax, _, otherOrdering)
           if orderedDataType == otherOrdering =>
         gt(minNumber, newMin) || lt(maxNumber, newMax)
     }
@@ -104,6 +118,7 @@ class LinearTransformationSerializer
 
     writeNumb(gen, "minNumber", value.minNumber)
     writeNumb(gen, "maxNumber", value.maxNumber)
+    writeNumb(gen, "nullValue", value.nullValue)
     gen.writeObjectField("orderedDataType", value.orderedDataType)
     gen.writeEndObject()
   }
@@ -115,14 +130,68 @@ class LinearTransformationSerializer
     gen.writeStartObject()
     writeNumb(gen, "minNumber", value.minNumber)
     writeNumb(gen, "maxNumber", value.maxNumber)
+    writeNumb(gen, "nullValue", value.nullValue)
     gen.writeObjectField("orderedDataType", value.orderedDataType)
     gen.writeEndObject()
   }
 
 }
 
+object LinearTransformation {
+
+  private def generateRandomNumber(min: Any, max: Any, seed: Option[Long]): Any = {
+    val r = if (seed.isDefined) new Random(seed.get) else new Random()
+    val random = r.nextDouble()
+
+    (min, max) match {
+      case (min: Double, max: Double) => min + (random * (max - min))
+      case (min: Long, max: Long) => min + (random * (max - min)).toLong
+      case (min: Int, max: Int) => min + (random * (max - min)).toInt
+      case (min: Float, max: Float) => min + (random * (max - min)).toFloat
+      case (min, max) =>
+        throw new IllegalArgumentException(
+          s"Cannot generate random number for type ${min.getClass.getName}")
+
+    }
+  }
+
+  /**
+   * Creates a LinearTransformation that has random value for the nulls
+   * within the [minNumber, maxNumber] range
+   * @param minNumber
+   * @param maxNumber
+   * @param orderedDataType
+   * @param seed
+   * @return
+   */
+  def apply(
+      minNumber: Any,
+      maxNumber: Any,
+      orderedDataType: OrderedDataType,
+      seed: Option[Long] = None): LinearTransformation = {
+    val randomNull = generateRandomNumber(minNumber, maxNumber, seed)
+    LinearTransformation(minNumber, maxNumber, randomNull, orderedDataType)
+  }
+
+}
+
 class LinearTransformationDeserializer
     extends StdDeserializer[LinearTransformation](classOf[LinearTransformation]) {
+
+  private def getTypedValue(odt: OrderedDataType, tree: TreeNode): Any = {
+    (odt, tree) match {
+      case (IntegerDataType, int: IntNode) => int.asInt
+      case (DoubleDataType, double: DoubleNode) => double.asDouble
+      case (LongDataType, long: NumericNode) => long.asLong
+      case (FloatDataType, float: DoubleNode) => float.floatValue
+      case (DecimalDataType, decimal: DoubleNode) => decimal.asDouble
+      case (_, null) => null
+      case (a, b) =>
+        throw new IllegalArgumentException(s"Invalid data type  ($a,$b) ${b.getClass} ")
+
+    }
+
+  }
 
   override def deserialize(p: JsonParser, ctxt: DeserializationContext): LinearTransformation = {
     val json = p.getCodec
@@ -132,20 +201,16 @@ class LinearTransformationDeserializer
     val odt = tree.get("orderedDataType") match {
       case tn: TextNode => OrderedDataType(tn.asText())
     }
-    (odt, tree.get("minNumber"), tree.get("maxNumber")) match {
-      case (DoubleDataType, mn: DoubleNode, mx: DoubleNode) =>
-        LinearTransformation(mn.asDouble(), mx.asDouble(), odt)
-      case (FloatDataType, mn: DoubleNode, mx: DoubleNode) =>
-        LinearTransformation(mn.floatValue(), mx.floatValue(), odt)
-      case (IntegerDataType, mn: IntNode, mx: IntNode) =>
-        LinearTransformation(mn.asInt(), mx.asInt(), odt)
-      case (LongDataType, mn: NumericNode, mx: NumericNode) =>
-        LinearTransformation(mn.asLong(), mx.asLong(), odt)
-      case (DecimalDataType, mn: DoubleNode, mx: DoubleNode) =>
-        LinearTransformation(mn.doubleValue(), mx.doubleValue(), odt)
-      case (a, b, c) =>
-        throw new IllegalArgumentException(s"Invalid data type  ($a,$b,$c) ${b.getClass} ")
-    }
+
+    val min = getTypedValue(odt, tree.get("minNumber"))
+    val max = getTypedValue(odt, tree.get("maxNumber"))
+    val nullValue = getTypedValue(odt, tree.get("nullValue"))
+
+    if (nullValue == null) {
+      // the hash acts like a seed to generate the same random null value
+      val hash = MurmurHash3.stringHash(tree.toString)
+      LinearTransformation(min, max, odt, seed = Some(hash))
+    } else LinearTransformation(min, max, nullValue, odt)
 
   }
 

@@ -133,9 +133,10 @@ private[table] class IndexedTableImpl(
 
   private def checkRevisionParameters(
       qbeastOptions: QbeastOptions,
-      latestRevision: Revision): Boolean = {
+      latestIndexStatus: IndexStatus): Boolean = {
     // TODO feature: columnsToIndex may change between revisions
-    latestRevision.desiredCubeSize == qbeastOptions.cubeSize
+    checkColumnsToMatchSchema(latestIndexStatus)
+    latestIndexStatus.revision.desiredCubeSize == qbeastOptions.cubeSize
 
   }
 
@@ -144,9 +145,9 @@ private[table] class IndexedTableImpl(
       parameters: Map[String, String],
       append: Boolean): BaseRelation = {
     val indexStatus =
-      if (exists) {
+      if (exists && append) {
         val latestIndexStatus = snapshot.loadLatestIndexStatus
-        if (checkRevisionParameters(QbeastOptions(parameters), latestIndexStatus.revision)) {
+        if (checkRevisionParameters(QbeastOptions(parameters), latestIndexStatus)) {
           latestIndexStatus
         } else {
           val oldRevisionID = latestIndexStatus.revision.revisionID
@@ -157,10 +158,6 @@ private[table] class IndexedTableImpl(
       } else {
         IndexStatus(revisionBuilder.createNewRevision(tableID, data.schema, parameters))
       }
-
-    if (exists && append) {
-      checkColumnsToMatchSchema(indexStatus)
-    }
 
     val relation = write(data, indexStatus, append)
     relation
