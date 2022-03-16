@@ -198,13 +198,13 @@ private[table] class IndexedTableImpl(
     val revision = indexStatus.revision
 
     if (exists) {
-      keeper.withWrite(tableID.id, revision.revisionID) { write =>
+      keeper.withWrite(tableID, revision.revisionID) { write =>
         val announcedSet = write.announcedCubes.map(revision.createCubeId)
         val updatedStatus = indexStatus.addAnnouncements(announcedSet)
         doWrite(data, updatedStatus, append)
       }
     } else {
-      keeper.withWrite(tableID.id, revision.revisionID) { write =>
+      keeper.withWrite(tableID, revision.revisionID) { write =>
         doWrite(data, indexStatus, append)
       }
     }
@@ -227,7 +227,7 @@ private[table] class IndexedTableImpl(
   override def analyze(revisionID: RevisionID): Seq[String] = {
     val indexStatus = snapshot.loadIndexStatus(revisionID)
     val cubesToAnnounce = indexManager.analyze(indexStatus).map(_.string)
-    keeper.announce(tableID.id, revisionID, cubesToAnnounce)
+    keeper.announce(tableID, revisionID, cubesToAnnounce)
     cubesToAnnounce
 
   }
@@ -235,7 +235,7 @@ private[table] class IndexedTableImpl(
   override def optimize(revisionID: RevisionID): Unit = {
 
     // begin keeper transaction
-    val bo = keeper.beginOptimization(tableID.id, revisionID)
+    val bo = keeper.beginOptimization(tableID, revisionID)
 
     val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
     val cubesToOptimize = bo.cubesToOptimize.map(currentIndexStatus.revision.createCubeId)

@@ -3,7 +3,8 @@
  */
 package io.qbeast.core.keeper
 
-import io.qbeast.{SerializedCubeID, SerializedTableID}
+import io.qbeast.SerializedCubeID
+import io.qbeast.core.model.QTableID
 
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -15,22 +16,19 @@ object LocalKeeper extends Keeper {
   private val generator = new AtomicInteger()
 
   private val announcedMap =
-    scala.collection.mutable.Map.empty[(SerializedTableID, Long), Set[SerializedCubeID]]
+    scala.collection.mutable.Map.empty[(QTableID, Long), Set[SerializedCubeID]]
 
-  override def beginWrite(tableID: SerializedTableID, revision: Long): Write = new LocalWrite(
+  override def beginWrite(tableID: QTableID, revision: Long): Write = new LocalWrite(
     generator.getAndIncrement().toString,
     announcedMap.getOrElse((tableID, revision), Set.empty[SerializedCubeID]))
 
-  override def announce(
-      tableID: SerializedTableID,
-      revision: Long,
-      cubes: Seq[SerializedCubeID]): Unit = {
+  override def announce(tableID: QTableID, revision: Long, cubes: Seq[SerializedCubeID]): Unit = {
     val announcedCubes = announcedMap.getOrElse((tableID, revision), Set.empty[SerializedCubeID])
     announcedMap.update((tableID, revision), announcedCubes.union(cubes.toSet))
   }
 
   override def beginOptimization(
-      tableID: SerializedTableID,
+      tableID: QTableID,
       revision: Long,
       cubeLimit: Integer): Optimization =
     new LocalOptimization(
