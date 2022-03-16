@@ -34,8 +34,12 @@ case class LinearTransformer(columnName: String, dataType: QDataType) extends Tr
   override def makeTransformation(row: String => Any): Transformation = {
     val minAux = row(colMin)
     val maxAux = row(colMax)
-    if (minAux == maxAux) {
-      // If all values are null or equal we return an IdentityTransformation
+    if (minAux == null && maxAux == null) {
+      // If all values are null,
+      // we return a Transformation where null values are transformed to 0
+      NullToZeroTransformation
+    } else if (minAux == maxAux) {
+      // If all values are equal we return an IdentityTransformation
       IdentityTransformation
     } else { // otherwhise we pick the min and max
       val min = getValue(minAux)

@@ -51,9 +51,24 @@ object IdentityTransformation extends Transformation {
 
   @inline
   override def transform(value: Any): Double = value match {
-    case null => 0.0
     case v: Number =>
       v.byteValue()
+  }
+
+  override def isSupersededBy(newTransformation: Transformation): Boolean = false
+
+  override def merge(other: Transformation): Transformation = this
+
+}
+
+/**
+ * Zero value for nulls transformation.
+ */
+object NullToZeroTransformation extends Transformation {
+
+  @inline
+  override def transform(value: Any): Double = value match {
+    case null => 0.0
   }
 
   override def isSupersededBy(newTransformation: Transformation): Boolean = false
