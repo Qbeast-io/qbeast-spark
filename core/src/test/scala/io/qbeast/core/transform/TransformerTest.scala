@@ -34,7 +34,10 @@ class TransformerTest extends AnyFlatSpec with Matchers {
     val transformer = Transformer(columnName, dataType)
 
     val transformation = Map("a_min" -> 0, "a_max" -> 1)
-    transformer.makeTransformation(transformation) shouldBe LinearTransformation(0, 1, dataType)
+    transformer
+      .makeTransformation(transformation) should matchPattern {
+      case LinearTransformation(0, 1, _, IntegerDataType) =>
+    }
   }
 
   it should "return new transformation on maybeUpdateTransformation" in {
@@ -46,8 +49,11 @@ class TransformerTest extends AnyFlatSpec with Matchers {
     val currentTransformation = transformer.makeTransformation(transformation)
 
     val newTransformation = Map("a_min" -> 3, "a_max" -> 8)
-    transformer.maybeUpdateTransformation(currentTransformation, newTransformation) shouldBe Some(
-      LinearTransformation(0, 8, dataType))
+    transformer.maybeUpdateTransformation(
+      currentTransformation,
+      newTransformation) should matchPattern {
+      case Some(LinearTransformation(0, 8, _, IntegerDataType)) =>
+    }
 
     transformer.maybeUpdateTransformation(currentTransformation, transformation) shouldBe None
   }

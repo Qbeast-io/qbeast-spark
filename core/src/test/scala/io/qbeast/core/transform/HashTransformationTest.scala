@@ -20,6 +20,11 @@ class HashTransformationTest extends AnyFlatSpec with Matchers {
     }
   }
 
+  it should "create null value of length 10" in {
+    val ht = HashTransformation()
+    ht.nullValue.asInstanceOf[String].length should be(10)
+  }
+
   "The murmur" should "uniformly distributed with Strings" in {
     var i = 1000 * 1000 * 10
     val brackets = Array.fill(10)(0)

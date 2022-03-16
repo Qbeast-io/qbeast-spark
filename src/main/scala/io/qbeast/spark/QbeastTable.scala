@@ -4,7 +4,7 @@
 package io.qbeast.spark
 
 import io.qbeast.context.QbeastContext
-import io.qbeast.core.model.{QTableID, RevisionID}
+import io.qbeast.core.model.{CubeId, CubeStatus, QTableID, RevisionID}
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.commands.{AnalyzeTableCommand, OptimizeTableCommand}
 import io.qbeast.spark.table._
@@ -74,6 +74,62 @@ class QbeastTable private (
       .map(_.getString(0))
   }
 
+  def getIndexMetrics(revisionID: Option[RevisionID] = None): IndexMetrics = {
+    val allCubeStatuses = qbeastSnapshot.loadLatestIndexStatus.cubesStatuses
+
+    val cubeCount = allCubeStatuses.size
+    val depth = allCubeStatuses.map(_._1.depth).max
+    val elementCount = allCubeStatuses.flatMap(_._2.files.map(_.elementCount)).sum
+
+    val dimensionCount = indexedColumns().size
+    val desiredCubeSize = cubeSize()
+
+    val depthOverLogNumNodes = depth / logOfBase(dimensionCount, cubeCount)
+    val depthOnBalance = depth / logOfBase(dimensionCount, elementCount / desiredCubeSize)
+
+    val nonLeafStatuses =
+      allCubeStatuses.filter(_._1.children.exists(allCubeStatuses.contains)).values
+    val nonLeafCubeSizes = nonLeafStatuses.map(_.files.map(_.elementCount).sum).toSeq.sorted
+
+    val (avgFanOut, details) =
+      if (nonLeafStatuses.isEmpty || nonLeafCubeSizes.isEmpty) {
+        (0, NonLeafCubeSizeDetails(0, 0, 0, 0, 0, 0))
+      } else {
+        val nonLeafCubeSizeDeviation =
+          nonLeafCubeSizes
+            .map(cubeSize => math.pow(cubeSize - desiredCubeSize, 2) / nonLeafCubeSizes.size)
+            .sum
+
+        (
+          nonLeafStatuses
+            .map(_.cubeId.children.count(allCubeStatuses.contains))
+            .sum / nonLeafStatuses.size,
+          NonLeafCubeSizeDetails(
+            nonLeafCubeSizes.min,
+            nonLeafCubeSizes((nonLeafCubeSizes.size * 0.25).toInt),
+            nonLeafCubeSizes((nonLeafCubeSizes.size * 0.50).toInt),
+            nonLeafCubeSizes((nonLeafCubeSizes.size * 0.75).toInt),
+            nonLeafCubeSizes.max,
+            nonLeafCubeSizeDeviation))
+      }
+
+    IndexMetrics(
+      allCubeStatuses,
+      dimensionCount,
+      elementCount,
+      depth,
+      cubeCount,
+      desiredCubeSize,
+      avgFanOut,
+      depthOverLogNumNodes,
+      depthOnBalance,
+      details)
+  }
+
+  def logOfBase(base: Int, value: Double): Double = {
+    math.log10(value) / math.log10(base)
+  }
+
   /**
    * Outputs the indexed columns of the table
    * @param revisionID the identifier of the revision.
@@ -126,6 +182,56 @@ object QbeastTable {
 
   def forPath(sparkSession: SparkSession, path: String): QbeastTable = {
     new QbeastTable(sparkSession, new QTableID(path), QbeastContext.indexedTableFactory)
+  }
+
+}
+
+case class NonLeafCubeSizeDetails(
+    min: Long,
+    firstQuartile: Long,
+    secondQuartile: Long,
+    thirdQuartile: Long,
+    max: Long,
+    dev: Double) {
+
+  override def toString: String = {
+    s"""Non-leaf Cube Size Stats
+       |(All values are 0 if there's no non-leaf cubes):
+       |- min: $min
+       |- firstQuartile: $firstQuartile
+       |- secondQuartile: $secondQuartile
+       |- thirdQuartile: $thirdQuartile
+       |- max: $max
+       |- dev: $dev
+       |""".stripMargin
+  }
+
+}
+
+case class IndexMetrics(
+    cubeStatuses: Map[CubeId, CubeStatus],
+    dimensionCount: Int,
+    elementCount: Long,
+    depth: Int,
+    cubeCount: Int,
+    desiredCubeSize: Int,
+    avgFanOut: Double,
+    depthOverLogNumNodes: Double,
+    depthOnBalance: Double,
+    nonLeafCubeSizeDetails: NonLeafCubeSizeDetails) {
+
+  override def toString: String = {
+    s"""OTree Index Metrics:
+       |dimensionCount: $dimensionCount
+       |elementCount: $elementCount
+       |depth: $depth
+       |cubeCount: $cubeCount
+       |desiredCubeSize: $desiredCubeSize
+       |avgFanOut: $avgFanOut
+       |depthOverLogNumNodes: $depthOverLogNumNodes
+       |depthOnBalance: $depthOnBalance
+       |$nonLeafCubeSizeDetails
+       |""".stripMargin
   }
 
 }

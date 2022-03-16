@@ -27,13 +27,8 @@ object RowUtils {
     var i = 0
     for (t <- revision.transformations) {
       val v = row.get(i)
-      i += 1
-      if (v == null) {
-        throw AnalysisExceptionFactory.create(
-          "Column to index contains null values. Please initialize them before indexing")
-
-      }
       coordinates += t.transform(v)
+      i += 1
 
     }
     coordinates.result()

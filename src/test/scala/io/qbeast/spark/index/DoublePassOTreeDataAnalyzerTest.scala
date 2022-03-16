@@ -90,7 +90,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
     revision.columnTransformers.length shouldBe columnsToIndex.length
     revision.transformations.length shouldBe columnsToIndex.length
-    revision.transformations shouldBe Vector.fill(columnsToIndex.length)(HashTransformation())
+    revision.transformations.foreach(t => t shouldBe a[HashTransformation])
   }
 
   it should "calculateRevisionChanges correctly on different types" in withSpark { spark =>
@@ -118,11 +118,15 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     revision.columnTransformers.map(_.columnName) shouldBe columnsToIndex
     revision.transformations.size shouldBe columnsToIndex.length
 
-    revision.transformations shouldBe Vector(
-      LinearTransformation(0, 10000, IntegerDataType),
-      LinearTransformation(0.0, 10000.0, DoubleDataType),
-      HashTransformation(),
-      LinearTransformation(0.0.toFloat, 10000.0.toFloat, FloatDataType))
+    val zero = revision.transformations.head
+    val one = revision.transformations(1)
+    val two = revision.transformations(2)
+    val three = revision.transformations(3)
+
+    zero should matchPattern { case LinearTransformation(0, 10000, _, IntegerDataType) => }
+    one should matchPattern { case LinearTransformation(0.0, 10000.0, _, DoubleDataType) => }
+    two should matchPattern { case HashTransformation(_) => }
+    three should matchPattern { case LinearTransformation(0.0f, 10000.0f, _, FloatDataType) => }
 
   }
 
@@ -159,11 +163,16 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     newRevision.columnTransformers.map(_.columnName) shouldBe columnsToIndex
     newRevision.transformations.size shouldBe columnsToIndex.length
 
-    newRevision.transformations shouldBe Vector(
-      LinearTransformation(0, 10000 * spaceMultiplier, IntegerDataType),
-      LinearTransformation(0.0, 10000.0 * spaceMultiplier, DoubleDataType),
-      HashTransformation(),
-      LinearTransformation(0.0.toFloat, (10000.0 * spaceMultiplier).toFloat, FloatDataType))
+    val zero = newRevision.transformations.head
+    val one = newRevision.transformations(1)
+    val two = newRevision.transformations(2)
+    val three = newRevision.transformations(3)
+
+    zero should matchPattern { case LinearTransformation(0, 20000, _, IntegerDataType) => }
+    one should matchPattern { case LinearTransformation(0.0, 20000.0, _, DoubleDataType) => }
+    two should matchPattern { case HashTransformation(_) => }
+    three should matchPattern { case LinearTransformation(0.0f, 20000.0f, _, FloatDataType) =>
+    }
 
   }
 

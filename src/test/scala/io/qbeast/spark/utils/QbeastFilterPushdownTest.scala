@@ -5,7 +5,7 @@ import io.qbeast.spark.delta.OTreeIndex
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.FileSourceScanExec
-import org.apache.spark.sql.functions.{avg, col}
+import org.apache.spark.sql.functions.{avg, col, rand, when}
 
 class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
@@ -113,6 +113,31 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
         val filter = filters.mkString(" and ")
         val qbeastQuery = df.filter(filter)
         val normalQuery = data.filter(filter)
+
+        checkFileFiltering(qbeastQuery)
+        qbeastQuery.count() shouldBe normalQuery.count()
+        assertLargeDatasetEquality(qbeastQuery, normalQuery, orderedComparison = false)
+
+      }
+    }
+
+  it should
+    "return a valid filtering of the original dataset " +
+    "for null value columns" in withSparkAndTmpDir { (spark, tmpDir) =>
+      {
+        val data = loadTestData(spark)
+        val dataWithNulls =
+          data.withColumn(
+            "null_product_id",
+            when(rand() > 0.5, null).otherwise(col("product_id")))
+
+        writeTestData(dataWithNulls, Seq("brand", "null_product_id"), 10000, tmpDir)
+
+        val df = spark.read.format("qbeast").load(tmpDir)
+        val filter = "(`null_product_id` is null)"
+
+        val qbeastQuery = df.filter(filter)
+        val normalQuery = dataWithNulls.filter(filter)
 
         checkFileFiltering(qbeastQuery)
         qbeastQuery.count() shouldBe normalQuery.count()
