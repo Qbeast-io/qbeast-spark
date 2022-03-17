@@ -3,7 +3,7 @@
  */
 package io.qbeast.context
 
-import io.qbeast.core.keeper.Keeper
+import io.qbeast.core.keeper.{Keeper, LocalKeeper}
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
 import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionFactory}
@@ -126,8 +126,12 @@ object QbeastContext
     new QbeastContextImpl(config, keeper, indexedTableFactory)
   }
 
-  private def createKeeper(config: SparkConf): Keeper = Keeper(
-    config.getAll.filter(_._1.startsWith("spark.qbeast.keeper")).toMap)
+  private def createKeeper(config: SparkConf): Keeper = {
+    val configKeeper = config.getAll.filter(_._1.startsWith("spark.qbeast.keeper")).toMap
+    if (configKeeper.isEmpty) {
+      LocalKeeper
+    } else Keeper(configKeeper)
+  }
 
   private def createIndexedTableFactory(keeper: Keeper): IndexedTableFactory =
     new IndexedTableFactoryImpl(
