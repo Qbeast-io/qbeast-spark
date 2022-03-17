@@ -8,6 +8,8 @@
 	<br/>
 	<a href="./docs/sample_pushdown_demo.ipynb">See a notebook example >></a>
 	<br/>
+	<a href="./docs/QbeastTable.md">Checkout the API >></a>
+	<br/>
 	<a href="https://join.slack.com/t/qbeast-users/shared_invite/zt-w0zy8qrm-tJ2di1kZpXhjDq_hAl1LHw">Slack</a> • <a href="https://blog.qbeast.io/">Medium</a> • <a href="https://qbeast.io">Website</a>
 </p>
 
@@ -65,7 +67,7 @@ You can find it in the [Packages section](https://github.com/orgs/Qbeast-io/pack
 ### Pre: Install **Spark**
 Download **Spark 3.1.1 with Hadoop 3.2**, unzip it, and create the `SPARK_HOME` environment variable:<br />
 
-**Note**: You can use Hadoop 2.7 if desired, but you could have some troubles with different cloud providers' storage, read more about it [here](docs/CloudStorages.md).
+>:information_source: **Note: You can use Hadoop 2.7 if desired, but you could have some troubles with different cloud providers' storage, read more about it [here](docs/CloudStorages.md).**
 
 ```bash
 wget https://archive.apache.org/dist/spark/spark-3.1.1/spark-3.1.1-bin-hadoop3.2.tgz
@@ -126,12 +128,14 @@ val qbeast_df =
 qbeast_df.sample(0.1).explain(true)
 ```
 
+### 5. (Optional) 
 Go to the [Quickstart](./docs/Quickstart.md) or [notebook](docs/sample_pushdown_demo.ipynb) for more details.
 
 # Dependencies and Version Compatibility
-| Version | Spark  | Hadoop | Delta Lake |sbt         |
-|------|:------:|:------:|:----------:|:----------:|
-| 0.x  |  3.1.x | 3.2.0  |     1.0.0 |  => 1.4.7  |
+| Version | Spark | Hadoop | Delta Lake |
+|---------|:-----:|:------:|:----------:|
+| 0.1.0   | 3.0.0 | 3.2.0  |   0.8.0    |
+| 0.2.0   | 3.1.x | 3.2.0  |   1.0.0    |
 
 Check [here](https://docs.delta.io/latest/releases.html) for **Delta Lake** and **Apache Spark** version compatibility.  
 
