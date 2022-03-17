@@ -127,9 +127,23 @@ val qbeast_df =
 ```scala
 qbeast_df.sample(0.1).explain(true)
 ```
-
-### 5. (Optional) 
 Go to the [Quickstart](./docs/Quickstart.md) or [notebook](docs/sample_pushdown_demo.ipynb) for more details.
+
+### 5. Interact with the format
+
+Get **insights** or execute **operations** to the data using the `QbeastTable` interface!
+
+```scala
+import io.qbeast.spark.QbeastTable
+
+val qbeast_table = QbeastTable.forPath(spark, tmp_dir) 
+
+qbeastTable.getIndexMetrics()
+
+qbeastTable.analyze()
+```
+
+Go to [QbeastTable documentation](./docs/QbeastTable.md) for more detailed information.
 
 # Dependencies and Version Compatibility
 | Version | Spark | Hadoop | Delta Lake |
