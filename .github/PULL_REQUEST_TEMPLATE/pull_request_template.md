@@ -19,7 +19,7 @@ Describe the change you're making: how it affects the API, user experience...
 
 ## Checklist:
 
-Here is the list of things you should do before merging this pull request:
+Here is the list of things you should do before submitting this pull request:
 
 - [ ] New feature / bug fixed
 - [ ] Add comments to the code

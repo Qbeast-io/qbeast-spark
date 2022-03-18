@@ -6,9 +6,9 @@ Either you want to know more about our guidelines or open a Pull Request, this i
 
 To find Qbeast issues that make good entry points:
 
-- Start with issues labelled **good first issue**. For example, see the good first issues in the repository for updates to the core Qbeast Spark code.
+- Start with issues labelled [![good-first-issue](https://img.shields.io/github/labels/Qbeast-io/qbeast-spark/good%20first%20issue)](https://github.com/Qbeast-io/qbeast-spark/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22). For example, see the good first issues in the repository for updates to the core Qbeast Spark code.
 
-- For issues that require deeper knowledge of one or more technical aspects, look at issues labelled **help wanted**.
+- For issues that require deeper knowledge of one or more technical aspects, look at issues labelled [![help wanted label](https://img.shields.io/github/labels/Qbeast-io/qbeast-spark/help%20wanted)](https://github.com/Qbeast-io/qbeast-spark/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22).
 
 
 ## Licensing of contributed material
@@ -81,7 +81,7 @@ All contributed code, docs, and other materials are considered licensed under th
 
   8 - Push your commit to get it back up to your fork: `git push origin HEAD`
 
-  9 - Go to Github and open a `pull request` against the `master` branch of qbeast-spark. Identify the committers and contributors who have worked on the code being changed
+  9 - Go to Github and open a [![help wanted label](https://img.shields.io/badge/-pull--request-yellow)](https://github.com/Qbeast-io/qbeast-spark/compare) against the `master` branch of qbeast-spark. Identify the committers and contributors who have worked on the code being changed
 
   10 - Wait for the maintainers to get back to you as soon as they can!
 
