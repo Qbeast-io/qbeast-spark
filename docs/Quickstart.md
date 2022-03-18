@@ -35,6 +35,7 @@ As an **_extra configuration_**, you can also change two global parameters of th
 ```
 --conf spark.qbeast.index.cubeWeightsBufferCapacity=200
 ```
+Consult the [Qbeast-Spark advanced configuration](AdvancedConfiguration.md) for more information.
 
 Read the ***store_sales*** public dataset from `TPC-DS`, the table has with **23** columns in total and was generated with a `scaleFactor` of 1. Check [The Making of TPC-DS](http://www.tpc.org/tpcds/presentations/the_making_of_tpcds.pdf) for more details on the dataset.
 
@@ -55,21 +56,6 @@ val qbeastTablePath = "/tmp/qbeast-test-data/qtable"
     .option("cubeSize", 300000) // The desired number of records of the resulting files/cubes. Default is 100000
     .save(qbeastTablePath))
 ```
-
-### Trade-off between memory pressure and index quality: `cubeWeightsBufferCapacity`
-The current indexing algorithm uses a greedy approach to estimate the data distribution without additional shuffling.
-Still, there's a tradeoff between the goodness of such estimation and the memory required during the computation.
-The cubeWeightsBufferCapacity property controls such tradeoff by defining the maximum number of elements stored in
-a memory buffer when indexing. It basically follows the next formula, which you can see in the method
-`estimateGroupCubeSize()` from `io.qbeast.core.model.CubeWeights.scala`:
-```
-numGroups = MAX(numPartitions, (numElements / cubeWeightsBufferCapacity))
-groupCubeSize = desiredCubeSize / numGroups
-```
-
-As you can infer from the formula, the number of working groups used when scanning the dataset influences the quality
-of the data distribution. A lower number of groups will result in a higher index precision, while having more groups
-and fewer elements per group will lead to worse indexes.
 
 ## Sampling
 
@@ -122,4 +108,3 @@ import io.qbeast.spark.implicits._
 
 qbeastDf.agg(avg("user_id")).tolerance(0.1).show()
 ```
-

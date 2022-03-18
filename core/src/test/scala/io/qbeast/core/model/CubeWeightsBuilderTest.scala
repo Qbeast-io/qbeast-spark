@@ -107,4 +107,11 @@ class CubeWeightsBuilderTest extends AnyFlatSpec with Matchers {
       CubeWeightTesting(id10, Weight(2).fraction))
   }
 
+  it should "not duplicate elements in result" in {
+    val builder =
+      new CubeWeightsBuilderTesting(1, 1, 1000, announcedOrReplicatedSet = Set(root))
+    0.to(10000).map { _ => builder.update(point, Weight(Random.nextInt())) }
+    val result = builder.result()
+    result.size shouldBe result.distinct.size
+  }
 }

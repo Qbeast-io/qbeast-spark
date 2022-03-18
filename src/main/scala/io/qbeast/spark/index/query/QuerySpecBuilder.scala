@@ -13,6 +13,7 @@ import org.apache.spark.sql.catalyst.expressions.{
   EqualTo,
   Expression,
   GreaterThanOrEqual,
+  IsNull,
   LessThan,
   Literal,
   SubqueryExpression
@@ -102,10 +103,15 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression]) extends Ser
           .collectFirst {
             case GreaterThanOrEqual(_, Literal(value, _)) => sparkTypeToCoreType(value)
             case EqualTo(_, Literal(value, _)) => sparkTypeToCoreType(value)
+            case IsNull(_) => null
           }
 
         val to = columnFilters
-          .collectFirst { case LessThan(_, Literal(value, _)) => sparkTypeToCoreType(value) }
+          .collectFirst {
+            case LessThan(_, Literal(value, _)) => sparkTypeToCoreType(value)
+            case EqualTo(_, Literal(value, _)) => sparkTypeToCoreType(value)
+            case IsNull(_) => null
+          }
 
         (from, to)
       }

@@ -3,6 +3,9 @@
  */
 package io.qbeast.core.keeper
 
+import io.qbeast.SerializedCubeID
+import io.qbeast.core.model.QTableID
+
 import java.util.ServiceLoader
 
 /**
@@ -17,7 +20,7 @@ trait Keeper {
    * @param revision the domain revision
    * @return the write operation
    */
-  def beginWrite(tableID: String, revision: Long): Write
+  def beginWrite(tableID: QTableID, revision: Long): Write
 
   /**
    * Runs an action as part of write operation for the specified index revision.
@@ -27,7 +30,7 @@ trait Keeper {
    * @tparam T the result type
    * @return the result
    */
-  def withWrite[T](tableID: String, revision: Long)(action: Write => T): T = {
+  def withWrite[T](tableID: QTableID, revision: Long)(action: Write => T): T = {
     val write = beginWrite(tableID, revision)
     try {
       action(write)
@@ -42,7 +45,7 @@ trait Keeper {
    * @param revision the domain revision
    * @param cubes the announced cube identifiers
    */
-  def announce(tableID: String, revision: Long, cubes: Seq[String]): Unit
+  def announce(tableID: QTableID, revision: Long, cubes: Seq[SerializedCubeID]): Unit
 
   /**
    * Begins an optimization for given index domain revision.
@@ -52,7 +55,7 @@ trait Keeper {
    * @return the optimization operation
    */
   def beginOptimization(
-      tableID: String,
+      tableID: QTableID,
       revision: Long,
       cubeLimit: Integer = Integer.MAX_VALUE): Optimization
 
@@ -75,14 +78,14 @@ trait Optimization {
   /**
    * The cubes to optimize.
    */
-  val cubesToOptimize: Set[String]
+  val cubesToOptimize: Set[SerializedCubeID]
 
   /**
    * Ends the optimization.
    *
    * @param replicatedCubes the replicated cube identifiers
    */
-  def end(replicatedCubes: Set[String]): Unit
+  def end(replicatedCubes: Set[SerializedCubeID]): Unit
 }
 
 /**
@@ -98,7 +101,7 @@ trait Write {
   /**
    * The announced cube identifiers
    */
-  val announcedCubes: Set[String]
+  val announcedCubes: Set[SerializedCubeID]
 
   /**
    * Ends the write.

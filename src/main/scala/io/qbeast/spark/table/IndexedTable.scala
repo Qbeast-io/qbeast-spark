@@ -135,9 +135,10 @@ private[table] class IndexedTableImpl(
 
   private def checkRevisionParameters(
       qbeastOptions: QbeastOptions,
-      latestRevision: Revision): Boolean = {
+      latestIndexStatus: IndexStatus): Boolean = {
     // TODO feature: columnsToIndex may change between revisions
-    latestRevision.desiredCubeSize == qbeastOptions.cubeSize
+    checkColumnsToMatchSchema(latestIndexStatus)
+    latestIndexStatus.revision.desiredCubeSize == qbeastOptions.cubeSize
 
   }
 
@@ -146,9 +147,9 @@ private[table] class IndexedTableImpl(
       parameters: Map[String, String],
       append: Boolean): BaseRelation = {
     val indexStatus =
-      if (exists) {
+      if (exists && append) {
         val latestIndexStatus = snapshot.loadLatestIndexStatus
-        if (checkRevisionParameters(QbeastOptions(parameters), latestIndexStatus.revision)) {
+        if (checkRevisionParameters(QbeastOptions(parameters), latestIndexStatus)) {
           latestIndexStatus
         } else {
           val oldRevisionID = latestIndexStatus.revision.revisionID
@@ -159,10 +160,6 @@ private[table] class IndexedTableImpl(
       } else {
         IndexStatus(revisionBuilder.createNewRevision(tableID, data.schema, parameters))
       }
-
-    if (exists && append) {
-      checkColumnsToMatchSchema(indexStatus)
-    }
 
     val relation = write(data, indexStatus, append)
     relation
@@ -250,7 +247,7 @@ private[table] class IndexedTableImpl(
   override def analyze(revisionID: RevisionID): Seq[String] = {
     val indexStatus = snapshot.loadIndexStatus(revisionID)
     val cubesToAnnounce = indexManager.analyze(indexStatus).map(_.string)
-    keeper.announce(tableID.id, revisionID, cubesToAnnounce)
+    keeper.announce(tableID, revisionID, cubesToAnnounce)
     cubesToAnnounce
 
   }
@@ -258,7 +255,7 @@ private[table] class IndexedTableImpl(
   override def optimize(revisionID: RevisionID): Unit = {
 
     // begin keeper transaction
-    val bo = keeper.beginOptimization(tableID.id, revisionID)
+    val bo = keeper.beginOptimization(tableID, revisionID)
 
     val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
     val cubesToOptimize = bo.cubesToOptimize.map(currentIndexStatus.revision.createCubeId)
