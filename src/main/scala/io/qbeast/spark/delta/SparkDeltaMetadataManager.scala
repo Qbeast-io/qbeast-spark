@@ -62,7 +62,10 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction]
       knownAnnounced: Set[CubeId],
       oldReplicatedSet: ReplicatedSet): Boolean = {
 
-    val newReplicatedSet = loadSnapshot(tableID).loadIndexStatus(revisionID).replicatedSet
+    val snapshot = loadSnapshot(tableID)
+    if (snapshot.isInitial) return false
+
+    val newReplicatedSet = snapshot.loadIndexStatus(revisionID).replicatedSet
     val deltaReplicatedSet = newReplicatedSet -- oldReplicatedSet
     val diff = deltaReplicatedSet -- knownAnnounced
     diff.nonEmpty

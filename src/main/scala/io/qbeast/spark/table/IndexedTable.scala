@@ -195,37 +195,30 @@ private[table] class IndexedTableImpl(
 
   private def write(data: DataFrame, indexStatus: IndexStatus, append: Boolean): BaseRelation = {
     val revision = indexStatus.revision
-
-    if (exists) {
-      keeper.withWrite(tableID.id, revision.revisionID) { write =>
-        var tries = 2
-        while (tries > 0) {
-          val announcedSet = write.announcedCubes.map(indexStatus.revision.createCubeId)
-          val updatedStatus = indexStatus.addAnnouncements(announcedSet)
-          val replicatedSet = updatedStatus.replicatedSet
-          val revisionID = updatedStatus.revision.revisionID
-          try {
-            doWrite(data, updatedStatus, append)
-            tries = 0
-          } catch {
-            case cme: ConcurrentModificationException
-                if metadataManager.isConflicted(
-                  tableID,
-                  revisionID,
-                  replicatedSet,
-                  announcedSet) || tries == 0 =>
-              // Nothing to do, the conflict is unsolvable
-              throw cme
-            case _: ConcurrentModificationException =>
-              // Trying one more time if the conflict is solvable
-              tries -= 1
-          }
-
+    keeper.withWrite(tableID, revision.revisionID) { write =>
+      var tries = 2
+      while (tries > 0) {
+        val announcedSet = write.announcedCubes.map(indexStatus.revision.createCubeId)
+        val updatedStatus = indexStatus.addAnnouncements(announcedSet)
+        val replicatedSet = updatedStatus.replicatedSet
+        val revisionID = updatedStatus.revision.revisionID
+        try {
+          doWrite(data, updatedStatus, append)
+          tries = 0
+        } catch {
+          case cme: ConcurrentModificationException
+              if metadataManager.isConflicted(
+                tableID,
+                revisionID,
+                replicatedSet,
+                announcedSet) || tries == 0 =>
+            // Nothing to do, the conflict is unsolvable
+            throw cme
+          case _: ConcurrentModificationException =>
+            // Trying one more time if the conflict is solvable
+            tries -= 1
         }
-      }
-    } else {
-      keeper.withWrite(tableID.id, revision.revisionID) { _ =>
-        doWrite(data, indexStatus, append)
+
       }
     }
     clearCaches()
