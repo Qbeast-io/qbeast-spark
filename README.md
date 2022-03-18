@@ -17,7 +17,9 @@
 
 **Qbeast Spark** is an extension for [**Data Lakehouses**](http://cidrdb.org/cidr2021/papers/cidr2021_paper17.pdf) that enables **multi-dimensional filtering** and **sampling** directly on the storage
 
-![apache-spark](https://img.shields.io/badge/apache--spark-3.1.x-yellowgreen) ![apache-hadoop](https://img.shields.io/badge/apache--hadoop-3.2.0-yellowgreen) ![delta-core](https://img.shields.io/badge/delta--core-1.0.0-yellowgreen) 
+[![apache-spark](https://img.shields.io/badge/apache--spark-3.1.x-yellowgreen)](https://spark.apache.org/releases/spark-release-3-1-1.html) 
+[![apache-hadoop](https://img.shields.io/badge/apache--hadoop-3.2.0-yellowgreen)](https://hadoop.apache.org/release/3.2.0.html)
+[![delta-core](https://img.shields.io/badge/delta--core-1.0.0-yellowgreen)](https://github.com/delta-io/delta/releases/tag/v1.0.0)
 [![codecov](https://codecov.io/gh/Qbeast-io/qbeast-spark/branch/main/graph/badge.svg?token=8WO7HGZ4MW)](https://codecov.io/gh/Qbeast-io/qbeast-spark)
 
 ## Features
