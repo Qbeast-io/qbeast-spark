@@ -6,6 +6,7 @@ lazy val qbeastCore = (project in file("core"))
 
 // Projects
 lazy val qbeastSpark = (project in file("."))
+  .enablePlugins(ScalaUnidocPlugin)
   .dependsOn(qbeastCore)
   .settings(
     name := "qbeast-spark",
