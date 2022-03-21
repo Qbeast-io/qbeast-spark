@@ -9,13 +9,13 @@ import org.apache.spark.sql.functions.{avg, col, rand, when}
 
 class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
-  private val filter_user_greaterThanOrEq = "(`user_id` >= 536764969)"
-  private val filter_user_lessThan = "(`user_id` < 546280860)"
-  private val filter_product_lessThan = "(`product_id` >= 11522682)"
-  private val filter_product_greaterThanOrEq = "(`product_id` < 50500010)"
+  private val filter_user_greaterThanOrEq = "(user_id >= 536764969)"
+  private val filter_user_lessThan = "(user_id < 546280860)"
+  private val filter_product_lessThan = "(product_id >= 11522682)"
+  private val filter_product_greaterThanOrEq = "(product_id < 50500010)"
 
   private def checkFileFiltering(query: DataFrame): Unit = {
-    val leaves = query.queryExecution.executedPlan.collectLeaves()
+    val leaves = query.queryExecution.sparkPlan.collectLeaves()
 
     leaves.exists(p =>
       p
@@ -37,7 +37,7 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
   }
 
   private def checkLogicalFilterPushdown(sqlFilters: Seq[String], query: DataFrame): Unit = {
-    val leaves = query.queryExecution.executedPlan.collectLeaves()
+    val leaves = query.queryExecution.sparkPlan.collectLeaves()
 
     val dataFilters = leaves
       .collectFirst {
@@ -45,9 +45,9 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
           f.dataFilters.filterNot(_.isInstanceOf[QbeastMurmur3Hash])
       }
       .getOrElse(Seq.empty)
+      .map(_.sql)
 
-    val dataFiltersSql = dataFilters.map(_.sql)
-    sqlFilters.foreach(filter => dataFiltersSql should contain(filter))
+    sqlFilters.foreach(filter => dataFilters should contain(filter))
   }
 
   "Qbeast" should

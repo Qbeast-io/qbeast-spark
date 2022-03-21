@@ -51,8 +51,7 @@ object IdentityTransformation extends Transformation {
 
   @inline
   override def transform(value: Any): Double = value match {
-    case v: Number =>
-      v.byteValue()
+    case v: Number => 0.0
   }
 
   override def isSupersededBy(newTransformation: Transformation): Boolean = false

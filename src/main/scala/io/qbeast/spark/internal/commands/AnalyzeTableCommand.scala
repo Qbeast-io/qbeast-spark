@@ -5,6 +5,7 @@ package io.qbeast.spark.internal.commands
 
 import io.qbeast.core.model.RevisionID
 import io.qbeast.spark.table.IndexedTable
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.command.RunnableCommand
 import org.apache.spark.sql.{Row, SparkSession}
 
@@ -21,5 +22,9 @@ case class AnalyzeTableCommand(revisionID: RevisionID, indexedTable: IndexedTabl
     indexedTable.analyze(revisionID).map(r => Row.fromSeq(Seq(r)))
 
   }
+
+  override protected def withNewChildrenInternal(
+      newChildren: IndexedSeq[LogicalPlan]): LogicalPlan =
+    SparkSession.active.emptyDataFrame.queryExecution.logical
 
 }
