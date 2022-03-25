@@ -20,7 +20,7 @@ All contributed code, docs, and other materials are considered licensed under th
 - Always make a new branch for your work, no matter how small
 - Don´t submit unrelated changes to the same branch/pull request
 - Base your new branch off of the appropriate branch on the main repository
-- New features should branch off of the [main](/Qbeast-io/qbeast-spark/tree/main) branch
+- New features should branch off of the `main` branch
 
 ## Style and formatting
 - We follow [Scalastyle](http://www.scalastyle.org) for coding style in Scala. It runs at compile time, but you can check it manually with: 
@@ -54,17 +54,17 @@ All contributed code, docs, and other materials are considered licensed under th
   ```
 
 ## Step-by-step guide
-  1 - Click `Fork` on Github, and name it as `yourname/projectname`
+  #### 1 - Click `Fork` on Github, and name it as `yourname/projectname`
 
-  2 - Clone the project: `git clone git@github.com:yourname/projectname`
+  #### 2 - Clone the project: `git clone git@github.com:yourname/projectname`
 
-  3 - Create a branch: `git checkout -b your-branch-name`
+  #### 3 - Create a branch: `git checkout -b your-branch-name`
 
-  4 - Open the project with your IDE, and install extensions for Scala and sbt
+  #### 4 - Open the project with your IDE, and install extensions for Scala and sbt
 
-  5 - Make your changes
+  #### 5 - Make your changes
 
-  6 - Write, run, and pass tests:  
+  #### 6 - Write, run, and pass tests:  
 **Note**: You can run tests for different Spark and Hadoop versions specifying them with `-Dspark.version` and `-Dhadoop.version`.
   Find an example in the _Setting Up_ section of [README.md](README.md)
   - For all tests:
@@ -79,13 +79,14 @@ All contributed code, docs, and other materials are considered licensed under th
   sbt "testOnly io.qbeast.spark.index.writer.BlockWriterTest"
   ```
 
-  7 - Commit your changes: `git commit -m "mychanges"`
+  #### 7 - Commit your changes: `git commit -m "mychanges"`
 
-  8 - Push your commit to get it back up to your fork: `git push origin HEAD`
+  #### 8 - Push your commit to get it back up to your fork: `git push origin HEAD`
 
-  9 - Go to Github and open a [![pull request](https://img.shields.io/badge/-pull--request-yellow)](https://github.com/Qbeast-io/qbeast-spark/compare) against the [main](/Qbeast-io/qbeast-spark/tree/main) branch of qbeast-spark. Identify the committers and contributors who have worked on the code being changed
+  #### 9 - Go to Github and open a [![pull request](https://img.shields.io/badge/-pull--request-yellow)](https://github.com/Qbeast-io/qbeast-spark/compare) against the `main` branch of qbeast-spark. 
+Identify the committers and contributors who have worked on the code being changed, and ask for their review :+1: 
 
-  10 - Wait for the maintainers to get back to you as soon as they can!
+  #### 10 - Wait for the maintainers to get back to you as soon as they can!
 
 ## Development set up
 
