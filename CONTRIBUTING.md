@@ -83,7 +83,7 @@ All contributed code, docs, and other materials are considered licensed under th
 
   8 - Push your commit to get it back up to your fork: `git push origin HEAD`
 
-  9 - Go to Github and open a [![help wanted label](https://img.shields.io/badge/-pull--request-yellow)](https://github.com/Qbeast-io/qbeast-spark/compare) against the `master` branch of qbeast-spark. Identify the committers and contributors who have worked on the code being changed
+  9 - Go to Github and open a [![pull request](https://img.shields.io/badge/-pull--request-yellow)](https://github.com/Qbeast-io/qbeast-spark/compare) against the `master` branch of qbeast-spark. Identify the committers and contributors who have worked on the code being changed
 
   10 - Wait for the maintainers to get back to you as soon as they can!
 

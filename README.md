@@ -4,8 +4,8 @@
 
 <div align="center">
 
-[![Documentation](https://img.shields.io/badge/-Users_Docs-lightgreen?style=for-the-badge&logo=readthedocs)](./docs)
-[![Documentation](https://img.shields.io/badge/_-Developer's_docs_(docs.qbeast.io)-ff7?style=for-the-badge&logo=readthedocs)](https://docs.qbeast.io/)
+[![Users Documentation](https://img.shields.io/badge/-Users_Docs-lightgreen?style=for-the-badge&logo=readthedocs)](./docs)
+[![Developers Documentation](https://img.shields.io/badge/_-Developer's_docs_(docs.qbeast.io)-ff7?style=for-the-badge&logo=readthedocs)](https://docs.qbeast.io/)
 <br />
 [![API](https://img.shields.io/badge/-Check_the_API-orange?style=for-the-badge)](./docs/QbeastTable.md)
 [![Notebook](https://img.shields.io/badge/_-Jupyter_Notebook_example-0053B3?style=for-the-badge&logo=jupyter)](./docs/sample_pushdown_demo.ipynb)
