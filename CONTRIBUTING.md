@@ -20,7 +20,7 @@ All contributed code, docs, and other materials are considered licensed under th
 - Always make a new branch for your work, no matter how small
 - Don´t submit unrelated changes to the same branch/pull request
 - Base your new branch off of the appropriate branch on the main repository
-- New features should branch off of the `master` branch
+- New features should branch off of the [main](/Qbeast-io/qbeast-spark/tree/main) branch
 
 ## Style and formatting
 - We follow [Scalastyle](http://www.scalastyle.org) for coding style in Scala. It runs at compile time, but you can check it manually with: 
@@ -83,7 +83,7 @@ All contributed code, docs, and other materials are considered licensed under th
 
   8 - Push your commit to get it back up to your fork: `git push origin HEAD`
 
-  9 - Go to Github and open a [![pull request](https://img.shields.io/badge/-pull--request-yellow)](https://github.com/Qbeast-io/qbeast-spark/compare) against the `master` branch of qbeast-spark. Identify the committers and contributors who have worked on the code being changed
+  9 - Go to Github and open a [![pull request](https://img.shields.io/badge/-pull--request-yellow)](https://github.com/Qbeast-io/qbeast-spark/compare) against the [main](/Qbeast-io/qbeast-spark/tree/main) branch of qbeast-spark. Identify the committers and contributors who have worked on the code being changed
 
   10 - Wait for the maintainers to get back to you as soon as they can!
 
