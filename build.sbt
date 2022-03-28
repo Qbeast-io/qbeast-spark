@@ -1,4 +1,5 @@
 import Dependencies._
+import sbtassembly.MergeStrategy
 import xerial.sbt.Sonatype._
 
 lazy val qbeastCore = (project in file("core"))
@@ -24,8 +25,45 @@ lazy val qbeastSpark = (project in file("."))
     publish / skip := true)
   .settings(noWarningInConsole)
 
-lazy val qbeastSparkNodep = (project in file("nodep"))
-  .settings(name := "qbeast-spark-nodep", Compile / packageBin := (qbeastSpark / assembly).value)
+lazy val qbeastShadedDelta = (project in file("shaded"))
+  .dependsOn(qbeastCore)
+  .dependsOn(qbeastSpark)
+  .settings(
+    name := "qbeast-shaded-delta",
+    libraryDependencies ++= Seq(deltaCore, sparkCore % Provided, sparkSql % Provided),
+    assembly / test := {},
+    assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false),
+    assembly / assemblyShadeRules := shadingRules,
+    assembly / assemblyMergeStrategy := {
+      case PathList("META-INF", "io.netty.versions.properties") =>
+        MergeStrategy.concat
+      case PathList("META-INF", "services", "org.apache.spark.sql.sources.DataSourceRegister") =>
+        MergeStrategy.first
+      case PathList(
+            "io",
+            "qbeast",
+            "spark",
+            "shaded",
+            "org",
+            "apache",
+            "spark",
+            "sql",
+            "delta",
+            "sources",
+            "DeltaSQLConfBase.class") =>
+        MergeStrategy.first
+      case x =>
+        val oldStrategy = (assembly / assemblyMergeStrategy).value
+        oldStrategy(x)
+    })
+
+lazy val shadingRules =
+  (
+    Seq("io.delta", "org.apache.spark.sql.delta", "com.databricks", "com.ibm")
+      .map(pack =>
+        ShadeRule
+          .rename(f"$pack.**" -> f"io.qbeast.spark.shaded.$pack.@1")
+          .inAll)) // :+ ShadeRule.zap("org.apache.spark.sql.delta.sources.DeltaSQLConfBase").inAll
 
 // As root project has publish / skip := true, we need to create a wrapper project to publish on
 // sonatype and Maven Central, which has "qbeast-spark" as name.

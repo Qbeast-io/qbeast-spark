@@ -1,0 +1,2 @@
+io.qbeast.spark.internal.sources.QbeastDataSource
+io.qbeast.spark.shaded.org.apache.spark.sql.delta.sources.DeltaDataSource
