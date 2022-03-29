@@ -43,9 +43,9 @@ qbeastSpark / Compile / doc / scalacOptions ++= Seq(
   "-doc-title",
   "qbeast-spark",
   "-doc-version",
-  qbeast_spark_version,
+  qbeastSparkVersion,
   "-doc-footer",
-  "Copyright 2022 Qbeast - Docs for version " + qbeast_spark_version + " of qbeast-spark")
+  "Copyright 2022 Qbeast - Docs for version " + qbeastSparkVersion + " of qbeast-spark")
 
 lazy val qbeastSparkNodep = (project in file("nodep"))
   .settings(
