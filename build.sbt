@@ -2,27 +2,42 @@ import Dependencies._
 import xerial.sbt.Sonatype._
 
 lazy val qbeastCore = (project in file("core"))
-  .settings(name := "qbeast-core", libraryDependencies ++= Seq(apacheCommons % Test))
+  .settings(
+    name := "qbeast-core",
+    version := "0.1.0",
+    commonSettings,
+    releaseSettings,
+    libraryDependencies ++= Seq(apacheCommons % Test))
+
+lazy val qbeastSparkVersion = "0.2.0"
+
+lazy val qbeastSparkDependencies =
+  libraryDependencies ++= Seq(
+    qbeastCoreDep,
+    deltaCore % Provided,
+    sparkCore % Provided,
+    sparkSql % Provided,
+    hadoopClient % Provided,
+    sparkFastTests % Test,
+    amazonAws % Test,
+    hadoopCommons % Test,
+    hadoopAws % Test)
 
 // Projects
 lazy val qbeastSpark = (project in file("."))
   .enablePlugins(ScalaUnidocPlugin)
-  .dependsOn(qbeastCore)
+  .dependsOn(qbeastCore % "test->test;compile->compile;assembly->assembly")
   .settings(
     name := "qbeast-spark",
-    libraryDependencies ++= Seq(
-      sparkCore % Provided,
-      sparkSql % Provided,
-      hadoopClient % Provided,
-      deltaCore % Provided,
-      amazonAws % Test,
-      hadoopCommons % Test,
-      hadoopAws % Test),
+    version := qbeastSparkVersion,
+    commonSettings,
+    releaseSettings,
+    qbeastSparkDependencies,
+    noWarningInConsole,
     Test / parallelExecution := false,
     assembly / test := {},
     assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false),
     publish / skip := true)
-  .settings(noWarningInConsole)
 
 qbeastSpark / Compile / doc / scalacOptions ++= Seq(
   "-doc-title",
@@ -33,54 +48,50 @@ qbeastSpark / Compile / doc / scalacOptions ++= Seq(
   "Copyright 2022 Qbeast - Docs for version " + qbeast_spark_version + " of qbeast-spark")
 
 lazy val qbeastSparkNodep = (project in file("nodep"))
-  .settings(name := "qbeast-spark-nodep", Compile / packageBin := (qbeastSpark / assembly).value)
+  .settings(
+    name := "qbeast-spark-nodep",
+    commonSettings,
+    publishGithubSettings,
+    Compile / packageBin := (qbeastSpark / Compile / packageBin).value)
 
-// As root project has publish / skip := true, we need to create a wrapper project to publish on
-// sonatype and Maven Central, which has "qbeast-spark" as name.
 lazy val qbeastSparkMaven = (project in file("maven"))
-  .settings(name := "qbeast-spark", Compile / packageBin := (qbeastSpark / assembly).value)
+  .settings(
+    Compile / packageBin := (qbeastSpark / Compile / packageBin).value,
+    publish / skip := false)
 
-// Common metadata
-val qbeast_spark_version = "0.2.0"
-ThisBuild / version := qbeast_spark_version
-ThisBuild / organization := "io.qbeast"
-ThisBuild / organizationName := "Qbeast Analytics, S.L."
-ThisBuild / organizationHomepage := Some(url("https://qbeast.io/"))
-ThisBuild / startYear := Some(2021)
-ThisBuild / libraryDependencies ++= Seq(
-  fasterxml % Provided,
-  sparkFastTests % Test,
-  scalaTest % Test,
-  mockito % Test)
-
-Test / javaOptions += "-Xmx2G"
-Test / fork := true
-
+// COMMON SETTINGS
+lazy val commonSettings = Seq(
+  organization := "io.qbeast",
+  organizationName := "Qbeast Analytics, S.L.",
+  organizationHomepage := Some(url("https://qbeast.io/")),
+  startYear := Some(2021),
+  libraryDependencies ++= Seq(fasterxml % Provided, scalaTest % Test, mockito % Test),
+  Test / javaOptions += "-Xmx2G",
+  Test / fork := true,
 // Scala compiler settings
-ThisBuild / scalaVersion := "2.12.12"
-ThisBuild / scalacOptions ++= Seq(
-  "-encoding",
-  "UTF-8",
-  "-target:jvm-1.8",
-  "-Xfatal-warnings",
-  "-feature",
-  "-language:postfixOps",
-  "-deprecation",
-  "-unchecked",
-  "-Xlint")
-
+  scalaVersion := "2.12.12",
+  scalacOptions ++= Seq(
+    "-encoding",
+    "UTF-8",
+    "-target:jvm-1.8",
+    "-Xfatal-warnings",
+    "-feature",
+    "-language:postfixOps",
+    "-deprecation",
+    "-unchecked",
+    "-Xlint"),
 // Java compiler settings
-ThisBuild / javacOptions ++= Seq(
-  "-encoding",
-  "UTF-8",
-  "-source",
-  "1.8",
-  "-target",
-  "1.8",
-  "-Werror",
-  "-g",
-  "-Xlint",
-  "-Xdoclint:all/package")
+  javacOptions ++= Seq(
+    "-encoding",
+    "UTF-8",
+    "-source",
+    "1.8",
+    "-target",
+    "1.8",
+    "-Werror",
+    "-g",
+    "-Xlint",
+    "-Xdoclint:all/package"))
 
 // this setting remove warning when using the sbt console
 lazy val noWarningInConsole = Seq(
@@ -92,14 +103,6 @@ lazy val noWarningInConsole = Seq(
 
 // Dependency repositories
 ThisBuild / resolvers ++= Seq(Resolver.mavenLocal, Resolver.mavenCentral)
-
-// Publication repository (for nightly releases on GitHub)
-ThisBuild / publishTo := Some(
-  "Qbeast Spark" at "https://maven.pkg.github.com/Qbeast-io/qbeast-spark")
-
-// Repository for maven (Tagged releases on Maven Central using Sonatype)
-qbeastSparkMaven / publishTo := sonatypePublishToBundle.value
-qbeastSparkMaven / sonatypeCredentialHost := "s01.oss.sonatype.org"
 
 // GitHub Package Registry credentials
 ThisBuild / credentials += Credentials(
@@ -113,46 +116,68 @@ ThisBuild / credentials += Credentials(
     "GHPR_TOKEN",
     "GHPR_TOKEN required to fetch or publish from/to GitHub Package Registry"))
 
-// Sonatype settings
-qbeastSparkMaven / publishMavenStyle := true
-qbeastSparkMaven / sonatypeProfileName := "io.qbeast"
-qbeastSparkMaven / sonatypeProjectHosting := Some(
-  GitHubHosting(user = "Qbeast-io", repository = "qbeast-spark", email = "info@qbeast.io"))
-qbeastSparkMaven / licenses := Seq(
-  "APL2" -> url("https://www.apache.org/licenses/LICENSE-2.0.txt"))
-qbeastSparkMaven / homepage := Some(url("https://qbeast.io/"))
-qbeastSparkMaven / scmInfo := Some(
-  ScmInfo(
-    url("https://github.com/Qbeast-io/qbeast-spark"),
-    "scm:git@github.com:Qbeast-io/qbeast-spark.git"))
-qbeastSparkMaven / pomExtra :=
-  <developers>
-    <developer>
-      <id>osopardo1</id>
-      <name>Paola Pardo</name>
-      <url>https://github.com/osopardo1</url>
-    </developer>
-    <developer>
-      <id>eavilaes</id>
-      <name>Eric Avila</name>
-      <url>https://github.com/eavilaes</url>
-    </developer>
-    <developer>
-      <id>cugni</id>
-      <name>Cesare Cugnasco</name>
-      <url>https://github.com/cugni</url>
-    </developer>
-    <developer>
-      <id>Jiaweihu08</id>
-      <name>Jiawei Hu</name>
-      <url>https://github.com/Jiaweihu08</url>
-    </developer>
-    <developer>
-      <id>alexeiakimov</id>
-      <name>Alexey Akimov</name>
-      <url>https://github.com/alexeiakimov</url>
-    </developer>
-  </developers>
+lazy val publishGithubSettings = Seq(
+  // Publication repository (for nightly releases on GitHub)
+  publishTo := Some("Qbeast Spark" at "https://maven.pkg.github.com/Qbeast-io/qbeast-spark"))
+
+// RELEASE SETTINGS
+lazy val releaseSettings = Seq(
+  // Repository for maven (Tagged releases on Maven Central using Sonatype)
+  sonatypeCredentialHost := "s01.oss.sonatype.org",
+  sonatypeRepository := {
+    val nexus = "https://s01.oss.sonatype.org/"
+    if (isSnapshot.value) nexus + "content/repositories/snapshots"
+    else nexus + "service/local"
+  },
+  publishTo := {
+    val nexus = "https://s01.oss.sonatype.org/"
+    if (isSnapshot.value) {
+      Some("snapshots" at nexus + "content/repositories/snapshots")
+    } else sonatypePublishToBundle.value
+  },
+  // Sonatype settings
+  publishMavenStyle := true,
+  sonatypeProfileName := "io.qbeast",
+  licenses := Seq("APL2" -> url("https://www.apache.org/licenses/LICENSE-2.0.txt")),
+  homepage := Some(url("https://qbeast.io/")),
+  scmInfo := Some(
+    ScmInfo(
+      url("https://github.com/Qbeast-io/qbeast-spark"),
+      "scm:git@github.com:Qbeast-io/qbeast-spark.git")),
+  pomExtra :=
+    <developers>
+      <developer>
+        <id>Qbeast-io</id>
+        <name>Qbeast-io</name>
+        <url>https://github.com/Qbeast-io</url>
+        <email>info@qbeast.io</email>
+      </developer>
+      <developer>
+        <id>osopardo1</id>
+        <name>Paola Pardo</name>
+        <url>https://github.com/osopardo1</url>
+      </developer>
+      <developer>
+        <id>eavilaes</id>
+        <name>Eric Avila</name>
+        <url>https://github.com/eavilaes</url>
+      </developer>
+      <developer>
+        <id>cugni</id>
+        <name>Cesare Cugnasco</name>
+        <url>https://github.com/cugni</url>
+      </developer>
+      <developer>
+        <id>Jiaweihu08</id>
+        <name>Jiawei Hu</name>
+        <url>https://github.com/Jiaweihu08</url>
+      </developer>
+      <developer>
+        <id>alexeiakimov</id>
+        <name>Alexey Akimov</name>
+        <url>https://github.com/alexeiakimov</url>
+      </developer>
+    </developers>)
 
 // Scalafmt settings
 Compile / compile := (Compile / compile).dependsOn(Compile / scalafmtCheck).value
