@@ -11,18 +11,6 @@ lazy val qbeastCore = (project in file("core"))
 
 lazy val qbeastSparkVersion = "0.2.0"
 
-lazy val qbeastSparkDependencies =
-  libraryDependencies ++= Seq(
-    qbeastCoreDep,
-    deltaCore % Provided,
-    sparkCore % Provided,
-    sparkSql % Provided,
-    hadoopClient % Provided,
-    sparkFastTests % Test,
-    amazonAws % Test,
-    hadoopCommons % Test,
-    hadoopAws % Test)
-
 // Projects
 lazy val qbeastSpark = (project in file("."))
   .enablePlugins(ScalaUnidocPlugin)
@@ -32,7 +20,16 @@ lazy val qbeastSpark = (project in file("."))
     version := qbeastSparkVersion,
     commonSettings,
     releaseSettings,
-    qbeastSparkDependencies,
+    libraryDependencies ++= Seq(
+      qbeastCoreDep,
+      deltaCore % Provided,
+      sparkCore % Provided,
+      sparkSql % Provided,
+      hadoopClient % Provided,
+      sparkFastTests % Test,
+      amazonAws % Test,
+      hadoopCommons % Test,
+      hadoopAws % Test),
     noWarningInConsole,
     Test / parallelExecution := false,
     assembly / test := {},
