@@ -24,6 +24,14 @@ lazy val qbeastSpark = (project in file("."))
     publish / skip := true)
   .settings(noWarningInConsole)
 
+qbeastSpark / Compile / doc / scalacOptions ++= Seq(
+  "-doc-title",
+  "qbeast-spark",
+  "-doc-version",
+  qbeast_spark_version,
+  "-doc-footer",
+  "Copyright 2022 Qbeast - Docs for version " + qbeast_spark_version + " of qbeast-spark")
+
 lazy val qbeastSparkNodep = (project in file("nodep"))
   .settings(name := "qbeast-spark-nodep", Compile / packageBin := (qbeastSpark / assembly).value)
 
@@ -33,7 +41,8 @@ lazy val qbeastSparkMaven = (project in file("maven"))
   .settings(name := "qbeast-spark", Compile / packageBin := (qbeastSpark / assembly).value)
 
 // Common metadata
-ThisBuild / version := "0.2.0"
+val qbeast_spark_version = "0.2.0"
+ThisBuild / version := qbeast_spark_version
 ThisBuild / organization := "io.qbeast"
 ThisBuild / organizationName := "Qbeast Analytics, S.L."
 ThisBuild / organizationHomepage := Some(url("https://qbeast.io/"))
