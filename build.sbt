@@ -31,18 +31,17 @@ lazy val qbeastSpark = (project in file("."))
       hadoopCommons % Test,
       hadoopAws % Test),
     noWarningInConsole,
+    Compile / doc / scalacOptions ++= Seq(
+      "-doc-title",
+      "qbeast-spark",
+      "-doc-version",
+      qbeastSparkVersion,
+      "-doc-footer",
+      "Copyright 2022 Qbeast - Docs for version " + qbeastSparkVersion + " of qbeast-spark"),
     Test / parallelExecution := false,
     assembly / test := {},
     assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false),
     publish / skip := true)
-
-qbeastSpark / Compile / doc / scalacOptions ++= Seq(
-  "-doc-title",
-  "qbeast-spark",
-  "-doc-version",
-  qbeastSparkVersion,
-  "-doc-footer",
-  "Copyright 2022 Qbeast - Docs for version " + qbeastSparkVersion + " of qbeast-spark")
 
 lazy val qbeastSparkNodep = (project in file("nodep"))
   .settings(
