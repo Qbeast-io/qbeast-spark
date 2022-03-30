@@ -56,6 +56,7 @@ lazy val qbeastSparkMaven = (project in file("maven"))
     version := qbeastSparkVersion,
     commonSettings,
     releaseSettings,
+    libraryDependencies := (qbeastSpark / libraryDependencies).value,
     Compile / packageBin := (qbeastSpark / Compile / packageBin).value)
 
 // COMMON SETTINGS
