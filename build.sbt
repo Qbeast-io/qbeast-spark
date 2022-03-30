@@ -14,7 +14,7 @@ lazy val qbeastSparkVersion = "0.2.0"
 // Projects
 lazy val qbeastSpark = (project in file("."))
   .enablePlugins(ScalaUnidocPlugin)
-  .dependsOn(qbeastCore % "test->test;compile->compile;assembly->assembly")
+  .dependsOn(qbeastCore)
   .settings(
     name := "qbeast-spark",
     version := qbeastSparkVersion,
@@ -49,7 +49,7 @@ lazy val qbeastSparkNodep = (project in file("nodep"))
     version := qbeastSparkVersion,
     commonSettings,
     publishGithubSettings,
-    Compile / packageBin := (qbeastSpark / Compile / packageBin).value)
+    Compile / packageBin := (qbeastSpark / assembly).value)
 
 // COMMON SETTINGS
 lazy val commonSettings = Seq(
