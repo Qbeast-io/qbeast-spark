@@ -19,7 +19,6 @@ lazy val qbeastSpark = (project in file("."))
     name := "qbeast-spark",
     version := qbeastSparkVersion,
     commonSettings,
-    releaseSettings,
     libraryDependencies ++= Seq(
       qbeastCoreDep,
       deltaCore % Provided,
@@ -50,6 +49,14 @@ lazy val qbeastSparkNodep = (project in file("nodep"))
     commonSettings,
     publishGithubSettings,
     Compile / packageBin := (qbeastSpark / assembly).value)
+
+lazy val qbeastSparkMaven = (project in file("maven"))
+  .settings(
+    name := "qbeast-spark",
+    version := qbeastSparkVersion,
+    commonSettings,
+    releaseSettings,
+    Compile / packageBin := (qbeastSpark / Compile / packageBin).value)
 
 // COMMON SETTINGS
 lazy val commonSettings = Seq(
