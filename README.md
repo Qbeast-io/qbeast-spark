@@ -105,9 +105,8 @@ sbt assembly
 
 ```bash
 $SPARK_HOME/bin/spark-shell \
---jars ./target/scala-2.12/qbeast-spark-assembly-0.2.0.jar \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
---packages io.delta:delta-core_2.12:1.0.0
+--packages io.qbeast:qbeast-spark_2.12:0.2.0,io.delta:delta-core_2.12:1.0.0
 ```
 
 ### 2. Indexing a dataset
