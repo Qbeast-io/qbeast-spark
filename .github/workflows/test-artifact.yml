@@ -1,4 +1,4 @@
-name: Test qbeastCore project
+name: Test artifact
 on:
   push:
     branches: [ main ]
@@ -7,18 +7,21 @@ on:
 jobs:
   test-artifact:
     runs-on: ubuntu-latest
+    env:
+      GHPR_TOKEN: ${{ secrets.GHPR_TOKEN }}
     steps:
     - uses: actions/checkout@v2
     - name: Set up JDK 1.8
       uses: actions/setup-java@v1
       with:
         java-version: 1.8
-    - name: Package qbeast-core
-      run: sbt "project qbeastCore" clean package
+    - name: Assembly
+      run: sbt assembly
     - name: Test
       run: |
+        sbt coverage 'test' coverageReport
         sbt "project qbeastCore" coverage 'test' coverageReport
-    - name: Upload qbeastCore coverage to Codecov
+    - name: Upload to Codecov
       run: |
         curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import # One-time step
         curl -Os https://uploader.codecov.io/latest/linux/codecov
@@ -29,4 +32,4 @@ jobs:
         chmod +x codecov
         ./codecov -t ${{ secrets.CODECOV_TOKEN }}
     - name: Formatting of code and Scaladocs
-      run: sbt "project qbeastCore" scalafmtSbtCheck doc
+      run: sbt scalafmtSbtCheck doc
