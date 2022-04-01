@@ -7,6 +7,8 @@ lazy val qbeastCore = (project in file("core"))
     version := "0.1.0",
     libraryDependencies ++= Seq(apacheCommons % Test))
 
+val qbeast_spark_version = "0.2.0"
+
 // Projects
 lazy val qbeastSpark = (project in file("."))
   .enablePlugins(ScalaUnidocPlugin)
@@ -35,14 +37,7 @@ qbeastSpark / Compile / doc / scalacOptions ++= Seq(
   "-doc-footer",
   "Copyright 2022 Qbeast - Docs for version " + qbeast_spark_version + " of qbeast-spark")
 
-lazy val qbeastSparkNodep = (project in file("nodep"))
-  .settings(
-    name := "qbeast-spark-nodep",
-    publishTo := Some("Qbeast Spark" at "https://maven.pkg.github.com/Qbeast-io/qbeast-spark"),
-    Compile / packageBin := (qbeastSpark / assembly).value)
-
 // Common metadata
-val qbeast_spark_version = "0.2.0"
 ThisBuild / version := qbeast_spark_version
 ThisBuild / organization := "io.qbeast"
 ThisBuild / organizationName := "Qbeast Analytics, S.L."
@@ -107,18 +102,6 @@ ThisBuild / publishTo := {
     Some("snapshots" at nexus + "content/repositories/snapshots")
   } else sonatypePublishToBundle.value
 }
-
-// GitHub Package Registry credentials
-ThisBuild / credentials += Credentials(
-  "GitHub Package Registry",
-  "maven.pkg.github.com",
-  sys.env.getOrElse(
-    // Any user will work if you're using a TOKEN as password
-    "GHPR_USERNAME",
-    "GHPR_USERNAME required to fetch or publish from/to GH Package Registry"),
-  sys.env.getOrElse(
-    "GHPR_TOKEN",
-    "GHPR_TOKEN required to fetch or publish from/to GitHub Package Registry"))
 
 // Sonatype settings
 ThisBuild / publishMavenStyle := true
