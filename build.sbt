@@ -80,11 +80,11 @@ ThisBuild / javacOptions ++= Seq(
 
 // this setting remove warning when using the sbt console
 lazy val noWarningInConsole = Seq(
-  scalacOptions in (Compile, console) ~= {
+  Compile / console / scalacOptions ~= {
     _.filterNot(
       Set("-Ywarn-unused-import", "-Ywarn-unused:imports", "-Xlint", "-Xfatal-warnings"))
   },
-  scalacOptions in (Test, console) := (scalacOptions in (Compile, console)).value)
+  Test / console / scalacOptions := (Compile / console / scalacOptions).value)
 
 // Dependency repositories
 ThisBuild / resolvers ++= Seq(Resolver.mavenLocal, Resolver.mavenCentral)
