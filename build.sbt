@@ -117,14 +117,9 @@ ThisBuild / scmInfo := Some(
 ThisBuild / pomExtra :=
   <developers>
     <developer>
-      <id>osopardo1</id>
-      <name>Paola Pardo</name>
-      <url>https://github.com/osopardo1</url>
-    </developer>
-    <developer>
-      <id>eavilaes</id>
-      <name>Eric Avila</name>
-      <url>https://github.com/eavilaes</url>
+      <id>alexeiakimov</id>
+      <name>Alexey Akimov</name>
+      <url>https://github.com/alexeiakimov</url>
     </developer>
     <developer>
       <id>cugni</id>
@@ -132,14 +127,24 @@ ThisBuild / pomExtra :=
       <url>https://github.com/cugni</url>
     </developer>
     <developer>
+      <id>eavilaes</id>
+      <name>Eric Avila</name>
+      <url>https://github.com/eavilaes</url>
+    </developer>
+    <developer>
       <id>Jiaweihu08</id>
       <name>Jiawei Hu</name>
       <url>https://github.com/Jiaweihu08</url>
     </developer>
     <developer>
-      <id>alexeiakimov</id>
-      <name>Alexey Akimov</name>
-      <url>https://github.com/alexeiakimov</url>
+      <id>osopardo1</id>
+      <name>Paola Pardo</name>
+      <url>https://github.com/osopardo1</url>
+    </developer>
+    <developer>
+      <id>polsm91</id>
+      <name>Pol Santamaria</name>
+      <url>https://github.com/polsm91</url>
     </developer>
   </developers>
 
