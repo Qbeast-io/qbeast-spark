@@ -76,7 +76,7 @@ You can find it in the [Packages section](https://github.com/orgs/Qbeast-io/pack
 ### Pre: Install **Spark**
 Download **Spark 3.1.1 with Hadoop 3.2**, unzip it, and create the `SPARK_HOME` environment variable:<br />
 
->:information_source: **Note: You can use Hadoop 2.7 if desired, but you could have some troubles with different cloud providers' storage, read more about it [here](docs/CloudStorages.md).**
+>:information_source: **Note**: You can use Hadoop 2.7 if desired, but you could have some troubles with different cloud providers' storage, read more about it [here](docs/CloudStorages.md).
 
 ```bash
 wget https://archive.apache.org/dist/spark/spark-3.1.1/spark-3.1.1-bin-hadoop3.2.tgz
@@ -85,29 +85,14 @@ tar xzvf spark-3.1.1-bin-hadoop3.2.tgz
 
 export SPARK_HOME=$PWD/spark-3.1.1-bin-hadoop3.2
  ```
-### 0. Project packaging:
-
-Clone the repo, navigate to the repository folder, and package the project through **sbt**. [JDK 8](https://www.azul.com/downloads/?version=java-8-lts&package=jdk) is recommended.  
-> ℹ️ **Note**: You can specify **custom** Spark or Hadoop **versions** when packaging by using  
->`-Dspark.version=3.2.0` or `-Dhadoop.version=2.7.4` when running `sbt assembly`.
-If you have troubles with the versions you use, don't hesitate to **ask the community** in [GitHub discussions](https://github.com/Qbeast-io/qbeast-spark/discussions).
-``` bash
-git clone https://github.com/Qbeast-io/qbeast-spark.git
-
-cd qbeast-spark
-
-sbt assembly
-```
-
 ### 1. Launch a spark-shell
 
 **Inside the project folder**, launch a **spark shell** with the required dependencies:
 
 ```bash
 $SPARK_HOME/bin/spark-shell \
---jars ./target/scala-2.12/qbeast-spark-assembly-0.2.0.jar \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
---packages io.delta:delta-core_2.12:1.0.0
+--packages io.qbeast:qbeast-spark_2.12:0.2.0,io.delta:delta-core_2.12:1.0.0
 ```
 
 ### 2. Indexing a dataset

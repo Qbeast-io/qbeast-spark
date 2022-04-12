@@ -105,14 +105,13 @@ export SPARK_HOME=$PWD/spark-3.1.1-bin-hadoop3.2
  ```
 
 ### 3. Project packaging:
-Clone the repo, navigate to the repository folder, and package the project through **sbt**. [JDK 8](https://www.azul.com/downloads/?version=java-8-lts&package=jdk) is recommended.
+Navigate to the repository folder and package the project using **sbt**. [JDK 8](https://www.azul.com/downloads/?version=java-8-lts&package=jdk) is recommended.
 
-**Note**: You can specify **custom** Spark or Hadoop **versions** when packaging by using `-Dspark.version=3.2.0` or `-Dhadoop.version=2.7.4` when running `sbt assembly`.
+> ℹ️ **Note**: You can specify **custom** Spark or Hadoop **versions** when packaging by using  
+>`-Dspark.version=3.2.0` or `-Dhadoop.version=2.7.4` when running `sbt assembly`.
 If you have troubles with the versions you use, don't hesitate to **ask the community** in [GitHub discussions](https://github.com/Qbeast-io/qbeast-spark/discussions).
 
 ``` bash
-git clone https://github.com/Qbeast-io/qbeast-spark.git
-
 cd qbeast-spark
 
 sbt assembly
