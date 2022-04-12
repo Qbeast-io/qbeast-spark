@@ -1,7 +1,7 @@
 name: Gather Traffic Data via GitHub API
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "*/6 * * * *"
 
 jobs:
   gather_views_and_clones:
