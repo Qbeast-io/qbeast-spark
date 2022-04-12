@@ -1,7 +1,7 @@
 name: Gather Traffic Data via GitHub API
 on:
   schedule:
-    - cron: "*/6 * * * *"
+    - cron: "50 23 * * 6"
 
 jobs:
   gather_views_and_clones:
@@ -17,7 +17,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_PROD_SECRET_ACCESS_KEY }}
           aws-region: eu-west-1
 
-      - name: Download and upload past 7 day views to S3
+      - name: Download and upload repo views from the past 7 days to S3
         run: |
           view_name=views_$(date "+%Y-%m-%d").json &&
           curl \
@@ -27,7 +27,7 @@ jobs:
           jq -c '.views | .[7:15]' > $view_name &&
           aws s3 cp $view_name ${{ secrets.AWS_S3_TRAFFIC_BUCKET }}views/$view_name
 
-      - name: Download and upload past 7 day clones to S3
+      - name: Download and upload repo clones from the past 7 days to S3
         run: |
           clone_name=clones_$(date "+%Y-%m-%d").json &&
           curl \
