@@ -15,10 +15,10 @@ Inside the project folder, launch a spark-shell with the required **dependencies
 
 ```bash
 $SPARK_HOME/bin/spark-shell \
---jars ./target/scala-2.12/qbeast-spark-assembly-0.2.0.jar \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
 --conf spark.hadoop.fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider \
---packages io.delta:delta-core_2.12:1.0.0,\
+--packages io.qbeast:qbeast-spark_2.12:0.2.0,\
+io.delta:delta-core_2.12:1.0.0,\
 com.amazonaws:aws-java-sdk:1.12.20,\
 org.apache.hadoop:hadoop-common:3.2.0,\
 org.apache.hadoop:hadoop-client:3.2.0,\

@@ -157,7 +157,7 @@ In this case, we index columns `user_id` and `product_id` (which are both `Integ
 
 **Data de-normalization** is a crucial component behind our multi-dimensional index. Instead of storing an index in a separate tree-like data structure, we reorganize the data and their replications in an `OTree`, whose **hierarchical structure** is the actual index.
 
-Aside from modifying `_delta_log/`, we also store the `cube` state changes in the `_qbeast/` folder found in the same table directory. During index optimization, affected `blocks` modify their states, and new `blocks` are added. Users can trigger the optimization process manually through `analyze()` and `optimize()` methods.
+We also store the `cube` state changes in the `_delta_log/`. During index optimization, affected `blocks` modify their states, and new `blocks` are added. Users can trigger the optimization process manually through `analyze()` and `optimize()` methods.
 
 See [OTreeAlgorithm](./OTreeAlgorithm.md) or the [research paper](https://upcommons.upc.edu/bitstream/handle/2117/180358/The_OTree_for_IEEE_short_paper.pdf?sequence=1) for more details.
 
