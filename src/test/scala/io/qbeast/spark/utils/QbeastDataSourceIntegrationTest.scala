@@ -168,4 +168,21 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
       }
     }
 
+  it should "be compatible with underlying format" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      {
+        val data = loadTestData(spark)
+        writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
+
+        val delta = spark.read.format("delta").load(tmpDir)
+
+        delta.count() shouldBe data.count()
+
+        assertLargeDatasetEquality(delta, data, orderedComparison = false)
+
+        data.columns.toSet shouldBe delta.columns.toSet
+
+      }
+  }
+
 }

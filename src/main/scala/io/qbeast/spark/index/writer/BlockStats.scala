@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.index.writer
 
-import io.qbeast.core.model.Weight
+import io.qbeast.core.model.{Weight}
 
 /**
  * Stats of a data block.
@@ -19,17 +19,55 @@ case class BlockStats protected (
     maxWeight: Weight,
     minWeight: Weight,
     state: String,
-    elementCount: Long) {
+    elementCount: Long,
+    stats: Map[String, ColumnStatsCollection]) {
+
+  def min(v1: Any, v2: Any): Any = (v1, v2) match {
+    case (v1: Int, v2: Int) => (v1.min(v2))
+    case (v1: Long, v2: Long) => (v1.min(v2))
+    case (v1: Double, v2: Double) => (v1.min(v2))
+    case (v1: Float, v2: Float) => (v1.min(v2))
+    case (v1: Short, v2: Short) => (v1.min(v2))
+    case (v1: Byte, v2: Byte) => (v1.min(v2))
+    case (v1: BigDecimal, v2: BigDecimal) => (v1.min(v2))
+    case (v1: BigInt, v2: BigInt) => (v1.min(v2))
+    case _ => null
+  }
+
+  def max(v1: Any, v2: Any): Any = (v1, v2) match {
+    case (v1: Int, v2: Int) => v1.max(v2)
+    case (v1: Long, v2: Long) => (v1.max(v2))
+    case (v1: Double, v2: Double) => (v1.max(v2))
+    case (v1: Float, v2: Float) => (v1.max(v2))
+    case (v1: Short, v2: Short) => (v1.max(v2))
+    case (v1: Byte, v2: Byte) => (v1.max(v2))
+    case (v1: BigDecimal, v2: BigDecimal) => (v1.max(v2))
+    case (v1: BigInt, v2: BigInt) => (v1.max(v2))
+    case _ => null
+  }
 
   /**
    * Update the BlockStats by computing minWeight = min(this.minWeight, minWeight).
    * This also updates the elementCount of the BlocksStats
+   * @param values the values to update
    * @param minWeight the Weight to compare with the current one
    * @return the updated BlockStats object
    */
-  def update(minWeight: Weight): BlockStats = {
+  def update(values: Map[String, Any], minWeight: Weight): BlockStats = {
     val minW = Weight.min(minWeight, this.minWeight)
-    this.copy(elementCount = elementCount + 1, minWeight = minW)
+    val newStats =
+      if (stats.isEmpty) {
+        values.map(k => (k._1, ColumnStatsCollection(k._2, k._2, if (k._2 == null) 0 else 1)))
+      } else {
+        stats.map { case (k, v) =>
+          val newValue = values(k)
+          val newMin = min(v.min, newValue)
+          val newMax = max(v.max, newValue)
+          val nullCounter = if (newValue == null) v.nullCount + 1 else v.nullCount
+          (k, ColumnStatsCollection(newMin, newMax, nullCounter))
+        }
+      }
+    this.copy(elementCount = elementCount + 1, minWeight = minW, stats = newStats)
   }
 
   override def toString: String =
@@ -50,6 +88,6 @@ object BlockStats {
    * @return a new empty instance of BlockStats
    */
   def apply(cube: String, state: String, maxWeight: Weight): BlockStats =
-    BlockStats(cube, maxWeight, minWeight = Weight.MaxValue, state, 0)
+    BlockStats(cube, maxWeight, minWeight = Weight.MaxValue, state, 0, Map.empty)
 
 }

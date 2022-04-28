@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.index.writer
 
-import io.qbeast.core.model.{CubeId, TableChanges, Weight}
+import io.qbeast.core.model.{CubeId, TableChanges, Weight, mapper}
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.utils.{State, TagUtils}
 import org.apache.hadoop.fs.Path
@@ -63,10 +63,12 @@ case class BlockWriter(
 
         // The row with only the original columns
         val cleanRow = Seq.newBuilder[Any]
+        val stats = Map.newBuilder[String, Any]
         cleanRow.sizeHint(row.numFields)
         for (i <- 0 until row.numFields) {
           if (!qbeastColumns.contains(i)) {
-            cleanRow += row.get(i, schemaIndex(i).dataType)
+            cleanRow += row.get(i, schema.fields(i).dataType)
+            stats += schemaIndex(i).name -> row.get(i, schema.fields(i).dataType)
           }
         }
 
@@ -75,14 +77,14 @@ case class BlockWriter(
 
         // Writing the data in a single file.
         blockCtx.writer.write(InternalRow.fromSeq(cleanRow.result()))
-        blocks.updated(cubeId, blockCtx.update(rowWeight))
+        blocks.updated(cubeId, blockCtx.update(stats.result(), rowWeight))
       }
       .values
       .flatMap {
         case BlockContext(blockStats, _, _) if blockStats.elementCount == 0 =>
           Iterator.empty // Do nothing, this  is a empty partition
         case BlockContext(
-              BlockStats(cube, maxWeight, minWeight, state, rowCount),
+              BlockStats(cube, maxWeight, minWeight, state, rowCount, stats),
               writer,
               path) =>
           val tags = Map(
@@ -107,7 +109,7 @@ case class BlockWriter(
               size = fileStatus.getLen,
               modificationTime = fileStatus.getModificationTime,
               dataChange = true,
-              stats = "",
+              stats = mapper.writeValueAsString(stats),
               tags = tags))
 
       }
@@ -139,8 +141,8 @@ case class BlockWriter(
    */
   private case class BlockContext(stats: BlockStats, writer: OutputWriter, path: Path) {
 
-    def update(minWeight: Weight): BlockContext =
-      this.copy(stats = stats.update(minWeight))
+    def update(values: Map[String, Any], minWeight: Weight): BlockContext =
+      this.copy(stats = stats.update(values, minWeight))
 
   }
 

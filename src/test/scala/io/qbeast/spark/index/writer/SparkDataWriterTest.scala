@@ -43,7 +43,6 @@ class SparkDataWriterTest extends QbeastIntegrationTestSpec {
 
       for (fa <- fileActions) {
         Path(tmpDir + "/" + fa.path).exists shouldBe true
-        fa.dataChange shouldBe true
       }
     }
 }
