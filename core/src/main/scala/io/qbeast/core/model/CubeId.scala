@@ -408,7 +408,7 @@ case class CubeId(dimensionCount: Int, depth: Int, bitMask: Array[Long])
   }
 
   /**
-   * Returns the bytes to be stored in a [[org.apache.spark.sql.DataFrame]]
+   * Returns the bytes to be stored in a byte array.
    *
    * @return the bytes
    */
