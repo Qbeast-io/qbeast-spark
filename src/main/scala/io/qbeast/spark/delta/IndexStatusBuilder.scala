@@ -56,7 +56,9 @@ private[delta] class IndexStatusBuilder(
 
     import spark.implicits._
     val ndims: Int = rev.transformations.size
-    revisionFiles
+    // TODO some files may not include metadata
+    val filesWithMetadata = revisionFiles.where("tags is not null")
+    filesWithMetadata
       .groupBy(TagColumns.cube)
       .agg(
         weight(min(TagColumns.maxWeight)).as("maxWeight"),
