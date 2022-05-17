@@ -2,16 +2,10 @@ import Dependencies._
 import xerial.sbt.Sonatype._
 
 lazy val qbeastCore = (project in file("core"))
-  .settings(
-    name := "qbeast-core",
-    version := "0.1.0",
-    libraryDependencies ++= Seq(apacheCommons % Test))
-
-val qbeast_spark_version = "0.2.0"
+  .settings(name := "qbeast-core", libraryDependencies ++= Seq(apacheCommons % Test))
 
 // Projects
 lazy val qbeastSpark = (project in file("."))
-  .enablePlugins(ScalaUnidocPlugin)
   .dependsOn(qbeastCore)
   .settings(
     name := "qbeast-spark",
@@ -29,16 +23,16 @@ lazy val qbeastSpark = (project in file("."))
     publish / skip := true)
   .settings(noWarningInConsole)
 
-qbeastSpark / Compile / doc / scalacOptions ++= Seq(
-  "-doc-title",
-  "qbeast-spark",
-  "-doc-version",
-  qbeast_spark_version,
-  "-doc-footer",
-  "Copyright 2022 Qbeast - Docs for version " + qbeast_spark_version + " of qbeast-spark")
+lazy val qbeastSparkNodep = (project in file("nodep"))
+  .settings(name := "qbeast-spark-nodep", Compile / packageBin := (qbeastSpark / assembly).value)
+
+// As root project has publish / skip := true, we need to create a wrapper project to publish on
+// sonatype and Maven Central, which has "qbeast-spark" as name.
+lazy val qbeastSparkMaven = (project in file("maven"))
+  .settings(name := "qbeast-spark", Compile / packageBin := (qbeastSpark / assembly).value)
 
 // Common metadata
-ThisBuild / version := qbeast_spark_version
+ThisBuild / version := "0.2.0"
 ThisBuild / organization := "io.qbeast"
 ThisBuild / organizationName := "Qbeast Analytics, S.L."
 ThisBuild / organizationHomepage := Some(url("https://qbeast.io/"))
@@ -80,51 +74,53 @@ ThisBuild / javacOptions ++= Seq(
 
 // this setting remove warning when using the sbt console
 lazy val noWarningInConsole = Seq(
-  Compile / console / scalacOptions ~= {
+  scalacOptions in (Compile, console) ~= {
     _.filterNot(
       Set("-Ywarn-unused-import", "-Ywarn-unused:imports", "-Xlint", "-Xfatal-warnings"))
   },
-  Test / console / scalacOptions := (Compile / console / scalacOptions).value)
+  scalacOptions in (Test, console) := (scalacOptions in (Compile, console)).value)
 
 // Dependency repositories
 ThisBuild / resolvers ++= Seq(Resolver.mavenLocal, Resolver.mavenCentral)
 
+// Publication repository (for nightly releases on GitHub)
+ThisBuild / publishTo := Some(
+  "Qbeast Spark" at "https://maven.pkg.github.com/Qbeast-io/qbeast-spark")
+
 // Repository for maven (Tagged releases on Maven Central using Sonatype)
-ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
-ThisBuild / sonatypeRepository := {
-  val nexus = "https://s01.oss.sonatype.org/"
-  if (isSnapshot.value) nexus + "content/repositories/snapshots"
-  else nexus + "service/local"
-}
-ThisBuild / publishTo := {
-  val nexus = "https://s01.oss.sonatype.org/"
-  if (isSnapshot.value) {
-    Some("snapshots" at nexus + "content/repositories/snapshots")
-  } else sonatypePublishToBundle.value
-}
+qbeastSparkMaven / publishTo := sonatypePublishToBundle.value
+qbeastSparkMaven / sonatypeCredentialHost := "s01.oss.sonatype.org"
+
+// GitHub Package Registry credentials
+ThisBuild / credentials += Credentials(
+  "GitHub Package Registry",
+  "maven.pkg.github.com",
+  sys.env.getOrElse(
+    // Any user will work if you're using a TOKEN as password
+    "GHPR_USERNAME",
+    "GHPR_USERNAME required to fetch or publish from/to GH Package Registry"),
+  sys.env.getOrElse(
+    "GHPR_TOKEN",
+    "GHPR_TOKEN required to fetch or publish from/to GitHub Package Registry"))
 
 // Sonatype settings
-ThisBuild / publishMavenStyle := true
-ThisBuild / sonatypeProfileName := "io.qbeast"
-ThisBuild / sonatypeProjectHosting := Some(
+qbeastSparkMaven / publishMavenStyle := true
+qbeastSparkMaven / sonatypeProfileName := "io.qbeast"
+qbeastSparkMaven / sonatypeProjectHosting := Some(
   GitHubHosting(user = "Qbeast-io", repository = "qbeast-spark", email = "info@qbeast.io"))
-ThisBuild / licenses := Seq("APL2" -> url("https://www.apache.org/licenses/LICENSE-2.0.txt"))
-ThisBuild / homepage := Some(url("https://qbeast.io/"))
-ThisBuild / scmInfo := Some(
+qbeastSparkMaven / licenses := Seq(
+  "APL2" -> url("https://www.apache.org/licenses/LICENSE-2.0.txt"))
+qbeastSparkMaven / homepage := Some(url("https://qbeast.io/"))
+qbeastSparkMaven / scmInfo := Some(
   ScmInfo(
     url("https://github.com/Qbeast-io/qbeast-spark"),
     "scm:git@github.com:Qbeast-io/qbeast-spark.git"))
-ThisBuild / pomExtra :=
+qbeastSparkMaven / pomExtra :=
   <developers>
     <developer>
-      <id>alexeiakimov</id>
-      <name>Alexey Akimov</name>
-      <url>https://github.com/alexeiakimov</url>
-    </developer>
-    <developer>
-      <id>cugni</id>
-      <name>Cesare Cugnasco</name>
-      <url>https://github.com/cugni</url>
+      <id>osopardo1</id>
+      <name>Paola Pardo</name>
+      <url>https://github.com/osopardo1</url>
     </developer>
     <developer>
       <id>eavilaes</id>
@@ -132,19 +128,19 @@ ThisBuild / pomExtra :=
       <url>https://github.com/eavilaes</url>
     </developer>
     <developer>
+      <id>cugni</id>
+      <name>Cesare Cugnasco</name>
+      <url>https://github.com/cugni</url>
+    </developer>
+    <developer>
       <id>Jiaweihu08</id>
       <name>Jiawei Hu</name>
       <url>https://github.com/Jiaweihu08</url>
     </developer>
     <developer>
-      <id>osopardo1</id>
-      <name>Paola Pardo</name>
-      <url>https://github.com/osopardo1</url>
-    </developer>
-    <developer>
-      <id>polsm91</id>
-      <name>Pol Santamaria</name>
-      <url>https://github.com/polsm91</url>
+      <id>alexeiakimov</id>
+      <name>Alexey Akimov</name>
+      <url>https://github.com/alexeiakimov</url>
     </developer>
   </developers>
 

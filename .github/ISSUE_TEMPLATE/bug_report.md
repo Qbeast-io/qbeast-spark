@@ -7,29 +7,20 @@ assignees: ''
 
 ---
 
-## What went wrong?
+**What went wrong?**
 Clear, concise explanation and the expected behavior.
 
-## How to reproduce?
+**How to reproduce?**
+1. Code that triggered the bug, or steps to reproduce:
 
-Different steps about how to reproduce the problem.
+2. Branch and commit id:
 
-### 1. Code that triggered the bug, or steps to reproduce:
-
-```scala
-// your-code-here
-```
-
-### 2. Branch and commit id:
-
-### 3. Spark version:
+3. Spark version:
 On the spark shell run `spark.version`.
 
-### 4. Hadoop version:
+4. Hadoop version:
 On the spark shell run `org.apache.hadoop.util.VersionInfo.getVersion()`.
 
-### 5. How are you running Spark?
-Are you running Spark inside a container? Are you launching the app on a remote K8s cluster? Or are you just running the tests in a local computer?
+5. Are you running Spark inside a container? Are you launching the app on a remote K8s cluster? Or are you just running the tests in a local computer?
 
-### 6. Stack trace:
-Trace of the log/error messages.
+6. Stack trace:
