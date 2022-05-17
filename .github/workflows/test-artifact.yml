@@ -1,11 +1,11 @@
-name: Test and publish artifact
+name: Test artifact
 on:
   push:
     branches: [ main ]
   pull_request:
 
 jobs:
-  test-and-publish-artifact:
+  test-artifact:
     runs-on: ubuntu-latest
     env:
       GHPR_TOKEN: ${{ secrets.GHPR_TOKEN }}
@@ -33,10 +33,3 @@ jobs:
         ./codecov -t ${{ secrets.CODECOV_TOKEN }}
     - name: Formatting of code and Scaladocs
       run: sbt scalafmtSbtCheck doc
-
-    # Publish only if it is on the main branch
-    - if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'Qbeast-io/qbeast-spark' }}
-      name: Publish artifact
-      run: |
-        QBEAST_SPARK_VERSION="nightly-$(git rev-parse --short ${GITHUB_SHA})"
-        sbt "set qbeastSparkNodep/version := \"${QBEAST_SPARK_VERSION}\"" qbeastSparkNodep/publish
