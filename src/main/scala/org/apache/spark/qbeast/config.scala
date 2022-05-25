@@ -20,6 +20,15 @@ package object config {
       .longConf
       .createWithDefault(100000L)
 
+  private[config] val default_number_of_tries: ConfigEntry[Int] =
+    ConfigBuilder("spark.qbeast.index.numberOfTries")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(2)
+
+  def DEFAULT_NUMBER_OF_TRIES: Int = QbeastContext.config
+    .get(default_number_of_tries)
+
   def DEFAULT_CUBE_SIZE: Int = QbeastContext.config
     .get(default_cube_size)
 

@@ -56,7 +56,7 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction]
    * @param oldReplicatedSet the cubes we know they were announced when the write operation started.
    * @return true if there a conflict, false otherwise
    */
-  override def isConflicted(
+  override def hasConflicts(
       tableID: QTableID,
       revisionID: RevisionID,
       knownAnnounced: Set[CubeId],

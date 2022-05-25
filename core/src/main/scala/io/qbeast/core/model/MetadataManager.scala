@@ -55,9 +55,9 @@ trait MetadataManager[DataSchema, FileDescriptor] {
    * @param revisionID the revision ID
    * @param knownAnnounced the cubes we know they were announced when the write operation started.
    * @param oldReplicatedSet the old replicated set
-   * @return true if there a conflict, false otherwise
+   * @return true if there is a conflict, false otherwise
    */
-  def isConflicted(
+  def hasConflicts(
       tableID: QTableID,
       revisionID: RevisionID,
       knownAnnounced: Set[CubeId],

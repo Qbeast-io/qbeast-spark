@@ -9,6 +9,7 @@ import io.qbeast.spark.delta.CubeDataLoader
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
+import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_TRIES
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
@@ -196,7 +197,7 @@ private[table] class IndexedTableImpl(
   private def write(data: DataFrame, indexStatus: IndexStatus, append: Boolean): BaseRelation = {
     val revision = indexStatus.revision
     keeper.withWrite(tableID, revision.revisionID) { write =>
-      var tries = 2
+      var tries = DEFAULT_NUMBER_OF_TRIES
       while (tries > 0) {
         val announcedSet = write.announcedCubes.map(indexStatus.revision.createCubeId)
         val updatedStatus = indexStatus.addAnnouncements(announcedSet)
@@ -207,7 +208,7 @@ private[table] class IndexedTableImpl(
           tries = 0
         } catch {
           case cme: ConcurrentModificationException
-              if metadataManager.isConflicted(
+              if metadataManager.hasConflicts(
                 tableID,
                 revisionID,
                 replicatedSet,
