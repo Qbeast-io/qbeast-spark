@@ -47,15 +47,6 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction]
     DeltaQbeastLog(DeltaLog.forTable(SparkSession.active, tableID.id))
   }
 
-  /**
-   * This function checks if there's a conflict. A conflict happens if there
-   * are new cubes that have been optimized but they were not announced.
-   *
-   * @param tableID the table ID
-   * @param revisionID the revision ID
-   * @param oldReplicatedSet the cubes we know they were announced when the write operation started.
-   * @return true if there a conflict, false otherwise
-   */
   override def hasConflicts(
       tableID: QTableID,
       revisionID: RevisionID,
