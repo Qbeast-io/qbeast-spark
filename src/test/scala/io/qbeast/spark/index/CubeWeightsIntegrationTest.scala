@@ -1,12 +1,14 @@
 package io.qbeast.spark.index
 
 import io.qbeast.TestClasses.Client3
-import io.qbeast.core.model.{CubeStatus, IndexStatus, QTableID, Weight}
+import io.qbeast.core.model.{CubeStatus, CubeWeightsBuilder, IndexStatus, QTableID, Weight}
 import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
+import org.apache.spark.qbeast.config.{CUBE_WEIGHTS_BUFFER_CAPACITY, DEFAULT_CUBE_SIZE}
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.delta.DeltaLog
+import org.scalatest.PrivateMethodTester
 
-class CubeWeightsIntegrationTest extends QbeastIntegrationTestSpec {
+class CubeWeightsIntegrationTest extends QbeastIntegrationTestSpec with PrivateMethodTester {
 
   def createDF(size: Int): Dataset[Client3] = {
     val spark = SparkSession.active
@@ -67,5 +69,33 @@ class CubeWeightsIntegrationTest extends QbeastIntegrationTestSpec {
       weight shouldBe >(Weight.MinValue)
       weight shouldBe <=(Weight.MaxValue)
     }
+  }
+
+  it should "respect the lower bound for groupCubeSize(1000)" in withSpark { _ =>
+    val numElements =
+      DEFAULT_CUBE_SIZE * CUBE_WEIGHTS_BUFFER_CAPACITY / CubeWeightsBuilder.minGroupCubeSize
+    val numPartitions = 1
+    val estimateGroupCubeSize = PrivateMethod[Int]('estimateGroupCubeSize)
+
+    // numElements = 5e11 > 5e8 => groupCubeSize < 1000 => groupCubeSize = 1000
+    CubeWeightsBuilder invokePrivate estimateGroupCubeSize(
+      DEFAULT_CUBE_SIZE,
+      numPartitions,
+      numElements * 1000,
+      CUBE_WEIGHTS_BUFFER_CAPACITY) shouldBe CubeWeightsBuilder.minGroupCubeSize
+
+    // numElements = 5e8 => groupCubeSize = 1000
+    CubeWeightsBuilder invokePrivate estimateGroupCubeSize(
+      DEFAULT_CUBE_SIZE,
+      numPartitions,
+      numElements,
+      CUBE_WEIGHTS_BUFFER_CAPACITY) shouldBe CubeWeightsBuilder.minGroupCubeSize
+
+    // numElements = 5e6 < 5e8 => groupCubeSize > 1000
+    CubeWeightsBuilder invokePrivate estimateGroupCubeSize(
+      DEFAULT_CUBE_SIZE,
+      numPartitions,
+      numElements / 100,
+      CUBE_WEIGHTS_BUFFER_CAPACITY) shouldBe >(CubeWeightsBuilder.minGroupCubeSize)
   }
 }
