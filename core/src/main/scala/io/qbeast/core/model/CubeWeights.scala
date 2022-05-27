@@ -6,6 +6,7 @@ import io.qbeast.core.model.Weight.MaxValue
 import scala.collection.mutable
 
 object CubeWeightsBuilder {
+  val minGroupCubeSize = 1000
 
   /**
    * Estimates the groupCubeSize depending on the input parameters.
@@ -25,7 +26,7 @@ object CubeWeightsBuilder {
       bufferCapacity: Long): Int = {
     val numGroups = Math.max(numPartitions, numElements / bufferCapacity)
     val groupCubeSize = desiredCubeSize / numGroups
-    Math.max(1, groupCubeSize.toInt)
+    Math.max(minGroupCubeSize, groupCubeSize.toInt)
   }
 
 }
@@ -34,13 +35,13 @@ object CubeWeightsBuilder {
  * Builder for creating cube weights.
  *
  * @param desiredCubeSize           the desired cube size
- * @param groupSize                 the number of elements for each group
+ * @param groupCubeSize                 the number of elements for each group
  * @param bufferCapacity the buffer capacity to store the cube weights in memory
  * @param replicatedOrAnnouncedSet the announced or replicated cubes' identifiers
  */
 class CubeWeightsBuilder protected (
     private val desiredCubeSize: Int,
-    private val groupSize: Int,
+    private val groupCubeSize: Int,
     private val bufferCapacity: Long,
     private val replicatedOrAnnouncedSet: Set[CubeId] = Set.empty)
     extends Serializable {
@@ -103,9 +104,9 @@ class CubeWeightsBuilder protected (
       while (continue && containers.hasNext) {
         val cubeId = containers.next()
         val weightAndCount = weights.getOrElseUpdate(cubeId, new WeightAndCount(MaxValue, 0))
-        if (weightAndCount.count < groupSize) {
+        if (weightAndCount.count < groupCubeSize) {
           weightAndCount.count += 1
-          if (weightAndCount.count == groupSize) {
+          if (weightAndCount.count == groupCubeSize) {
             weightAndCount.weight = weight
           }
           continue = replicatedOrAnnouncedSet.contains(cubeId)
@@ -113,9 +114,9 @@ class CubeWeightsBuilder protected (
       }
     }
     weights.map {
-      case (cubeId, weightAndCount) if weightAndCount.count == groupSize =>
-        val s = desiredCubeSize / groupSize
-        CubeNormalizedWeight(cubeId.bytes, NormalizedWeight(weightAndCount.weight) * s)
+      case (cubeId, weightAndCount) if weightAndCount.count == groupCubeSize =>
+        val numGroups = desiredCubeSize / groupCubeSize
+        CubeNormalizedWeight(cubeId.bytes, NormalizedWeight(weightAndCount.weight) * numGroups)
       case (cubeId, weightAndCount) =>
         CubeNormalizedWeight(
           cubeId.bytes,
