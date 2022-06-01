@@ -3,7 +3,7 @@ package io.qbeast.spark.keeper
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model._
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.delta.{DeltaQbeastSnapshot, SparkDeltaMetadataManager}
+import io.qbeast.spark.delta.{DeltaQbeastSnapshot, MetadataWriterTest, SparkDeltaMetadataManager}
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.delta.{DeltaLog, DeltaOperations, DeltaOptions}
 import org.apache.spark.sql.types.StructType

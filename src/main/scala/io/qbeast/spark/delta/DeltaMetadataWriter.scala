@@ -89,7 +89,7 @@ private[delta] case class DeltaMetadataWriter(
    * @param newFiles files to add or remove
    * @return the sequence of file actions to save in the commit log(add, remove...)
    */
-  private def updateMetadata(
+  protected def updateMetadata(
       txn: OptimisticTransaction,
       tableChanges: TableChanges,
       newFiles: Seq[FileAction]): Seq[Action] = {
