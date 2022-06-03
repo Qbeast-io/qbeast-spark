@@ -70,7 +70,7 @@ class QbeastSamplingTest extends QbeastIntegrationTestSpec {
         writeTestData(data, Seq("user_id", "product_id"), 1000, tmpDir)
 
         val df = spark.read.format("qbeast").load(tmpDir)
-        val precision = 0.1
+        val precision = 0.01
 
         val query = df.sample(withReplacement = false, precision)
         checkFileFiltering(query)
