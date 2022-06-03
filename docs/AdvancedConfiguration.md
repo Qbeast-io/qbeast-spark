@@ -25,6 +25,15 @@ df.write.format("qbeast")
   .option("cubeSize", "10000")
 ```
 
+## DefaultCubeSize
+
+If you don't specify the cubeSize at DataFrame level, the default value is used. This is set to 5M, so if you want to change it
+for testing or production purposes, you can do it through Spark Configuration:
+
+```shell
+--conf spark.qbeast.index.defaultCubeSize=100000
+```
+
 ## CubeWeightsBufferCapacity
 
 ### Trade-off between memory pressure and index quality
@@ -42,3 +51,17 @@ groupCubeSize = desiredCubeSize / numGroups
 As you can infer from the formula, the number of working groups used when scanning the dataset influences the quality
 of the data distribution. A lower number of groups will result in a higher index precision, while having more groups
 and fewer elements per group will lead to worse indexes.
+
+You can change this number through the Spark Configuration:
+
+```shell
+--conf spark.qbeast.index.cubeWeightsBufferCapacity=10000
+```
+
+## NumberOfRetries
+
+You can change the number of retries for the LocalKeeper in order to test it. 
+
+```shell
+--conf spark.qbeast.index.numberOfRetries=10000
+```
