@@ -17,9 +17,12 @@ class QbeastConfigTest extends AnyFlatSpec with Matchers with QbeastIntegrationT
   it should "change configurations accordingly" in withExtendedSpark(
     new SparkConf()
       .set("spark.qbeast.index.defaultCubeSize", "1000")
-      .set("spark.qbeast.index.cubeWeightsBufferCapacity", "1000")) { _ =>
+      .set("spark.qbeast.index.cubeWeightsBufferCapacity", "1000")
+      .set("spark.qbeast.index.numberOfRetries", "10")) { _ =>
     config.DEFAULT_CUBE_SIZE shouldBe 1000
     config.CUBE_WEIGHTS_BUFFER_CAPACITY shouldBe 1000
+    config.DEFAULT_NUMBER_OF_RETRIES shouldBe 10
+
   }
 
   "Spark.qbeast.keeper" should "not be defined" in withSpark { _ =>

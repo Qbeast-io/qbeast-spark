@@ -9,10 +9,13 @@ import io.qbeast.spark.delta.CubeDataLoader
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
+import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame}
+
+import java.util.ConcurrentModificationException
 
 /**
  * Indexed table represents the tabular data storage
@@ -193,16 +196,30 @@ private[table] class IndexedTableImpl(
 
   private def write(data: DataFrame, indexStatus: IndexStatus, append: Boolean): BaseRelation = {
     val revision = indexStatus.revision
-
-    if (exists) {
-      keeper.withWrite(tableID, revision.revisionID) { write =>
-        val announcedSet = write.announcedCubes.map(revision.createCubeId)
+    keeper.withWrite(tableID, revision.revisionID) { write =>
+      var tries = DEFAULT_NUMBER_OF_RETRIES
+      while (tries > 0) {
+        val announcedSet = write.announcedCubes.map(indexStatus.revision.createCubeId)
         val updatedStatus = indexStatus.addAnnouncements(announcedSet)
-        doWrite(data, updatedStatus, append)
-      }
-    } else {
-      keeper.withWrite(tableID, revision.revisionID) { write =>
-        doWrite(data, indexStatus, append)
+        val replicatedSet = updatedStatus.replicatedSet
+        val revisionID = updatedStatus.revision.revisionID
+        try {
+          doWrite(data, updatedStatus, append)
+          tries = 0
+        } catch {
+          case cme: ConcurrentModificationException
+              if metadataManager.hasConflicts(
+                tableID,
+                revisionID,
+                replicatedSet,
+                announcedSet) || tries == 0 =>
+            // Nothing to do, the conflict is unsolvable
+            throw cme
+          case _: ConcurrentModificationException =>
+            // Trying one more time if the conflict is solvable
+            tries -= 1
+        }
+
       }
     }
     clearCaches()
@@ -241,24 +258,40 @@ private[table] class IndexedTableImpl(
     val schema = metadataManager.loadCurrentSchema(tableID)
 
     if (cubesToReplicate.nonEmpty) {
-      metadataManager.updateWithTransaction(tableID, schema, append = true) {
-        val dataToReplicate =
-          CubeDataLoader(tableID).loadSetWithCubeColumn(
-            cubesToReplicate,
-            indexStatus.revision,
-            QbeastColumns.cubeToReplicateColumnName)
-        val (qbeastData, tableChanges) =
-          indexManager.optimize(dataToReplicate, indexStatus)
-        val fileActions =
-          dataWriter.write(tableID, schema, qbeastData, tableChanges)
-        (tableChanges, fileActions)
+      try {
+        // Try to commit transaction
+        doOptimize(schema, indexStatus, cubesToReplicate)
+      } catch {
+        case _: ConcurrentModificationException => bo.end(Set())
+      } finally {
+        // end keeper transaction
+        bo.end(cubesToReplicate.map(_.string))
       }
+    } else {
+      bo.end(Set())
     }
 
-    bo.end(cubesToReplicate.map(_.string))
-    // end keeper transaction
-
     clearCaches()
+  }
+
+  private def doOptimize(
+      schema: StructType,
+      indexStatus: IndexStatus,
+      cubesToOptimize: Set[CubeId]): Unit = {
+
+    metadataManager.updateWithTransaction(tableID, schema, append = true) {
+      val dataToReplicate =
+        CubeDataLoader(tableID).loadSetWithCubeColumn(
+          cubesToOptimize,
+          indexStatus.revision,
+          QbeastColumns.cubeToReplicateColumnName)
+      val (qbeastData, tableChanges) =
+        indexManager.optimize(dataToReplicate, indexStatus)
+      val fileActions =
+        dataWriter.write(tableID, schema, qbeastData, tableChanges)
+      (tableChanges, fileActions)
+    }
+
   }
 
 }
