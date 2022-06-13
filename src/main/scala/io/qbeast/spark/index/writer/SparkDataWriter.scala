@@ -4,7 +4,7 @@
 package io.qbeast.spark.index.writer
 
 import io.qbeast.IISeq
-import io.qbeast.core.model.{DataWriter, QTableID, TableChanges}
+import io.qbeast.core.model.{CubeId, DataWriter, QTableID, QbeastBlock, TableChanges}
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.index.QbeastColumns.cubeColumnName
 import org.apache.hadoop.mapreduce.Job
@@ -56,6 +56,24 @@ object SparkDataWriter extends DataWriter[DataFrame, StructType, FileAction] {
       .mapPartitions(blockWriter.writeRow)
       .collect()
       .toIndexedSeq
+
+  }
+
+  /**
+   * Compact the files
+   *
+   * @param tableID
+   * @param schema
+   * @param data
+   * @param tableChanges
+   * @return
+   */
+  override def compact(
+      tableID: QTableID,
+      schema: StructType,
+      cubesToCompact: Map[CubeId, Seq[QbeastBlock]]): IISeq[FileAction] = {
+
+    Seq.empty.toIndexedSeq
 
   }
 

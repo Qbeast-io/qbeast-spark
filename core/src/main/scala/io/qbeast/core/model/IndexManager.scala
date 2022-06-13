@@ -31,4 +31,11 @@ trait IndexManager[DATA] {
    */
   def analyze(indexStatus: IndexStatus): IISeq[CubeId]
 
+  /**
+   * Compacts the current
+   * @param indexStatus
+   * @return
+   */
+  def compact(indexStatus: IndexStatus): IISeq[CubeId]
+
 }

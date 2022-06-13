@@ -9,13 +9,19 @@ import io.qbeast.spark.delta.CubeDataLoader
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
-import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
-import org.apache.spark.sql.delta.actions.FileAction
+import org.apache.spark.qbeast.config.{DEFAULT_NUMBER_OF_RETRIES, MIN_FILE_SIZE_COMPACTION}
+import org.apache.spark.sql.delta.{DeltaErrors, DeltaOperations}
+import org.apache.spark.sql.delta.actions.{AddFile, FileAction, RemoveFile}
+import org.apache.spark.sql.delta.commands.optimize.OptimizeStats
+import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame}
+import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, Row}
+import org.apache.spark.util.ThreadUtils
 
 import java.util.ConcurrentModificationException
+import scala.collection.parallel.ForkJoinTaskSupport
+import scala.collection.parallel.immutable.ParVector
 
 /**
  * Indexed table represents the tabular data storage
@@ -67,6 +73,11 @@ trait IndexedTable {
    * @param revisionID the identifier of revision to optimize
    */
   def optimize(revisionID: RevisionID): Unit
+
+  /**
+   * Compacts the small files for a given table
+   */
+  def compact(revisionID: RevisionID): Unit
 }
 
 /**
@@ -290,6 +301,22 @@ private[table] class IndexedTableImpl(
       val fileActions =
         dataWriter.write(tableID, schema, qbeastData, tableChanges)
       (tableChanges, fileActions)
+    }
+
+  }
+
+  override def compact(revisionID: RevisionID): Unit = {
+
+    val schema = metadataManager.loadCurrentSchema(tableID)
+    val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
+    val candidateFilesToCompact = currentIndexStatus.cubesStatuses
+      .mapValues(_.files.filter(_.size < MIN_FILE_SIZE_COMPACTION))
+
+    metadataManager.updateWithTransaction(tableID, schema, true) {
+      val fileActions = dataWriter.compact(tableID, schema, candidateFilesToCompact)
+      val emptyTableChanges = EmptyTableChanges()
+      (emptyTableChanges, fileActions)
+
     }
 
   }
