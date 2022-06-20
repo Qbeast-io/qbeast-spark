@@ -24,4 +24,18 @@ trait DataWriter[DATA, DataSchema, FileDescriptor] {
       data: DATA,
       tableChanges: TableChanges): IISeq[FileDescriptor]
 
+  /**
+   * Compact the files
+   * @param tableID
+   * @param schema
+   * @param data
+   * @param tableChanges
+   * @return
+   */
+  def compact(
+      tableID: QTableID,
+      schema: DataSchema,
+      filesToCompact: Map[CubeId, Seq[QbeastBlock]],
+      tableChanges: TableChanges): IISeq[FileDescriptor]
+
 }

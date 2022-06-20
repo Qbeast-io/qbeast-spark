@@ -9,7 +9,7 @@ import io.qbeast.spark.delta.CubeDataLoader
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
-import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
+import org.apache.spark.qbeast.config.{DEFAULT_NUMBER_OF_RETRIES, MIN_FILE_SIZE_COMPACTION}
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
@@ -67,6 +67,11 @@ trait IndexedTable {
    * @param revisionID the identifier of revision to optimize
    */
   def optimize(revisionID: RevisionID): Unit
+
+  /**
+   * Compacts the small files for a given table
+   */
+  def compact(revisionID: RevisionID): Unit
 }
 
 /**
@@ -295,6 +300,25 @@ private[table] class IndexedTableImpl(
       val fileActions =
         dataWriter.write(tableID, schema, qbeastData, tableChanges)
       (tableChanges, fileActions)
+    }
+
+  }
+
+  override def compact(revisionID: RevisionID): Unit = {
+
+    val schema = metadataManager.loadCurrentSchema(tableID)
+
+    metadataManager.updateWithTransaction(tableID, schema, true) {
+      val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
+      val candidateFilesToCompact = currentIndexStatus.cubesStatuses
+        .mapValues(_.files.filter(_.size < MIN_FILE_SIZE_COMPACTION))
+
+      // TODO EmptyTableChanges
+      val emptyTableChanges = EmptyTableChanges()
+      val fileActions =
+        dataWriter.compact(tableID, schema, candidateFilesToCompact, emptyTableChanges)
+      (emptyTableChanges, fileActions)
+
     }
 
   }

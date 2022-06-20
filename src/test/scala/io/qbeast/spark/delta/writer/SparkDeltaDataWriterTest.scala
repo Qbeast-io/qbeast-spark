@@ -1,4 +1,4 @@
-package io.qbeast.spark.index.writer
+package io.qbeast.spark.delta.writer
 
 import io.qbeast.TestClasses._
 import io.qbeast.core.model.{IndexStatus, QTableID, TableChanges}
@@ -6,9 +6,10 @@ import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionFactory}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, SparkSession}
+
 import scala.reflect.io.Path
 
-class SparkDataWriterTest extends QbeastIntegrationTestSpec {
+class SparkDeltaDataWriterTest extends QbeastIntegrationTestSpec {
 
   /**
    * Get values needed to test a DataWriter.
@@ -39,7 +40,7 @@ class SparkDataWriterTest extends QbeastIntegrationTestSpec {
     withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
       val (tableID, schema, qbeastData, tableChanges) =
         prepareDataWriter(spark, tmpDir, 10000, 1000)
-      val fileActions = SparkDataWriter.write(tableID, schema, qbeastData, tableChanges)
+      val fileActions = SparkDeltaDataWriter.write(tableID, schema, qbeastData, tableChanges)
 
       for (fa <- fileActions) {
         Path(tmpDir + "/" + fa.path).exists shouldBe true

@@ -6,7 +6,11 @@ package io.qbeast.spark
 import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.{CubeId, CubeStatus, QTableID, RevisionID}
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.internal.commands.{AnalyzeTableCommand, OptimizeTableCommand}
+import io.qbeast.spark.internal.commands.{
+  AnalyzeTableCommand,
+  CompactTableCommand,
+  OptimizeTableCommand
+}
 import io.qbeast.spark.table._
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
@@ -72,6 +76,24 @@ class QbeastTable private (
 
   def analyze(): Seq[String] = {
     AnalyzeTableCommand(latestRevisionAvailableID, indexedTable)
+      .run(sparkSession)
+      .map(_.getString(0))
+  }
+
+  /**
+   * The compact operation should compact the small files in the table
+   * @param revisionID the identifier of the revision to optimize.
+   *                        If doesn't exist or none is specified, would be the last available
+   * @return
+   */
+  def compact(revisionID: RevisionID): Unit = {
+    CompactTableCommand(getAvailableRevision(revisionID), indexedTable)
+      .run(sparkSession)
+      .map(_.getString(0))
+  }
+
+  def compact(): Seq[String] = {
+    CompactTableCommand(latestRevisionAvailableID, indexedTable)
       .run(sparkSession)
       .map(_.getString(0))
   }
