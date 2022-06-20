@@ -10,18 +10,12 @@ import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import org.apache.spark.qbeast.config.{DEFAULT_NUMBER_OF_RETRIES, MIN_FILE_SIZE_COMPACTION}
-import org.apache.spark.sql.delta.{DeltaErrors, DeltaOperations}
-import org.apache.spark.sql.delta.actions.{AddFile, FileAction, RemoveFile}
-import org.apache.spark.sql.delta.commands.optimize.OptimizeStats
-import org.apache.spark.sql.delta.sources.DeltaSQLConf
+import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, Row}
-import org.apache.spark.util.ThreadUtils
+import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame}
 
 import java.util.ConcurrentModificationException
-import scala.collection.parallel.ForkJoinTaskSupport
-import scala.collection.parallel.immutable.ParVector
 
 /**
  * Indexed table represents the tabular data storage
@@ -308,13 +302,16 @@ private[table] class IndexedTableImpl(
   override def compact(revisionID: RevisionID): Unit = {
 
     val schema = metadataManager.loadCurrentSchema(tableID)
-    val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
-    val candidateFilesToCompact = currentIndexStatus.cubesStatuses
-      .mapValues(_.files.filter(_.size < MIN_FILE_SIZE_COMPACTION))
 
     metadataManager.updateWithTransaction(tableID, schema, true) {
-      val fileActions = dataWriter.compact(tableID, schema, candidateFilesToCompact)
+      val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
+      val candidateFilesToCompact = currentIndexStatus.cubesStatuses
+        .mapValues(_.files.filter(_.size < MIN_FILE_SIZE_COMPACTION))
+
+      // TODO EmptyTableChanges
       val emptyTableChanges = EmptyTableChanges()
+      val fileActions =
+        dataWriter.compact(tableID, schema, candidateFilesToCompact, emptyTableChanges)
       (emptyTableChanges, fileActions)
 
     }

@@ -91,7 +91,7 @@ class QbeastTable private (
   }
 
   def compact(): Seq[String] = {
-    AnalyzeTableCommand(latestRevisionAvailableID, indexedTable)
+    CompactTableCommand(latestRevisionAvailableID, indexedTable)
       .run(sparkSession)
       .map(_.getString(0))
   }

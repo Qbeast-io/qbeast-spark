@@ -35,6 +35,7 @@ trait DataWriter[DATA, DataSchema, FileDescriptor] {
   def compact(
       tableID: QTableID,
       schema: DataSchema,
-      filesToCompact: Map[CubeId, Seq[QbeastBlock]]): IISeq[FileDescriptor]
+      filesToCompact: Map[CubeId, Seq[QbeastBlock]],
+      tableChanges: TableChanges): IISeq[FileDescriptor]
 
 }
