@@ -80,6 +80,11 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
     }
   }
 
+  def withExtendedSparkAndTmpDir[T](sparkConf: SparkConf = new SparkConf())(
+      testCode: (SparkSession, String) => T): T = {
+    withTmpDir(tmpDir => withExtendedSpark(sparkConf)(spark => testCode(spark, tmpDir)))
+  }
+
   /**
    * This function is used to create a spark session
    * @param testCode the code to test within the spark session

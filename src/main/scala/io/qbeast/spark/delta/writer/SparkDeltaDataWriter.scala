@@ -7,6 +7,7 @@ import io.qbeast.IISeq
 import io.qbeast.core.model._
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.index.QbeastColumns.cubeColumnName
+import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.qbeast.config.MAX_FILE_SIZE_COMPACTION
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -97,18 +98,18 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
         val forkJoinPoolTaskSupport = new ForkJoinTaskSupport(threadPool)
         parallelJobCollection.tasksupport = forkJoinPoolTaskSupport
 
-        parallelJobCollection.flatMap { case (cubeId: CubeId, blocks) =>
-          val blocksSize = blocks.map(_.size).sum
-          val addFiles = if (blocksSize <= MAX_FILE_SIZE_COMPACTION) {
-            // TODO use CubeDataLoader
+        parallelJobCollection.flatMap { case (cubeId: CubeId, cubeBlocks) =>
+          val blocksSize = cubeBlocks.map(_.size).sum
+          val addFiles = if (blocksSize > 0 && blocksSize <= MAX_FILE_SIZE_COMPACTION) {
+
+            val fileNames = cubeBlocks.map(f => new Path(tableID.id, f.path).toString)
             val data = sparkSession.read
               .format("parquet")
-              .load(blocks.map(b => tableID.id + "/" + b.path): _*)
-              .withColumn(cubeColumnName, lit(cubeId.string))
+              .load(fileNames: _*)
+              .withColumn(cubeColumnName, lit(cubeId.bytes))
 
             val qbeastColumns = QbeastColumns(data)
 
-            // put correct table changes
             val blockWriter = BlockWriter(
               dataPath = tableID.id,
               schema = schema,
@@ -131,7 +132,7 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
             Seq.empty
           }
 
-          addFiles ++ blocks.map(b => RemoveFile(b.path, Some(System.currentTimeMillis())))
+          addFiles ++ cubeBlocks.map(b => RemoveFile(b.path, Some(System.currentTimeMillis())))
 
         }.seq
       } finally {

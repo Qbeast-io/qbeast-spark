@@ -311,13 +311,13 @@ private[table] class IndexedTableImpl(
     metadataManager.updateWithTransaction(tableID, schema, true) {
       val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
       val candidateFilesToCompact = currentIndexStatus.cubesStatuses
-        .mapValues(_.files.filter(_.size < MIN_FILE_SIZE_COMPACTION))
+        .mapValues(_.files.filter(_.size >= MIN_FILE_SIZE_COMPACTION))
+        .filter(_._2.nonEmpty)
 
-      // TODO EmptyTableChanges
-      val emptyTableChanges = EmptyTableChanges()
+      val tableChanges = BroadcastedTableChanges(None, currentIndexStatus, Map.empty)
       val fileActions =
-        dataWriter.compact(tableID, schema, candidateFilesToCompact, emptyTableChanges)
-      (emptyTableChanges, fileActions)
+        dataWriter.compact(tableID, schema, candidateFilesToCompact, tableChanges)
+      (tableChanges, fileActions)
 
     }
 
