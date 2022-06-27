@@ -20,9 +20,11 @@ class HashTransformationTest extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "create null value of length 10" in {
+  it should "create null value of random int" in {
     val ht = HashTransformation()
-    ht.nullValue.asInstanceOf[String].length should be(10)
+    val nullValue = ht.nullValue.asInstanceOf[Int]
+    nullValue should be >= Int.MinValue
+    nullValue should be < Int.MaxValue
   }
 
   "The murmur" should "uniformly distributed with Strings" in {
