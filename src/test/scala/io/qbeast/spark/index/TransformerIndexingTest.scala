@@ -6,6 +6,8 @@ import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.util.Random
+
 class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec {
 
   // Write source data indexing all columns and read it back
@@ -243,4 +245,34 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
       assertSmallDatasetEquality(source, indexed, orderedComparison = false)
     })
 
+  it should "don't miss records when indexing null string" in withSparkAndTmpDir(
+    (spark, tmpDir) => {
+
+      // Reproducing a particular Github Archive dataset
+      // with all null values in one column
+      // and poor cardinality (4 groups) in the other
+      import spark.implicits._
+      val source = 1
+        .to(200000)
+        .map(i => TestNull(None, None, Some(Random.nextInt(4))))
+        .toDF()
+        .as[TestNull]
+
+      source.write
+        .format("qbeast")
+        .option("columnsToIndex", "a,c")
+        .option("cubeSize", 10000)
+        .save(tmpDir)
+
+      val indexed = spark.read.format("qbeast").load(tmpDir)
+
+      val is_null = """a is null"""
+      indexed.where(is_null).count() shouldBe 200000
+
+      (1 to 4).foreach(i => {
+        val filter = s"""a is null and c == $i"""
+        indexed.where(filter).count() shouldBe source.where(filter).count()
+      })
+
+    })
 }
