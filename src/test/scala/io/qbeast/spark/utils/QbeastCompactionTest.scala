@@ -85,9 +85,6 @@ class QbeastCompactionTest extends QbeastIntegrationTestSpec {
 
     val data = loadTestData(spark)
 
-    // Creating four batches of 20000 elements each one
-    // So they all go to the root cube
-    // and we can compact them later
     val batch = data
 
     // Write four batches
