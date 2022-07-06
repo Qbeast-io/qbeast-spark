@@ -7,7 +7,7 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions._
 
-class QbeastCompactionTest extends QbeastIntegrationTestSpec {
+class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
 
   private def writeTestDataInBatches(batch: DataFrame, tmpDir: String, numBatches: Int): Unit = {
     1.to(numBatches).foreach { _ =>
@@ -85,10 +85,8 @@ class QbeastCompactionTest extends QbeastIntegrationTestSpec {
 
     val data = loadTestData(spark)
 
-    val batch = data
-
     // Write four batches
-    writeTestDataInBatches(batch, tmpDir, 4)
+    writeTestDataInBatches(data, tmpDir, 4)
 
     val deltaLog = DeltaLog.forTable(spark, tmpDir)
     val originalIndexStatus = DeltaQbeastSnapshot(deltaLog.snapshot).loadLatestIndexStatus
@@ -98,12 +96,13 @@ class QbeastCompactionTest extends QbeastIntegrationTestSpec {
 
     val newIndexStatus = DeltaQbeastSnapshot(deltaLog.update()).loadLatestIndexStatus
 
-    originalIndexStatus.revision shouldBe newIndexStatus.revision
+    newIndexStatus.revision shouldBe originalIndexStatus.revision
     originalIndexStatus.cubesStatuses.foreach { case (cube, weight) =>
       newIndexStatus.cubesStatuses.get(cube) shouldBe defined
       newIndexStatus.cubesStatuses(cube) shouldBe weight
     }
-    originalIndexStatus.replicatedSet shouldBe newIndexStatus.replicatedSet
-    originalIndexStatus.announcedSet shouldBe newIndexStatus.announcedSet
+    newIndexStatus.replicatedSet shouldBe originalIndexStatus.replicatedSet
+    newIndexStatus.announcedSet shouldBe originalIndexStatus.announcedSet
   })
+
 }
