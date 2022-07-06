@@ -1,5 +1,6 @@
 package io.qbeast.spark.utils
 
+import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.DataFrame
@@ -79,4 +80,33 @@ class QbeastCompactionTest extends QbeastIntegrationTestSpec {
 
       }
     }
+
+  it should "respect cube information" in withQbeastContextSparkAndTmpDir((spark, tmpDir) => {
+
+    val data = loadTestData(spark)
+
+    // Creating four batches of 20000 elements each one
+    // So they all go to the root cube
+    // and we can compact them later
+    val batch = data
+
+    // Write four batches
+    writeTestDataInBatches(batch, tmpDir, 4)
+
+    val deltaLog = DeltaLog.forTable(spark, tmpDir)
+    val originalIndexStatus = DeltaQbeastSnapshot(deltaLog.snapshot).loadLatestIndexStatus
+
+    val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+    qbeastTable.compact()
+
+    val newIndexStatus = DeltaQbeastSnapshot(deltaLog.update()).loadLatestIndexStatus
+
+    originalIndexStatus.revision shouldBe newIndexStatus.revision
+    originalIndexStatus.cubesStatuses.foreach { case (cube, weight) =>
+      newIndexStatus.cubesStatuses.get(cube) shouldBe defined
+      newIndexStatus.cubesStatuses(cube) shouldBe weight
+    }
+    originalIndexStatus.replicatedSet shouldBe newIndexStatus.replicatedSet
+    originalIndexStatus.announcedSet shouldBe newIndexStatus.announcedSet
+  })
 }
