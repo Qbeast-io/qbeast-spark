@@ -9,7 +9,7 @@ import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.index.QbeastColumns.cubeColumnName
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.Job
-import org.apache.spark.qbeast.config.MAX_FILE_SIZE_COMPACTION
+import org.apache.spark.qbeast.config.{MAX_FILE_SIZE_COMPACTION}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.delta.actions.{AddFile, FileAction, RemoveFile}
 import org.apache.spark.sql.execution.datasources.OutputWriterFactory
@@ -65,7 +65,10 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
   }
 
   /**
-   * Compact the files
+   * Compact the files.
+   * Method based on Delta Lake OptimizeTableCommand
+   * Experimental: the implementation may change by using the CubeID as partition key
+   * and delegating the further exeution to the underlying Format
    *
    * @param tableID
    * @param schema
@@ -77,10 +80,44 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
       tableID: QTableID,
       schema: StructType,
       cubesToCompact: Map[CubeId, Seq[QbeastBlock]],
-      tableChanges: TableChanges): IISeq[FileAction] = {
+      oldTableChanges: TableChanges): IISeq[FileAction] = {
 
     val sparkSession = SparkSession.active
-    val parallelJobCollection = new ParVector(cubesToCompact.toVector)
+
+    // Group the files into units of data
+    // that lays between [MIN_FILE_SIZE_COMPACTION, MAX_FILE_SIZE_COMPACTION]
+    // Based on groupFilesIntoBins from Delta Lake OptimizeTableCommand
+    val cubesToCompactGrouped = {
+      cubesToCompact.flatMap { case (cube, blocks) =>
+        val sizeHint = blocks.size
+        val groups = Seq.newBuilder[Seq[QbeastBlock]]
+        val g = Seq.newBuilder[QbeastBlock]
+        var count = 0L
+
+        groups.sizeHint(sizeHint)
+        g.sizeHint(sizeHint)
+
+        blocks.foreach(b => {
+          if (b.size + count > MAX_FILE_SIZE_COMPACTION) {
+            // If we reach the MAX_FILE_SIZE_COMPACTION limit
+            // we output a group of files for that cube
+            groups += g.result()
+            // Clear the current group
+            g.clear()
+            // Add the block to the current group
+            g += b
+            count = b.size
+          } else {
+            g += b
+            count += b.size
+          }
+        })
+        groups += g.result() // Add the last group
+        groups.result().map(b => (cube, b))
+      }
+    }
+
+    val parallelJobCollection = new ParVector(cubesToCompactGrouped.toVector)
 
     val threadPool =
       QbeastThreadUtils.threadUtils.newForkJoinPool("Compaction", maxThreadNumber = 15)
@@ -97,40 +134,41 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
       try {
         val forkJoinPoolTaskSupport = new ForkJoinTaskSupport(threadPool)
         parallelJobCollection.tasksupport = forkJoinPoolTaskSupport
-
         parallelJobCollection.flatMap { case (cubeId: CubeId, cubeBlocks) =>
           val blocksSize = cubeBlocks.map(_.size).sum
-          val addFiles = if (blocksSize > 0 && blocksSize <= MAX_FILE_SIZE_COMPACTION) {
+          val addFiles =
+            if (blocksSize == 0) Seq.empty
+            else {
 
-            val fileNames = cubeBlocks.map(f => new Path(tableID.id, f.path).toString)
-            val data = sparkSession.read
-              .format("parquet")
-              .load(fileNames: _*)
-              .withColumn(cubeColumnName, lit(cubeId.bytes))
+              // Get the file names for the cubeId
+              val fileNames = cubeBlocks.map(f => new Path(tableID.id, f.path).toString)
 
-            val qbeastColumns = QbeastColumns(data)
+              // Load the data into a DataFrame
+              val data = sparkSession.read
+                .format("parquet")
+                .load(fileNames: _*)
+                .withColumn(cubeColumnName, lit(cubeId.bytes))
 
-            val blockWriter = BlockWriter(
-              dataPath = tableID.id,
-              schema = schema,
-              schemaIndex = schema,
-              factory = factory,
-              serConf = serConf,
-              qbeastColumns = qbeastColumns,
-              tableChanges = tableChanges)
+              val qbeastColumns = QbeastColumns(data)
 
-            data
-              .coalesce(1)
-              .queryExecution
-              .executedPlan
-              .execute
-              .mapPartitions(blockWriter.writeRow)
-              .collect()
-              .toIndexedSeq
-          } else {
-            // TODO
-            Seq.empty
-          }
+              val blockWriter = BlockWriter(
+                dataPath = tableID.id,
+                schema = schema,
+                schemaIndex = schema,
+                factory = factory,
+                serConf = serConf,
+                qbeastColumns = qbeastColumns,
+                tableChanges = oldTableChanges)
+
+              data
+                .coalesce(1)
+                .queryExecution
+                .executedPlan
+                .execute
+                .mapPartitions(blockWriter.writeRow)
+                .collect()
+                .toIndexedSeq
+            }
 
           addFiles ++ cubeBlocks.map(b => RemoveFile(b.path, Some(System.currentTimeMillis())))
 
