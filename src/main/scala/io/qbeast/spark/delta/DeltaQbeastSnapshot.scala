@@ -5,11 +5,12 @@ package io.qbeast.spark.delta
 
 import io.qbeast.IISeq
 import io.qbeast.core.model._
-import io.qbeast.spark.utils.{MetadataConfig, TagColumns}
+import io.qbeast.spark.utils.{MetadataConfig, State, TagColumns}
+import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.functions.lit
-import org.apache.spark.sql.{AnalysisExceptionFactory, Dataset}
+import org.apache.spark.sql.{AnalysisExceptionFactory, Dataset, SparkSession}
 
 /**
  * Qbeast Snapshot that provides information about the current index state.
@@ -161,7 +162,32 @@ case class DeltaQbeastSnapshot(private val snapshot: Snapshot) extends QbeastSna
    * @return the Dataset of QbeastBlocks
    */
   def loadRevisionBlocks(revisionID: RevisionID): Dataset[AddFile] = {
-    snapshot.allFiles
+
+    val spark = SparkSession.active
+    import spark.implicits._
+
+    // TODO If we detect cubes without metadata, we put them in revision 1?
+    // TODO elementCount?
+    val filesCurated =
+      if (!snapshot.allFiles.isEmpty) {
+        snapshot.allFiles
+          .mapPartitions(it => {
+            it.map(a => {
+              if (a.tags == null) {
+                val rootTags = Map(
+                  "maxWeight" -> Weight.MaxValue.value.toString,
+                  "minWeight" -> Weight.MinValue.value.toString,
+                  "cube" -> "",
+                  "state" -> State.FLOODED,
+                  "revision" -> "1",
+                  "elementCount" -> "0")
+                a.copy(tags = rootTags)
+              } else a
+            })
+          })
+      } else snapshot.allFiles
+
+    filesCurated
       .where(TagColumns.revision === lit(revisionID.toString))
   }
 
