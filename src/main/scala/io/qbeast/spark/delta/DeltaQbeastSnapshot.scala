@@ -6,7 +6,6 @@ package io.qbeast.spark.delta
 import io.qbeast.IISeq
 import io.qbeast.core.model._
 import io.qbeast.spark.utils.{MetadataConfig, State, TagColumns}
-import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.functions.lit
