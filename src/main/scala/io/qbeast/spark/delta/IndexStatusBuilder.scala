@@ -57,10 +57,11 @@ private[delta] class IndexStatusBuilder(
 
     import spark.implicits._
     val ndims: Int = rev.transformations.size
+
     revisionFiles
       .groupBy(TagColumns.cube)
       .agg(
-        weight(min(TagColumns.maxWeight)).as("maxWeight"),
+        min(weight(col("tags.maxWeight"))).as("maxWeight"),
         sum(TagColumns.elementCount).as("elementCount"),
         collect_list(qblock).as("files"))
       .select(

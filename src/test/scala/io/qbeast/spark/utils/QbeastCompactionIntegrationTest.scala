@@ -25,10 +25,12 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
         // Creating four batches of 20000 elements each one
         // So they all go to the root cube
         // and we can compact them later
-        val batch = data.limit(20000)
+        val limit = 20000
+        val numBatches = 4
+        val batch = data.limit(limit)
 
         // Write four batches
-        writeTestDataInBatches(batch, tmpDir, 4)
+        writeTestDataInBatches(batch, tmpDir, numBatches)
 
         val indexed = spark.read.format("qbeast").load(tmpDir)
         val originalNumOfFiles = indexed.select(input_file_name()).distinct().count()
@@ -42,7 +44,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
 
         // Test if the dataframe is correctly loaded
         val deltaData = spark.read.format("delta").load(tmpDir)
-        indexed.count() shouldBe deltaData.count()
+        indexed.count() shouldBe (limit * numBatches)
         assertLargeDatasetEquality(indexed, deltaData, orderedComparison = false)
 
       }
@@ -81,7 +83,29 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
       }
     }
 
-  it should "respect cube information" in withQbeastContextSparkAndTmpDir((spark, tmpDir) => {
+  it should "not compact anything if sizes already match" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      {
+        val data = loadTestData(spark)
+
+        // Write four batches
+        writeTestDataInBatches(data, tmpDir, 2)
+
+        val originalNumOfFilesRoot =
+          DeltaLog.forTable(spark, tmpDir).snapshot.allFiles.filter("tags.cube == ''").count()
+
+        val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+        qbeastTable.compact()
+
+        val finalNumOfFilesRoot =
+          DeltaLog.forTable(spark, tmpDir).snapshot.allFiles.filter("tags.cube == ''").count()
+
+        finalNumOfFilesRoot shouldBe originalNumOfFilesRoot
+      }
+  }
+
+  it should "respect cube information" in withExtendedSparkAndTmpDir(
+    new SparkConf().set("spark.qbeast.compact.minFileSize", "1"))((spark, tmpDir) => {
 
     val data = loadTestData(spark)
 
@@ -97,9 +121,9 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
     val newIndexStatus = DeltaQbeastSnapshot(deltaLog.update()).loadLatestIndexStatus
 
     newIndexStatus.revision shouldBe originalIndexStatus.revision
-    originalIndexStatus.cubesStatuses.foreach { case (cube, weight) =>
-      newIndexStatus.cubesStatuses.get(cube) shouldBe defined
-      newIndexStatus.cubesStatuses(cube) shouldBe weight
+    originalIndexStatus.cubeNormalizedWeights.foreach { case (cube, weight) =>
+      newIndexStatus.cubeNormalizedWeights.get(cube) shouldBe defined
+      newIndexStatus.cubeNormalizedWeights(cube) shouldBe weight
     }
     newIndexStatus.replicatedSet shouldBe originalIndexStatus.replicatedSet
     newIndexStatus.announcedSet shouldBe originalIndexStatus.announcedSet

@@ -8,16 +8,15 @@ import io.qbeast.core.model._
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.index.QbeastColumns.cubeColumnName
 import org.apache.hadoop.fs.Path
-import org.apache.hadoop.mapreduce.Job
-import org.apache.spark.qbeast.config.{MAX_FILE_SIZE_COMPACTION}
+import org.apache.hadoop.mapreduce.{Job}
+import org.apache.spark.qbeast.config.MAX_FILE_SIZE_COMPACTION
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.delta.actions.{AddFile, FileAction, RemoveFile}
-import org.apache.spark.sql.execution.datasources.OutputWriterFactory
+import org.apache.spark.sql.execution.datasources.{OutputWriterFactory}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
-import org.apache.spark.sql.functions.{col, lit}
+import org.apache.spark.sql.functions.{col}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.{QbeastThreadUtils, SerializableConfiguration}
-
 import scala.collection.parallel.ForkJoinTaskSupport
 import scala.collection.parallel.immutable.ParVector
 
@@ -80,7 +79,7 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
       tableID: QTableID,
       schema: StructType,
       cubesToCompact: Map[CubeId, Seq[QbeastBlock]],
-      oldTableChanges: TableChanges): IISeq[FileAction] = {
+      tableChanges: TableChanges): IISeq[FileAction] = {
 
     val sparkSession = SparkSession.active
 
@@ -89,13 +88,9 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
     // Based on groupFilesIntoBins from Delta Lake OptimizeTableCommand
     val cubesToCompactGrouped = {
       cubesToCompact.flatMap { case (cube, blocks) =>
-        val sizeHint = blocks.size
         val groups = Seq.newBuilder[Seq[QbeastBlock]]
         val g = Seq.newBuilder[QbeastBlock]
         var count = 0L
-
-        groups.sizeHint(sizeHint)
-        g.sizeHint(sizeHint)
 
         blocks.foreach(b => {
           if (b.size + count > MAX_FILE_SIZE_COMPACTION) {
@@ -135,42 +130,34 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
         val forkJoinPoolTaskSupport = new ForkJoinTaskSupport(threadPool)
         parallelJobCollection.tasksupport = forkJoinPoolTaskSupport
         parallelJobCollection.flatMap { case (cubeId: CubeId, cubeBlocks) =>
-          val blocksSize = cubeBlocks.map(_.size).sum
-          val addFiles =
-            if (blocksSize == 0) Seq.empty
-            else {
-
-              // Get the file names for the cubeId
-              val fileNames = cubeBlocks.map(f => new Path(tableID.id, f.path).toString)
-
-              // Load the data into a DataFrame
-              val data = sparkSession.read
-                .format("parquet")
-                .load(fileNames: _*)
-                .withColumn(cubeColumnName, lit(cubeId.bytes))
-
-              val qbeastColumns = QbeastColumns(data)
-
-              val blockWriter = BlockWriter(
-                dataPath = tableID.id,
-                schema = schema,
-                schemaIndex = schema,
+          if (cubeBlocks.size <= 1) { // If the number of blocks to compact is 1 or 0, we do nothing
+            Seq.empty
+          } else { // Otherwise
+            // Get the file names for the cubeId
+            val fileNames = cubeBlocks.map(f => new Path(tableID.id, f.path).toString)
+            val compactor =
+              Compactor(
+                tableID = tableID,
                 factory = factory,
                 serConf = serConf,
-                qbeastColumns = qbeastColumns,
-                tableChanges = oldTableChanges)
+                schema = schema,
+                cubeId,
+                cubeBlocks.toIndexedSeq,
+                tableChanges)
 
-              data
-                .coalesce(1)
-                .queryExecution
-                .executedPlan
-                .execute
-                .mapPartitions(blockWriter.writeRow)
-                .collect()
-                .toIndexedSeq
-            }
-
-          addFiles ++ cubeBlocks.map(b => RemoveFile(b.path, Some(System.currentTimeMillis())))
+            // Load the data into a DataFrame
+            // and initialize a writer in the single partition
+            sparkSession.read
+              .format("parquet")
+              .load(fileNames: _*)
+              .coalesce(1)
+              .queryExecution
+              .executedPlan
+              .execute
+              .mapPartitions(compactor.writeBlock)
+              .collect()
+              .toIndexedSeq
+          }
 
         }.seq
       } finally {
