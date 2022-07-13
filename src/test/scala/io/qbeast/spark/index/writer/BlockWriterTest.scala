@@ -128,4 +128,58 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
       .toSet
     files.map(_.tags(TagUtils.cube)).forall(cube => cubes.contains(cube)) shouldBe true
   }
+
+  it should "work with empty partitions" in withSparkAndTmpDir { (spark, tmpDir) =>
+    {
+
+      val weightMap = 1
+        .to(4)
+        .map(i => (CubeId.container(point, i), Random.nextDouble()))
+      val indexData =
+        weightMap.map(ids => IndexData(Random.nextInt(), ids._1.bytes, ids._2, "FLOODED"))
+
+      // We create the RDD with empty partitions
+      val rdd =
+        spark.sparkContext.parallelize(indexData)
+      val indexed =
+        spark.createDataFrame(rdd).toDF("id", cubeColumnName, weightColumnName, stateColumnName)
+
+      val data = indexed.select("id")
+
+      val qbeastColumns = QbeastColumns(indexed)
+      val (factory, serConf) = loadConf(data)
+      val rev = SparkRevisionFactory
+        .createNewRevision(
+          QTableID("test"),
+          data.schema,
+          Map("columnsToIndex" -> "id", "cubeSize" -> "10000"))
+      val tableChanges = BroadcastedTableChanges(
+        None,
+        IndexStatus(rev),
+        deltaNormalizedCubeWeights = weightMap.toMap)
+
+      val writer = BlockWriter(
+        dataPath = tmpDir,
+        schema = data.schema,
+        schemaIndex = indexed.schema,
+        factory = factory,
+        serConf = serConf,
+        qbeastColumns = qbeastColumns,
+        tableChanges = tableChanges)
+
+      // Repartition method use spark.sql.shuffle.partitions number of partitions
+      // if the number of cubes is less than the parameter
+      // it will create empty partitions in the middle
+      // This seems solved in 3.2.0, but we would like the code to work on that case
+      indexed
+        .repartition(col(cubeColumnName))
+        .queryExecution
+        .executedPlan
+        .execute()
+        .mapPartitions(part => if (Random.nextInt() % 2 == 0) Iterator.empty else part)
+        .mapPartitions(writer.writeRow)
+        .collect()
+
+    }
+  }
 }
