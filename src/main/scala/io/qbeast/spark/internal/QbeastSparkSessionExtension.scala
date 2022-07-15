@@ -4,7 +4,7 @@
 package io.qbeast.spark.internal
 
 import io.delta.sql.DeltaSparkSessionExtension
-import io.qbeast.spark.internal.rules.{ReplaceFileIndex, SampleRule}
+import io.qbeast.spark.internal.rules.{SampleRule}
 import org.apache.spark.sql.SparkSessionExtensions
 
 /**
@@ -20,9 +20,9 @@ class QbeastSparkSessionExtension extends DeltaSparkSessionExtension {
       new SampleRule(session)
     }
 
-    extensions.injectOptimizerRule { session =>
-      new ReplaceFileIndex(session)
-    }
+    // extensions.injectOptimizerRule { session =>
+    //   new ReplaceFileIndex(session)
+    // }
   }
 
 }

@@ -14,6 +14,7 @@ import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame}
+// import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 
 import java.util.ConcurrentModificationException
 
@@ -190,8 +191,13 @@ private[table] class IndexedTableImpl(
     }
   }
 
-  private def createQbeastBaseRelation(): QbeastBaseRelation = {
-    QbeastBaseRelation.forDeltaTable(tableID)
+  // TODO ara volem retornar la nova HadoopFSrelation
+  // private def createQbeastBaseRelation(): QbeastBaseRelation = {
+  //   QbeastBaseRelation.forDeltaTable(tableID)
+  // }
+  private def createQbeastBaseRelation(): BaseRelation = {
+
+    QbeastBaseRelation.forDeltaTable(tableID, this)
   }
 
   private def write(data: DataFrame, indexStatus: IndexStatus, append: Boolean): BaseRelation = {
