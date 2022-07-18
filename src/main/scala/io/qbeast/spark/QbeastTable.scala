@@ -116,35 +116,34 @@ class QbeastTable private (
     val innerCubeStatuses =
       cubeStatuses.filter(_._1.children.exists(cubeStatuses.contains)).values
     val innerCubeSizes = innerCubeStatuses.map(_.files.map(_.elementCount).sum).toSeq.sorted
-    val innerCubeCount = innerCubeSizes.size
+    val innerCubeCount = innerCubeSizes.size.toDouble
 
-    val (avgFanOut, details) =
+    val avgFanOut = innerCubeStatuses
+      .map(_.cubeId.children.count(cubeStatuses.contains))
+      .sum
+      .toDouble / innerCubeCount
+
+    val details =
       if (innerCubeCount == 0) {
-        (0.0, NonLeafCubeSizeDetails(0, 0, 0, 0, 0, 0, 0))
+        NonLeafCubeSizeDetails(0, 0, 0, 0, 0, 0, 0)
       } else {
         val l1_dev = innerCubeSizes
           .map(cs => math.abs(cs - desiredCubeSize))
-          .sum
-          .toDouble / desiredCubeSize / innerCubeCount
+          .sum / innerCubeCount / desiredCubeSize
 
         val l2_dev = math.sqrt(
           innerCubeSizes
             .map(cs => (cs - desiredCubeSize) * (cs - desiredCubeSize))
-            .sum) / desiredCubeSize / innerCubeCount
+            .sum) / innerCubeCount / desiredCubeSize
 
-        (
-          innerCubeStatuses
-            .map(_.cubeId.children.count(cubeStatuses.contains))
-            .sum
-            .toDouble / innerCubeSizes.size,
-          NonLeafCubeSizeDetails(
-            innerCubeSizes.min,
-            innerCubeSizes((innerCubeSizes.size * 0.25).toInt),
-            innerCubeSizes((innerCubeSizes.size * 0.50).toInt),
-            innerCubeSizes((innerCubeSizes.size * 0.75).toInt),
-            innerCubeSizes.max,
-            l1_dev,
-            l2_dev))
+        NonLeafCubeSizeDetails(
+          innerCubeSizes.min,
+          innerCubeSizes((innerCubeCount * 0.25).toInt),
+          innerCubeSizes((innerCubeCount * 0.50).toInt),
+          innerCubeSizes((innerCubeCount * 0.75).toInt),
+          innerCubeSizes.max,
+          l1_dev,
+          l2_dev)
       }
     (avgFanOut, details)
   }
