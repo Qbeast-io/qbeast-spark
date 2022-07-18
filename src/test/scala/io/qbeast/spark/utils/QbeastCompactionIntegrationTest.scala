@@ -129,4 +129,30 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
     newIndexStatus.announcedSet shouldBe originalIndexStatus.announcedSet
   })
 
+  it should "be compatible with Delta Compaction" in withExtendedSparkAndTmpDir(
+    new SparkConf().set("spark.qbeast.compact.minFileSize", "1"))((spark, tmpDir) => {
+
+    val data = loadTestData(spark)
+
+    // Write four batches
+    writeTestDataInBatches(data, tmpDir, 4)
+    val originalNumOfFiles =
+      DeltaLog.forTable(spark, tmpDir).snapshot.allFiles.count()
+
+    // Create table in delta
+    spark.sql(s"""CREATE TABLE delta_table USING delta LOCATION '$tmpDir'""")
+
+    // Optimize it with Delta
+    spark.sql("OPTIMIZE delta_table")
+    val newNumOfFiles = DeltaLog.forTable(spark, tmpDir).snapshot.allFiles.count()
+    newNumOfFiles shouldBe <(originalNumOfFiles)
+
+    // Check if we can read it as Qbeast
+    val indexed = spark.read.format("qbeast").load(tmpDir)
+    val df = spark.read.format("delta").load(tmpDir)
+
+    indexed.count() shouldBe df.count()
+
+  })
+
 }
