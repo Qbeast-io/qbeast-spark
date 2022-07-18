@@ -119,4 +119,20 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
 
     }
   }
+
+  it should "single cube tree correctly" in
+    withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
+      {
+        val data = createDF(spark)
+        val columnsToIndex = Seq("age", "val2")
+        val cubeSize = 5000
+        writeTestData(data, columnsToIndex, cubeSize, tmpDir)
+
+        val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+        val metrics = qbeastTable.getIndexMetrics()
+
+        metrics.depth shouldBe 0
+        metrics.avgFanOut shouldBe Double.NaN
+      }
+    }
 }
