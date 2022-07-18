@@ -43,6 +43,22 @@ case class LinearTransformation(
 
   private val mn = minNumber.toDouble
 
+  private def generateRandomNumber(min: Any, max: Any, seed: Option[Long]): Any = {
+    val r = if (seed.isDefined) new Random(seed.get) else new Random()
+    val random = r.nextDouble()
+
+    (min, max) match {
+      case (min: Double, max: Double) => min + (random * (max - min))
+      case (min: Long, max: Long) => min + (random * (max - min)).toLong
+      case (min: Int, max: Int) => min + (random * (max - min)).toInt
+      case (min: Float, max: Float) => min + (random * (max - min)).toFloat
+      case (min, max) =>
+        throw new IllegalArgumentException(
+          s"Cannot generate random number for type ${min.getClass.getName}")
+
+    }
+  }
+
   private val scale: Double = {
     val mx = maxNumber.toDouble
     require(mx > mn, "Range cannot be not null, and max must be > min")
@@ -76,6 +92,15 @@ case class LinearTransformation(
           otherNullValue,
           orderedDataType)
           .asInstanceOf[Transformation]
+      case IdentityTransformation(newVal) =>
+        val otherNullValue = generateRandomNumber(min(minNumber, newVal), max(maxNumber, newVal), None)
+        val orderedDataType = this.orderedDataType
+        LinearTransformation(
+          min(minNumber, newVal),
+          max(maxNumber, newVal),
+          otherNullValue,
+          orderedDataType)
+          .asInstanceOf[Transformation]
 
     }
   }
@@ -91,6 +116,8 @@ case class LinearTransformation(
       case LinearTransformation(newMin, newMax, _, otherOrdering)
           if orderedDataType == otherOrdering =>
         gt(minNumber, newMin) || lt(maxNumber, newMax)
+      case IdentityTransformation(newVal) =>
+        gt(minNumber, newVal) || lt(maxNumber, newVal)
     }
 
 }
@@ -139,6 +166,16 @@ class LinearTransformationSerializer
 
 object LinearTransformation {
 
+  /**
+   * Creates a LinearTransformation that has random value for the nulls
+   * within the [minNumber, maxNumber] range
+   * @param minNumber
+   * @param maxNumber
+   * @param orderedDataType
+   * @param seed
+   * @return
+   */
+
   private def generateRandomNumber(min: Any, max: Any, seed: Option[Long]): Any = {
     val r = if (seed.isDefined) new Random(seed.get) else new Random()
     val random = r.nextDouble()
@@ -155,15 +192,6 @@ object LinearTransformation {
     }
   }
 
-  /**
-   * Creates a LinearTransformation that has random value for the nulls
-   * within the [minNumber, maxNumber] range
-   * @param minNumber
-   * @param maxNumber
-   * @param orderedDataType
-   * @param seed
-   * @return
-   */
   def apply(
       minNumber: Any,
       maxNumber: Any,

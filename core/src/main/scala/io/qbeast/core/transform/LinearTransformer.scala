@@ -40,7 +40,7 @@ case class LinearTransformer(columnName: String, dataType: QDataType) extends Tr
       NullToZeroTransformation
     } else if (minAux == maxAux) {
       // If all values are equal we return an IdentityTransformation
-      IdentityTransformation
+      IdentityTransformation(minAux)
     } else { // otherwhise we pick the min and max
       val min = getValue(minAux)
       val max = getValue(maxAux)

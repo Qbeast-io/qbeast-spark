@@ -35,7 +35,7 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
         insertData2.createOrReplaceTempView("t2")
         df.createOrReplaceTempView("t")
         // spark.sql("select * from t")
-        spark.sql("insert into table t select * from t2")
+        // spark.sql("insert into table t select * from t2")
 
         // TODO this syntax is currently not supported with qbeast, we should support it
         spark.sql("insert into table t (value) values (4)")
