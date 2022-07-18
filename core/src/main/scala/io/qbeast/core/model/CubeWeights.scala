@@ -6,7 +6,7 @@ import io.qbeast.core.model.Weight.MaxValue
 import scala.collection.mutable
 
 object CubeWeightsBuilder {
-  val minGroupCubeSize = 1000
+  val minGroupCubeSize = 30
 
   /**
    * Estimates the groupCubeSize depending on the input parameters.
@@ -115,8 +115,8 @@ class CubeWeightsBuilder protected (
     }
     weights.map {
       case (cubeId, weightAndCount) if weightAndCount.count == groupCubeSize =>
-        val numGroups = desiredCubeSize / groupCubeSize
-        CubeNormalizedWeight(cubeId.bytes, NormalizedWeight(weightAndCount.weight) * numGroups)
+        val scale = desiredCubeSize / groupCubeSize
+        CubeNormalizedWeight(cubeId.bytes, NormalizedWeight(weightAndCount.weight) * scale)
       case (cubeId, weightAndCount) =>
         CubeNormalizedWeight(
           cubeId.bytes,
