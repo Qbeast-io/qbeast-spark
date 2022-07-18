@@ -215,11 +215,11 @@ case class NonLeafCubeSizeDetails(
 
   override def toString: String = {
     s"""Non-leaf Cube Size Stats
-       |(All values are 0 if there's no non-leaf cubes):
+       |Quartiles:
        |- min: $min
-       |- firstQuartile: $firstQuartile
-       |- secondQuartile: $secondQuartile
-       |- thirdQuartile: $thirdQuartile
+       |- 1stQ: $firstQuartile
+       |- 2ndQ: $secondQuartile
+       |- 3rdQ: $thirdQuartile
        |- max: $max
        |- dev(l1, l2): ($l1_dev, $l2_dev)
        |""".stripMargin
@@ -247,7 +247,7 @@ case class IndexMetrics(
        |desiredCubeSize: $desiredCubeSize
        |avgFanOut: $avgFanOut
        |depthOnBalance: $depthOnBalance
-       |$nonLeafCubeSizeDetails
+       |\n$nonLeafCubeSizeDetails
        |${levelStats()}""".stripMargin
   }
 
