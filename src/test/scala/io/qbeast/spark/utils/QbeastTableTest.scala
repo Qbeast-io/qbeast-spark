@@ -132,7 +132,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
         val metrics = qbeastTable.getIndexMetrics()
 
         metrics.depth shouldBe 0
-        metrics.avgFanOut shouldBe Double.NaN
+        metrics.avgFanOut.isNaN shouldBe true
       }
     }
 }
