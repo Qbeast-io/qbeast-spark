@@ -5,7 +5,6 @@ package io.qbeast.spark.internal.sources
 
 // import io.qbeast.IISeq
 import io.qbeast.core.model.{QTableID} // , Revision}
-import io.qbeast.spark.delta.SparkDeltaMetadataManager
 // import io.qbeast.core.transform.Transformer
 import org.apache.spark.sql.sources.BaseRelation
 
@@ -21,12 +20,12 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
 import io.qbeast.spark.delta.OTreeIndex
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
-import org.apache.spark.sql.delta.files.TahoeLogFileIndex
 import io.qbeast.spark.table.IndexedTable
+import io.qbeast.context.QbeastContext
 // import io.qbeast.spark.utils.SparkToQTypesUtils
 // import org.apache.spark.sql.execution.datasources.FileFormat
 
-// import org.apache.hadoop.fs.{Path}
+import org.apache.hadoop.fs.{Path}
 import org.apache.spark.sql.catalyst.catalog.{BucketSpec}
 // import org.apache.spark.sql.{
 //   AnalysisExceptionFactory,
@@ -58,31 +57,25 @@ object QbeastBaseRelation {
 
     val spark = SparkSession.active
     val tableID = table.tableID
-    val log = SparkDeltaMetadataManager.loadDeltaQbeastLog(tableID)
-    val revision = log.qbeastSnapshot.loadLatestRevision
+    val snapshot = QbeastContext.metadataManager.loadSnapshot(tableID)
+    val schema = QbeastContext.metadataManager.loadCurrentSchema(tableID)
+    val revision = snapshot.loadLatestRevision
     val columnsToIndex = revision.columnTransformers.map(row => row.columnName).mkString(",")
     val cubeSize = revision.desiredCubeSize
     val parameters = Map[String, String](
       "path" -> table.tableID.toString(),
       "columnsToIndex" -> columnsToIndex,
       "cubeSize" -> cubeSize.toString())
-    // val tableID = SparkToQTypesUtils.loadFromParameters(parameters)
 
-    // val path = new Path(tableID)
-    // Data path for tableID
-    val path = log.deltaLog.dataPath
-    val tahoe =
-      TahoeLogFileIndex(spark, log.deltaLog, path, log.deltaLog.snapshot, Seq.empty, false)
-    val fileIndex = OTreeIndex(tahoe)
+    val path = new Path(tableID.id)
+    val fileIndex = OTreeIndex(spark, path)
     val bucketSpec: Option[BucketSpec] = None
-
     val file = new ParquetFileFormat()
-    // val file = fileFormat(log.qbeastSnapshot)
 
     new HadoopFsRelation(
       fileIndex,
       partitionSchema = StructType(Seq.empty[StructField]),
-      dataSchema = log.createRelation.schema,
+      dataSchema = schema,
       bucketSpec = bucketSpec,
       file,
       parameters)(spark) with InsertableRelation {
@@ -93,7 +86,7 @@ object QbeastBaseRelation {
     }
   }
 
-  def forDeltaTable(tableID: QTableID, indexedTable: IndexedTable): BaseRelation = {
+  def forQbeastTable(tableID: QTableID, indexedTable: IndexedTable): BaseRelation = {
 
     val spark = SparkSession.active
 
