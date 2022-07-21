@@ -177,7 +177,7 @@ object LinearTransformation {
    * @return
    */
 
-  private def generateRandomNumber(min: Any, max: Any, seed: Option[Long]): Any = {
+  def generateRandomNumber(min: Any, max: Any, seed: Option[Long]): Any = {
     val r = if (seed.isDefined) new Random(seed.get) else new Random()
     val random = r.nextDouble()
 
