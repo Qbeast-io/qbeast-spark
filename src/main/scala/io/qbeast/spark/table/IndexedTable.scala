@@ -191,10 +191,6 @@ private[table] class IndexedTableImpl(
     }
   }
 
-  // TODO ara volem retornar la nova HadoopFSrelation
-  // private def createQbeastBaseRelation(): QbeastBaseRelation = {
-  //   QbeastBaseRelation.forDeltaTable(tableID)
-  // }
   private def createQbeastBaseRelation(): BaseRelation = {
 
     QbeastBaseRelation.forQbeastTable(tableID, this)

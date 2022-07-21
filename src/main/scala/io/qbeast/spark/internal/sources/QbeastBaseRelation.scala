@@ -3,37 +3,20 @@
  */
 package io.qbeast.spark.internal.sources
 
-// import io.qbeast.IISeq
-import io.qbeast.core.model.{QTableID} // , Revision}
-// import io.qbeast.core.transform.Transformer
+import io.qbeast.core.model.{QTableID}
 import org.apache.spark.sql.sources.BaseRelation
-
 import org.apache.spark.sql.sources.InsertableRelation
-// import org.apache.hadoop.conf.Configuration
-
-// import org.apache.spark.sql.delta.DeltaFileFormat
 
 import org.apache.spark.sql.{SQLContext}
 import org.apache.spark.sql.types.{StructType, StructField}
 import org.apache.spark.sql.DataFrame
-
 import org.apache.spark.sql.SparkSession
 import io.qbeast.spark.delta.OTreeIndex
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import io.qbeast.spark.table.IndexedTable
 import io.qbeast.context.QbeastContext
-// import io.qbeast.spark.utils.SparkToQTypesUtils
-// import org.apache.spark.sql.execution.datasources.FileFormat
-
 import org.apache.hadoop.fs.{Path}
 import org.apache.spark.sql.catalyst.catalog.{BucketSpec}
-// import org.apache.spark.sql.{
-//   AnalysisExceptionFactory,
-//   DataFrame,
-//   SQLContext,
-//   SaveMode,
-//   SparkSession
-// }
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 
 /**
@@ -80,7 +63,6 @@ object QbeastBaseRelation {
       file,
       parameters)(spark) with InsertableRelation {
       def insert(data: DataFrame, overwrite: Boolean): Unit = {
-        // val mode = if (overwrite) SaveMode.Overwrite else SaveMode.Append
         table.save(data, parameters, append = !overwrite)
       }
     }

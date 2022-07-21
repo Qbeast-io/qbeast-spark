@@ -16,7 +16,7 @@ import org.apache.spark.sql.sources.{
   DataSourceRegister,
   RelationProvider
 }
-import org.apache.spark.sql.types.{StructType} // , StructField}
+import org.apache.spark.sql.types.{StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.sql.{
   AnalysisExceptionFactory,
@@ -25,16 +25,6 @@ import org.apache.spark.sql.{
   SaveMode,
   SparkSession
 }
-
-// import org.apache.hadoop.fs.{Path}
-// import org.apache.spark.sql.catalyst.catalog.{BucketSpec}
-// import io.qbeast.spark.delta.OTreeIndex
-// import org.apache.spark.sql.execution.datasources.HadoopFsRelation
-// import org.apache.spark.sql.delta.files.TahoeLogFileIndex
-// import io.qbeast.spark.delta.SparkDeltaMetadataManager
-// import org.apache.spark.sql.execution.datasources.FileFormat
-// import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
-// import org.apache.spark.sql.execution.datasources
 
 import org.apache.spark.sql.delta.DeltaFileFormat
 
