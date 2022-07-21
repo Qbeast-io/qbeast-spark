@@ -114,18 +114,19 @@ class QbeastTable private (
       cubeStatuses: SortedMap[CubeId, CubeStatus],
       desiredCubeSize: Int): (Double, NonLeafCubeSizeDetails) = {
     val innerCubeStatuses =
-      cubeStatuses.filter(_._1.children.exists(cubeStatuses.contains)).values
-    val innerCubeSizes = innerCubeStatuses.map(_.files.map(_.elementCount).sum).toSeq.sorted
+      cubeStatuses.filter(_._1.children.exists(cubeStatuses.contains))
+    val innerCubeSizes =
+      innerCubeStatuses.values.map(_.files.map(_.elementCount).sum).toSeq.sorted
     val innerCubeCount = innerCubeSizes.size.toDouble
 
-    val avgFanOut = innerCubeStatuses
-      .map(_.cubeId.children.count(cubeStatuses.contains))
+    val avgFanOut = innerCubeStatuses.keys
+      .map(_.children.count(cubeStatuses.contains))
       .sum
       .toDouble / innerCubeCount
 
     val details =
       if (innerCubeCount == 0) {
-        NonLeafCubeSizeDetails(0, 0, 0, 0, 0, 0, 0)
+        NonLeafCubeSizeDetails(0, 0, 0, 0, 0, 0, 0, "")
       } else {
         val l1_dev = innerCubeSizes
           .map(cs => math.abs(cs - desiredCubeSize))
@@ -136,6 +137,18 @@ class QbeastTable private (
             .map(cs => (cs - desiredCubeSize) * (cs - desiredCubeSize))
             .sum) / innerCubeCount / desiredCubeSize
 
+        val levelStats = "\n(level, average weight, average cube size):\n" +
+          innerCubeStatuses
+            .groupBy(cw => cw._1.depth)
+            .mapValues { m =>
+              val weights = m.values.map(_.normalizedWeight)
+              val elementCounts = m.values.map(_.files.map(_.elementCount).sum)
+              (weights.sum / weights.size, elementCounts.sum / elementCounts.size)
+            }
+            .toSeq
+            .sortBy(_._1)
+            .mkString("\n")
+
         NonLeafCubeSizeDetails(
           innerCubeSizes.min,
           innerCubeSizes((innerCubeCount * 0.25).toInt),
@@ -143,7 +156,8 @@ class QbeastTable private (
           innerCubeSizes((innerCubeCount * 0.75).toInt),
           innerCubeSizes.max,
           l1_dev,
-          l2_dev)
+          l2_dev,
+          levelStats)
       }
     (avgFanOut, details)
   }
@@ -211,17 +225,20 @@ case class NonLeafCubeSizeDetails(
     thirdQuartile: Long,
     max: Long,
     l1_dev: Double,
-    l2_dev: Double) {
+    l2_dev: Double,
+    levelStats: String) {
 
   override def toString: String = {
-    s"""Non-leaf Cube Size Stats
+    s"""Non-leaf Cube Size Stats:
        |Quartiles:
        |- min: $min
        |- 1stQ: $firstQuartile
        |- 2ndQ: $secondQuartile
        |- 3rdQ: $thirdQuartile
        |- max: $max
-       |- dev(l1, l2): ($l1_dev, $l2_dev)
+       |- l1_dev: $l1_dev
+       |- l2_dev: $l2_dev
+       |$levelStats
        |""".stripMargin
   }
 
@@ -248,23 +265,7 @@ case class IndexMetrics(
        |avgFanOut: $avgFanOut
        |depthOnBalance: $depthOnBalance
        |\n$nonLeafCubeSizeDetails
-       |${levelStats()}""".stripMargin
-  }
-
-  def levelStats(): String = {
-    val stats = cubeStatuses
-      .filter(_._1.children.exists(cubeStatuses.contains))
-      .groupBy(cw => cw._1.depth)
-      .mapValues { m =>
-        val weights = m.values.map(_.normalizedWeight)
-        val elementCounts = m.values.map(_.files.map(_.elementCount).sum)
-        (weights.sum / weights.size, elementCounts.sum / elementCounts.size)
-      }
-      .toSeq
-      .sortBy(_._1)
-      .mkString("\n")
-
-    "(level, average weight, average cube size):\n" + stats
+       |""".stripMargin
   }
 
 }
