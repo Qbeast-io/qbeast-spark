@@ -59,7 +59,7 @@ private[delta] class IndexStatusBuilder(
     revisionFiles
       .groupBy(TagColumns.cube)
       .agg(
-        min(weight(col("tags.maxWeight"))).as("maxWeight"),
+        min(weight(TagColumns.maxWeight)).as("maxWeight"),
         sum(TagColumns.elementCount).as("elementCount"),
         collect_list(qblock).as("files"))
       .select(
