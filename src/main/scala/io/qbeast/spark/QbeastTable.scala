@@ -11,6 +11,8 @@ import io.qbeast.spark.table._
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
 
+import scala.collection.immutable.SortedMap
+
 /**
  * Class for interacting with QbeastTable at a user level
  *
@@ -79,55 +81,85 @@ class QbeastTable private (
 
     val cubeCount = allCubeStatuses.size
     val depth = allCubeStatuses.map(_._1.depth).max
-    val elementCount = allCubeStatuses.flatMap(_._2.files.map(_.elementCount)).sum
+    val rowCount = allCubeStatuses.flatMap(_._2.files.map(_.elementCount)).sum
 
     val dimensionCount = indexedColumns().size
     val desiredCubeSize = cubeSize()
 
-    val depthOverLogNumNodes = depth / logOfBase(dimensionCount, cubeCount)
-    val depthOnBalance = depth / logOfBase(dimensionCount, elementCount / desiredCubeSize)
-
-    val nonLeafStatuses =
-      allCubeStatuses.filter(_._1.children.exists(allCubeStatuses.contains)).values
-    val nonLeafCubeSizes = nonLeafStatuses.map(_.files.map(_.elementCount).sum).toSeq.sorted
-
-    val (avgFanOut, details) =
-      if (nonLeafStatuses.isEmpty || nonLeafCubeSizes.isEmpty) {
-        (0, NonLeafCubeSizeDetails(0, 0, 0, 0, 0, 0))
-      } else {
-        val nonLeafCubeSizeDeviation =
-          nonLeafCubeSizes
-            .map(cubeSize => math.pow(cubeSize - desiredCubeSize, 2) / nonLeafCubeSizes.size)
-            .sum
-
-        (
-          nonLeafStatuses
-            .map(_.cubeId.children.count(allCubeStatuses.contains))
-            .sum / nonLeafStatuses.size,
-          NonLeafCubeSizeDetails(
-            nonLeafCubeSizes.min,
-            nonLeafCubeSizes((nonLeafCubeSizes.size * 0.25).toInt),
-            nonLeafCubeSizes((nonLeafCubeSizes.size * 0.50).toInt),
-            nonLeafCubeSizes((nonLeafCubeSizes.size * 0.75).toInt),
-            nonLeafCubeSizes.max,
-            nonLeafCubeSizeDeviation))
-      }
+    val (avgFanOut, details) = getInnerCubeSizeDetails(allCubeStatuses, desiredCubeSize)
 
     IndexMetrics(
       allCubeStatuses,
       dimensionCount,
-      elementCount,
+      rowCount,
       depth,
       cubeCount,
       desiredCubeSize,
       avgFanOut,
-      depthOverLogNumNodes,
-      depthOnBalance,
+      depthOnBalance(depth, cubeCount, dimensionCount),
       details)
   }
 
-  def logOfBase(base: Int, value: Double): Double = {
+  private def logOfBase(base: Int, value: Double): Double = {
     math.log10(value) / math.log10(base)
+  }
+
+  private def depthOnBalance(depth: Int, cubeCount: Int, dimensionCount: Int): Double = {
+    val c = math.pow(2, dimensionCount).toInt
+    val theoreticalDepth = logOfBase(c, 1 - cubeCount * (1 - c)) - 1
+    depth / theoreticalDepth
+  }
+
+  private def getInnerCubeSizeDetails(
+      cubeStatuses: SortedMap[CubeId, CubeStatus],
+      desiredCubeSize: Int): (Double, NonLeafCubeSizeDetails) = {
+    val innerCubeStatuses =
+      cubeStatuses.filter(_._1.children.exists(cubeStatuses.contains))
+    val innerCubeSizes =
+      innerCubeStatuses.values.map(_.files.map(_.elementCount).sum).toSeq.sorted
+    val innerCubeCount = innerCubeSizes.size.toDouble
+
+    val avgFanOut = innerCubeStatuses.keys
+      .map(_.children.count(cubeStatuses.contains))
+      .sum
+      .toDouble / innerCubeCount
+
+    val details =
+      if (innerCubeCount == 0) {
+        NonLeafCubeSizeDetails(0, 0, 0, 0, 0, 0, 0, "")
+      } else {
+        val l1_dev = innerCubeSizes
+          .map(cs => math.abs(cs - desiredCubeSize))
+          .sum / innerCubeCount / desiredCubeSize
+
+        val l2_dev = math.sqrt(
+          innerCubeSizes
+            .map(cs => (cs - desiredCubeSize) * (cs - desiredCubeSize))
+            .sum) / innerCubeCount / desiredCubeSize
+
+        val levelStats = "\n(level, average weight, average cube size):\n" +
+          innerCubeStatuses
+            .groupBy(cw => cw._1.depth)
+            .mapValues { m =>
+              val weights = m.values.map(_.normalizedWeight)
+              val elementCounts = m.values.map(_.files.map(_.elementCount).sum)
+              (weights.sum / weights.size, elementCounts.sum / elementCounts.size)
+            }
+            .toSeq
+            .sortBy(_._1)
+            .mkString("\n")
+
+        NonLeafCubeSizeDetails(
+          innerCubeSizes.min,
+          innerCubeSizes((innerCubeCount * 0.25).toInt),
+          innerCubeSizes((innerCubeCount * 0.50).toInt),
+          innerCubeSizes((innerCubeCount * 0.75).toInt),
+          innerCubeSizes.max,
+          l1_dev,
+          l2_dev,
+          levelStats)
+      }
+    (avgFanOut, details)
   }
 
   /**
@@ -192,17 +224,21 @@ case class NonLeafCubeSizeDetails(
     secondQuartile: Long,
     thirdQuartile: Long,
     max: Long,
-    dev: Double) {
+    l1_dev: Double,
+    l2_dev: Double,
+    levelStats: String) {
 
   override def toString: String = {
-    s"""Non-leaf Cube Size Stats
-       |(All values are 0 if there's no non-leaf cubes):
+    s"""Non-leaf Cube Size Stats:
+       |Quartiles:
        |- min: $min
-       |- firstQuartile: $firstQuartile
-       |- secondQuartile: $secondQuartile
-       |- thirdQuartile: $thirdQuartile
+       |- 1stQ: $firstQuartile
+       |- 2ndQ: $secondQuartile
+       |- 3rdQ: $thirdQuartile
        |- max: $max
-       |- dev: $dev
+       |- l1_dev: $l1_dev
+       |- l2_dev: $l2_dev
+       |$levelStats
        |""".stripMargin
   }
 
@@ -216,7 +252,6 @@ case class IndexMetrics(
     cubeCount: Int,
     desiredCubeSize: Int,
     avgFanOut: Double,
-    depthOverLogNumNodes: Double,
     depthOnBalance: Double,
     nonLeafCubeSizeDetails: NonLeafCubeSizeDetails) {
 
@@ -228,9 +263,8 @@ case class IndexMetrics(
        |cubeCount: $cubeCount
        |desiredCubeSize: $desiredCubeSize
        |avgFanOut: $avgFanOut
-       |depthOverLogNumNodes: $depthOverLogNumNodes
        |depthOnBalance: $depthOnBalance
-       |$nonLeafCubeSizeDetails
+       |\n$nonLeafCubeSizeDetails
        |""".stripMargin
   }
 
