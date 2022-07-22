@@ -15,8 +15,6 @@ object QbeastMetadataSQL {
   val norm: UserDefinedFunction = udf((mw: Weight, elementCount: Long, desiredSize: Int) =>
     if (mw < Weight.MaxValue) {
       mw.fraction
-    } else if (elementCount == 0) { // If element count is 0, we treat it as full anyways
-      NormalizedWeight(Weight.MaxValue)
     } else {
       NormalizedWeight.apply(desiredSize, elementCount)
     })
