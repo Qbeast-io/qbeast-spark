@@ -119,10 +119,9 @@ class QbeastTable private (
       innerCubeStatuses.values.map(_.files.map(_.elementCount).sum).toSeq.sorted
     val innerCubeCount = innerCubeSizes.size.toDouble
 
-    val avgFanOut = innerCubeStatuses.keys
+    val avgFanOut = innerCubeStatuses.keys.toSeq
       .map(_.children.count(cubeStatuses.contains))
-      .sum
-      .toDouble / innerCubeCount
+      .sum / innerCubeCount
 
     val details =
       if (innerCubeCount == 0) {
