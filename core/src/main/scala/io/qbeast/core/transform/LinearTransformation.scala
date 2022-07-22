@@ -43,22 +43,6 @@ case class LinearTransformation(
 
   private val mn = minNumber.toDouble
 
-  private def generateRandomNumber(min: Any, max: Any, seed: Option[Long]): Any = {
-    val r = if (seed.isDefined) new Random(seed.get) else new Random()
-    val random = r.nextDouble()
-
-    (min, max) match {
-      case (min: Double, max: Double) => min + (random * (max - min))
-      case (min: Long, max: Long) => min + (random * (max - min)).toLong
-      case (min: Int, max: Int) => min + (random * (max - min)).toInt
-      case (min: Float, max: Float) => min + (random * (max - min)).toFloat
-      case (min, max) =>
-        throw new IllegalArgumentException(
-          s"Cannot generate random number for type ${min.getClass.getName}")
-
-    }
-  }
-
   private val scale: Double = {
     val mx = maxNumber.toDouble
     require(mx > mn, "Range cannot be not null, and max must be > min")
@@ -94,7 +78,7 @@ case class LinearTransformation(
           .asInstanceOf[Transformation]
       case IdentityTransformation(newVal) =>
         val otherNullValue =
-          generateRandomNumber(min(minNumber, newVal), max(maxNumber, newVal), Option(42.toLong))
+          LinearTransformationUtils.generateRandomNumber(min(minNumber, newVal), max(maxNumber, newVal), Option(42.toLong))
         val orderedDataType = this.orderedDataType
         LinearTransformation(
           min(minNumber, newVal),
@@ -177,28 +161,12 @@ object LinearTransformation {
    * @return
    */
 
-  def generateRandomNumber(min: Any, max: Any, seed: Option[Long]): Any = {
-    val r = if (seed.isDefined) new Random(seed.get) else new Random()
-    val random = r.nextDouble()
-
-    (min, max) match {
-      case (min: Double, max: Double) => min + (random * (max - min))
-      case (min: Long, max: Long) => min + (random * (max - min)).toLong
-      case (min: Int, max: Int) => min + (random * (max - min)).toInt
-      case (min: Float, max: Float) => min + (random * (max - min)).toFloat
-      case (min, max) =>
-        throw new IllegalArgumentException(
-          s"Cannot generate random number for type ${min.getClass.getName}")
-
-    }
-  }
-
   def apply(
       minNumber: Any,
       maxNumber: Any,
       orderedDataType: OrderedDataType,
       seed: Option[Long] = None): LinearTransformation = {
-    val randomNull = generateRandomNumber(minNumber, maxNumber, seed)
+    val randomNull = LinearTransformationUtils.generateRandomNumber(minNumber, maxNumber, seed)
     LinearTransformation(minNumber, maxNumber, randomNull, orderedDataType)
   }
 
@@ -241,6 +209,36 @@ class LinearTransformationDeserializer
       LinearTransformation(min, max, odt, seed = Some(hash))
     } else LinearTransformation(min, max, nullValue, odt)
 
+  }
+
+}
+
+object LinearTransformationUtils {
+
+  /**
+   * Creates a LinearTransformationUtils object that contains
+   * useful functions that can be used outside of the LinearTransformation class.
+   * @param minNumber
+   * @param maxNumber
+   * @param orderedDataType
+   * @param seed
+   * @return
+   */
+
+  def generateRandomNumber(min: Any, max: Any, seed: Option[Long]): Any = {
+    val r = if (seed.isDefined) new Random(seed.get) else new Random()
+    val random = r.nextDouble()
+
+    (min, max) match {
+      case (min: Double, max: Double) => min + (random * (max - min))
+      case (min: Long, max: Long) => min + (random * (max - min)).toLong
+      case (min: Int, max: Int) => min + (random * (max - min)).toInt
+      case (min: Float, max: Float) => min + (random * (max - min)).toFloat
+      case (min, max) =>
+        throw new IllegalArgumentException(
+          s"Cannot generate random number for type ${min.getClass.getName}")
+
+    }
   }
 
 }

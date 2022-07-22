@@ -45,12 +45,12 @@ class SampleRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
   private def transformSampleToFilter(
       sample: Sample,
       logicalRelation: LogicalRelation,
-      columnsToIndex: IndexedColumns): Filter = {
+      indexedColumns: IndexedColumns): Filter = {
 
     val weightRange = extractWeightRange(sample)
 
     val columns =
-      columnsToIndex.map(c => logicalRelation.output.find(_.name == c).get)
+      indexedColumns.map(c => logicalRelation.output.find(_.name == c).get)
     val qbeastHash = new QbeastMurmur3Hash(columns)
 
     Filter(
