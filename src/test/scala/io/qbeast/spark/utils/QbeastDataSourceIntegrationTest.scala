@@ -168,20 +168,4 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
       }
     }
 
-  it should "be compatible with files " +
-    "that does not have tag information" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
-      {
-        val data = loadTestData(spark)
-        // WRITE SOME DATA
-        writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
-
-        // WRITE MORE DATA AS DELTA
-        data.write.format("delta").mode("append").save(tmpDir)
-
-        val indexed = spark.read.format("qbeast").load(tmpDir)
-        val delta = spark.read.format("delta").load(tmpDir)
-        indexed.count() shouldBe delta.count()
-      }
-    }
-
 }
