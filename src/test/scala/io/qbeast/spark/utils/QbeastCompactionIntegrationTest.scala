@@ -1,6 +1,7 @@
 package io.qbeast.spark.utils
 
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
+import io.qbeast.core.model.QTableID
+import io.qbeast.spark.delta.{DeltaQbeastSnapshot, SparkDeltaMetadataManager}
 import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.DataFrame
@@ -68,14 +69,17 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
         // Write four batches
         writeTestDataInBatches(batch, tmpDir, 4)
 
+        val deltaLog = DeltaLog.forTable(spark, tmpDir)
         val originalNumOfFilesRoot =
-          DeltaLog.forTable(spark, tmpDir).snapshot.allFiles.filter("tags.cube == ''").count()
+          deltaLog.snapshot.allFiles.filter("tags.cube == ''").count()
 
+        // Compact the tables
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
         qbeastTable.compact()
 
+        // Check if number of files are less than the original
         val finalNumOfFilesRoot =
-          DeltaLog.forTable(spark, tmpDir).snapshot.allFiles.filter("tags.cube == ''").count()
+          deltaLog.update().allFiles.filter("tags.cube == ''").count()
 
         finalNumOfFilesRoot shouldBe >(1L)
         finalNumOfFilesRoot shouldBe <(originalNumOfFilesRoot)
@@ -91,14 +95,16 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
         // Write four batches
         writeTestDataInBatches(data, tmpDir, 2)
 
+        val deltaLog = DeltaLog.forTable(spark, tmpDir)
         val originalNumOfFilesRoot =
-          DeltaLog.forTable(spark, tmpDir).snapshot.allFiles.filter("tags.cube == ''").count()
+          deltaLog.snapshot.allFiles.filter("tags.cube == ''").count()
 
+        // Compact the table
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
         qbeastTable.compact()
 
         val finalNumOfFilesRoot =
-          DeltaLog.forTable(spark, tmpDir).snapshot.allFiles.filter("tags.cube == ''").count()
+          deltaLog.update().allFiles.filter("tags.cube == ''").count()
 
         finalNumOfFilesRoot shouldBe originalNumOfFilesRoot
       }
@@ -112,14 +118,17 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
     // Write four batches
     writeTestDataInBatches(data, tmpDir, 4)
 
+    // Load the index status before manipulating the files
     val deltaLog = DeltaLog.forTable(spark, tmpDir)
     val originalIndexStatus = DeltaQbeastSnapshot(deltaLog.snapshot).loadLatestIndexStatus
 
+    // Compact the table
     val qbeastTable = QbeastTable.forPath(spark, tmpDir)
     qbeastTable.compact()
 
     val newIndexStatus = DeltaQbeastSnapshot(deltaLog.update()).loadLatestIndexStatus
 
+    // Check if both index status are coherent with each other
     newIndexStatus.revision shouldBe originalIndexStatus.revision
     originalIndexStatus.cubeNormalizedWeights.foreach { case (cube, weight) =>
       newIndexStatus.cubeNormalizedWeights.get(cube) shouldBe defined
@@ -129,29 +138,42 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
     newIndexStatus.announcedSet shouldBe originalIndexStatus.announcedSet
   })
 
-  it should "be compatible with Delta Compaction" in withExtendedSparkAndTmpDir(
+  it should "compact the latest revision available" in withExtendedSparkAndTmpDir(
     new SparkConf().set("spark.qbeast.compact.minFileSize", "1"))((spark, tmpDir) => {
 
     val data = loadTestData(spark)
 
     // Write four batches
     writeTestDataInBatches(data, tmpDir, 4)
-    val originalNumOfFiles =
-      DeltaLog.forTable(spark, tmpDir).snapshot.allFiles.count()
 
-    // Create table in delta
-    spark.sql(s"""CREATE TABLE delta_table USING delta LOCATION '$tmpDir'""")
+    // Write next revision batches
+    val newData = data
+      .withColumn("product_id", col("product_id") * 2)
+      .withColumn("user_id", col("user_id") * 6)
+    writeTestDataInBatches(newData, tmpDir, 4)
 
-    // Optimize it with Delta
-    spark.sql("OPTIMIZE delta_table")
-    val newNumOfFiles = DeltaLog.forTable(spark, tmpDir).snapshot.allFiles.count()
-    newNumOfFiles shouldBe <(originalNumOfFiles)
+    val tableId = QTableID(tmpDir)
+    SparkDeltaMetadataManager.loadSnapshot(tableId).loadAllRevisions.size shouldBe 2
 
-    // Check if we can read it as Qbeast
-    val indexed = spark.read.format("qbeast").load(tmpDir)
-    val df = spark.read.format("delta").load(tmpDir)
+    // Count files written for each revision
+    val allFiles = DeltaLog.forTable(spark, tmpDir).snapshot.allFiles
+    val originalFilesRevisionOne =
+      allFiles.filter("tags.revision == 1").count()
+    val originalFilesRevisionTwo =
+      allFiles.filter("tags.revision == 2").count()
 
-    indexed.count() shouldBe df.count()
+    // Compact the table
+    val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+    qbeastTable.compact()
+
+    // Count files compacted for each revision
+    val newAllFiles = DeltaLog.forTable(spark, tmpDir).snapshot.allFiles
+    val newFilesRevisionOne = newAllFiles.filter("tags.revision == 1").count()
+    val newFilesRevisionTwo = newAllFiles.filter("tags.revision == 2").count()
+
+    // Check if the compaction worked for the latest one
+    newFilesRevisionOne shouldBe originalFilesRevisionOne
+    newFilesRevisionTwo shouldBe <(originalFilesRevisionTwo)
 
   })
 
