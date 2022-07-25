@@ -8,15 +8,16 @@ import io.qbeast.core.model._
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.index.QbeastColumns.cubeColumnName
 import org.apache.hadoop.fs.Path
-import org.apache.hadoop.mapreduce.{Job}
+import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.qbeast.config.MAX_FILE_SIZE_COMPACTION
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.delta.actions.{AddFile, FileAction, RemoveFile}
-import org.apache.spark.sql.execution.datasources.{OutputWriterFactory}
+import org.apache.spark.sql.execution.datasources.OutputWriterFactory
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.functions.{col}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.{QbeastThreadUtils, SerializableConfiguration}
+
 import scala.collection.parallel.ForkJoinTaskSupport
 import scala.collection.parallel.immutable.ParVector
 

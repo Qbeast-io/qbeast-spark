@@ -177,4 +177,42 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
 
   })
 
+  it should "compact the specified revision" in withExtendedSparkAndTmpDir(
+    new SparkConf().set("spark.qbeast.compact.minFileSize", "1"))((spark, tmpDir) => {
+
+    val data = loadTestData(spark)
+
+    // Write four batches
+    writeTestDataInBatches(data, tmpDir, 4)
+
+    // Write next revision batches
+    val newData = data
+      .withColumn("product_id", col("product_id") * 2)
+      .withColumn("user_id", col("user_id") * 6)
+    writeTestDataInBatches(newData, tmpDir, 4)
+
+    val tableId = QTableID(tmpDir)
+    SparkDeltaMetadataManager.loadSnapshot(tableId).loadAllRevisions.size shouldBe 2
+
+    // Count files written for each revision
+    val allFiles = DeltaLog.forTable(spark, tmpDir).snapshot.allFiles
+    val originalFilesRevisionOne =
+      allFiles.filter("tags.revision == 1").count()
+    val originalFilesRevisionTwo =
+      allFiles.filter("tags.revision == 2").count()
+
+    // Compact the table
+    val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+    qbeastTable.compact(1)
+
+    // Count files compacted for each revision
+    val newAllFiles = DeltaLog.forTable(spark, tmpDir).snapshot.allFiles
+    val newFilesRevisionOne = newAllFiles.filter("tags.revision == 1").count()
+    val newFilesRevisionTwo = newAllFiles.filter("tags.revision == 2").count()
+
+    // Check if the compaction worked for the number one
+    newFilesRevisionOne shouldBe <(originalFilesRevisionOne)
+    newFilesRevisionTwo shouldBe originalFilesRevisionTwo
+
+  })
 }
