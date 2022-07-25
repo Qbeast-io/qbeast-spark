@@ -9,7 +9,7 @@ import io.qbeast.spark.QbeastTable
 
 val qbeastTable = QbeastTable.forPath(spark, "path/to/qbeast/table")
 ```
-## Format Information
+## Table Information
 
 If you want to know more about the Format, you can use the different get methods. 
 
@@ -25,12 +25,18 @@ qbeastTable.revisionsIDs() // all the current Revision identifiers
 qbeatsTable.lastRevisionID() // the last Revision identifier
 ```
 
-And also execute `Analyze` and `Optimize` operations, which are **currently experimental**.
+## Table Operations
+Through QbeastTable you can also execute `Analyze`, `Optimize` and `Compact` operations, which are **currently experimental**.
 
+- **`Analyze`**: analyzes the index **searching for possible optimizations**.
+- **`Optimize`**: optimize the index parts analyzed in the previous operation. The goal is to **improve reading performance** by accessing the less amount of data possible.
+- **`Compact`**: **rearranges** index information that is stored into **small files**. Compaction will **reduce the number of files** when you have many writing operations on the table.
 ```scala
 qbeastTable.analyze() // returns the Serialized cube ID's to optimize
 
 qbeastTable.optimize() // optimizes the cubes
+
+qbeastTable.compact() // compacts small files into bigger ones
 ```
 
 ## Index Metrics
