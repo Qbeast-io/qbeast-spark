@@ -12,7 +12,7 @@ import io.qbeast.spark.internal.commands.{
   OptimizeTableCommand
 }
 import io.qbeast.spark.table._
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{AnalysisExceptionFactory, SparkSession}
 import org.apache.spark.sql.delta.DeltaLog
 
 import scala.collection.immutable.SortedMap
@@ -42,7 +42,11 @@ class QbeastTable private (
   private def latestRevisionAvailableID = latestRevisionAvailable.revisionID
 
   private def getAvailableRevision(revisionID: RevisionID): RevisionID = {
-    if (qbeastSnapshot.existsRevision(revisionID)) revisionID else latestRevisionAvailableID
+    if (!qbeastSnapshot.existsRevision(revisionID)) {
+      throw AnalysisExceptionFactory.create(
+        s"Revision $revisionID does not exists. " +
+          s"The latest revision available is $latestRevisionAvailableID")
+    } else revisionID
   }
 
   /**
