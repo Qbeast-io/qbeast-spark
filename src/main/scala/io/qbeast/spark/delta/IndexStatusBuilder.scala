@@ -28,7 +28,6 @@ private[delta] class IndexStatusBuilder(
 
   /**
    * Dataset of files belonging to the specific revision
-   *
    * @return the dataset of AddFile actions
    */
   def revisionFiles: Dataset[AddFile] =
@@ -45,7 +44,6 @@ private[delta] class IndexStatusBuilder(
 
   /**
    * Returns the index state for the given space revision
-   *
    * @return Dataset containing cube information
    */
   def buildCubesStatuses: SortedMap[CubeId, CubeStatus] = {
@@ -57,7 +55,6 @@ private[delta] class IndexStatusBuilder(
 
     import spark.implicits._
     val ndims: Int = rev.transformations.size
-
     revisionFiles
       .groupBy(TagColumns.cube)
       .agg(
