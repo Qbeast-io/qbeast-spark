@@ -4,7 +4,7 @@ import io.qbeast.core.model.QTableID
 import io.qbeast.spark.delta.{DeltaQbeastSnapshot, SparkDeltaMetadataManager}
 import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.{AnalysisException, DataFrame}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions._
 
@@ -213,6 +213,20 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
     // Check if the compaction worked for the number one
     newFilesRevisionOne shouldBe <(originalFilesRevisionOne)
     newFilesRevisionTwo shouldBe originalFilesRevisionTwo
+
+  })
+
+  it should "not compact if the revision does not exists" in withExtendedSparkAndTmpDir(
+    new SparkConf().set("spark.qbeast.compact.minFileSize", "1"))((spark, tmpDir) => {
+
+    val data = loadTestData(spark)
+
+    // Write four batches
+    writeTestDataInBatches(data, tmpDir, 4)
+
+    // Try to compact the table with non-existing revision ID
+    val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+    a[AnalysisException] shouldBe thrownBy(qbeastTable.compact(3))
 
   })
 }
