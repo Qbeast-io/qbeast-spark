@@ -31,9 +31,9 @@ object QbeastBaseRelation {
    */
 
   /**
-   * Returns a [[HadoopFsRelation]] that contains all of the data present
+   * Returns a HadoopFsRelation that contains all of the data present
    * in the table. This relation will be continually updated
-   * as files are added or removed from the table. However, new [[HadoopFsRelation]]
+   * as files are added or removed from the table. However, new HadoopFsRelation
    * must be requested in order to see changes to the schema.
    * @param tableID the identifier of the table
    * @param sqlContext the SQLContext
