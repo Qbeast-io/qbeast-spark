@@ -31,10 +31,13 @@ object QbeastBaseRelation {
    */
 
   /**
-   * Returns a [[QbeastBaseRelation]] that contains all of the data present
+   * Returns a [[HadoopFsRelation]] that contains all of the data present
    * in the table. This relation will be continually updated
-   * as files are added or removed from the table. However, new [[QbeastBaseRelation]]
+   * as files are added or removed from the table. However, new [[HadoopFsRelation]]
    * must be requested in order to see changes to the schema.
+   * @param tableID the identifier of the table
+   * @param sqlContext the SQLContext
+   * @return the HadoopFsRelation
    */
   def createRelation(sqlContext: SQLContext, table: IndexedTable): BaseRelation = {
 
@@ -66,10 +69,16 @@ object QbeastBaseRelation {
     }
   }
 
+  /**
+   * Function that can be called from a QbeastBaseRelation object to create a
+   * new QbeastBaseRelation with a new tableID.
+   * @param tableID the identifier of the table
+   * @param indexedTable the indexed table
+   * @return BaseRelation for the new table in Qbeast format
+   */
   def forQbeastTable(tableID: QTableID, indexedTable: IndexedTable): BaseRelation = {
 
     val spark = SparkSession.active
-
     createRelation(spark.sqlContext, indexedTable)
 
   }

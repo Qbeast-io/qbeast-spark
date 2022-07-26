@@ -62,7 +62,8 @@ case class LinearTransformation(
 
   /**
    * Merges two transformations. The domain of the resulting transformation is the union of this
-   *
+   * and the other transformation. The range of the resulting transformation is the intersection of
+   * this and the other transformation, which can be a LinearTransformation or IdentityTransformation
    * @param other
    * @return a new Transformation that contains both this and other.
    */
@@ -78,7 +79,10 @@ case class LinearTransformation(
           .asInstanceOf[Transformation]
       case IdentityTransformation(newVal) =>
         val otherNullValue =
-          LinearTransformationUtils.generateRandomNumber(min(minNumber, newVal), max(maxNumber, newVal), Option(42.toLong))
+          LinearTransformationUtils.generateRandomNumber(
+            min(minNumber, newVal),
+            max(maxNumber, newVal),
+            Option(42.toLong))
         val orderedDataType = this.orderedDataType
         LinearTransformation(
           min(minNumber, newVal),
@@ -92,7 +96,6 @@ case class LinearTransformation(
 
   /**
    * This method should determine if the new data will cause the creation of a new revision.
-   *
    * @param newTransformation the new transformation created with statistics over the new data
    * @return true if the domain of the newTransformation is not fully contained in this one.
    */

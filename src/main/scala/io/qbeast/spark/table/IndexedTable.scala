@@ -14,7 +14,6 @@ import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame}
-// import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 
 import java.util.ConcurrentModificationException
 
@@ -191,8 +190,12 @@ private[table] class IndexedTableImpl(
     }
   }
 
+  /**
+   * Creates a QbeastBaseRelation for the given table.
+   * @param tableID the table identifier
+   * @return the QbeastBaseRelation
+   */
   private def createQbeastBaseRelation(): BaseRelation = {
-
     QbeastBaseRelation.forQbeastTable(tableID, this)
   }
 

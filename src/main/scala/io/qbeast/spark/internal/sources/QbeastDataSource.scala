@@ -26,8 +26,6 @@ import org.apache.spark.sql.{
   SparkSession
 }
 
-import org.apache.spark.sql.delta.DeltaFileFormat
-
 import java.util
 import scala.collection.JavaConverters._
 
@@ -38,8 +36,7 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
     extends TableProvider
     with CreatableRelationProvider
     with DataSourceRegister
-    with RelationProvider
-    with DeltaFileFormat {
+    with RelationProvider {
 
   /**
    * Constructor to be used by Spark.

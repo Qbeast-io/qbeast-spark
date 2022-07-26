@@ -39,7 +39,7 @@ class SampleRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
    * Transforms the Sample Operator to a Filter
    * @param sample the Sample Operator
    * @param logicalRelation the LogicalRelation underneath
-   * @param qbeastBaseRelation the wrapped QbeastBaseRelation
+   * @param indexedColumns the IndexedColumns of the LogicalRelation
    * @return the new Filter
    */
   private def transformSampleToFilter(
