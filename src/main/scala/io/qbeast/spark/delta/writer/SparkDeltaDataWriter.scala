@@ -9,12 +9,12 @@ import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.index.QbeastColumns.cubeColumnName
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.Job
-import org.apache.spark.qbeast.config.MAX_FILE_SIZE_COMPACTION
+import org.apache.spark.qbeast.config.{MAX_FILE_SIZE_COMPACTION, MIN_FILE_SIZE_COMPACTION}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.delta.actions.{AddFile, FileAction, RemoveFile}
 import org.apache.spark.sql.execution.datasources.OutputWriterFactory
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
-import org.apache.spark.sql.functions.{col}
+import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.{QbeastThreadUtils, SerializableConfiguration}
 
@@ -68,7 +68,7 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
    * Compact the files.
    * Method based on Delta Lake OptimizeTableCommand
    * Experimental: the implementation may change by using the CubeID as partition key
-   * and delegating the further exeution to the underlying Format
+   * and delegating the further execution to the underlying Format
    *
    * @param tableID
    * @param schema
@@ -79,10 +79,15 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
   override def compact(
       tableID: QTableID,
       schema: StructType,
-      cubesToCompact: Map[CubeId, Seq[QbeastBlock]],
+      indexStatus: IndexStatus,
       tableChanges: TableChanges): IISeq[FileAction] = {
 
     val sparkSession = SparkSession.active
+
+    // Check what cubes are suitable for compaction
+    val cubesToCompact = indexStatus.cubesStatuses
+      .mapValues(_.files.filter(_.size >= MIN_FILE_SIZE_COMPACTION))
+      .filter(_._2.nonEmpty)
 
     // Group the files into units of data
     // that lays between [MIN_FILE_SIZE_COMPACTION, MAX_FILE_SIZE_COMPACTION]
@@ -115,6 +120,8 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
 
     val parallelJobCollection = new ParVector(cubesToCompactGrouped.toVector)
 
+    // Create a thread pool to be able to parallelize the compaction task
+    // Each thread will be in charge of compacting the set of files for one single cube
     val threadPool =
       QbeastThreadUtils.threadUtils.newForkJoinPool("Compaction", maxThreadNumber = 15)
 
