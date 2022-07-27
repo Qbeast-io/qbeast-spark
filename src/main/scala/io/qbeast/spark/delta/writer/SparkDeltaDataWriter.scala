@@ -105,13 +105,13 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
             groups += g.result()
             // Clear the current group
             g.clear()
-            // Add the block to the current group
-            g += b
-            count = b.size
-          } else {
-            g += b
-            count += b.size
+            // Clear the count
+            count = 0L
           }
+          // Add the block to the group
+          // Sum the size of the block
+          g += b
+          count += b.size
         })
         groups += g.result() // Add the last group
         groups.result().map(b => (cube, b))
