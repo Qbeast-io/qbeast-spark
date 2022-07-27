@@ -5,7 +5,6 @@ package io.qbeast.spark.internal.rules
 
 import io.qbeast.core.model.Weight
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
-// import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{And, GreaterThanOrEqual, LessThan, Literal}
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, Project, Sample}

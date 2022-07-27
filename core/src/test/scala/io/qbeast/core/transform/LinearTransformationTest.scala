@@ -80,14 +80,16 @@ class LinearTransformationTest extends AnyFlatSpec with Matchers {
     val nullValue = 5000
     val linearT = LinearTransformation(0, 10000, nullValue, IntegerDataType)
 
-    var otherNullValue = LinearTransformationUtils.generateRandomNumber(0, 90000, Option(42.toLong))
+    var otherNullValue =
+      LinearTransformationUtils.generateRandomNumber(0, 90000, Option(42.toLong))
     linearT.merge(IdentityTransformation(90000)) shouldBe LinearTransformation(
       0,
       90000,
       otherNullValue,
       IntegerDataType)
 
-    otherNullValue = LinearTransformationUtils.generateRandomNumber(-100, 10000, Option(42.toLong))
+    otherNullValue =
+      LinearTransformationUtils.generateRandomNumber(-100, 10000, Option(42.toLong))
     linearT.merge(IdentityTransformation(-100)) shouldBe LinearTransformation(
       -100,
       10000,
@@ -100,5 +102,17 @@ class LinearTransformationTest extends AnyFlatSpec with Matchers {
       10000,
       otherNullValue,
       IntegerDataType)
+  }
+
+  it should "detect new transformations that superseed" in {
+    val nullValue = 5000
+    val linearT = LinearTransformation(0, 10000, nullValue, IntegerDataType)
+
+    linearT.isSupersededBy(IdentityTransformation(90000)) shouldBe true
+
+    linearT.isSupersededBy(IdentityTransformation(-100)) shouldBe true
+
+    linearT.isSupersededBy(IdentityTransformation(10)) shouldBe false
+
   }
 }

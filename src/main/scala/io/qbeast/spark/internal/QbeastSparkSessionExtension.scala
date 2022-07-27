@@ -19,10 +19,6 @@ class QbeastSparkSessionExtension extends DeltaSparkSessionExtension {
     extensions.injectOptimizerRule { session =>
       new SampleRule(session)
     }
-
-    // extensions.injectOptimizerRule { session =>
-    //   new ReplaceFileIndex(session)
-    // }
   }
 
 }

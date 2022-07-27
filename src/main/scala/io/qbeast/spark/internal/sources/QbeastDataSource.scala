@@ -16,7 +16,7 @@ import org.apache.spark.sql.sources.{
   DataSourceRegister,
   RelationProvider
 }
-import org.apache.spark.sql.types.{StructType}
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.sql.{
   AnalysisExceptionFactory,
