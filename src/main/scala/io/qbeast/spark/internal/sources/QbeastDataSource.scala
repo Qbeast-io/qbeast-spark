@@ -10,6 +10,7 @@ import org.apache.hadoop.fs.FileStatus
 import org.apache.spark.sql.connector.catalog.TableCapability._
 import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.expressions.Transform
+import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
 import org.apache.spark.sql.sources.{
   BaseRelation,
   CreatableRelationProvider,

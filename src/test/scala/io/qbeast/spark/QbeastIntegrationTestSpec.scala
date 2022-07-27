@@ -145,6 +145,11 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
   def withQbeastContextSparkAndTmpDir[T](testCode: (SparkSession, String) => T): T =
     withTmpDir(tmpDir => withQbeastAndSparkContext()(spark => testCode(spark, tmpDir)))
 
+  def withQbeastContextSparkAndTmpWarehouse[T](testCode: (SparkSession, String) => T): T =
+    withTmpDir(tmpDir =>
+      withExtendedSpark(new SparkConf().set("spark.sql.warehouse.dir", tmpDir))(spark =>
+        testCode(spark, tmpDir)))
+
   def withOTreeAlgorithm[T](code: IndexManager[DataFrame] => T): T = {
     code(SparkOTreeManager)
   }
