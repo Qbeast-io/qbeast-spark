@@ -47,7 +47,7 @@ trait OrdinalTransformation extends Transformation {
 /**
  * Identity transformation.
  */
-object IdentityTransformation extends Transformation {
+case class IdentityTransformation(newVal: Any) extends Transformation {
 
   @inline
   override def transform(value: Any): Double = value match {

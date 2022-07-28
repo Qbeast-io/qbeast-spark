@@ -190,8 +190,13 @@ private[table] class IndexedTableImpl(
     }
   }
 
-  private def createQbeastBaseRelation(): QbeastBaseRelation = {
-    QbeastBaseRelation.forDeltaTable(tableID)
+  /**
+   * Creates a QbeastBaseRelation for the given table.
+   * @param tableID the table identifier
+   * @return the QbeastBaseRelation
+   */
+  private def createQbeastBaseRelation(): BaseRelation = {
+    QbeastBaseRelation.forQbeastTable(tableID, this)
   }
 
   private def write(data: DataFrame, indexStatus: IndexStatus, append: Boolean): BaseRelation = {
