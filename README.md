@@ -151,8 +151,8 @@ qbeastTable.getIndexMetrics()
 qbeastTable.analyze()
 ```
 
-The format supports Spark SQL syntax. 
-It also updates the index in a dynamic fashion when new data is inserted.
+The format supports **Spark SQL** syntax. 
+It also updates the index in a **dynamic** fashion when new data is inserted.
 
 ```scala
 val newData = Seq(1, 2, 3, 4).toDF("value")
