@@ -1,7 +1,7 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.index.writer
+package io.qbeast.spark.delta.writer
 
 import io.qbeast.core.model.{CubeId, TableChanges, Weight}
 import io.qbeast.spark.index.QbeastColumns
@@ -99,7 +99,6 @@ case class BlockWriter(
             .getFileSystem(serConf.value)
             .getFileStatus(path)
 
-          // TODO create a QbeastBlock to not use anything from Delta to write
           Iterator(
             AddFile(
               path = path.getName(),

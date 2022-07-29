@@ -12,8 +12,7 @@ You can specify different advanced options to the columns to index:
 
 
 ```scala
-df.write.format("qbeast")
-  .option("columnsToIndex", "column:type,column2:type...")
+df.write.format("qbeast").option("columnsToIndex", "column:type,column2:type...")
 ```
 
 ## CubeSize
@@ -21,8 +20,7 @@ df.write.format("qbeast")
 CubeSize option lets you specify the maximum size of the cube, in number of records. By default, it's set to 5M.
 
 ```scala
-df.write.format("qbeast")
-  .option("cubeSize", "10000")
+df.write.format("qbeast").option("cubeSize", "10000")
 ```
 
 ## DefaultCubeSize
@@ -64,4 +62,13 @@ You can change the number of retries for the LocalKeeper in order to test it.
 
 ```shell
 --conf spark.qbeast.index.numberOfRetries=10000
+```
+
+## Min/Max file size for compaction
+
+You can set the minimum and maximum size of your files for the compaction process.
+
+```shell
+--conf spark.qbeast.compact.minFileSize=1\
+--conf spark.qbeast.compact.maxFileSize=10000
 ```
