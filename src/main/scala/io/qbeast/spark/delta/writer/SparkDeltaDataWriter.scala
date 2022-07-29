@@ -17,7 +17,6 @@ import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.{QbeastThreadUtils, SerializableConfiguration}
-
 import scala.collection.parallel.ForkJoinTaskSupport
 import scala.collection.parallel.immutable.ParVector
 
@@ -65,6 +64,46 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
   }
 
   /**
+   * Split the files belonging to a cube into groups
+   * that lays between [MIN_FILE_SIZE_COMPACTION, MAX_FILE_SIZE_COMPACTION]
+   * Based on groupFilesIntoBins from Delta Lake OptimizeTableCommand
+   * @param cubeStatuses the cubes statuses present in the index
+   * @return
+   */
+  def groupFilesToCompact(
+      cubeStatuses: IISeq[(CubeId, IISeq[QbeastBlock])]): IISeq[(CubeId, IISeq[QbeastBlock])] = {
+
+    // Check what cubes are suitable for compaction
+    val cubesToCompact = cubeStatuses
+      .map(g => (g._1, g._2.filter(_.size >= MIN_FILE_SIZE_COMPACTION)))
+      .filter(_._2.nonEmpty)
+
+    cubesToCompact.flatMap { case (cube, blocks) =>
+      val groups = Seq.newBuilder[Seq[QbeastBlock]]
+      val g = Seq.newBuilder[QbeastBlock]
+      var count = 0L
+
+      blocks.foreach(b => {
+        if (b.size + count > MAX_FILE_SIZE_COMPACTION) {
+          // If we reach the MAX_FILE_SIZE_COMPACTION limit
+          // we output a group of files for that cube
+          groups += g.result()
+          // Clear the current group
+          g.clear()
+          // Clear the count
+          count = 0L
+        }
+        // Add the block to the group
+        // Sum the size of the block
+        g += b
+        count += b.size
+      })
+      groups += g.result() // Add the last group
+      groups.result().map(b => (cube, b.toIndexedSeq))
+    }
+  }
+
+  /**
    * Compact the files.
    * Method based on Delta Lake OptimizeTableCommand
    * Experimental: the implementation may change by using the CubeID as partition key
@@ -84,39 +123,8 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
 
     val sparkSession = SparkSession.active
 
-    // Check what cubes are suitable for compaction
-    val cubesToCompact = indexStatus.cubesStatuses
-      .mapValues(_.files.filter(_.size >= MIN_FILE_SIZE_COMPACTION))
-      .filter(_._2.nonEmpty)
-
-    // Group the files into units of data
-    // that lays between [MIN_FILE_SIZE_COMPACTION, MAX_FILE_SIZE_COMPACTION]
-    // Based on groupFilesIntoBins from Delta Lake OptimizeTableCommand
-    val cubesToCompactGrouped = {
-      cubesToCompact.flatMap { case (cube, blocks) =>
-        val groups = Seq.newBuilder[Seq[QbeastBlock]]
-        val g = Seq.newBuilder[QbeastBlock]
-        var count = 0L
-
-        blocks.foreach(b => {
-          if (b.size + count > MAX_FILE_SIZE_COMPACTION) {
-            // If we reach the MAX_FILE_SIZE_COMPACTION limit
-            // we output a group of files for that cube
-            groups += g.result()
-            // Clear the current group
-            g.clear()
-            // Clear the count
-            count = 0L
-          }
-          // Add the block to the group
-          // Sum the size of the block
-          g += b
-          count += b.size
-        })
-        groups += g.result() // Add the last group
-        groups.result().map(b => (cube, b))
-      }
-    }
+    val cubesToCompact = indexStatus.cubesStatuses.mapValues(_.files).toIndexedSeq
+    val cubesToCompactGrouped = groupFilesToCompact(cubesToCompact)
 
     val parallelJobCollection = new ParVector(cubesToCompactGrouped.toVector)
 
@@ -137,6 +145,7 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
       try {
         val forkJoinPoolTaskSupport = new ForkJoinTaskSupport(threadPool)
         parallelJobCollection.tasksupport = forkJoinPoolTaskSupport
+        // For each cube with a set of files to compact, we build a different task
         parallelJobCollection.flatMap { case (cubeId: CubeId, cubeBlocks) =>
           if (cubeBlocks.size <= 1) { // If the number of blocks to compact is 1 or 0, we do nothing
             Seq.empty
@@ -172,6 +181,9 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
         threadPool.shutdownNow()
       }
 
+    // Return the sequence of updates
+    // which contains both Added and Removed files
+    // This code is maintained in case we need some pre-processing
     val addedFiles = updates.collect { case a: AddFile => a }
     val removedFiles = updates.collect { case r: RemoveFile => r }
 
