@@ -114,6 +114,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
       metrics.elementCount shouldBe data.count()
       metrics.dimensionCount shouldBe columnsToIndex.size
       metrics.desiredCubeSize shouldBe cubeSize
+      metrics.avgFanout shouldBe >=(1.0)
 
       details.min shouldBe <=(details.firstQuartile)
       details.firstQuartile shouldBe <=(details.secondQuartile)
