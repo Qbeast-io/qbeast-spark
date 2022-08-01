@@ -114,6 +114,8 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
       metrics.elementCount shouldBe data.count()
       metrics.dimensionCount shouldBe columnsToIndex.size
       metrics.desiredCubeSize shouldBe cubeSize
+      // If the tree has any inner node, avgFanout cannot be < 1.0
+      metrics.avgFanout shouldBe >=(1.0)
 
       details.min shouldBe <=(details.firstQuartile)
       details.firstQuartile shouldBe <=(details.secondQuartile)
@@ -128,14 +130,14 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
       {
         val data = createDF(spark)
         val columnsToIndex = Seq("age", "val2")
-        val cubeSize = 5000
+        val cubeSize = 5000 // large cube size to make sure all elements are stored in the root
         writeTestData(data, columnsToIndex, cubeSize, tmpDir)
 
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
         val metrics = qbeastTable.getIndexMetrics()
 
         metrics.depth shouldBe 0
-        metrics.avgFanOut.isNaN shouldBe true
+        metrics.avgFanout.isNaN shouldBe true
       }
     }
 }

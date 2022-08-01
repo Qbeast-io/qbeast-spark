@@ -86,7 +86,7 @@ class QbeastTable private (
     val dimensionCount = indexedColumns().size
     val desiredCubeSize = cubeSize()
 
-    val (avgFanOut, details) = getInnerCubeSizeDetails(allCubeStatuses, desiredCubeSize)
+    val (avgFanout, details) = getInnerCubeSizeDetails(allCubeStatuses, desiredCubeSize)
 
     IndexMetrics(
       allCubeStatuses,
@@ -95,7 +95,7 @@ class QbeastTable private (
       depth,
       cubeCount,
       desiredCubeSize,
-      avgFanOut,
+      avgFanout,
       depthOnBalance(depth, cubeCount, dimensionCount),
       details)
   }
@@ -119,10 +119,9 @@ class QbeastTable private (
       innerCubeStatuses.values.map(_.files.map(_.elementCount).sum).toSeq.sorted
     val innerCubeCount = innerCubeSizes.size.toDouble
 
-    val avgFanOut = innerCubeStatuses.keys
+    val avgFanout = innerCubeStatuses.keys.toSeq
       .map(_.children.count(cubeStatuses.contains))
-      .sum
-      .toDouble / innerCubeCount
+      .sum / innerCubeCount
 
     val details =
       if (innerCubeCount == 0) {
@@ -159,7 +158,7 @@ class QbeastTable private (
           l2_dev,
           levelStats)
       }
-    (avgFanOut, details)
+    (avgFanout, details)
   }
 
   /**
@@ -251,7 +250,7 @@ case class IndexMetrics(
     depth: Int,
     cubeCount: Int,
     desiredCubeSize: Int,
-    avgFanOut: Double,
+    avgFanout: Double,
     depthOnBalance: Double,
     nonLeafCubeSizeDetails: NonLeafCubeSizeDetails) {
 
@@ -262,7 +261,7 @@ case class IndexMetrics(
        |depth: $depth
        |cubeCount: $cubeCount
        |desiredCubeSize: $desiredCubeSize
-       |avgFanOut: $avgFanOut
+       |avgFanout: $avgFanout
        |depthOnBalance: $depthOnBalance
        |\n$nonLeafCubeSizeDetails
        |""".stripMargin
