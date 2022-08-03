@@ -4,13 +4,13 @@
 package io.qbeast.spark.internal.sources
 
 import io.qbeast.context.QbeastContext
+import io.qbeast.spark.internal.QbeastOptions
+import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
+import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
 import io.qbeast.spark.table.IndexedTableFactory
-import io.qbeast.spark.utils.SparkToQTypesUtils
-import org.apache.hadoop.fs.FileStatus
-import org.apache.spark.sql.connector.catalog.TableCapability._
+import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
 import org.apache.spark.sql.sources.{
   BaseRelation,
   CreatableRelationProvider,
@@ -28,7 +28,7 @@ import org.apache.spark.sql.{
 }
 
 import java.util
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.mapAsScalaMapConverter
 
 /**
  * Qbeast data source is implementation of Spark data source API V1.
@@ -48,10 +48,18 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
 
   override def inferSchema(options: CaseInsensitiveStringMap): StructType = StructType(Seq())
 
+  // Used to get the table of an existing one
   override def getTable(
       schema: StructType,
       partitioning: Array[Transform],
-      properties: util.Map[String, String]): Table = new TableImpl(schema)
+      properties: util.Map[String, String]): Table = {
+    val tableId = QbeastOptions.loadTableIDFromParameters(properties.asScala.toMap)
+    new QbeastTableImpl(
+      new Path(tableId.id),
+      properties.asScala.toMap,
+      Some(schema),
+      tableFactory)
+  }
 
   def inferSchema(
       sparkSession: SparkSession,
@@ -66,10 +74,9 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       mode: SaveMode,
       parameters: Map[String, String],
       data: DataFrame): BaseRelation = {
-    require(
-      parameters.contains("columnsToIndex"),
-      throw AnalysisExceptionFactory.create("'columnsToIndex is not specified"))
-    val tableId = SparkToQTypesUtils.loadFromParameters(parameters)
+
+    checkQbeastProperties(parameters)
+    val tableId = QbeastOptions.loadTableIDFromParameters(parameters)
     val table = tableFactory.getIndexedTable(tableId)
     mode match {
       case SaveMode.Append => table.save(data, parameters, append = true)
@@ -85,24 +92,22 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
   override def createRelation(
       sqlContext: SQLContext,
       parameters: Map[String, String]): BaseRelation = {
-    val tableID = SparkToQTypesUtils.loadFromParameters(parameters)
-    val table = tableFactory.getIndexedTable(tableID)
-    if (table.exists) {
-      table.load()
-    } else {
-      throw AnalysisExceptionFactory.create(
-        s"'$tableID' is not a Qbeast formatted data directory.")
+    val tableID = QbeastOptions.loadTableIDFromParameters(parameters)
+    val indexedTable = tableFactory.getIndexedTable(tableID)
+
+    // If the table has data registered on the snapshot, we can load from the IndexedTable factory
+    // Otherwise, the table can be loaded from the catalog
+    if (indexedTable.exists) indexedTable.load()
+    else {
+      // If indexedTable does not contain data
+      // Check if it's registered on the catalog
+      val tableImpl = new QbeastTableImpl(new Path(tableID.id), parameters, None, tableFactory)
+      if (tableImpl.isCatalogTable) { tableImpl.toBaseRelation }
+      else {
+        throw AnalysisExceptionFactory.create(
+          s"'$tableID' is not a Qbeast formatted data directory.")
+      }
     }
   }
-
-}
-
-private class TableImpl(schema: StructType) extends Table {
-  override def name(): String = "qbeast"
-
-  override def schema(): StructType = schema
-
-  override def capabilities(): util.Set[TableCapability] =
-    Set(ACCEPT_ANY_SCHEMA, BATCH_READ, V1_BATCH_WRITE, OVERWRITE_BY_FILTER, TRUNCATE).asJava
 
 }

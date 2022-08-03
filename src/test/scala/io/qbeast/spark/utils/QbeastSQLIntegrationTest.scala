@@ -1,5 +1,131 @@
 package io.qbeast.spark.utils
 
+import io.qbeast.TestClasses.Student
 import io.qbeast.spark.QbeastIntegrationTestSpec
 
-class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {}
+import scala.util.Random
+
+class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
+  // ALL CREATE TABLE STATEMENTS
+  /**
+   *       --Use data source
+   *        CREATE TABLE student (id INT, name STRING, age INT) USING CSV;
+   *
+   *      --Use data from another table
+   *        CREATE TABLE student_copy USING CSV
+   *      AS SELECT * FROM student;
+   *
+   *      --Omit the USING clause, which uses the default data source (parquet by default)
+   *      CREATE TABLE student (id INT, name STRING, age INT);
+   *
+   *      --Specify table comment and properties
+   *        CREATE TABLE student (id INT, name STRING, age INT) USING CSV
+   *      COMMENT 'this is a comment'
+   *      TBLPROPERTIES ('foo'='bar');
+   *
+   *      --Specify table comment and properties with different clauses order
+   *      CREATE TABLE student (id INT, name STRING, age INT) USING CSV
+   *      TBLPROPERTIES ('foo'='bar')
+   *      COMMENT 'this is a comment';
+   *
+   *      --Create partitioned and bucketed table
+   *        CREATE TABLE student (id INT, name STRING, age INT)
+   *      USING CSV
+   *        PARTITIONED BY (age)
+   *      CLUSTERED BY (Id) INTO 4 buckets;
+   *
+   *      --Create partitioned and bucketed table through CTAS
+   *        CREATE TABLE student_partition_bucket
+   *      USING parquet
+   *        PARTITIONED BY (age)
+   *      CLUSTERED BY (id) INTO 4 buckets
+   *        AS SELECT * FROM student;
+   *
+   *      --Create bucketed table through CTAS and CTE
+   *        CREATE TABLE student_bucket
+   *      USING parquet
+   *        CLUSTERED BY (id) INTO 4 buckets (
+   *        WITH tmpTable AS (
+   *          SELECT * FROM student WHERE id > 100
+   *      )
+   *      SELECT * FROM tmpTable
+   *      );
+   */
+
+  private val students = 1.to(10).map(i => Student(i, i.toString, Random.nextInt()))
+
+  "QbeastSpark" should "work with SQL CREATE TABLE" in withQbeastContextSparkAndTmpWarehouse(
+    (spark, tmpWarehouse) => {
+      import spark.implicits._
+      val data = students.toDF()
+      data.createOrReplaceTempView("data")
+
+      spark.sql(
+        s"CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
+          "OPTIONS ('columnsToIndex'='id')")
+
+      val nonTemporaryTables = spark.sql("SHOW TABLES FROM default")
+      nonTemporaryTables.count() shouldBe 2 // data table and student table
+
+      val table = spark.sql("DESCRIBE TABLE EXTENDED student")
+      table.show(false)
+      // Check provider
+      table
+        .where("col_name == 'Provider'")
+        .select("data_type")
+        .first()
+        .getString(0) shouldBe "qbeast"
+      // Check Location
+      table
+        .where("col_name == 'Location'")
+        .select("data_type")
+        .first()
+        .getString(0) shouldBe tmpWarehouse + "/student"
+      // Check Table Properties
+      table
+        .where("col_name == 'Storage Properties'")
+        .select("data_type")
+        .first()
+        .getString(0) shouldBe "[columnsToIndex=id]"
+
+    })
+
+  it should "work with INSERT INTO" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
+    import spark.implicits._
+    val data = students.toDF()
+    data.createOrReplaceTempView("data")
+
+    spark.sql(
+      s"CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
+        "OPTIONS ('columnsToIndex'='id')")
+
+    spark.sql("INSERT INTO table student SELECT * FROM data") // FAILS
+  })
+
+  it should "work with CREATE TABLE AS SELECT statement" in withQbeastContextSparkAndTmpDir(
+    (spark, _) => {
+
+      import spark.implicits._
+      val data = students.toDF()
+      data.createOrReplaceTempView("data")
+
+      spark.sql(
+        s"CREATE OR REPLACE TABLE student (id INT, name STRING, age INT) USING qbeast " +
+          "OPTIONS ('columnsToIndex'='id') " +
+          "AS SELECT * FROM data;")
+    })
+
+  it should "work with LOCATION" in withQbeastContextSparkAndTmpDir((spark, tmpDir) => {
+
+    import spark.implicits._
+    val data = students.toDF()
+    data.createOrReplaceTempView("data")
+
+    spark.sql(
+      s"CREATE OR REPLACE TABLE student (id INT, name STRING, age INT) USING qbeast " +
+        "OPTIONS ('columnsToIndex'='id') " +
+        s"LOCATION '$tmpDir' " +
+        "AS SELECT * FROM data;")
+  })
+
+}

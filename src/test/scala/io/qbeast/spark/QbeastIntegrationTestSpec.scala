@@ -10,10 +10,10 @@ import io.qbeast.core.model.IndexManager
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
 import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionFactory}
 import io.qbeast.spark.index.writer.SparkDataWriter
-import io.qbeast.spark.internal.QbeastSparkSessionExtension
 import io.qbeast.spark.table.IndexedTableFactoryImpl
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -66,12 +66,16 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
    */
   def withExtendedSpark[T](sparkConf: SparkConf = new SparkConf())(
       testCode: SparkSession => T): T = {
+    val conf = sparkConf
+      .setMaster("local[8]")
+      .set("spark.sql.extensions", "io.qbeast.spark.internal.QbeastSparkSessionExtension")
+      .set(
+        SQLConf.V2_SESSION_CATALOG_IMPLEMENTATION.key,
+        "io.qbeast.spark.internal.sources.catalog.QbeastCatalog")
     val spark = SparkSession
       .builder()
-      .master("local[8]")
       .appName("QbeastDataSource")
-      .withExtensions(new QbeastSparkSessionExtension())
-      .config(sparkConf)
+      .config(conf)
       .getOrCreate()
     try {
       testCode(spark)
@@ -87,11 +91,19 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
    * @return
    */
   def withSpark[T](testCode: SparkSession => T): T = {
+    // Spark Configuration
+    // Including Session Extensions and Catalog
+    val conf = new SparkConf()
+      .setMaster("local[8]")
+      .set("spark.sql.extensions", "io.qbeast.spark.internal.QbeastSparkSessionExtension")
+      .set(
+        SQLConf.V2_SESSION_CATALOG_IMPLEMENTATION.key,
+        "io.qbeast.spark.internal.sources.catalog.QbeastCatalog")
+
     val spark = SparkSession
       .builder()
-      .master("local[8]")
+      .config(conf)
       .appName("QbeastDataSource")
-      .withExtensions(new QbeastSparkSessionExtension())
       .getOrCreate()
     try {
       testCode(spark)

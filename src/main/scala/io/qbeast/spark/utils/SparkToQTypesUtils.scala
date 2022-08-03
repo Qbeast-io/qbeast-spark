@@ -3,20 +3,10 @@
  */
 package io.qbeast.spark.utils
 
-import io.qbeast.core.model.QTableID
 import io.qbeast.core.{model => qmodel}
-import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.types._
 
 object SparkToQTypesUtils {
-
-  def loadFromParameters(parameters: Map[String, String]): QTableID = {
-    new QTableID(
-      parameters.getOrElse(
-        "path", {
-          throw AnalysisExceptionFactory.create("'path' is not specified")
-        }))
-  }
 
   def convertDataTypes(sparkType: DataType): io.qbeast.core.model.QDataType = sparkType match {
     case _: DoubleType => qmodel.DoubleDataType

@@ -3,7 +3,6 @@
  */
 package io.qbeast.spark.internal.sources
 
-import io.qbeast.core.model.{QTableID}
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.sources.InsertableRelation
 
@@ -49,7 +48,7 @@ object QbeastBaseRelation {
     val columnsToIndex = revision.columnTransformers.map(row => row.columnName).mkString(",")
     val cubeSize = revision.desiredCubeSize
     val parameters =
-      Map[String, String]("columnsToIndex" -> columnsToIndex, "cubeSize" -> cubeSize.toString())
+      Map[String, String]("columnsToIndex" -> columnsToIndex, "cubeSize" -> cubeSize.toString)
 
     val path = new Path(tableID.id)
     val fileIndex = OTreeIndex(spark, path)
@@ -72,11 +71,10 @@ object QbeastBaseRelation {
   /**
    * Function that can be called from a QbeastBaseRelation object to create a
    * new QbeastBaseRelation with a new tableID.
-   * @param tableID the identifier of the table
    * @param indexedTable the indexed table
    * @return BaseRelation for the new table in Qbeast format
    */
-  def forQbeastTable(tableID: QTableID, indexedTable: IndexedTable): BaseRelation = {
+  def forQbeastTable(indexedTable: IndexedTable): BaseRelation = {
 
     val spark = SparkSession.active
     createRelation(spark.sqlContext, indexedTable)
