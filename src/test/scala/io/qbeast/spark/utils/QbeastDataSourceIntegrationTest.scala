@@ -30,27 +30,6 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
       }
     }
 
-  it should "work with InsertInto" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
-    {
-      // TODO
-      val data = createTestData(spark)
-      data.write.format("qbeast").option("columnsToIndex", "id").save(tmpDir)
-
-      // Create the table
-      val indexedTable = spark.read.format("qbeast").load(tmpDir)
-      indexedTable.createOrReplaceTempView("qbeast")
-
-      // Insert Into table
-      data.write.format("qbeast").insertInto("default.qbeast")
-
-      val indexed = spark.read.format("qbeast").load(tmpDir)
-
-      indexed.count() shouldBe data.count()
-
-      indexed.columns.toSet shouldBe data.columns.toSet
-    }
-  }
-
   it should "work with SaveAsTable" in withQbeastContextSparkAndTmpWarehouse { (spark, tmpDir) =>
     {
 
@@ -62,9 +41,6 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
         .option("location", location)
         .saveAsTable("qbeast")
 
-      // spark.catalog.listTables().show(false)
-
-      // val indexed = spark.table("qbeast")
       val indexed = spark.read.format("qbeast").load(location)
 
       indexed.count() shouldBe data.count()

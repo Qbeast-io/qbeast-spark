@@ -6,51 +6,6 @@ import io.qbeast.spark.QbeastIntegrationTestSpec
 import scala.util.Random
 
 class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
-  // ALL CREATE TABLE STATEMENTS
-  /**
-   *       --Use data source
-   *        CREATE TABLE student (id INT, name STRING, age INT) USING CSV;
-   *
-   *      --Use data from another table
-   *        CREATE TABLE student_copy USING CSV
-   *      AS SELECT * FROM student;
-   *
-   *      --Omit the USING clause, which uses the default data source (parquet by default)
-   *      CREATE TABLE student (id INT, name STRING, age INT);
-   *
-   *      --Specify table comment and properties
-   *        CREATE TABLE student (id INT, name STRING, age INT) USING CSV
-   *      COMMENT 'this is a comment'
-   *      TBLPROPERTIES ('foo'='bar');
-   *
-   *      --Specify table comment and properties with different clauses order
-   *      CREATE TABLE student (id INT, name STRING, age INT) USING CSV
-   *      TBLPROPERTIES ('foo'='bar')
-   *      COMMENT 'this is a comment';
-   *
-   *      --Create partitioned and bucketed table
-   *        CREATE TABLE student (id INT, name STRING, age INT)
-   *      USING CSV
-   *        PARTITIONED BY (age)
-   *      CLUSTERED BY (Id) INTO 4 buckets;
-   *
-   *      --Create partitioned and bucketed table through CTAS
-   *        CREATE TABLE student_partition_bucket
-   *      USING parquet
-   *        PARTITIONED BY (age)
-   *      CLUSTERED BY (id) INTO 4 buckets
-   *        AS SELECT * FROM student;
-   *
-   *      --Create bucketed table through CTAS and CTE
-   *        CREATE TABLE student_bucket
-   *      USING parquet
-   *        CLUSTERED BY (id) INTO 4 buckets (
-   *        WITH tmpTable AS (
-   *          SELECT * FROM student WHERE id > 100
-   *      )
-   *      SELECT * FROM tmpTable
-   *      );
-   */
 
   private val students = 1.to(10).map(i => Student(i, i.toString, Random.nextInt()))
 
