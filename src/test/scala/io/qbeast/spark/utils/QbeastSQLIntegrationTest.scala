@@ -65,7 +65,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
       data.createOrReplaceTempView("data")
 
       spark.sql(
-        s"CREATE OR REPLACE TABLE student (id INT, name STRING, age INT) USING qbeast " +
+        s"CREATE OR REPLACE TABLE student USING qbeast " +
           "OPTIONS ('columnsToIndex'='id') " +
           "AS SELECT * FROM data;")
     })
@@ -77,7 +77,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
     data.createOrReplaceTempView("data")
 
     spark.sql(
-      s"CREATE OR REPLACE TABLE student (id INT, name STRING, age INT) USING qbeast " +
+      s"CREATE OR REPLACE TABLE student USING qbeast " +
         "OPTIONS ('columnsToIndex'='id') " +
         s"LOCATION '$tmpDir' " +
         "AS SELECT * FROM data;")
