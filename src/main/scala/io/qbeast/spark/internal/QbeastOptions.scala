@@ -19,7 +19,6 @@ case class QbeastOptions(columnsToIndex: Seq[String], cubeSize: Int)
  * Options available when trying to write in qbeast format
  */
 object QbeastOptions {
-
   val COLUMNS_TO_INDEX = "columnsToIndex"
   val CUBE_SIZE = "cubeSize"
   val PATH = "path"
