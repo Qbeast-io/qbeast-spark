@@ -1,3 +1,6 @@
+/*
+ * Copyright 2021 Qbeast Analytics, S.L.
+ */
 package io.qbeast.spark.internal.sources.catalog
 
 import io.qbeast.context.QbeastContext

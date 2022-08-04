@@ -1,3 +1,6 @@
+/*
+ * Copyright 2021 Qbeast Analytics, S.L.
+ */
 package io.qbeast.spark.internal.sources.v2
 
 import io.qbeast.spark.table.IndexedTable
