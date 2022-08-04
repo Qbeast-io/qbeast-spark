@@ -7,10 +7,17 @@ import org.apache.spark.sql.connector.catalog.TableCapability._
 import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.connector.catalog.{SupportsWrite, Table, TableCapability}
+import org.apache.spark.sql.connector.catalog.{
+  SupportsRead,
+  SupportsWrite,
+  Table,
+  TableCapability
+}
+import org.apache.spark.sql.connector.read.{Scan, ScanBuilder}
 import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 import java.util
 import scala.collection.JavaConverters._
@@ -21,7 +28,8 @@ class QbeastTableImpl private[sources] (
     schema: Option[StructType] = None,
     private val tableFactory: IndexedTableFactory)
     extends Table
-    with SupportsWrite {
+    with SupportsWrite
+    with SupportsRead {
 
   private val spark = SparkSession.active
 
@@ -54,7 +62,7 @@ class QbeastTableImpl private[sources] (
 
   // Returns the write builder for the query in info
   override def newWriteBuilder(info: LogicalWriteInfo): WriteBuilder = {
-    new QbeastWriteBuilder(info, indexedTable)
+    new QbeastWriteBuilder(info, options, indexedTable)
   }
 
   def toBaseRelation: BaseRelation = {
@@ -63,16 +71,9 @@ class QbeastTableImpl private[sources] (
 
   override def properties(): util.Map[String, String] = options.asJava
 
-  // TODO extend with SupportRead
-  /*
-  override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder = {
-    val fileIndex = OTreeIndex(SparkSession.active, path)
-    val partitioningAwareFileIndex = PartitioningAwareFileIndex()
-    new FileScanBuilder(spark, fileIndex, schema()) {
-      override def build(): Scan = ???
+  override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder =
+    new ScanBuilder {
+      override def build(): Scan = new QbeastScanRDD(indexedTable)
     }
-  }
-
-   */
 
 }

@@ -54,11 +54,7 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       partitioning: Array[Transform],
       properties: util.Map[String, String]): Table = {
     val tableId = QbeastOptions.loadTableIDFromParameters(properties.asScala.toMap)
-    new QbeastTableImpl(
-      new Path(tableId.id),
-      properties.asScala.toMap,
-      Some(schema),
-      tableFactory)
+    new QbeastTableImpl(new Path(tableId.id), properties.asScala.toMap, None, tableFactory)
   }
 
   def inferSchema(

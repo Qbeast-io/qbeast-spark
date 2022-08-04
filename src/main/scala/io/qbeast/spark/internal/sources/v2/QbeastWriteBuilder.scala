@@ -12,18 +12,28 @@ import org.apache.spark.sql.sources.{Filter, InsertableRelation}
 
 import scala.collection.convert.ImplicitConversions.`map AsScala`
 
-class QbeastWriteBuilder(info: LogicalWriteInfo, indexedTable: IndexedTable)
+class QbeastWriteBuilder(
+    info: LogicalWriteInfo,
+    properties: Map[String, String],
+    indexedTable: IndexedTable)
     extends WriteBuilder
     with V1WriteBuilder
     with SupportsOverwrite {
 
   override def overwrite(filters: Array[Filter]): WriteBuilder = this
 
+  /**
+   * Build an InsertableRelation to be able to write the data in QbeastFormat
+   * @return the InsertableRelation with the corresponding method
+   */
   override def buildForV1Write(): InsertableRelation = {
 
     new InsertableRelation {
       def insert(data: DataFrame, overwrite: Boolean): Unit = {
-        indexedTable.save(data, info.options().asCaseSensitiveMap().toMap, append = !overwrite)
+        // Passing the options in the query plan plus the properties
+        // because columnsToIndex needs to be included in the contract
+        val writeOptions = info.options().toMap ++ properties
+        indexedTable.save(data, writeOptions, append = !overwrite)
       }
     }
   }

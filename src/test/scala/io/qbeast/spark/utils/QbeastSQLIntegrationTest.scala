@@ -23,25 +23,19 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
       nonTemporaryTables.count() shouldBe 2 // data table and student table
 
       val table = spark.sql("DESCRIBE TABLE EXTENDED student")
-      table.show(false)
+      // TODO Check the metadata of the table
       // Check provider
       table
         .where("col_name == 'Provider'")
         .select("data_type")
         .first()
         .getString(0) shouldBe "qbeast"
-      // Check Location
-      table
-        .where("col_name == 'Location'")
-        .select("data_type")
-        .first()
-        .getString(0) shouldBe tmpWarehouse + "/student"
       // Check Table Properties
       table
-        .where("col_name == 'Storage Properties'")
+        .where("col_name == 'Table Properties'")
         .select("data_type")
         .first()
-        .getString(0) shouldBe "[columnsToIndex=id]"
+        .getString(0) should contain("columnsToIndex=id")
 
     })
 
@@ -52,12 +46,18 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
 
     spark.sql(
       s"CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
-        "OPTIONS ('columnsToIndex'='id')")
+        "TBLPROPERTIES ('columnsToIndex'='id')")
 
-    spark.sql("INSERT INTO table student SELECT * FROM data") // FAILS
+    spark.sql("INSERT INTO table student SELECT * FROM data")
+
+    val indexed = spark.table("student")
+
+    indexed.count() shouldBe data.count()
+
+    indexed.columns.toSet shouldBe data.columns.toSet
   })
 
-  it should "work with CREATE TABLE AS SELECT statement" in withQbeastContextSparkAndTmpDir(
+  it should "work with CREATE TABLE AS SELECT statement" in withQbeastContextSparkAndTmpWarehouse(
     (spark, _) => {
 
       import spark.implicits._
@@ -68,6 +68,12 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
         s"CREATE OR REPLACE TABLE student USING qbeast " +
           "OPTIONS ('columnsToIndex'='id') " +
           "AS SELECT * FROM data;")
+
+      val indexed = spark.table("student")
+
+      indexed.count() shouldBe data.count()
+
+      indexed.columns.toSet shouldBe data.columns.toSet
     })
 
   it should "work with LOCATION" in withQbeastContextSparkAndTmpDir((spark, tmpDir) => {
@@ -81,6 +87,12 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
         "OPTIONS ('columnsToIndex'='id') " +
         s"LOCATION '$tmpDir' " +
         "AS SELECT * FROM data;")
+
+    val indexed = spark.read.format("qbeast").load(tmpDir)
+
+    indexed.count() shouldBe data.count()
+
+    indexed.columns.toSet shouldBe data.columns.toSet
   })
 
 }
