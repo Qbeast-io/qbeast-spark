@@ -5,7 +5,7 @@ import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.{col, lit}
 
-class QbeastIntegrationTest extends QbeastIntegrationTestSpec {
+class QbeastSparkCorrectnessTest extends QbeastIntegrationTestSpec {
 
   "Qbeast datasource" should
     "expose the original number of columns and rows" in withQbeastContextSparkAndTmpDir {
