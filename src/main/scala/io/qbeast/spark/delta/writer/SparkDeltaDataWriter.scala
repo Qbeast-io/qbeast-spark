@@ -11,7 +11,7 @@ import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.qbeast.config.{MAX_FILE_SIZE_COMPACTION, MIN_FILE_SIZE_COMPACTION}
 import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.apache.spark.sql.delta.actions.{AddFile, FileAction, RemoveFile}
+import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.StructType
@@ -71,9 +71,11 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
 
     // Check what cubes are suitable for compaction
     val cubesToCompact = cubeStatuses
-      .map { case (cubeId: CubeId, cubeStatus: CubeStatus) =>
-        (cubeId, cubeStatus.filter(_.size >= MIN_FILE_SIZE_COMPACTION))
-      }
+      .map(cubeStatus => {
+        val cubeId = cubeStatus._1
+        val cubeBlocks = cubeStatus._2
+        (cubeId, cubeBlocks.filter(_.size >= MIN_FILE_SIZE_COMPACTION))
+      })
       .filter(_._2.nonEmpty)
 
     cubesToCompact.flatMap { case (cube, blocks) =>
