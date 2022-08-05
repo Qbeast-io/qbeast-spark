@@ -4,6 +4,7 @@
 package io.qbeast.spark.internal.sources
 
 import io.qbeast.context.QbeastContext
+import io.qbeast.context.QbeastContext.metadataManager
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
@@ -34,10 +35,10 @@ import scala.collection.JavaConverters.mapAsScalaMapConverter
  * Qbeast data source is implementation of Spark data source API V1.
  */
 class QbeastDataSource private[sources] (private val tableFactory: IndexedTableFactory)
-    extends TableProvider
+    extends RelationProvider
     with CreatableRelationProvider
     with DataSourceRegister
-    with RelationProvider {
+    with TableProvider {
 
   /**
    * Constructor to be used by Spark.
@@ -54,7 +55,23 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       partitioning: Array[Transform],
       properties: util.Map[String, String]): Table = {
     val tableId = QbeastOptions.loadTableIDFromParameters(properties.asScala.toMap)
-    new QbeastTableImpl(new Path(tableId.id), properties.asScala.toMap, None, tableFactory)
+    val indexedTable = tableFactory.getIndexedTable(tableId)
+    if (indexedTable.exists) {
+      val currentRevision = metadataManager.loadSnapshot(tableId).loadLatestRevision
+      val indexProperties = Map(
+        "columnsToIndex" -> currentRevision.columnTransformers.map(_.columnName).mkString(","),
+        "cubeSize" -> currentRevision.desiredCubeSize.toString)
+      val tableProperties = properties.asScala.toMap ++ indexProperties
+      new QbeastTableImpl(new Path(tableId.id), tableProperties, None, None, tableFactory)
+    } else {
+      new QbeastTableImpl(
+        new Path(tableId.id),
+        properties.asScala.toMap,
+        Some(schema),
+        None,
+        tableFactory)
+    }
+
   }
 
   def inferSchema(
@@ -97,7 +114,8 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
     else {
       // If indexedTable does not contain data
       // Check if it's registered on the catalog
-      val tableImpl = new QbeastTableImpl(new Path(tableID.id), parameters, None, tableFactory)
+      val tableImpl =
+        new QbeastTableImpl(new Path(tableID.id), parameters, None, None, tableFactory)
       if (tableImpl.isCatalogTable) { tableImpl.toBaseRelation }
       else {
         throw AnalysisExceptionFactory.create(

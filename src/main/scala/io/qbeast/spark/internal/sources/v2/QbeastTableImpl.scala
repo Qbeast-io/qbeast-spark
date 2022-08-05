@@ -9,18 +9,12 @@ import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import org.apache.spark.sql.connector.catalog.TableCapability._
 import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.hadoop.fs.Path
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.connector.catalog.{
-  SupportsRead,
-  SupportsWrite,
-  Table,
-  TableCapability
-}
-import org.apache.spark.sql.connector.read.{Scan, ScanBuilder}
+import org.apache.spark.sql.catalyst.catalog.CatalogTable
+import org.apache.spark.sql.{AnalysisExceptionFactory, SparkSession, V2toV1Fallback}
+import org.apache.spark.sql.connector.catalog.{SupportsWrite, Table, TableCapability}
 import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 import java.util
 import scala.collection.JavaConverters._
@@ -29,10 +23,11 @@ class QbeastTableImpl private[sources] (
     path: Path,
     options: Map[String, String],
     schema: Option[StructType] = None,
+    catalogTable: Option[CatalogTable] = None,
     private val tableFactory: IndexedTableFactory)
     extends Table
     with SupportsWrite
-    with SupportsRead {
+    with V2toV1Fallback {
 
   private val spark = SparkSession.active
 
@@ -74,9 +69,9 @@ class QbeastTableImpl private[sources] (
 
   override def properties(): util.Map[String, String] = options.asJava
 
-  override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder =
-    new ScanBuilder {
-      override def build(): Scan = new QbeastScanRDD(indexedTable)
-    }
+  override def v1Table: CatalogTable = {
+    if (catalogTable.isDefined) catalogTable.get
+    else throw AnalysisExceptionFactory.create("no catalog table defined")
+  }
 
 }

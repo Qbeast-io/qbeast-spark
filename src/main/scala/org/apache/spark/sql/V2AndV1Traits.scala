@@ -3,7 +3,9 @@
  */
 package org.apache.spark.sql
 
-import org.apache.spark.sql.connector.catalog.{Table, V1Table}
+import org.apache.spark.sql.connector.catalog.{Table, V1Table, V2TableWithV1Fallback}
+
+trait V2toV1Fallback extends V2TableWithV1Fallback {}
 
 object V1TableQbeast {
 

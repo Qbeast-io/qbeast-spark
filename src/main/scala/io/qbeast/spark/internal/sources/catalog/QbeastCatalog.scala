@@ -8,7 +8,7 @@ import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.{AnalysisExceptionFactory, V1TableQbeast}
-import org.apache.spark.sql.catalyst.catalog.CatalogTableType
+import org.apache.spark.sql.catalyst.catalog.{CatalogTableType}
 import org.apache.spark.sql.connector.catalog.{DelegatingCatalogExtension, Identifier, Table}
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.types.StructType
@@ -44,9 +44,9 @@ class QbeastCatalog extends DelegatingCatalogExtension {
 
     if (isQbeastTableProvider(prop)) {
       table match {
-        case V1TableQbeast(v1Table) =>
+        case V1TableQbeast(t) =>
           checkQbeastProperties(prop)
-          val catalogTable = v1Table.v1Table
+          val catalogTable = t.v1Table
 
           val path: String = if (catalogTable.tableType == CatalogTableType.EXTERNAL) {
             // If it's an EXTERNAL TABLE, we can find the path through the Storage Properties
@@ -58,7 +58,12 @@ class QbeastCatalog extends DelegatingCatalogExtension {
             // Otherwise, TODO
             throw AnalysisExceptionFactory.create("No path found for table " + table.name())
           }
-          new QbeastTableImpl(new Path(path), prop, Some(schema), tableFactory)
+          new QbeastTableImpl(
+            new Path(path),
+            prop,
+            Some(schema),
+            Some(catalogTable),
+            tableFactory)
 
         case _ => table
       }
