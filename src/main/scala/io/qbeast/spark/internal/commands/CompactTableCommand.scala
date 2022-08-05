@@ -5,11 +5,11 @@ package io.qbeast.spark.internal.commands
 
 import io.qbeast.core.model.RevisionID
 import io.qbeast.spark.table.IndexedTable
+import org.apache.spark.sql.execution.command.RunnableCommand
 import org.apache.spark.sql.{Row, SparkSession}
-import org.apache.spark.sql.execution.command.LeafRunnableCommand
 
 case class CompactTableCommand(revisionID: RevisionID, indexedTable: IndexedTable)
-    extends LeafRunnableCommand {
+    extends RunnableCommand {
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
     indexedTable.compact(revisionID)
