@@ -50,7 +50,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
 
     spark.sql("INSERT INTO table student SELECT * FROM data")
 
-    val indexed = spark.table("student")
+    val indexed = spark.sql("SELECT * FROM student")
 
     indexed.count() shouldBe data.count()
 
@@ -69,7 +69,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
           "OPTIONS ('columnsToIndex'='id') " +
           "AS SELECT * FROM data;")
 
-      val indexed = spark.table("student")
+      val indexed = spark.sql("SELECT * FROM student")
 
       indexed.count() shouldBe data.count()
 
@@ -88,7 +88,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
         s"LOCATION '$tmpDir' " +
         "AS SELECT * FROM data;")
 
-    val indexed = spark.read.format("qbeast").load(tmpDir)
+    val indexed = spark.sql("SELECT * FROM student")
 
     indexed.count() shouldBe data.count()
 
