@@ -7,7 +7,6 @@ import io.qbeast.context.QbeastContext._
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import io.qbeast.spark.table.IndexedTable
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.encoders.{RowEncoder}
 import org.apache.spark.sql.{Row, SQLContext}
 import org.apache.spark.sql.connector.read.V1Scan
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
@@ -50,13 +49,11 @@ class QbeastScanRDD(indexedTable: IndexedTable) extends V1Scan {
         // This is a hack, and the Scan should be done
         // with more Qbeast logic
         val df = context.sparkSession.read.format("parquet").load(pathsToLoad: _*)
-        val encoder = RowEncoder(schema).resolveAndBind()
-        val deserializer = encoder.createDeserializer()
 
-        df.queryExecution.executedPlan.execute().mapPartitions { batches =>
-          batches.map(deserializer.apply)
-        }
+        // Return the RDD
+        df.rdd
       }
+
     }.asInstanceOf[T]
 
   }
