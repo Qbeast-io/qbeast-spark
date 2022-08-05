@@ -7,17 +7,16 @@ import io.qbeast.context.QbeastContext
 import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
 import org.apache.hadoop.fs.Path
-import org.apache.spark.sql.catalyst.catalog.CatalogTableType
-import org.apache.spark.sql.connector.catalog.{Identifier, Table}
-import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.delta.catalog.DeltaCatalog
-import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{AnalysisExceptionFactory, V1TableQbeast}
+import org.apache.spark.sql.catalyst.catalog.CatalogTableType
+import org.apache.spark.sql.connector.catalog.{DelegatingCatalogExtension, Identifier, Table}
+import org.apache.spark.sql.connector.expressions.Transform
+import org.apache.spark.sql.types.StructType
 
 import java.util
 import scala.collection.JavaConverters.mapAsScalaMapConverter
 
-class QbeastDeltaCatalog extends DeltaCatalog {
+class QbeastCatalog extends DelegatingCatalogExtension {
 
   private val tableFactory = QbeastContext.indexedTableFactory
 
