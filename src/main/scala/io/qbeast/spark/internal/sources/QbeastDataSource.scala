@@ -112,15 +112,8 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
     // Otherwise, the table can be loaded from the catalog
     if (indexedTable.exists) indexedTable.load()
     else {
-      // If indexedTable does not contain data
-      // Check if it's registered on the catalog
-      val tableImpl =
-        new QbeastTableImpl(new Path(tableID.id), parameters, None, None, tableFactory)
-      if (tableImpl.isCatalogTable) { tableImpl.toBaseRelation }
-      else {
-        throw AnalysisExceptionFactory.create(
-          s"'$tableID' is not a Qbeast formatted data directory.")
-      }
+      throw AnalysisExceptionFactory.create(
+        s"'$tableID' is not a Qbeast formatted data directory.")
     }
   }
 
