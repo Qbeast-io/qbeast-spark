@@ -12,11 +12,11 @@ import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.qbeast.config.{MAX_FILE_SIZE_COMPACTION, MIN_FILE_SIZE_COMPACTION}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.delta.actions.{AddFile, FileAction, RemoveFile}
-import org.apache.spark.sql.execution.datasources.OutputWriterFactory
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.{QbeastThreadUtils, SerializableConfiguration}
+
 import scala.collection.parallel.ForkJoinTaskSupport
 import scala.collection.parallel.immutable.ParVector
 
@@ -33,13 +33,9 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
 
     val sparkSession = qbeastData.sparkSession
 
-    val (factory: OutputWriterFactory, serConf: SerializableConfiguration) = {
-      val format = new ParquetFileFormat()
-      val job = Job.getInstance()
-      (
-        format.prepareWrite(sparkSession, job, Map.empty, schema),
-        new SerializableConfiguration(job.getConfiguration))
-    }
+    val job = Job.getInstance()
+    val factory = new ParquetFileFormat().prepareWrite(sparkSession, job, Map.empty, schema)
+    val serConf = new SerializableConfiguration(job.getConfiguration)
 
     val qbeastColumns = QbeastColumns(qbeastData)
 
@@ -75,30 +71,32 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
 
     // Check what cubes are suitable for compaction
     val cubesToCompact = cubeStatuses
-      .map(g => (g._1, g._2.filter(_.size >= MIN_FILE_SIZE_COMPACTION)))
+      .map { case (cubeId: CubeId, cubeStatus: CubeStatus) =>
+        (cubeId, cubeStatus.filter(_.size >= MIN_FILE_SIZE_COMPACTION))
+      }
       .filter(_._2.nonEmpty)
 
     cubesToCompact.flatMap { case (cube, blocks) =>
       val groups = Seq.newBuilder[Seq[QbeastBlock]]
-      val g = Seq.newBuilder[QbeastBlock]
+      val group = Seq.newBuilder[QbeastBlock]
       var count = 0L
 
       blocks.foreach(b => {
         if (b.size + count > MAX_FILE_SIZE_COMPACTION) {
           // If we reach the MAX_FILE_SIZE_COMPACTION limit
           // we output a group of files for that cube
-          groups += g.result()
+          groups += group.result()
           // Clear the current group
-          g.clear()
+          group.clear()
           // Clear the count
           count = 0L
         }
         // Add the block to the group
         // Sum the size of the block
-        g += b
+        group += b
         count += b.size
       })
-      groups += g.result() // Add the last group
+      groups += group.result() // Add the last group
       groups.result().map(b => (cube, b.toIndexedSeq))
     }
   }
@@ -133,13 +131,9 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
     val threadPool =
       QbeastThreadUtils.threadUtils.newForkJoinPool("Compaction", maxThreadNumber = 15)
 
-    val (factory: OutputWriterFactory, serConf: SerializableConfiguration) = {
-      val format = new ParquetFileFormat()
-      val job = Job.getInstance()
-      (
-        format.prepareWrite(sparkSession, job, Map.empty, schema),
-        new SerializableConfiguration(job.getConfiguration))
-    }
+    val job = Job.getInstance()
+    val factory = new ParquetFileFormat().prepareWrite(sparkSession, job, Map.empty, schema)
+    val serConf = new SerializableConfiguration(job.getConfiguration)
 
     val updates =
       try {
@@ -181,13 +175,7 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
         threadPool.shutdownNow()
       }
 
-    // Return the sequence of updates
-    // which contains both Added and Removed files
-    // This code is maintained in case we need some pre-processing
-    val addedFiles = updates.collect { case a: AddFile => a }
-    val removedFiles = updates.collect { case r: RemoveFile => r }
-
-    addedFiles ++ removedFiles
+    updates
 
   }
 

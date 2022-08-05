@@ -41,12 +41,12 @@ class QbeastTable private (
 
   private def latestRevisionAvailableID = latestRevisionAvailable.revisionID
 
-  private def getAvailableRevision(revisionID: RevisionID): RevisionID = {
+  private def checkRevisionAvailable(revisionID: RevisionID): Unit = {
     if (!qbeastSnapshot.existsRevision(revisionID)) {
       throw AnalysisExceptionFactory.create(
         s"Revision $revisionID does not exists. " +
           s"The latest revision available is $latestRevisionAvailableID")
-    } else revisionID
+    }
   }
 
   /**
@@ -56,13 +56,13 @@ class QbeastTable private (
    *                          If doesn't exist or none is specified, would be the last available
    */
   def optimize(revisionID: RevisionID): Unit = {
-    OptimizeTableCommand(getAvailableRevision(revisionID), indexedTable)
+    checkRevisionAvailable(revisionID)
+    OptimizeTableCommand(revisionID, indexedTable)
       .run(sparkSession)
   }
 
   def optimize(): Unit = {
-    OptimizeTableCommand(latestRevisionAvailableID, indexedTable)
-      .run(sparkSession)
+    optimize(latestRevisionAvailableID)
   }
 
   /**
@@ -73,33 +73,30 @@ class QbeastTable private (
    * @return the sequence of cubes to optimize in string representation
    */
   def analyze(revisionID: RevisionID): Seq[String] = {
-    AnalyzeTableCommand(getAvailableRevision(revisionID), indexedTable)
+    checkRevisionAvailable(revisionID)
+    AnalyzeTableCommand(revisionID, indexedTable)
       .run(sparkSession)
       .map(_.getString(0))
   }
 
   def analyze(): Seq[String] = {
-    AnalyzeTableCommand(latestRevisionAvailableID, indexedTable)
-      .run(sparkSession)
-      .map(_.getString(0))
+    analyze(latestRevisionAvailableID)
   }
 
   /**
    * The compact operation should compact the small files in the table
    * @param revisionID the identifier of the revision to optimize.
    *                        If doesn't exist or none is specified, would be the last available
-   * @return
    */
   def compact(revisionID: RevisionID): Unit = {
-    CompactTableCommand(getAvailableRevision(revisionID), indexedTable)
+    checkRevisionAvailable(revisionID)
+    CompactTableCommand(revisionID, indexedTable)
       .run(sparkSession)
       .map(_.getString(0))
   }
 
-  def compact(): Seq[String] = {
-    CompactTableCommand(latestRevisionAvailableID, indexedTable)
-      .run(sparkSession)
-      .map(_.getString(0))
+  def compact(): Unit = {
+    compact(latestRevisionAvailableID)
   }
 
   def getIndexMetrics(revisionID: Option[RevisionID] = None): IndexMetrics = {
@@ -196,8 +193,9 @@ class QbeastTable private (
    */
 
   def indexedColumns(revisionID: RevisionID): Seq[String] = {
+    checkRevisionAvailable(revisionID)
     qbeastSnapshot
-      .loadRevision(getAvailableRevision(revisionID))
+      .loadRevision(revisionID)
       .columnTransformers
       .map(_.columnName)
   }
@@ -212,8 +210,11 @@ class QbeastTable private (
    *                          If doesn't exist or none is specified, would be the last available
    * @return
    */
-  def cubeSize(revisionID: RevisionID): Int =
-    qbeastSnapshot.loadRevision(getAvailableRevision(revisionID)).desiredCubeSize
+  def cubeSize(revisionID: RevisionID): Int = {
+    checkRevisionAvailable(revisionID)
+    qbeastSnapshot.loadRevision(revisionID).desiredCubeSize
+
+  }
 
   def cubeSize(): Int =
     latestRevisionAvailable.desiredCubeSize

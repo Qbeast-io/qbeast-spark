@@ -17,6 +17,17 @@ import org.apache.spark.util.SerializableConfiguration
 
 import java.util.UUID
 
+/**
+ * Compacts the information from a set of CubeBlocks into a single block
+ * @param tableID the table identifier
+ * @param factory output writer factory
+ * @param serConf configuration to serialize the data
+ * @param schema the schema
+ * @param cubeId the cubeId to compact
+ * @param cubeBlocks the blocks to compact
+ * @param tableChanges the TableChanges
+ */
+
 case class Compactor(
     tableID: QTableID,
     factory: OutputWriterFactory,

@@ -30,7 +30,7 @@ trait DataWriter[DATA, DataSchema, FileDescriptor] {
    * @param schema the schema of the data
    * @param indexStatus the current index status
    * @param tableChanges the current table changes
-   * @return
+   * @return the sequence of files written and deleted
    */
   def compact(
       tableID: QTableID,
