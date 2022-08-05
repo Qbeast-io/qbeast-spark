@@ -9,7 +9,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
 
   private val students = 1.to(10).map(i => Student(i, i.toString, Random.nextInt()))
 
-  "QbeastSpark" should "work with SQL CREATE TABLE" in withQbeastContextSparkAndTmpWarehouse(
+  "QbeastSpark SQL" should "work with CREATE TABLE" in withQbeastContextSparkAndTmpWarehouse(
     (spark, tmpWarehouse) => {
       import spark.implicits._
       val data = students.toDF()

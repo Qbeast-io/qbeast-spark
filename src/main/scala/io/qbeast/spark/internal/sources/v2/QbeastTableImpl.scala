@@ -29,7 +29,7 @@ class QbeastTableImpl private[sources] (
     with SupportsWrite
     with V2toV1Fallback {
 
-  private val spark = SparkSession.active
+  private lazy val spark = SparkSession.active
 
   private val pathString = path.toString
 
