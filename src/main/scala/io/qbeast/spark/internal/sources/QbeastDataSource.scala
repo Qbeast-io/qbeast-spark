@@ -57,6 +57,7 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
     val tableId = QbeastOptions.loadTableIDFromParameters(properties.asScala.toMap)
     val indexedTable = tableFactory.getIndexedTable(tableId)
     if (indexedTable.exists) {
+      // If the table exists, we make sure to pass all the properties to QbeastTableImpl
       val currentRevision = metadataManager.loadSnapshot(tableId).loadLatestRevision
       val indexProperties = Map(
         "columnsToIndex" -> currentRevision.columnTransformers.map(_.columnName).mkString(","),
@@ -106,12 +107,10 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       sqlContext: SQLContext,
       parameters: Map[String, String]): BaseRelation = {
     val tableID = QbeastOptions.loadTableIDFromParameters(parameters)
-    val indexedTable = tableFactory.getIndexedTable(tableID)
-
-    // If the table has data registered on the snapshot, we can load from the IndexedTable factory
-    // Otherwise, the table can be loaded from the catalog
-    if (indexedTable.exists) indexedTable.load()
-    else {
+    val table = tableFactory.getIndexedTable(tableID)
+    if (table.exists) {
+      table.load()
+    } else {
       throw AnalysisExceptionFactory.create(
         s"'$tableID' is not a Qbeast formatted data directory.")
     }

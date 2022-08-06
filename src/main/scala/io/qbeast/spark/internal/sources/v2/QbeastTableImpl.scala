@@ -19,6 +19,14 @@ import org.apache.spark.sql.types.StructType
 import java.util
 import scala.collection.JavaConverters._
 
+/**
+ * Table Implementation for Qbeast Format
+ * @param path the Path of the table
+ * @param options the write options
+ * @param schema the schema of the table
+ * @param catalogTable the underlying Catalog Table, if any
+ * @param tableFactory the IndexedTable Factory
+ */
 class QbeastTableImpl private[sources] (
     path: Path,
     options: Map[String, String],
@@ -36,17 +44,6 @@ class QbeastTableImpl private[sources] (
   private val tableId = QTableID(pathString)
 
   private val indexedTable = tableFactory.getIndexedTable(tableId)
-
-  /**
-   * Checks if the table exists on the catalog
-   * @return true if exists
-   */
-  def isCatalogTable: Boolean = {
-    // TODO Check if exists on the catalog
-    // I don't think this is the better way to do so
-    val tableName = pathString.split("/").last
-    spark.catalog.tableExists(tableName)
-  }
 
   override def name(): String = tableId.id
 
@@ -71,7 +68,7 @@ class QbeastTableImpl private[sources] (
 
   override def v1Table: CatalogTable = {
     if (catalogTable.isDefined) catalogTable.get
-    else throw AnalysisExceptionFactory.create("no catalog table defined")
+    else throw AnalysisExceptionFactory.create("No catalog table defined")
   }
 
 }

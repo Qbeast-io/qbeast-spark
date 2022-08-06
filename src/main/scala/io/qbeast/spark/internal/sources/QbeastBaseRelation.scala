@@ -24,12 +24,6 @@ import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 object QbeastBaseRelation {
 
   /**
-   * Creates a QbeastBaseRelation instance
-   * @param tableID the identifier of the table
-   * @return the QbeastBaseRelation
-   */
-
-  /**
    * Returns a HadoopFsRelation that contains all of the data present
    * in the table. This relation will be continually updated
    * as files are added or removed from the table. However, new HadoopFsRelation

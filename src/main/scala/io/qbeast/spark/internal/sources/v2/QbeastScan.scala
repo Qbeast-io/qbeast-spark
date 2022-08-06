@@ -12,19 +12,24 @@ import org.apache.spark.sql.sources.{BaseRelation, TableScan}
 import org.apache.spark.sql.types.StructType
 
 /**
- * Extends Scan Builder for V1 DataSource
+ * Extends Scan for V1 DataSource
  * It allows Spark to read from a Qbeast Formatted table
- * TODO include here the logic to get rid of the QbeastHash while reading the records
  * @param indexedTable the IndexedTable
  */
-class QbeastScanRDD(indexedTable: IndexedTable) extends V1Scan {
+
+// TODO Disclaimer: This class is not used yet.
+//  QbeastScan returns an Scan object that could allow QbeastTableImpl to SupportRead
+//  This can be the object where we can include logic
+//  to get rid of the QbeastHash while reading the records
+class QbeastScan(indexedTable: IndexedTable) extends V1Scan {
 
   private lazy val qbeastBaseRelation =
     QbeastBaseRelation.forQbeastTable(indexedTable)
 
   override def toV1TableScan[T <: BaseRelation with TableScan](context: SQLContext): T = {
 
-    // TODO add PrunedFilteredScan as an extension and implement the methods
+    // TODO add PrunedFilteredScan (column pruning + filter pushdown)
+    //  as an extension and implement the methods
     new BaseRelation with TableScan {
       override def sqlContext: SQLContext = context
 

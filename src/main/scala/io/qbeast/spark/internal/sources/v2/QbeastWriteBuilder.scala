@@ -15,6 +15,12 @@ import org.apache.spark.sql.sources.{Filter, InsertableRelation}
 
 import scala.collection.convert.ImplicitConversions.`map AsScala`
 
+/**
+ * WriteBuilder implementation for Qbeast Format
+ * @param info the write information
+ * @param properties the table properties
+ * @param indexedTable the Indexed Table
+ */
 class QbeastWriteBuilder(
     info: LogicalWriteInfo,
     properties: Map[String, String],
