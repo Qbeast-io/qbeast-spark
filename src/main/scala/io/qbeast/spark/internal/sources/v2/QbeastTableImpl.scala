@@ -10,7 +10,7 @@ import org.apache.spark.sql.connector.catalog.TableCapability._
 import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.catalog.CatalogTable
-import org.apache.spark.sql.{AnalysisExceptionFactory, SparkSession, V2toV1Fallback}
+import org.apache.spark.sql.{AnalysisExceptionFactory, V2toV1Fallback}
 import org.apache.spark.sql.connector.catalog.{SupportsWrite, Table, TableCapability}
 import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
 import org.apache.spark.sql.sources.BaseRelation
@@ -36,8 +36,6 @@ class QbeastTableImpl private[sources] (
     extends Table
     with SupportsWrite
     with V2toV1Fallback {
-
-  private lazy val spark = SparkSession.active
 
   private val pathString = path.toString
 
