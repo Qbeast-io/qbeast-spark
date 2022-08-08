@@ -133,6 +133,7 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
         df.createOrReplaceTempView("initial")
         dataToInsert.createOrReplaceTempView("toInsert")
 
+        // Insert using a TABLE statement
         spark.sql("INSERT INTO initial TABLE toInsert")
 
         spark.sql("SELECT * FROM initial").collect() shouldBe initialData
@@ -159,6 +160,7 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
         val df = spark.read.format("qbeast").load(tmpDir)
         df.createOrReplaceTempView("initial")
 
+        // Insert using a COLUMN LIST
         spark.sql("INSERT INTO initial (a, b) VALUES ('5', 5), ('6', 6)")
 
         spark.sql("SELECT * FROM initial").collect() shouldBe initialData
@@ -185,6 +187,7 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
         val df = spark.read.format("qbeast").load(tmpDir)
         df.createOrReplaceTempView("initial")
 
+        // Overwrite using a VALUE clause
         spark.sql("INSERT OVERWRITE initial VALUES ('5', 5), ('6', 6)")
 
         spark.sql("SELECT * FROM initial").collect() shouldBe dataToInsert.collect()
@@ -210,6 +213,7 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
         df.createOrReplaceTempView("initial")
         dataToInsert.createOrReplaceTempView("toInsert")
 
+        // Overwrite using a SELECT statement
         spark.sql("INSERT OVERWRITE initial SELECT a, b FROM toInsert")
 
         spark.sql("SELECT * FROM initial").collect() shouldBe dataToInsert.collect()
@@ -235,6 +239,7 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
         df.createOrReplaceTempView("initial")
         dataToInsert.createOrReplaceTempView("toInsert")
 
+        // Overwrite using a TABLE statement
         spark.sql("INSERT OVERWRITE initial TABLE toInsert")
 
         spark.sql("SELECT * FROM initial").collect() shouldBe dataToInsert.collect()
@@ -260,6 +265,7 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
         df.createOrReplaceTempView("initial")
         dataToInsert.createOrReplaceTempView("toInsert")
 
+        // Overwrite using a FROM statement
         spark.sql("INSERT OVERWRITE initial FROM toInsert SELECT *")
 
         spark.sql("SELECT * FROM initial").collect() shouldBe dataToInsert.collect()
@@ -293,6 +299,7 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
         df.createOrReplaceTempView("initial")
         dataToInsert.createOrReplaceTempView("toInsert")
 
+        // Insert using a TABLE statement on real data
         spark.sql("INSERT INTO initial TABLE toInsert")
 
         spark
@@ -332,7 +339,9 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
         df.createOrReplaceTempView("initial")
         dataToInsert.createOrReplaceTempView("toInsert")
 
+        // Overwrite using a TABLE statement on real data
         spark.sql("INSERT OVERWRITE initial TABLE toInsert")
+
         spark.sql("SELECT * FROM initial").collect() shouldBe dataToInsert.collect()
       }
     }
