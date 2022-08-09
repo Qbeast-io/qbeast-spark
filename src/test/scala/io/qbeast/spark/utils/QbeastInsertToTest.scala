@@ -277,15 +277,9 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
       {
         import spark.implicits._
 
-        val sourcePath = "src/test/resources/ecommerce100k_2019_Oct.csv"
         val targetColumns = Seq("product_id", "brand", "price", "user_id")
 
-        val initialData =
-          spark.read
-            .option("header", "true")
-            .option("inferSchema", "true")
-            .csv(sourcePath)
-            .select(targetColumns.map(col): _*)
+        val initialData = loadTestData(spark).select(targetColumns.map(col): _*)
         val dataToInsert = Seq((1, "qbeast", 9.99, 1)).toDF(targetColumns: _*)
 
         initialData.write
@@ -308,7 +302,7 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
             |price == 9.99 and user_id == 1""".stripMargin.replaceAll("\n", " "))
           .count shouldBe 1
 
-        spark.sql("SELECT * FROM initial").count shouldBe 100001
+        spark.sql("SELECT * FROM initial").count shouldBe initialData.count + 1
       }
     }
 
@@ -317,15 +311,9 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
       {
         import spark.implicits._
 
-        val sourcePath = "src/test/resources/ecommerce100k_2019_Oct.csv"
         val targetColumns = Seq("product_id", "brand", "price", "user_id")
 
-        val initialData =
-          spark.read
-            .option("header", "true")
-            .option("inferSchema", "true")
-            .csv(sourcePath)
-            .select(targetColumns.map(col): _*)
+        val initialData = loadTestData(spark).select(targetColumns.map(col): _*)
         val dataToInsert = Seq((1, "qbeast", 9.99, 1)).toDF(targetColumns: _*)
 
         initialData.write
