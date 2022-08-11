@@ -73,4 +73,28 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
       }
     }
 
+  it should "support INSERT OVERWRITE on a managed Table" in
+    withQbeastContextSparkAndTmpWarehouse { (spark, _) =>
+      {
+        import spark.implicits._
+
+        val targetColumns = Seq("product_id", "brand", "price", "user_id")
+
+        val initialData = loadTestData(spark).select(targetColumns.map(col): _*)
+        val dataToInsert = Seq((1, "qbeast", 9.99, 1)).toDF(targetColumns: _*)
+
+        initialData.write
+          .format("qbeast")
+          .option("cubeSize", "5000")
+          .option("columnsToIndex", "user_id,product_id")
+          .saveAsTable("ecommerce")
+
+        dataToInsert.createOrReplaceTempView("toInsert")
+
+        spark.sql("INSERT OVERWRITE ecommerce TABLE toInsert")
+        spark.sql("SELECT * FROM ecommerce").count shouldBe 1
+        spark.sql("SELECT * FROM ecommerce WHERE brand == 'qbeast'").count shouldBe 1
+
+      }
+    }
 }
