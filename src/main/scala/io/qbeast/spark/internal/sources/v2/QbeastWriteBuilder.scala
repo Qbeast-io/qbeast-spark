@@ -29,7 +29,14 @@ class QbeastWriteBuilder(
     with V1WriteBuilder
     with SupportsOverwrite {
 
-  override def overwrite(filters: Array[Filter]): WriteBuilder = this
+  private var forceOverwrite = false
+
+  override def overwrite(filters: Array[Filter]): WriteBuilder = {
+    // TODO: User filters to select existing data to remove
+    //  The remaining and the inserted data are then to be written
+    forceOverwrite = true
+    this
+  }
 
   /**
    * Build an InsertableRelation to be able to write the data in QbeastFormat
@@ -39,10 +46,12 @@ class QbeastWriteBuilder(
 
     new InsertableRelation {
       def insert(data: DataFrame, overwrite: Boolean): Unit = {
+        val append = if (forceOverwrite) false else !overwrite
+
         // Passing the options in the query plan plus the properties
         // because columnsToIndex needs to be included in the contract
         val writeOptions = info.options().toMap ++ properties
-        indexedTable.save(data, writeOptions, append = !overwrite)
+        indexedTable.save(data, writeOptions, append)
       }
     }
   }
