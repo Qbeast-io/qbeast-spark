@@ -168,4 +168,88 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
       }
     }
 
+  "Appending to an existing qbeast table" should
+    "work without specifying cubeSize or columnsToIndex" in withQbeastContextSparkAndTmpDir {
+      (spark, tmpDir) =>
+        {
+          val original = loadTestData(spark)
+          original.write
+            .format("qbeast")
+            .option("cubeSize", 10000)
+            .option("columnsToIndex", "user_id,product_id")
+            .save(tmpDir)
+
+          original.write
+            .mode("append")
+            .format("qbeast")
+            .save(tmpDir)
+          val qDf = spark.read.format("qbeast").load(tmpDir)
+
+          qDf.count shouldBe original.count * 2
+        }
+    }
+
+  it should "work without specifying columnsToIndex" in
+    withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
+      {
+        val original = loadTestData(spark)
+        original.write
+          .format("qbeast")
+          .option("cubeSize", 10000)
+          .option("columnsToIndex", "user_id,product_id")
+          .save(tmpDir)
+
+        original.write
+          .mode("append")
+          .format("qbeast")
+          .option("cubeSize", 10000)
+          .save(tmpDir)
+        val qDf = spark.read.format("qbeast").load(tmpDir)
+
+        qDf.count shouldBe original.count * 2
+      }
+    }
+
+  it should "work without specifying columnsToIndex" +
+    "while cause revision change by using a different cubeSize" in
+    withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
+      {
+        val original = loadTestData(spark)
+        original.write
+          .format("qbeast")
+          .option("cubeSize", 10000)
+          .option("columnsToIndex", "user_id,product_id")
+          .save(tmpDir)
+
+        original.write
+          .mode("append")
+          .format("qbeast")
+          .option("cubeSize", 5000)
+          .save(tmpDir)
+        val qDf = spark.read.format("qbeast").load(tmpDir)
+
+        qDf.count shouldBe original.count * 2
+      }
+    }
+
+  it should "append to an existing qbeast table without specifying cubeSize" in
+    withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
+      {
+        val original = loadTestData(spark)
+        original.write
+          .format("qbeast")
+          .option("cubeSize", 10000)
+          .option("columnsToIndex", "user_id,product_id")
+          .save(tmpDir)
+
+        original.write
+          .mode("append")
+          .format("qbeast")
+          .option("columnsToIndex", "user_id,product_id")
+          .save(tmpDir)
+        val qDf = spark.read.format("qbeast").load(tmpDir)
+
+        qDf.count shouldBe original.count * 2
+      }
+    }
 }
