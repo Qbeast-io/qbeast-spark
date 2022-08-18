@@ -65,11 +65,11 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       mode: SaveMode,
       parameters: Map[String, String],
       data: DataFrame): BaseRelation = {
-    if (mode != SaveMode.Append) {
-      require(
-        parameters.contains("columnsToIndex"),
-        throw AnalysisExceptionFactory.create("'columnsToIndex' is not specified"))
-    }
+
+    require(
+      parameters.contains("columnsToIndex") || mode == SaveMode.Append,
+      throw AnalysisExceptionFactory.create("'columnsToIndex' is not specified"))
+
     val tableId = SparkToQTypesUtils.loadFromParameters(parameters)
     val table = tableFactory.getIndexedTable(tableId)
     mode match {
