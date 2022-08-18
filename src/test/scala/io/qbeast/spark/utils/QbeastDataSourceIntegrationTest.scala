@@ -210,7 +210,7 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
       }
     }
 
-  it should "work without specifying columnsToIndex" +
+  it should "work without specifying columnsToIndex " +
     "while cause revision change by using a different cubeSize" in
     withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
       {
