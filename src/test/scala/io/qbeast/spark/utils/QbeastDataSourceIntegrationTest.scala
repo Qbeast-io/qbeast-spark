@@ -5,6 +5,7 @@ package io.qbeast.spark.utils
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
+import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions._
 
@@ -252,4 +253,19 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
         qDf.count shouldBe original.count * 2
       }
     }
+
+  "Appending to an non-existing table" should
+    "throw an exception if 'columnsToIndex' is not provided" in withQbeastContextSparkAndTmpDir {
+      (spark, tmpDir) =>
+        {
+          val original = loadTestData(spark)
+          a[AnalysisException] shouldBe thrownBy {
+            original.write
+              .format("qbeast")
+              .option("cubeSize", 10000)
+              .save(tmpDir)
+          }
+        }
+    }
+
 }
