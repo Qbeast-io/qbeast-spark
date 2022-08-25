@@ -15,9 +15,8 @@ import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.util.{QbeastThreadUtils, SerializableConfiguration}
+import org.apache.spark.util.SerializableConfiguration
 
-import scala.collection.parallel.ForkJoinTaskSupport
 import scala.collection.parallel.immutable.ParVector
 
 /**
@@ -128,54 +127,43 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
 
     val parallelJobCollection = new ParVector(cubesToCompactGrouped.toVector)
 
-    // Create a thread pool to be able to parallelize the compaction task
-    // Each thread will be in charge of compacting the set of files for one single cube
-    val threadPool =
-      QbeastThreadUtils.threadUtils.newForkJoinPool("Compaction", maxThreadNumber = 15)
-
     val job = Job.getInstance()
     val factory = new ParquetFileFormat().prepareWrite(sparkSession, job, Map.empty, schema)
     val serConf = new SerializableConfiguration(job.getConfiguration)
 
     val updates =
-      try {
-        val forkJoinPoolTaskSupport = new ForkJoinTaskSupport(threadPool)
-        parallelJobCollection.tasksupport = forkJoinPoolTaskSupport
-        // For each cube with a set of files to compact, we build a different task
-        parallelJobCollection.flatMap { case (cubeId: CubeId, cubeBlocks) =>
-          if (cubeBlocks.size <= 1) { // If the number of blocks to compact is 1 or 0, we do nothing
-            Seq.empty
-          } else { // Otherwise
-            // Get the file names for the cubeId
-            val fileNames = cubeBlocks.map(f => new Path(tableID.id, f.path).toString)
-            val compactor =
-              Compactor(
-                tableID = tableID,
-                factory = factory,
-                serConf = serConf,
-                schema = schema,
-                cubeId,
-                cubeBlocks.toIndexedSeq,
-                tableChanges)
+      // For each cube with a set of files to compact, we build a different task
+      parallelJobCollection.flatMap { case (cubeId: CubeId, cubeBlocks) =>
+        if (cubeBlocks.size <= 1) { // If the number of blocks to compact is 1 or 0, we do nothing
+          Seq.empty
+        } else { // Otherwise
+          // Get the file names for the cubeId
+          val fileNames = cubeBlocks.map(f => new Path(tableID.id, f.path).toString)
+          val compactor =
+            Compactor(
+              tableID = tableID,
+              factory = factory,
+              serConf = serConf,
+              schema = schema,
+              cubeId,
+              cubeBlocks.toIndexedSeq,
+              tableChanges)
 
-            // Load the data into a DataFrame
-            // and initialize a writer in the single partition
-            sparkSession.read
-              .format("parquet")
-              .load(fileNames: _*)
-              .coalesce(1)
-              .queryExecution
-              .executedPlan
-              .execute
-              .mapPartitions(compactor.writeBlock)
-              .collect()
-              .toIndexedSeq
-          }
+          // Load the data into a DataFrame
+          // and initialize a writer in the single partition
+          sparkSession.read
+            .format("parquet")
+            .load(fileNames: _*)
+            .repartition(1)
+            .queryExecution
+            .executedPlan
+            .execute
+            .mapPartitions(compactor.writeBlock)
+            .collect()
+            .toIndexedSeq
+        }
 
-        }.seq
-      } finally {
-        threadPool.shutdownNow()
-      }
+      }.seq
 
     updates
 
