@@ -66,9 +66,11 @@ case class Compactor(
 
     // Write data
 
-    it.foreach(writer.write)
-
-    writer.close()
+    try {
+      it.foreach(writer.write)
+    } finally {
+      writer.close()
+    }
 
     // Gather file stats and output an AddFile
     val fileStatus = writtenPath
