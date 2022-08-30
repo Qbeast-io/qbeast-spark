@@ -70,11 +70,9 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
 
     // Check what cubes are suitable for compaction
     val cubesToCompact = cubeStatuses
-      .map(cubeStatus => {
-        val cubeId = cubeStatus._1
-        val cubeBlocks = cubeStatus._2
+      .map { case (cubeId, cubeBlocks) =>
         (cubeId, cubeBlocks.filter(_.size >= MIN_FILE_SIZE_COMPACTION))
-      })
+      }
       .filter(_._2.nonEmpty)
 
     cubesToCompact.flatMap { case (cube, blocks) =>
