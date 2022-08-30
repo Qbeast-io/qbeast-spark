@@ -41,14 +41,16 @@ case class Compactor(
   def writeBlock(it: Iterator[InternalRow]): Iterator[FileAction] = {
 
     var minWeight = Weight.MaxValue
-    var maxWeight = Weight.MinValue
+    var maxWeight = Weight.MaxValue
     var elementCount = 0L
 
     // Use one single map to compute metadata
-    // of the new file (min, max weight and elementCount)
+    // (min, max weight and elementCount)
     val removedBlocks = cubeBlocks.map(b => {
+      // minWeight it's computed as the minimum of the minWeights
       if (b.minWeight < minWeight) minWeight = b.minWeight
-      if (b.maxWeight > maxWeight) maxWeight = b.maxWeight
+      // maxWeight it's computed as the minimum of the maxWeights
+      if (b.maxWeight < maxWeight) maxWeight = b.maxWeight
       elementCount = elementCount + b.elementCount
       RemoveFile(b.path, Some(System.currentTimeMillis()))
     })
