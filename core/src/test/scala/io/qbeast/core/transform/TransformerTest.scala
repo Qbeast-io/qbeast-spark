@@ -1,8 +1,10 @@
 package io.qbeast.core.transform
 
-import io.qbeast.core.model.IntegerDataType
+import io.qbeast.core.model.{IntegerDataType, TimestampDataType}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.sql.Timestamp
 
 class TransformerTest extends AnyFlatSpec with Matchers {
 
@@ -37,6 +39,28 @@ class TransformerTest extends AnyFlatSpec with Matchers {
     transformer
       .makeTransformation(transformation) should matchPattern {
       case LinearTransformation(0, 1, _, IntegerDataType) =>
+    }
+  }
+
+  it should "makeTransformation with Timestamp data type" in {
+    val columnName = "a"
+    val dataType = TimestampDataType
+    val transformer = Transformer(columnName, dataType)
+
+    val minTimestamp = Timestamp.valueOf("2017-01-01 12:02:00")
+    val maxTimestamp = Timestamp.valueOf("2017-01-02 12:02:00")
+
+    val minTimestampLong = minTimestamp.getTime
+    val maxTimestampLong = maxTimestamp.getTime
+
+    // If I do not print the values it complains that variables are not used
+    Console.print(minTimestampLong)
+    Console.print(maxTimestampLong)
+
+    val transformation = Map("a_min" -> minTimestamp, "a_max" -> maxTimestamp)
+    transformer
+      .makeTransformation(transformation) should matchPattern {
+      case LinearTransformation(minTimestampLong, maxTimestampLong, _, TimestampDataType) =>
     }
   }
 

@@ -2,6 +2,7 @@ package io.qbeast.spark.index
 
 import io.qbeast.TestClasses._
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import org.apache.spark.sql.functions.to_timestamp
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -55,33 +56,33 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   it should
     "index tables with hashing configuration" in withSparkAndTmpDir((spark, tmpDir) => {
-      import spark.implicits._
-      val source = 0
-        .to(100000)
-        .map(i => T2(i, i.toDouble))
-        .toDF()
-        .as[T2]
+    import spark.implicits._
+    val source = 0
+      .to(100000)
+      .map(i => T2(i, i.toDouble))
+      .toDF()
+      .as[T2]
 
-      source.write
-        .format("qbeast")
-        .option("columnsToIndex", "a:hashing,c:hashing")
-        .option("cubeSize", 10000)
-        .save(tmpDir)
+    source.write
+      .format("qbeast")
+      .option("columnsToIndex", "a:hashing,c:hashing")
+      .option("cubeSize", 10000)
+      .save(tmpDir)
 
-      val indexed = spark.read
-        .format("qbeast")
-        .load(tmpDir)
-        .as[T2]
+    val indexed = spark.read
+      .format("qbeast")
+      .load(tmpDir)
+      .as[T2]
 
-      indexed.count() shouldBe source.count()
+    indexed.count() shouldBe source.count()
 
-      assertSmallDatasetEquality(
-        source,
-        indexed,
-        ignoreNullable = true,
-        orderedComparison = false)
+    assertSmallDatasetEquality(
+      source,
+      indexed,
+      ignoreNullable = true,
+      orderedComparison = false)
 
-    })
+  })
 
   it should "index tables with all String" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
@@ -188,6 +189,24 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
       .as[TestLong]
 
     val indexed = writeAndReadDF(source, tmpDir, spark).as[TestLong]
+
+    indexed.count() shouldBe source.count()
+
+    assertSmallDatasetEquality(source, indexed, ignoreNullable = true, orderedComparison = false)
+
+  })
+
+  it should "index tables with all Timestamps" in withSparkAndTmpDir((spark, tmpDir) => {
+    import spark.implicits._
+    val df =
+      Seq(
+        "2017-01-01 12:02:00",
+        "2017-01-02 12:02:00",
+        "2017-01-03 12:02:00",
+        "2017-01-04 12:02:00").toDF("date")
+    val source = df.withColumn("my_date", to_timestamp($"date"))
+
+    val indexed = writeAndReadDF(source, tmpDir, spark)
 
     indexed.count() shouldBe source.count()
 

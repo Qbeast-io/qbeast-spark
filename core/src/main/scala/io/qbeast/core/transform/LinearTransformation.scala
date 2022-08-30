@@ -10,7 +10,7 @@ import com.fasterxml.jackson.databind.jsontype.TypeSerializer
 import com.fasterxml.jackson.databind.node.{DoubleNode, IntNode, NumericNode, TextNode}
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import com.fasterxml.jackson.databind.{DeserializationContext, SerializerProvider}
-import io.qbeast.core.model.{DecimalDataType, DoubleDataType, FloatDataType, IntegerDataType, LongDataType, OrderedDataType}
+import io.qbeast.core.model.{DecimalDataType, DoubleDataType, FloatDataType, IntegerDataType, LongDataType, OrderedDataType, TimestampDataType}
 
 import java.math.BigDecimal
 import java.sql.Timestamp
@@ -180,6 +180,7 @@ class LinearTransformationDeserializer
       case (LongDataType, long: NumericNode) => long.asLong
       case (FloatDataType, float: DoubleNode) => float.floatValue
       case (DecimalDataType, decimal: DoubleNode) => decimal.asDouble
+      case (TimestampDataType, long: NumericNode) => long.asLong
       case (_, null) => null
       case (a, b) =>
         throw new IllegalArgumentException(s"Invalid data type  ($a,$b) ${b.getClass} ")
