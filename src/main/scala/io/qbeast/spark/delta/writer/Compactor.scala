@@ -4,7 +4,7 @@
 package io.qbeast.spark.delta.writer
 
 import io.qbeast.IISeq
-import io.qbeast.core.model.{CubeId, QTableID, QbeastBlock, TableChanges}
+import io.qbeast.core.model.{CubeId, QTableID, QbeastBlock, TableChanges, Weight}
 import io.qbeast.spark.utils.{State, TagUtils}
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapred.{JobConf, TaskAttemptContextImpl, TaskAttemptID}
@@ -40,11 +40,20 @@ case class Compactor(
 
   def writeBlock(it: Iterator[InternalRow]): Iterator[FileAction] = {
 
-    val minWeight = cubeBlocks.map(_.minWeight).min
-    val maxWeight =
-      cubeBlocks.map(_.maxWeight).min // we pick the lesser updated value
+    var minWeight = Weight.MaxValue
+    var maxWeight = Weight.MinValue
+    var elementCount = 0L
+
+    // Use one single map to compute metadata
+    // of the new file (min, max weight and elementCount)
+    val removedBlocks = cubeBlocks.map(b => {
+      if (b.minWeight < minWeight) minWeight = b.minWeight
+      if (b.maxWeight > maxWeight) maxWeight = b.maxWeight
+      elementCount = elementCount + b.elementCount
+      RemoveFile(b.path, Some(System.currentTimeMillis()))
+    })
+
     val state = tableChanges.cubeState(cubeId).getOrElse(State.FLOODED)
-    val rowCount = cubeBlocks.map(_.elementCount).sum
     val revision = tableChanges.updatedRevision
 
     // Update the tags of the block with the information of the cubeBlocks
@@ -54,7 +63,7 @@ case class Compactor(
       TagUtils.maxWeight -> maxWeight.value.toString,
       TagUtils.state -> state,
       TagUtils.revision -> revision.revisionID.toString,
-      TagUtils.elementCount -> rowCount.toString)
+      TagUtils.elementCount -> elementCount.toString)
 
     val writtenPath = new Path(tableID.id, s"${UUID.randomUUID()}.parquet")
     val writer: OutputWriter = factory.newInstance(
@@ -88,8 +97,7 @@ case class Compactor(
 
     // Add the file to the commit log and remove the old ones
     // Better to check all the metadata associated
-    (Seq(addFile) ++ cubeBlocks.map(b =>
-      RemoveFile(b.path, Some(System.currentTimeMillis())))).toIterator
+    (Seq(addFile) ++ removedBlocks).toIterator
   }
 
 }

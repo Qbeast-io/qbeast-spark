@@ -64,7 +64,7 @@ private[delta] class IndexStatusBuilder(
       .select(
         createCube(col("cube"), lit(ndims)).as("cubeId"),
         col("maxWeight"),
-        norm(col("maxWeight"), col("elementCount"), lit(rev.desiredCubeSize)).as(
+        normalizeWeight(col("maxWeight"), col("elementCount"), lit(rev.desiredCubeSize)).as(
           "normalizedWeight"),
         col("files"))
       .as[CubeStatus]
