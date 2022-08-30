@@ -2,6 +2,7 @@ package io.qbeast.core.model
 
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonIgnore, JsonValue}
 
+
 /**
  * Companion object for QDataType
  */
@@ -31,7 +32,7 @@ trait QDataType extends Serializable {
 object OrderedDataType {
 
   val qtypes: Map[String, OrderedDataType] =
-    Seq(DoubleDataType, IntegerDataType, FloatDataType, LongDataType, DecimalDataType)
+    Seq(DoubleDataType, IntegerDataType, FloatDataType, LongDataType, DecimalDataType, TimestampDataType)
       .map(dt => dt.name -> dt)
       .toMap
 
@@ -52,29 +53,43 @@ trait OrderedDataType extends QDataType {
 
 object DoubleDataType extends OrderedDataType {
   override def name: String = "DoubleDataType"
+
   override val ordering: Numeric[Any] = implicitly[Numeric[Double]].asInstanceOf[Numeric[Any]]
 }
 
 object IntegerDataType extends OrderedDataType {
   override def name: String = "IntegerDataType"
+
   override val ordering: Numeric[Any] = implicitly[Numeric[Int]].asInstanceOf[Numeric[Any]]
 }
 
 object LongDataType extends OrderedDataType {
   override def name: String = "LongDataType"
+
   override val ordering: Numeric[Any] = implicitly[Numeric[Long]].asInstanceOf[Numeric[Any]]
 }
 
 object FloatDataType extends OrderedDataType {
   override def name: String = "FloatDataType"
+
   override val ordering: Numeric[Any] = implicitly[Numeric[Float]].asInstanceOf[Numeric[Any]]
 }
 
 object DecimalDataType extends OrderedDataType {
   override def name: String = "DecimalDataType"
+
   override val ordering: Numeric[Any] = implicitly[Numeric[Double]].asInstanceOf[Numeric[Any]]
 }
 
 object StringDataType extends QDataType {
   override def name: String = "StringDataType"
 }
+
+object TimestampDataType extends OrderedDataType {
+  override def name: String = "TimestampDataType"
+
+  // Not sure how to implement this, this might fail
+  override val ordering: Numeric[Any] = implicitly[Numeric[Long]].asInstanceOf[Numeric[Any]]
+
+}
+

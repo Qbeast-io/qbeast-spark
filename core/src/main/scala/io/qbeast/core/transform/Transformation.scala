@@ -4,6 +4,7 @@
 package io.qbeast.core.transform
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import java.sql.Timestamp
 
 /**
  * Double value transformation.
@@ -53,6 +54,9 @@ case class IdentityTransformation(newVal: Any) extends Transformation {
   override def transform(value: Any): Double = value match {
     case v: Number =>
       v.byteValue()
+    // Not sure that we need this
+    case v: Timestamp =>
+      v.getTime().byteValue()
   }
 
   override def isSupersededBy(newTransformation: Transformation): Boolean = false

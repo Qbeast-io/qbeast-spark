@@ -10,16 +10,10 @@ import com.fasterxml.jackson.databind.jsontype.TypeSerializer
 import com.fasterxml.jackson.databind.node.{DoubleNode, IntNode, NumericNode, TextNode}
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import com.fasterxml.jackson.databind.{DeserializationContext, SerializerProvider}
-import io.qbeast.core.model.{
-  DecimalDataType,
-  DoubleDataType,
-  FloatDataType,
-  IntegerDataType,
-  LongDataType,
-  OrderedDataType
-}
+import io.qbeast.core.model.{DecimalDataType, DoubleDataType, FloatDataType, IntegerDataType, LongDataType, OrderedDataType}
 
 import java.math.BigDecimal
+import java.sql.Timestamp
 import scala.util.Random
 import scala.util.hashing.MurmurHash3
 
@@ -57,6 +51,7 @@ case class LinearTransformation(
       case v: Int => (v - mn) * scale
       case v: BigDecimal => (v.doubleValue() - mn) * scale
       case v: Float => (v - mn) * scale
+      case v: Timestamp => (v.getTime - mn) * scale
     }
   }
 
