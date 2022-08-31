@@ -234,7 +234,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
       import spark.implicits._
       val source = 0
         .to(100000)
-        .map(i => TestNull(Some(s"student$i"), Some(1), Some(i * 2)))
+        .map(i => TestNull(Some(s"student$i"), Some(10), Some(i)))
         .toDF()
         .as[TestNull]
 
