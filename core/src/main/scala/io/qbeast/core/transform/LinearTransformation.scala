@@ -82,7 +82,7 @@ case class LinearTransformation(
           otherNullValue,
           orderedDataType)
           .asInstanceOf[Transformation]
-      case IdentityTransformation(newVal) =>
+      case IdentityToZeroTransformation(newVal) =>
         val otherNullValue =
           LinearTransformationUtils.generateRandomNumber(
             min(minNumber, newVal),
@@ -109,7 +109,7 @@ case class LinearTransformation(
       case LinearTransformation(newMin, newMax, _, otherOrdering)
           if orderedDataType == otherOrdering =>
         gt(minNumber, newMin) || lt(maxNumber, newMax)
-      case IdentityTransformation(newVal) =>
+      case IdentityToZeroTransformation(newVal) =>
         gt(minNumber, newVal) || lt(maxNumber, newVal)
     }
 
