@@ -26,6 +26,7 @@ object SparkToQTypesUtils {
     case _: StringType => qmodel.StringDataType
     case _: DecimalType => qmodel.DecimalDataType
     case _: TimestampType => qmodel.TimestampDataType
+    case _: DateType => qmodel.DateDataType
     case _ => throw new RuntimeException(s"${sparkType.typeName} is not supported yet")
     // TODO add more types
   }

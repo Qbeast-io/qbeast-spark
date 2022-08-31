@@ -1,14 +1,10 @@
 package io.qbeast.core.model
 
-import io.qbeast.core.transform.{
-  HashTransformation,
-  LinearTransformation,
-  Transformation,
-  Transformer
-}
+import io.qbeast.core.transform.{HashTransformation, LinearTransformation, Transformation, Transformer}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.sql.{Date, Timestamp}
 import scala.util.Random
 import scala.util.hashing.MurmurHash3
 
@@ -66,6 +62,36 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
     val ser =
       """{"className":"io.qbeast.core.transform.LinearTransformation",""" +
         """"minNumber":0,"maxNumber":10,"nullValue":5,"orderedDataType":"LongDataType"}"""
+    mapper.writeValueAsString(tr) shouldBe ser
+    mapper.readValue[Transformation](ser, classOf[Transformation]) shouldBe tr
+
+  }
+
+  "A LinearTransformation" should "serializer with the class type con Timestamp" in {
+    val minTimestamp = Timestamp.valueOf("2017-01-01 12:02:00").getTime
+    val maxTimestamp = Timestamp.valueOf("2017-01-02 12:02:00").getTime
+    val nullTimestamp = Timestamp.valueOf("2017-01-01 18:02:00").getTime
+    val tr: Transformation =
+      LinearTransformation(minTimestamp, maxTimestamp, nullTimestamp, TimestampDataType)
+    val ser =
+      """{"className":"io.qbeast.core.transform.LinearTransformation",""" +
+        s""""minNumber":${minTimestamp},"maxNumber":${maxTimestamp},""" +
+        s""""nullValue":${nullTimestamp},"orderedDataType":"TimestampDataType"}""".stripMargin
+    mapper.writeValueAsString(tr) shouldBe ser
+    mapper.readValue[Transformation](ser, classOf[Transformation]) shouldBe tr
+
+  }
+
+  "A LinearTransformation" should "serializer with the class type con Date" in {
+    val minTimestamp = Date.valueOf("2017-01-01").getTime
+    val maxTimestamp = Date.valueOf("2017-01-02").getTime
+    val nullTimestamp = Date.valueOf("2017-01-01").getTime
+    val tr: Transformation =
+      LinearTransformation(minTimestamp, maxTimestamp, nullTimestamp, DateDataType)
+    val ser =
+      """{"className":"io.qbeast.core.transform.LinearTransformation",""" +
+        s""""minNumber":${minTimestamp},"maxNumber":${maxTimestamp},""" +
+        s""""nullValue":${nullTimestamp},"orderedDataType":"DateDataType"}""".stripMargin
     mapper.writeValueAsString(tr) shouldBe ser
     mapper.readValue[Transformation](ser, classOf[Transformation]) shouldBe tr
 
