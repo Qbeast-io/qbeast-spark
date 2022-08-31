@@ -3,7 +3,7 @@ package io.qbeast.core.transform
 import io.qbeast.core.model.{DateDataType, IntegerDataType, TimestampDataType}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
+import scala.util.matching.Regex
 import java.sql.{Date, Timestamp}
 
 class TransformerTest extends AnyFlatSpec with Matchers {
@@ -48,20 +48,20 @@ class TransformerTest extends AnyFlatSpec with Matchers {
     val transformer = Transformer(columnName, dataType)
 
     val minTimestamp = Timestamp.valueOf("2017-01-01 12:02:00")
-    val maxTimestamp = Timestamp.valueOf("2017-01-02 12:02:00")
-
-    val minTimestampLong = minTimestamp.getTime
-    val maxTimestampLong = maxTimestamp.getTime
-
-    // If I do not print the values it complains that variables are not used
-    Console.print(minTimestampLong)
-    Console.print(maxTimestampLong)
+    val maxTimestamp = Timestamp.valueOf("2017-01-03 12:02:00")
 
     val transformation = Map("a_min" -> minTimestamp, "a_max" -> maxTimestamp)
-    transformer
-      .makeTransformation(transformation) should matchPattern {
-      case LinearTransformation(minTimestampLong, maxTimestampLong, _, TimestampDataType) =>
-    }
+    val resTransformation = transformer.makeTransformation(transformation)
+
+    // Find all integers in the string separated by commas and remove characters
+    val regex: Regex = "\\d+".r
+    val resMinMax = regex.findAllIn(resTransformation.toString).toList.map(_.toLong)
+    resMinMax(0) shouldBe minTimestamp.getTime
+    resMinMax(1) shouldBe maxTimestamp.getTime
+    // Get the the datatype of the transformation
+    val resDataType = resTransformation.toString.split(",")(3).dropRight(1)
+    resDataType shouldBe dataType.toString
+
   }
 
   it should "makeTransformation with Date data type" in {
@@ -70,20 +70,20 @@ class TransformerTest extends AnyFlatSpec with Matchers {
     val transformer = Transformer(columnName, dataType)
 
     val minTimestamp = Date.valueOf("2017-01-01")
-    val maxTimestamp = Date.valueOf("2017-01-02")
-
-    val minTimestampLong = minTimestamp.getTime
-    val maxTimestampLong = maxTimestamp.getTime
-
-    // If I do not print the values it complains that variables are not used
-    Console.print(minTimestampLong)
-    Console.print(maxTimestampLong)
+    val maxTimestamp = Date.valueOf("2017-01-03")
 
     val transformation = Map("a_min" -> minTimestamp, "a_max" -> maxTimestamp)
-    transformer
-      .makeTransformation(transformation) should matchPattern {
-      case LinearTransformation(minTimestampLong, maxTimestampLong, _, DateDataType) =>
-    }
+    val resTransformation = transformer.makeTransformation(transformation)
+
+    // Find all integers in the string separated by commas and remove characters
+    val regex: Regex = "\\d+".r
+    val resMinMax = regex.findAllIn(resTransformation.toString).toList.map(_.toLong)
+    resMinMax(0) shouldBe minTimestamp.getTime
+    resMinMax(1) shouldBe maxTimestamp.getTime
+    // Get the the datatype of the transformation
+    val resDataType = resTransformation.toString.split(",")(3).dropRight(1)
+    resDataType shouldBe dataType.toString
+
   }
 
   it should "return new transformation on maybeUpdateTransformation" in {
