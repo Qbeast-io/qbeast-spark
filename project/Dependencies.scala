@@ -4,7 +4,7 @@ import sbt._
  * External libraries used in the project with versions.
  */
 object Dependencies {
-  lazy val sparkVersion: String = sys.props.get("spark.version").getOrElse("3.2.1")
+  lazy val sparkVersion: String = sys.props.get("spark.version").getOrElse("3.2.2")
   lazy val hadoopVersion: String = sys.props.get("hadoop.version").getOrElse("3.3.1")
   lazy val deltaVersion: String = "1.2.0"
 

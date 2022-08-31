@@ -18,9 +18,9 @@
 
 **Qbeast Spark** is an extension for [**Data Lakehouses**](http://cidrdb.org/cidr2021/papers/cidr2021_paper17.pdf) that enables **multi-dimensional filtering** and **sampling** directly on the storage
 
-[![apache-spark](https://img.shields.io/badge/apache--spark-3.1.x-blue)](https://spark.apache.org/releases/spark-release-3-1-1.html) 
-[![apache-hadoop](https://img.shields.io/badge/apache--hadoop-3.2.0-blue)](https://hadoop.apache.org/release/3.2.0.html)
-[![delta-core](https://img.shields.io/badge/delta--core-1.0.0-blue)](https://github.com/delta-io/delta/releases/tag/v1.0.0)
+[![apache-spark](https://img.shields.io/badge/apache--spark-3.2.x-blue)](https://spark.apache.org/releases/spark-release-3-1-1.html) 
+[![apache-hadoop](https://img.shields.io/badge/apache--hadoop-3.3.x-blue)](https://hadoop.apache.org/release/3.2.0.html)
+[![delta-core](https://img.shields.io/badge/delta--core-1.2.0-blue)](https://github.com/delta-io/delta/releases/tag/v1.0.0)
 [![codecov](https://codecov.io/gh/Qbeast-io/qbeast-spark/branch/main/graph/badge.svg?token=8WO7HGZ4MW)](https://codecov.io/gh/Qbeast-io/qbeast-spark)
 
 </div>
@@ -169,10 +169,11 @@ spark.sql("insert into table myTable (value) values (4)")
 Go to [QbeastTable documentation](./docs/QbeastTable.md) for more detailed information.
 
 # Dependencies and Version Compatibility
-| Version | Spark | Hadoop | Delta Lake |
-|---------|:-----:|:------:|:----------:|
-| 0.1.0   | 3.0.0 | 3.2.0  |   0.8.0    |
-| 0.2.0   | 3.1.x | 3.2.0  |   1.0.0    |
+| Version     | Spark | Hadoop | Delta Lake |
+|-------------|:-----:|:------:|:----------:|
+| 0.1.0       | 3.0.0 | 3.2.0  |   0.8.0    |
+| 0.2.0       | 3.1.x | 3.2.0  |   1.0.0    |
+| 0.3.0-alpha | 3.2.x | 3.3.x  |   1.2.x    |
 
 Check [here](https://docs.delta.io/latest/releases.html) for **Delta Lake** and **Apache Spark** version compatibility.  
 

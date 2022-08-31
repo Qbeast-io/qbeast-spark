@@ -1,13 +1,13 @@
 import Dependencies._
 import xerial.sbt.Sonatype._
 
+val mainVersion = "0.3.0-alpha"
+
 lazy val qbeastCore = (project in file("core"))
   .settings(
     name := "qbeast-core",
-    version := "0.1.0",
+    version := mainVersion,
     libraryDependencies ++= Seq(apacheCommons % Test))
-
-val qbeast_spark_version = "0.2.0"
 
 // Projects
 lazy val qbeastSpark = (project in file("."))
@@ -33,12 +33,12 @@ qbeastSpark / Compile / doc / scalacOptions ++= Seq(
   "-doc-title",
   "qbeast-spark",
   "-doc-version",
-  qbeast_spark_version,
+  mainVersion,
   "-doc-footer",
-  "Copyright 2022 Qbeast - Docs for version " + qbeast_spark_version + " of qbeast-spark")
+  "Copyright 2022 Qbeast - Docs for version " + mainVersion + " of qbeast-spark")
 
 // Common metadata
-ThisBuild / version := qbeast_spark_version
+ThisBuild / version := mainVersion
 ThisBuild / organization := "io.qbeast"
 ThisBuild / organizationName := "Qbeast Analytics, S.L."
 ThisBuild / organizationHomepage := Some(url("https://qbeast.io/"))
