@@ -11,8 +11,10 @@ import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.delta.files.TahoeLogFileIndex
 import org.apache.spark.sql.execution.datasources.{FileIndex, PartitionDirectory}
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.SparkSession
 
 import java.net.URI
+import org.apache.spark.sql.delta.DeltaLog
 
 /**
  * FileIndex to prune files
@@ -76,4 +78,20 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
   override def rootPaths: Seq[Path] = index.rootPaths
 
   override def partitionSchema: StructType = index.partitionSchema
+}
+
+/**
+ * Object OTreeIndex to create a new OTreeIndex
+ * @param sparkSession the spark session
+ * @param path the path to the delta log
+ * @return the OTreeIndex
+ */
+object OTreeIndex {
+
+  def apply(spark: SparkSession, path: Path): OTreeIndex = {
+    val deltaLog = DeltaLog.forTable(spark, path)
+    val tahoe = TahoeLogFileIndex(spark, deltaLog, path, deltaLog.snapshot, Seq.empty, false)
+    OTreeIndex(tahoe)
+  }
+
 }

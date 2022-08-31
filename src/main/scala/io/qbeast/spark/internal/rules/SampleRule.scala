@@ -5,7 +5,6 @@ package io.qbeast.spark.internal.rules
 
 import io.qbeast.core.model.Weight
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
-import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{And, GreaterThanOrEqual, LessThan, Literal}
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, Project, Sample}
@@ -13,6 +12,9 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.SparkSession
 import io.qbeast.core.model.WeightRange
+import io.qbeast.IndexedColumns
+import org.apache.spark.sql.execution.datasources.HadoopFsRelation
+import io.qbeast.spark.delta.OTreeIndex
 
 /**
  * Rule class that transforms a Sample operator over a QbeastRelation
@@ -36,19 +38,18 @@ class SampleRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
    * Transforms the Sample Operator to a Filter
    * @param sample the Sample Operator
    * @param logicalRelation the LogicalRelation underneath
-   * @param qbeastBaseRelation the wrapped QbeastBaseRelation
+   * @param indexedColumns the IndexedColumns of the LogicalRelation
    * @return the new Filter
    */
   private def transformSampleToFilter(
       sample: Sample,
       logicalRelation: LogicalRelation,
-      qbeastBaseRelation: QbeastBaseRelation): Filter = {
+      indexedColumns: IndexedColumns): Filter = {
 
     val weightRange = extractWeightRange(sample)
 
     val columns =
-      qbeastBaseRelation.columnTransformers.map(c =>
-        logicalRelation.output.find(_.name == c.columnName).get)
+      indexedColumns.map(c => logicalRelation.output.find(_.name == c).get)
     val qbeastHash = new QbeastMurmur3Hash(columns)
 
     Filter(
@@ -86,8 +87,15 @@ class SampleRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
  */
 object QbeastRelation {
 
-  def unapply(plan: LogicalPlan): Option[(LogicalRelation, QbeastBaseRelation)] = plan match {
-    case l @ LogicalRelation(q: QbeastBaseRelation, _, _, _) => Some((l, q))
+  def unapply(plan: LogicalPlan): Option[(LogicalRelation, IndexedColumns)] = plan match {
+
+    case l @ LogicalRelation(
+          q @ HadoopFsRelation(o: OTreeIndex, _, _, _, _, parameters),
+          _,
+          _,
+          _) =>
+      val columnsToIndex = parameters("columnsToIndex")
+      Some((l, columnsToIndex.split(",")))
     case _ => None
   }
 

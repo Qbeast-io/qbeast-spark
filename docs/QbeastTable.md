@@ -9,7 +9,7 @@ import io.qbeast.spark.QbeastTable
 
 val qbeastTable = QbeastTable.forPath(spark, "path/to/qbeast/table")
 ```
-## Format Information
+## Table Information
 
 If you want to know more about the Format, you can use the different get methods. 
 
@@ -25,12 +25,18 @@ qbeastTable.revisionsIDs() // all the current Revision identifiers
 qbeatsTable.lastRevisionID() // the last Revision identifier
 ```
 
-And also execute `Analyze` and `Optimize` operations, which are **currently experimental**.
+## Table Operations
+Through QbeastTable you can also execute `Analyze`, `Optimize` and `Compact` operations, which are **currently experimental**.
 
+- **`Analyze`**: analyzes the index **searching for possible optimizations**.
+- **`Optimize`**: optimize the index parts analyzed in the previous operation. The goal is to **improve reading performance** by accessing the less amount of data possible.
+- **`Compact`**: **rearranges** index information that is stored into **small files**. Compaction will **reduce the number of files** when you have many writing operations on the table.
 ```scala
 qbeastTable.analyze() // returns the Serialized cube ID's to optimize
 
 qbeastTable.optimize() // optimizes the cubes
+
+qbeastTable.compact() // compacts small files into bigger ones
 ```
 
 ## Index Metrics
@@ -39,7 +45,7 @@ qbeastTable.optimize() // optimizes the cubes
 
 You can use it to **compare the index** build **with different indexing parameters** such as the `desiredCubeSize` and `columnsToIndex`.
 
-If you're experimenting with new ways of implementing the OTree algorithm, you can also use this API to analyze the resulting index!
+This is meant to be used as an easy access point to analyze the resulting index, which should come handy for comparing different index parameters or even implementations.
 
 ```scala
 val metrics = qbeastTable.getIndexMetrics()
@@ -48,45 +54,49 @@ println(metrics)
 
 // EXAMPLE OUTPUT
 
-OTree Index Metrics:
-dimensionCount: 2
-elementCount: 1001
-depth: 2
-cubeCounts: 7
-desiredCubeSize: 100
-avgFanOut: 2.0
-depthOverLogNumNodes: 0.7124143742160444
-depthOnBalance: 0.6020599913279624
-Non-lead Cube Size Stats:
-(All values are 0 if there's no non-leaf cubes):
-- min: 3729
-- firstQuartile: 3729
-- secondQuartile: 4832
-- thirdQuartile: 5084
-- max: 5084
-- dev: 2.0133907E7
+Tree Index Metrics:
+dimensionCount: 3
+elementCount: 2879966589
+depth: 7
+cubeCount: 22217
+desiredCubeSize: 500000
+avgFan0ut: 8.0
+depthOnBalance: 1.4740213633300192
+
+Non-Leaf Cube Size Stats
+Quantiles:
+- min: 482642
+- 1stQ: 542859
+- 2ndQ: 557161
+- 3rdQ: 576939
+- max: 633266
+- dev(l1, l2): (0.11743615196254953, 0.0023669553335121983)
+
+(level, average weight, average cube size):
+(0, (1.6781478192839184E-4,482642))
+(1, (0.001726577786432248,550513))
+(2, (0.014704148241220776,566831))
+(3, (0.1260420146029599,570841))
+(4, (0.7243052757165773, 557425))
+(5, (0.4040913470739245,527043))
+(6, (0.8873759316622165, 513460))
 ```
 
 ## Metrics
 ### 1. General index metadata:
 
-- **Desired cube size**: the desired cube size choosed by the user, or the one that was automatically calculated.
-- **Number of cubes**: the number of cubes in the index.
-- **Tree depth**: the number of levels of the tree.
-- **Average fan out of the cubes**: the average number of children per non-leaf cube. For this metric, it is better to get closer to `2^(numberOfDimensions)`.
-- **Dimension count**: the number of dimensions (indexed columns) in the index.
-- **Number of rows**: the total number of elements.
+- **dimensionCount**: the number of dimensions (indexed columns) in the index.
+- **elementCount**: the number of rows in the table.
+- **desiredCubeSize**: the desired cube size chosen at the moment of indexing.
+- **Number of cubes**: the number of nodes in the index tree.
+- **depth**: the number of levels in the tree.
+- **avgFanOut**: the average number of children per non-leaf cube. The max value for this metrics is `2 ^ dimensionCount`.
+- **depthOnBalance**: how far the depth of the tree is to the theoretical value if we were to have the same number of cubes and max fan out.
 
-### 2. Some more specific details such as:
-- **depthOverLogNumNodes = depth / log(cubeCounts)**
-- **depthOnBalance = depth / log(rowCount/desiredCubeSize)**
+### 2. Cube sizes for non-leaf cubes:
+`Non-leaf cube size stats` is meant to describe the distribution of inner cube sizes:
+- **min**, **max**, **quartiles**, and how far the cube sizes are from the `desiredCubeSize`(**l1 and l2 error**).
+- The average normalizedWeight and cube size per level.
 
-  both logs use **base = dimensionCount**
-
-### 3. Cube sizes for non-leaf cubes:
-- `NonLeafCubeSizeDetails` contains their **min**, **max**, **quantiles**, and how far each of the cube sizes are from the `desiredCubeSize`(**dev**).
-
-### 4. `Map[CubeId, CubeStatus]`
-- Some information from the map can be interesting to analyze - for example, the **distribution of cube weights**.
-
-  You can access this information through `metrics.cubeStatuses`.
+### 3. `Map[CubeId, CubeStatus]`
+- More information can be extracted from the index tree through `metrics.cubeStatuses`.

@@ -41,7 +41,7 @@ class QuerySpaceFromTo(private val from: Seq[Option[Double]], private val to: Se
   private def intersects(f: Double, t: Double, cube: CubeId, coordinate: Int): Boolean = {
     val cf = cube.from.coordinates(coordinate)
     val ct = cube.to.coordinates(coordinate)
-    (f <= cf && cf < t) || (cf <= f && f < ct)
+    (f <= cf && cf < t) || (cf <= f && f < ct) || (f == 1.0 && ct == 1.0)
   }
 
   override def intersectsWith(cube: CubeId): Boolean = {

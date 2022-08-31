@@ -4,12 +4,11 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model._
-import io.qbeast.spark.delta.IndexStatusBuilder.{createCube, norm, qblock, weight}
+import io.qbeast.spark.delta.QbeastMetadataSQL._
 import io.qbeast.spark.utils.TagColumns
 import org.apache.spark.sql.delta.actions.AddFile
-import org.apache.spark.sql.expressions.UserDefinedFunction
-import org.apache.spark.sql.functions.{col, collect_list, lit, min, struct, sum, udf}
-import org.apache.spark.sql.{Column, Dataset, SparkSession}
+import org.apache.spark.sql.functions.{col, collect_list, lit, min, sum}
+import org.apache.spark.sql.{Dataset, SparkSession}
 
 import scala.collection.immutable.SortedMap
 
@@ -59,13 +58,13 @@ private[delta] class IndexStatusBuilder(
     revisionFiles
       .groupBy(TagColumns.cube)
       .agg(
-        weight(min(TagColumns.maxWeight)).as("maxWeight"),
+        min(weight(TagColumns.maxWeight)).as("maxWeight"),
         sum(TagColumns.elementCount).as("elementCount"),
         collect_list(qblock).as("files"))
       .select(
         createCube(col("cube"), lit(ndims)).as("cubeId"),
         col("maxWeight"),
-        norm(col("maxWeight"), col("elementCount"), lit(rev.desiredCubeSize)).as(
+        normalizeWeight(col("maxWeight"), col("elementCount"), lit(rev.desiredCubeSize)).as(
           "normalizedWeight"),
         col("files"))
       .as[CubeStatus]
@@ -73,32 +72,5 @@ private[delta] class IndexStatusBuilder(
       .foreach(row => builder += row.cubeId -> row)
     builder.result()
   }
-
-}
-
-object IndexStatusBuilder {
-  val weight: UserDefinedFunction = udf((weight: Int) => Weight(weight))
-
-  val norm: UserDefinedFunction = udf((mw: Weight, elementCount: Long, desiredSize: Int) =>
-    if (mw < Weight.MaxValue) {
-      mw.fraction
-    } else {
-      NormalizedWeight.apply(desiredSize, elementCount)
-    })
-
-  val createCube: UserDefinedFunction =
-    udf((cube: String, dimensions: Int) => CubeId(dimensions, cube))
-
-  val qblock: Column =
-    struct(
-      col("path"),
-      col("size"),
-      col("modificationTime"),
-      weight(TagColumns.minWeight).as("minWeight"),
-      weight(TagColumns.maxWeight)
-        .as("maxWeight"),
-      TagColumns.state,
-      TagColumns.revision.cast("bigint").as("revision"),
-      TagColumns.elementCount.cast("bigint").as("elementCount"))
 
 }

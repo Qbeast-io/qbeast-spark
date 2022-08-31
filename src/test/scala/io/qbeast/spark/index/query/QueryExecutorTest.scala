@@ -203,4 +203,16 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
     val diff = allFiles.toSet -- matchFiles.toSet
     diff.size shouldBe 1
   })
+
+  it should "find the max value when filtering" in withSparkAndTmpDir((spark, tmpdir) => {
+    val source = createDF(50000, spark).toDF().coalesce(4)
+
+    writeTestData(source, Seq("a", "c"), 4000, tmpdir)
+
+    val indexed = spark.read.format("qbeast").load(tmpdir)
+
+    indexed.where("a == 50000").count shouldBe 1
+    indexed.where("c == 50000.0").count shouldBe 1
+  })
+
 }

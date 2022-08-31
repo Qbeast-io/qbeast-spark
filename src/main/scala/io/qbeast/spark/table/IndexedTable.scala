@@ -67,6 +67,11 @@ trait IndexedTable {
    * @param revisionID the identifier of revision to optimize
    */
   def optimize(revisionID: RevisionID): Unit
+
+  /**
+   * Compacts the small files for a given table
+   */
+  def compact(revisionID: RevisionID): Unit
 }
 
 /**
@@ -190,8 +195,13 @@ private[table] class IndexedTableImpl(
     }
   }
 
-  private def createQbeastBaseRelation(): QbeastBaseRelation = {
-    QbeastBaseRelation.forDeltaTable(tableID)
+  /**
+   * Creates a QbeastBaseRelation for the given table.
+   * @param tableID the table identifier
+   * @return the QbeastBaseRelation
+   */
+  private def createQbeastBaseRelation(): BaseRelation = {
+    QbeastBaseRelation.forQbeastTable(tableID, this)
   }
 
   private def write(data: DataFrame, indexStatus: IndexStatus, append: Boolean): BaseRelation = {
@@ -290,6 +300,23 @@ private[table] class IndexedTableImpl(
       val fileActions =
         dataWriter.write(tableID, schema, qbeastData, tableChanges)
       (tableChanges, fileActions)
+    }
+
+  }
+
+  override def compact(revisionID: RevisionID): Unit = {
+
+    // Load the schema and the current status
+    val schema = metadataManager.loadCurrentSchema(tableID)
+    val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
+
+    metadataManager.updateWithTransaction(tableID, schema, true) {
+      // There's no affected table changes on compaction, so we send an empty object
+      val tableChanges = BroadcastedTableChanges(None, currentIndexStatus, Map.empty)
+      val fileActions =
+        dataWriter.compact(tableID, schema, currentIndexStatus, tableChanges)
+      (tableChanges, fileActions)
+
     }
 
   }
