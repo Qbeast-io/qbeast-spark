@@ -6,8 +6,8 @@ package io.qbeast.context
 import io.qbeast.core.keeper.{Keeper, LocalKeeper}
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
+import io.qbeast.spark.delta.writer.SparkDeltaDataWriter
 import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionFactory}
-import io.qbeast.spark.index.writer.SparkDataWriter
 import io.qbeast.spark.table.{IndexedTableFactory, IndexedTableFactoryImpl}
 import org.apache.spark.SparkConf
 import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationEnd}
@@ -82,7 +82,7 @@ object QbeastContext
     SparkDeltaMetadataManager
 
   override def dataWriter: DataWriter[DataFrame, StructType, FileAction] =
-    SparkDataWriter
+    SparkDeltaDataWriter
 
   override def revisionBuilder: RevisionFactory[StructType] =
     SparkRevisionFactory

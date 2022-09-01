@@ -47,12 +47,11 @@ trait OrdinalTransformation extends Transformation {
 /**
  * Identity transformation.
  */
-case class IdentityTransformation(newVal: Any) extends Transformation {
+case class IdentityToZeroTransformation(identityValue: Any) extends Transformation {
 
   @inline
   override def transform(value: Any): Double = value match {
-    case v: Number =>
-      v.byteValue()
+    case v: Number if v == identityValue => 0.0
   }
 
   override def isSupersededBy(newTransformation: Transformation): Boolean = false
