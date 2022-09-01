@@ -2,6 +2,7 @@ package io.qbeast.spark.index
 
 import io.qbeast.TestClasses._
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import org.apache.spark.sql.functions.{to_date, to_timestamp}
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -194,6 +195,80 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
     assertSmallDatasetEquality(source, indexed, ignoreNullable = true, orderedComparison = false)
 
   })
+
+  it should "index tables with all Timestamps" in withSparkAndTmpDir((spark, tmpDir) => {
+    import spark.implicits._
+    val df =
+      Seq(
+        "2017-01-01 12:02:00",
+        "2017-01-02 12:02:00",
+        "2017-01-03 12:02:00",
+        "2017-01-04 12:02:00").toDF("date")
+    val source = df.withColumn("my_date", to_timestamp($"date"))
+
+    val indexed = writeAndReadDF(source, tmpDir, spark)
+
+    indexed.count() shouldBe source.count()
+
+    assertSmallDatasetEquality(source, indexed, ignoreNullable = true, orderedComparison = false)
+
+  })
+
+  it should "index tables with all Dates" in withSparkAndTmpDir((spark, tmpDir) => {
+    import spark.implicits._
+    val df =
+      Seq("2017-01-01", "2017-01-02", "2017-01-03", "2017-01-04").toDF("date")
+    val source = df.withColumn("my_date", to_date($"date"))
+
+    val indexed = writeAndReadDF(source, tmpDir, spark)
+
+    indexed.count() shouldBe source.count()
+
+    assertSmallDatasetEquality(source, indexed, ignoreNullable = true, orderedComparison = false)
+
+  })
+
+  it should "index tables with multiple rows of a unique Timestamp" in withSparkAndTmpDir(
+    (spark, tmpDir) => {
+      import spark.implicits._
+      val df =
+        Seq(
+          "2017-01-01 12:02:00",
+          "2017-01-01 12:02:00",
+          "2017-01-01 12:02:00",
+          "2017-01-01 12:02:00").toDF("date")
+      val source = df.withColumn("my_date", to_timestamp($"date"))
+
+      val indexed = writeAndReadDF(source, tmpDir, spark)
+
+      indexed.count() shouldBe source.count()
+
+      assertSmallDatasetEquality(
+        source,
+        indexed,
+        ignoreNullable = true,
+        orderedComparison = false)
+
+    })
+
+  it should "index tables with multiple rows of a unique Date" in withSparkAndTmpDir(
+    (spark, tmpDir) => {
+      import spark.implicits._
+      val df =
+        Seq("2017-01-01", "2017-01-01", "2017-01-01", "2017-01-01").toDF("date")
+      val source = df.withColumn("my_date", to_date($"date"))
+
+      val indexed = writeAndReadDF(source, tmpDir, spark)
+
+      indexed.count() shouldBe source.count()
+
+      assertSmallDatasetEquality(
+        source,
+        indexed,
+        ignoreNullable = true,
+        orderedComparison = false)
+
+    })
 
   it should "index tables with null values" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
