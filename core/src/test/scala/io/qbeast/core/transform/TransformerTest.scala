@@ -3,7 +3,6 @@ package io.qbeast.core.transform
 import io.qbeast.core.model.{DateDataType, IntegerDataType, TimestampDataType}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import scala.util.matching.Regex
 import java.sql.{Date, Timestamp}
 
 class TransformerTest extends AnyFlatSpec with Matchers {
@@ -51,16 +50,12 @@ class TransformerTest extends AnyFlatSpec with Matchers {
     val maxTimestamp = Timestamp.valueOf("2017-01-03 12:02:00")
 
     val transformation = Map("a_min" -> minTimestamp, "a_max" -> maxTimestamp)
-    val resTransformation = transformer.makeTransformation(transformation)
+    val resTransformation =
+      transformer.makeTransformation(transformation).asInstanceOf[LinearTransformation]
 
-    // Find all integers in the string separated by commas and remove characters
-    val regex: Regex = "\\d+".r
-    val resMinMax = regex.findAllIn(resTransformation.toString).toList.map(_.toLong)
-    resMinMax(0) shouldBe minTimestamp.getTime
-    resMinMax(1) shouldBe maxTimestamp.getTime
-    // Get the the datatype of the transformation
-    val resDataType = resTransformation.toString.split(",")(3).dropRight(1)
-    resDataType shouldBe dataType.toString
+    resTransformation.minNumber shouldBe minTimestamp.getTime
+    resTransformation.maxNumber shouldBe maxTimestamp.getTime
+    resTransformation.orderedDataType shouldBe TimestampDataType
 
   }
 
@@ -73,16 +68,12 @@ class TransformerTest extends AnyFlatSpec with Matchers {
     val maxTimestamp = Date.valueOf("2017-01-03")
 
     val transformation = Map("a_min" -> minTimestamp, "a_max" -> maxTimestamp)
-    val resTransformation = transformer.makeTransformation(transformation)
+    val resTransformation =
+      transformer.makeTransformation(transformation).asInstanceOf[LinearTransformation]
 
-    // Find all integers in the string separated by commas and remove characters
-    val regex: Regex = "\\d+".r
-    val resMinMax = regex.findAllIn(resTransformation.toString).toList.map(_.toLong)
-    resMinMax(0) shouldBe minTimestamp.getTime
-    resMinMax(1) shouldBe maxTimestamp.getTime
-    // Get the the datatype of the transformation
-    val resDataType = resTransformation.toString.split(",")(3).dropRight(1)
-    resDataType shouldBe dataType.toString
+    resTransformation.minNumber shouldBe minTimestamp.getTime
+    resTransformation.maxNumber shouldBe maxTimestamp.getTime
+    resTransformation.orderedDataType shouldBe DateDataType
 
   }
 
