@@ -2,6 +2,9 @@ package io.qbeast.spark.utils
 
 import io.qbeast.TestClasses.Student
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
 
 import scala.util.Random
 
@@ -9,10 +12,21 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
 
   private val students = 1.to(10).map(i => Student(i, i.toString, Random.nextInt()))
 
-  "QbeastSpark SQL" should "work with CREATE TABLE" in withQbeastContextSparkAndTmpWarehouse(
+  private val schema = StructType(
+    Seq(
+      StructField("id", IntegerType, true),
+      StructField("name", StringType, true),
+      StructField("age", IntegerType, true)))
+
+  private def createTestData(spark: SparkSession): DataFrame = {
+    import spark.implicits._
+    val data = students.toDF()
+    spark.createDataFrame(data.rdd, schema)
+  }
+
+  "QbeastSpark SQL" should "support CREATE TABLE" in withQbeastContextSparkAndTmpWarehouse(
     (spark, tmpWarehouse) => {
-      import spark.implicits._
-      val data = students.toDF()
+      val data = createTestData(spark)
       data.createOrReplaceTempView("data")
 
       spark.sql(
@@ -39,9 +53,8 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
 
     })
 
-  it should "work with INSERT INTO" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
-    import spark.implicits._
-    val data = students.toDF()
+  it should "support INSERT INTO" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
+    val data = createTestData(spark)
     data.createOrReplaceTempView("data")
 
     spark.sql(
@@ -55,13 +68,15 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
     indexed.count() shouldBe data.count()
 
     indexed.columns.toSet shouldBe data.columns.toSet
+
+    assertSmallDatasetEquality(indexed, data, orderedComparison = false)
+
   })
 
-  it should "work with CREATE TABLE AS SELECT statement" in withQbeastContextSparkAndTmpWarehouse(
+  it should "support CREATE TABLE AS SELECT statement" in withQbeastContextSparkAndTmpWarehouse(
     (spark, _) => {
 
-      import spark.implicits._
-      val data = students.toDF()
+      val data = createTestData(spark)
       data.createOrReplaceTempView("data")
 
       spark.sql(
@@ -74,12 +89,14 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
       indexed.count() shouldBe data.count()
 
       indexed.columns.toSet shouldBe data.columns.toSet
+
+      assertSmallDatasetEquality(indexed, data, orderedComparison = false)
+
     })
 
   it should "work with LOCATION" in withQbeastContextSparkAndTmpDir((spark, tmpDir) => {
 
-    import spark.implicits._
-    val data = students.toDF()
+    val data = createTestData(spark)
     data.createOrReplaceTempView("data")
 
     spark.sql(
@@ -93,6 +110,59 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
     indexed.count() shouldBe data.count()
 
     indexed.columns.toSet shouldBe data.columns.toSet
+
+    assertSmallDatasetEquality(indexed, data, orderedComparison = false)
+
   })
+
+  it should "support INSERT INTO on a managed Table" in
+    withQbeastContextSparkAndTmpWarehouse { (spark, _) =>
+      {
+        import spark.implicits._
+
+        val targetColumns = Seq("product_id", "brand", "price", "user_id")
+
+        val initialData = loadTestData(spark).select(targetColumns.map(col): _*)
+        val dataToInsert = Seq((1, "qbeast", 9.99, 1)).toDF(targetColumns: _*)
+
+        initialData.write
+          .format("qbeast")
+          .option("cubeSize", "5000")
+          .option("columnsToIndex", "user_id,product_id")
+          .saveAsTable("ecommerce")
+
+        dataToInsert.createOrReplaceTempView("toInsert")
+
+        spark.sql("INSERT INTO ecommerce TABLE toInsert")
+        spark.sql("SELECT * FROM ecommerce").count shouldBe 1 + initialData.count
+        spark.sql("SELECT * FROM ecommerce WHERE brand == 'qbeast'").count shouldBe 1
+
+      }
+    }
+
+  it should "support INSERT OVERWRITE on a managed Table" in
+    withQbeastContextSparkAndTmpWarehouse { (spark, _) =>
+      {
+        import spark.implicits._
+
+        val targetColumns = Seq("product_id", "brand", "price", "user_id")
+
+        val initialData = loadTestData(spark).select(targetColumns.map(col): _*)
+        val dataToInsert = Seq((1, "qbeast", 9.99, 1)).toDF(targetColumns: _*)
+
+        initialData.write
+          .format("qbeast")
+          .option("cubeSize", "5000")
+          .option("columnsToIndex", "user_id,product_id")
+          .saveAsTable("ecommerce")
+
+        dataToInsert.createOrReplaceTempView("toInsert")
+
+        spark.sql("INSERT OVERWRITE ecommerce TABLE toInsert")
+        spark.sql("SELECT * FROM ecommerce").count shouldBe 1
+        spark.sql("SELECT * FROM ecommerce WHERE brand == 'qbeast'").count shouldBe 1
+
+      }
+    }
 
 }

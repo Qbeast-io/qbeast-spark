@@ -1,14 +1,26 @@
 package io.qbeast.spark.utils
 
+import io.qbeast.TestClasses.Student
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, SparkSession}
+
+import scala.util.Random
 
 class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
 
-  def createTestData(spark: SparkSession): DataFrame = {
+  private val students = 1.to(10).map(i => Student(i, i.toString, Random.nextInt()))
+
+  private val schema = StructType(
+    Seq(
+      StructField("id", IntegerType, true),
+      StructField("name", StringType, true),
+      StructField("age", IntegerType, true)))
+
+  private def createTestData(spark: SparkSession): DataFrame = {
     import spark.implicits._
-    Seq(1, 2, 3, 4).toDF("id")
+    val data = students.toDF()
+    spark.createDataFrame(data.rdd, schema)
   }
 
   "The QbeastDataSource" should
@@ -19,11 +31,11 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
 
         val indexed = spark.read.format("qbeast").load(tmpDir)
 
-        indexed.count() shouldBe 4
+        indexed.count() shouldBe data.count()
 
-        indexed.columns shouldBe Seq("id")
+        indexed.columns.toSet shouldBe data.columns.toSet
 
-        indexed.orderBy("id").collect() shouldBe data.orderBy("id").collect()
+        assertSmallDatasetEquality(indexed, data, orderedComparison = false)
 
       }
     }
@@ -45,56 +57,34 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
 
       indexed.columns.toSet shouldBe data.columns.toSet
 
+      assertSmallDatasetEquality(indexed, data, orderedComparison = false)
+
     }
   }
 
-  it should "support INSERT INTO on a managed Table" in
-    withQbeastContextSparkAndTmpWarehouse { (spark, _) =>
-      {
-        import spark.implicits._
+  it should "work with InsertInto" in withQbeastContextSparkAndTmpWarehouse { (spark, tmpDir) =>
+    {
 
-        val targetColumns = Seq("product_id", "brand", "price", "user_id")
+      val data = createTestData(spark)
+      val location = tmpDir + "/external"
+      data.write
+        .format("qbeast")
+        .option("columnsToIndex", "id")
+        .option("location", location)
+        .saveAsTable("qbeast")
 
-        val initialData = loadTestData(spark).select(targetColumns.map(col): _*)
-        val dataToInsert = Seq((1, "qbeast", 9.99, 1)).toDF(targetColumns: _*)
+      val newData = data
+      newData.write.insertInto("qbeast")
 
-        initialData.write
-          .format("qbeast")
-          .option("cubeSize", "5000")
-          .option("columnsToIndex", "user_id,product_id")
-          .saveAsTable("ecommerce")
+      val indexed = spark.read.table("qbeast")
+      val allData = data.union(data)
 
-        dataToInsert.createOrReplaceTempView("toInsert")
+      indexed.count() shouldBe allData.count()
 
-        spark.sql("INSERT INTO ecommerce TABLE toInsert")
-        spark.sql("SELECT * FROM ecommerce").count shouldBe 1 + initialData.count
-        spark.sql("SELECT * FROM ecommerce WHERE brand == 'qbeast'").count shouldBe 1
+      indexed.columns.toSet shouldBe allData.columns.toSet
 
-      }
+      assertSmallDatasetEquality(indexed, allData, orderedComparison = false)
     }
+  }
 
-  it should "support INSERT OVERWRITE on a managed Table" in
-    withQbeastContextSparkAndTmpWarehouse { (spark, _) =>
-      {
-        import spark.implicits._
-
-        val targetColumns = Seq("product_id", "brand", "price", "user_id")
-
-        val initialData = loadTestData(spark).select(targetColumns.map(col): _*)
-        val dataToInsert = Seq((1, "qbeast", 9.99, 1)).toDF(targetColumns: _*)
-
-        initialData.write
-          .format("qbeast")
-          .option("cubeSize", "5000")
-          .option("columnsToIndex", "user_id,product_id")
-          .saveAsTable("ecommerce")
-
-        dataToInsert.createOrReplaceTempView("toInsert")
-
-        spark.sql("INSERT OVERWRITE ecommerce TABLE toInsert")
-        spark.sql("SELECT * FROM ecommerce").count shouldBe 1
-        spark.sql("SELECT * FROM ecommerce WHERE brand == 'qbeast'").count shouldBe 1
-
-      }
-    }
 }
