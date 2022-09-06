@@ -3,8 +3,6 @@ package io.qbeast.spark.utils
 import io.qbeast.TestClasses.Student
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
 
 import scala.util.Random
 
@@ -12,16 +10,9 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
 
   private val students = 1.to(10).map(i => Student(i, i.toString, Random.nextInt()))
 
-  private val schema = StructType(
-    Seq(
-      StructField("id", IntegerType, true),
-      StructField("name", StringType, true),
-      StructField("age", IntegerType, true)))
-
   private def createTestData(spark: SparkSession): DataFrame = {
     import spark.implicits._
-    val data = students.toDF()
-    spark.createDataFrame(data.rdd, schema)
+    students.toDF()
   }
 
   "QbeastSpark SQL" should "support CREATE TABLE" in withQbeastContextSparkAndTmpWarehouse(
@@ -69,7 +60,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
 
     indexed.columns.toSet shouldBe data.columns.toSet
 
-    assertSmallDatasetEquality(indexed, data, orderedComparison = false)
+    assertSmallDatasetEquality(indexed, data, orderedComparison = false, ignoreNullable = true)
 
   })
 
@@ -90,7 +81,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
 
       indexed.columns.toSet shouldBe data.columns.toSet
 
-      assertSmallDatasetEquality(indexed, data, orderedComparison = false)
+      assertSmallDatasetEquality(indexed, data, orderedComparison = false, ignoreNullable = true)
 
     })
 
@@ -111,7 +102,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
 
     indexed.columns.toSet shouldBe data.columns.toSet
 
-    assertSmallDatasetEquality(indexed, data, orderedComparison = false)
+    assertSmallDatasetEquality(indexed, data, orderedComparison = false, ignoreNullable = true)
 
   })
 
@@ -120,22 +111,19 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
       {
         import spark.implicits._
 
-        val targetColumns = Seq("product_id", "brand", "price", "user_id")
+        val data = createTestData(spark)
+        val dataToInsert = Seq(Student(90, "qbeast", 2)).toDF()
 
-        val initialData = loadTestData(spark).select(targetColumns.map(col): _*)
-        val dataToInsert = Seq((1, "qbeast", 9.99, 1)).toDF(targetColumns: _*)
-
-        initialData.write
+        data.write
           .format("qbeast")
-          .option("cubeSize", "5000")
-          .option("columnsToIndex", "user_id,product_id")
-          .saveAsTable("ecommerce")
+          .option("columnsToIndex", "id,name")
+          .saveAsTable("students")
 
         dataToInsert.createOrReplaceTempView("toInsert")
 
-        spark.sql("INSERT INTO ecommerce TABLE toInsert")
-        spark.sql("SELECT * FROM ecommerce").count shouldBe 1 + initialData.count
-        spark.sql("SELECT * FROM ecommerce WHERE brand == 'qbeast'").count shouldBe 1
+        spark.sql("INSERT INTO students TABLE toInsert")
+        spark.sql("SELECT * FROM students").count shouldBe 1 + data.count
+        spark.sql("SELECT * FROM students WHERE name == 'qbeast'").count shouldBe 1
 
       }
     }
@@ -145,23 +133,19 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
       {
         import spark.implicits._
 
-        val targetColumns = Seq("product_id", "brand", "price", "user_id")
+        val data = createTestData(spark)
+        val dataToInsert = Seq(Student(90, "qbeast", 2)).toDF()
 
-        val initialData = loadTestData(spark).select(targetColumns.map(col): _*)
-        val dataToInsert = Seq((1, "qbeast", 9.99, 1)).toDF(targetColumns: _*)
-
-        initialData.write
+        data.write
           .format("qbeast")
-          .option("cubeSize", "5000")
-          .option("columnsToIndex", "user_id,product_id")
-          .saveAsTable("ecommerce")
+          .option("columnsToIndex", "id,name")
+          .saveAsTable("students")
 
         dataToInsert.createOrReplaceTempView("toInsert")
 
-        spark.sql("INSERT OVERWRITE ecommerce TABLE toInsert")
-        spark.sql("SELECT * FROM ecommerce").count shouldBe 1
-        spark.sql("SELECT * FROM ecommerce WHERE brand == 'qbeast'").count shouldBe 1
-
+        spark.sql("INSERT OVERWRITE students TABLE toInsert")
+        spark.sql("SELECT * FROM students").count shouldBe 1
+        spark.sql("SELECT * FROM students WHERE name == 'qbeast'").count shouldBe 1
       }
     }
 

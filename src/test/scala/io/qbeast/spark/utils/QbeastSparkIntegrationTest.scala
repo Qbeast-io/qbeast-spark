@@ -2,7 +2,6 @@ package io.qbeast.spark.utils
 
 import io.qbeast.TestClasses.Student
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.util.Random
@@ -11,16 +10,9 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
 
   private val students = 1.to(10).map(i => Student(i, i.toString, Random.nextInt()))
 
-  private val schema = StructType(
-    Seq(
-      StructField("id", IntegerType, true),
-      StructField("name", StringType, true),
-      StructField("age", IntegerType, true)))
-
   private def createTestData(spark: SparkSession): DataFrame = {
     import spark.implicits._
-    val data = students.toDF()
-    spark.createDataFrame(data.rdd, schema)
+    students.toDF()
   }
 
   "The QbeastDataSource" should
@@ -35,7 +27,11 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
 
         indexed.columns.toSet shouldBe data.columns.toSet
 
-        assertSmallDatasetEquality(indexed, data, orderedComparison = false)
+        assertSmallDatasetEquality(
+          indexed,
+          data,
+          orderedComparison = false,
+          ignoreNullable = true)
 
       }
     }
@@ -57,7 +53,7 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
 
       indexed.columns.toSet shouldBe data.columns.toSet
 
-      assertSmallDatasetEquality(indexed, data, orderedComparison = false)
+      assertSmallDatasetEquality(indexed, data, orderedComparison = false, ignoreNullable = true)
 
     }
   }
@@ -83,7 +79,11 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
 
       indexed.columns.toSet shouldBe allData.columns.toSet
 
-      assertSmallDatasetEquality(indexed, allData, orderedComparison = false)
+      assertSmallDatasetEquality(
+        indexed,
+        allData,
+        orderedComparison = false,
+        ignoreNullable = true)
     }
   }
 
