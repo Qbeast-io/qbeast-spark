@@ -220,4 +220,20 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
     indexed.where("c == 50000.0").count shouldBe 1
   })
 
+  it should "filter correctly using GreaterThan and LessThanOrEqual" in withSparkAndTmpDir(
+    (spark, tmpdir) => {
+      val source = createDF(50000, spark).toDF().coalesce(4)
+
+      writeTestData(source, Seq("a", "c"), 4000, tmpdir)
+
+      val indexed = spark.read.format("qbeast").load(tmpdir)
+
+      indexed.where("a > 1").count shouldBe 49999
+      indexed.where("a > 49999").count shouldBe 1
+
+      indexed.where("a <= 1").count shouldBe 2
+      indexed.where("a <= 49999").count shouldBe 50000
+
+    })
+
 }

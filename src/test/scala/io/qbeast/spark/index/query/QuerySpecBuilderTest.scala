@@ -144,6 +144,19 @@ class QuerySpecBuilderTest
 
   })
 
+  it should "leverage otree index when filtering with GreaterThan and LessThanOrEqual" in withSpark(
+    spark => {
+      val (f, t) = (3, 8)
+
+      val expressions = Seq(expr(s"id > $f AND id <= $t").expr)
+      val revision = createRevision()
+      val querySpace = new QuerySpecBuilder(expressions).build(revision).querySpace
+      val idTransformation = LinearTransformation(Int.MinValue, Int.MaxValue, IntegerDataType)
+
+      querySpace invokePrivate privateFrom() shouldBe Seq(Some(idTransformation.transform(f)))
+      querySpace invokePrivate privateTo() shouldBe Seq(Some(idTransformation.transform(t)))
+    })
+
   "extractDataFilters" should "extract qbeast filters correctly" in withSpark(spark => {
     val revision = createRevision()
     val rangeExpression = expr(s"id >= 3 OR id < 8").expr
