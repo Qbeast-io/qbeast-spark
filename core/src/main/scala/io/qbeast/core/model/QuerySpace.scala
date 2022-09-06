@@ -45,6 +45,7 @@ class QuerySpaceFromTo(private val from: Seq[Option[Double]], private val to: Se
   }
 
   override def intersectsWith(cube: CubeId): Boolean = {
+    // Use epsilon to support LessThanOrEqual: x <= t is approximated by x < t + epsilon
     val epsilon = 1.1103e-16
 
     from.zip(to).zipWithIndex.forall {
