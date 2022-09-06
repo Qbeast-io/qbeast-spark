@@ -12,9 +12,11 @@ import org.apache.spark.sql.catalyst.expressions.{
   BinaryComparison,
   EqualTo,
   Expression,
+  GreaterThan,
   GreaterThanOrEqual,
   IsNull,
   LessThan,
+  LessThanOrEqual,
   Literal,
   SubqueryExpression
 }
@@ -101,6 +103,7 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression]) extends Ser
         // if not found, use the overall coordinates
         val from = columnFilters
           .collectFirst {
+            case GreaterThan(_, Literal(value, _)) => sparkTypeToCoreType(value)
             case GreaterThanOrEqual(_, Literal(value, _)) => sparkTypeToCoreType(value)
             case EqualTo(_, Literal(value, _)) => sparkTypeToCoreType(value)
             case IsNull(_) => null
@@ -109,6 +112,7 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression]) extends Ser
         val to = columnFilters
           .collectFirst {
             case LessThan(_, Literal(value, _)) => sparkTypeToCoreType(value)
+            case LessThanOrEqual(_, Literal(value, _)) => sparkTypeToCoreType(value)
             case EqualTo(_, Literal(value, _)) => sparkTypeToCoreType(value)
             case IsNull(_) => null
           }
