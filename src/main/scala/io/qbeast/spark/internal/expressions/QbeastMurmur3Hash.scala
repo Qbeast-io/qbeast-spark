@@ -26,4 +26,7 @@ case class QbeastMurmur3Hash(children: Seq[Expression], seed: Int) extends HashE
     Murmur3HashFunction.hash(value, dataType, seed).toInt
   }
 
+  override protected def withNewChildrenInternal(
+      newChildren: IndexedSeq[Expression]): Expression = copy(children = newChildren)
+
 }
