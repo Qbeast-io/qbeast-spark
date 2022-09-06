@@ -4,11 +4,11 @@
 package io.qbeast.spark.internal.sources.v2
 
 import io.qbeast.spark.table.IndexedTable
-import org.apache.spark.sql.{DataFrame}
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.connector.write.{
   LogicalWriteInfo,
   SupportsOverwrite,
-  V1WriteBuilder,
+  V1Write,
   WriteBuilder
 }
 import org.apache.spark.sql.sources.{Filter, InsertableRelation}
@@ -26,7 +26,6 @@ class QbeastWriteBuilder(
     properties: Map[String, String],
     indexedTable: IndexedTable)
     extends WriteBuilder
-    with V1WriteBuilder
     with SupportsOverwrite {
 
   private var forceOverwrite = false
@@ -42,18 +41,22 @@ class QbeastWriteBuilder(
    * Build an InsertableRelation to be able to write the data in QbeastFormat
    * @return the InsertableRelation with the corresponding method
    */
-  override def buildForV1Write(): InsertableRelation = {
+  override def build(): V1Write = new V1Write {
 
-    new InsertableRelation {
-      def insert(data: DataFrame, overwrite: Boolean): Unit = {
-        val append = if (forceOverwrite) false else !overwrite
+    override def toInsertableRelation: InsertableRelation = {
 
-        // Passing the options in the query plan plus the properties
-        // because columnsToIndex needs to be included in the contract
-        val writeOptions = info.options().toMap ++ properties
-        indexedTable.save(data, writeOptions, append)
+      new InsertableRelation {
+        def insert(data: DataFrame, overwrite: Boolean): Unit = {
+          val append = if (forceOverwrite) false else !overwrite
+
+          // Passing the options in the query plan plus the properties
+          // because columnsToIndex needs to be included in the contract
+          val writeOptions = info.options().toMap ++ properties
+          indexedTable.save(data, writeOptions, append)
+        }
       }
     }
+
   }
 
 }
