@@ -6,7 +6,6 @@ package io.qbeast.spark.internal.sources
 import io.qbeast.context.QbeastContext
 import io.qbeast.context.QbeastContext.metadataManager
 import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
 import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.hadoop.fs.{FileStatus, Path}
@@ -35,10 +34,10 @@ import scala.collection.JavaConverters.mapAsScalaMapConverter
  * Qbeast data source is implementation of Spark data source API V1.
  */
 class QbeastDataSource private[sources] (private val tableFactory: IndexedTableFactory)
-    extends RelationProvider
+    extends TableProvider
     with CreatableRelationProvider
     with DataSourceRegister
-    with TableProvider {
+    with RelationProvider {
 
   /**
    * Constructor to be used by Spark.
@@ -89,7 +88,10 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       parameters: Map[String, String],
       data: DataFrame): BaseRelation = {
 
-    checkQbeastProperties(parameters)
+    require(
+      parameters.contains("columnsToIndex") || mode == SaveMode.Append,
+      throw AnalysisExceptionFactory.create("'columnsToIndex' is not specified"))
+
     val tableId = QbeastOptions.loadTableIDFromParameters(parameters)
     val table = tableFactory.getIndexedTable(tableId)
     mode match {

@@ -93,22 +93,22 @@ Identify the committers and contributors who have worked on the code being chang
 ### 1. Install [**sbt**(>=1.4.7)](https://www.scala-sbt.org/download.html).
 
 ### 2. Install **Spark**
-Download **Spark 3.1.1 with Hadoop 3.2***, unzip it, and create the `SPARK_HOME` environment variable:<br />
-*: You can use Hadoop 2.7 if desired, but you could have some troubles with different cloud providers' storage, read more about it [here](docs/CloudStorages.md).
+Download **Spark 3.2.2 with Hadoop 3.3***, unzip it, and create the `SPARK_HOME` environment variable:<br />
+*: You can use Hadoop 2.7 or 3.2 if desired, but you could have some troubles with different cloud providers' storage, read more about it [here](docs/CloudStorages.md).
 
 ```bash
-wget https://archive.apache.org/dist/spark/spark-3.1.1/spark-3.1.1-bin-hadoop3.2.tgz
+wget https://archive.apache.org/dist/spark/spark-3.2.2/spark-3.2.2-bin-hadoop3.2.tgz
 
-tar xzvf spark-3.1.1-bin-hadoop3.2.tgz
+tar xzvf spark-3.2.2-bin-hadoop3.2.tgz
 
-export SPARK_HOME=$PWD/spark-3.1.1-bin-hadoop3.2
+export SPARK_HOME=$PWD/spark-3.2.2-bin-hadoop3.2
  ```
 
 ### 3. Project packaging:
 Navigate to the repository folder and package the project using **sbt**. [JDK 8](https://www.azul.com/downloads/?version=java-8-lts&package=jdk) is recommended.
 
 > ℹ️ **Note**: You can specify **custom** Spark or Hadoop **versions** when packaging by using  
->`-Dspark.version=3.2.0` or `-Dhadoop.version=2.7.4` when running `sbt assembly`.
+>`-Dspark.version=3.2.2` or `-Dhadoop.version=2.7.4` when running `sbt assembly`.
 If you have troubles with the versions you use, don't hesitate to **ask the community** in [GitHub discussions](https://github.com/Qbeast-io/qbeast-spark/discussions).
 
 ``` bash
@@ -125,9 +125,9 @@ For example:
 sbt assembly
 
 $SPARK_HOME/bin/spark-shell \
---jars ./target/scala-2.12/qbeast-spark-assembly-0.2.0.jar \
+--jars ./target/scala-2.12/qbeast-spark-assembly-0.3.0-alpha.jar \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
---packages io.delta:delta-core_2.12:1.0.0
+--packages io.delta:delta-core_2.12:1.2.0
 ```
 
 <br/>

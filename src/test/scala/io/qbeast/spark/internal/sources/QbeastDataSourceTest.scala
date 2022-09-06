@@ -156,7 +156,7 @@ class QbeastDataSourceTest extends FixtureAnyFlatSpec with MockitoSugar with Mat
     val parameters = Map("path" -> path)
     val data = mock[DataFrame]
     a[AnalysisException] shouldBe thrownBy {
-      f.dataSource.createRelation(f.sqlContext, SaveMode.Append, parameters, data)
+      f.dataSource.createRelation(f.sqlContext, SaveMode.Overwrite, parameters, data)
     }
   }
 

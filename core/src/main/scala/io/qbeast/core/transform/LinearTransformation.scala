@@ -16,10 +16,13 @@ import io.qbeast.core.model.{
   FloatDataType,
   IntegerDataType,
   LongDataType,
-  OrderedDataType
+  OrderedDataType,
+  TimestampDataType,
+  DateDataType
 }
 
 import java.math.BigDecimal
+import java.sql.{Timestamp, Date}
 import scala.util.Random
 import scala.util.hashing.MurmurHash3
 
@@ -57,6 +60,8 @@ case class LinearTransformation(
       case v: Int => (v - mn) * scale
       case v: BigDecimal => (v.doubleValue() - mn) * scale
       case v: Float => (v - mn) * scale
+      case v: Timestamp => (v.getTime - mn) * scale
+      case v: Date => (v.getTime - mn) * scale
     }
   }
 
@@ -185,6 +190,8 @@ class LinearTransformationDeserializer
       case (LongDataType, long: NumericNode) => long.asLong
       case (FloatDataType, float: DoubleNode) => float.floatValue
       case (DecimalDataType, decimal: DoubleNode) => decimal.asDouble
+      case (TimestampDataType, timestamp: NumericNode) => timestamp.asLong
+      case (DateDataType, date: NumericNode) => date.asLong
       case (_, null) => null
       case (a, b) =>
         throw new IllegalArgumentException(s"Invalid data type  ($a,$b) ${b.getClass} ")
