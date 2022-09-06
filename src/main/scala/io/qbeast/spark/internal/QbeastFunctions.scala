@@ -5,6 +5,9 @@ package io.qbeast.spark.internal
 
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import org.apache.spark.sql.Column
+// import org.apache.spark.sql.catalyst.expressions.Expression
+
+// import scala.util.Random
 
 /**
  * Qbeast Functions for Spark Columns

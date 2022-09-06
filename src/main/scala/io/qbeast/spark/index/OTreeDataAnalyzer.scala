@@ -7,10 +7,12 @@ import io.qbeast.IISeq
 import io.qbeast.core.model.{BroadcastedTableChanges, _}
 import io.qbeast.core.transform.Transformer
 import io.qbeast.spark.index.QbeastColumns.{cubeToReplicateColumnName, weightColumnName}
-import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
+import org.apache.spark.sql.catalyst.expressions.Literal
+
+import scala.util.Random
 import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
+import org.apache.spark.sql.{Column, DataFrame, Dataset, Row, SparkSession}
 
 /**
  * Analyzes the data and extracts OTree structures
@@ -93,9 +95,8 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
   private[index] def addRandomWeight(revision: Revision): DataFrame => DataFrame =
     (df: DataFrame) => {
-      df.withColumn(
-        weightColumnName,
-        qbeastHash(revision.columnTransformers.map(name => df(name.columnName)): _*))
+      df.withColumn(weightColumnName, new Column(Literal(Random.nextInt())))
+
     }
 
   private[index] def estimateCubeWeights(
@@ -189,6 +190,22 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     }
 
     // Three step transformation
+
+    // 1. Add a column per partition with a random weight
+
+//    val spark = SparkSession.active
+//    dataFrame.mapPartitions(rows => {
+//      // Find the file belonging to this partition
+//      rows.map(row => {
+//        // get fileName of row
+//        val fileName = row.getString(row.fieldIndex("fileName"))
+//        val cubeDF = spark.read.parquet(fileName)
+//        // Get min and max of cubeDF
+//        val min = cubeDF.agg(min(cubeDF.columns.head)).first().getDouble(0)
+//
+//      })
+//      //
+//    })
 
     // First, add a random weight column
     val weightedDataFrame = dataFrame.transform(addRandomWeight(revision))
