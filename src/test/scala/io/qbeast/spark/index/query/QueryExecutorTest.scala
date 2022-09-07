@@ -161,11 +161,6 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
       val matchFiles = queryExecutor.execute().map(_.path)
       val diff = allFiles.toSet -- matchFiles.toSet
 
-      // scalastyle:off println
-      println(
-        s"Number of files: ${allFiles.length}, Matching files: ${matchFiles.length}, " +
-          s"Skipped files: ${diff.size}")
-
       val allQbeastFiles = allDeltaFiles.map(addFile =>
         QbeastBlock(addFile.path, addFile.tags, addFile.size, addFile.modificationTime))
 
