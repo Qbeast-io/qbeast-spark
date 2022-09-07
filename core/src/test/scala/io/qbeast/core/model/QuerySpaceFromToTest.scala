@@ -70,7 +70,7 @@ class QuerySpaceFromToTest extends AnyFlatSpec with Matchers {
     querySpaceFromTo.intersectsWith(cube) shouldBe true
   }
 
-  it should "include cube when ct < t + epsilon, though not really desired" in {
+  it should "include query range to, though not really desired" in {
     val from = Seq(Some(-1))
     val to = Seq(Some(1))
     val transformation = Seq(LinearTransformation(1, 2, IntegerDataType))
