@@ -70,9 +70,19 @@ class QuerySpaceFromToTest extends AnyFlatSpec with Matchers {
     querySpaceFromTo.intersectsWith(cube) shouldBe true
   }
 
-  it should "exclude the left limit and beyond" in {
+  it should "include cube when ct < t + epsilon, though not really desired" in {
     val from = Seq(Some(-1))
     val to = Seq(Some(1))
+    val transformation = Seq(LinearTransformation(1, 2, IntegerDataType))
+    val querySpaceFromTo = QuerySpaceFromTo(from, to, transformation)
+
+    val cube = CubeId.root(3)
+    querySpaceFromTo.intersectsWith(cube) shouldBe true
+  }
+
+  it should "exclude beyond left limit" in {
+    val from = Seq(Some(-1))
+    val to = Seq(Some(0))
     val transformation = Seq(LinearTransformation(1, 2, IntegerDataType))
     val querySpaceFromTo = QuerySpaceFromTo(from, to, transformation)
 
