@@ -6,7 +6,7 @@ package io.qbeast.spark.internal.commands
 import org.apache.http.annotation.Experimental
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
 import org.apache.spark.sql.{Row, SparkSession}
-import org.apache.spark.sql.execution.command.RunnableCommand
+import org.apache.spark.sql.execution.command.{LeafRunnableCommand}
 
 @Experimental
 case class ConvertToQbeastCommand(
@@ -14,7 +14,7 @@ case class ConvertToQbeastCommand(
     fileFormat: String,
     columnsToIndex: Seq[String],
     cubeSize: Int = DEFAULT_CUBE_SIZE)
-    extends RunnableCommand {
+    extends LeafRunnableCommand {
 
   private val acceptedFormats = Seq("parquet", "delta")
 
