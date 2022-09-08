@@ -8,11 +8,15 @@ import io.qbeast.core.model._
 import io.qbeast.spark.delta.CubeDataLoader
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.internal.QbeastOptions
+import io.qbeast.spark.internal.QbeastOptions.{COLUMNS_TO_INDEX, CUBE_SIZE}
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
+import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame}
+
+import java.util.ConcurrentModificationException
 
 /**
  * Indexed table represents the tabular data storage
@@ -64,6 +68,11 @@ trait IndexedTable {
    * @param revisionID the identifier of revision to optimize
    */
   def optimize(revisionID: RevisionID): Unit
+
+  /**
+   * Compacts the small files for a given table
+   */
+  def compact(revisionID: RevisionID): Unit
 }
 
 /**
@@ -140,6 +149,26 @@ private[table] class IndexedTableImpl(
 
   }
 
+  /**
+   * Add the required indexing parameters when the SaveMode is Append.
+   * The user-provided parameters are respected.
+   * @param latestRevision the latest revision
+   * @param params the parameters required for indexing
+   */
+  private def addRequiredParams(
+      latestRevision: Revision,
+      parameters: Map[String, String]): Map[String, String] = {
+    val columnsToIndex = latestRevision.columnTransformers.map(_.columnName).mkString(",")
+    val desiredCubeSize = latestRevision.desiredCubeSize.toString
+    (parameters.contains(COLUMNS_TO_INDEX), parameters.contains(CUBE_SIZE)) match {
+      case (true, true) => parameters
+      case (false, false) =>
+        parameters + (COLUMNS_TO_INDEX -> columnsToIndex, CUBE_SIZE -> desiredCubeSize)
+      case (true, false) => parameters + (CUBE_SIZE -> desiredCubeSize)
+      case (false, true) => parameters + (COLUMNS_TO_INDEX -> columnsToIndex)
+    }
+  }
+
   override def save(
       data: DataFrame,
       parameters: Map[String, String],
@@ -147,12 +176,13 @@ private[table] class IndexedTableImpl(
     val indexStatus =
       if (exists && append) {
         val latestIndexStatus = snapshot.loadLatestIndexStatus
-        if (checkRevisionParameters(QbeastOptions(parameters), latestIndexStatus)) {
+        val updatedParameters = addRequiredParams(latestIndexStatus.revision, parameters)
+        if (checkRevisionParameters(QbeastOptions(updatedParameters), latestIndexStatus)) {
           latestIndexStatus
         } else {
           val oldRevisionID = latestIndexStatus.revision.revisionID
           val newRevision = revisionBuilder
-            .createNextRevision(tableID, data.schema, parameters, oldRevisionID)
+            .createNextRevision(tableID, data.schema, updatedParameters, oldRevisionID)
           IndexStatus(newRevision)
         }
       } else {
@@ -187,22 +217,41 @@ private[table] class IndexedTableImpl(
     }
   }
 
-  private def createQbeastBaseRelation(): QbeastBaseRelation = {
-    QbeastBaseRelation.forDeltaTable(tableID)
+  /**
+   * Creates a QbeastBaseRelation for the given table.
+   * @param tableID the table identifier
+   * @return the QbeastBaseRelation
+   */
+  private def createQbeastBaseRelation(): BaseRelation = {
+    QbeastBaseRelation.forQbeastTable(tableID, this)
   }
 
   private def write(data: DataFrame, indexStatus: IndexStatus, append: Boolean): BaseRelation = {
     val revision = indexStatus.revision
-
-    if (exists) {
-      keeper.withWrite(tableID, revision.revisionID) { write =>
-        val announcedSet = write.announcedCubes.map(revision.createCubeId)
+    keeper.withWrite(tableID, revision.revisionID) { write =>
+      var tries = DEFAULT_NUMBER_OF_RETRIES
+      while (tries > 0) {
+        val announcedSet = write.announcedCubes.map(indexStatus.revision.createCubeId)
         val updatedStatus = indexStatus.addAnnouncements(announcedSet)
-        doWrite(data, updatedStatus, append)
-      }
-    } else {
-      keeper.withWrite(tableID, revision.revisionID) { write =>
-        doWrite(data, indexStatus, append)
+        val replicatedSet = updatedStatus.replicatedSet
+        val revisionID = updatedStatus.revision.revisionID
+        try {
+          doWrite(data, updatedStatus, append)
+          tries = 0
+        } catch {
+          case cme: ConcurrentModificationException
+              if metadataManager.hasConflicts(
+                tableID,
+                revisionID,
+                replicatedSet,
+                announcedSet) || tries == 0 =>
+            // Nothing to do, the conflict is unsolvable
+            throw cme
+          case _: ConcurrentModificationException =>
+            // Trying one more time if the conflict is solvable
+            tries -= 1
+        }
+
       }
     }
     clearCaches()
@@ -241,24 +290,57 @@ private[table] class IndexedTableImpl(
     val schema = metadataManager.loadCurrentSchema(tableID)
 
     if (cubesToReplicate.nonEmpty) {
-      metadataManager.updateWithTransaction(tableID, schema, append = true) {
-        val dataToReplicate =
-          CubeDataLoader(tableID).loadSetWithCubeColumn(
-            cubesToReplicate,
-            indexStatus.revision,
-            QbeastColumns.cubeToReplicateColumnName)
-        val (qbeastData, tableChanges) =
-          indexManager.optimize(dataToReplicate, indexStatus)
-        val fileActions =
-          dataWriter.write(tableID, schema, qbeastData, tableChanges)
-        (tableChanges, fileActions)
+      try {
+        // Try to commit transaction
+        doOptimize(schema, indexStatus, cubesToReplicate)
+      } catch {
+        case _: ConcurrentModificationException => bo.end(Set())
+      } finally {
+        // end keeper transaction
+        bo.end(cubesToReplicate.map(_.string))
       }
+    } else {
+      bo.end(Set())
     }
 
-    bo.end(cubesToReplicate.map(_.string))
-    // end keeper transaction
-
     clearCaches()
+  }
+
+  private def doOptimize(
+      schema: StructType,
+      indexStatus: IndexStatus,
+      cubesToOptimize: Set[CubeId]): Unit = {
+
+    metadataManager.updateWithTransaction(tableID, schema, append = true) {
+      val dataToReplicate =
+        CubeDataLoader(tableID).loadSetWithCubeColumn(
+          cubesToOptimize,
+          indexStatus.revision,
+          QbeastColumns.cubeToReplicateColumnName)
+      val (qbeastData, tableChanges) =
+        indexManager.optimize(dataToReplicate, indexStatus)
+      val fileActions =
+        dataWriter.write(tableID, schema, qbeastData, tableChanges)
+      (tableChanges, fileActions)
+    }
+
+  }
+
+  override def compact(revisionID: RevisionID): Unit = {
+
+    // Load the schema and the current status
+    val schema = metadataManager.loadCurrentSchema(tableID)
+    val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
+
+    metadataManager.updateWithTransaction(tableID, schema, true) {
+      // There's no affected table changes on compaction, so we send an empty object
+      val tableChanges = BroadcastedTableChanges(None, currentIndexStatus, Map.empty)
+      val fileActions =
+        dataWriter.compact(tableID, schema, currentIndexStatus, tableChanges)
+      (tableChanges, fileActions)
+
+    }
+
   }
 
 }

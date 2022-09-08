@@ -3,29 +3,21 @@
  */
 package io.qbeast.spark.internal.sources
 
-import io.qbeast.IISeq
-import io.qbeast.core.model.{QTableID, Revision}
-import io.qbeast.spark.delta.SparkDeltaMetadataManager
-import io.qbeast.core.transform.Transformer
-import org.apache.spark.sql.SQLContext
+import io.qbeast.core.model.{QTableID}
 import org.apache.spark.sql.sources.BaseRelation
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.sources.InsertableRelation
 
-/**
- * Implementation of BaseRelation which wraps the Delta relation.
- *
- * @param relation the wrapped instance
- * @param revision the revision to use
- */
-case class QbeastBaseRelation(relation: BaseRelation, private val revision: Revision)
-    extends BaseRelation {
-  override def sqlContext: SQLContext = relation.sqlContext
-
-  override def schema: StructType = relation.schema
-
-  def columnTransformers: IISeq[Transformer] = revision.columnTransformers
-
-}
+import org.apache.spark.sql.{SQLContext}
+import org.apache.spark.sql.types.{StructType, StructField}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SparkSession
+import io.qbeast.spark.delta.OTreeIndex
+import org.apache.spark.sql.execution.datasources.HadoopFsRelation
+import io.qbeast.spark.table.IndexedTable
+import io.qbeast.context.QbeastContext
+import org.apache.hadoop.fs.{Path}
+import org.apache.spark.sql.catalyst.catalog.{BucketSpec}
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 
 /**
  * Companion object for QbeastBaseRelation
@@ -38,9 +30,57 @@ object QbeastBaseRelation {
    * @return the QbeastBaseRelation
    */
 
-  def forDeltaTable(tableID: QTableID): QbeastBaseRelation = {
-    val log = SparkDeltaMetadataManager.loadDeltaQbeastLog(tableID)
-    QbeastBaseRelation(log.createRelation, log.qbeastSnapshot.loadLatestRevision)
+  /**
+   * Returns a HadoopFsRelation that contains all of the data present
+   * in the table. This relation will be continually updated
+   * as files are added or removed from the table. However, new HadoopFsRelation
+   * must be requested in order to see changes to the schema.
+   * @param tableID the identifier of the table
+   * @param sqlContext the SQLContext
+   * @return the HadoopFsRelation
+   */
+  def createRelation(sqlContext: SQLContext, table: IndexedTable): BaseRelation = {
+
+    val spark = SparkSession.active
+    val tableID = table.tableID
+    val snapshot = QbeastContext.metadataManager.loadSnapshot(tableID)
+    val schema = QbeastContext.metadataManager.loadCurrentSchema(tableID)
+    val revision = snapshot.loadLatestRevision
+    val columnsToIndex = revision.columnTransformers.map(row => row.columnName).mkString(",")
+    val cubeSize = revision.desiredCubeSize
+    val parameters =
+      Map[String, String]("columnsToIndex" -> columnsToIndex, "cubeSize" -> cubeSize.toString())
+
+    val path = new Path(tableID.id)
+    val fileIndex = OTreeIndex(spark, path)
+    val bucketSpec: Option[BucketSpec] = None
+    val file = new ParquetFileFormat()
+
+    new HadoopFsRelation(
+      fileIndex,
+      partitionSchema = StructType(Seq.empty[StructField]),
+      dataSchema = schema,
+      bucketSpec = bucketSpec,
+      file,
+      parameters)(spark) with InsertableRelation {
+      def insert(data: DataFrame, overwrite: Boolean): Unit = {
+        table.save(data, parameters, append = !overwrite)
+      }
+    }
+  }
+
+  /**
+   * Function that can be called from a QbeastBaseRelation object to create a
+   * new QbeastBaseRelation with a new tableID.
+   * @param tableID the identifier of the table
+   * @param indexedTable the indexed table
+   * @return BaseRelation for the new table in Qbeast format
+   */
+  def forQbeastTable(tableID: QTableID, indexedTable: IndexedTable): BaseRelation = {
+
+    val spark = SparkSession.active
+    createRelation(spark.sqlContext, indexedTable)
+
   }
 
 }

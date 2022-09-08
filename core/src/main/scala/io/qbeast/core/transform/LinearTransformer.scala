@@ -5,6 +5,8 @@ package io.qbeast.core.transform
 
 import io.qbeast.core.model.{OrderedDataType, QDataType}
 
+import java.sql.{Date, Timestamp}
+
 object LinearTransformer extends TransformerType {
   override def transformerSimpleName: String = "linear"
 
@@ -22,6 +24,8 @@ case class LinearTransformer(columnName: String, dataType: QDataType) extends Tr
   private def getValue(row: Any): Any = {
     row match {
       case d: java.math.BigDecimal => d.doubleValue()
+      case d: Timestamp => d.getTime()
+      case d: Date => d.getTime()
       case other => other
     }
   }
@@ -39,8 +43,8 @@ case class LinearTransformer(columnName: String, dataType: QDataType) extends Tr
       // we return a Transformation where null values are transformed to 0
       NullToZeroTransformation
     } else if (minAux == maxAux) {
-      // If all values are equal we return an IdentityTransformation
-      IdentityTransformation
+      // If both values are equal we return an IdentityTransformation
+      IdentityToZeroTransformation(minAux)
     } else { // otherwhise we pick the min and max
       val min = getValue(minAux)
       val max = getValue(maxAux)

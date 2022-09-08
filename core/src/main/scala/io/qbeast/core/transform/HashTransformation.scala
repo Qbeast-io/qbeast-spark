@@ -7,7 +7,7 @@ import scala.util.hashing.MurmurHash3
  * A hash transformation of a coordinate
  * @param nullValue the value to use for null coordinates
  */
-case class HashTransformation(nullValue: Any = Random.nextString(10)) extends Transformation {
+case class HashTransformation(nullValue: Any = Random.nextInt()) extends Transformation {
 
   override def transform(value: Any): Double = {
     val v = if (value == null) nullValue else value

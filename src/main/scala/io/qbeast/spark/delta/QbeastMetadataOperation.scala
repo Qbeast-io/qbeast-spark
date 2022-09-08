@@ -6,7 +6,7 @@ package io.qbeast.spark.delta
 import io.qbeast.core.model.{ReplicatedSet, Revision, TableChanges, mapper}
 import io.qbeast.spark.utils.MetadataConfig
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.delta.schema.{ImplicitMetadataOperation, SchemaUtils}
+import org.apache.spark.sql.delta.schema.{ImplicitMetadataOperation, SchemaMergingUtils}
 import org.apache.spark.sql.delta.{
   DeltaErrors,
   MetadataMismatchErrorBuilder,
@@ -106,7 +106,7 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
     val mergedSchema = if (isOverwriteMode && canOverwriteSchema) {
       dataSchema
     } else {
-      SchemaUtils.mergeSchemas(txn.metadata.schema, dataSchema)
+      SchemaMergingUtils.mergeSchemas(txn.metadata.schema, dataSchema)
     }
     val normalizedPartitionCols =
       Seq.empty

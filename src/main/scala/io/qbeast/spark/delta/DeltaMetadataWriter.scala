@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.{QTableID, TableChanges}
+import io.qbeast.core.model.{QTableID, RevisionID, TableChanges}
 import io.qbeast.spark.utils.TagColumns
 import org.apache.spark.sql.delta.actions.{
   Action,
@@ -72,8 +72,10 @@ private[delta] case class DeltaMetadataWriter(
 
   }
 
-  private def updateTransactionVersion(txn: OptimisticTransaction): SetTransaction = {
-    val transactionID = s"qbeast.${tableID.id}"
+  private def updateTransactionVersion(
+      txn: OptimisticTransaction,
+      revisionID: RevisionID): SetTransaction = {
+    val transactionID = s"qbeast.${tableID.id}.$revisionID"
     val startingTnx = txn.txnVersion(transactionID)
     val newTransaction = startingTnx + 1
 
@@ -87,7 +89,7 @@ private[delta] case class DeltaMetadataWriter(
    * @param newFiles files to add or remove
    * @return the sequence of file actions to save in the commit log(add, remove...)
    */
-  private def updateMetadata(
+  protected def updateMetadata(
       txn: OptimisticTransaction,
       tableChanges: TableChanges,
       newFiles: Seq[FileAction]): Seq[Action] = {
@@ -139,7 +141,9 @@ private[delta] case class DeltaMetadataWriter(
     }
 
     if (isOptimizeOperation) {
-      val transactionRecord = updateTransactionVersion(txn)
+      val revisionID = tableChanges.updatedRevision.revisionID
+      val transactionRecord =
+        updateTransactionVersion(txn, revisionID)
       val replicatedFiles = updateReplicatedFiles(tableChanges)
       allFileActions ++ replicatedFiles ++ Seq(transactionRecord)
     } else allFileActions

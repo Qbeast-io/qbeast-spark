@@ -70,7 +70,7 @@ class QbeastSamplingTest extends QbeastIntegrationTestSpec {
         writeTestData(data, Seq("user_id", "product_id"), 1000, tmpDir)
 
         val df = spark.read.format("qbeast").load(tmpDir)
-        val precision = 0.1
+        val precision = 0.01
 
         val query = df.sample(withReplacement = false, precision)
         checkFileFiltering(query)
@@ -95,7 +95,7 @@ class QbeastSamplingTest extends QbeastIntegrationTestSpec {
         val df = spark.read.format("qbeast").load(tmpDir)
 
         // analyze and optimize the index 3 times
-        optimize(spark, tmpDir, 3)
+        optimize(spark, tmpDir, 1)
         val dataSize = data.count()
 
         df.count() shouldBe dataSize

@@ -16,10 +16,13 @@ import io.qbeast.core.model.{
   FloatDataType,
   IntegerDataType,
   LongDataType,
-  OrderedDataType
+  OrderedDataType,
+  TimestampDataType,
+  DateDataType
 }
 
 import java.math.BigDecimal
+import java.sql.{Timestamp, Date}
 import scala.util.Random
 import scala.util.hashing.MurmurHash3
 
@@ -57,12 +60,15 @@ case class LinearTransformation(
       case v: Int => (v - mn) * scale
       case v: BigDecimal => (v.doubleValue() - mn) * scale
       case v: Float => (v - mn) * scale
+      case v: Timestamp => (v.getTime - mn) * scale
+      case v: Date => (v.getTime - mn) * scale
     }
   }
 
   /**
    * Merges two transformations. The domain of the resulting transformation is the union of this
-   *
+   * and the other transformation. The range of the resulting transformation is the intersection of
+   * this and the other transformation, which can be a LinearTransformation or IdentityTransformation
    * @param other
    * @return a new Transformation that contains both this and other.
    */
@@ -76,13 +82,25 @@ case class LinearTransformation(
           otherNullValue,
           orderedDataType)
           .asInstanceOf[Transformation]
+      case IdentityToZeroTransformation(newVal) =>
+        val otherNullValue =
+          LinearTransformationUtils.generateRandomNumber(
+            min(minNumber, newVal),
+            max(maxNumber, newVal),
+            Option(42.toLong))
+        val orderedDataType = this.orderedDataType
+        LinearTransformation(
+          min(minNumber, newVal),
+          max(maxNumber, newVal),
+          otherNullValue,
+          orderedDataType)
+          .asInstanceOf[Transformation]
 
     }
   }
 
   /**
    * This method should determine if the new data will cause the creation of a new revision.
-   *
    * @param newTransformation the new transformation created with statistics over the new data
    * @return true if the domain of the newTransformation is not fully contained in this one.
    */
@@ -91,6 +109,8 @@ case class LinearTransformation(
       case LinearTransformation(newMin, newMax, _, otherOrdering)
           if orderedDataType == otherOrdering =>
         gt(minNumber, newMin) || lt(maxNumber, newMax)
+      case IdentityToZeroTransformation(newVal) =>
+        gt(minNumber, newVal) || lt(maxNumber, newVal)
     }
 
 }
@@ -139,22 +159,6 @@ class LinearTransformationSerializer
 
 object LinearTransformation {
 
-  private def generateRandomNumber(min: Any, max: Any, seed: Option[Long]): Any = {
-    val r = if (seed.isDefined) new Random(seed.get) else new Random()
-    val random = r.nextDouble()
-
-    (min, max) match {
-      case (min: Double, max: Double) => min + (random * (max - min))
-      case (min: Long, max: Long) => min + (random * (max - min)).toLong
-      case (min: Int, max: Int) => min + (random * (max - min)).toInt
-      case (min: Float, max: Float) => min + (random * (max - min)).toFloat
-      case (min, max) =>
-        throw new IllegalArgumentException(
-          s"Cannot generate random number for type ${min.getClass.getName}")
-
-    }
-  }
-
   /**
    * Creates a LinearTransformation that has random value for the nulls
    * within the [minNumber, maxNumber] range
@@ -164,12 +168,13 @@ object LinearTransformation {
    * @param seed
    * @return
    */
+
   def apply(
       minNumber: Any,
       maxNumber: Any,
       orderedDataType: OrderedDataType,
       seed: Option[Long] = None): LinearTransformation = {
-    val randomNull = generateRandomNumber(minNumber, maxNumber, seed)
+    val randomNull = LinearTransformationUtils.generateRandomNumber(minNumber, maxNumber, seed)
     LinearTransformation(minNumber, maxNumber, randomNull, orderedDataType)
   }
 
@@ -185,6 +190,8 @@ class LinearTransformationDeserializer
       case (LongDataType, long: NumericNode) => long.asLong
       case (FloatDataType, float: DoubleNode) => float.floatValue
       case (DecimalDataType, decimal: DoubleNode) => decimal.asDouble
+      case (TimestampDataType, timestamp: NumericNode) => timestamp.asLong
+      case (DateDataType, date: NumericNode) => date.asLong
       case (_, null) => null
       case (a, b) =>
         throw new IllegalArgumentException(s"Invalid data type  ($a,$b) ${b.getClass} ")
@@ -212,6 +219,36 @@ class LinearTransformationDeserializer
       LinearTransformation(min, max, odt, seed = Some(hash))
     } else LinearTransformation(min, max, nullValue, odt)
 
+  }
+
+}
+
+object LinearTransformationUtils {
+
+  /**
+   * Creates a LinearTransformationUtils object that contains
+   * useful functions that can be used outside of the LinearTransformation class.
+   * @param minNumber
+   * @param maxNumber
+   * @param orderedDataType
+   * @param seed
+   * @return
+   */
+
+  def generateRandomNumber(min: Any, max: Any, seed: Option[Long]): Any = {
+    val r = if (seed.isDefined) new Random(seed.get) else new Random()
+    val random = r.nextDouble()
+
+    (min, max) match {
+      case (min: Double, max: Double) => min + (random * (max - min))
+      case (min: Long, max: Long) => min + (random * (max - min)).toLong
+      case (min: Int, max: Int) => min + (random * (max - min)).toInt
+      case (min: Float, max: Float) => min + (random * (max - min)).toFloat
+      case (min, max) =>
+        throw new IllegalArgumentException(
+          s"Cannot generate random number for type ${min.getClass.getName}")
+
+    }
   }
 
 }
