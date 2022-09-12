@@ -3,15 +3,19 @@
  */
 package io.qbeast.spark.internal.commands
 
-import io.qbeast.core.model.{BroadcastedTableChanges, CubeId, QTableID, Weight}
+import io.qbeast.IISeq
+import io.qbeast.core.model._
+import io.qbeast.core.transform._
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
 import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.utils.{State, TagUtils}
 import org.apache.http.annotation.Experimental
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.{Row, SparkSession}
+
 import scala.util.matching.Regex
 
 @Experimental
@@ -29,37 +33,49 @@ case class ConvertToQbeastCommand(
 
   def convertParquetToDelta(path: String): Unit = {}
 
+  def initializeRevision(path: String, schema: StructType): Revision = {
+    val revision =
+      SparkRevisionFactory.createNewRevision(
+        QTableID(path),
+        schema,
+        Map("columnsToIndex" -> columnsToIndex.mkString(","), "cubeSize" -> cubeSize.toString))
+
+    val transformations: IISeq[Transformation] = revision.columnTransformers.map {
+      case LinearTransformer(_, dataType: OrderedDataType) =>
+        LinearTransformation(Int.MinValue, Int.MaxValue, dataType)
+      case HashTransformer(_, _) => HashTransformation()
+    }
+
+    revision.copy(transformations = transformations)
+  }
+
   override def run(sparkSession: SparkSession): Seq[Row] = {
     // TODO very basic mechanism for converting to qbeast
     assert(acceptedFormats.contains(fileFormat), s"Format $fileFormat not supported.")
 
     if (fileFormat == parquetFormat) convertParquetToDelta(path)
 
-    val options =
-      Map("columnsToIndex" -> columnsToIndex.mkString(","), "cubeSize" -> cubeSize.toString)
-
     val deltaLog = DeltaLog.forTable(sparkSession, path)
     val snapshot = deltaLog.snapshot
     val deltaFiles = snapshot.allFiles.collect()
 
-    val revision =
-      SparkRevisionFactory.createNewRevision(QTableID(path), snapshot.schema, options)
+    val revision = initializeRevision(path, snapshot.schema)
 
-    // Assume all files are AddFiles
     val newFiles = deltaFiles
       .map(file => {
         val elementCount = numRecordsPattern.findFirstMatchIn(file.stats) match {
           case Some(matching) => matching.group(1)
           case _ => "0"
         }
-        println(elementCount)
-        file.copy(tags = Map(
-          TagUtils.cube -> "",
-          TagUtils.minWeight -> Weight.MinValue.value.toString,
-          TagUtils.maxWeight -> Weight.MaxValue.value.toString,
-          TagUtils.state -> State.FLOODED,
-          TagUtils.revision -> revision.revisionID.toString,
-          TagUtils.elementCount -> elementCount))
+        file.copy(
+          dataChange = true,
+          tags = Map(
+            TagUtils.cube -> "",
+            TagUtils.minWeight -> Weight.MinValue.value.toString,
+            TagUtils.maxWeight -> Weight.MaxValue.value.toString,
+            TagUtils.state -> State.FLOODED,
+            TagUtils.revision -> revision.revisionID.toString,
+            TagUtils.elementCount -> elementCount))
       })
       .toIndexedSeq
 
