@@ -35,6 +35,15 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
   // This reduce the verbosity of Spark
   Logger.getLogger("org.apache").setLevel(Level.WARN)
 
+  // Spark Configuration
+  // Including Session Extensions and Catalog
+  def sparkConfWithSqlAndCatalog: SparkConf = new SparkConf()
+    .setMaster("local[8]")
+    .set("spark.sql.extensions", "io.qbeast.spark.internal.QbeastSparkSessionExtension")
+    .set(
+      SQLConf.V2_SESSION_CATALOG_IMPLEMENTATION.key,
+      "io.qbeast.spark.internal.sources.catalog.QbeastDeltaCatalog")
+
   def loadTestData(spark: SparkSession): DataFrame = spark.read
     .format("csv")
     .option("header", "true")
@@ -66,16 +75,10 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
    */
   def withExtendedSpark[T](sparkConf: SparkConf = new SparkConf())(
       testCode: SparkSession => T): T = {
-    val conf = sparkConf
-      .setMaster("local[8]")
-      .set("spark.sql.extensions", "io.qbeast.spark.internal.QbeastSparkSessionExtension")
-      .set(
-        SQLConf.V2_SESSION_CATALOG_IMPLEMENTATION.key,
-        "io.qbeast.spark.internal.sources.catalog.QbeastCatalog")
     val spark = SparkSession
       .builder()
       .appName("QbeastDataSource")
-      .config(conf)
+      .config(sparkConf)
       .getOrCreate()
     try {
       testCode(spark)
@@ -96,27 +99,15 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
    * @return
    */
   def withSpark[T](testCode: SparkSession => T): T = {
-    // Spark Configuration
-    // Including Session Extensions and Catalog
-    val conf = new SparkConf()
-      .setMaster("local[8]")
-      .set("spark.sql.extensions", "io.qbeast.spark.internal.QbeastSparkSessionExtension")
-      .set(
-        SQLConf.V2_SESSION_CATALOG_IMPLEMENTATION.key,
-        "io.qbeast.spark.internal.sources.catalog.QbeastCatalog")
-
-    val spark = SparkSession
-      .builder()
-      .config(conf)
-      .appName("QbeastDataSource")
-      .getOrCreate()
-    try {
-      testCode(spark)
-    } finally {
-      spark.close()
-    }
+    withExtendedSpark(sparkConfWithSqlAndCatalog)(testCode)
   }
 
+  /**
+   * Runs code with a Temporary Directory. After execution, the content of the directory is deleted.
+   * @param testCode
+   * @tparam T
+   * @return
+   */
   def withTmpDir[T](testCode: String => T): T = {
     val directory = Files.createTempDirectory("qb-testing")
     try {
@@ -159,14 +150,34 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
     }
   }
 
+  /**
+   * Runs code with QbeastContext and a Temporary Directory.
+   * @param testCode
+   * @tparam T
+   * @return
+   */
+
   def withQbeastContextSparkAndTmpDir[T](testCode: (SparkSession, String) => T): T =
     withTmpDir(tmpDir => withQbeastAndSparkContext()(spark => testCode(spark, tmpDir)))
 
+  /**
+   * Runs code with Warehouse/Catalog extensions
+   * @param testCode the code to reproduce
+   * @tparam T
+   * @return
+   */
   def withQbeastContextSparkAndTmpWarehouse[T](testCode: (SparkSession, String) => T): T =
     withTmpDir(tmpDir =>
-      withExtendedSpark(new SparkConf().set("spark.sql.warehouse.dir", tmpDir))(spark =>
-        testCode(spark, tmpDir)))
+      withExtendedSpark(
+        sparkConfWithSqlAndCatalog
+          .set("spark.sql.warehouse.dir", tmpDir))(spark => testCode(spark, tmpDir)))
 
+  /**
+   * Runs code with OTreeAlgorithm configuration
+   * @param code
+   * @tparam T
+   * @return
+   */
   def withOTreeAlgorithm[T](code: IndexManager[DataFrame] => T): T = {
     code(SparkOTreeManager)
   }

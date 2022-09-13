@@ -28,6 +28,7 @@ import scala.collection.JavaConverters._
  * @param tableFactory the IndexedTable Factory
  */
 class QbeastTableImpl private[sources] (
+    identifier: String,
     path: Path,
     options: Map[String, String],
     schema: Option[StructType] = None,
@@ -43,7 +44,7 @@ class QbeastTableImpl private[sources] (
 
   private val indexedTable = tableFactory.getIndexedTable(tableId)
 
-  override def name(): String = tableId.id
+  override def name(): String = identifier
 
   override def schema(): StructType = {
     if (schema.isDefined) schema.get
