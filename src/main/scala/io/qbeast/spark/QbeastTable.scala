@@ -138,6 +138,12 @@ class QbeastTable private (
       desiredCubeSize: Int): (Double, NonLeafCubeSizeDetails) = {
     val innerCubeStatuses =
       cubeStatuses.filter(_._1.children.exists(cubeStatuses.contains))
+
+    // scalastyle:off println
+    innerCubeStatuses
+      .mapValues(cs => cs.files.map(b => b.elementCount).sorted)
+      .foreach(println)
+
     val innerCubeSizes =
       innerCubeStatuses.values.map(_.files.map(_.elementCount).sum).toSeq.sorted
     val innerCubeCount = innerCubeSizes.size.toDouble
