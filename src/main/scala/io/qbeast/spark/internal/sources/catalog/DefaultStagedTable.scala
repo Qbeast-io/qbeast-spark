@@ -16,6 +16,12 @@ import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
 import org.apache.spark.sql.types.StructType
 
+/**
+ * A default StagedTable
+ * @param ident the identifier
+ * @param table the Table
+ * @param catalog the Catalog
+ */
 private[catalog] case class DefaultStagedTable(
     ident: Identifier,
     table: Table,

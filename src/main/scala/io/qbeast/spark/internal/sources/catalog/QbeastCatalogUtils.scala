@@ -29,15 +29,30 @@ import java.util
 import java.util.Locale
 import scala.collection.JavaConverters._
 
+/**
+ * Object containing all the method utilities for creating and loading
+ * a Qbeast formatted Table into the Catalog
+ */
 object QbeastCatalogUtils {
+
+  val QBEAST_PROVIDER_NAME: String = "qbeast"
 
   lazy val spark: SparkSession = SparkSession.active
 
-  // TODO move definition of string to a generic object
-  def isQbeastTable(provider: Option[String]): Boolean = {
-    provider.isDefined && provider.get == "qbeast"
+  /**
+   * Checks if the provider is Qbeast
+   * @param provider the provider, if any
+   * @return
+   */
+  def isQbeastProvider(provider: Option[String]): Boolean = {
+    provider.isDefined && provider.get == QBEAST_PROVIDER_NAME
   }
 
+  /**
+   * Checks if an Identifier is set with a path
+   * @param ident the Identifier
+   * @return
+   */
   def isPathTable(ident: Identifier): Boolean = {
     try {
       spark.sessionState.conf.runSQLonFile && hasQbeastNamespace(ident) && new Path(
@@ -65,7 +80,7 @@ object QbeastCatalogUtils {
         throw AnalysisExceptionFactory.create(
           s"$table is a view. You may not write data into a view.")
       }
-      if (!isQbeastTable(oldTable.provider)) {
+      if (!isQbeastProvider(oldTable.provider)) {
         throw AnalysisExceptionFactory.create(s"$table is not a Qbeast table.")
       }
       Some(oldTable)
@@ -80,7 +95,7 @@ object QbeastCatalogUtils {
    * @return
    */
   def hasQbeastNamespace(ident: Identifier): Boolean = {
-    ident.namespace().length == 1 && ident.name.toLowerCase(Locale.ROOT) == "qbeast"
+    ident.namespace().length == 1 && ident.name.toLowerCase(Locale.ROOT) == QBEAST_PROVIDER_NAME
   }
 
   /**
@@ -181,7 +196,7 @@ object QbeastCatalogUtils {
    * @param existingTableOpt
    * @param existingSessionCatalog
    */
-  def updateCatalog(
+  private def updateCatalog(
       operation: TableCreationModes.CreationMode,
       table: CatalogTable,
       isPathTable: Boolean,

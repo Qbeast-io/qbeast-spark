@@ -72,6 +72,8 @@ private[sources] class QbeastStagedTableImpl(
 
     checkQbeastProperties(props.asScala.toMap)
 
+    // Creates the corresponding table on the Catalog and executes
+    // the writing of the dataFrame if any
     QbeastCatalogUtils.createQbeastTable(
       ident,
       schema,
