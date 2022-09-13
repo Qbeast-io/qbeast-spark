@@ -21,8 +21,8 @@ class QbeastDeltaCatalog extends DeltaCatalog {
 
   override def loadTable(ident: Identifier): Table = {
     val superTable = super.loadTable(ident)
-    if (QbeastCatalog.isQbeastTable(superTable.properties().asScala.get("provider"))) {
-      QbeastCatalog.loadQbeastTable(superTable, tableFactory)
+    if (QbeastCatalogUtils.isQbeastTable(superTable.properties().asScala.get("provider"))) {
+      QbeastCatalogUtils.loadQbeastTable(superTable, tableFactory)
     } else {
       superTable
     }
@@ -35,9 +35,9 @@ class QbeastDeltaCatalog extends DeltaCatalog {
       properties: util.Map[String, String]): Table = {
 
     val superTable = super.createTable(ident, schema, partitions, properties)
-    if (QbeastCatalog.isQbeastTable(superTable.properties().asScala.get("provider"))) {
+    if (QbeastCatalogUtils.isQbeastTable(superTable.properties().asScala.get("provider"))) {
       checkQbeastProperties(properties.asScala.toMap)
-      QbeastCatalog.loadQbeastTable(superTable, tableFactory)
+      QbeastCatalogUtils.loadQbeastTable(superTable, tableFactory)
     } else {
       super.createTable(ident, schema, partitions, properties)
     }
@@ -49,7 +49,7 @@ class QbeastDeltaCatalog extends DeltaCatalog {
       schema: StructType,
       partitions: Array[Transform],
       properties: util.Map[String, String]): StagedTable = {
-    if (QbeastCatalog.isQbeastTable(properties.asScala.get("provider"))) {
+    if (QbeastCatalogUtils.isQbeastTable(properties.asScala.get("provider"))) {
       new QbeastStagedTableImpl(
         ident,
         schema,
@@ -67,7 +67,7 @@ class QbeastDeltaCatalog extends DeltaCatalog {
       schema: StructType,
       partitions: Array[Transform],
       properties: util.Map[String, String]): StagedTable = {
-    if (QbeastCatalog.isQbeastTable(properties.asScala.get("provider"))) {
+    if (QbeastCatalogUtils.isQbeastTable(properties.asScala.get("provider"))) {
       new QbeastStagedTableImpl(
         ident,
         schema,
@@ -86,7 +86,7 @@ class QbeastDeltaCatalog extends DeltaCatalog {
       schema: StructType,
       partitions: Array[Transform],
       properties: util.Map[String, String]): StagedTable = {
-    if (QbeastCatalog.isQbeastTable(properties.asScala.get("provider"))) {
+    if (QbeastCatalogUtils.isQbeastTable(properties.asScala.get("provider"))) {
       new QbeastStagedTableImpl(
         ident,
         schema,

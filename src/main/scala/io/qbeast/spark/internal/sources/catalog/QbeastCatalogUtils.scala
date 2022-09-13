@@ -29,7 +29,7 @@ import java.util
 import java.util.Locale
 import scala.collection.JavaConverters._
 
-object QbeastCatalog {
+object QbeastCatalogUtils {
 
   lazy val spark: SparkSession = SparkSession.active
 
@@ -118,7 +118,7 @@ object QbeastCatalog {
       case _ => true
     }
 
-    val isPathTable = QbeastCatalog.isPathTable(ident)
+    val isPathTable = QbeastCatalogUtils.isPathTable(ident)
 
     if (isPathTable
       && allTableProperties.containsKey("location")
@@ -137,7 +137,7 @@ object QbeastCatalog {
     }
     val id = TableIdentifier(ident.name(), ident.namespace().lastOption)
     val locUriOpt = location.map(CatalogUtils.stringToURI)
-    val existingTableOpt = QbeastCatalog.getExistingTableIfExists(id, existingSessionCatalog)
+    val existingTableOpt = QbeastCatalogUtils.getExistingTableIfExists(id, existingSessionCatalog)
     val loc = locUriOpt
       .orElse(existingTableOpt.flatMap(_.storage.locationUri))
       .getOrElse(existingSessionCatalog.defaultTablePath(id))

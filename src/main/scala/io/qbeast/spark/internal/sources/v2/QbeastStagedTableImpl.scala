@@ -4,9 +4,9 @@
 package io.qbeast.spark.internal.sources.v2
 
 import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
-import io.qbeast.spark.internal.sources.catalog.QbeastCatalog
+import io.qbeast.spark.internal.sources.catalog.QbeastCatalogUtils
 import io.qbeast.spark.table.IndexedTableFactory
-import org.apache.spark.sql.catalyst.catalog.{SessionCatalog}
+import org.apache.spark.sql.catalyst.catalog.SessionCatalog
 import org.apache.spark.sql.connector.catalog.TableCapability.V1_BATCH_WRITE
 import org.apache.spark.sql.connector.catalog.{
   Identifier,
@@ -72,7 +72,7 @@ private[sources] class QbeastStagedTableImpl(
 
     checkQbeastProperties(props.asScala.toMap)
 
-    QbeastCatalog.createQbeastTable(
+    QbeastCatalogUtils.createQbeastTable(
       ident,
       schema,
       partitions,
