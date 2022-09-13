@@ -34,4 +34,15 @@ object TestClasses {
       val2: Option[Long],
       val3: Option[Double])
 
+  case class EcommerceRecord(
+      event_time: String,
+      event_type: String,
+      product_id: Int,
+      category_id: Long,
+      category_code: String,
+      brand: String,
+      price: Double,
+      user_id: Int,
+      user_session: String)
+
 }
