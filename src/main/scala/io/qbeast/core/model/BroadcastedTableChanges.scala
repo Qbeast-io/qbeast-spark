@@ -78,4 +78,5 @@ case class BroadcastedTableChanges(
 
   override def cubeState(cubeId: CubeId): Option[String] = cubeStates.value.get(cubeId)
 
+  override def cubeCounts: Int = cubeStates.value.size
 }
