@@ -40,7 +40,7 @@ class QbeastCatalog extends DeltaCatalog {
       partitions: Array[Transform],
       properties: util.Map[String, String]): Table = {
 
-    gitif (QbeastCatalogUtils.isQbeastProvider(properties.asScala.get("provider"))) {
+    if (QbeastCatalogUtils.isQbeastProvider(properties.asScala.get("provider"))) {
       checkQbeastProperties(properties.asScala.toMap)
       QbeastCatalogUtils.loadQbeastTable(
         super.createTable(ident, schema, partitions, properties),
