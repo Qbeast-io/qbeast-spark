@@ -13,7 +13,7 @@ import org.apache.spark.qbeast.config.{MAX_FILE_SIZE_COMPACTION, MIN_FILE_SIZE_C
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.expressions.UserDefinedFunction
-import org.apache.spark.sql.functions.{col, count, udf}
+import org.apache.spark.sql.functions.{col, udf}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.util.SerializableConfiguration
@@ -71,28 +71,26 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
 
   }
 
-  class CubeRollUp(val mapping: Map[Array[Byte], Array[Byte]]) extends Serializable {
+  class CubeRollUp(val mapping: Map[CubeId, CubeId]) extends Serializable {
 
+    // scalastyle:off println
     val cubeRollup: UserDefinedFunction =
-      udf((cube: Array[Byte]) => mapping.getOrElse(cube, cube))
+      udf((bytes: Array[Byte]) => {
+        val cube = CubeId(3, bytes)
+        mapping.getOrElse(cube, cube).bytes
+      })
 
   }
 
   object CubeRollUp {
 
     // scalastyle:off println
-    def apply(
-        qbeastData: DataFrame,
-        dimensionCount: Int,
-        sizeThreshold: Int,
-        strategy: String = "acc"): CubeRollUp = {
-      val cubeMap = strategy match {
-        case "simple" => simpleUpRolling(qbeastData, dimensionCount, sizeThreshold)
-        case "acc" => accumulativeUpRolling(qbeastData, dimensionCount, sizeThreshold)
-      }
-      println(
-        s"cube count after folding:" +
-          s"${cubeMap.values.map(b => CubeId(dimensionCount, b)).toSet.size}")
+    def apply(qbeastData: DataFrame, dimensionCount: Int, sizeThreshold: Int): CubeRollUp = {
+      val cubeSizes = getCubeSizes(qbeastData, dimensionCount)
+      val cubeMap = accumulativeRollUp(cubeSizes, sizeThreshold)
+//      val cubeMap = simpleRollUp(cubeSizes.toMap, sizeThreshold)
+      println(s"Cube count before folding: ${cubeSizes.size}")
+      println(s"cube count after folding:${cubeMap.values.toSet.size}")
       new CubeRollUp(cubeMap)
     }
 
@@ -100,7 +98,7 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
       val cubeSizes = mutable.Map[CubeId, Long]()
       qbeastData
         .groupBy(cubeColumnName)
-        .agg(count("*").alias("cubeSize"))
+        .count()
         .collect()
         .foreach(row => {
           val bytes = row.getAs[Array[Byte]](0)
@@ -109,36 +107,36 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
           cubeSizes += (cube -> size)
         })
 
-      println(s"Cube count before folding: ${cubeSizes.size}")
       cubeSizes
     }
 
     /**
-     * Cube payload that are smaller than the threshold are allocated
-     * to their parent cube directly without further considerations
-     * @param qbeastData data to write
-     * @param dimensionCount number of indexing columns
-     * @param sizeThreshold the minimum payload size of a cube/block for it to remain where it is
+     * Cube payload that are smaller than the threshold are directly allocated
+     * to their parent cubes without further considerations
+     * @param cubeSizes the payload sizes of all cubes
+     * @param sizeThreshold the minimum payload size of a cube/block
+     *                      for it to be reallocated to its parent cube
      * @return
      */
-    def simpleUpRolling(
-        qbeastData: DataFrame,
-        dimensionCount: Int,
-        sizeThreshold: Int): Map[Array[Byte], Array[Byte]] = {
-      val cubeSizes = getCubeSizes(qbeastData, dimensionCount)
-
+    def simpleRollUp(cubeSizes: Map[CubeId, Long], sizeThreshold: Int): Map[CubeId, CubeId] = {
       cubeSizes
         .filter { case (cube, size) => !cube.isRoot && size < sizeThreshold }
-        .map { case (cube, _) => (cube.bytes, cube.parent.get.bytes) }
+        .keys
+        .map(cube => (cube, cube.parent.get))
         .toMap
     }
 
-    def accumulativeUpRolling(
-        qbeastData: DataFrame,
-        dimensionCount: Int,
-        sizeThreshold: Int): Map[Array[Byte], Array[Byte]] = {
-      val cubeSizes = getCubeSizes(qbeastData, dimensionCount)
-
+    /**
+     * Sibling payloads are gathered together and placed in their parent cube
+     * in a recursive and accumulative fashion until a size limit is reached
+     * @param cubeSizes the payload sizes of all cubes
+     * @param sizeThreshold the minimum payload size of a cube/block
+     *                      for it to be reallocated to its parent cube
+     * @return
+     */
+    def accumulativeRollUp(
+        cubeSizes: mutable.Map[CubeId, Long],
+        sizeThreshold: Int): Map[CubeId, CubeId] = {
       val cubeFoldingMap = mutable.Map[CubeId, CubeId]()
       var maxDepth = 0
 
@@ -178,7 +176,7 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
           while (cubeFoldingMap(targetCube) != targetCube) {
             targetCube = cubeFoldingMap(targetCube)
           }
-          (cube.bytes, targetCube.bytes)
+          (cube, targetCube)
         })
         .toMap
     }
