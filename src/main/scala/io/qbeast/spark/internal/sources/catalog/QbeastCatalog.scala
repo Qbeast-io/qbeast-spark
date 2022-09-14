@@ -16,12 +16,12 @@ import java.util
 import scala.collection.JavaConverters._
 
 /**
- * QbeastDeltaCatalog is a DelegatingCatalogExtension with StagingTableCatalog
+ * QbeastCatalog is a DelegatingCatalogExtension with StagingTableCatalog
  * that extends the current implementation of DeltaCatalog.
  * This would allow to populate Delta Tables with this implementation,
  * along with the creation of Qbeast tables
  */
-class QbeastDeltaCatalog extends DeltaCatalog {
+class QbeastCatalog extends DeltaCatalog {
 
   private val tableFactory = QbeastContext.indexedTableFactory
 

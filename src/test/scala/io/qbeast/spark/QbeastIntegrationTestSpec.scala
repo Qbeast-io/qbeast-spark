@@ -42,7 +42,7 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
     .set("spark.sql.extensions", "io.qbeast.spark.internal.QbeastSparkSessionExtension")
     .set(
       SQLConf.V2_SESSION_CATALOG_IMPLEMENTATION.key,
-      "io.qbeast.spark.internal.sources.catalog.QbeastDeltaCatalog")
+      "io.qbeast.spark.internal.sources.catalog.QbeastCatalog")
 
   def loadTestData(spark: SparkSession): DataFrame = spark.read
     .format("csv")

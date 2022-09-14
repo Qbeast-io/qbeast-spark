@@ -2,11 +2,13 @@ package io.qbeast.spark.internal.sources
 
 import io.qbeast.TestClasses.Student
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
+import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.util.Random
 
-class QbeastDeltaCatalogTest extends QbeastIntegrationTestSpec {
+class QbeastCatalogTest extends QbeastIntegrationTestSpec {
 
   private val students = 1.to(10).map(i => Student(i, i.toString, Random.nextInt()))
 
@@ -15,7 +17,7 @@ class QbeastDeltaCatalogTest extends QbeastIntegrationTestSpec {
     students.toDF()
   }
 
-  "QbeastDeltaCatalogTest" should
+  "QbeastCatalog" should
     "coexist with Delta tables" in withQbeastContextSparkAndTmpWarehouse((spark, tmpDir) => {
 
       val data = createTestData(spark)
