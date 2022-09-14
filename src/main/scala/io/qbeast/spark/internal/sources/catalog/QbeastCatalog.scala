@@ -40,10 +40,11 @@ class QbeastCatalog extends DeltaCatalog {
       partitions: Array[Transform],
       properties: util.Map[String, String]): Table = {
 
-    val superTable = super.createTable(ident, schema, partitions, properties)
-    if (QbeastCatalogUtils.isQbeastProvider(superTable.properties().asScala.get("provider"))) {
+    gitif (QbeastCatalogUtils.isQbeastProvider(properties.asScala.get("provider"))) {
       checkQbeastProperties(properties.asScala.toMap)
-      QbeastCatalogUtils.loadQbeastTable(superTable, tableFactory)
+      QbeastCatalogUtils.loadQbeastTable(
+        super.createTable(ident, schema, partitions, properties),
+        tableFactory)
     } else {
       super.createTable(ident, schema, partitions, properties)
     }
