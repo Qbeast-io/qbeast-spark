@@ -38,6 +38,12 @@ package object config {
       .intConf
       .createWithDefault(1024 * 1024 * 1024)
 
+  private[config] val maxSizeForRolling: ConfigEntry[Long] =
+    ConfigBuilder("spark.qbeast.index.maxRollingRecords")
+      .version("0.2.0")
+      .longConf
+      .createWithDefault(100000L)
+
   def DEFAULT_NUMBER_OF_RETRIES: Int = QbeastContext.config
     .get(defaultNumberOfRetries)
 
@@ -51,4 +57,5 @@ package object config {
 
   def MAX_FILE_SIZE_COMPACTION: Int = QbeastContext.config.get(maxFileSizeCompaction)
 
+  def MAX_SIZE_FOR_ROLLING: Long = QbeastContext.config.get(maxSizeForRolling)
 }
