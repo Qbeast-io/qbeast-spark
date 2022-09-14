@@ -29,21 +29,43 @@ class ProgressiveWritingTest extends QbeastIntegrationTestSpec {
       .as[EcommerceRecord]
   }
 
-  "OTree algorithm" should "progressively append data" in withSparkAndTmpDir((spark, tmpDir) => {
-    // scalastyle:off println
-    val tmpDir = "/tmp/test/"
-//    val df = loadTestData(spark)
-//    writeTestData(df, Seq("user_id", "price", "event_type"), 5000, tmpDir)
-
-    val qt = QbeastTable.forPath(spark, tmpDir)
-    println(qt.getIndexMetrics())
-
-    1 to 10 foreach { _ =>
-      val dataToAppend = createEcommerceInstances(5000)
-      dataToAppend.write.mode("append").format("qbeast").save(tmpDir)
-      println(qt.getIndexMetrics())
+  "Appending small data" should "not resulting in having a large number of small blocks" in
+    withExtendedSparkAndTmpDir(
+      new SparkConf().set("spark.qbeast.index.maxRollingRecords", "10000")) { (spark, tmpDir) =>
+      {}
     }
-  })
+
+  "OTree algorithm" should "progressively append data" in withExtendedSparkAndTmpDir(
+    new SparkConf().set("spark.qbeast.index.maxRollingRecords", "10000")) { (spark, tmpDir) =>
+    {
+      // scalastyle:off println
+      val tmpDir = "/tmp/test/"
+      val df = loadTestData(spark)
+      writeTestData(df, Seq("user_id", "price", "event_type"), 5000, tmpDir)
+
+      val qt = QbeastTable.forPath(spark, tmpDir)
+      println(qt.getIndexMetrics())
+
+      val appendSize = 50000
+      var dataSize = 99986
+      val tolerance = 0.01
+      1 to 10 foreach { _ =>
+        val dataToAppend = createEcommerceInstances(appendSize)
+        dataToAppend.write.mode("append").format("qbeast").save(tmpDir)
+        println(qt.getIndexMetrics())
+
+        val allData = spark.read.format("qbeast").load(tmpDir)
+        dataSize += appendSize
+
+        List(0.1, 0.2, 0.5, 0.7, 0.9).foreach(f => {
+          val sampleSize = allData.sample(f).count.toDouble
+          val margin = dataSize * f * tolerance
+          sampleSize shouldBe (dataSize * f) +- margin
+        })
+
+      }
+    }
+  }
 
   "Compaction" should "reduce the number of small blocks" in withExtendedSparkAndTmpDir(
     new SparkConf().set("spark.qbeast.compact.minFileSize", "1")) { (spark, tmpDir) =>

@@ -17,6 +17,7 @@ object BroadcastedTableChanges {
       revisionChanges: Option[RevisionChange],
       supersededIndexStatus: IndexStatus,
       deltaNormalizedCubeWeights: Map[CubeId, NormalizedWeight],
+      numElements: Long,
       deltaReplicatedSet: Set[CubeId] = Set.empty,
       deltaAnnouncedSet: Set[CubeId] = Set.empty): TableChanges = {
 
@@ -59,7 +60,8 @@ object BroadcastedTableChanges {
       deltaReplicatedSet = deltaReplicatedSet,
       announcedOrReplicatedSet = announcedSet ++ replicatedSet,
       cubeStates = SparkSession.active.sparkContext.broadcast(cubeStates.toMap),
-      cubeWeights = SparkSession.active.sparkContext.broadcast(cubeWeights))
+      cubeWeights = SparkSession.active.sparkContext.broadcast(cubeWeights),
+      numElements: Long)
   }
 
 }
@@ -71,12 +73,12 @@ case class BroadcastedTableChanges(
     deltaReplicatedSet: Set[CubeId],
     announcedOrReplicatedSet: Set[CubeId],
     cubeStates: Broadcast[Map[CubeId, String]],
-    cubeWeights: Broadcast[Map[CubeId, Weight]])
+    cubeWeights: Broadcast[Map[CubeId, Weight]],
+    numElements: Long)
     extends TableChanges {
 
   override def cubeWeights(cubeId: CubeId): Option[Weight] = cubeWeights.value.get(cubeId)
 
   override def cubeState(cubeId: CubeId): Option[String] = cubeStates.value.get(cubeId)
 
-  override def cubeCounts: Int = cubeStates.value.size
 }
