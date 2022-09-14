@@ -79,8 +79,8 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
   }
 
   object CubeRollUp {
-    val parentCubeColumnName = "parentCube"
 
+    // scalastyle:off println
     def apply(
         qbeastData: DataFrame,
         dimensionCount: Int,
@@ -90,6 +90,9 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
         case "simple" => simpleUpRolling(qbeastData, dimensionCount, sizeThreshold)
         case "acc" => accumulativeUpRolling(qbeastData, dimensionCount, sizeThreshold)
       }
+      println(
+        s"cube count after folding:" +
+          s"${cubeMap.values.map(b => CubeId(dimensionCount, b)).toSet.size}")
       new CubeRollUp(cubeMap)
     }
 
@@ -106,6 +109,7 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
           cubeSizes += (cube -> size)
         })
 
+      println(s"Cube count before folding: ${cubeSizes.size}")
       cubeSizes
     }
 
@@ -121,26 +125,12 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
         qbeastData: DataFrame,
         dimensionCount: Int,
         sizeThreshold: Int): Map[Array[Byte], Array[Byte]] = {
-      // scalastyle:off println
       val cubeSizes = getCubeSizes(qbeastData, dimensionCount)
-      val cubeMapping = cubeSizes
+
+      cubeSizes
         .filter { case (cube, size) => !cube.isRoot && size < sizeThreshold }
         .map { case (cube, _) => (cube.bytes, cube.parent.get.bytes) }
         .toMap
-
-      println(s"cube count before: ${cubeSizes.size}")
-//      cubeSizes
-//        .groupBy(cs => cs._1.depth)
-//        .mapValues(_.size)
-//        .toSeq
-//        .sortBy(_._1)
-//        .foreach(println)
-
-      println(
-        s"cube count after folding up:" +
-          s"${cubeMapping.values.map(b => CubeId(dimensionCount, b).string).toSet.size}")
-
-      cubeMapping
     }
 
     def accumulativeUpRolling(
@@ -149,29 +139,26 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
         sizeThreshold: Int): Map[Array[Byte], Array[Byte]] = {
       val cubeSizes = getCubeSizes(qbeastData, dimensionCount)
 
-      val uniqueCubes = cubeSizes.filter(_._2 < sizeThreshold).keys.map(_.string).toSet.size
-      println(s"number of cube sizes before: $uniqueCubes")
-
       val cubeFoldingMap = mutable.Map[CubeId, CubeId]()
       var maxDepth = 0
+
       cubeSizes.keys.foreach(cube => {
         maxDepth = maxDepth.max(cube.depth)
         cubeFoldingMap += cube -> cube
       })
 
       val levelCubeSizes = cubeSizes.groupBy(_._1.depth)
-
-      (maxDepth to 1).reverse
+      (maxDepth to 1 by -1)
         .filter(levelCubeSizes.contains)
         .foreach { depth =>
           // Cube sizes from level depth
           levelCubeSizes(depth)
             // Filter out those with a size >= threshold
             .filter { case (_, size) => size < sizeThreshold }
-            // Group cubes by parent cube
+            // Group cubes by parent cube to find sibling cubes
             .groupBy { case (cube, _) => cube.parent.get }
             // Make sure the parent cube exists
-            .filter { case (parent, _) => levelCubeSizes(depth).contains(parent) }
+            .filter { case (parent, _) => cubeSizes.contains(parent) }
             // Process cubes from the current level
             .foreach { case (parent, siblingCubeSizes) =>
               // Add children sizes to parent size
@@ -187,14 +174,13 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
 
       cubeFoldingMap.keys
         .map(cube => {
-          var targetCube = cubeFoldingMap(targetCube)
+          var targetCube: CubeId = cubeFoldingMap(cube)
           while (cubeFoldingMap(targetCube) != targetCube) {
             targetCube = cubeFoldingMap(targetCube)
           }
           (cube.bytes, targetCube.bytes)
         })
         .toMap
-
     }
 
   }
