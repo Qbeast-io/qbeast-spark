@@ -75,18 +75,16 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
 
   private def otreeFolding(qbeastData: DataFrame, tableChanges: TableChanges): DataFrame = {
     val dimensionCount = tableChanges.updatedRevision.columnTransformers.size
-    val numCubes = tableChanges.cubeCounts
-    val desiredCubeSize = tableChanges.updatedRevision.desiredCubeSize
-
     val appendingToExistingTree = !tableChanges.isNewRevision
-    val smallDataset = numCubes * desiredCubeSize * 0.5 < MAX_SIZE_FOR_ROLLING
+    val smallDataset = tableChanges.numElements < MAX_SIZE_FOR_ROLLING
 
     if (appendingToExistingTree && smallDataset) {
       val cubeMap =
         OTreeRollUpUtils.computeFoldedCubeMap(
           qbeastData,
           dimensionCount,
-          (MAX_SIZE_FOR_ROLLING * 0.1).toInt)
+          (MAX_SIZE_FOR_ROLLING * 0.1).toInt,
+          tableChanges.updatedRevision.desiredCubeSize)
       qbeastData.withColumn(cubeColumnName, fold(cubeMap, dimensionCount)(col(cubeColumnName)))
     } else {
       qbeastData
@@ -214,9 +212,10 @@ object OTreeRollUpUtils {
   def computeFoldedCubeMap(
       qbeastData: DataFrame,
       dimensionCount: Int,
-      maxRollingSize: Int): Map[CubeId, CubeId] = {
+      maxRollingSize: Int,
+      desiredCubeSize: Int): Map[CubeId, CubeId] = {
     val cubeSizes = computeCubeSizes(qbeastData, dimensionCount)
-    val cubeMap = accumulativeRollUp(cubeSizes, maxRollingSize)
+    val cubeMap = accumulativeRollUp(cubeSizes, desiredCubeSize)
 
     println(s"Cube count before folding: ${cubeSizes.size}")
     println(s"cube count after folding:${cubeMap.values.toSet.size}")
@@ -276,7 +275,7 @@ object OTreeRollUpUtils {
           .foreach { case (parent, siblingCubeSizes) =>
             // Add children sizes to parent size
             val newSize = cubeSizes(parent) + siblingCubeSizes.values.sum
-            if (newSize < maxRollingSize) {
+            if (newSize <= maxRollingSize) {
               // update parent size
               cubeSizes(parent) = newSize
               // update mapping graph edge for sibling cubes
