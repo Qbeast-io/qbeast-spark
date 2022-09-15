@@ -42,7 +42,7 @@ package object config {
     ConfigBuilder("spark.qbeast.index.maxRollingRecords")
       .version("0.2.0")
       .longConf
-      .createWithDefault(5000000L)
+      .createWithDefault(0L)
 
   def DEFAULT_NUMBER_OF_RETRIES: Int = QbeastContext.config
     .get(defaultNumberOfRetries)
