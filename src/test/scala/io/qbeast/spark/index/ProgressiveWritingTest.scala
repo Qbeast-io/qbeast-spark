@@ -156,6 +156,31 @@ class ProgressiveWritingTest extends QbeastIntegrationTestSpec with PrivateMetho
       }
     }
 
+  it should "not corrupt inline sampling" in
+    withExtendedSparkAndTmpDir(
+      new SparkConf().set("spark.qbeast.index.maxRollingRecords", "100000")) { (spark, tmpDir) =>
+      {
+        val df = loadTestData(spark)
+        writeTestData(df, Seq("user_id", "price", "event_type"), 5000, tmpDir)
+
+        var dataSize = 99986
+        val appendSize = 5000
+        val tolerance = 0.01
+        1 to 10 foreach { _ =>
+          val dataToAppend = createEcommerceInstances(appendSize)
+          dataToAppend.write.mode("append").format("qbeast").save(tmpDir)
+
+          val allData = spark.read.format("qbeast").load(tmpDir)
+          dataSize += appendSize
+
+          Seq(0.1, 0.2, 0.5, 0.7, 0.9).foreach(f => {
+            val sampleSize = allData.sample(f).count.toDouble
+            val margin = dataSize * f * tolerance
+            sampleSize shouldBe (dataSize * f) +- margin
+          })
+        }
+      }
+    }
 }
 
 object Util {
