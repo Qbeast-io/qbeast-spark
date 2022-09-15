@@ -1,14 +1,21 @@
 package io.qbeast.spark.index
 
 import io.qbeast.TestClasses.EcommerceRecord
-import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
+import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{Dataset, SparkSession}
+import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
+import io.qbeast.spark.delta.DeltaQbeastSnapshot
+import io.qbeast.spark.delta.writer.SparkDeltaDataWriter
+import io.qbeast.spark.delta.writer.OTreeRollUpUtils
+import io.qbeast.spark.index.QbeastColumns.cubeColumnName
+import org.scalatest.PrivateMethodTester
 
 import scala.util.Random
 
-class ProgressiveWritingTest extends QbeastIntegrationTestSpec {
+class ProgressiveWritingTest extends QbeastIntegrationTestSpec with PrivateMethodTester {
 
+  // scalastyle:off println
   def createEcommerceInstances(size: Int): Dataset[EcommerceRecord] = {
     val spark = SparkSession.active
     import spark.implicits._
@@ -29,63 +36,80 @@ class ProgressiveWritingTest extends QbeastIntegrationTestSpec {
       .as[EcommerceRecord]
   }
 
-  "Appending small data" should "not resulting in having a large number of small blocks" in
+  val privateCompression: PrivateMethod[DataFrame] = PrivateMethod[DataFrame]('treeCompression)
+
+  "Appending with tree compression" should "reduce cube count (via cubeMap comparison)" in
     withExtendedSparkAndTmpDir(
-      new SparkConf().set("spark.qbeast.index.maxRollingRecords", "10000")) { (spark, tmpDir) =>
-      {}
+      new SparkConf().set("spark.qbeast.index.maxRollingRecords", "50000")) { (spark, tmpDir) =>
+      {
+        val original = loadTestData(spark)
+        val columnsToIndex = Seq("user_id", "price", "event_type")
+        writeTestData(original, columnsToIndex, 5000, tmpDir)
+
+        val deltaLog = DeltaLog.forTable(spark, tmpDir)
+        val snapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+        val indexStatus = snapshot.loadLatestIndexStatus
+
+        val dataToAppend = createEcommerceInstances(5000)
+        val (indexedData, tableChanges) =
+          SparkOTreeManager.index(dataToAppend.toDF(), indexStatus)
+        val cubeSizes = OTreeRollUpUtils.computeCubeSizes(indexedData, columnsToIndex.size)
+        val compressionCubeMap = OTreeRollUpUtils.accumulativeRollUp(
+          cubeSizes,
+          tableChanges.updatedRevision.desiredCubeSize)
+
+        cubeSizes.size shouldBe compressionCubeMap.size
+        cubeSizes.size shouldBe >(compressionCubeMap.values.toSet.size)
+      }
     }
 
-  "OTree algorithm" should "progressively append data" in withExtendedSparkAndTmpDir(
-    new SparkConf().set("spark.qbeast.index.maxRollingRecords", "10000")) { (spark, tmpDir) =>
+  it should "reduce cube count (by comparing cube counts from DF to write)" in
+    withExtendedSparkAndTmpDir(
+      new SparkConf().set("spark.qbeast.index.maxRollingRecords", "100000")) { (spark, tmpDir) =>
+      {
+        val original = loadTestData(spark)
+        val columnsToIndex = Seq("user_id", "price", "event_type")
+        writeTestData(original, columnsToIndex, 5000, tmpDir)
+
+        val deltaLog = DeltaLog.forTable(spark, tmpDir)
+        val snapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+        val indexStatus = snapshot.loadLatestIndexStatus
+
+        val appendSize = 500
+        val dataToAppend = createEcommerceInstances(appendSize)
+        val (indexedData, tableChanges) =
+          SparkOTreeManager.index(dataToAppend.toDF(), indexStatus)
+        val dataToWrite =
+          SparkDeltaDataWriter invokePrivate privateCompression(indexedData, tableChanges)
+
+        val cubeCountWithoutCompression = indexedData.select(cubeColumnName).distinct.count
+        val cubeCountWithCompression = dataToWrite.select(cubeColumnName).distinct.count
+
+        cubeCountWithoutCompression shouldBe >(cubeCountWithCompression)
+      }
+    }
+
+  it should "not lose data" in withExtendedSparkAndTmpDir(
+    new SparkConf().set("spark.qbeast.index.maxRollingRecords", "100000")) { (spark, tmpDir) =>
     {
-      // scalastyle:off println
-      val tmpDir = "/tmp/test/"
-      val df = loadTestData(spark)
-      writeTestData(df, Seq("user_id", "price", "event_type"), 5000, tmpDir)
+      val original = loadTestData(spark)
+      val columnsToIndex = Seq("user_id", "price", "event_type")
+      writeTestData(original, columnsToIndex, 5000, tmpDir)
 
-      val qt = QbeastTable.forPath(spark, tmpDir)
-      println(qt.getIndexMetrics())
-
-      val appendSize = 50000
-      var dataSize = 99986
-      val tolerance = 0.01
+      var dataSize = original.count
+      val appendSize = 500
       1 to 10 foreach { _ =>
         val dataToAppend = createEcommerceInstances(appendSize)
         dataToAppend.write.mode("append").format("qbeast").save(tmpDir)
-        println(qt.getIndexMetrics())
-
-        val allData = spark.read.format("qbeast").load(tmpDir)
         dataSize += appendSize
 
-        List(0.1, 0.2, 0.5, 0.7, 0.9).foreach(f => {
-          val sampleSize = allData.sample(f).count.toDouble
-          val margin = dataSize * f * tolerance
-          sampleSize shouldBe (dataSize * f) +- margin
-        })
+        val allData = spark.read.format("qbeast").load(tmpDir)
 
+        dataSize shouldBe allData.count
       }
     }
   }
 
-  "Compaction" should "reduce the number of small blocks" in withExtendedSparkAndTmpDir(
-    new SparkConf().set("spark.qbeast.compact.minFileSize", "1")) { (spark, tmpDir) =>
-    {
-      val tmpDir = "/tmp/test/"
-      val qt = QbeastTable.forPath(spark, tmpDir)
-      println(qt.getIndexMetrics())
-
-      qt.compact()
-
-      println(qt.getIndexMetrics())
-    }
-  }
-
-  "Modifications" should "display cube sizes and parent cube sizes after folding" in
-    withSparkAndTmpDir((spark, tmpDir) => {
-      val tmpDir = "/tmp/test/"
-      val df = loadTestData(spark)
-      writeTestData(df, Seq("user_id", "price", "event_type"), 5000, tmpDir)
-    })
 }
 
 object Util {
