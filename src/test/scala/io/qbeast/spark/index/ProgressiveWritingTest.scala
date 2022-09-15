@@ -1,7 +1,8 @@
 package io.qbeast.spark.index
 
 import io.qbeast.TestClasses.EcommerceRecord
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.core.model.{CubeId, CubeStatus}
+import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
@@ -15,7 +16,6 @@ import scala.util.Random
 
 class ProgressiveWritingTest extends QbeastIntegrationTestSpec with PrivateMethodTester {
 
-  // scalastyle:off println
   def createEcommerceInstances(size: Int): Dataset[EcommerceRecord] = {
     val spark = SparkSession.active
     import spark.implicits._
@@ -37,6 +37,35 @@ class ProgressiveWritingTest extends QbeastIntegrationTestSpec with PrivateMetho
   }
 
   val privateCompression: PrivateMethod[DataFrame] = PrivateMethod[DataFrame]('treeCompression)
+
+  def branchMaxWeightCheck(
+      cube: CubeId,
+      parentWeight: NormalizedWeight,
+      cubeWeights: Map[CubeId, CubeStatus]): Boolean = {
+    if (cubeWeights.contains(cube)) {
+      val cubeMaxWeight = cubeWeights(cube).normalizedWeight
+
+      if (cubeMaxWeight <= parentWeight) {
+        false
+      } else {
+        cube.children
+          .forall(c => branchMaxWeightCheck(c, cubeMaxWeight, cubeWeights))
+      }
+    } else {
+      val nextLevel = cube.children
+        .filter(cubeWeights.contains)
+
+      nextLevel.isEmpty || nextLevel.forall(c =>
+        branchMaxWeightCheck(c, parentWeight, cubeWeights))
+    }
+  }
+
+  def hasCorrectBranchMaxWeights(spark: SparkSession, path: String): Boolean = {
+    val qbeastTable = QbeastTable.forPath(spark, path)
+    val index = qbeastTable.getIndexMetrics().cubeStatuses
+    val root = CubeId.root(qbeastTable.indexedColumns().size)
+    branchMaxWeightCheck(root, -1, index)
+  }
 
   "Appending with tree compression" should "reduce cube count (via cubeMap comparison)" in
     withExtendedSparkAndTmpDir(
@@ -109,6 +138,23 @@ class ProgressiveWritingTest extends QbeastIntegrationTestSpec with PrivateMetho
       }
     }
   }
+
+  it should "maintain branch maxWeights to be monotonically increasing" in
+    withExtendedSparkAndTmpDir(
+      new SparkConf().set("spark.qbeast.index.maxRollingRecords", "100000")) { (spark, tmpDir) =>
+      {
+        val original = loadTestData(spark)
+        val columnsToIndex = Seq("user_id", "price", "event_type")
+        writeTestData(original, columnsToIndex, 5000, tmpDir)
+        hasCorrectBranchMaxWeights(spark, tmpDir) shouldBe true
+
+        1 to 10 foreach { _ =>
+          val dataToAppend = createEcommerceInstances(40000)
+          dataToAppend.write.mode("append").format("qbeast").save(tmpDir)
+          hasCorrectBranchMaxWeights(spark, tmpDir) shouldBe true
+        }
+      }
+    }
 
 }
 
