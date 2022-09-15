@@ -70,7 +70,7 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
   private def fold(cubeMap: Map[CubeId, CubeId], dimensionCount: Int): UserDefinedFunction =
     udf((bytes: Array[Byte]) => {
       val cube = CubeId(dimensionCount, bytes)
-      cubeMap.getOrElse(cube, cube)
+      cubeMap.getOrElse(cube, cube).bytes
     })
 
   private def treeCompression(qbeastData: DataFrame, tableChanges: TableChanges): DataFrame = {
