@@ -38,8 +38,8 @@ package object config {
       .intConf
       .createWithDefault(1024 * 1024 * 1024)
 
-  private[config] val maxSizeForRolling: ConfigEntry[Long] =
-    ConfigBuilder("spark.qbeast.index.maxRollingRecords")
+  private[config] val maxAppendCompressionSize: ConfigEntry[Long] =
+    ConfigBuilder("spark.qbeast.index.maxAppendCompressionSize")
       .version("0.2.0")
       .longConf
       .createWithDefault(0L)
@@ -57,5 +57,7 @@ package object config {
 
   def MAX_FILE_SIZE_COMPACTION: Int = QbeastContext.config.get(maxFileSizeCompaction)
 
-  def MAX_SIZE_FOR_ROLLING: Long = QbeastContext.config.get(maxSizeForRolling)
+  def MAX_SIZE_FOR_APPEND_COMPRESSION: Long =
+    QbeastContext.config.get(maxAppendCompressionSize)
+
 }

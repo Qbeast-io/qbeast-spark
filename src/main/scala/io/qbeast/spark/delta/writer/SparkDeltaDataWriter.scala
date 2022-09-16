@@ -11,7 +11,7 @@ import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.qbeast.config.{
   MAX_FILE_SIZE_COMPACTION,
-  MAX_SIZE_FOR_ROLLING,
+  MAX_SIZE_FOR_APPEND_COMPRESSION,
   MIN_FILE_SIZE_COMPACTION
 }
 import org.apache.spark.sql.delta.actions.FileAction
@@ -67,7 +67,7 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
 
   }
 
-  private def fold(cubeMap: Map[CubeId, CubeId], dimensionCount: Int): UserDefinedFunction =
+  private def groupCubes(cubeMap: Map[CubeId, CubeId], dimensionCount: Int): UserDefinedFunction =
     udf((bytes: Array[Byte]) => {
       val cube = CubeId(dimensionCount, bytes)
       cubeMap.getOrElse(cube, cube).bytes
@@ -77,14 +77,14 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
     val dimensionCount = tableChanges.updatedRevision.columnTransformers.size
     val desiredCubeSize = tableChanges.updatedRevision.desiredCubeSize
     val appendingToExistingTree = !tableChanges.isNewRevision
-    val smallDataset = tableChanges.numElements <= MAX_SIZE_FOR_ROLLING
+    val smallDataset = tableChanges.numElements <= MAX_SIZE_FOR_APPEND_COMPRESSION
 
     if (appendingToExistingTree && smallDataset) {
       val cubeMap =
-        OTreeRollUpUtils.computeCompressionCubeMap(qbeastData, dimensionCount, desiredCubeSize)
+        OTreeCompression.computeCompressionCubeMap(qbeastData, dimensionCount, desiredCubeSize)
 
       qbeastData
-        .withColumn(cubeColumnName, fold(cubeMap, dimensionCount)(col(cubeColumnName)))
+        .withColumn(cubeColumnName, groupCubes(cubeMap, dimensionCount)(col(cubeColumnName)))
     } else {
       qbeastData
     }
@@ -201,7 +201,7 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
 
 }
 
-object OTreeRollUpUtils {
+object OTreeCompression {
 
   def computeCompressionCubeMap(
       qbeastData: DataFrame,
@@ -279,22 +279,6 @@ object OTreeRollUpUtils {
         }
         (cube, targetCube)
       })
-      .toMap
-  }
-
-  /**
-   * Cube payload that are smaller than the threshold are directly allocated
-   * to their parent cubes without further considerations
-   * @param cubeSizes the payload sizes of all cubes
-   * @param sizeThreshold the minimum payload size of a cube/block
-   *                      for it to be reallocated to its parent cube
-   * @return
-   */
-  def simpleRollUp(cubeSizes: Map[CubeId, Long], sizeThreshold: Int): Map[CubeId, CubeId] = {
-    cubeSizes
-      .filter { case (cube, size) => !cube.isRoot && size < sizeThreshold }
-      .keys
-      .map(cube => (cube, cube.parent.get))
       .toMap
   }
 
