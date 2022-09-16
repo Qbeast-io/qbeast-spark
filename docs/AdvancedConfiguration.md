@@ -72,3 +72,15 @@ You can set the minimum and maximum size of your files for the compaction proces
 --conf spark.qbeast.compact.minFileSize=1\
 --conf spark.qbeast.compact.maxFileSize=10000
 ```
+
+## Max Size for Append Compression
+
+Appending a small number of records to an existing revision can result in many files with only a few records. To prevent
+this from happening, sibling payloads are grouped and send to their parent cubes accumulatively and recursively.
+
+Doing so for large datasets can be expensive, so the operation is limited for those with no more than
+`MAX_SIZE_FOR_APPEND_COMPRESSION` records (defaulted to 0). You can modify this value by setting:
+
+```shell
+--conf spark.qbeast.index.maxAppendCompressionSize=500000
+```
