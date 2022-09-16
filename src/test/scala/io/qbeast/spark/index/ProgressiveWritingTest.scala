@@ -16,6 +16,13 @@ import scala.util.Random
 
 class ProgressiveWritingTest extends QbeastIntegrationTestSpec with PrivateMethodTester {
 
+  val columnsToIndex: Seq[String] = Seq("user_id", "price", "event_type")
+  val dimensionCount: Int = columnsToIndex.size
+
+  val (user_id_min, user_id_max) = (315309190, 566280860)
+  val price_max = 2574
+  val eventTypes: Seq[String] = Seq("purchase", "view", "cart")
+
   def createEcommerceInstances(size: Int): Dataset[EcommerceRecord] = {
     val spark = SparkSession.active
     import spark.implicits._
@@ -23,15 +30,15 @@ class ProgressiveWritingTest extends QbeastIntegrationTestSpec with PrivateMetho
     1.to(size)
       .map(i =>
         EcommerceRecord(
-          "2019-10-31 23:59:59 UTC",
-          Random.shuffle(Util.eventTypes).head,
-          Random.nextInt(60500010 + 1000978) - 1000978,
-          Random.nextInt() + 2053013552259662037L,
-          Random.shuffle(Util.categoryCode).head,
-          Random.shuffle(Util.brand).head,
-          Random.nextInt(2574) + Random.nextDouble,
-          Random.nextInt(250971670) + 315309190,
-          Random.shuffle(Util.userSessions).head))
+          event_time = "2019-10-31 18:50:55 UTC",
+          event_type = Random.shuffle(eventTypes).head,
+          product_id = Random.nextInt(60500010 - 1000978) + 1000978,
+          category_id = 2053013552259662037L,
+          category_code = "accessories.bag",
+          brand = "a-case",
+          price = Random.nextInt(price_max) + Random.nextDouble,
+          user_id = Random.nextInt(user_id_max - user_id_min) + user_id_min,
+          user_session = "00029da2-57bf-4f8d-bd76-2631220754f1"))
       .toDF()
       .as[EcommerceRecord]
   }
@@ -69,26 +76,25 @@ class ProgressiveWritingTest extends QbeastIntegrationTestSpec with PrivateMetho
 
   "Appending with tree compression" should "reduce cube count (via cubeMap comparison)" in
     withExtendedSparkAndTmpDir(
-      new SparkConf().set("spark.qbeast.index.maxRollingRecords", "50000")) { (spark, tmpDir) =>
+      new SparkConf().set("spark.qbeast.index.maxRollingRecords", "100000")) { (spark, tmpDir) =>
       {
         val original = loadTestData(spark)
-        val columnsToIndex = Seq("user_id", "price", "event_type")
         writeTestData(original, columnsToIndex, 5000, tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
         val snapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
         val indexStatus = snapshot.loadLatestIndexStatus
 
-        val dataToAppend = createEcommerceInstances(5000)
+        val dataToAppend = createEcommerceInstances(500)
         val (indexedData, tableChanges) =
           SparkOTreeManager.index(dataToAppend.toDF(), indexStatus)
-        val cubeSizes = OTreeRollUpUtils.computeCubeSizes(indexedData, columnsToIndex.size)
+        val cubeSizes = OTreeRollUpUtils.computeCubeSizes(indexedData, dimensionCount)
         val compressionCubeMap = OTreeRollUpUtils.accumulativeRollUp(
           cubeSizes,
           tableChanges.updatedRevision.desiredCubeSize)
 
-        cubeSizes.size shouldBe compressionCubeMap.size
-        cubeSizes.size shouldBe >(compressionCubeMap.values.toSet.size)
+        compressionCubeMap.size shouldBe cubeSizes.size
+        compressionCubeMap.values.toSet.size shouldBe <(cubeSizes.size)
       }
     }
 
@@ -97,7 +103,6 @@ class ProgressiveWritingTest extends QbeastIntegrationTestSpec with PrivateMetho
       new SparkConf().set("spark.qbeast.index.maxRollingRecords", "100000")) { (spark, tmpDir) =>
       {
         val original = loadTestData(spark)
-        val columnsToIndex = Seq("user_id", "price", "event_type")
         writeTestData(original, columnsToIndex, 5000, tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
@@ -114,7 +119,7 @@ class ProgressiveWritingTest extends QbeastIntegrationTestSpec with PrivateMetho
         val cubeCountWithoutCompression = indexedData.select(cubeColumnName).distinct.count
         val cubeCountWithCompression = dataToWrite.select(cubeColumnName).distinct.count
 
-        cubeCountWithoutCompression shouldBe >(cubeCountWithCompression)
+        cubeCountWithCompression shouldBe <(cubeCountWithoutCompression)
       }
     }
 
@@ -122,7 +127,6 @@ class ProgressiveWritingTest extends QbeastIntegrationTestSpec with PrivateMetho
     new SparkConf().set("spark.qbeast.index.maxRollingRecords", "100000")) { (spark, tmpDir) =>
     {
       val original = loadTestData(spark)
-      val columnsToIndex = Seq("user_id", "price", "event_type")
       writeTestData(original, columnsToIndex, 5000, tmpDir)
 
       var dataSize = original.count
@@ -134,7 +138,7 @@ class ProgressiveWritingTest extends QbeastIntegrationTestSpec with PrivateMetho
 
         val allData = spark.read.format("qbeast").load(tmpDir)
 
-        dataSize shouldBe allData.count
+        allData.count shouldBe dataSize
       }
     }
   }
@@ -144,12 +148,11 @@ class ProgressiveWritingTest extends QbeastIntegrationTestSpec with PrivateMetho
       new SparkConf().set("spark.qbeast.index.maxRollingRecords", "100000")) { (spark, tmpDir) =>
       {
         val original = loadTestData(spark)
-        val columnsToIndex = Seq("user_id", "price", "event_type")
         writeTestData(original, columnsToIndex, 5000, tmpDir)
         hasCorrectBranchMaxWeights(spark, tmpDir) shouldBe true
 
         1 to 10 foreach { _ =>
-          val dataToAppend = createEcommerceInstances(40000)
+          val dataToAppend = createEcommerceInstances(500)
           dataToAppend.write.mode("append").format("qbeast").save(tmpDir)
           hasCorrectBranchMaxWeights(spark, tmpDir) shouldBe true
         }
@@ -161,11 +164,11 @@ class ProgressiveWritingTest extends QbeastIntegrationTestSpec with PrivateMetho
       new SparkConf().set("spark.qbeast.index.maxRollingRecords", "100000")) { (spark, tmpDir) =>
       {
         val df = loadTestData(spark)
-        writeTestData(df, Seq("user_id", "price", "event_type"), 5000, tmpDir)
+        writeTestData(df, columnsToIndex, 5000, tmpDir)
 
         var dataSize = 99986
-        val appendSize = 5000
-        val tolerance = 0.01
+        val appendSize = 500
+        val tolerance = 0.02
         1 to 10 foreach { _ =>
           val dataToAppend = createEcommerceInstances(appendSize)
           dataToAppend.write.mode("append").format("qbeast").save(tmpDir)
@@ -181,51 +184,4 @@ class ProgressiveWritingTest extends QbeastIntegrationTestSpec with PrivateMetho
         }
       }
     }
-}
-
-object Util {
-
-  val brand: Seq[String] = Seq(
-    "yokohama",
-    "apple",
-    "samsung",
-    "sonel",
-    "sigma",
-    "ariston",
-    "greenland",
-    "kettler",
-    "cartier",
-    "rieker",
-    "bioderma",
-    "tuffoni",
-    "welss",
-    "tega")
-
-  val categoryCode: Seq[String] =
-    Seq(
-      "computers.ebooks",
-      "apparel.shoes.slipons",
-      "computers.peripherals.keyboard",
-      "electronics.video.projector",
-      "appliances.kitchen.coffee_grinder",
-      "sport.snowboard",
-      "electronics.camera.video",
-      "apparel.shirt",
-      "electronics.audio.headphone",
-      "auto.accessories.radar")
-
-  val eventTypes: Seq[String] = Seq("purchase", "view", "cart")
-
-  val userSessions: Seq[String] =
-    Seq(
-      "efeb908a-f2c1-4ddd-8f49-361c94a0967b",
-      "7860ab49-f0ee-403a-b059-02d47489cc3c",
-      "f859c16b-0a95-4afb-a01e-08e9735083de",
-      "4fedbad9-8d05-4e89-9d34-defd5d9e0384",
-      "98062ef5-7bc7-4f93-bd35-972f28a3e043",
-      "777e076a-8fd8-49aa-ba20-a9d811ff5f7f",
-      "3be059a9-88b1-45c4-b54b-131f6d9ab5ea",
-      "4c0f37cd-24b5-447f-9017-caa3cc845886",
-      "4fcd0d55-76d3-4950-8f4f-0e43623f52d1")
-
 }
