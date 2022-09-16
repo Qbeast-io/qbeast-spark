@@ -14,7 +14,7 @@ import org.scalatest.PrivateMethodTester
 
 import scala.util.Random
 
-class ProgressiveWritingTest extends QbeastIntegrationTestSpec with PrivateMethodTester {
+class AppendCompressionTest extends QbeastIntegrationTestSpec with PrivateMethodTester {
 
   val columnsToIndex: Seq[String] = Seq("user_id", "price", "event_type")
   val dimensionCount: Int = columnsToIndex.size
