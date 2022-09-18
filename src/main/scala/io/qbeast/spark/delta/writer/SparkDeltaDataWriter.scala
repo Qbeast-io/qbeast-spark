@@ -67,24 +67,15 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
 
   }
 
-  private def groupCubes(cubeMap: Map[CubeId, CubeId], dimensionCount: Int): UserDefinedFunction =
-    udf((bytes: Array[Byte]) => {
-      val cube = CubeId(dimensionCount, bytes)
-      cubeMap.getOrElse(cube, cube).bytes
-    })
-
   private def treeCompression(qbeastData: DataFrame, tableChanges: TableChanges): DataFrame = {
-    val dimensionCount = tableChanges.updatedRevision.columnTransformers.size
-    val desiredCubeSize = tableChanges.updatedRevision.desiredCubeSize
     val appendingToExistingTree = !tableChanges.isNewRevision
     val smallDataset = tableChanges.numElements <= MAX_SIZE_FOR_APPEND_COMPRESSION
 
     if (appendingToExistingTree && smallDataset) {
-      val cubeMap =
-        OTreeCompression.computeCompressionCubeMap(qbeastData, dimensionCount, desiredCubeSize)
-
-      qbeastData
-        .withColumn(cubeColumnName, groupCubes(cubeMap, dimensionCount)(col(cubeColumnName)))
+      qbeastData.transform(
+        OTreeCompression.compress(
+          tableChanges.updatedRevision.columnTransformers.size,
+          tableChanges.updatedRevision.desiredCubeSize))
     } else {
       qbeastData
     }
@@ -203,13 +194,21 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
 
 object OTreeCompression {
 
-  def computeCompressionCubeMap(
-      qbeastData: DataFrame,
-      dimensionCount: Int,
-      maxRollingSize: Int): Map[CubeId, CubeId] = {
-    val cubeSizes = computeCubeSizes(qbeastData, dimensionCount)
-    accumulativeRollUp(cubeSizes, maxRollingSize)
-  }
+  def compress(dimensionCount: Int, desiredCubeSize: Int): DataFrame => DataFrame =
+    (qbeastData: DataFrame) => {
+      val cubeSizes = computeCubeSizes(qbeastData, dimensionCount)
+      val cubeMap = accumulativeRollUp(cubeSizes, desiredCubeSize)
+
+      qbeastData.withColumn(
+        cubeColumnName,
+        groupCubes(cubeMap, dimensionCount)(col(cubeColumnName)))
+    }
+
+  private def groupCubes(cubeMap: Map[CubeId, CubeId], dimensionCount: Int): UserDefinedFunction =
+    udf((bytes: Array[Byte]) => {
+      val cube = CubeId(dimensionCount, bytes)
+      cubeMap.getOrElse(cube, cube).bytes
+    })
 
   def computeCubeSizes(qbeastData: DataFrame, dimensionCount: Int): mutable.Map[CubeId, Long] = {
     val cubeSizes = mutable.Map[CubeId, Long]()
