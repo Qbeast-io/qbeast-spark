@@ -92,6 +92,7 @@ export SPARK_HOME=$PWD/spark-3.1.1-bin-hadoop3.2
 ```bash
 $SPARK_HOME/bin/spark-shell \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
+--conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog \
 --packages io.qbeast:qbeast-spark_2.12:0.2.0,io.delta:delta-core_2.12:1.0.0
 ```
 
@@ -116,6 +117,26 @@ csv_df.write
 	.format("qbeast")
 	.option("columnsToIndex", "user_id,product_id")
 	.save(tmp_dir)
+```
+
+#### SQL Syntax.
+You can create a table with Qbeast with the help of `QbeastCatalog`.
+
+```scala
+spark.sql(
+  "CREATE TABLE student (id INT, name STRING, age INT) " +
+    "USING qbeast OPTIONS ('columnsToIndex'='id')")
+
+```
+
+Use **`INSERT INTO`** to add records to the new table. It will update the index in a **dynamic** fashion when new data is inserted.
+
+```scala
+
+spark.sql("INSERT INTO table student SELECT * from oldStudentsTable")
+
+spark.sql("INSERT INTO table student (value) values ((4, 'Joan', 20))")
+
 ```
 
 ###  3. Load the dataset
@@ -149,21 +170,6 @@ val qbeast_table = QbeastTable.forPath(spark, tmp_dir)
 qbeastTable.getIndexMetrics()
 
 qbeastTable.analyze()
-```
-
-The format supports **Spark SQL** syntax. 
-It also updates the index in a **dynamic** fashion when new data is inserted.
-
-```scala
-val newData = Seq(1, 2, 3, 4).toDF("value")
-
-newData.createOrReplaceTempView("newTable")
-
-spark.sql("insert into table myTable select * from newTable")
-
-spark.sql("insert into table myTable (value) values (4)")
-
-
 ```
 
 Go to [QbeastTable documentation](./docs/QbeastTable.md) for more detailed information.
