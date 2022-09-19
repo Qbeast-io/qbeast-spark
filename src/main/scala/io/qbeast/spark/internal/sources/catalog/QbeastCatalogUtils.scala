@@ -10,7 +10,7 @@ import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.CannotReplaceMissingTableException
 import org.apache.spark.sql.catalyst.catalog._
-import org.apache.spark.sql.connector.catalog.{Identifier, Table, TableCatalog}
+import org.apache.spark.sql.connector.catalog.{Identifier, Table}
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.delta.catalog.DeltaTableV2
 import org.apache.spark.sql.delta.commands.TableCreationModes
@@ -121,6 +121,8 @@ object QbeastCatalogUtils {
       tableCreationMode: TableCreationModes.CreationMode,
       tableFactory: IndexedTableFactory,
       existingSessionCatalog: SessionCatalog): Unit = {
+
+    /*
     // These two keys are tableProperties in data source v2 but not in v1, so we have to filter
     // them out. Otherwise property consistency checks will fail.
     val tableProperties = allTableProperties.asScala.filterKeys {
@@ -132,6 +134,8 @@ object QbeastCatalogUtils {
       case "path" => false
       case _ => true
     }
+
+     */
 
     val isPathTable = QbeastCatalogUtils.isPathTable(ident)
 
@@ -173,7 +177,7 @@ object QbeastCatalogUtils {
       provider = Some("qbeast"),
       partitionColumnNames = partitionColumns,
       bucketSpec = bucketSpec,
-      properties = tableProperties.toMap,
+      properties = allTableProperties.asScala.toMap,
       comment = commentOpt)
 
     val append = tableCreationMode.mode == SaveMode.Append
