@@ -67,7 +67,9 @@ case class ConvertToQbeastCommand(
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
     // TODO very basic mechanism for converting to qbeast
-    assert(acceptedFormats.contains(fileFormat), s"Format $fileFormat not supported.")
+    if (!acceptedFormats.contains(fileFormat)) {
+      throw new UnsupportedOperationException(s"Unsupported file format: $fileFormat")
+    }
 
     // Convert parquet to delta
     if (fileFormat == parquetFormat) convertParquetToDelta(path)
@@ -110,7 +112,6 @@ case class ConvertToQbeastCommand(
         .toIndexedSeq
       (tableChanges, newFiles)
     }
-//      throw new UnsupportedOperationException(s"Unsupported file format: $fileFormat")
     Seq.empty
   }
 
