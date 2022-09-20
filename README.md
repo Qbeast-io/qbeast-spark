@@ -135,7 +135,7 @@ Use **`INSERT INTO`** to add records to the new table. It will update the index 
 
 spark.sql("INSERT INTO table student SELECT * from oldStudentsTable")
 
-spark.sql("INSERT INTO table student (value) values ((4, 'Joan', 20))")
+spark.sql("INSERT INTO table student (id, name, age) values ((4, 'Joan', 20))")
 
 ```
 

@@ -62,4 +62,23 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction]
     diff.nonEmpty
   }
 
+  /**
+   * Checks if there's an existing log directory for the table
+   *
+   * @param tableID the table ID
+   * @return
+   */
+  override def existsLog(tableID: QTableID): Boolean = {
+    loadDeltaQbeastLog(tableID).deltaLog.tableExists
+  }
+
+  /**
+   * Creates an initial log directory
+   *
+   * @param tableID
+   */
+  override def createLog(tableID: QTableID): Unit = {
+    loadDeltaQbeastLog(tableID).deltaLog.createLogDirectory()
+  }
+
 }

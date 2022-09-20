@@ -3,6 +3,7 @@
  */
 package io.qbeast.spark.internal.sources.catalog
 
+import io.qbeast.context.QbeastContext.metadataManager
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
 import io.qbeast.spark.table.IndexedTableFactory
@@ -12,8 +13,6 @@ import org.apache.spark.sql.catalyst.analysis.CannotReplaceMissingTableException
 import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.connector.catalog.{Identifier, Table}
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.delta.catalog.DeltaTableV2
-import org.apache.spark.sql.delta.commands.TableCreationModes
 import org.apache.spark.sql.execution.datasources.DataSource
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{
@@ -118,7 +117,7 @@ object QbeastCatalogUtils {
       allTableProperties: util.Map[String, String],
       writeOptions: Map[String, String],
       dataFrame: Option[DataFrame],
-      tableCreationMode: TableCreationModes.CreationMode,
+      tableCreationMode: CreationMode,
       tableFactory: IndexedTableFactory,
       existingSessionCatalog: SessionCatalog): Unit = {
 
@@ -180,14 +179,28 @@ object QbeastCatalogUtils {
       properties = allTableProperties.asScala.toMap,
       comment = commentOpt)
 
-    val append = tableCreationMode.mode == SaveMode.Append
+    val append = tableCreationMode.saveMode == SaveMode.Append
     dataFrame.map { df =>
       tableFactory
         .getIndexedTable(QTableID(loc.toString))
         .save(df, allTableProperties.asScala.toMap, append)
     }
 
-    updateCatalog(tableCreationMode, table, isPathTable, existingTableOpt, existingSessionCatalog)
+    updateCatalog(
+      QTableID(loc.toString),
+      tableCreationMode,
+      table,
+      isPathTable,
+      existingTableOpt,
+      existingSessionCatalog)
+  }
+
+  private def checkLogCreation(tableID: QTableID): Unit = {
+    // If the Log is not created
+    // We make sure we create the table physically
+    // So new data can be inserted
+    val isLogCreated = metadataManager.existsLog(tableID)
+    if (!isLogCreated) metadataManager.createLog(tableID)
   }
 
   /**
@@ -201,7 +214,8 @@ object QbeastCatalogUtils {
    * @param existingSessionCatalog
    */
   private def updateCatalog(
-      operation: TableCreationModes.CreationMode,
+      tableID: QTableID,
+      operation: CreationMode,
       table: CatalogTable,
       isPathTable: Boolean,
       existingTableOpt: Option[CatalogTable],
@@ -209,18 +223,20 @@ object QbeastCatalogUtils {
 
     operation match {
       case _ if isPathTable => // do nothing
-      case TableCreationModes.Create =>
+      case TableCreationMode.CREATE_TABLE =>
+        checkLogCreation(tableID)
         existingSessionCatalog.createTable(
           table,
           ignoreIfExists = existingTableOpt.isDefined,
           validateLocation = false)
-      case TableCreationModes.Replace | TableCreationModes.CreateOrReplace
+      case TableCreationMode.REPLACE_TABLE | TableCreationMode.CREATE_OR_REPLACE
           if existingTableOpt.isDefined =>
         existingSessionCatalog.alterTable(table)
-      case TableCreationModes.Replace =>
+      case TableCreationMode.REPLACE_TABLE =>
         val ident = Identifier.of(table.identifier.database.toArray, table.identifier.table)
         throw new CannotReplaceMissingTableException(ident)
-      case TableCreationModes.CreateOrReplace =>
+      case TableCreationMode.CREATE_OR_REPLACE =>
+        checkLogCreation(tableID)
         existingSessionCatalog.createTable(
           table,
           ignoreIfExists = false,
@@ -258,15 +274,6 @@ object QbeastCatalogUtils {
           prop.asScala.toMap,
           Some(schema),
           Some(catalogTable),
-          tableFactory)
-
-      case DeltaTableV2(_, path, catalogTable, tableIdentifier, _, options, _) =>
-        new QbeastTableImpl(
-          tableIdentifier.get,
-          path,
-          options,
-          Some(schema),
-          catalogTable,
           tableFactory)
 
       case _ => table

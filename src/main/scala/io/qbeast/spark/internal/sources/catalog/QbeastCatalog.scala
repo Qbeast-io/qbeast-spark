@@ -20,7 +20,6 @@ import org.apache.spark.sql.connector.catalog.{
   TableChange
 }
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.delta.commands.TableCreationModes
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
@@ -28,7 +27,10 @@ import java.util
 import scala.collection.JavaConverters._
 
 /**
- * QbeastCatalog is a CatalogExtenssion with StagingTableCatalog
+ * QbeastCatalog is a CatalogExtenssion that supports Namespaces
+ * and the CREATION and/or REPLACEMENT of tables
+ * QbeastCatalog uses a session catalog of type T
+ * to delegate high-level operations
  */
 class QbeastCatalog[T <: TableCatalog with SupportsNamespaces]
     extends CatalogExtension
@@ -81,9 +83,8 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces]
   /**
    * For StageReplace, StageReplaceOrCreate and StageCreate, the following pipeline is executed
    * 1. Check if it's Qbeast Provider
-   * 2. Create a QbeastStagedTable.
-   *  This type of table allows to commit the changes atomically to the Catalog.
-   * 3. If it was not a QbeastProvider, it delegates the creation/replacement to the DeltaCatalog
+   * 2. Create a QbeastStagedTable. This type of table allows to commit the changes atomically to the Catalog.
+   * 3. If it was not a QbeastProvider, it outputs a DefaultStagedTable
    */
 
   override def stageReplace(
@@ -96,7 +97,7 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces]
         ident,
         schema,
         partitions,
-        TableCreationModes.Replace,
+        TableCreationMode.REPLACE_TABLE,
         properties,
         tableFactory)
     } else {
@@ -117,7 +118,7 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces]
         ident,
         schema,
         partitions,
-        TableCreationModes.CreateOrReplace,
+        TableCreationMode.CREATE_OR_REPLACE,
         properties,
         tableFactory)
     } else {
@@ -139,7 +140,7 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces]
         ident,
         schema,
         partitions,
-        TableCreationModes.Create,
+        TableCreationMode.CREATE_TABLE,
         properties,
         tableFactory)
     } else {

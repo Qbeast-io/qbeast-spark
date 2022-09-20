@@ -4,7 +4,7 @@
 package io.qbeast.spark.internal.sources.v2
 
 import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
-import io.qbeast.spark.internal.sources.catalog.QbeastCatalogUtils
+import io.qbeast.spark.internal.sources.catalog.{CreationMode, QbeastCatalogUtils}
 import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.spark.sql.catalyst.catalog.SessionCatalog
 import org.apache.spark.sql.connector.catalog.TableCapability.V1_BATCH_WRITE
@@ -16,7 +16,6 @@ import org.apache.spark.sql.connector.catalog.{
 }
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.write.{LogicalWriteInfo, V1Write, Write, WriteBuilder}
-import org.apache.spark.sql.delta.commands.TableCreationModes
 import org.apache.spark.sql.sources.InsertableRelation
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -32,7 +31,7 @@ private[sources] class QbeastStagedTableImpl(
     ident: Identifier,
     schema: StructType,
     partitions: Array[Transform],
-    tableCreationMode: TableCreationModes.CreationMode,
+    tableCreationMode: CreationMode,
     override val properties: util.Map[String, String],
     private val tableFactory: IndexedTableFactory)
     extends StagedTable
