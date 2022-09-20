@@ -105,22 +105,6 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec {
 
     })
 
-  // TODO this test fails because the data has schema (col1, col2, col3) Check how to solve it
-//  it should "create table and insert data" in withQbeastContextSparkAndTmpWarehouse(
-//    (spark, tmpDir) => {
-//
-//      spark.sql(
-//        "CREATE OR REPLACE TABLE student (id INT, name STRING, age INT)" +
-//          " USING qbeast OPTIONS ('columnsToIndex'='id')")
-//
-//      // Insert one single element
-//      spark.sql("INSERT INTO table student values (4, 'Joan', 20)")
-//      val table = spark.sql("SELECT * FROM student")
-//      table.schema shouldBe schema
-//      table.count() shouldBe 1
-//
-//    })
-
   it should "create table and insert data as select" in withQbeastContextSparkAndTmpWarehouse(
     (spark, tmpDir) => {
 

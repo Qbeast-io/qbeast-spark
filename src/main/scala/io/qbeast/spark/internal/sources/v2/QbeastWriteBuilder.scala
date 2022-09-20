@@ -8,6 +8,7 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.connector.write.{
   LogicalWriteInfo,
   SupportsOverwrite,
+  SupportsTruncate,
   V1Write,
   WriteBuilder
 }
@@ -26,13 +27,19 @@ class QbeastWriteBuilder(
     properties: Map[String, String],
     indexedTable: IndexedTable)
     extends WriteBuilder
-    with SupportsOverwrite {
+    with SupportsOverwrite
+    with SupportsTruncate {
 
   private var forceOverwrite = false
 
   override def overwrite(filters: Array[Filter]): WriteBuilder = {
     // TODO: User filters to select existing data to remove
     //  The remaining and the inserted data are then to be written
+    forceOverwrite = true
+    this
+  }
+
+  override def truncate(): WriteBuilder = {
     forceOverwrite = true
     this
   }
