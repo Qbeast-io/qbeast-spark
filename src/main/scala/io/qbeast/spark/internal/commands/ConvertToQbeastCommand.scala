@@ -11,7 +11,7 @@ import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.utils.{State, TagUtils}
 import org.apache.http.annotation.Experimental
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
-import org.apache.spark.sql.delta.actions.FileAction
+import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
 import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.delta.{DeltaLog, Snapshot}
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
@@ -27,11 +27,6 @@ case class ConvertToQbeastCommand(
     cubeSize: Int = DEFAULT_CUBE_SIZE)
     extends LeafRunnableCommand {
 
-  private val parquetFormat = "parquet"
-  private val deltaFormat = "delta"
-  private val acceptedFormats = Seq(parquetFormat, deltaFormat)
-  private val numRecordsPattern: Regex = """"numRecords":(\d+),""".r
-
   private val intMinMax = ColumnMinMax(-1e8.toInt, 1e8.toInt)
   private val doubleMinMax = ColumnMinMax(-1e10, 1e10)
   private val longMinMax = ColumnMinMax(-1e15.toLong, 1e15.toLong)
@@ -45,8 +40,12 @@ case class ConvertToQbeastCommand(
     TimestampDataType -> longMinMax,
     DateDataType -> longMinMax)
 
+  private def isSupportedFormat(format: String): Boolean = {
+    format == "parquet" || format == "delta"
+  }
+
   private def convertParquetToDelta(spark: SparkSession, path: String): Unit = {
-    spark.sql(s"CONVERT TO DELTA $parquetFormat.`$path`")
+    spark.sql(s"CONVERT TO DELTA parquet.`$path`")
   }
 
   def initializeRevision(path: String, schema: StructType): Revision = {
@@ -67,24 +66,12 @@ case class ConvertToQbeastCommand(
   }
 
   private def createQbeastActions(snapshot: Snapshot, revision: Revision): IISeq[FileAction] = {
-    val root = revision.createCubeIdRoot()
     val allFiles = snapshot.allFiles.collect()
 
     allFiles
       .map(addFile => {
-        val elementCount = numRecordsPattern.findFirstMatchIn(addFile.stats) match {
-          case Some(matching) => matching.group(1)
-          case _ => "0"
-        }
-        addFile.copy(
-          modificationTime = System.currentTimeMillis(),
-          tags = Map(
-            TagUtils.cube -> root.string,
-            TagUtils.minWeight -> Weight.MinValue.value.toString,
-            TagUtils.maxWeight -> Weight.MaxValue.value.toString,
-            TagUtils.state -> State.FLOODED,
-            TagUtils.revision -> revision.revisionID.toString,
-            TagUtils.elementCount -> elementCount))
+        val metadataTag = QbeastMetadataExtractor.extractMetadataTag(addFile, revision)
+        addFile.copy(tags = metadataTag)
       })
       .toIndexedSeq
   }
@@ -104,12 +91,13 @@ case class ConvertToQbeastCommand(
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
     // TODO very basic mechanism for converting to qbeast
-    if (!acceptedFormats.contains(fileFormat)) {
+    if (!isSupportedFormat(fileFormat)) {
       throw new UnsupportedOperationException(s"Unsupported file format: $fileFormat")
     }
+    // Make convert to delta idempotent
 
     // Convert parquet to delta
-    if (fileFormat == parquetFormat) convertParquetToDelta(sparkSession, path)
+    if (fileFormat == "parquet") convertParquetToDelta(sparkSession, path)
 
     // Convert delta to qbeast
     val snapshot = DeltaLog.forTable(sparkSession, path).snapshot
@@ -128,4 +116,30 @@ case class ConvertToQbeastCommand(
   }
 
   case class ColumnMinMax(minValue: Any, maxValue: Any) {}
+}
+
+object QbeastMetadataExtractor {
+  private val numRecordsPattern: Regex = """"numRecords":(\d+),""".r
+  private val defaultNumRecord: String = "-1"
+
+  def extractMetadataTag(addFile: AddFile, revision: Revision): Map[String, String] = {
+    val elementCount = addFile.stats match {
+      case stats: String =>
+        numRecordsPattern.findFirstMatchIn(stats) match {
+          case Some(matching) => matching.group(1)
+          case _ => defaultNumRecord
+        }
+      case _ => defaultNumRecord
+    }
+
+    Map(
+      TagUtils.cube -> "",
+      TagUtils.minWeight -> Weight.MinValue.value.toString,
+      TagUtils.maxWeight -> Weight.MaxValue.value.toString,
+      TagUtils.state -> State.FLOODED,
+      TagUtils.revision -> revision.revisionID.toString,
+      TagUtils.elementCount -> elementCount)
+
+  }
+
 }
