@@ -11,10 +11,10 @@ import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.utils.{State, TagUtils}
 import org.apache.http.annotation.Experimental
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
+import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{Row, SparkSession}
 
 import scala.util.matching.Regex
 
@@ -31,7 +31,22 @@ case class ConvertToQbeastCommand(
   private val acceptedFormats = Seq(parquetFormat, deltaFormat)
   private val numRecordsPattern: Regex = """"numRecords":(\d+),""".r
 
-  def convertParquetToDelta(path: String): Unit = {}
+  private val intMinMax = ColumnMinMax(-1e8.toInt, 1e8.toInt)
+  private val doubleMinMax = ColumnMinMax(-1e10, 1e10)
+  private val longMinMax = ColumnMinMax(-1e15.toLong, 1e15.toLong)
+
+  private val dataTypeMinMax = Map(
+    DoubleDataType -> doubleMinMax,
+    IntegerDataType -> intMinMax,
+    LongDataType -> longMinMax,
+    FloatDataType -> doubleMinMax,
+    DecimalDataType -> doubleMinMax,
+    TimestampDataType -> longMinMax,
+    DateDataType -> longMinMax)
+
+  def convertParquetToDelta(path: String): Unit = {
+    // TODO Convert parquet files to delta
+  }
 
   def initializeRevision(path: String, schema: StructType): Revision = {
     val revision =
@@ -42,7 +57,8 @@ case class ConvertToQbeastCommand(
 
     val transformations: IISeq[Transformation] = revision.columnTransformers.map {
       case LinearTransformer(_, dataType: OrderedDataType) =>
-        LinearTransformation(Int.MinValue, Int.MaxValue, dataType)
+        val minMax = dataTypeMinMax(dataType)
+        LinearTransformation(minMax.minValue, minMax.maxValue, dataType)
       case HashTransformer(_, _) => HashTransformation()
     }
 
@@ -53,51 +69,50 @@ case class ConvertToQbeastCommand(
     // TODO very basic mechanism for converting to qbeast
     assert(acceptedFormats.contains(fileFormat), s"Format $fileFormat not supported.")
 
+    // Convert parquet to delta
     if (fileFormat == parquetFormat) convertParquetToDelta(path)
 
-    val deltaLog = DeltaLog.forTable(sparkSession, path)
-    val snapshot = deltaLog.snapshot
-    val deltaFiles = snapshot.allFiles.collect()
-
+    // Convert delta to qbeast
+    val snapshot = DeltaLog.forTable(sparkSession, path).snapshot
     val revision = initializeRevision(path, snapshot.schema)
-
-    val newFiles = deltaFiles
-      .map(file => {
-        val elementCount = numRecordsPattern.findFirstMatchIn(file.stats) match {
-          case Some(matching) => matching.group(1)
-          case _ => "0"
-        }
-        file.copy(
-          dataChange = true,
-          tags = Map(
-            TagUtils.cube -> "",
-            TagUtils.minWeight -> Weight.MinValue.value.toString,
-            TagUtils.maxWeight -> Weight.MaxValue.value.toString,
-            TagUtils.state -> State.FLOODED,
-            TagUtils.revision -> revision.revisionID.toString,
-            TagUtils.elementCount -> elementCount))
-      })
-      .toIndexedSeq
+    val root = revision.createCubeIdRoot()
+    val allFiles = snapshot.allFiles.collect()
 
     SparkDeltaMetadataManager.updateWithTransaction(
       revision.tableID,
       snapshot.schema,
-      append = false) {
+      append = true) {
       val tableChanges = BroadcastedTableChanges(
-        isNewRevision = false,
+        isNewRevision = true,
         isOptimizeOperation = false,
         revision,
         Set.empty[CubeId],
         Set.empty[CubeId],
-        SparkSession.active.sparkContext.broadcast(
-          Map(revision.createCubeIdRoot() -> State.FLOODED)),
-        SparkSession.active.sparkContext.broadcast(
-          Map(revision.createCubeIdRoot -> Weight.MaxValue)))
+        SparkSession.active.sparkContext.broadcast(Map(root -> State.FLOODED)),
+        SparkSession.active.sparkContext.broadcast(Map(root -> Weight.MaxValue)))
 
+      val newFiles = allFiles
+        .map(addFile => {
+          val elementCount = numRecordsPattern.findFirstMatchIn(addFile.stats) match {
+            case Some(matching) => matching.group(1)
+            case _ => "0"
+          }
+          addFile.copy(
+            modificationTime = System.currentTimeMillis(),
+            tags = Map(
+              TagUtils.cube -> root.string,
+              TagUtils.minWeight -> Weight.MinValue.value.toString,
+              TagUtils.maxWeight -> Weight.MaxValue.value.toString,
+              TagUtils.state -> State.FLOODED,
+              TagUtils.revision -> revision.revisionID.toString,
+              TagUtils.elementCount -> elementCount))
+        })
+        .toIndexedSeq
       (tableChanges, newFiles)
     }
 //      throw new UnsupportedOperationException(s"Unsupported file format: $fileFormat")
     Seq.empty
   }
 
+  case class ColumnMinMax(minValue: Any, maxValue: Any) {}
 }
