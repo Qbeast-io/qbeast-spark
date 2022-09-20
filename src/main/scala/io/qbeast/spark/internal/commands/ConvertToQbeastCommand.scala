@@ -11,8 +11,9 @@ import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.utils.{State, TagUtils}
 import org.apache.http.annotation.Experimental
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
+import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.{Row, SparkSession}
-import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.delta.{DeltaLog, Snapshot}
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
 import org.apache.spark.sql.types.StructType
 
@@ -65,6 +66,42 @@ case class ConvertToQbeastCommand(
     revision.copy(transformations = transformations)
   }
 
+  private def createQbeastActions(snapshot: Snapshot, revision: Revision): IISeq[FileAction] = {
+    val root = revision.createCubeIdRoot()
+    val allFiles = snapshot.allFiles.collect()
+
+    allFiles
+      .map(addFile => {
+        val elementCount = numRecordsPattern.findFirstMatchIn(addFile.stats) match {
+          case Some(matching) => matching.group(1)
+          case _ => "0"
+        }
+        addFile.copy(
+          modificationTime = System.currentTimeMillis(),
+          tags = Map(
+            TagUtils.cube -> root.string,
+            TagUtils.minWeight -> Weight.MinValue.value.toString,
+            TagUtils.maxWeight -> Weight.MaxValue.value.toString,
+            TagUtils.state -> State.FLOODED,
+            TagUtils.revision -> revision.revisionID.toString,
+            TagUtils.elementCount -> elementCount))
+      })
+      .toIndexedSeq
+  }
+
+  private def getTableChanges(revision: Revision): TableChanges = {
+    val root = revision.createCubeIdRoot()
+
+    BroadcastedTableChanges(
+      isNewRevision = true,
+      isOptimizeOperation = false,
+      revision,
+      Set.empty[CubeId],
+      Set.empty[CubeId],
+      SparkSession.active.sparkContext.broadcast(Map(root -> State.FLOODED)),
+      SparkSession.active.sparkContext.broadcast(Map(root -> Weight.MaxValue)))
+  }
+
   override def run(sparkSession: SparkSession): Seq[Row] = {
     // TODO very basic mechanism for converting to qbeast
     if (!acceptedFormats.contains(fileFormat)) {
@@ -77,39 +114,14 @@ case class ConvertToQbeastCommand(
     // Convert delta to qbeast
     val snapshot = DeltaLog.forTable(sparkSession, path).snapshot
     val revision = initializeRevision(path, snapshot.schema)
-    val root = revision.createCubeIdRoot()
-    val allFiles = snapshot.allFiles.collect()
 
     SparkDeltaMetadataManager.updateWithTransaction(
       revision.tableID,
       snapshot.schema,
       append = true) {
-      val tableChanges = BroadcastedTableChanges(
-        isNewRevision = true,
-        isOptimizeOperation = false,
-        revision,
-        Set.empty[CubeId],
-        Set.empty[CubeId],
-        SparkSession.active.sparkContext.broadcast(Map(root -> State.FLOODED)),
-        SparkSession.active.sparkContext.broadcast(Map(root -> Weight.MaxValue)))
+      val tableChanges = getTableChanges(revision)
+      val newFiles = createQbeastActions(snapshot, revision)
 
-      val newFiles = allFiles
-        .map(addFile => {
-          val elementCount = numRecordsPattern.findFirstMatchIn(addFile.stats) match {
-            case Some(matching) => matching.group(1)
-            case _ => "0"
-          }
-          addFile.copy(
-            modificationTime = System.currentTimeMillis(),
-            tags = Map(
-              TagUtils.cube -> root.string,
-              TagUtils.minWeight -> Weight.MinValue.value.toString,
-              TagUtils.maxWeight -> Weight.MaxValue.value.toString,
-              TagUtils.state -> State.FLOODED,
-              TagUtils.revision -> revision.revisionID.toString,
-              TagUtils.elementCount -> elementCount))
-        })
-        .toIndexedSeq
       (tableChanges, newFiles)
     }
     Seq.empty
