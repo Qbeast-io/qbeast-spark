@@ -45,8 +45,8 @@ case class ConvertToQbeastCommand(
     TimestampDataType -> longMinMax,
     DateDataType -> longMinMax)
 
-  def convertParquetToDelta(path: String): Unit = {
-    // TODO Convert parquet files to delta
+  private def convertParquetToDelta(spark: SparkSession, path: String): Unit = {
+    spark.sql(s"CONVERT TO DELTA $parquetFormat.`$path`")
   }
 
   def initializeRevision(path: String, schema: StructType): Revision = {
@@ -109,7 +109,7 @@ case class ConvertToQbeastCommand(
     }
 
     // Convert parquet to delta
-    if (fileFormat == parquetFormat) convertParquetToDelta(path)
+    if (fileFormat == parquetFormat) convertParquetToDelta(sparkSession, path)
 
     // Convert delta to qbeast
     val snapshot = DeltaLog.forTable(sparkSession, path).snapshot
