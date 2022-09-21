@@ -44,8 +44,8 @@ case class ConvertToQbeastCommand(
     TimestampDataType -> longMinMax,
     DateDataType -> longMinMax)
 
-  private def isSupportedFormat(format: String): Boolean = {
-    format == "parquet" || format == "delta"
+  private def isSupportedFormat: Boolean = {
+    fileFormat == "parquet" || fileFormat == "delta"
   }
 
   /**
@@ -69,9 +69,8 @@ case class ConvertToQbeastCommand(
   /**
    * Convert the parquet table using ConvertToDeltaCommand from Delta Lake
    * @param spark SparkSession to use
-   * @param path table path for the parquet table
    */
-  private def convertParquetToDelta(spark: SparkSession, path: String): Unit = {
+  private def convertParquetToDelta(spark: SparkSession): Unit = {
     spark.sql(s"CONVERT TO DELTA parquet.`$path`")
   }
 
@@ -120,7 +119,7 @@ case class ConvertToQbeastCommand(
   }
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
-    if (!isSupportedFormat(fileFormat)) {
+    if (!isSupportedFormat) {
       throw new UnsupportedOperationException(s"Unsupported file format: $fileFormat")
     }
 
@@ -131,7 +130,7 @@ case class ConvertToQbeastCommand(
     }
 
     // Convert parquet to delta
-    if (fileFormat == "parquet") convertParquetToDelta(sparkSession, path)
+    if (fileFormat == "parquet") convertParquetToDelta(sparkSession)
 
     // Convert delta to qbeast
     val snapshot = DeltaLog.forTable(sparkSession, path).snapshot
