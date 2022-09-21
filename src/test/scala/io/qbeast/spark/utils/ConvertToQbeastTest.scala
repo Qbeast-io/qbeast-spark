@@ -26,8 +26,8 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
 
   val privateIsQbeast: PrivateMethod[Boolean] = PrivateMethod[Boolean]('isQbeastTable)
 
-  "ConvertToQbeastCommand" should "convert a Delta Table into a Qbeast Table" in withSparkAndTmpDir(
-    (spark, tmpDir) => {
+  "ConvertToQbeastCommand" should "convert a Delta Table into a Qbeast Table" in
+    withSparkAndTmpDir((spark, tmpDir) => {
       val qDf = convertFormatsFromTo("delta", "qbeast", spark, tmpDir)
       qDf.count shouldBe dataSize
     })
@@ -37,6 +37,21 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
       val qDf = convertFormatsFromTo("parquet", "qbeast", spark, tmpDir)
       qDf.count shouldBe dataSize
     })
+
+  it should "convert a partitioned delta table" in withSparkAndTmpDir((spark, tmpDir) => {
+    val tmpDir = "/tmp/test/"
+    val data = loadTestData(spark)
+    data.write
+      .mode("overwrite")
+      .partitionBy("event_type")
+      .format("delta")
+      .save(tmpDir)
+
+    ConvertToQbeastCommand(tmpDir, "delta", columnsToIndex).run(spark)
+    val convertedTable = spark.read.format("qbeast").load(tmpDir)
+
+    convertedTable.count shouldBe dataSize
+  })
 
   it should "throw an error when attempting to convert an unsupported format" in withSparkAndTmpDir(
     (spark, tmpDir) => {
@@ -69,6 +84,20 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
         convertFormatsFromTo("delta", "qbeast", spark, tmpDir, nonExistentColumns))
     })
 
+  it should "create correct OTree metrics" in withSparkAndTmpDir((spark, tmpDir) => {
+    convertFormatsFromTo("delta", "qbeast", spark, tmpDir)
+
+    val metrics = QbeastTable.forPath(spark, tmpDir).getIndexMetrics()
+
+    metrics.elementCount shouldBe dataSize
+    metrics.cubeCount shouldBe 1
+  })
+
+  it should "allow correct execution of Analyze and Optimize" in withSparkAndTmpDir(
+    (spark, tmpDir) => {})
+
+  it should "allow correct execution of Compaction" in withSparkAndTmpDir((spark, tmpDir) => {})
+
   "ConvertToQbeastCommand's idempotence" should "not try to convert a converted table" in
     withSparkAndTmpDir((spark, tmpDir) => {
       convertFormatsFromTo("parquet", "qbeast", spark, tmpDir)
@@ -92,20 +121,6 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
       spark) shouldBe true
   })
 
-  it should "create correct OTree metrics" in withSparkAndTmpDir((spark, tmpDir) => {
-    convertFormatsFromTo("delta", "qbeast", spark, tmpDir)
-
-    val metrics = QbeastTable.forPath(spark, tmpDir).getIndexMetrics()
-
-    metrics.elementCount shouldBe dataSize
-    metrics.cubeCount shouldBe 1
-  })
-
-  it should "allow correct execution of Analyze and Optimize" in withSparkAndTmpDir(
-    (spark, tmpDir) => {})
-
-  it should "allow correct execution of Compaction" in withSparkAndTmpDir((spark, tmpDir) => {})
-
   "A converted delta table" should "be readable using delta" in withSparkAndTmpDir(
     (spark, tmpDir) => {
       val qDf = convertFormatsFromTo("delta", "delta", spark, tmpDir)
@@ -117,14 +132,14 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
     qDf.count shouldBe dataSize
   })
 
-  "A converted parquet table" should "be readable using delta" in withSparkAndTmpDir(
+  "A converted parquet table" should "be readable using parquet" in withSparkAndTmpDir(
     (spark, tmpDir) => {
-      val qDf = convertFormatsFromTo("parquet", "delta", spark, tmpDir)
+      val qDf = convertFormatsFromTo("parquet", "parquet", spark, tmpDir)
       qDf.count shouldBe dataSize
     })
 
-  it should "be readable using parquet" in withSparkAndTmpDir((spark, tmpDir) => {
-    val qDf = convertFormatsFromTo("parquet", "parquet", spark, tmpDir)
+  it should "be readable using delta" in withSparkAndTmpDir((spark, tmpDir) => {
+    val qDf = convertFormatsFromTo("parquet", "delta", spark, tmpDir)
     qDf.count shouldBe dataSize
   })
 }
