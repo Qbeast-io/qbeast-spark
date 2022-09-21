@@ -6,7 +6,7 @@ package io.qbeast.spark.internal.commands
 import io.qbeast.IISeq
 import io.qbeast.core.model._
 import io.qbeast.core.transform._
-import io.qbeast.spark.delta.SparkDeltaMetadataManager
+import io.qbeast.spark.delta.{DeltaQbeastLog, SparkDeltaMetadataManager}
 import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.utils.{State, TagUtils}
 import org.apache.hadoop.conf.Configuration
@@ -48,6 +48,29 @@ case class ConvertToQbeastCommand(
     format == "parquet" || format == "delta"
   }
 
+  /**
+   * Check if the provided table is already a qbeast table by examining the RevisionIDs
+   * @param sparkSession SparkSession to use
+   * @return
+   */
+  private def isQbeastTable(sparkSession: SparkSession): Boolean = {
+    // The first revisionID for the converted tables is 0,
+    // while for those written in the conventional fashion is 1.
+    val deltaLog = DeltaLog.forTable(sparkSession, path)
+    val qbeastSnapshot = DeltaQbeastLog(deltaLog).qbeastSnapshot
+
+    qbeastSnapshot.existsRevision(0) || qbeastSnapshot.existsRevision(1)
+  }
+
+  // scalastyle:off println
+  def logConsole(line: String): Unit = println(line)
+  // scalastyle:on println
+
+  /**
+   * Convert the parquet table using ConvertToDeltaCommand from Delta Lake
+   * @param spark SparkSession to use
+   * @param path table path for the parquet table
+   */
   private def convertParquetToDelta(spark: SparkSession, path: String): Unit = {
     spark.sql(s"CONVERT TO DELTA parquet.`$path`")
   }
@@ -83,7 +106,7 @@ case class ConvertToQbeastCommand(
       .toIndexedSeq
   }
 
-  private def getTableChanges(revision: Revision): TableChanges = {
+  private def getTableChanges(revision: Revision, sparkSession: SparkSession): TableChanges = {
     val root = revision.createCubeIdRoot()
 
     BroadcastedTableChanges(
@@ -92,16 +115,20 @@ case class ConvertToQbeastCommand(
       revision,
       Set.empty[CubeId],
       Set.empty[CubeId],
-      SparkSession.active.sparkContext.broadcast(Map(root -> State.FLOODED)),
-      SparkSession.active.sparkContext.broadcast(Map(root -> Weight.MaxValue)))
+      sparkSession.sparkContext.broadcast(Map(root -> State.FLOODED)),
+      sparkSession.sparkContext.broadcast(Map(root -> Weight.MaxValue)))
   }
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
-    // TODO very basic mechanism for converting to qbeast
     if (!isSupportedFormat(fileFormat)) {
       throw new UnsupportedOperationException(s"Unsupported file format: $fileFormat")
     }
-    // Make convert to delta idempotent
+
+    // Make convert to qbeast idempotent
+    if (isQbeastTable(sparkSession)) {
+      logConsole("The table you are trying to convert is already a qbeast table")
+      return Seq.empty
+    }
 
     // Convert parquet to delta
     if (fileFormat == "parquet") convertParquetToDelta(sparkSession, path)
@@ -114,11 +141,12 @@ case class ConvertToQbeastCommand(
       revision.tableID,
       snapshot.schema,
       append = true) {
-      val tableChanges = getTableChanges(revision)
+      val tableChanges = getTableChanges(revision, sparkSession)
       val newFiles = createQbeastActions(snapshot, revision, path)
 
       (tableChanges, newFiles)
     }
+
     Seq.empty
   }
 
