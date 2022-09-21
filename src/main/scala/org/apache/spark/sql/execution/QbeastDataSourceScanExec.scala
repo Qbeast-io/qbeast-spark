@@ -1,3 +1,6 @@
+/*
+ * Copyright 2021 Qbeast Analytics, S.L.
+ */
 package org.apache.spark.sql.execution
 
 import org.apache.hadoop.fs.{BlockLocation, FileStatus, LocatedFileStatus, Path}
@@ -7,7 +10,6 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.{InternalRow, TableIdentifier}
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.util.Utils
 import org.apache.spark.util.collection.BitSet
 
 import scala.util.Random
