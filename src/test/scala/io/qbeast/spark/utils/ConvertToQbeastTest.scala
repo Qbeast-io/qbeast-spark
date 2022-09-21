@@ -5,7 +5,7 @@ import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 class ConvertToQbeastTest extends QbeastIntegrationTestSpec {
-  val columnsToIndex: Seq[String] = Seq("user_id", "price", "category_id")
+  val columnsToIndex: Seq[String] = Seq("user_id", "price", "event_type")
   val dataSize = 99986 // loadTestData(spark).count
 
   def convertFormatsFromTo(
