@@ -1,6 +1,6 @@
 package io.qbeast.spark.utils
 
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
@@ -60,13 +60,21 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec {
   it should "throw an error if columnsToIndex are not found in table schema" in withSparkAndTmpDir(
     (spark, tmpDir) => {
       val nonExistentColumns = Seq("a", "b")
+
       an[RuntimeException] shouldBe thrownBy(
         convertFormatsFromTo("delta", "qbeast", spark, tmpDir, nonExistentColumns))
     })
 
   it should "should be idempotent" in withSparkAndTmpDir((spark, tmpDir) => {})
 
-  it should "create correct OTree metrics" in withSparkAndTmpDir((spark, tmpDir) => {})
+  it should "create correct OTree metrics" in withSparkAndTmpDir((spark, tmpDir) => {
+    convertFormatsFromTo("delta", "qbeast", spark, tmpDir)
+
+    val metrics = QbeastTable.forPath(spark, tmpDir).getIndexMetrics()
+
+    metrics.elementCount shouldBe dataSize
+    metrics.cubeCount shouldBe 1
+  })
 
   it should "allow correct execution of Analyze and Optimize" in withSparkAndTmpDir(
     (spark, tmpDir) => {})
@@ -84,15 +92,14 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec {
     qDf.count shouldBe dataSize
   })
 
-//  "A converted parquet table" should "be readable using delta" in withSparkAndTmpDir(
-//    (spark, tmpDir) => {
-//      val qDf = convertFormatsFromTo("parquet", "delta", spark, tmpDir)
-//      qDf.count shouldBe dataSize
-//    })
-//
-//  it should "be readable using parquet" in withSparkAndTmpDir((spark, tmpDir) => {
-//    val qDf = convertFormatsFromTo("parquet", "parquet", spark, tmpDir)
-//    qDf.count shouldBe dataSize
-//  })
+  "A converted parquet table" should "be readable using delta" in withSparkAndTmpDir(
+    (spark, tmpDir) => {
+      val qDf = convertFormatsFromTo("parquet", "delta", spark, tmpDir)
+      qDf.count shouldBe dataSize
+    })
 
+  it should "be readable using parquet" in withSparkAndTmpDir((spark, tmpDir) => {
+    val qDf = convertFormatsFromTo("parquet", "parquet", spark, tmpDir)
+    qDf.count shouldBe dataSize
+  })
 }
