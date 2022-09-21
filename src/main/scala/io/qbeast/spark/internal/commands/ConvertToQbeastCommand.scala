@@ -9,7 +9,11 @@ import io.qbeast.core.transform._
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
 import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.utils.{State, TagUtils}
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.Path
 import org.apache.http.annotation.Experimental
+import org.apache.parquet.hadoop.ParquetFileReader
+import org.apache.parquet.hadoop.util.HadoopInputFile
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
 import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
 import org.apache.spark.sql.{Row, SparkSession}
@@ -65,12 +69,15 @@ case class ConvertToQbeastCommand(
     revision.copy(transformations = transformations)
   }
 
-  private def createQbeastActions(snapshot: Snapshot, revision: Revision): IISeq[FileAction] = {
+  private def createQbeastActions(
+      snapshot: Snapshot,
+      revision: Revision,
+      path: String): IISeq[FileAction] = {
     val allFiles = snapshot.allFiles.collect()
 
     allFiles
       .map(addFile => {
-        val metadataTag = QbeastMetadataExtractor.extractMetadataTag(addFile, revision)
+        val metadataTag = QbeastMetadataExtractor.extractMetadataTag(addFile, revision, path)
         addFile.copy(tags = metadataTag)
       })
       .toIndexedSeq
@@ -108,28 +115,38 @@ case class ConvertToQbeastCommand(
       snapshot.schema,
       append = true) {
       val tableChanges = getTableChanges(revision)
-      val newFiles = createQbeastActions(snapshot, revision)
+      val newFiles = createQbeastActions(snapshot, revision, path)
 
       (tableChanges, newFiles)
     }
     Seq.empty
   }
 
-  case class ColumnMinMax(minValue: Any, maxValue: Any) {}
 }
+
+case class ColumnMinMax(minValue: Any, maxValue: Any)
 
 object QbeastMetadataExtractor {
   private val numRecordsPattern: Regex = """"numRecords":(\d+),""".r
-  private val defaultNumRecord: String = "-1"
 
-  def extractMetadataTag(addFile: AddFile, revision: Revision): Map[String, String] = {
+  def extractParquetFileCount(parquetFilePath: String): String = {
+    val path = new Path(parquetFilePath)
+    val file = HadoopInputFile.fromPath(path, new Configuration())
+    val reader = ParquetFileReader.open(file)
+    reader.getRecordCount.toString
+  }
+
+  def extractMetadataTag(
+      addFile: AddFile,
+      revision: Revision,
+      root: String): Map[String, String] = {
     val elementCount = addFile.stats match {
       case stats: String =>
         numRecordsPattern.findFirstMatchIn(stats) match {
           case Some(matching) => matching.group(1)
-          case _ => defaultNumRecord
+          case _ => extractParquetFileCount(root + "/" + addFile.path)
         }
-      case _ => defaultNumRecord
+      case _ => extractParquetFileCount(root + "/" + addFile.path)
     }
 
     Map(
