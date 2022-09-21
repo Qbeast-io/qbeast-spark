@@ -2,15 +2,17 @@ package io.qbeast.spark.utils
 
 import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
+import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.scalatest.PrivateMethodTester
 
-class ConvertToQbeastTest extends QbeastIntegrationTestSpec {
+class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTester {
   val columnsToIndex: Seq[String] = Seq("user_id", "price", "event_type")
   val dataSize = 99986 // loadTestData(spark).count
 
   def convertFormatsFromTo(
       sourceFormat: String,
-      targetFormat: String,
+      readFormat: String,
       spark: SparkSession,
       dir: String,
       columnsToIndex: Seq[String] = columnsToIndex): DataFrame = {
@@ -19,8 +21,10 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec {
 
     ConvertToQbeastCommand(dir, sourceFormat, columnsToIndex).run(spark)
 
-    spark.read.format(targetFormat).load(dir)
+    spark.read.format(readFormat).load(dir)
   }
+
+  val privateIsQbeast: PrivateMethod[Boolean] = PrivateMethod[Boolean]('isQbeastTable)
 
   "ConvertToQbeastCommand" should "convert a Delta Table into a Qbeast Table" in withSparkAndTmpDir(
     (spark, tmpDir) => {
@@ -65,7 +69,28 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec {
         convertFormatsFromTo("delta", "qbeast", spark, tmpDir, nonExistentColumns))
     })
 
-  it should "should be idempotent" in withSparkAndTmpDir((spark, tmpDir) => {})
+  "ConvertToQbeastCommand's idempotence" should "not try to convert a converted table" in
+    withSparkAndTmpDir((spark, tmpDir) => {
+      convertFormatsFromTo("parquet", "qbeast", spark, tmpDir)
+      ConvertToQbeastCommand(tmpDir, "parquet", columnsToIndex).run(spark)
+
+      val df = spark.read.format("qbeast").load(tmpDir)
+      val deltaLog = DeltaLog.forTable(spark, tmpDir)
+
+      df.count shouldBe dataSize
+      // Converting parquet to delta creates snapshot version 0, and its
+      // conversion to qbeast creates snapshot version 1. If the second
+      // conversion gets executed, it'd produce a snapshot version 2
+      deltaLog.snapshot.version shouldBe 1
+    })
+
+  it should "not try to convert a qbeast table" in withSparkAndTmpDir((spark, tmpDir) => {
+    val data = loadTestData(spark)
+    writeTestData(data, columnsToIndex, 50000, tmpDir)
+
+    ConvertToQbeastCommand(tmpDir, "parquet", columnsToIndex) invokePrivate privateIsQbeast(
+      spark) shouldBe true
+  })
 
   it should "create correct OTree metrics" in withSparkAndTmpDir((spark, tmpDir) => {
     convertFormatsFromTo("delta", "qbeast", spark, tmpDir)
