@@ -2,6 +2,7 @@ package io.qbeast.spark.utils
 
 import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
+import org.apache.spark.SparkException
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.scalatest.PrivateMethodTester
@@ -62,19 +63,29 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
         ConvertToQbeastCommand(tmpDir, "json", columnsToIndex).run(spark))
     })
 
-//  it should "throw an error when the file format does not match" in withSparkAndTmpDir(
-//    (spark, tmpDir) => {
-//      val df = loadTestData(spark)
-//      // write as json
-//      df.write.mode("overwrite").json(tmpDir)
-//
-//      // Run the command
-//      // read as delta
-//      an[AnalysisException] shouldBe thrownBy(
-//        ConvertToQbeastCommand(tmpDir, "delta", columnsToIndex)
-//          .run(spark))
-//
-//    })
+  it should "throw an error when trying to convert an unsupported format as parquet" in
+    withSparkAndTmpDir((spark, tmpDir) => {
+      // Write as json
+      val df = loadTestData(spark)
+      df.write.mode("overwrite").json(tmpDir)
+
+      // Run the command reading as parquet
+      an[SparkException] shouldBe thrownBy(
+        ConvertToQbeastCommand(tmpDir, "parquet", columnsToIndex)
+          .run(spark))
+    })
+
+  it should "throw an error when trying to convert an unsupported format as delta" in
+    withSparkAndTmpDir((spark, tmpDir) => {
+      // Write as json
+      val df = loadTestData(spark)
+      df.write.mode("overwrite").json(tmpDir)
+
+      // Run the command reading as delta
+      an[IllegalArgumentException] shouldBe thrownBy(
+        ConvertToQbeastCommand(tmpDir, "delta", columnsToIndex)
+          .run(spark))
+    })
 
   it should "throw an error if columnsToIndex are not found in table schema" in withSparkAndTmpDir(
     (spark, tmpDir) => {

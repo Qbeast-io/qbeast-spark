@@ -31,6 +31,9 @@ case class ConvertToQbeastCommand(
     cubeSize: Int = DEFAULT_CUBE_SIZE)
     extends LeafRunnableCommand {
 
+  private val parquetFormat = "parquet"
+  private val deltaFormat = "delta"
+
   private val intMinMax = ColumnMinMax(-1e8.toInt, 1e8.toInt)
   private val doubleMinMax = ColumnMinMax(-1e10, 1e10)
   private val longMinMax = ColumnMinMax(-1e15.toLong, 1e15.toLong)
@@ -45,7 +48,7 @@ case class ConvertToQbeastCommand(
     DateDataType -> longMinMax)
 
   private def isSupportedFormat: Boolean = {
-    fileFormat == "parquet" || fileFormat == "delta"
+    fileFormat == parquetFormat || fileFormat == deltaFormat
   }
 
   /**
@@ -130,7 +133,7 @@ case class ConvertToQbeastCommand(
     }
 
     // Convert parquet to delta
-    if (fileFormat == "parquet") convertParquetToDelta(sparkSession)
+    if (fileFormat != deltaFormat) convertParquetToDelta(sparkSession)
 
     // Convert delta to qbeast
     val snapshot = DeltaLog.forTable(sparkSession, path).snapshot
