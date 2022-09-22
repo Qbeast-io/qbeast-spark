@@ -91,13 +91,6 @@ case class ConvertToQbeastCommand(
    */
   private def convertParquetToDelta(spark: SparkSession, schema: StructType): Unit = {
     if (isPartitioned) {
-      assert(schema.nonEmpty, "Empty schema")
-      assert(
-        partitionColumns.forall(schema.names.contains),
-        s"""Partition column not found in schema.
-           |Partition columns: $partitionColumns,
-           |schema: $schema""".stripMargin)
-
       val colsAndTypes =
         partitionColumns.map(colName => {
           val sqlTypeName = dataTypeToName(colName, schema)
