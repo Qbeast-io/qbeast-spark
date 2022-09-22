@@ -20,71 +20,74 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
     val data = loadTestData(spark)
     data.write.mode("overwrite").format(sourceFormat).save(dir)
 
-    ConvertToQbeastCommand(dir, sourceFormat, columnsToIndex).run(spark)
+    ConvertToQbeastCommand(dir, columnsToIndex).run(spark)
 
     spark.read.format(readFormat).load(dir)
   }
 
-  val privateIsQbeast: PrivateMethod[Boolean] = PrivateMethod[Boolean]('isQbeastTable)
-
-  "ConvertToQbeastCommand" should "convert a Delta Table into a Qbeast Table" in
+  "ConvertToQbeastCommand" should "convert a delta table into a qbeast table" in
     withSparkAndTmpDir((spark, tmpDir) => {
-      val qDf = convertFormatsFromTo("delta", "qbeast", spark, tmpDir)
-      qDf.count shouldBe dataSize
+      val convertedTable = convertFormatsFromTo("delta", "qbeast", spark, tmpDir)
+
+      convertedTable.count shouldBe dataSize
     })
 
-  it should "convert a Parquet Table into a Qbeast Table" in
+  it should "convert a PARTITIONED delta table into a qbeast table" in
     withSparkAndTmpDir((spark, tmpDir) => {
-      val qDf = convertFormatsFromTo("parquet", "qbeast", spark, tmpDir)
-      qDf.count shouldBe dataSize
+      // Use a reduced dataset since partitionBy is more expensive to run
+      val data = loadTestData(spark).limit(10000)
+      val partitionColumns = Seq("event_type")
+      data.write
+        .mode("overwrite")
+        .partitionBy(partitionColumns: _*)
+        .format("delta")
+        .save(tmpDir)
+
+      // Convert a partitioned delta table to a qbeast table
+      ConvertToQbeastCommand(tmpDir, columnsToIndex, partitionColumns = partitionColumns)
+        .run(spark)
+
+      val convertedTable =
+        spark.read.format("qbeast").load(tmpDir)
+
+      convertedTable.count shouldBe 10000
     })
 
-  it should "convert a partitioned delta table" in withSparkAndTmpDir((spark, tmpDir) => {
-    val tmpDir = "/tmp/test/"
-    val data = loadTestData(spark)
-    data.write
-      .mode("overwrite")
-      .partitionBy("event_type")
-      .format("delta")
-      .save(tmpDir)
+  it should "convert a parquet table into a qbeast table" in
+    withSparkAndTmpDir((spark, tmpDir) => {
+      val convertedTable = convertFormatsFromTo("parquet", "qbeast", spark, tmpDir)
 
-    ConvertToQbeastCommand(tmpDir, "delta", columnsToIndex).run(spark)
-    val convertedTable = spark.read.format("qbeast").load(tmpDir)
+      convertedTable.count shouldBe dataSize
+    })
 
-    convertedTable.count shouldBe dataSize
-  })
+  it should "convert a PARTITIONED parquet table into a qbeast table" in
+    withSparkAndTmpDir((spark, tmpDir) => {
+      // Use a reduced dataset since partitionBy is more expensive to run
+      val data = loadTestData(spark).limit(10000)
+      val partitionColumns = Seq("event_type")
+      data.write
+        .mode("overwrite")
+        .partitionBy(partitionColumns: _*)
+        .format("parquet")
+        .save(tmpDir)
+
+      // Conversion: Partitioned parquet -> delta -> qbeast
+      ConvertToQbeastCommand(tmpDir, columnsToIndex, partitionColumns = partitionColumns)
+        .run(spark)
+
+      val convertedTable =
+        spark.read.format("qbeast").load(tmpDir)
+
+      convertedTable.count shouldBe 10000
+    })
 
   it should "throw an error when attempting to convert an unsupported format" in withSparkAndTmpDir(
     (spark, tmpDir) => {
       val df = loadTestData(spark)
       df.write.mode("overwrite").json(tmpDir)
 
-      an[UnsupportedOperationException] shouldBe thrownBy(
-        ConvertToQbeastCommand(tmpDir, "json", columnsToIndex).run(spark))
-    })
-
-  it should "throw an error when trying to convert an unsupported format as parquet" in
-    withSparkAndTmpDir((spark, tmpDir) => {
-      // Write as json
-      val df = loadTestData(spark)
-      df.write.mode("overwrite").json(tmpDir)
-
-      // Run the command reading as parquet
       an[SparkException] shouldBe thrownBy(
-        ConvertToQbeastCommand(tmpDir, "parquet", columnsToIndex)
-          .run(spark))
-    })
-
-  it should "throw an error when trying to convert an unsupported format as delta" in
-    withSparkAndTmpDir((spark, tmpDir) => {
-      // Write as json
-      val df = loadTestData(spark)
-      df.write.mode("overwrite").json(tmpDir)
-
-      // Run the command reading as delta
-      an[IllegalArgumentException] shouldBe thrownBy(
-        ConvertToQbeastCommand(tmpDir, "delta", columnsToIndex)
-          .run(spark))
+        ConvertToQbeastCommand(tmpDir, columnsToIndex).run(spark))
     })
 
   it should "throw an error if columnsToIndex are not found in table schema" in withSparkAndTmpDir(
@@ -111,8 +114,10 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
 
   "ConvertToQbeastCommand's idempotence" should "not try to convert a converted table" in
     withSparkAndTmpDir((spark, tmpDir) => {
+      // csv -> parquet -> delta -> qbeast
       convertFormatsFromTo("parquet", "qbeast", spark, tmpDir)
-      ConvertToQbeastCommand(tmpDir, "parquet", columnsToIndex).run(spark)
+      // qbeast -> qbeast
+      ConvertToQbeastCommand(tmpDir, columnsToIndex).run(spark)
 
       val df = spark.read.format("qbeast").load(tmpDir)
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
@@ -124,15 +129,7 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
       deltaLog.snapshot.version shouldBe 1
     })
 
-  it should "not try to convert a qbeast table" in withSparkAndTmpDir((spark, tmpDir) => {
-    val data = loadTestData(spark)
-    writeTestData(data, columnsToIndex, 50000, tmpDir)
-
-    ConvertToQbeastCommand(tmpDir, "parquet", columnsToIndex) invokePrivate privateIsQbeast(
-      spark) shouldBe true
-  })
-
-  "A converted delta table" should "be readable using delta" in withSparkAndTmpDir(
+  "A converted Delta table" should "be readable using delta" in withSparkAndTmpDir(
     (spark, tmpDir) => {
       val qDf = convertFormatsFromTo("delta", "delta", spark, tmpDir)
       qDf.count shouldBe dataSize
