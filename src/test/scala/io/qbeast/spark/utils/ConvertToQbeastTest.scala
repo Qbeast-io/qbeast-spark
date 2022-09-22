@@ -1,5 +1,7 @@
 package io.qbeast.spark.utils
 
+import io.qbeast.core.model.QTableID
+import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import org.apache.spark.SparkException
@@ -106,6 +108,29 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
     metrics.elementCount shouldBe dataSize
     metrics.cubeCount shouldBe 1
   })
+
+  it should "extract elementCount from file metadata if AddFile has corrupted stats" in
+    withSparkAndTmpDir((spark, tmpDir) => {
+      val data = loadTestData(spark).limit(500)
+      data
+        .coalesce(1)
+        .write
+        .mode("overwrite")
+        .format("delta")
+        .save(tmpDir)
+
+      val snapshot = DeltaLog.forTable(spark, tmpDir).snapshot
+      val qbeastTag = ConvertToQbeastCommand.extractQbeastTag(
+        snapshot.allFiles.first().copy(stats = "{this is a corrupt stats string}"),
+        SparkRevisionFactory.createNewRevision(
+          QTableID(tmpDir),
+          snapshot.schema,
+          Map("columnsToIndex" -> columnsToIndex.mkString(","), "cubeSize" -> "5000000")),
+        tmpDir)
+
+      val countFromMetadata = qbeastTag(TagUtils.elementCount).toInt
+      countFromMetadata shouldBe 500
+    })
 
   it should "allow correct execution of Analyze and Optimize" in withSparkAndTmpDir(
     (spark, tmpDir) => {})
