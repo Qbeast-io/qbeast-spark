@@ -8,7 +8,11 @@ import io.qbeast.core.model._
 import io.qbeast.core.transform._
 import io.qbeast.spark.delta.{DeltaQbeastLog, SparkDeltaMetadataManager}
 import io.qbeast.spark.index.SparkRevisionFactory
-import io.qbeast.spark.internal.commands.ConvertToQbeastCommand.{dataTypeToName, extractQbeastTag}
+import io.qbeast.spark.internal.commands.ConvertToQbeastCommand.{
+  dataTypeMinMax,
+  dataTypeToName,
+  extractQbeastTag
+}
 import io.qbeast.spark.utils.{State, TagUtils}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
@@ -45,19 +49,13 @@ case class ConvertToQbeastCommand(
 
   private val isPartitioned: Boolean = partitionColumns.nonEmpty
 
-  private val intMinMax = ColumnMinMax(-1e8.toInt, 1e8.toInt)
-  private val doubleMinMax = ColumnMinMax(-1e10, 1e10)
-  private val longMinMax = ColumnMinMax(-1e15.toLong, 1e15.toLong)
-
-  private val dataTypeMinMax = Map(
-    DoubleDataType -> doubleMinMax,
-    IntegerDataType -> intMinMax,
-    LongDataType -> longMinMax,
-    FloatDataType -> doubleMinMax,
-    DecimalDataType -> doubleMinMax,
-    TimestampDataType -> longMinMax,
-    DateDataType -> longMinMax)
-
+  /**
+   * Format inference for the input table. If partition columns are provided,
+   * the format is assumed to be parquet. Any unsupported format is considered
+   * as parquet and is detected when trying to convert it into delta.
+   * @param sparkSession SparkSession to use
+   * @return
+   */
   private def resolveTableFormat(sparkSession: SparkSession): (String, StructType) = {
     val deltaLog = DeltaLog.forTable(sparkSession, path)
     val qbeastSnapshot = DeltaQbeastLog(deltaLog).qbeastSnapshot
@@ -74,9 +72,10 @@ case class ConvertToQbeastCommand(
     } else if (isDelta) {
       ("delta", schema)
     } else if (isPartitioned) {
+      // Partitioned parquet, table schema is required for its conversion into delta
       ("parquet", sparkSession.read.parquet(path).schema)
     } else {
-      // If parquet is not partitioned, schema.isEmpty but we don't need it
+      // Parquet, or any other unsupported format, schema.isEmpty but we don't need it
       ("parquet", schema)
     }
   }
@@ -86,7 +85,8 @@ case class ConvertToQbeastCommand(
   // scalastyle:on println
 
   /**
-   * Convert the parquet table using ConvertToDeltaCommand from Delta Lake
+   * Convert the parquet table using ConvertToDeltaCommand from Delta Lake.
+   * Any unsupported format will cause a SparkException error.
    * @param spark SparkSession to use
    */
   private def convertParquetToDelta(spark: SparkSession, schema: StructType): Unit = {
@@ -110,6 +110,12 @@ case class ConvertToQbeastCommand(
     }
   }
 
+  /**
+   * Initialize Revision for table conversion.
+   * The smallest RevisionID for a converted table is 0.
+   * @param schema table schema
+   * @return
+   */
   private def initializeRevision(schema: StructType): Revision = {
     val revision =
       SparkRevisionFactory.createNewRevision(
@@ -187,11 +193,27 @@ case class ConvertToQbeastCommand(
 
 }
 
-case class ColumnMinMax(minValue: Any, maxValue: Any)
-
 object ConvertToQbeastCommand {
   private val numRecordsPattern: Regex = """"numRecords":(\d+),""".r
 
+  private val intMinMax = ColumnMinMax(-1e8.toInt, 1e8.toInt)
+  private val doubleMinMax = ColumnMinMax(-1e10, 1e10)
+  private val longMinMax = ColumnMinMax(-1e15.toLong, 1e15.toLong)
+
+  private val dataTypeMinMax = Map(
+    DoubleDataType -> doubleMinMax,
+    IntegerDataType -> intMinMax,
+    LongDataType -> longMinMax,
+    FloatDataType -> doubleMinMax,
+    DecimalDataType -> doubleMinMax,
+    TimestampDataType -> longMinMax,
+    DateDataType -> longMinMax)
+
+  /**
+   * Extract record count from a parquet file metadata.
+   * @param parquetFilePath target parquet file path
+   * @return
+   */
   def extractParquetFileCount(parquetFilePath: String): String = {
     val path = new Path(parquetFilePath)
     val file = HadoopInputFile.fromPath(path, new Configuration())
@@ -199,17 +221,26 @@ object ConvertToQbeastCommand {
     reader.getRecordCount.toString
   }
 
+  /**
+   * Extract Qbeast metadata for an AddFile.
+   * @param addFile AddFile to be converted into a qbeast block for the root
+   * @param revision the conversion revision to use, revisionID = 0
+   * @param tablePath path of the table
+   * @return
+   */
   def extractQbeastTag(
       addFile: AddFile,
       revision: Revision,
-      root: String): Map[String, String] = {
+      tablePath: String): Map[String, String] = {
     val elementCount = addFile.stats match {
       case stats: String =>
         numRecordsPattern.findFirstMatchIn(stats) match {
           case Some(matching) => matching.group(1)
-          case _ => extractParquetFileCount(root + "/" + addFile.path)
+          // stats does not contain record count, proceed extraction using parquet metadata
+          case _ => extractParquetFileCount(tablePath + "/" + addFile.path)
         }
-      case _ => extractParquetFileCount(root + "/" + addFile.path)
+      // AddFile entries with no 'stats' field, proceed extraction using parquet metadata
+      case _ => extractParquetFileCount(tablePath + "/" + addFile.path)
     }
 
     Map(
@@ -222,6 +253,12 @@ object ConvertToQbeastCommand {
 
   }
 
+  /**
+   * Convert a Spark data type into a Sql data type. Used to convert partitioned parquet tables
+   * @param columnName, name of the column whose data type is of our interest
+   * @param schema table schema of the partitioned parquet table
+   * @return
+   */
   private def dataTypeToName(columnName: String, schema: StructType): String = {
     val dataType = schema(columnName).dataType
     dataType match {
@@ -245,3 +282,5 @@ object ConvertToQbeastCommand {
   }
 
 }
+
+case class ColumnMinMax(minValue: Any, maxValue: Any)
