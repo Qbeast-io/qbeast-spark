@@ -120,6 +120,51 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
       announcedCubes shouldBe Seq(CubeId.root(columnsToIndex.size).string)
     })
 
+  "Optimizing a converted qbeast table" should "preserve table size" in
+    withSparkAndTmpDir((spark, tmpDir) => {
+      convertFormatsFromTo("parquet", "qbeast", spark, tmpDir, desiredCubeSize = 50000)
+      val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+
+      qbeastTable.analyze()
+      qbeastTable.optimize()
+
+      val convertedTable = spark.read.format("qbeast").load(tmpDir)
+      val optimizedConvertedTableSize = qbeastTable
+        .getIndexMetrics()
+        .cubeStatuses
+        .values
+        .map(status => {
+          // Read non-replicated files
+          val filesToRead = status.files.filter(_.state != State.REPLICATED)
+          filesToRead.map(_.elementCount).sum
+        })
+        .sum
+
+      convertedTable.count shouldBe dataSize
+      optimizedConvertedTableSize shouldBe dataSize
+
+    })
+
+  it should "preserve sampling accuracy" in withSparkAndTmpDir((spark, tmpDir) => {
+    convertFormatsFromTo("parquet", "qbeast", spark, tmpDir, desiredCubeSize = 50000)
+    val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+
+    qbeastTable.analyze()
+    qbeastTable.optimize()
+
+    val convertedTable = spark.read.format("qbeast").load(tmpDir)
+    val tolerance = 0.01
+    List(0.1, 0.2, 0.5, 0.7, 0.99).foreach(f => {
+      val sampleSize = convertedTable
+        .sample(withReplacement = false, f)
+        .count()
+        .toDouble
+
+      val margin = dataSize * f * tolerance
+      sampleSize shouldBe (dataSize * f) +- margin
+    })
+  })
+
   "Compacting a converted qbeast table" should "reduce root node block count" in
     withExtendedSparkAndTmpDir(
       new SparkConf()
