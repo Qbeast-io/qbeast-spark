@@ -150,7 +150,7 @@ case class ConvertToQbeastCommand(
       // Idempotent conversion
       case "qbeast" =>
         logConsole("The table you are trying to convert is already a qbeast table")
-        return Seq.empty
+        return Seq.empty[Row]
       // Convert parquet to delta
       case "parquet" => convertParquetToDelta(sparkSession, sourceSchema)
       // delta, do nothing
@@ -171,7 +171,7 @@ case class ConvertToQbeastCommand(
       (tableChanges, newFiles)
     }
 
-    Seq.empty
+    Seq.empty[Row]
   }
 
 }
@@ -191,6 +191,20 @@ object ConvertToQbeastCommand {
     DecimalDataType -> doubleMinMax,
     TimestampDataType -> longMinMax,
     DateDataType -> longMinMax)
+
+  /**
+   * Map a Spark data type name to a Spark SQL type name. Currently only the following
+   * are supported for conversion. Any other data type are inferred as String after
+   * being used as Partition Columns. Timestamp but this is not supported as a partition
+   * column by delta conversion.
+   */
+  private val sparkToSqlTypeNames = Map(
+    "integer" -> "INT",
+    "double" -> "DOUBLE",
+    "long" -> "BIGINT",
+    "date" -> "DATE",
+    "timestamp" -> "TIMESTAMP",
+    "string" -> "STRING")
 
   /**
    * Extract record count from a parquet file metadata.
@@ -233,22 +247,7 @@ object ConvertToQbeastCommand {
       TagUtils.state -> State.FLOODED,
       TagUtils.revision -> revision.revisionID.toString,
       TagUtils.elementCount -> elementCount)
-
   }
-
-  /**
-   * Map a Spark data type name to a Spark SQL type name. Currently only the following
-   * are supported for conversion. Any other data type are inferred as String after
-   * being used as Partition Columns. Timestamp but this is not supported as a partition
-   * column by delta conversion.
-   */
-  private val sparkToSqlTypeNames = Map(
-    "integer" -> "INT",
-    "double" -> "DOUBLE",
-    "long" -> "BIGINT",
-    "date" -> "DATE",
-    "timestamp" -> "TIMESTAMP",
-    "string" -> "STRING")
 
 }
 
