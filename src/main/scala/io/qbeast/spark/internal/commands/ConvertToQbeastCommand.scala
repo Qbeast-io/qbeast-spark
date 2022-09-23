@@ -10,8 +10,8 @@ import io.qbeast.spark.delta.{DeltaQbeastLog, SparkDeltaMetadataManager}
 import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand.{
   dataTypeMinMax,
-  dataTypeToName,
-  extractQbeastTag
+  extractQbeastTag,
+  sparkToSqlTypeNames
 }
 import io.qbeast.spark.utils.{State, TagUtils}
 import org.apache.hadoop.conf.Configuration
@@ -24,18 +24,7 @@ import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
 import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.delta.{DeltaLog, Snapshot}
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
-import org.apache.spark.sql.types.{
-  BooleanType,
-  DateType,
-  DecimalType,
-  DoubleType,
-  FloatType,
-  IntegerType,
-  LongType,
-  StringType,
-  StructType,
-  TimestampType
-}
+import org.apache.spark.sql.types.StructType
 
 import scala.util.matching.Regex
 
@@ -93,7 +82,8 @@ case class ConvertToQbeastCommand(
     if (isPartitioned) {
       val colsAndTypes =
         partitionColumns.map(colName => {
-          val sqlTypeName = dataTypeToName(colName, schema)
+          val typeName = schema(colName).dataType.typeName
+          val sqlTypeName = sparkToSqlTypeNames.getOrElse(typeName, typeName)
           colName + " " + sqlTypeName
         })
       spark.sql(
@@ -247,32 +237,18 @@ object ConvertToQbeastCommand {
   }
 
   /**
-   * Convert a Spark data type into a Sql data type. Used to convert partitioned parquet tables
-   * @param columnName, name of the column whose data type is of our interest
-   * @param schema table schema of the partitioned parquet table
-   * @return
+   * Map a Spark data type name to a Spark SQL type name. Currently only the following
+   * are supported for conversion. Any other data type are inferred as String after
+   * being used as Partition Columns. Timestamp but this is not supported as a partition
+   * column by delta conversion.
    */
-  private def dataTypeToName(columnName: String, schema: StructType): String = {
-    val dataType = schema(columnName).dataType
-    dataType match {
-      //      case _: ArrayType => "ARRAY"
-      //      case _: BinaryType => "BINARY"
-      case _: BooleanType => "BOOLEAN"
-      //      case _: ByteType => "TINYINT"
-      case _: DateType => "DATE"
-      case _: DecimalType => "DECIMAL"
-      case _: DoubleType => "DOUBLE"
-      case _: FloatType => "FLOAT"
-      case _: IntegerType => "INT"
-      case _: LongType => "BIGINT"
-      //      case _: MapType => "MAP"
-      //      case _: ShortType => "SMALLINT"
-      case _: StringType => "STRING"
-      //      case _: StructType => "STRUCT"
-      case _: TimestampType => "TIMESTAMP"
-      case _ => throw new RuntimeException(s"$dataType is not supported")
-    }
-  }
+  private val sparkToSqlTypeNames = Map(
+    "integer" -> "INT",
+    "double" -> "DOUBLE",
+    "long" -> "BIGINT",
+    "date" -> "DATE",
+    "timestamp" -> "TIMESTAMP",
+    "string" -> "STRING")
 
 }
 
