@@ -1,10 +1,11 @@
 package io.qbeast.spark.utils
 
-import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.{CubeId, QTableID}
 import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
-import org.apache.spark.SparkException
+import org.apache.spark.{SparkConf, SparkException}
+import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.scalatest.PrivateMethodTester
@@ -19,11 +20,12 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
       readFormat: String,
       spark: SparkSession,
       dir: String,
-      columnsToIndex: Seq[String] = columnsToIndex): DataFrame = {
+      columnsToIndex: Seq[String] = columnsToIndex,
+      desiredCubeSize: Int = DEFAULT_CUBE_SIZE): DataFrame = {
     val data = loadTestData(spark)
     data.write.mode("overwrite").format(sourceFormat).save(dir)
 
-    ConvertToQbeastCommand(dir, columnsToIndex).run(spark)
+    ConvertToQbeastCommand(dir, columnsToIndex, desiredCubeSize).run(spark)
 
     spark.read.format(readFormat).load(dir)
   }
@@ -110,10 +112,34 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
     metrics.cubeCount shouldBe 1
   })
 
-  it should "allow correct execution of Analyze and Optimize" in withSparkAndTmpDir(
-    (spark, tmpDir) => {})
+  "Analyzing a converted qbeast table" should "return the root node" in
+    withSparkAndTmpDir((spark, tmpDir) => {
+      convertFormatsFromTo("parquet", "qbeast", spark, tmpDir, desiredCubeSize = 50000)
+      val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+      val announcedCubes = qbeastTable.analyze()
+      announcedCubes shouldBe Seq(CubeId.root(columnsToIndex.size).string)
+    })
 
-  it should "allow correct execution of Compaction" in withSparkAndTmpDir((spark, tmpDir) => {})
+  "Compacting a converted qbeast table" should "reduce root node block count" in
+    withExtendedSparkAndTmpDir(
+      new SparkConf()
+        .set("spark.qbeast.compact.minFileSize", "1")
+        .set("spark.qbeast.compact.maxFileSize", "2000000")) { (spark, tmpDir) =>
+      {
+        convertFormatsFromTo("parquet", "qbeast", spark, tmpDir, desiredCubeSize = 50000)
+        val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+        val root = CubeId.root(columnsToIndex.size)
+
+        val rootBlockCountBefore = qbeastTable.getIndexMetrics().cubeStatuses(root).files.size
+
+        qbeastTable.compact()
+
+        val rootBlockCountAfter = qbeastTable.getIndexMetrics().cubeStatuses(root).files.size
+
+        rootBlockCountAfter shouldBe <(rootBlockCountBefore)
+
+      }
+    }
 
   "ConvertToQbeastCommand's idempotence" should "not try to convert a converted table" in
     withSparkAndTmpDir((spark, tmpDir) => {
@@ -179,7 +205,7 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
     })
 
   "dataTypeToName" should
-    "be able to convert data types: Int, Double, and Long" in withSparkAndTmpDir(
+    "be able to convert data types: Int, Double, Long, and Date" in withSparkAndTmpDir(
       (spark, tmpDir) => {
         val data = loadTestData(spark).limit(20)
         val partitionedData = data
