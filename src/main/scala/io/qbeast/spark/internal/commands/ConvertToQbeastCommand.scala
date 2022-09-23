@@ -179,9 +179,9 @@ case class ConvertToQbeastCommand(
 object ConvertToQbeastCommand {
   private val numRecordsPattern: Regex = """"numRecords":(\d+),""".r
 
-  private val intMinMax = ColumnMinMax(-1e8.toInt, 1e8.toInt)
-  private val doubleMinMax = ColumnMinMax(-1e10, 1e10)
-  private val longMinMax = ColumnMinMax(-1e15.toLong, 1e15.toLong)
+  private val intMinMax = ColumnMinMax(Int.MinValue, Int.MaxValue)
+  private val doubleMinMax = ColumnMinMax(-1e308, 1e307)
+  private val longMinMax = ColumnMinMax(Long.MinValue, Long.MaxValue)
 
   private val dataTypeMinMax = Map(
     DoubleDataType -> doubleMinMax,
@@ -243,7 +243,7 @@ object ConvertToQbeastCommand {
     Map(
       TagUtils.cube -> "",
       TagUtils.minWeight -> Weight.MinValue.value.toString,
-      TagUtils.maxWeight -> Weight.MaxValue.value.toString,
+      TagUtils.maxWeight -> (Weight.MaxValue.value - 1).toString,
       TagUtils.state -> State.FLOODED,
       TagUtils.revision -> revision.revisionID.toString,
       TagUtils.elementCount -> elementCount)
