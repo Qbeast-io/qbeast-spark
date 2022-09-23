@@ -197,8 +197,7 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
         SparkRevisionFactory.createNewRevision(
           QTableID(tmpDir),
           snapshot.schema,
-          Map("columnsToIndex" -> columnsToIndex.mkString(","), "cubeSize" -> "5000000")),
-        tmpDir)
+          Map("columnsToIndex" -> columnsToIndex.mkString(","), "cubeSize" -> "5000000")))
 
       val countFromMetadata = qbeastTag(TagUtils.elementCount).toInt
       countFromMetadata shouldBe 500

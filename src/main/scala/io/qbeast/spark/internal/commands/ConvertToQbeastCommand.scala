@@ -116,15 +116,12 @@ case class ConvertToQbeastCommand(
     revision.copy(transformations = transformations)
   }
 
-  private def createQbeastActions(
-      snapshot: Snapshot,
-      revision: Revision,
-      path: String): IISeq[FileAction] = {
+  private def createQbeastActions(snapshot: Snapshot, revision: Revision): IISeq[FileAction] = {
     val allFiles = snapshot.allFiles.collect()
 
     allFiles
       .map(addFile => {
-        val metadataTag = extractQbeastTag(addFile, revision, path)
+        val metadataTag = extractQbeastTag(addFile, revision)
         addFile.copy(tags = metadataTag)
       })
       .toIndexedSeq
@@ -166,7 +163,7 @@ case class ConvertToQbeastCommand(
       snapshot.schema,
       append = true) {
       val tableChanges = getTableChanges(revision, sparkSession)
-      val newFiles = createQbeastActions(snapshot, revision, path)
+      val newFiles = createQbeastActions(snapshot, revision)
 
       (tableChanges, newFiles)
     }
@@ -211,9 +208,8 @@ object ConvertToQbeastCommand {
    * @param parquetFilePath target parquet file path
    * @return
    */
-  def extractParquetFileCount(parquetFilePath: String): String = {
-    val path = new Path(parquetFilePath)
-    val file = HadoopInputFile.fromPath(path, new Configuration())
+  def extractParquetFileCount(parquetFilePath: Path): String = {
+    val file = HadoopInputFile.fromPath(parquetFilePath, new Configuration())
     val reader = ParquetFileReader.open(file)
     reader.getRecordCount.toString
   }
@@ -222,22 +218,20 @@ object ConvertToQbeastCommand {
    * Extract Qbeast metadata for an AddFile.
    * @param addFile AddFile to be converted into a qbeast block for the root
    * @param revision the conversion revision to use, revisionID = 0
-   * @param tablePath path of the table
    * @return
    */
-  def extractQbeastTag(
-      addFile: AddFile,
-      revision: Revision,
-      tablePath: String): Map[String, String] = {
+  def extractQbeastTag(addFile: AddFile, revision: Revision): Map[String, String] = {
     val elementCount = addFile.stats match {
       case stats: String =>
         numRecordsPattern.findFirstMatchIn(stats) match {
           case Some(matching) => matching.group(1)
           // stats does not contain record count, proceed extraction using parquet metadata
-          case _ => extractParquetFileCount(tablePath + "/" + addFile.path)
+          case _ =>
+            extractParquetFileCount(new Path(revision.tableID.id, addFile.path))
         }
       // AddFile entries with no 'stats' field, proceed extraction using parquet metadata
-      case _ => extractParquetFileCount(tablePath + "/" + addFile.path)
+      case _ =>
+        extractParquetFileCount(new Path(revision.tableID.id, addFile.path))
     }
 
     Map(
