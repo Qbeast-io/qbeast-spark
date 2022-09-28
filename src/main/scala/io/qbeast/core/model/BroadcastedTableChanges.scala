@@ -17,7 +17,6 @@ object BroadcastedTableChanges {
       revisionChanges: Option[RevisionChange],
       supersededIndexStatus: IndexStatus,
       deltaNormalizedCubeWeights: Map[CubeId, NormalizedWeight],
-      numElements: Long = 0,
       deltaReplicatedSet: Set[CubeId] = Set.empty,
       deltaAnnouncedSet: Set[CubeId] = Set.empty): TableChanges = {
 
@@ -25,13 +24,17 @@ object BroadcastedTableChanges {
       case Some(newRev) => newRev.createNewRevision
       case None => supersededIndexStatus.revision
     }
-    val cubeWeights = if (revisionChanges.isEmpty) {
+    val (cubeWeights, compressionMap) = if (revisionChanges.isEmpty) {
 
-      CubeNormalizedWeights.mergeNormalizedWeights(
+      CubeNormalizedWeights.mergeWeightsAndCompressTree(
         supersededIndexStatus.cubeNormalizedWeights,
-        deltaNormalizedCubeWeights)
+        deltaNormalizedCubeWeights,
+        updatedRevision.desiredCubeSize)
     } else {
-      CubeNormalizedWeights.mergeNormalizedWeights(Map.empty, deltaNormalizedCubeWeights)
+      CubeNormalizedWeights.mergeWeightsAndCompressTree(
+        Map.empty,
+        deltaNormalizedCubeWeights,
+        updatedRevision.desiredCubeSize)
     }
 
     val replicatedSet = if (revisionChanges.isEmpty) {
@@ -57,7 +60,7 @@ object BroadcastedTableChanges {
       isNewRevision = revisionChanges.isDefined,
       isOptimizeOperation = deltaReplicatedSet.nonEmpty,
       updatedRevision = updatedRevision,
-      numElements: Long,
+      compressionMap = compressionMap,
       deltaReplicatedSet = deltaReplicatedSet,
       announcedOrReplicatedSet = announcedSet ++ replicatedSet,
       cubeStates = SparkSession.active.sparkContext.broadcast(cubeStates.toMap),
@@ -70,7 +73,7 @@ case class BroadcastedTableChanges(
     isNewRevision: Boolean,
     isOptimizeOperation: Boolean,
     updatedRevision: Revision,
-    numElements: Long,
+    compressionMap: Map[CubeId, CubeId],
     deltaReplicatedSet: Set[CubeId],
     announcedOrReplicatedSet: Set[CubeId],
     cubeStates: Broadcast[Map[CubeId, String]],

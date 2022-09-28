@@ -22,7 +22,7 @@ private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication:
       val weight = Weight(weightValue)
       pointIndexer
         .findTargetCubeIds(point, weight)
-        .map(_.bytes)
+        .map(cubeId => tableChanges.compressionMap.getOrElse(cubeId, cubeId).bytes)
         .toArray
     })
   }
