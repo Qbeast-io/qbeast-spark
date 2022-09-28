@@ -81,10 +81,10 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces]
   }
 
   /**
-   * For StageReplace, StageReplaceOrCreate and StageCreate, the following pipeline is executed
-   * 1. Check if it's Qbeast Provider
-   * 2. Create a QbeastStagedTable. This type of table allows to commit the changes atomically to the Catalog.
-   * 3. If it was not a QbeastProvider, it outputs a DefaultStagedTable
+   * For StageReplace, StageReplaceOrCreate and StageCreate, the following pipeline is executed:
+   * 1. Check if it's a Qbeast Provider
+   * 2. If true, it creates a QbeastStagedTable, which allows atomizing the changes to the Catalog.
+   * 3. Otherwise, output a DefaultStagedTable
    */
 
   override def stageReplace(
