@@ -19,42 +19,38 @@ object BroadcastedTableChanges {
       deltaNormalizedCubeWeights: Map[CubeId, NormalizedWeight],
       deltaReplicatedSet: Set[CubeId] = Set.empty,
       deltaAnnouncedSet: Set[CubeId] = Set.empty): TableChanges = {
-
     val updatedRevision = revisionChanges match {
       case Some(newRev) => newRev.createNewRevision
       case None => supersededIndexStatus.revision
     }
-    val (cubeWeights, compressionMap) = if (revisionChanges.isEmpty) {
 
-      CubeNormalizedWeights.mergeWeightsAndCompressTree(
+    val cubeWeights = if (revisionChanges.isEmpty) {
+      CubeNormalizedWeights.mergeNormalizedWeights(
         supersededIndexStatus.cubeNormalizedWeights,
-        deltaNormalizedCubeWeights,
-        updatedRevision.desiredCubeSize)
+        deltaNormalizedCubeWeights)
     } else {
-      CubeNormalizedWeights.mergeWeightsAndCompressTree(
-        Map.empty,
-        deltaNormalizedCubeWeights,
-        updatedRevision.desiredCubeSize)
+      CubeNormalizedWeights.mergeNormalizedWeights(Map.empty, deltaNormalizedCubeWeights)
     }
 
+    val announcedSet = if (revisionChanges.isEmpty) {
+      supersededIndexStatus.announcedSet ++ deltaAnnouncedSet
+    } else {
+      deltaAnnouncedSet
+    }
     val replicatedSet = if (revisionChanges.isEmpty) {
-
       supersededIndexStatus.replicatedSet ++ deltaReplicatedSet
-
     } else {
       deltaReplicatedSet
     }
 
-    val announcedSet = if (revisionChanges.isEmpty) {
+    val cubeStates = (replicatedSet.map(id => id -> State.REPLICATED) ++
+      (announcedSet -- replicatedSet).map(id => id -> State.ANNOUNCED)).toMap
 
-      supersededIndexStatus.announcedSet ++ deltaAnnouncedSet
-
-    } else {
-      deltaAnnouncedSet
-    }
-
-    val cubeStates = replicatedSet.map(id => id -> State.REPLICATED) ++
-      (announcedSet -- replicatedSet).map(id => id -> State.ANNOUNCED)
+    val compressionMap = CubeNormalizedWeights.treeCompression(
+      supersededIndexStatus.cubeNormalizedWeights,
+      deltaNormalizedCubeWeights,
+      cubeStates,
+      updatedRevision.desiredCubeSize)
 
     BroadcastedTableChanges(
       isNewRevision = revisionChanges.isDefined,
@@ -63,7 +59,7 @@ object BroadcastedTableChanges {
       compressionMap = compressionMap,
       deltaReplicatedSet = deltaReplicatedSet,
       announcedOrReplicatedSet = announcedSet ++ replicatedSet,
-      cubeStates = SparkSession.active.sparkContext.broadcast(cubeStates.toMap),
+      cubeStates = SparkSession.active.sparkContext.broadcast(cubeStates),
       cubeWeights = SparkSession.active.sparkContext.broadcast(cubeWeights))
   }
 

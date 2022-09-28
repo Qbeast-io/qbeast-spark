@@ -52,13 +52,11 @@ object CubeNormalizedWeights {
    * @param desiredCubeSize desired size for otree cubes
    * @return
    */
-  def mergeWeightsAndCompressTree(
+  def treeCompression(
       previousStateNormalizedWeights: Map[CubeId, NormalizedWeight],
       deltaNormalizedCubeWeights: Map[CubeId, NormalizedWeight],
-      desiredCubeSize: Int): (Map[CubeId, Weight], Map[CubeId, CubeId]) = {
-    val mergedCubeWeights =
-      mergeNormalizedWeights(previousStateNormalizedWeights, deltaNormalizedCubeWeights)
-
+      cubeStates: Map[CubeId, String],
+      desiredCubeSize: Int): Map[CubeId, CubeId] = {
     val cubeSizes = mutable.Map.newBuilder[CubeId, Long]
     val cubeRollUpMap = mutable.Map.newBuilder[CubeId, CubeId]
     var maxDepth = 0
@@ -75,12 +73,17 @@ object CubeNormalizedWeights {
     }
 
     val rollUpMap = if (maxDepth > 0) {
-      accumulativeRollUp(cubeRollUpMap.result(), cubeSizes.result(), maxDepth, desiredCubeSize)
+      accumulativeRollUp(
+        cubeRollUpMap.result(),
+        cubeSizes.result(),
+        cubeStates,
+        maxDepth,
+        desiredCubeSize)
     } else {
       Map.empty[CubeId, CubeId]
     }
 
-    (mergedCubeWeights, rollUpMap)
+    rollUpMap
   }
 
   /**
@@ -96,6 +99,7 @@ object CubeNormalizedWeights {
   def accumulativeRollUp(
       cubeRollUpMap: mutable.Map[CubeId, CubeId],
       cubeSizes: mutable.Map[CubeId, Long],
+      cubeStates: Map[CubeId, String],
       maxDepth: Int,
       maxRollingSize: Int): Map[CubeId, CubeId] = {
     val levelCubeSizes = cubeSizes.groupBy(_._1.depth)
