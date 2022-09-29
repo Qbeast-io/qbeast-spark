@@ -43,14 +43,20 @@ object BroadcastedTableChanges {
       deltaReplicatedSet
     }
 
-    val cubeStates = (replicatedSet.map(id => id -> State.REPLICATED) ++
-      (announcedSet -- replicatedSet).map(id => id -> State.ANNOUNCED)).toMap
+    val cubeStates = replicatedSet.map(id => id -> State.REPLICATED) ++
+      (announcedSet -- replicatedSet).map(id => id -> State.ANNOUNCED)
 
-    val compressionMap = CubeNormalizedWeights.treeCompression(
-      supersededIndexStatus.cubeNormalizedWeights,
-      deltaNormalizedCubeWeights,
-      cubeStates,
-      updatedRevision.desiredCubeSize)
+    // Skip tree compression entirely during optimization
+    val isReplication = deltaReplicatedSet.isEmpty
+    val compressionMap = if (isReplication) {
+      Map.empty[CubeId, CubeId]
+    } else {
+      CubeNormalizedWeights.treeCompression(
+        supersededIndexStatus.cubeNormalizedWeights,
+        deltaNormalizedCubeWeights,
+        cubeStates.map(_._1),
+        updatedRevision.desiredCubeSize)
+    }
 
     BroadcastedTableChanges(
       isNewRevision = revisionChanges.isDefined,
@@ -59,7 +65,7 @@ object BroadcastedTableChanges {
       compressionMap = compressionMap,
       deltaReplicatedSet = deltaReplicatedSet,
       announcedOrReplicatedSet = announcedSet ++ replicatedSet,
-      cubeStates = SparkSession.active.sparkContext.broadcast(cubeStates),
+      cubeStates = SparkSession.active.sparkContext.broadcast(cubeStates.toMap),
       cubeWeights = SparkSession.active.sparkContext.broadcast(cubeWeights))
   }
 

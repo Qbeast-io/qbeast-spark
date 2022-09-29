@@ -45,8 +45,8 @@ object CubeNormalizedWeights {
   }
 
   /**
-   * Merge existing cube weights with the newly computed cube weights, and perform tree compression
-   * through an up rolling operation. The latter outputs a descendant to ancestor CubeID mapping.
+   * Perform tree compression through an up rolling operation to create a
+   * descendant to ancestor CubeID mapping.
    * @param previousStateNormalizedWeights existing cube weights
    * @param deltaNormalizedCubeWeights cube weights to add
    * @param desiredCubeSize desired size for otree cubes
@@ -55,14 +55,15 @@ object CubeNormalizedWeights {
   def treeCompression(
       previousStateNormalizedWeights: Map[CubeId, NormalizedWeight],
       deltaNormalizedCubeWeights: Map[CubeId, NormalizedWeight],
-      cubeStates: Map[CubeId, String],
+      announcedOrReplicatedSet: Set[CubeId],
       desiredCubeSize: Int): Map[CubeId, CubeId] = {
     val cubeSizes = mutable.Map.newBuilder[CubeId, Long]
     val cubeRollUpMap = mutable.Map.newBuilder[CubeId, CubeId]
     var maxDepth = 0
 
     for ((cubeId, normalizedWeight) <- deltaNormalizedCubeWeights) {
-      // number of elements in a given cube is proportional to the change of the normalized weight
+      // The number of elements in a given cube is proportional to the
+      // change of its normalized weight
       val size = previousStateNormalizedWeights.get(cubeId) match {
         case Some(previousWeight) => (previousWeight - normalizedWeight) * desiredCubeSize
         case None => normalizedWeight * desiredCubeSize
@@ -76,9 +77,9 @@ object CubeNormalizedWeights {
       accumulativeRollUp(
         cubeRollUpMap.result(),
         cubeSizes.result(),
-        cubeStates,
+        announcedOrReplicatedSet,
         maxDepth,
-        desiredCubeSize)
+        (desiredCubeSize * 1.5).toInt)
     } else {
       Map.empty[CubeId, CubeId]
     }
@@ -87,10 +88,12 @@ object CubeNormalizedWeights {
   }
 
   /**
-   * Sibling payloads are gathered together and placed in their parent cube
-   * in a recursive and accumulative fashion until a size limit is reached
+   * Sibling payloads are gathered together and placed in their parent cube in a recursive
+   * and accumulative fashion until a size limit is reached, provided that the node itself
+   * nor its parent node are REPLICATED or ANNOUNCED.
    * @param cubeRollUpMap mutable map that points each cube to themselves
    * @param cubeSizes the payload sizes of all cubes
+   * @param announcedOrReplicatedSet the set of ANNOUNCED or REPLICATED cubes
    * @param maxDepth tree height
    * @param maxRollingSize the maximum payload size of a cube for it to be
    *                       continually rolling upwards
@@ -99,35 +102,45 @@ object CubeNormalizedWeights {
   def accumulativeRollUp(
       cubeRollUpMap: mutable.Map[CubeId, CubeId],
       cubeSizes: mutable.Map[CubeId, Long],
-      cubeStates: Map[CubeId, String],
+      announcedOrReplicatedSet: Set[CubeId],
       maxDepth: Int,
       maxRollingSize: Int): Map[CubeId, CubeId] = {
     val levelCubeSizes = cubeSizes.groupBy(_._1.depth)
 
+    // Iterate from maxDepth to level 1, avoiding the root
     (maxDepth to 1 by -1)
       .filter(levelCubeSizes.contains)
       .foreach { depth =>
-        // Cube sizes from level depth
+        // Cube sizes from the current level
         levelCubeSizes(depth)
-          // Filter out those with a size >= threshold
-          .filter { case (_, size) => size < maxRollingSize * 0.8 }
-          // Group cubes by parent cube to find sibling cubes
+          // We operate on cubes that are neither ANNOUNCED nor REPLICATED, for these have
+          // replications from their ancestors, performing roll-up will corrupt OTree integrity
+          .filter { case (cube, _) => !announcedOrReplicatedSet.contains(cube) }
+          // Group cubes by their parent in order to find sibling cubes
           .groupBy { case (cube, _) => cube.parent.get }
-          // Make sure the parent cube exists
-          .filter { case (parent, _) => cubeSizes.contains(parent) }
-          // Process cubes from the current level
+          //
+          .filter { case (parent, _) =>
+            cubeSizes.contains(parent) && !announcedOrReplicatedSet.contains(parent)
+          }
+          // Process sibling cubes from the current level
           .foreach { case (parent, siblingCubeSizes) =>
-            // Add children sizes to parent size
-            val newSize = cubeSizes(parent) + siblingCubeSizes.values.sum
-            if (newSize <= maxRollingSize) {
-              // update parent size
-              cubeSizes(parent) = newSize
-              // update mapping graph edge for sibling cubes
-              siblingCubeSizes.keys.foreach(c => cubeRollUpMap(c) = parent)
+            // Take the smallest cube each time and add them to the parent until either
+            // all cubes are rolled-up or the size has grown too large
+            val sortedCubeIter = siblingCubeSizes.toSeq.sortBy(_._2).toIterator
+            var newSize = cubeSizes(parent)
+            while (newSize < maxRollingSize && sortedCubeIter.hasNext) {
+              val (cube, size) = sortedCubeIter.next()
+              // Increment size
+              newSize += size
+              // Map child to parent
+              cubeRollUpMap(cube) = parent
             }
+            // Update parent size
+            cubeSizes(parent) = newSize
           }
       }
 
+    // Convert A -> B -> C -> D to A -> D
     cubeRollUpMap.keys
       .map(cube => {
         var targetCube: CubeId = cubeRollUpMap(cube)
