@@ -15,8 +15,7 @@ class PointWeightIndexerTest extends AnyFlatSpec with Matchers {
 
   case class TableChangesTest(
       mapCubeWeights: Map[CubeId, Weight],
-      announcedOrReplicatedSet: Set[CubeId],
-      numElements: Long = 0)
+      announcedOrReplicatedSet: Set[CubeId])
       extends TableChanges {
     val isNewRevision: Boolean = false
     val isOptimizeOperation: Boolean = false
@@ -24,6 +23,8 @@ class PointWeightIndexerTest extends AnyFlatSpec with Matchers {
 
     val updatedRevision: Revision =
       Revision(-1L, System.currentTimeMillis(), QTableID(""), 0, Vector.empty, Vector.empty)
+
+    val compressionMap: Map[CubeId, CubeId] = Map.empty[CubeId, CubeId]
 
     val replicatedSet: Set[CubeId] = Set.empty
     val announcedSet: Set[CubeId] = Set.empty
