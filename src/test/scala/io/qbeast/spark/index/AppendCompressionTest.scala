@@ -4,12 +4,7 @@ import io.qbeast.TestClasses.EcommerceRecord
 import io.qbeast.core.model.{CubeId, CubeStatus}
 import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.delta.writer.SparkDeltaDataWriter
-import io.qbeast.spark.delta.writer.OTreeCompression
-import io.qbeast.spark.index.QbeastColumns.cubeColumnName
+import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalatest.PrivateMethodTester
 
 import scala.util.Random
@@ -43,7 +38,7 @@ class AppendCompressionTest extends QbeastIntegrationTestSpec with PrivateMethod
       .as[EcommerceRecord]
   }
 
-  val privateCompression: PrivateMethod[DataFrame] = PrivateMethod[DataFrame]('treeCompression)
+//  val privateCompression: PrivateMethod[DataFrame] = PrivateMethod[DataFrame]('treeCompression)
 
   def branchMaxWeightCheck(
       cube: CubeId,
@@ -74,56 +69,53 @@ class AppendCompressionTest extends QbeastIntegrationTestSpec with PrivateMethod
     branchMaxWeightCheck(root, -1, index)
   }
 
-  "Appending with tree compression" should "reduce cube count (via cubeMap comparison)" in
-    withExtendedSparkAndTmpDir(
-      new SparkConf().set("spark.qbeast.index.maxAppendCompressionSize", "100000")) {
-      (spark, tmpDir) =>
-        {
-          val original = loadTestData(spark)
-          writeTestData(original, columnsToIndex, 5000, tmpDir)
+//  "Appending with tree compression" should "reduce cube count (via cubeMap comparison)" in
+//    withSparkAndTmpDir((spark, tmpDir) => {
+//      val original = loadTestData(spark)
+//      writeTestData(original, columnsToIndex, 5000, tmpDir)
+//
+//      val deltaLog = DeltaLog.forTable(spark, tmpDir)
+//      val snapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+//      val indexStatus = snapshot.loadLatestIndexStatus
+//
+//      val dataToAppend = createEcommerceInstances(500)
+//      val (indexedData, tableChanges) =
+//        SparkOTreeManager.index(dataToAppend.toDF(), indexStatus)
+//      val cubeSizes = OTreeCompression.computeCubeSizes(indexedData, dimensionCount)
+//      val compressionCubeMap = OTreeCompression.accumulativeRollUp(
+//        cubeSizes,
+//        tableChanges.updatedRevision.desiredCubeSize)
+//
+//      compressionCubeMap.size shouldBe cubeSizes.size
+//      compressionCubeMap.values.toSet.size shouldBe <(cubeSizes.size)
+//
+//    })
 
-          val deltaLog = DeltaLog.forTable(spark, tmpDir)
-          val snapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
-          val indexStatus = snapshot.loadLatestIndexStatus
-
-          val dataToAppend = createEcommerceInstances(500)
-          val (indexedData, tableChanges) =
-            SparkOTreeManager.index(dataToAppend.toDF(), indexStatus)
-          val cubeSizes = OTreeCompression.computeCubeSizes(indexedData, dimensionCount)
-          val compressionCubeMap = OTreeCompression.accumulativeRollUp(
-            cubeSizes,
-            tableChanges.updatedRevision.desiredCubeSize)
-
-          compressionCubeMap.size shouldBe cubeSizes.size
-          compressionCubeMap.values.toSet.size shouldBe <(cubeSizes.size)
-        }
-    }
-
-  it should "reduce cube count (by comparing cube counts from DF to write)" in
-    withExtendedSparkAndTmpDir(
-      new SparkConf().set("spark.qbeast.index.maxAppendCompressionSize", "100000")) {
-      (spark, tmpDir) =>
-        {
-          val original = loadTestData(spark)
-          writeTestData(original, columnsToIndex, 5000, tmpDir)
-
-          val deltaLog = DeltaLog.forTable(spark, tmpDir)
-          val snapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
-          val indexStatus = snapshot.loadLatestIndexStatus
-
-          val appendSize = 500
-          val dataToAppend = createEcommerceInstances(appendSize)
-          val (indexedData, tableChanges) =
-            SparkOTreeManager.index(dataToAppend.toDF(), indexStatus)
-          val dataToWrite =
-            SparkDeltaDataWriter invokePrivate privateCompression(indexedData, tableChanges)
-
-          val cubeCountWithoutCompression = indexedData.select(cubeColumnName).distinct.count
-          val cubeCountWithCompression = dataToWrite.select(cubeColumnName).distinct.count
-
-          cubeCountWithCompression shouldBe <(cubeCountWithoutCompression)
-        }
-    }
+//  it should "reduce cube count (by comparing cube counts from DF to write)" in
+//    withExtendedSparkAndTmpDir(
+//      new SparkConf().set("spark.qbeast.index.maxAppendCompressionSize", "100000")) {
+//      (spark, tmpDir) =>
+//        {
+//          val original = loadTestData(spark)
+//          writeTestData(original, columnsToIndex, 5000, tmpDir)
+//
+//          val deltaLog = DeltaLog.forTable(spark, tmpDir)
+//          val snapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+//          val indexStatus = snapshot.loadLatestIndexStatus
+//
+//          val appendSize = 500
+//          val dataToAppend = createEcommerceInstances(appendSize)
+//          val (indexedData, tableChanges) =
+//            SparkOTreeManager.index(dataToAppend.toDF(), indexStatus)
+//          val dataToWrite =
+//            SparkDeltaDataWriter invokePrivate privateCompression(indexedData, tableChanges)
+//
+//          val cubeCountWithoutCompression = indexedData.select(cubeColumnName).distinct.count
+//          val cubeCountWithCompression = dataToWrite.select(cubeColumnName).distinct.count
+//
+//          cubeCountWithCompression shouldBe <(cubeCountWithoutCompression)
+//        }
+//    }
 
   it should "not lose data" in withExtendedSparkAndTmpDir(
     new SparkConf().set("spark.qbeast.index.maxAppendCompressionSize", "100000")) {
