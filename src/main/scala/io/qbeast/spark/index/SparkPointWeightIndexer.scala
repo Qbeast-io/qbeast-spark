@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.core.model.{PointWeightIndexer, TableChanges, Weight}
+import io.qbeast.core.model.{CubeId, PointWeightIndexer, TableChanges, Weight}
 import io.qbeast.spark.index.QbeastColumns._
 import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.functions._
@@ -15,6 +15,15 @@ private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication:
   private val revision = tableChanges.updatedRevision
   private val pointIndexer: PointWeightIndexer = PointWeightIndexer(tableChanges)
 
+  private def compressionMapping(cubeId: CubeId): Array[Byte] = {
+    // Keep REPLICATED or ANNOUNCED cubes away from compression
+    if (tableChanges.announcedOrReplicatedSet.contains(cubeId)) {
+      cubeId.bytes
+    } else {
+      tableChanges.compressionMap.getOrElse(cubeId, cubeId).bytes
+    }
+  }
+
   private val findTargetCubeIdsUDF: UserDefinedFunction = {
 
     udf((rowValues: Row, weightValue: Int) => {
@@ -22,7 +31,7 @@ private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication:
       val weight = Weight(weightValue)
       pointIndexer
         .findTargetCubeIds(point, weight)
-        .map(cubeId => tableChanges.compressionMap.getOrElse(cubeId, cubeId).bytes)
+        .map(compressionMapping)
         .toArray
     })
   }
