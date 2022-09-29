@@ -118,7 +118,7 @@ object CubeNormalizedWeights {
           .filter { case (cube, _) => !announcedOrReplicatedSet.contains(cube) }
           // Group cubes by their parent in order to find sibling cubes
           .groupBy { case (cube, _) => cube.parent.get }
-          //
+          // Make sure parent cube existing in the map and it's not an ANNOUNCED nor REPLICATED cube
           .filter { case (parent, _) =>
             cubeSizes.contains(parent) && !announcedOrReplicatedSet.contains(parent)
           }
