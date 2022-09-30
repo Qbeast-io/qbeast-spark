@@ -38,8 +38,6 @@ class AppendCompressionTest extends QbeastIntegrationTestSpec with PrivateMethod
       .as[EcommerceRecord]
   }
 
-//  val privateCompression: PrivateMethod[DataFrame] = PrivateMethod[DataFrame]('treeCompression)
-
   def branchMaxWeightCheck(
       cube: CubeId,
       parentWeight: NormalizedWeight,
@@ -68,6 +66,44 @@ class AppendCompressionTest extends QbeastIntegrationTestSpec with PrivateMethod
     val root = CubeId.root(qbeastTable.indexedColumns().size)
     branchMaxWeightCheck(root, -1, index)
   }
+
+  "OTree compression" should "produce fewer cubes" in withSparkAndTmpDir((spark, tmpDir) => {
+    // Write data using SparkOTreeManager,
+    // with compression(isReplication = true) and without(isReplication = false)
+    // Create index status through QbeastSnapshot for each and compare cube count
+  })
+  it should "preserve branch continuity" in withSparkAndTmpDir((spark, tmpDir) => {
+    // The branch continuity can be corrupted when two intermediate ancestor nodes
+    // are compressed but the cube itself is not. By the wey how the read protocol
+    // it set up, we would lose data
+  })
+  it should "preserve sampling accuracy" in withSparkAndTmpDir((spark, tmpDir) => {
+    // Write data using compression and test sampling accuracy
+  })
+  "Append with compression" should "not lose data" in withSparkAndTmpDir((spark, tmpDir) => {
+    // Write data using compression
+    // Append data using compression and check record count
+  })
+  it should "produce fewer cubes" in withSparkAndTmpDir((spark, tmpDir) => {
+    // Append with and without compression, the compressed tree should have
+    // fewer cubes. We can check this by analyzing index metrics
+  })
+  it should "not compress tree during OPTIMIZATION" in withSparkAndTmpDir((spark, tmpDir) => {
+    // Setting isReplication to true should output an empty compressionMap
+  })
+  it should "not compress ANNOUNCED nor REPLICATED cubes" in withSparkAndTmpDir(
+    (spark, tmpDir) => {
+      // Analyze the compressionMap to see that ANNOUNCED and REPLICATED cubes
+      // all map to themselves
+    })
+  it should "preserve monotonically increasing branch maxWeights" in withSparkAndTmpDir(
+    (spark, tmpDir) => {
+      // Write with compression and append with compression
+      // Make sure branch maxWeights are monotonically increasing
+    })
+  it should "preserve sampling accuracy" in withSparkAndTmpDir((spark, tmpDir) => {
+    // Write with compression and appending with compression and test sampling accuracy
+  })
 
 //  "Appending with tree compression" should "reduce cube count (via cubeMap comparison)" in
 //    withSparkAndTmpDir((spark, tmpDir) => {
