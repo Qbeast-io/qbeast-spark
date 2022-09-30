@@ -48,8 +48,6 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
         qbeastColumns = qbeastColumns,
         tableChanges = tableChanges)
 
-//    val dataToWrite = treeCompression(qbeastData, tableChanges)
-
     qbeastData
       .repartition(col(cubeColumnName))
       .queryExecution
@@ -60,20 +58,6 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
       .toIndexedSeq
 
   }
-
-//  private def treeCompression(qbeastData: DataFrame, tableChanges: TableChanges): DataFrame = {
-//    val appendingToExistingTree = !tableChanges.isNewRevision
-//    val smallDataset = tableChanges.numElements <= MAX_SIZE_FOR_APPEND_COMPRESSION
-//
-//    if (appendingToExistingTree && smallDataset) {
-//      qbeastData.transform(
-//        OTreeCompression.compress(
-//          tableChanges.updatedRevision.columnTransformers.size,
-//          tableChanges.updatedRevision.desiredCubeSize))
-//    } else {
-//      qbeastData
-//    }
-//  }
 
   /**
    * Split the files belonging to a cube into groups
@@ -185,94 +169,3 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
   }
 
 }
-
-// object OTreeCompression {
-//
-//  def compress(dimensionCount: Int, desiredCubeSize: Int): DataFrame => DataFrame =
-//    (qbeastData: DataFrame) => {
-//      val cubeSizes = computeCubeSizes(qbeastData, dimensionCount)
-//      val cubeMap = accumulativeRollUp(cubeSizes, desiredCubeSize)
-//
-//      qbeastData.withColumn(
-//        cubeColumnName,
-//        groupCubes(cubeMap, dimensionCount)(col(cubeColumnName)))
-//    }
-//
-//  private def groupCubes(cubeMap: Map[CubeId, CubeId], dimensionCount: Int): UserDefinedFunction =
-//    udf((bytes: Array[Byte]) => {
-//      val cube = CubeId(dimensionCount, bytes)
-//      cubeMap.getOrElse(cube, cube).bytes
-//    })
-//
-//  def computeCubeSizes(qbeastData: DataFrame, dimensionCount: Int): mutable.Map[CubeId, Long] = {
-//    val cubeSizes = mutable.Map[CubeId, Long]()
-//    qbeastData
-//      .groupBy(cubeColumnName)
-//      .count()
-//      .collect()
-//      .foreach(row => {
-//        val bytes = row.getAs[Array[Byte]](0)
-//        val cube = CubeId(dimensionCount, bytes)
-//        val size = row.getAs[Long](1)
-//        cubeSizes += (cube -> size)
-//      })
-//
-//    cubeSizes
-//  }
-//
-//  /**
-//   * Sibling payloads are gathered together and placed in their parent cube
-//   * in a recursive and accumulative fashion until a size limit is reached
-//   * @param cubeSizes the payload sizes of all cubes
-//   * @param maxRollingSize the maximum payload size of a cube for it to be
-//   *                       continually rolling upwards
-//   * @return Descendant to ancestor cube mapping
-//   */
-//  def accumulativeRollUp(
-//      cubeSizes: mutable.Map[CubeId, Long],
-//      maxRollingSize: Int): Map[CubeId, CubeId] = {
-//    val cubeRollUpMap = mutable.Map[CubeId, CubeId]()
-//    var maxDepth = 0
-//
-//    cubeSizes.keys.foreach(cube => {
-//      maxDepth = maxDepth.max(cube.depth)
-//      cubeRollUpMap += cube -> cube
-//    })
-//
-//    val levelCubeSizes = cubeSizes.groupBy(_._1.depth)
-//    (maxDepth to 1 by -1)
-//      .filter(levelCubeSizes.contains)
-//      .foreach { depth =>
-//        // Cube sizes from level depth
-//        levelCubeSizes(depth)
-//          // Filter out those with a size >= threshold
-//          .filter { case (_, size) => size < maxRollingSize * 0.8 }
-//          // Group cubes by parent cube to find sibling cubes
-//          .groupBy { case (cube, _) => cube.parent.get }
-//          // Make sure the parent cube exists
-//          .filter { case (parent, _) => cubeSizes.contains(parent) }
-//          // Process cubes from the current level
-//          .foreach { case (parent, siblingCubeSizes) =>
-//            // Add children sizes to parent size
-//            val newSize = cubeSizes(parent) + siblingCubeSizes.values.sum
-//            if (newSize <= maxRollingSize) {
-//              // update parent size
-//              cubeSizes(parent) = newSize
-//              // update mapping graph edge for sibling cubes
-//              siblingCubeSizes.keys.foreach(c => cubeRollUpMap(c) = parent)
-//            }
-//          }
-//      }
-//
-//    cubeRollUpMap.keys
-//      .map(cube => {
-//        var targetCube: CubeId = cubeRollUpMap(cube)
-//        while (cubeRollUpMap(targetCube) != targetCube) {
-//          targetCube = cubeRollUpMap(targetCube)
-//        }
-//        (cube, targetCube)
-//      })
-//      .toMap
-//  }
-//
-// }
