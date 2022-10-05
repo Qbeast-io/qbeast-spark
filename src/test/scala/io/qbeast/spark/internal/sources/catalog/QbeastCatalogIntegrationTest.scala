@@ -1,27 +1,10 @@
-package io.qbeast.spark.internal.sources
+package io.qbeast.spark.internal.sources.catalog
 
-import io.qbeast.TestClasses.Student
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.AnalysisException
 
-import scala.util.Random
-
-class QbeastCatalogTest extends QbeastIntegrationTestSpec {
-
-  private val students = 1.to(10).map(i => Student(i, i.toString, Random.nextInt()))
-
-  private def createTestData(spark: SparkSession): DataFrame = {
-    import spark.implicits._
-    students.toDF()
-  }
-
-  private val schema = StructType(
-    Seq(
-      StructField("id", IntegerType, true),
-      StructField("name", StringType, true),
-      StructField("age", IntegerType, true)))
+class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with CatalogTestSuite {
 
   "QbeastCatalog" should
     "coexist with Delta tables" in withTmpDir(tmpDir =>
@@ -122,6 +105,13 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec {
       spark.sql("INSERT INTO table student TABLE bronze_student")
       spark.sql("SELECT * FROM student").count() shouldBe students.size * 2
 
+    })
+
+  it should "throw an error when no columnsToIndex is specified" in
+    withQbeastContextSparkAndTmpWarehouse((spark, tmpDir) => {
+      an[AnalysisException] shouldBe thrownBy(
+        spark.sql("CREATE OR REPLACE TABLE student (id INT, name STRING, age INT)" +
+          " USING qbeast"))
     })
 
 }

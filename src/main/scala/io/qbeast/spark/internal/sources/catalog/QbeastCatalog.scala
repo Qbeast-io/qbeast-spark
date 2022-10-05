@@ -7,18 +7,7 @@ import io.qbeast.context.QbeastContext
 import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
 import io.qbeast.spark.internal.sources.v2.QbeastStagedTableImpl
 import org.apache.spark.sql.{SparkCatalogUtils, SparkSession}
-import org.apache.spark.sql.connector.catalog.{
-  CatalogExtension,
-  CatalogPlugin,
-  Identifier,
-  NamespaceChange,
-  StagedTable,
-  StagingTableCatalog,
-  SupportsNamespaces,
-  Table,
-  TableCatalog,
-  TableChange
-}
+import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
@@ -101,6 +90,9 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces]
         properties,
         tableFactory)
     } else {
+      if (getSessionCatalog().tableExists(ident)) {
+        getSessionCatalog().dropTable(ident)
+      }
       DefaultStagedTable(
         ident,
         getSessionCatalog().createTable(ident, schema, partitions, properties),
@@ -122,6 +114,9 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces]
         properties,
         tableFactory)
     } else {
+      if (getSessionCatalog().tableExists(ident)) {
+        getSessionCatalog().dropTable(ident)
+      }
       DefaultStagedTable(
         ident,
         getSessionCatalog().createTable(ident, schema, partitions, properties),

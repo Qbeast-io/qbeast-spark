@@ -31,7 +31,10 @@ object QbeastBaseRelation {
    * @param sqlContext the SQLContext
    * @return the HadoopFsRelation
    */
-  def createRelation(sqlContext: SQLContext, table: IndexedTable): BaseRelation = {
+  def createRelation(
+      sqlContext: SQLContext,
+      table: IndexedTable,
+      options: Map[String, String]): BaseRelation = {
 
     val spark = SparkSession.active
     val tableID = table.tableID
@@ -40,15 +43,16 @@ object QbeastBaseRelation {
     if (snapshot.isInitial) {
       // If the Table is initial, read empty relation
       // This could happen if we CREATE/REPLACE TABLE without inserting data
+      // In this case, we use the options variable
       new HadoopFsRelation(
         OTreeIndex(spark, new Path(tableID.id)),
         partitionSchema = StructType(Seq.empty[StructField]),
         dataSchema = schema,
         bucketSpec = None,
         new ParquetFileFormat(),
-        Map.empty)(spark) with InsertableRelation {
+        options)(spark) with InsertableRelation {
         def insert(data: DataFrame, overwrite: Boolean): Unit = {
-          table.save(data, Map.empty, append = !overwrite)
+          table.save(data, options, append = !overwrite)
         }
       }
     } else {
@@ -85,10 +89,14 @@ object QbeastBaseRelation {
    * @return BaseRelation for the new table in Qbeast format
    */
   def forQbeastTable(indexedTable: IndexedTable): BaseRelation = {
+    forQbeastTableWithOptions(indexedTable, Map.empty)
+  }
 
+  def forQbeastTableWithOptions(
+      indexedTable: IndexedTable,
+      withOptions: Map[String, String]): BaseRelation = {
     val spark = SparkSession.active
-    createRelation(spark.sqlContext, indexedTable)
-
+    createRelation(spark.sqlContext, indexedTable, withOptions)
   }
 
 }

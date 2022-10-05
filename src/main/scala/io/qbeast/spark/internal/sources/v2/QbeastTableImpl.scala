@@ -60,7 +60,7 @@ class QbeastTableImpl private[sources] (
   }
 
   def toBaseRelation: BaseRelation = {
-    QbeastBaseRelation.forQbeastTable(indexedTable)
+    QbeastBaseRelation.forQbeastTableWithOptions(indexedTable, properties().asScala.toMap)
   }
 
   override def properties(): util.Map[String, String] = options.asJava
