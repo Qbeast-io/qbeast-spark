@@ -36,12 +36,15 @@ object QbeastColumns {
    */
   val cubeToReplicateColumnName = "_qbeastCubeToReplicate"
 
+  val isCompressedColumnName = "_isCompressed"
+
   val columnNames = Set(
     weightColumnName,
     cubeColumnName,
     stateColumnName,
     revisionColumnName,
-    cubeToReplicateColumnName)
+    cubeToReplicateColumnName,
+    isCompressedColumnName)
 
   /**
    * Creates an instance for a given data frame.
@@ -64,7 +67,8 @@ object QbeastColumns {
       cubeColumnIndex = columnIndexes.getOrElse(cubeColumnName, -1),
       stateColumnIndex = columnIndexes.getOrElse(stateColumnName, -1),
       revisionColumnIndex = columnIndexes.getOrElse(revisionColumnName, -1),
-      cubeToReplicateColumnIndex = columnIndexes.getOrElse(cubeToReplicateColumnName, -1))
+      cubeToReplicateColumnIndex = columnIndexes.getOrElse(cubeToReplicateColumnName, -1),
+      isCompressedColumnIndex = columnIndexes.getOrElse(isCompressedColumnName, -1))
   }
 
   /**
@@ -107,7 +111,8 @@ case class QbeastColumns(
     cubeColumnIndex: Int,
     stateColumnIndex: Int,
     revisionColumnIndex: Int,
-    cubeToReplicateColumnIndex: Int) {
+    cubeToReplicateColumnIndex: Int,
+    isCompressedColumnIndex: Int) {
 
   /**
    * Returns whether a given column is one of the Qbeast columns.
@@ -120,7 +125,8 @@ case class QbeastColumns(
     columnIndex == cubeColumnIndex ||
     columnIndex == stateColumnIndex ||
     columnIndex == revisionColumnIndex ||
-    columnIndex == cubeToReplicateColumnIndex
+    columnIndex == cubeToReplicateColumnIndex ||
+    columnIndex == isCompressedColumnIndex
   }
 
   /**
@@ -158,4 +164,5 @@ case class QbeastColumns(
    */
   def hasCubeToReplicateColumn: Boolean = cubeToReplicateColumnIndex >= 0
 
+  def hasIsCompressedColumnIndex: Boolean = isCompressedColumnIndex >= 0
 }

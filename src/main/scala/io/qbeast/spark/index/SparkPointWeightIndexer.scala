@@ -63,7 +63,7 @@ private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication:
               struct(columnsToIndex.map(col): _*),
               col(weightColumnName),
               col(cubeToReplicateColumnName))))
-        .withColumn("isCompressed", lit(false))
+        .withColumn(isCompressedColumnName, lit(false))
     } else {
       weightedDataFrame
         .withColumn(
@@ -71,9 +71,9 @@ private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication:
           explode(
             findTargetCubeIdsUDF(struct(columnsToIndex.map(col): _*), col(weightColumnName))))
         .select(
-          weightedDataFrame.columns.map(col): _*,
-          col("compressionResult.cubeBytes").alias(cubeColumnName),
-          col("compressionResult.isCompressed").alias("isCompressed"))
+          weightedDataFrame.columns.map(col) :+
+            col("compressionResult.cubeBytes").alias(cubeColumnName) :+
+            col("compressionResult.isCompressed").alias(isCompressedColumnName): _*)
     }
 
   }

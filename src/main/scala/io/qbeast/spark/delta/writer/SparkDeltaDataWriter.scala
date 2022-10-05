@@ -6,7 +6,7 @@ package io.qbeast.spark.delta.writer
 import io.qbeast.IISeq
 import io.qbeast.core.model._
 import io.qbeast.spark.index.QbeastColumns
-import io.qbeast.spark.index.QbeastColumns.cubeColumnName
+import io.qbeast.spark.index.QbeastColumns.{cubeColumnName, isCompressedColumnName}
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.qbeast.config.{MAX_FILE_SIZE_COMPACTION, MIN_FILE_SIZE_COMPACTION}
@@ -49,7 +49,7 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
         tableChanges = tableChanges)
 
     qbeastData
-      .repartition(col(cubeColumnName), col("isCompressed"))
+      .repartition(col(cubeColumnName), col(isCompressedColumnName))
       .queryExecution
       .executedPlan
       .execute
