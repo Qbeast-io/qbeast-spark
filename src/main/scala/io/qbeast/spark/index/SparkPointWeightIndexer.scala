@@ -15,12 +15,13 @@ private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication:
   private val revision = tableChanges.updatedRevision
   private val pointIndexer: PointWeightIndexer = PointWeightIndexer(tableChanges)
 
-  private def compressionMapping(cubeId: CubeId): Array[Byte] = {
+  private def compressionMapping(cube: CubeId): CompressionResult = {
     // Keep REPLICATED or ANNOUNCED cubes away from compression
-    if (tableChanges.announcedOrReplicatedSet.contains(cubeId)) {
-      cubeId.bytes
+    if (tableChanges.announcedOrReplicatedSet.contains(cube)) {
+      CompressionResult(cube.bytes, isCompressed = false)
     } else {
-      tableChanges.compressionMap.getOrElse(cubeId, cubeId).bytes
+      val mappedCube = tableChanges.compressionMap.getOrElse(cube, cube)
+      CompressionResult(mappedCube.bytes, mappedCube != cube)
     }
   }
 
@@ -62,14 +63,21 @@ private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication:
               struct(columnsToIndex.map(col): _*),
               col(weightColumnName),
               col(cubeToReplicateColumnName))))
+        .withColumn("isCompressed", lit(false))
     } else {
       weightedDataFrame
         .withColumn(
-          cubeColumnName,
+          "compressionResult",
           explode(
             findTargetCubeIdsUDF(struct(columnsToIndex.map(col): _*), col(weightColumnName))))
+        .select(
+          weightedDataFrame.columns.map(col): _*,
+          col("compressionResult.cubeBytes").alias(cubeColumnName),
+          col("compressionResult.isCompressed").alias("isCompressed"))
     }
 
   }
 
 }
+
+case class CompressionResult(cubeBytes: Array[Byte], isCompressed: Boolean)

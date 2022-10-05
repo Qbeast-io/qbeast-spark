@@ -49,7 +49,7 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
         tableChanges = tableChanges)
 
     qbeastData
-      .repartition(col(cubeColumnName))
+      .repartition(col(cubeColumnName), col("isCompressed"))
       .queryExecution
       .executedPlan
       .execute

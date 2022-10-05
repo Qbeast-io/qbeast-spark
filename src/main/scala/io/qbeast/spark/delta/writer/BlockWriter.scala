@@ -57,8 +57,20 @@ case class BlockWriter(
         // doesn't include all the cubes present in the final indexed dataframe
         // we save those newly added leaves with the max weight possible
 
+        val isCompressedColumnIndex =
+          schema.fieldNames.zipWithIndex.toMap.getOrElse("isCompressed", -1)
+        val isCompressed = row.getBoolean(isCompressedColumnIndex)
+
         val state = tableChanges.cubeState(cubeId).getOrElse(State.FLOODED)
-        val maxWeight = tableChanges.cubeWeights(cubeId).getOrElse(Weight.MaxValue)
+        val maxWeight = if (isCompressed) {
+          // Find the maxWeight for the compressed cubes as
+          // the largest maxWeight among the missing cubes
+          val allCubes = tableChanges.compressionMap.keys
+          val compressedCubes = allCubes.filter(c => tableChanges.compressionMap(c) == cubeId)
+          compressedCubes.map(c => tableChanges.cubeWeights(c).getOrElse(Weight.MaxValue)).max
+        } else {
+          tableChanges.cubeWeights(cubeId).getOrElse(Weight.MaxValue)
+        }
         val blockCtx = blocks.getOrElse(cubeId, buildWriter(cubeId, state, maxWeight))
 
         // The row with only the original columns
