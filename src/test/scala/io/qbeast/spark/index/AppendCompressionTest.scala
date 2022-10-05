@@ -171,26 +171,50 @@ class AppendCompressionTest extends QbeastIntegrationTestSpec with PrivateMethod
 //        }
 //    }
 
-//  it should "not lose data" in withExtendedSparkAndTmpDir(
-//    new SparkConf().set("spark.qbeast.index.maxAppendCompressionSize", "100000")) {
-//    (spark, tmpDir) =>
-//      {
-//        val original = loadTestData(spark)
-//        writeTestData(original, columnsToIndex, 5000, tmpDir)
-//
-//        var dataSize = original.count
-//        val appendSize = 500
-//        1 to 10 foreach { _ =>
-//          val dataToAppend = createEcommerceInstances(appendSize)
-//          dataToAppend.write.mode("append").format("qbeast").save(tmpDir)
-//          dataSize += appendSize
-//
-//          val allData = spark.read.format("qbeast").load(tmpDir)
-//
-//          allData.count shouldBe dataSize
-//        }
-//      }
-//  }
+  "Appending data with compression" should "not lose data" in withSparkAndTmpDir(
+    (spark, tmpDir) => {
+      val original = loadTestData(spark)
+      writeTestData(original, columnsToIndex, 5000, tmpDir)
+      val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+      qbeastTable
+        .getIndexMetrics()
+        .cubeStatuses
+        .mapValues(status => {
+          val files = status.files.sortBy(_.modificationTime)
+          (files.map(_.elementCount), files.map(_.maxWeight))
+        })
+        .foreach(println)
+
+      var dataSize = original.count
+      val appendSize = 50000
+      1 to 5 foreach { _ =>
+        val dataToAppend = createEcommerceInstances(appendSize)
+        dataToAppend.write.mode("append").format("qbeast").save(tmpDir)
+        dataSize += appendSize
+
+        val allData = spark.read.format("qbeast").load(tmpDir)
+        allData.count shouldBe dataSize
+
+        println()
+        qbeastTable
+          .getIndexMetrics()
+          .cubeStatuses
+          .mapValues(status => {
+            val files = status.files.sortBy(_.modificationTime)
+            (files.map(_.elementCount), files.map(_.maxWeight))
+          })
+          .foreach(println)
+      }
+
+      val smallFilesCount = qbeastTable
+        .getIndexMetrics()
+        .cubeStatuses
+        .values
+        .flatMap(status => status.files.map(_.elementCount))
+        .count(s => s < 5000 * 0.8)
+
+      println(smallFilesCount)
+    })
 //
 //  it should "maintain branch maxWeights to be monotonically increasing" in
 //    withExtendedSparkAndTmpDir(

@@ -16,7 +16,8 @@ object CubeNormalizedWeights {
    */
   def mergeNormalizedWeights(
       previousStateNormalizedWeights: Map[CubeId, NormalizedWeight],
-      deltaNormalizedCubeWeights: Map[CubeId, NormalizedWeight]): Map[CubeId, Weight] = {
+      deltaNormalizedCubeWeights: Map[CubeId, NormalizedWeight])
+      : Map[CubeId, NormalizedWeight] = {
     {
       if (previousStateNormalizedWeights.isEmpty) {
         deltaNormalizedCubeWeights
@@ -38,8 +39,8 @@ object CubeNormalizedWeights {
         }
         builder.result()
       }
-    }.mapValues(NormalizedWeight.toWeight)
-      .map(identity)
+    } // .mapValues(NormalizedWeight.toWeight)
+//      .map(identity)
     // We need this because mapValues is not serializable https://github.com/scala/bug/issues/7005
 
   }
@@ -48,29 +49,38 @@ object CubeNormalizedWeights {
    * Perform tree compression through an up rolling operation to create a
    * descendant to ancestor CubeID mapping.
    * @param previousStateNormalizedWeights existing cube weights
-   * @param deltaNormalizedCubeWeights cube weights to add
+   * @param mergedNormalizedCubeWeights cube weights to add
    * @param desiredCubeSize desired size for otree cubes
    * @return
    */
   def treeCompression(
       previousStateNormalizedWeights: Map[CubeId, NormalizedWeight],
-      deltaNormalizedCubeWeights: Map[CubeId, NormalizedWeight],
+      mergedNormalizedCubeWeights: Map[CubeId, NormalizedWeight],
       announcedOrReplicatedSet: Set[CubeId],
       desiredCubeSize: Int): Map[CubeId, CubeId] = {
     val cubeSizes = mutable.Map.newBuilder[CubeId, Long]
     val cubeRollUpMap = mutable.Map.newBuilder[CubeId, CubeId]
     var maxDepth = 0
 
-    for ((cubeId, normalizedWeight) <- deltaNormalizedCubeWeights) {
+    for ((cubeId, normalizedWeight) <- mergedNormalizedCubeWeights) {
       // The number of elements in a given cube is proportional to the
       // change of its normalized weight
       val size = previousStateNormalizedWeights.get(cubeId) match {
-        case Some(previousWeight) => (previousWeight - normalizedWeight) * desiredCubeSize
-        case None => normalizedWeight * desiredCubeSize
+        case Some(previousWeight) =>
+          ((previousWeight - normalizedWeight) * desiredCubeSize).max(desiredCubeSize / 2)
+        case _ if normalizedWeight < 1.0 => desiredCubeSize
+        case _ => desiredCubeSize / normalizedWeight
       }
       cubeSizes += (cubeId -> size.toLong)
       cubeRollUpMap += (cubeId -> cubeId)
       maxDepth = maxDepth.max(cubeId.depth)
+    }
+
+    // scalastyle:off println
+    println(s"Estimated initial cubeSizes:")
+    cubeSizes.result().toSeq.sortBy(_._1).foreach { case (cube, size) =>
+      val weight = mergedNormalizedCubeWeights(cube)
+      println(s"cube: $cube, size: $size, NormalizedWeight: $weight")
     }
 
     val rollUpMap = if (maxDepth > 0) {
@@ -79,7 +89,7 @@ object CubeNormalizedWeights {
         cubeSizes.result(),
         announcedOrReplicatedSet,
         maxDepth,
-        (desiredCubeSize * 1.5).toInt)
+        (desiredCubeSize * 1.2).toInt)
     } else {
       Map.empty[CubeId, CubeId]
     }
@@ -127,21 +137,25 @@ object CubeNormalizedWeights {
             // Take the smallest cube each time and add them to the parent until either
             // all cubes are rolled-up or the size has grown too large
             val sortedCubeIter = siblingCubeSizes.toSeq.sortBy(_._2).toIterator
-            var newSize = cubeSizes(parent)
-            while (newSize < maxRollingSize && sortedCubeIter.hasNext) {
+            var newSize = 0L
+            var continue = true
+            while (continue && sortedCubeIter.hasNext) {
               val (cube, size) = sortedCubeIter.next()
-              // Increment size
-              newSize += size
-              // Map child to parent
-              cubeRollUpMap(cube) = parent
+              continue = newSize + size < maxRollingSize
+              if (continue) {
+                // Increment size
+                newSize += size
+                // Map child to parent
+                cubeRollUpMap(cube) = parent
+              }
             }
             // Update parent size
-            cubeSizes(parent) = newSize
+            cubeSizes(parent) = newSize + cubeSizes(parent)
           }
       }
 
     // Convert A -> B -> C -> D to A -> D
-    cubeRollUpMap.keys
+    val rollUpMap = cubeRollUpMap.keys
       .map(cube => {
         var targetCube: CubeId = cubeRollUpMap(cube)
         while (cubeRollUpMap(targetCube) != targetCube) {
@@ -150,6 +164,18 @@ object CubeNormalizedWeights {
         (cube, targetCube)
       })
       .toMap
+
+    // scalastyle:off println
+    println(s"Compressed cubeSizes:")
+    cubeSizes
+      .result()
+      .keys
+      .foreach(cube => {
+        val mappedCube = rollUpMap(cube)
+        println(s"cube: $cube, mappedCube: $mappedCube, size: ${cubeSizes(mappedCube)}")
+      })
+
+    rollUpMap
   }
 
 }

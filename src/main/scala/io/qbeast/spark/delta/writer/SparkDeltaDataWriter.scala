@@ -12,7 +12,8 @@ import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.qbeast.config.{MAX_FILE_SIZE_COMPACTION, MIN_FILE_SIZE_COMPACTION}
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
-import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.expressions.UserDefinedFunction
+import org.apache.spark.sql.functions.{col, udf}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.util.SerializableConfiguration
@@ -47,6 +48,19 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
         serConf = serConf,
         qbeastColumns = qbeastColumns,
         tableChanges = tableChanges)
+
+    // scalastyle:off println
+    val toCubeString: UserDefinedFunction = {
+      udf((bytes: Array[Byte]) => {
+        tableChanges.updatedRevision.createCubeId(bytes).string
+      })
+    }
+
+    qbeastData
+      .groupBy(toCubeString(col(cubeColumnName)), col(isCompressedColumnName))
+      .count()
+      .sort("UDF(_qbeastCube)")
+      .show()
 
     qbeastData
       .repartition(col(cubeColumnName), col(isCompressedColumnName))
