@@ -86,7 +86,9 @@ private[sources] class QbeastStagedTableImpl(
 
   }
 
-  override def abortStagedChanges(): Unit = {}
+  override def abortStagedChanges(): Unit = {
+    // Do nothing since any path is created until commitStagedChanges())
+  }
 
   override def name(): String = ident.name()
 

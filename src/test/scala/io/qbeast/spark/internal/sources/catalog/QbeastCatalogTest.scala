@@ -1,7 +1,13 @@
 package io.qbeast.spark.internal.sources.catalog
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import org.apache.spark.sql.connector.catalog.{Identifier, NamespaceChange, TableChange}
+import org.apache.spark.sql.connector.catalog.{
+  CatalogExtension,
+  CatalogPlugin,
+  Identifier,
+  NamespaceChange,
+  TableChange
+}
 import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
@@ -195,4 +201,17 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
     qbeastCatalog.name() shouldBe "newName"
   })
 
+  it should "throw error when delegating wrong catalog" in withQbeastContextSparkAndTmpWarehouse(
+    (spark, _) => {
+
+      val qbeastCatalog = createQbeastCatalog(spark).asInstanceOf[CatalogExtension]
+      val fakeCatalog = new CatalogPlugin {
+        override def initialize(name: String, options: CaseInsensitiveStringMap): Unit = {}
+
+        override def name(): String = "fake"
+      }
+
+      an[IllegalArgumentException] shouldBe thrownBy(
+        qbeastCatalog.setDelegateCatalog(fakeCatalog))
+    })
 }

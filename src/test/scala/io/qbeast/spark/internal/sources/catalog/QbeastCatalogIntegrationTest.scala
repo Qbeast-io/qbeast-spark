@@ -114,4 +114,26 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
           " USING qbeast"))
     })
 
+  it should "throw an error when trying to replace a non-qbeast table" in
+    withQbeastContextSparkAndTmpWarehouse((spark, tmpDir) => {
+
+      spark.sql(
+        "CREATE TABLE student (id INT, name STRING, age INT)" +
+          " USING parquet")
+
+      an[AnalysisException] shouldBe thrownBy(
+        spark.sql("REPLACE TABLE student (id INT, name STRING, age INT)" +
+          " USING qbeast OPTIONS ('columnsToIndex'='id')"))
+
+    })
+
+  it should "throw an error when replacing non-existing table" in
+    withQbeastContextSparkAndTmpWarehouse((spark, tmpDir) => {
+
+      an[AnalysisException] shouldBe thrownBy(
+        spark.sql("REPLACE TABLE student (id INT, name STRING, age INT)" +
+          " USING qbeast OPTIONS ('columnsToIndex'='id')"))
+
+    })
+
 }

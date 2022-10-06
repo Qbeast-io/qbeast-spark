@@ -53,12 +53,7 @@ object QbeastCatalogUtils {
    * @return
    */
   def isPathTable(ident: Identifier): Boolean = {
-    try {
-      spark.sessionState.conf.runSQLonFile && hasQbeastNamespace(ident) && new Path(
-        ident.name()).isAbsolute
-    } catch {
-      case _: IllegalArgumentException => false
-    }
+    new Path(ident.name()).isAbsolute
   }
 
   def isPathTable(identifier: TableIdentifier): Boolean = {
@@ -121,21 +116,6 @@ object QbeastCatalogUtils {
       tableFactory: IndexedTableFactory,
       existingSessionCatalog: SessionCatalog): Unit = {
 
-    /*
-    // These two keys are tableProperties in data source v2 but not in v1, so we have to filter
-    // them out. Otherwise property consistency checks will fail.
-    val tableProperties = allTableProperties.asScala.filterKeys {
-      case TableCatalog.PROP_LOCATION => false
-      case TableCatalog.PROP_PROVIDER => false
-      case TableCatalog.PROP_COMMENT => false
-      case TableCatalog.PROP_OWNER => false
-      case TableCatalog.PROP_EXTERNAL => false
-      case "path" => false
-      case _ => true
-    }
-
-     */
-
     val isPathTable = QbeastCatalogUtils.isPathTable(ident)
 
     if (isPathTable
@@ -153,8 +133,11 @@ object QbeastCatalogUtils {
     } else {
       Option(allTableProperties.get("location"))
     }
-    val id = TableIdentifier(ident.name(), ident.namespace().lastOption)
+    val tableType =
+      if (location.isDefined) CatalogTableType.EXTERNAL else CatalogTableType.MANAGED
     val locUriOpt = location.map(CatalogUtils.stringToURI)
+
+    val id = TableIdentifier(ident.name(), ident.namespace().lastOption)
     val existingTableOpt = QbeastCatalogUtils.getExistingTableIfExists(id, existingSessionCatalog)
     val loc = locUriOpt
       .orElse(existingTableOpt.flatMap(_.storage.locationUri))
@@ -163,8 +146,7 @@ object QbeastCatalogUtils {
     val storage = DataSource
       .buildStorageFormatFromOptions(writeOptions)
       .copy(locationUri = Option(loc))
-    val tableType =
-      if (location.isDefined) CatalogTableType.EXTERNAL else CatalogTableType.MANAGED
+
     val commentOpt = Option(allTableProperties.get("comment"))
     val (partitionColumns, bucketSpec) = SparkTransformUtils.convertTransforms(partitions)
 

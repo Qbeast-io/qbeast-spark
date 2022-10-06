@@ -2,7 +2,7 @@ package io.qbeast.spark.utils
 
 import io.qbeast.TestClasses.Student
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
 
 import scala.util.Random
 
@@ -105,6 +105,20 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
     assertSmallDatasetEquality(indexed, data, orderedComparison = false, ignoreNullable = true)
 
   })
+
+  it should "throw an error when using different path locations" in
+    withQbeastContextSparkAndTmpWarehouse((spark, tmpDir) => {
+
+      val data = createTestData(spark)
+      data.createOrReplaceTempView("data")
+
+      an[AnalysisException] shouldBe thrownBy(
+        spark.sql(
+          s"CREATE OR REPLACE TABLE student USING qbeast " +
+            s"OPTIONS ('columnsToIndex'='id','location'='$tmpDir/new') " +
+            s"LOCATION '$tmpDir' "))
+
+    })
 
   it should "support INSERT INTO on a managed Table" in
     withQbeastContextSparkAndTmpWarehouse { (spark, _) =>
