@@ -19,9 +19,6 @@ object BroadcastedTableChanges {
       deltaNormalizedCubeWeights: Map[CubeId, NormalizedWeight],
       deltaReplicatedSet: Set[CubeId] = Set.empty,
       deltaAnnouncedSet: Set[CubeId] = Set.empty): TableChanges = {
-    // scalastyle:off println
-    print(s"Root deltaNormalizedWeight: ${deltaNormalizedCubeWeights(
-      supersededIndexStatus.revision.createCubeIdRoot())}")
     val updatedRevision = revisionChanges match {
       case Some(newRev) => newRev.createNewRevision
       case None => supersededIndexStatus.revision
