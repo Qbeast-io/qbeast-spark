@@ -6,6 +6,9 @@ import io.qbeast.spark.internal.sources.v2.QbeastStagedTableImpl
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.connector.catalog.Identifier
 import org.apache.spark.sql.connector.catalog.TableCapability.V1_BATCH_WRITE
+import org.apache.spark.sql.connector.write.{LogicalWriteInfo, V1Write}
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 import scala.collection.JavaConverters._
 
@@ -83,8 +86,56 @@ class QbeastStagedTableTest extends QbeastIntegrationTestSpec with CatalogTestSu
 
       val path = new Path(tmpWarehouse)
       val fs = path.getFileSystem(spark.sessionState.newHadoopConf())
-      fs.exists(path.suffix("students")) shouldBe false
+      fs.exists(new Path(tmpWarehouse + "/students")) shouldBe false
 
     })
+
+  it should "commit changes" in withQbeastContextSparkAndTmpWarehouse((spark, tmpWarehouse) => {
+
+    val qbeastCatalog = createQbeastCatalog(spark)
+    val qbeastStagedTable =
+      qbeastCatalog
+        .stageCreate(
+          Identifier.of(Array("default"), "students"),
+          schema,
+          Array.empty,
+          Map("provider" -> "qbeast", "columnsToIndex" -> "id").asJava)
+        .asInstanceOf[QbeastStagedTableImpl]
+
+    // Prepare data to the commit
+    val dataToCommit = createTestData(spark)
+
+    // We use the write builder to add the data to the commit
+    val writeBuilder = qbeastStagedTable
+      .newWriteBuilder(new LogicalWriteInfo {
+        override def options(): CaseInsensitiveStringMap = CaseInsensitiveStringMap.empty()
+
+        override def queryId(): String = "1"
+
+        override def schema(): StructType = schema
+      })
+      .build()
+
+    writeBuilder shouldBe a[V1Write]
+    writeBuilder.asInstanceOf[V1Write].toInsertableRelation.insert(dataToCommit, false)
+
+    // Commit the staged changes
+    // This should create the log and write the data
+    qbeastStagedTable.commitStagedChanges()
+
+    // Check if the path exists
+    val path = new Path(tmpWarehouse)
+    val fs = path.getFileSystem(spark.sessionState.newHadoopConf())
+    fs.exists(new Path(tmpWarehouse + "/students")) shouldBe true
+
+    // Check if the content of the table is correct
+    spark.read.table("students").count() shouldBe dataToCommit.count()
+    assertSmallDatasetEquality(
+      spark.read.table("students"),
+      dataToCommit,
+      ignoreNullable = true,
+      orderedComparison = false)
+
+  })
 
 }
