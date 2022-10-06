@@ -18,6 +18,7 @@ import org.apache.spark.sql.types.StructType
 
 /**
  * A default StagedTable
+ * This case class would delegate the methods to the underlying Catalog Table
  * @param ident the identifier
  * @param table the Table
  * @param catalog the Catalog
@@ -30,7 +31,7 @@ private[catalog] case class DefaultStagedTable(
     with StagedTable {
 
   override def newWriteBuilder(info: LogicalWriteInfo): WriteBuilder = {
-    info match {
+    table match {
       case supportsWrite: SupportsWrite => supportsWrite.newWriteBuilder(info)
       case _ =>
         throw AnalysisExceptionFactory.create(s"Table `${ident.name}` does not support writes.")

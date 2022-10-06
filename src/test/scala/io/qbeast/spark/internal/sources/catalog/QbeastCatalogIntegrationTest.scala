@@ -109,9 +109,11 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
 
   it should "throw an error when no columnsToIndex is specified" in
     withQbeastContextSparkAndTmpWarehouse((spark, tmpDir) => {
+
       an[AnalysisException] shouldBe thrownBy(
         spark.sql("CREATE OR REPLACE TABLE student (id INT, name STRING, age INT)" +
           " USING qbeast"))
+
     })
 
   it should "throw an error when trying to replace a non-qbeast table" in
@@ -133,6 +135,18 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
       an[AnalysisException] shouldBe thrownBy(
         spark.sql("REPLACE TABLE student (id INT, name STRING, age INT)" +
           " USING qbeast OPTIONS ('columnsToIndex'='id')"))
+
+    })
+
+  it should "throw an error when adding data to a view" in
+    withQbeastContextSparkAndTmpWarehouse((spark, tmpDir) => {
+
+      val data = createTestData(spark)
+      data.write.format("qbeast").option("columnsToIndex", "id").saveAsTable("students")
+      val indexed = spark.read.table("students")
+      indexed.createOrReplaceTempView("studentsView")
+      an[AnalysisException] shouldBe thrownBy(
+        data.write.format("qbeast").insertInto("studentsView"))
 
     })
 

@@ -25,7 +25,6 @@ import org.apache.spark.sql.{
 }
 
 import java.util
-import java.util.Locale
 import scala.collection.JavaConverters._
 
 /**
@@ -61,7 +60,7 @@ object QbeastCatalogUtils {
   }
 
   /** Checks if a table already exists for the provided identifier. */
-  def getExistingTableIfExists(
+  def getTableIfExists(
       table: TableIdentifier,
       existingSessionCatalog: SessionCatalog): Option[CatalogTable] = {
     // If this is a path identifier, we cannot return an existing CatalogTable. The Create command
@@ -84,16 +83,7 @@ object QbeastCatalogUtils {
   }
 
   /**
-   * Checks if the identifier has namespace of Qbeast
-   * @param ident
-   * @return
-   */
-  def hasQbeastNamespace(ident: Identifier): Boolean = {
-    ident.namespace().length == 1 && ident.name.toLowerCase(Locale.ROOT) == QBEAST_PROVIDER_NAME
-  }
-
-  /**
-   * Creates a Table with Qbeast
+   * Creates a Table on the Catalog
    * @param ident the Identifier of the table
    * @param schema the schema of the table
    * @param partitions the partitions of the table, if any
@@ -118,6 +108,7 @@ object QbeastCatalogUtils {
 
     val isPathTable = QbeastCatalogUtils.isPathTable(ident)
 
+    // Checks if the location properties are coherent
     if (isPathTable
       && allTableProperties.containsKey("location")
       // The location property can be qualified and different from the path in the identifier, so
@@ -128,21 +119,26 @@ object QbeastCatalogUtils {
           s"and ${allTableProperties.get("location")}.")
     }
 
+    // Get table location
     val location = if (isPathTable) {
       Option(ident.name())
     } else {
       Option(allTableProperties.get("location"))
     }
+
+    // Define the table type.
+    // Either can be EXTERNAL (if the location is defined) or MANAGED
     val tableType =
       if (location.isDefined) CatalogTableType.EXTERNAL else CatalogTableType.MANAGED
     val locUriOpt = location.map(CatalogUtils.stringToURI)
 
     val id = TableIdentifier(ident.name(), ident.namespace().lastOption)
-    val existingTableOpt = QbeastCatalogUtils.getExistingTableIfExists(id, existingSessionCatalog)
+    val existingTableOpt = QbeastCatalogUtils.getTableIfExists(id, existingSessionCatalog)
     val loc = locUriOpt
       .orElse(existingTableOpt.flatMap(_.storage.locationUri))
       .getOrElse(existingSessionCatalog.defaultTablePath(id))
 
+    // Initialize the path option
     val storage = DataSource
       .buildStorageFormatFromOptions(writeOptions)
       .copy(locationUri = Option(loc))
@@ -150,6 +146,7 @@ object QbeastCatalogUtils {
     val commentOpt = Option(allTableProperties.get("comment"))
     val (partitionColumns, bucketSpec) = SparkTransformUtils.convertTransforms(partitions)
 
+    // Create the CatalogTable representation for updating the Catalog
     val table = new CatalogTable(
       identifier = id,
       tableType = tableType,
@@ -161,6 +158,7 @@ object QbeastCatalogUtils {
       properties = allTableProperties.asScala.toMap,
       comment = commentOpt)
 
+    // Write data, if any
     val append = tableCreationMode.saveMode == SaveMode.Append
     dataFrame.map { df =>
       tableFactory
@@ -168,6 +166,7 @@ object QbeastCatalogUtils {
         .save(df, allTableProperties.asScala.toMap, append)
     }
 
+    // Update the existing session catalog with the Qbeast table information
     updateCatalog(
       QTableID(loc.toString),
       tableCreationMode,
@@ -206,6 +205,8 @@ object QbeastCatalogUtils {
     operation match {
       case _ if isPathTable => // do nothing
       case TableCreationMode.CREATE_TABLE =>
+        // To create the table, check if the log exists/create a new one
+        // create table in the SessionCatalog
         checkLogCreation(tableID)
         existingSessionCatalog.createTable(
           table,
@@ -213,8 +214,10 @@ object QbeastCatalogUtils {
           validateLocation = false)
       case TableCreationMode.REPLACE_TABLE | TableCreationMode.CREATE_OR_REPLACE
           if existingTableOpt.isDefined =>
+        // REPLACE the metadata of the table with the new one
         existingSessionCatalog.alterTable(table)
       case TableCreationMode.REPLACE_TABLE =>
+        // Throw an exception if the table to replace does not exists
         val ident = Identifier.of(table.identifier.database.toArray, table.identifier.table)
         throw new CannotReplaceMissingTableException(ident)
       case TableCreationMode.CREATE_OR_REPLACE =>

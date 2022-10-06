@@ -6,9 +6,7 @@ import io.qbeast.spark.internal.sources.v2.QbeastStagedTableImpl
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.connector.catalog.Identifier
 import org.apache.spark.sql.connector.catalog.TableCapability.V1_BATCH_WRITE
-import org.apache.spark.sql.connector.write.{LogicalWriteInfo, V1Write}
-import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.util.CaseInsensitiveStringMap
+import org.apache.spark.sql.connector.write.V1Write
 
 import scala.collection.JavaConverters._
 
@@ -107,13 +105,7 @@ class QbeastStagedTableTest extends QbeastIntegrationTestSpec with CatalogTestSu
 
     // We use the write builder to add the data to the commit
     val writeBuilder = qbeastStagedTable
-      .newWriteBuilder(new LogicalWriteInfo {
-        override def options(): CaseInsensitiveStringMap = CaseInsensitiveStringMap.empty()
-
-        override def queryId(): String = "1"
-
-        override def schema(): StructType = schema
-      })
+      .newWriteBuilder(fakeLogicalWriteInfo)
       .build()
 
     writeBuilder shouldBe a[V1Write]

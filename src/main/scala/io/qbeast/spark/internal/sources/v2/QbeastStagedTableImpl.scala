@@ -24,8 +24,8 @@ import java.util
 import scala.collection.JavaConverters._
 
 /**
+ * Qbeast Implementation of StagedTable
  * An StagedTable allows Atomic CREATE TABLE AS SELECT / REPLACE TABLE AS SELECT
- * This table should implement SupportsWrite
  */
 private[sources] class QbeastStagedTableImpl(
     ident: Identifier,
@@ -69,10 +69,11 @@ private[sources] class QbeastStagedTableImpl(
     // we pass all the writeOptions to the properties as well
     writeOptions.foreach { case (k, v) => props.put(k, v) }
 
+    // Check all the Qbeast properties are correctly specified
     checkQbeastProperties(props.asScala.toMap)
 
     // Creates the corresponding table on the Catalog and executes
-    // the writing of the dataFrame if any
+    // the writing of the dataFrame (if any)
     QbeastCatalogUtils.createQbeastTable(
       ident,
       schema,

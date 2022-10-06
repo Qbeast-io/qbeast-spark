@@ -7,7 +7,9 @@ import org.apache.spark.sql.connector.catalog.{
   SupportsNamespaces,
   TableCatalog
 }
+import org.apache.spark.sql.connector.write.LogicalWriteInfo
 import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
+import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 import scala.collection.immutable
 import scala.util.Random
@@ -30,6 +32,14 @@ trait CatalogTestSuite {
 
   val students: immutable.Seq[Student] = {
     1.to(10).map(i => Student(i, i.toString, Random.nextInt()))
+  }
+
+  val fakeLogicalWriteInfo = new LogicalWriteInfo {
+    override def options(): CaseInsensitiveStringMap = CaseInsensitiveStringMap.empty()
+
+    override def queryId(): String = "1"
+
+    override def schema(): StructType = schema
   }
 
   def sessionCatalog(spark: SparkSession): TableCatalog = {
