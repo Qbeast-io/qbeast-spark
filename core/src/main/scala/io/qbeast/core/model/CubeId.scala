@@ -258,7 +258,7 @@ object CubeId {
  * @param depth the cube depth
  * @param bitMask the bitMask representing the cube z-index, possibly containing redundant elements.
  */
-case class CubeId private (dimensionCount: Int, val depth: Int, bitMask: Array[Long])
+case class CubeId(dimensionCount: Int, val depth: Int, bitMask: Array[Long])
     extends Serializable
     with Ordered[CubeId] {
   private lazy val range = getRange
