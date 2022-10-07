@@ -50,7 +50,7 @@ case class BlockWriter(
     }
     val revision = tableChanges.updatedRevision
     iter
-      .foldLeft[Map[CubeId, BlockContext]](Map()) { case (blocks, row) =>
+      .foldLeft[Map[(CubeId, Boolean), BlockContext]](Map()) { case (blocks, row) =>
         val cubeId = revision.createCubeId(row.getBinary(qbeastColumns.cubeColumnIndex))
         // TODO make sure this does not compromise the structure of the index
         // It could happen than estimated weights
@@ -58,16 +58,19 @@ case class BlockWriter(
         // we save those newly added leaves with the max weight possible
 
         val state = tableChanges.cubeState(cubeId).getOrElse(State.FLOODED)
-        val maxWeight = if (row.getBoolean(qbeastColumns.isCompressedColumnIndex)) {
+        val isCompressed = row.getBoolean(qbeastColumns.isCompressedColumnIndex)
+        val maxWeight = if (isCompressed) {
           // Find the maxWeight for the compressed cubes as
-          // the largest maxWeight among the missing cubes
+          // the largest maxWeight among the compressed cubes
           val compressedCubes =
-            tableChanges.compressionMap.keys.filter(c => tableChanges.compressionMap(c) == cubeId)
+            tableChanges.compressionMap.keys.filter(c =>
+              c != cubeId && tableChanges.compressionMap(c) == cubeId)
           compressedCubes.map(c => tableChanges.cubeWeights(c).getOrElse(Weight.MaxValue)).max
         } else {
           tableChanges.cubeWeights(cubeId).getOrElse(Weight.MaxValue)
         }
-        val blockCtx = blocks.getOrElse(cubeId, buildWriter(cubeId, state, maxWeight))
+        val blockCtx =
+          blocks.getOrElse((cubeId, isCompressed), buildWriter(cubeId, state, maxWeight))
 
         // The row with only the original columns
         val cleanRow = Seq.newBuilder[Any]
@@ -83,7 +86,7 @@ case class BlockWriter(
 
         // Writing the data in a single file.
         blockCtx.writer.write(InternalRow.fromSeq(cleanRow.result()))
-        blocks.updated(cubeId, blockCtx.update(rowWeight))
+        blocks.updated((cubeId, isCompressed), blockCtx.update(rowWeight))
       }
       .values
       .flatMap {
