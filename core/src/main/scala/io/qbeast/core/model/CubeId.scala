@@ -52,7 +52,7 @@ object CubeId {
    */
   def root(dimensionCount: Int): CubeId = {
     require(dimensionCount > 0)
-    new CubeId(dimensionCount, 0, Array(0L))
+    new CubeId(dimensionCount, 0, Array.emptyLongArray)
   }
 
   /**
@@ -95,15 +95,15 @@ object CubeId {
     containers(point).drop(depth).next()
   }
 
-  private def shrinkBitMask(bitMask: Array[Long]): Array[Long] = {
+  private def trimBitMask(bitMask: Array[Long]): Array[Long] = {
     var last = bitMask.length - 1
     while (last >= 0 && bitMask(last) == 0) {
       last -= 1
     }
     if (last < bitMask.length - 1) {
-      val shrinkedBitMask = new Array[Long](last + 1)
-      Array.copy(bitMask, 0, shrinkedBitMask, 0, shrinkedBitMask.length)
-      shrinkedBitMask
+      val trimmedBitMask = new Array[Long](last + 1)
+      Array.copy(bitMask, 0, trimmedBitMask, 0, trimmedBitMask.length)
+      trimmedBitMask
     } else {
       bitMask
     }
@@ -256,12 +256,11 @@ object CubeId {
  *
  * @param dimensionCount the dimension count
  * @param depth the cube depth
- * @param rawBitMask the bitMask representing the cube z-index, possibly containing redundant elements.
+ * @param bitMask the bitMask representing the cube z-index, possibly containing redundant elements.
  */
-class CubeId private (val dimensionCount: Int, val depth: Int, rawBitMask: Array[Long])
+case class CubeId private (dimensionCount: Int, val depth: Int, bitMask: Array[Long])
     extends Serializable
     with Ordered[CubeId] {
-  private val bitMask = CubeId.shrinkBitMask(rawBitMask)
   private lazy val range = getRange
 
   /**
@@ -308,9 +307,8 @@ class CubeId private (val dimensionCount: Int, val depth: Int, rawBitMask: Array
       false
     } else {
       val end = dimensionCount * depth
-      val ancestorBitMask =
-        CubeId.shrinkBitMask(BitSet.fromBitMaskNoCopy(other.bitMask).until(end).toBitMask)
-      Arrays.equals(bitMask, ancestorBitMask)
+      val ancestorBitMask = BitSet.fromBitMaskNoCopy(other.bitMask).until(end).toBitMask
+      Arrays.equals(CubeId.trimBitMask(bitMask), CubeId.trimBitMask(ancestorBitMask))
     }
   }
 
@@ -404,8 +402,9 @@ class CubeId private (val dimensionCount: Int, val depth: Int, rawBitMask: Array
 
   override def equals(obj: Any): Boolean = obj match {
     case other: CubeId =>
-      dimensionCount == other.dimensionCount && depth == other.depth && bitMask.sameElements(
-        other.bitMask)
+      dimensionCount == other.dimensionCount && depth == other.depth && Arrays.equals(
+        CubeId.trimBitMask(bitMask),
+        CubeId.trimBitMask(other.bitMask))
     case _ => false
   }
 
@@ -414,7 +413,7 @@ class CubeId private (val dimensionCount: Int, val depth: Int, rawBitMask: Array
     var result = 1
     result = prime * result + dimensionCount
     result = prime * result + depth
-    result = prime * result + bitMask.toSeq.hashCode()
+    result = prime * result + Arrays.hashCode(CubeId.trimBitMask(bitMask))
     result
   }
 
