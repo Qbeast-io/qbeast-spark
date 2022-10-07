@@ -6,6 +6,7 @@ package io.qbeast.core.model
 import io.qbeast.core.model.CubeId.{ChildrenIterator, Codec}
 
 import java.nio.ByteBuffer
+import java.util.Arrays
 import scala.collection.immutable.BitSet
 import scala.collection.mutable
 
@@ -92,6 +93,20 @@ object CubeId {
   def container(point: Point, depth: Int): CubeId = {
     require(depth >= 0)
     containers(point).drop(depth).next()
+  }
+
+  private def shrinkBitMask(bitMask: Array[Long]): Array[Long] = {
+    var last = bitMask.length - 1
+    while (last >= 0 && bitMask(last) == 0) {
+      last -= 1
+    }
+    if (last < bitMask.length - 1) {
+      val shrinkedBitMask = new Array[Long](last + 1)
+      Array.copy(bitMask, 0, shrinkedBitMask, 0, shrinkedBitMask.length)
+      shrinkedBitMask
+    } else {
+      bitMask
+    }
   }
 
   private class ContainersIterator(point: Point, parent: Option[CubeId])
@@ -241,11 +256,12 @@ object CubeId {
  *
  * @param dimensionCount the dimension count
  * @param depth the cube depth
- * @param bitMask the bitMask representing the cube z-index.
+ * @param rawBitMask the bitMask representing the cube z-index, possibly containing redundant elements.
  */
-case class CubeId(dimensionCount: Int, depth: Int, bitMask: Array[Long])
+class CubeId private (val dimensionCount: Int, val depth: Int, rawBitMask: Array[Long])
     extends Serializable
     with Ordered[CubeId] {
+  private val bitMask = CubeId.shrinkBitMask(rawBitMask)
   private lazy val range = getRange
 
   /**
@@ -292,14 +308,9 @@ case class CubeId(dimensionCount: Int, depth: Int, bitMask: Array[Long])
       false
     } else {
       val end = dimensionCount * depth
-      val possibleDescendantBits = BitSet.fromBitMaskNoCopy(other.bitMask).until(end).toBitMask
-
-      for (i <- possibleDescendantBits.indices) {
-        if (possibleDescendantBits(i) != bitMask(i)) {
-          return false
-        }
-      }
-      true
+      val ancestorBitMask =
+        CubeId.shrinkBitMask(BitSet.fromBitMaskNoCopy(other.bitMask).until(end).toBitMask)
+      Arrays.equals(bitMask, ancestorBitMask)
     }
   }
 
