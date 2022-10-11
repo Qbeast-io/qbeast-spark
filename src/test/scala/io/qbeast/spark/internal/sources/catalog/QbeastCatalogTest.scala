@@ -1,6 +1,10 @@
 package io.qbeast.spark.internal.sources.catalog
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.internal.sources.v2.{QbeastStagedTableImpl, QbeastTableImpl}
+import org.apache.spark.sql.AnalysisException
+import org.apache.spark.sql.catalyst.TableIdentifier
+import org.apache.spark.sql.catalyst.analysis.CannotReplaceMissingTableException
 import org.apache.spark.sql.connector.catalog.{
   CatalogExtension,
   CatalogPlugin,
@@ -214,4 +218,51 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
       an[IllegalArgumentException] shouldBe thrownBy(
         qbeastCatalog.setDelegateCatalog(fakeCatalog))
     })
+
+  it should "create a table with PATH" in withQbeastContextSparkAndTmpWarehouse(
+    (spark, tmpDir) => {
+
+      val qbeastCatalog = createQbeastCatalog(spark)
+      val tableIdentifierPath = Identifier.of(Array("default"), tmpDir + "/student")
+
+      QbeastCatalogUtils.isPathTable(tableIdentifierPath) shouldBe true
+
+      val stagedTable = qbeastCatalog.stageCreate(
+        tableIdentifierPath,
+        schema,
+        Array.empty,
+        Map("provider" -> "qbeast", "columnsToIndex" -> "id").asJava)
+
+      stagedTable shouldBe an[QbeastStagedTableImpl]
+      qbeastCatalog.loadTable(tableIdentifierPath) shouldBe an[QbeastTableImpl]
+
+    })
+
+  "QbeastCatalogUtils" should "throw an error when trying to replace a non-existing table" in
+    withQbeastContextSparkAndTmpWarehouse((spark, _) => {
+      an[CannotReplaceMissingTableException] shouldBe thrownBy(
+        QbeastCatalogUtils.createQbeastTable(
+          Identifier.of(defaultNamespace, "students"),
+          schema,
+          Array.empty,
+          Map.empty[String, String].asJava,
+          Map.empty,
+          None,
+          TableCreationMode.REPLACE_TABLE,
+          indexedTableFactory,
+          spark.sessionState.catalog))
+    })
+
+  it should "throw an error when inserting data into an external view" in
+    withQbeastContextSparkAndTmpWarehouse((spark, _) => {
+
+      val data = createTestData(spark)
+      data.write.format("qbeast").option("columnsToIndex", "id").saveAsTable("students")
+      spark.sql("CREATE VIEW students_view AS SELECT * from students")
+
+      an[AnalysisException] shouldBe thrownBy(
+        QbeastCatalogUtils
+          .getExistingTableIfExists(TableIdentifier("students_view"), spark.sessionState.catalog))
+    })
+
 }

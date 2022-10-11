@@ -20,7 +20,6 @@ import org.apache.spark.sql.{
   DataFrame,
   SaveMode,
   SparkSession,
-  SparkTransformUtils,
   V1TableQbeast
 }
 
@@ -60,7 +59,7 @@ object QbeastCatalogUtils {
   }
 
   /** Checks if a table already exists for the provided identifier. */
-  def getTableIfExists(
+  def getExistingTableIfExists(
       table: TableIdentifier,
       existingSessionCatalog: SessionCatalog): Option[CatalogTable] = {
     // If this is a path identifier, we cannot return an existing CatalogTable. The Create command
@@ -108,17 +107,6 @@ object QbeastCatalogUtils {
 
     val isPathTable = QbeastCatalogUtils.isPathTable(ident)
 
-    // Checks if the location properties are coherent
-    if (isPathTable
-      && allTableProperties.containsKey("location")
-      // The location property can be qualified and different from the path in the identifier, so
-      // we check `endsWith` here.
-      && Option(allTableProperties.get("location")).exists(!_.endsWith(ident.name()))) {
-      throw AnalysisExceptionFactory.create(
-        s"CREATE TABLE contains two different locations: ${ident.name()} " +
-          s"and ${allTableProperties.get("location")}.")
-    }
-
     // Get table location
     val location = if (isPathTable) {
       Option(ident.name())
@@ -133,7 +121,7 @@ object QbeastCatalogUtils {
     val locUriOpt = location.map(CatalogUtils.stringToURI)
 
     val id = TableIdentifier(ident.name(), ident.namespace().lastOption)
-    val existingTableOpt = QbeastCatalogUtils.getTableIfExists(id, existingSessionCatalog)
+    val existingTableOpt = QbeastCatalogUtils.getExistingTableIfExists(id, existingSessionCatalog)
     val loc = locUriOpt
       .orElse(existingTableOpt.flatMap(_.storage.locationUri))
       .getOrElse(existingSessionCatalog.defaultTablePath(id))
@@ -142,9 +130,15 @@ object QbeastCatalogUtils {
     val storage = DataSource
       .buildStorageFormatFromOptions(writeOptions)
       .copy(locationUri = Option(loc))
-
     val commentOpt = Option(allTableProperties.get("comment"))
-    val (partitionColumns, bucketSpec) = SparkTransformUtils.convertTransforms(partitions)
+
+    if (partitions.nonEmpty) {
+      throw AnalysisExceptionFactory
+        .create(
+          "Qbeast Format does not support partitioning/bucketing. " +
+            "You may still want to use your partition columns as columnsToIndex " +
+            "to get all the benefits of data skipping. ")
+    }
 
     // Create the CatalogTable representation for updating the Catalog
     val table = new CatalogTable(
@@ -153,8 +147,8 @@ object QbeastCatalogUtils {
       storage = storage,
       schema = schema,
       provider = Some("qbeast"),
-      partitionColumnNames = partitionColumns,
-      bucketSpec = bucketSpec,
+      partitionColumnNames = Seq.empty,
+      bucketSpec = None,
       properties = allTableProperties.asScala.toMap,
       comment = commentOpt)
 
@@ -246,15 +240,13 @@ object QbeastCatalogUtils {
         val path: String = if (catalogTable.tableType == CatalogTableType.EXTERNAL) {
           // If it's an EXTERNAL TABLE, we can find the path through the Storage Properties
           catalogTable.storage.locationUri.get.toString
-        } else if (catalogTable.tableType == CatalogTableType.MANAGED) {
+        } else {
           // If it's a MANAGED TABLE, the location is set in the former catalogTable
           catalogTable.location.toString
-        } else {
-          // Otherwise, TODO
-          throw AnalysisExceptionFactory.create("No path found for table " + table.name())
         }
+
         new QbeastTableImpl(
-          catalogTable.identifier.identifier,
+          catalogTable.identifier,
           new Path(path),
           prop.asScala.toMap,
           Some(schema),

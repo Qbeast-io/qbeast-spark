@@ -50,7 +50,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
 
     spark.sql(
       s"CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
-        "TBLPROPERTIES ('columnsToIndex'='id')")
+        "OPTIONS ('columnsToIndex'='id')")
 
     spark.sql("INSERT INTO table student SELECT * FROM data")
 
@@ -103,6 +103,21 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
     indexed.columns.toSet shouldBe data.columns.toSet
 
     assertSmallDatasetEquality(indexed, data, orderedComparison = false, ignoreNullable = true)
+
+  })
+
+  it should "create EXTERNAL table" in withQbeastContextSparkAndTmpDir((spark, tmpDir) => {
+    spark.sql(
+      "CREATE EXTERNAL TABLE student (id INT, name STRING, age INT) " +
+        "USING qbeast " +
+        "OPTIONS ('columnsToIndex'='id') " +
+        s"LOCATION '$tmpDir'")
+
+    val table = spark.sql("SELECT * from student")
+
+    table.count() shouldBe 0
+
+    table.columns.toSet shouldBe Set("id", "name", "age")
 
   })
 

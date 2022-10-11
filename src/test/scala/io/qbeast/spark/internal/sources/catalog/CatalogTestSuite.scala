@@ -1,6 +1,8 @@
 package io.qbeast.spark.internal.sources.catalog
 
 import io.qbeast.TestClasses.Student
+import io.qbeast.context.QbeastContext
+import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.spark.sql.{DataFrame, SparkCatalogUtils, SparkSession}
 import org.apache.spark.sql.connector.catalog.{
   StagingTableCatalog,
@@ -34,13 +36,15 @@ trait CatalogTestSuite {
     1.to(10).map(i => Student(i, i.toString, Random.nextInt()))
   }
 
-  val fakeLogicalWriteInfo = new LogicalWriteInfo {
+  val fakeLogicalWriteInfo: LogicalWriteInfo = new LogicalWriteInfo {
     override def options(): CaseInsensitiveStringMap = CaseInsensitiveStringMap.empty()
 
     override def queryId(): String = "1"
 
-    override def schema(): StructType = schema
+    override def schema(): StructType = CatalogTestSuite.this.schema
   }
+
+  lazy val indexedTableFactory: IndexedTableFactory = QbeastContext.indexedTableFactory
 
   def sessionCatalog(spark: SparkSession): TableCatalog = {
     SparkCatalogUtils.getV2SessionCatalog(spark).asInstanceOf[TableCatalog]

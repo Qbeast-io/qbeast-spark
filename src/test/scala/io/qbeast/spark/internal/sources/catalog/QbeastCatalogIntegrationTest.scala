@@ -53,7 +53,7 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
 
   })
 
-  it should "replace table" in withQbeastContextSparkAndTmpWarehouse((spark, tmpDir) => {
+  it should "replace table" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
 
     // Create table first (must be in qbeast format)
     spark.sql(
@@ -75,21 +75,20 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
 
   })
 
-  it should "create or replace table" in withQbeastContextSparkAndTmpWarehouse(
-    (spark, tmpDir) => {
+  it should "create or replace table" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
 
-      spark.sql(
-        "CREATE OR REPLACE TABLE student (id INT, name STRING, age INT)" +
-          " USING qbeast OPTIONS ('columnsToIndex'='id')")
+    spark.sql(
+      "CREATE OR REPLACE TABLE student (id INT, name STRING, age INT)" +
+        " USING qbeast OPTIONS ('columnsToIndex'='id')")
 
-      val table = spark.read.table("student")
-      table.schema shouldBe schema
-      table.count() shouldBe 0
+    val table = spark.read.table("student")
+    table.schema shouldBe schema
+    table.count() shouldBe 0
 
-    })
+  })
 
   it should "create table and insert data as select" in withQbeastContextSparkAndTmpWarehouse(
-    (spark, tmpDir) => {
+    (spark, _) => {
 
       spark.sql(
         "CREATE OR REPLACE TABLE student (id INT, name STRING, age INT)" +
@@ -108,7 +107,7 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
     })
 
   it should "throw an error when no columnsToIndex is specified" in
-    withQbeastContextSparkAndTmpWarehouse((spark, tmpDir) => {
+    withQbeastContextSparkAndTmpWarehouse((spark, _) => {
 
       an[AnalysisException] shouldBe thrownBy(
         spark.sql("CREATE OR REPLACE TABLE student (id INT, name STRING, age INT)" +
@@ -117,7 +116,7 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
     })
 
   it should "throw an error when trying to replace a non-qbeast table" in
-    withQbeastContextSparkAndTmpWarehouse((spark, tmpDir) => {
+    withQbeastContextSparkAndTmpWarehouse((spark, _) => {
 
       spark.sql(
         "CREATE TABLE student (id INT, name STRING, age INT)" +
@@ -130,7 +129,7 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
     })
 
   it should "throw an error when replacing non-existing table" in
-    withQbeastContextSparkAndTmpWarehouse((spark, tmpDir) => {
+    withQbeastContextSparkAndTmpWarehouse((spark, _) => {
 
       an[AnalysisException] shouldBe thrownBy(
         spark.sql("REPLACE TABLE student (id INT, name STRING, age INT)" +
@@ -138,15 +137,12 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
 
     })
 
-  it should "throw an error when adding data to a view" in
-    withQbeastContextSparkAndTmpWarehouse((spark, tmpDir) => {
+  it should "throw an error when using partitioning/bucketing" in
+    withQbeastContextSparkAndTmpWarehouse((spark, _) => {
 
-      val data = createTestData(spark)
-      data.write.format("qbeast").option("columnsToIndex", "id").saveAsTable("students")
-      val indexed = spark.read.table("students")
-      indexed.createOrReplaceTempView("studentsView")
       an[AnalysisException] shouldBe thrownBy(
-        data.write.format("qbeast").insertInto("studentsView"))
+        spark.sql("CREATE OR REPLACE TABLE student (id INT, name STRING, age INT)" +
+          " USING qbeast OPTIONS ('columnsToIndex'='id') PARTITIONED BY (id)"))
 
     })
 

@@ -5,7 +5,14 @@ package io.qbeast.spark.internal.sources.catalog
 
 import io.qbeast.context.QbeastContext
 import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
-import io.qbeast.spark.internal.sources.v2.QbeastStagedTableImpl
+import io.qbeast.spark.internal.sources.v2.{QbeastStagedTableImpl, QbeastTableImpl}
+import org.apache.hadoop.fs.Path
+import org.apache.spark.sql.catalyst.TableIdentifier
+import org.apache.spark.sql.catalyst.analysis.{
+  NoSuchDatabaseException,
+  NoSuchNamespaceException,
+  NoSuchTableException
+}
 import org.apache.spark.sql.{SparkCatalogUtils, SparkSession}
 import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.expressions.Transform
@@ -26,6 +33,8 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces]
     with SupportsNamespaces
     with StagingTableCatalog {
 
+  private lazy val spark = SparkSession.active
+
   private val tableFactory = QbeastContext.indexedTableFactory
 
   private var delegatedCatalog: CatalogPlugin = null
@@ -44,11 +53,21 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces]
   }
 
   override def loadTable(ident: Identifier): Table = {
-    val superTable = getSessionCatalog().loadTable(ident)
-    if (QbeastCatalogUtils.isQbeastProvider(superTable.properties().asScala.get("provider"))) {
-      QbeastCatalogUtils.loadQbeastTable(superTable, tableFactory)
-    } else {
-      superTable
+    try {
+      getSessionCatalog().loadTable(ident) match {
+        case table
+            if QbeastCatalogUtils.isQbeastProvider(table.properties().asScala.get("provider")) =>
+          QbeastCatalogUtils.loadQbeastTable(table, tableFactory)
+        case o => o
+      }
+    } catch {
+      case _: NoSuchDatabaseException | _: NoSuchNamespaceException | _: NoSuchTableException
+          if QbeastCatalogUtils.isPathTable(ident) =>
+        new QbeastTableImpl(
+          TableIdentifier(ident.name(), ident.namespace().headOption),
+          new Path(ident.name()),
+          Map.empty,
+          tableFactory = tableFactory)
     }
   }
 
@@ -60,9 +79,19 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces]
 
     if (QbeastCatalogUtils.isQbeastProvider(properties.asScala.get("provider"))) {
       checkQbeastProperties(properties.asScala.toMap)
-      QbeastCatalogUtils.loadQbeastTable(
-        getSessionCatalog().createTable(ident, schema, partitions, properties),
-        tableFactory)
+      // Create the table
+      QbeastCatalogUtils.createQbeastTable(
+        ident,
+        schema,
+        partitions,
+        properties,
+        Map.empty,
+        dataFrame = None,
+        TableCreationMode.CREATE_TABLE,
+        tableFactory,
+        spark.sessionState.catalog)
+      // Load the table
+      loadTable(ident)
     } else {
       getSessionCatalog().createTable(ident, schema, partitions, properties)
     }

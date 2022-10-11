@@ -3,14 +3,14 @@
  */
 package io.qbeast.spark.internal.sources.v2
 
-import io.qbeast.context.QbeastContext._
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import org.apache.spark.sql.connector.catalog.TableCapability._
 import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.hadoop.fs.Path
+import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.catalog.CatalogTable
-import org.apache.spark.sql.{AnalysisExceptionFactory, V2toV1Fallback}
+import org.apache.spark.sql.{SparkSession, V2toV1Fallback}
 import org.apache.spark.sql.connector.catalog.{SupportsWrite, Table, TableCapability}
 import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
 import org.apache.spark.sql.sources.BaseRelation
@@ -28,9 +28,9 @@ import scala.collection.JavaConverters._
  * @param tableFactory the IndexedTable Factory
  */
 class QbeastTableImpl private[sources] (
-    identifier: String,
+    tableIdentifier: TableIdentifier,
     path: Path,
-    options: Map[String, String],
+    options: Map[String, String] = Map.empty,
     schema: Option[StructType] = None,
     catalogTable: Option[CatalogTable] = None,
     private val tableFactory: IndexedTableFactory)
@@ -44,12 +44,17 @@ class QbeastTableImpl private[sources] (
 
   private val indexedTable = tableFactory.getIndexedTable(tableId)
 
-  override def name(): String = identifier
+  private lazy val table: CatalogTable =
+    if (catalogTable.isDefined) catalogTable.get
+    else {
+      // Get table Metadata if no catalog table is provided
+      SparkSession.active.sessionState.catalog
+        .getTableMetadata(tableIdentifier)
+    }
 
-  override def schema(): StructType = {
-    if (schema.isDefined) schema.get
-    else metadataManager.loadCurrentSchema(tableId)
-  }
+  override def name(): String = tableIdentifier.identifier
+
+  override def schema(): StructType = if (schema.isDefined) schema.get else table.schema
 
   override def capabilities(): util.Set[TableCapability] =
     Set(ACCEPT_ANY_SCHEMA, BATCH_READ, V1_BATCH_WRITE, OVERWRITE_BY_FILTER, TRUNCATE).asJava
@@ -65,9 +70,6 @@ class QbeastTableImpl private[sources] (
 
   override def properties(): util.Map[String, String] = options.asJava
 
-  override def v1Table: CatalogTable = {
-    if (catalogTable.isDefined) catalogTable.get
-    else throw AnalysisExceptionFactory.create("No catalog table defined")
-  }
+  override def v1Table: CatalogTable = table
 
 }

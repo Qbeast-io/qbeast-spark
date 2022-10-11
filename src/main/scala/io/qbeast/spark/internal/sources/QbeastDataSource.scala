@@ -9,6 +9,7 @@ import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
 import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.hadoop.fs.{FileStatus, Path}
+import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.sources.{
@@ -63,15 +64,15 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
         "cubeSize" -> currentRevision.desiredCubeSize.toString)
       val tableProperties = properties.asScala.toMap ++ indexProperties
       new QbeastTableImpl(
-        tableId.id,
+        TableIdentifier(tableId.id),
         new Path(tableId.id),
         tableProperties,
-        None,
+        Some(schema),
         None,
         tableFactory)
     } else {
       new QbeastTableImpl(
-        tableId.id,
+        TableIdentifier(tableId.id),
         new Path(tableId.id),
         properties.asScala.toMap,
         Some(schema),
