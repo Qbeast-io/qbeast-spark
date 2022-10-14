@@ -40,6 +40,26 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
     {
 
       val data = createTestData(spark)
+      data.write
+        .format("qbeast")
+        .option("columnsToIndex", "id")
+        .saveAsTable("qbeast")
+
+      val indexed = spark.read.table("qbeast")
+
+      indexed.count() shouldBe data.count()
+
+      indexed.columns.toSet shouldBe data.columns.toSet
+
+      assertSmallDatasetEquality(indexed, data, orderedComparison = false, ignoreNullable = true)
+
+    }
+  }
+
+  it should "work with Location" in withQbeastContextSparkAndTmpWarehouse { (spark, tmpDir) =>
+    {
+
+      val data = createTestData(spark)
       val location = tmpDir + "/external"
       data.write
         .format("qbeast")
