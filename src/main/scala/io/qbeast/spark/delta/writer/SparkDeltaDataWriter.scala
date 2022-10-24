@@ -12,17 +12,25 @@ import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.qbeast.config.{MAX_FILE_SIZE_COMPACTION, MIN_FILE_SIZE_COMPACTION}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.delta.actions.FileAction
+import org.apache.spark.sql.execution.datasources.{
+  BasicWriteJobStatsTracker,
+  WriteJobStatsTracker
+}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.SerializableConfiguration
+import org.apache.spark.sql.delta.files.SQLMetricsReporting
 
+import scala.collection.mutable.ListBuffer
 import scala.collection.parallel.immutable.ParVector
 
 /**
  * Spark implementation of the DataWriter interface.
  */
-object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction] {
+object SparkDeltaDataWriter
+    extends DataWriter[DataFrame, StructType, FileAction]
+    with SQLMetricsReporting {
 
   override def write(
       tableID: QTableID,
@@ -36,6 +44,16 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
     val factory = new ParquetFileFormat().prepareWrite(sparkSession, job, Map.empty, schema)
     val serConf = new SerializableConfiguration(job.getConfiguration)
 
+    val statsTrackers: ListBuffer[WriteJobStatsTracker] = ListBuffer()
+
+    // Create basic stats trackers to add metrics on the Write Operation
+    val hadoopConf = sparkSession.sessionState.newHadoopConf() // TODO check conf
+    val basicWriteJobStatsTracker = new BasicWriteJobStatsTracker(
+      new SerializableConfiguration(hadoopConf),
+      BasicWriteJobStatsTracker.metrics)
+    registerSQLMetrics(sparkSession, basicWriteJobStatsTracker.driverSideMetrics)
+    statsTrackers.append(basicWriteJobStatsTracker)
+
     val qbeastColumns = QbeastColumns(qbeastData)
 
     val blockWriter =
@@ -45,6 +63,7 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
         schemaIndex = qbeastData.schema,
         factory = factory,
         serConf = serConf,
+        statsTrackers = statsTrackers.toIndexedSeq,
         qbeastColumns = qbeastColumns,
         tableChanges = tableChanges)
     qbeastData

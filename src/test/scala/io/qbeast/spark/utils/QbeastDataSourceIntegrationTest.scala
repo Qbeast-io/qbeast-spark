@@ -3,9 +3,10 @@
  */
 package io.qbeast.spark.utils
 
+import io.delta.tables.DeltaTable
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import org.apache.spark.sql.AnalysisException
+import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions._
 
@@ -267,5 +268,32 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
           }
         }
     }
+
+  def createSimpleTestData(spark: SparkSession): DataFrame = {
+    import spark.implicits._
+    Seq(("A", 1), ("B", 2), ("C", 3)).toDF("a", "b")
+  }
+
+  "Delta Integration" should "output correctly Operation Metrics" in
+    withQbeastContextSparkAndTmpDir((spark, tmpDir) => {
+
+      val data = createSimpleTestData(spark)
+      data.write
+        .format("qbeast")
+        .option("columnsToIndex", "a,b")
+        .save(tmpDir + "/qbeast")
+      data.write.format("delta").save(tmpDir + "/delta")
+
+      val deltaHistory = spark.sql(s"DESCRIBE HISTORY '$tmpDir/delta'").select("operationMetrics")
+      val qbeastHistory =
+        spark.sql(s"DESCRIBE HISTORY '$tmpDir/qbeast'").select("operationMetrics")
+
+      qbeastHistory.first().getMap(0).size should be > 0
+      assertSmallDatasetEquality(qbeastHistory, deltaHistory)
+
+      val deltaTable = DeltaTable.forPath(tmpDir + "/delta")
+      deltaTable.history()
+
+    })
 
 }

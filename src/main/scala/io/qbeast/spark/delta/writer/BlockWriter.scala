@@ -11,7 +11,12 @@ import org.apache.hadoop.mapred.{JobConf, TaskAttemptContextImpl, TaskAttemptID}
 import org.apache.hadoop.mapreduce.TaskType
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.delta.actions.AddFile
-import org.apache.spark.sql.execution.datasources.{OutputWriter, OutputWriterFactory}
+import org.apache.spark.sql.execution.datasources.{
+  OutputWriter,
+  OutputWriterFactory,
+  WriteJobStatsTracker,
+  WriteTaskStatsTracker
+}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.SerializableConfiguration
 
@@ -34,6 +39,7 @@ case class BlockWriter(
     schemaIndex: StructType,
     factory: OutputWriterFactory,
     serConf: SerializableConfiguration,
+    statsTrackers: IndexedSeq[WriteJobStatsTracker],
     qbeastColumns: QbeastColumns,
     tableChanges: TableChanges)
     extends Serializable {
@@ -74,17 +80,23 @@ case class BlockWriter(
         val rowWeight = Weight(row.getInt(qbeastColumns.weightColumnIndex))
 
         // Writing the data in a single file.
-        blockCtx.writer.write(InternalRow.fromSeq(cleanRow.result()))
+        val internalRow = InternalRow.fromSeq(cleanRow.result())
+        blockCtx.writer.write(internalRow)
+        blockCtx.blockStatsTracker.foreach(
+          _.newRow(blockCtx.path.toString, internalRow)
+        ) // Update statsTrackers
         blocks.updated(cubeId, blockCtx.update(rowWeight))
+
       }
       .values
       .flatMap {
-        case BlockContext(blockStats, _, _) if blockStats.elementCount == 0 =>
+        case BlockContext(blockStats, _, _, _) if blockStats.elementCount == 0 =>
           Iterator.empty // Do nothing, this  is a empty partition
         case BlockContext(
               BlockStats(cube, maxWeight, minWeight, state, rowCount),
               writer,
-              path) =>
+              path,
+              blockStatsTracker) =>
           val tags = Map(
             TagUtils.cube -> cube,
             TagUtils.minWeight -> minWeight.value.toString,
@@ -94,6 +106,7 @@ case class BlockWriter(
             TagUtils.elementCount -> rowCount.toString)
 
           writer.close()
+          blockStatsTracker.foreach(_.getFinalStats(System.currentTimeMillis()))
 
           val fileStatus = path
             .getFileSystem(serConf.value)
@@ -119,6 +132,7 @@ case class BlockWriter(
    * @return
    */
   private def buildWriter(cubeId: CubeId, state: String, maxWeight: Weight): BlockContext = {
+    val blockStatsTracker = statsTrackers.map(_.newTaskInstance())
     val writtenPath = new Path(dataPath, s"${UUID.randomUUID()}.parquet")
     val writer: OutputWriter = factory.newInstance(
       writtenPath.toString,
@@ -126,7 +140,12 @@ case class BlockWriter(
       new TaskAttemptContextImpl(
         new JobConf(serConf.value),
         new TaskAttemptID("", 0, TaskType.REDUCE, 0, 0)))
-    BlockContext(BlockStats(cubeId.string, state, maxWeight), writer, writtenPath)
+    blockStatsTracker.foreach(_.newFile(writtenPath.toString)) // Update stats trackers
+    BlockContext(
+      BlockStats(cubeId.string, state, maxWeight),
+      writer,
+      writtenPath,
+      blockStatsTracker)
   }
 
   /*
@@ -136,7 +155,12 @@ case class BlockWriter(
    * @param writer an instance of the file writer
    * @param path the path of the written file
    */
-  private case class BlockContext(stats: BlockStats, writer: OutputWriter, path: Path) {
+  private case class BlockContext(
+      stats: BlockStats,
+      writer: OutputWriter,
+      path: Path,
+      blockStatsTracker: Seq[WriteTaskStatsTracker])
+      extends Serializable {
 
     def update(minWeight: Weight): BlockContext =
       this.copy(stats = stats.update(minWeight))
