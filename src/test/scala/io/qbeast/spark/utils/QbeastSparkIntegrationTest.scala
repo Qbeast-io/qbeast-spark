@@ -10,7 +10,7 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
 
   private val students = 1.to(10).map(i => Student(i, i.toString, Random.nextInt()))
 
-  private def createTestData(spark: SparkSession): DataFrame = {
+  private def createStudentsTestData(spark: SparkSession): DataFrame = {
     import spark.implicits._
     students.toDF()
   }
@@ -18,7 +18,7 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
   "The QbeastDataSource" should
     "work with DataFrame API" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
       {
-        val data = createTestData(spark)
+        val data = createStudentsTestData(spark)
         data.write.format("qbeast").option("columnsToIndex", "id").save(tmpDir)
 
         val indexed = spark.read.format("qbeast").load(tmpDir)
@@ -39,7 +39,7 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
   it should "work with SaveAsTable" in withQbeastContextSparkAndTmpWarehouse { (spark, tmpDir) =>
     {
 
-      val data = createTestData(spark)
+      val data = createStudentsTestData(spark)
       data.write
         .format("qbeast")
         .option("columnsToIndex", "id")
@@ -59,7 +59,7 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
   it should "work with Location" in withQbeastContextSparkAndTmpWarehouse { (spark, tmpDir) =>
     {
 
-      val data = createTestData(spark)
+      val data = createStudentsTestData(spark)
       val location = tmpDir + "/external"
       data.write
         .format("qbeast")
@@ -81,7 +81,7 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
   it should "work with InsertInto" in withQbeastContextSparkAndTmpWarehouse { (spark, tmpDir) =>
     {
 
-      val data = createTestData(spark)
+      val data = createStudentsTestData(spark)
       val location = tmpDir + "/external"
       data.write
         .format("qbeast")
@@ -106,5 +106,28 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
         ignoreNullable = true)
     }
   }
+
+  it should "work with path and saveAsTable" in withQbeastContextSparkAndTmpDir(
+    (spark, tmpDir) => {
+
+      val data = createStudentsTestData(spark)
+      data.createOrReplaceTempView("data")
+      spark
+        .sql(s"SELECT * FROM data")
+        .write
+        .option("columnsToIndex", "id,name")
+        .option("path", tmpDir)
+        .mode("overwrite")
+        .format("qbeast")
+        .saveAsTable("data_qbeast")
+
+      val indexed = spark.read.format("qbeast").load(tmpDir)
+
+      indexed.count() shouldBe data.count()
+
+      indexed.columns.toSet shouldBe data.columns.toSet
+
+      assertSmallDatasetEquality(indexed, data, orderedComparison = false, ignoreNullable = true)
+    })
 
 }

@@ -3,9 +3,14 @@
  */
 package io.qbeast.spark.internal.rules
 
+import io.qbeast.spark.internal.sources.catalog.QbeastCatalogUtils.isQbeastProvider
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.plans.logical.{CreateTableAsSelect, LogicalPlan}
+import org.apache.spark.sql.catalyst.plans.logical.{
+  CreateTableAsSelect,
+  LogicalPlan,
+  ReplaceTableAsSelect
+}
 import org.apache.spark.sql.catalyst.rules.Rule
 
 /**
@@ -19,11 +24,15 @@ class SaveAsTableRule(spark: SparkSession) extends Rule[LogicalPlan] with Loggin
     // We need to pass the writeOptions as properties to the creation of the table
     // to make sure columnsToIndex is present
     plan transformDown {
-      case saveAsSelect: CreateTableAsSelect
-          if saveAsSelect.properties.get("provider").contains("qbeast") =>
+      case saveAsSelect: CreateTableAsSelect if isQbeastProvider(saveAsSelect.properties) =>
         val options = saveAsSelect.writeOptions
         val finalProperties = saveAsSelect.properties ++ options
         saveAsSelect.copy(properties = finalProperties)
+      case replaceAsSelect: ReplaceTableAsSelect
+          if isQbeastProvider(replaceAsSelect.properties) =>
+        val options = replaceAsSelect.writeOptions
+        val finalProperties = replaceAsSelect.properties ++ options
+        replaceAsSelect.copy(properties = finalProperties)
     }
   }
 
