@@ -77,7 +77,7 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces]
       partitions: Array[Transform],
       properties: util.Map[String, String]): Table = {
 
-    if (QbeastCatalogUtils.isQbeastProvider(properties.asScala.get("provider"))) {
+    if (QbeastCatalogUtils.isQbeastProvider(properties)) {
       checkQbeastProperties(properties.asScala.toMap)
       // Create the table
       QbeastCatalogUtils.createQbeastTable(
@@ -110,7 +110,7 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces]
       schema: StructType,
       partitions: Array[Transform],
       properties: util.Map[String, String]): StagedTable = {
-    if (QbeastCatalogUtils.isQbeastProvider(properties.asScala.get("provider"))) {
+    if (QbeastCatalogUtils.isQbeastProvider(properties)) {
       new QbeastStagedTableImpl(
         ident,
         schema,
@@ -134,7 +134,7 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces]
       schema: StructType,
       partitions: Array[Transform],
       properties: util.Map[String, String]): StagedTable = {
-    if (QbeastCatalogUtils.isQbeastProvider(properties.asScala.get("provider"))) {
+    if (QbeastCatalogUtils.isQbeastProvider(properties)) {
       new QbeastStagedTableImpl(
         ident,
         schema,
@@ -159,7 +159,7 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces]
       schema: StructType,
       partitions: Array[Transform],
       properties: util.Map[String, String]): StagedTable = {
-    if (QbeastCatalogUtils.isQbeastProvider(properties.asScala.get("provider"))) {
+    if (QbeastCatalogUtils.isQbeastProvider(properties)) {
       new QbeastStagedTableImpl(
         ident,
         schema,
