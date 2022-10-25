@@ -45,6 +45,12 @@ object QbeastCatalogUtils {
     provider.isDefined && provider.get == QBEAST_PROVIDER_NAME
   }
 
+  def isQbeastProvider(properties: Map[String, String]): Boolean = isQbeastProvider(
+    properties.get("provider"))
+
+  def isQbeastProvider(properties: util.Map[String, String]): Boolean = isQbeastProvider(
+    properties.asScala.toMap)
+
   /**
    * Checks if an Identifier is set with a path
    * @param ident the Identifier
