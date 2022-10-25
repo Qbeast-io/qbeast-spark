@@ -23,6 +23,19 @@ class CubeIdTest extends AnyFlatSpec with Matchers {
     id1 == id2 shouldBe false
     id3 == id4 shouldBe false
     id1 == id5 shouldBe false
+    val id6 =
+      CubeId(2, "wQwwwQwwQwwQwwwwwQwQwwwQQwwwwQQwQwwwQwwQwwQwwwwwQwwQQQQQQQQQQQQQQ").parent.get
+    val id7 =
+      CubeId(2, "wQwwwQwwQwwQwwwwwQwQwwwQQwwwwQQwQwwwQwwQwwQwwwwwQwwQQQQQQQQQQQQQ")
+    id6 == id7 shouldBe true
+  }
+
+  it should "implement hashCode correctly" in {
+    val id1 =
+      CubeId(2, "wQwwwQwwQwwQwwwwwQwQwwwQQwwwwQQwQwwwQwwQwwQwwwwwQwwQQQQQQQQQQQQQQ").parent.get
+    val id2 =
+      CubeId(2, "wQwwwQwwQwwQwwwwwQwQwwwQQwwwwQQwQwwwQwwQwwQwwwwwQwwQQQQQQQQQQQQQ")
+    id1.hashCode() == id2.hashCode() shouldBe true
   }
 
   it should "implement conversion to byte array correctly" in {
