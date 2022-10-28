@@ -39,7 +39,7 @@ case class BlockWriter(
     schemaIndex: StructType,
     factory: OutputWriterFactory,
     serConf: SerializableConfiguration,
-    statsTrackers: IndexedSeq[WriteJobStatsTracker],
+    statsTrackers: Seq[WriteJobStatsTracker],
     qbeastColumns: QbeastColumns,
     tableChanges: TableChanges)
     extends Serializable {
@@ -50,7 +50,7 @@ case class BlockWriter(
    * @param iter iterator of rows
    * @return the sequence of files added
    */
-  def writeRow(iter: Iterator[InternalRow]): Iterator[AddFile] = {
+  def writeRow(iter: Iterator[InternalRow]): Iterator[(AddFile, TaskStats)] = {
     if (!iter.hasNext) {
       return Iterator.empty
     }
@@ -106,21 +106,28 @@ case class BlockWriter(
             TagUtils.elementCount -> rowCount.toString)
 
           writer.close()
-          blockStatsTracker.foreach(_.getFinalStats(System.currentTimeMillis()))
 
+          // Process final stats
+          blockStatsTracker.foreach(_.closeFile(path.toString))
+          val endTime = System.currentTimeMillis()
+          val finalStats = blockStatsTracker.map(_.getFinalStats(endTime))
+          val taskStats = TaskStats(finalStats, endTime)
+
+          // Process file status
           val fileStatus = path
             .getFileSystem(serConf.value)
             .getFileStatus(path)
 
-          Iterator(
-            AddFile(
-              path = path.getName(),
-              partitionValues = Map(),
-              size = fileStatus.getLen,
-              modificationTime = fileStatus.getModificationTime,
-              dataChange = true,
-              stats = "",
-              tags = tags))
+          val addFile = AddFile(
+            path = path.getName(),
+            partitionValues = Map(),
+            size = fileStatus.getLen,
+            modificationTime = fileStatus.getModificationTime,
+            dataChange = true,
+            stats = "",
+            tags = tags)
+
+          Iterator((addFile, taskStats))
 
       }
   }.toIterator
