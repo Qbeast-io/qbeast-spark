@@ -1,3 +1,6 @@
+/*
+ * Copyright 2021 Qbeast Analytics, S.L.
+ */
 package org.apache.spark.sql.delta
 
 import io.qbeast.context.QbeastContext

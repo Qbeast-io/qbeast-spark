@@ -1,3 +1,6 @@
+/*
+ * Copyright 2021 Qbeast Analytics, S.L.
+ */
 package io.qbeast.spark.delta.writer
 
 import org.apache.spark.sql.execution.datasources.{WriteJobStatsTracker, WriteTaskStats}
