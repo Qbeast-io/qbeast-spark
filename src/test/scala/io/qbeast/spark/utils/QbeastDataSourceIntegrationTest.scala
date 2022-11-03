@@ -7,7 +7,6 @@ import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.delta.stats.StatisticsCollection
 import org.apache.spark.sql.functions._
 
 class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
