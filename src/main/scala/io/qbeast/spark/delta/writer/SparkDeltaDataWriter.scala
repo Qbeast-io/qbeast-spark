@@ -10,19 +10,25 @@ import io.qbeast.spark.index.QbeastColumns.cubeColumnName
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.qbeast.config.{MAX_FILE_SIZE_COMPACTION, MIN_FILE_SIZE_COMPACTION}
+import org.apache.spark.sql.delta.DeltaStatsCollectionUtils
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.delta.actions.FileAction
+import org.apache.spark.sql.delta.stats.DeltaFileStatistics
+import org.apache.spark.sql.execution.datasources.BasicWriteTaskStats
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.SerializableConfiguration
 
+import java.net.URI
 import scala.collection.parallel.immutable.ParVector
 
 /**
  * Spark implementation of the DataWriter interface.
  */
-object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction] {
+object SparkDeltaDataWriter
+    extends DataWriter[DataFrame, StructType, FileAction]
+    with DeltaStatsCollectionUtils {
 
   override def write(
       tableID: QTableID,
@@ -37,7 +43,12 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
     val serConf = new SerializableConfiguration(job.getConfiguration)
     val statsTrackers = StatsTracker.getStatsTrackers()
 
+    // Get Stats Trackers for each file
     val qbeastColumns = QbeastColumns(qbeastData)
+
+    val dataColumns = qbeastData.schema.map(_.name).filterNot(QbeastColumns.contains)
+    val cleanedData = qbeastData.selectExpr(dataColumns: _*)
+    val fileStatsTrackers = getDeltaOptionalTrackers(cleanedData, sparkSession, tableID)
 
     val blockWriter = BlockWriter(
       dataPath = tableID.id,
@@ -45,7 +56,7 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
       schemaIndex = qbeastData.schema,
       factory = factory,
       serConf = serConf,
-      statsTrackers = statsTrackers,
+      statsTrackers = statsTrackers ++ fileStatsTrackers,
       qbeastColumns = qbeastColumns,
       tableChanges = tableChanges)
 
@@ -60,12 +71,27 @@ object SparkDeltaDataWriter extends DataWriter[DataFrame, StructType, FileAction
 
     val fileActions = finalActionsAndStats.map(_._1)
     val stats = finalActionsAndStats.map(_._2)
-    stats.foreach(taskStats =>
-      statsTrackers.foreach(_.processStats(taskStats.writeTaskStats, taskStats.endTime)))
 
-    // Here the SQLMetricsReporting contains the information of the stats trackers
+    // Process BasicWriteJobStatsTrackers
+    stats.foreach(taskStats => {
+      val fileWriteTaskStats =
+        taskStats.writeTaskStats.filter(_.isInstanceOf[DeltaFileStatistics])
+      val basicWriteTaskStats =
+        taskStats.writeTaskStats.filter(_.isInstanceOf[BasicWriteTaskStats])
+      statsTrackers.foreach(_.processStats(basicWriteTaskStats, taskStats.endTime))
+      fileStatsTrackers.foreach(_.processStats(fileWriteTaskStats, taskStats.endTime))
 
-    fileActions
+    })
+
+    // Process DeltaWriteStats
+    val resultFiles = fileActions.map { a =>
+      a.copy(stats = fileStatsTrackers
+        .map(_.recordedStats(new Path(new URI(a.path)).getName))
+        .getOrElse(a.stats))
+    }
+
+    // Return FileAction
+    resultFiles
 
   }
 
