@@ -14,7 +14,7 @@ import org.apache.spark.sql.delta.DeltaStatsCollectionUtils
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.delta.stats.DeltaFileStatistics
-import org.apache.spark.sql.execution.datasources.BasicWriteTaskStats
+import org.apache.spark.sql.execution.datasources.{BasicWriteTaskStats, WriteTaskStats}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.StructType
@@ -73,20 +73,24 @@ object SparkDeltaDataWriter
     val stats = finalActionsAndStats.map(_._2)
 
     // Process BasicWriteJobStatsTrackers
+    var fileWriteTaskStats = Seq.empty[WriteTaskStats]
+    var basicWriteTaskStats = Seq.empty[WriteTaskStats]
+    var endTime = 0L
     stats.foreach(taskStats => {
-      val fileWriteTaskStats =
-        taskStats.writeTaskStats.filter(_.isInstanceOf[DeltaFileStatistics])
-      val basicWriteTaskStats =
-        taskStats.writeTaskStats.filter(_.isInstanceOf[BasicWriteTaskStats])
-      statsTrackers.foreach(_.processStats(basicWriteTaskStats, taskStats.endTime))
-      fileStatsTrackers.foreach(_.processStats(fileWriteTaskStats, taskStats.endTime))
+      fileWriteTaskStats =
+        fileWriteTaskStats ++ taskStats.writeTaskStats.filter(_.isInstanceOf[DeltaFileStatistics])
+      basicWriteTaskStats = (basicWriteTaskStats ++
+        taskStats.writeTaskStats.filter(_.isInstanceOf[BasicWriteTaskStats]))
 
+      endTime = math.max(endTime, taskStats.endTime)
     })
+    statsTrackers.foreach(_.processStats(basicWriteTaskStats, endTime))
+    fileStatsTrackers.foreach(_.processStats(fileWriteTaskStats, endTime))
 
     // Process DeltaWriteStats
     val resultFiles = fileActions.map { a =>
       a.copy(stats = fileStatsTrackers
-        .map(_.recordedStats(new Path(new URI(a.path)).getName))
+        .map(_.recordedStats(new Path(new URI(a.path)).toString))
         .getOrElse(a.stats))
     }
 
