@@ -3,6 +3,7 @@
  */
 package io.qbeast.spark.internal
 
+import io.qbeast.core.model.QTableID
 import io.qbeast.spark.index.ColumnsToIndex
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
 import org.apache.spark.sql.AnalysisExceptionFactory
@@ -20,6 +21,7 @@ case class QbeastOptions(columnsToIndex: Seq[String], cubeSize: Int)
 object QbeastOptions {
   val COLUMNS_TO_INDEX = "columnsToIndex"
   val CUBE_SIZE = "cubeSize"
+  val PATH = "path"
 
   private def getColumnsToIndex(options: Map[String, String]): Seq[String] = {
     val encodedColumnsToIndex = options.getOrElse(
@@ -47,6 +49,20 @@ object QbeastOptions {
     val columnsToIndex = getColumnsToIndex(options)
     val desiredCubeSize = getDesiredCubeSize(options)
     QbeastOptions(columnsToIndex, desiredCubeSize)
+  }
+
+  def loadTableIDFromParameters(parameters: Map[String, String]): QTableID = {
+    new QTableID(
+      parameters.getOrElse(
+        PATH, {
+          throw AnalysisExceptionFactory.create("'path' is not specified")
+        }))
+  }
+
+  def checkQbeastProperties(parameters: Map[String, String]): Unit = {
+    require(
+      parameters.contains("columnsToIndex") || parameters.contains("columnstoindex"),
+      throw AnalysisExceptionFactory.create("'columnsToIndex is not specified"))
   }
 
 }

@@ -111,4 +111,40 @@ class QbeastSamplingTest extends QbeastIntegrationTestSpec {
         })
       }
   }
+
+  "An appended dataset" should "sample correctly" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      {
+        val data = loadTestData(spark)
+        val columnsToIndex = Seq("user_id", "product_id")
+        val cubeSize = 10000
+        writeTestData(data, columnsToIndex, cubeSize, tmpDir)
+
+        val appendData = spark.read
+          .format("csv")
+          .option("header", "true")
+          .option("inferSchema", "true")
+          .load("src/test/resources/ecommerce300k_2019_Nov.csv")
+
+        appendData.write
+          .mode("append")
+          .format("qbeast")
+          .options(
+            Map(
+              "columnsToIndex" -> columnsToIndex.mkString(","),
+              "cubeSize" -> cubeSize.toString))
+          .save(tmpDir)
+
+        val df = spark.read.format("qbeast").load(tmpDir)
+        val dataSize = data.count() + appendData.count()
+
+        val precision = 0.1
+        val tolerance = 0.01
+        // We allow a 1% of tolerance in the sampling
+        df.sample(withReplacement = false, precision)
+          .count()
+          .toDouble shouldBe (dataSize * precision) +- dataSize * precision * tolerance
+
+      }
+  }
 }

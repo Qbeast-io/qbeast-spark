@@ -63,4 +63,17 @@ trait MetadataManager[DataSchema, FileDescriptor] {
       knownAnnounced: Set[CubeId],
       oldReplicatedSet: ReplicatedSet): Boolean
 
+  /**
+   * Checks if there's an existing log directory for the table
+   * @param tableID the table ID
+   * @return
+   */
+  def existsLog(tableID: QTableID): Boolean
+
+  /**
+   * Creates an initial log directory
+   * @param tableID
+   */
+  def createLog(tableID: QTableID): Unit
+
 }

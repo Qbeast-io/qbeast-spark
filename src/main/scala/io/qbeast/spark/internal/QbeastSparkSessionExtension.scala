@@ -4,7 +4,7 @@
 package io.qbeast.spark.internal
 
 import io.delta.sql.DeltaSparkSessionExtension
-import io.qbeast.spark.internal.rules.{SampleRule}
+import io.qbeast.spark.internal.rules.{QbeastAnalysis, SampleRule, SaveAsTableRule}
 import org.apache.spark.sql.SparkSessionExtensions
 
 /**
@@ -16,8 +16,16 @@ class QbeastSparkSessionExtension extends DeltaSparkSessionExtension {
 
     super.apply(extensions)
 
+    extensions.injectResolutionRule { session =>
+      new QbeastAnalysis(session)
+    }
+
     extensions.injectOptimizerRule { session =>
       new SampleRule(session)
+    }
+
+    extensions.injectOptimizerRule { session =>
+      new SaveAsTableRule(session)
     }
   }
 

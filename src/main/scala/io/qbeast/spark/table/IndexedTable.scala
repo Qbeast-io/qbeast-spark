@@ -223,7 +223,7 @@ private[table] class IndexedTableImpl(
    * @return the QbeastBaseRelation
    */
   private def createQbeastBaseRelation(): BaseRelation = {
-    QbeastBaseRelation.forQbeastTable(tableID, this)
+    QbeastBaseRelation.forQbeastTable(this)
   }
 
   private def write(data: DataFrame, indexStatus: IndexStatus, append: Boolean): BaseRelation = {
