@@ -8,7 +8,7 @@ import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.MissingCubeDomainEstimation._
 
 class MissingCubeDomainEstimationTest extends QbeastIntegrationTestSpec {
-  // groupCubeSize: 150
+  // groupCubeSize: 100
 
   //              root(0.2,300)
   //               /         \
