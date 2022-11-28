@@ -12,6 +12,8 @@ import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 
+import scala.collection.immutable.SortedSet
+
 /**
  * Analyzes the data and extracts OTree structures
  */
@@ -98,31 +100,15 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         qbeastHash(revision.columnTransformers.map(name => df(name.columnName)): _*))
     }
 
-  private[index] def estimateCubeWeights(
-      revision: Revision): Dataset[CubeNormalizedWeight] => Dataset[(CubeId, NormalizedWeight)] =
-    (partitionedEstimatedCubeWeights: Dataset[CubeNormalizedWeight]) => {
-
-      val sqlContext = SparkSession.active.sqlContext
-      import sqlContext.implicits._
-
-      // These column names are the ones specified in case class CubeNormalizedWeight
-      partitionedEstimatedCubeWeights
-        .groupBy("cubeBytes")
-        .agg(lit(1) / sum(lit(1.0) / col("normalizedWeight")))
-        .map { row =>
-          val bytes = row.getAs[Array[Byte]](0)
-          val estimatedWeight = row.getAs[Double](1)
-          (revision.createCubeId(bytes), estimatedWeight)
-        }
-    }
-
-  private[index] def estimatePartitionCubeWeights(
+  /**
+   * Extract data summaries from the data by building Otree indexes on each partition
+   */
+  private[index] def computeLocalTrees(
       numElements: Long,
       revision: Revision,
       indexStatus: IndexStatus,
-      isReplication: Boolean): DataFrame => Dataset[CubeNormalizedWeight] =
+      isReplication: Boolean): DataFrame => Dataset[LocalTree] =
     (weightedDataFrame: DataFrame) => {
-
       val spark = SparkSession.active
       import spark.implicits._
 
@@ -160,7 +146,91 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
           }
           weights.result().iterator
         })
+
     }
+
+  /**
+   * Perform cube-wise merge of the local trees to find global cubes and weights.
+   * @param localTrees local trees built on the partition data
+   * @param desiredCubeSize the desired size of the global cubes
+   * @param missingCubeDomain Strategy to use to find the cube domain in a local tree
+   * @return
+   */
+  private[index] def mergeLocalTrees(
+      localTrees: Seq[LocalTree],
+      desiredCubeSize: Int,
+      indexStatus: IndexStatus,
+      isReplication: Boolean)(
+      missingCubeDomain: (CubeId, LocalTree) => Double): Map[CubeId, NormalizedWeight] = {
+    var globalCubeNormalizedWeights = Map.empty[CubeId, NormalizedWeight]
+
+    // TODO This operation is very expensive. Find an alternative that allows a top-down \
+    //  traversal of the trees, without missing any cube.
+    val allCubes = SortedSet(localTrees.flatMap(_.keys): _*)
+    val minLeafWeight = 1d
+
+    allCubes.foreach(cube => {
+      // When not replicating, we can skip the cube, and consequently its subtree, when
+      // its immediate parent or any of its ancestor cubes was a leaf.
+      val skipCube = !isReplication && !cube.isRoot && (globalCubeNormalizedWeights
+        .getOrElse(cube.parent.get, minLeafWeight) >= minLeafWeight)
+
+      if (!skipCube) {
+        val parentGlobalWeight = cube.parent match {
+          case None => 0d // The root has 0d as parentWeight.
+          case Some(parent) =>
+            if (globalCubeNormalizedWeights.contains(parent)) globalCubeNormalizedWeights(parent)
+            // It is possible for a LocalTree to have some upper levels missing during optimization.
+            // In that case, if the parent is not present, we take the parent weight from the
+            // existing global index.
+            else if (isReplication) indexStatus.cubesStatuses(parent).normalizedWeight
+            else {
+              throw new RuntimeException(s"Unable to find global parent weight for cube: $cube")
+            }
+        }
+
+        var cubeTreeSize = 0d
+        var cubeDomain = 0d
+        for (tree <- localTrees) {
+          // cube exists in the local tree, its cube domain is to be computed using its tree size.
+          if (tree.contains(cube)) {
+            val treeSize = tree(cube).treeSize
+            val parentLocalWeight = cube.parent match {
+              case None => 0d
+              case Some(parent) =>
+                if (tree.contains(parent)) tree(parent).normalizedWeight
+                else if (isReplication) 0d
+                else {
+                  throw new RuntimeException(
+                    s"Unable to find local parent weight for cube: $cube")
+                }
+            }
+            cubeTreeSize += treeSize
+            cubeDomain += treeSize / (1d - parentLocalWeight)
+          } else {
+            // The cube is missing from the local tree, estimate an upper-bound
+            // for its domain from its chain of existing ancestors.
+            cubeDomain += missingCubeDomain(cube, tree)
+          }
+        }
+
+        // A cube is forced to be a leaf cube in the global index if its tree size is below
+        // the desired cube size. This is a preventive procedure for small inner cubes:
+        // When the domain estimation is too large with respect to the real value, which often
+        // happens in the vicinity of leaf cubes whose real domain values are small and there's
+        // a reduced margin for error, the algorithm outputs a much smaller weight leading to
+        // small inner cubes.
+        val normalizedWeight =
+          if (!isReplication && cubeTreeSize <= 0.98 * desiredCubeSize) {
+            NormalizedWeight.apply(desiredCubeSize, cubeTreeSize.toLong)
+          } else parentGlobalWeight + (desiredCubeSize / cubeDomain)
+
+        globalCubeNormalizedWeights += (cube -> normalizedWeight)
+      }
+    })
+
+    globalCubeNormalizedWeights
+  }
 
   override def analyze(
       dataFrame: DataFrame,
@@ -193,16 +263,16 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     // First, add a random weight column
     val weightedDataFrame = dataFrame.transform(addRandomWeight(revision))
 
-    // Second, estimate the cube weights at partition level
-    val partitionedEstimatedCubeWeights = weightedDataFrame.transform(
-      estimatePartitionCubeWeights(numElements, revision, indexStatus, isReplication))
-
-    // Third, compute the overall estimated cube weights
-    val estimatedCubeWeights =
-      partitionedEstimatedCubeWeights
-        .transform(estimateCubeWeights(revision))
+    // Second, construct local trees with partition data
+    val localTrees =
+      weightedDataFrame
+        .transform(computeLocalTrees(numElements, revision, indexStatus, isReplication))
         .collect()
-        .toMap
+
+    // Third, compute the overall estimated cube weights by merging local trees
+    val estimatedCubeWeights =
+      mergeLocalTrees(localTrees, revision.desiredCubeSize, indexStatus, isReplication)(
+        MissingCubeDomainEstimation.domainThroughPayloadFractions)
 
     // Gather the new changes
     val tableChanges = BroadcastedTableChanges(
