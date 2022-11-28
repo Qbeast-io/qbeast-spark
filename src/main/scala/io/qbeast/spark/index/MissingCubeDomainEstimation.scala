@@ -24,6 +24,25 @@ object MissingCubeDomainEstimation {
   }
 
   /**
+   * For the closest existing ancestor, compute its payload fraction
+   * and domain contribution to the missing cube.
+   */
+  private[index] def initialFractionAndDomain(
+      ancestor: CubeId,
+      localTree: LocalTree): (Double, Double) = {
+    // When CA is leaf, consider its payload to be entirely of our target domain.
+    // Otherwise, compute fraction via subtree sizes, supposing the missing cube
+    // has 1 element.
+    val subtree = ancestor.children.filter(localTree.contains)
+    val f = if (subtree.nonEmpty) {
+      val subtreeSize = subtree.map(localTree(_).treeSize).sum + 1d
+      1d / subtreeSize
+    } else 1d
+
+    (f, 0d)
+  }
+
+  /**
    * Given a CubeId C and its LocalTree, compute the size of its parent payload as well as its
    * fraction that fall within the subspace of C. C and C.parent are assumed to be present in
    * the given LocalTree.
@@ -62,7 +81,7 @@ object MissingCubeDomainEstimation {
       case None => 0d
       case Some(cube) =>
         var ancestor = cube
-        var (payloadFraction, localDomain) = (1d, 0d)
+        var (payloadFraction, localDomain) = initialFractionAndDomain(ancestor, localTree)
         // Stop the computation when the ancestor is root or,
         // its parent is missing from the LocalTree, which happens during optimization.
         while (!ancestor.isRoot && localTree.contains(ancestor.parent.get)) {
