@@ -11,7 +11,7 @@ object MissingCubeDomainEstimation {
    * Find the closest existing ancestor of a missing cube in the local tree,
    * starting from the immediate parent of the missing cube.
    */
-  private[index] def findClosestAncestorBottomUp(
+  private[index] def findClosestAncestor(
       localTree: LocalTree,
       missingCube: CubeId): Option[CubeId] = {
     // Find the first ancestor cube of the missingCube in a bottom-up fashion.
@@ -77,7 +77,7 @@ object MissingCubeDomainEstimation {
   private[index] def domainThroughPayloadFractions(
       missingCube: CubeId,
       localTree: LocalTree): Double = {
-    findClosestAncestorBottomUp(localTree, missingCube) match {
+    findClosestAncestor(localTree, missingCube) match {
       case None => 0d
       case Some(cube) =>
         var ancestor = cube

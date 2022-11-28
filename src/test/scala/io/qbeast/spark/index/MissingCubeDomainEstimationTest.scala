@@ -36,15 +36,15 @@ class MissingCubeDomainEstimationTest extends QbeastIntegrationTestSpec {
   val emptyTree: LocalTree = Map.empty[CubeId, CubeInfo]
 
   "findClosestAncestorBottomUp" should "return the correct ancestor cube" in {
-    findClosestAncestorBottomUp(emptyTree, root) shouldBe None
-    findClosestAncestorBottomUp(localTree, c3.firstChild) shouldBe Some(c3)
-    findClosestAncestorBottomUp(localTree, c3.firstChild.firstChild) shouldBe Some(c3)
-    findClosestAncestorBottomUp(localTree, c2.firstChild.firstChild) shouldBe Some(c2)
+    findClosestAncestor(emptyTree, root) shouldBe None
+    findClosestAncestor(localTree, c3.firstChild) shouldBe Some(c3)
+    findClosestAncestor(localTree, c3.firstChild.firstChild) shouldBe Some(c3)
+    findClosestAncestor(localTree, c2.firstChild.firstChild) shouldBe Some(c2)
 
     // During optimization, the LocalTree can miss some upper levels but this should
     // not affect the correctness of the algorithm
-    findClosestAncestorBottomUp(localTree - root, c3.firstChild) shouldBe Some(c3)
-    findClosestAncestorBottomUp(localTree - root, c1) shouldBe None
+    findClosestAncestor(localTree - root, c3.firstChild) shouldBe Some(c3)
+    findClosestAncestor(localTree - root, c1) shouldBe None
   }
 
   "initialFractionAndDomain" should
@@ -86,7 +86,7 @@ class MissingCubeDomainEstimationTest extends QbeastIntegrationTestSpec {
   "domainThroughPayloadFractions" should "estimate missing cube domain correctly" in {
     val missingCube = c3.nextSibling.get
     // c1
-    val ca = findClosestAncestorBottomUp(localTree, missingCube).get
+    val ca = findClosestAncestor(localTree, missingCube).get
     // f and d from c1 should be 1d / 51d and 0d
     val (f0, _) = initialFractionAndDomain(ca, localTree)
     // f and d from root to c1 should be 150d / 200d and 100d
