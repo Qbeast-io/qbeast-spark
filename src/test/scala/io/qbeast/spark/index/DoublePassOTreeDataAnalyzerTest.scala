@@ -3,7 +3,7 @@ package io.qbeast.spark.index
 import io.qbeast.IISeq
 import io.qbeast.TestClasses._
 import io.qbeast.core.model.{
-  CubeNormalizedWeight,
+  CubeId,
   DoubleDataType,
   FloatDataType,
   IndexStatus,
@@ -15,9 +15,9 @@ import io.qbeast.core.transform.{HashTransformation, LinearTransformation, Trans
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer.{
   calculateRevisionChanges,
-  estimateCubeWeights,
-  estimatePartitionCubeWeights,
-  getDataFrameStats
+  computeLocalTrees,
+  getDataFrameStats,
+  mergeLocalTrees
 }
 import io.qbeast.spark.index.QbeastColumns.weightColumnName
 import io.qbeast.spark.utils.SparkToQTypesUtils
@@ -42,6 +42,24 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     columnsSchema
       .map(field => Transformer(field.name, SparkToQTypesUtils.convertDataTypes(field.dataType)))
       .toIndexedSeq
+  }
+
+  def monotonicallyIncreasingWeights(
+      cube: CubeId,
+      parentWeight: NormalizedWeight,
+      cubeWeights: Map[CubeId, NormalizedWeight]): Boolean = {
+    if (cubeWeights.contains(cube)) {
+      val cubeMaxWeight = cubeWeights(cube)
+      if (cubeMaxWeight > parentWeight) {
+        cube.children
+          .forall(c => monotonicallyIncreasingWeights(c, cubeMaxWeight, cubeWeights))
+      } else false
+    } else {
+      val nextLevel = cube.children
+        .filter(cubeWeights.contains)
+      nextLevel.isEmpty || nextLevel.forall(c =>
+        monotonicallyIncreasingWeights(c, parentWeight, cubeWeights))
+    }
   }
 
   it should "calculateRevisionChanges correctly on single column" in withSpark { spark =>
@@ -176,7 +194,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
   }
 
-  it should "estimatePartitionCubeWeights" in withSpark { spark =>
+  it should "compute local trees correctly" in withSpark { spark =>
     val data = createDF(10000, spark)
     val columnsSchema = data.schema
     val columnTransformers = createTransformers(columnsSchema)
@@ -188,24 +206,37 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
       calculateRevisionChanges(dataFrameStats, emptyRevision).get.createNewRevision
 
     val indexStatus = IndexStatus(revision, Set.empty)
+
     val weightedDataFrame =
       data.withColumn(weightColumnName, lit(scala.util.Random.nextInt()))
-    val cubeNormalizedWeights =
-      weightedDataFrame.transform(
-        estimatePartitionCubeWeights(10000, revision, indexStatus, isReplication = false))
 
-    val partitions = weightedDataFrame.rdd.getNumPartitions
+    val localTrees =
+      weightedDataFrame
+        .transform(computeLocalTrees(10000, revision, indexStatus, isReplication = false))
+        .collect()
 
-    cubeNormalizedWeights
-      .collect()
-      .groupBy(_.cubeBytes)
-      .foreach { case (_, weights: Array[CubeNormalizedWeight]) =>
-        weights.foreach(w => w.normalizedWeight shouldBe >(0.0))
-        weights.length shouldBe <=(partitions)
-      }
+    var dataSize = 0d
+    val root = revision.createCubeIdRoot()
+
+    localTrees.foreach(t => {
+      // Update data size
+      dataSize += t(root).treeSize
+
+      // Root node must be present in all localTrees
+      t.contains(root) shouldBe true
+
+      t.values.foreach(info => {
+        info.normalizedWeight shouldBe >=(0d)
+        // No node should have empty payload
+        info.treeSize shouldBe >(0d)
+      })
+    })
+
+    // The root nodes should have a treeSizes equal to the size of their corresponding partitions
+    dataSize shouldBe dataFrameStats.getAs[Long]("count")
   }
 
-  it should "estimateCubeWeights" in withSpark { spark =>
+  it should "merge local trees for global cube weights" in withSpark { spark =>
     val data = createDF(10000, spark)
     val columnsSchema = data.schema
     val columnTransformers = createTransformers(columnsSchema)
@@ -220,19 +251,26 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val indexStatus = IndexStatus(revision, Set.empty)
     val weightedDataFrame =
       data.withColumn(weightColumnName, lit(scala.util.Random.nextInt()))
-    val cubeNormalizedWeights =
-      weightedDataFrame.transform(
-        estimatePartitionCubeWeights(10000, revision, indexStatus, isReplication = false))
+    val localTrees =
+      weightedDataFrame
+        .transform(computeLocalTrees(10000, revision, indexStatus, isReplication = false))
+        .collect()
 
-    val cubeWeights = cubeNormalizedWeights.transform(estimateCubeWeights(revision))
-    cubeWeights.columns.length shouldBe 2
+    val cubeWeights =
+      mergeLocalTrees(localTrees, revision.desiredCubeSize, indexStatus, isReplication = false)(
+        MissingCubeDomainEstimation.domainThroughPayloadFractions)
 
-    val cubeWeightsCollect = cubeWeights.collect()
-    cubeWeightsCollect.map(_._1).distinct.length shouldBe cubeWeightsCollect.length
-    cubeWeightsCollect.foreach { case (_, weight) =>
-      weight shouldBe >(0.0)
-    }
+    // Cubes from all LocalTrees should be present in the merge tree
+    cubeWeights.keys.size shouldBe <=(localTrees.flatMap(_.keys).distinct.length)
+    cubeWeights.values.foreach(weight => weight shouldBe >(0.0))
 
+    // Cubes with a weight lager than 1d should not have children
+    val leafCubesByWeight = cubeWeights.filter(cw => cw._2 >= 1d).keys
+    leafCubesByWeight.exists(cube => cube.children.exists(cubeWeights.contains)) shouldBe false
+
+    // Test cubeWeights is monotonically increasing in all branches
+    val root = revision.createCubeIdRoot()
+    monotonicallyIncreasingWeights(root, 0d, cubeWeights)
   }
 
 }
