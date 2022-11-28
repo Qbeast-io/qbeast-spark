@@ -6,19 +6,15 @@ package io.qbeast.spark.index
 import io.qbeast.core.model.{CubeId, CubeInfo, LocalTree}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.MissingCubeDomainEstimation._
-import scala.collection.mutable
 
 class MissingCubeDomainEstimationTest extends QbeastIntegrationTestSpec {
-  // groupCubeSize: 100
+  // groupCubeSize: 150
 
   //              root(0.2,300)
   //               /         \
   //        c1(0.4,150)    c2(2, 50)
   //             /
   //        c3(2,50)
-
-  val tree: mutable.Builder[(CubeId, CubeInfo), mutable.Map[CubeId, CubeInfo]] =
-    mutable.Map.newBuilder[CubeId, CubeInfo]
 
   val partitionSize = 300d
 
@@ -27,13 +23,13 @@ class MissingCubeDomainEstimationTest extends QbeastIntegrationTestSpec {
   val c2: CubeId = c1.nextSibling.get
   val c3: CubeId = c1.firstChild
 
-  tree += (root -> CubeInfo(0.2, partitionSize))
-  tree += (c1 -> CubeInfo(0.4, 150))
-  tree += (c2 -> CubeInfo(2d, 50))
-  tree += (c3 -> CubeInfo(2d, 50))
-
-  val localTree: LocalTree = tree.result().toMap
   val emptyTree: LocalTree = Map.empty[CubeId, CubeInfo]
+
+  val localTree: LocalTree = Map(
+    root -> CubeInfo(0.2, partitionSize),
+    c1 -> CubeInfo(0.4, 150),
+    c2 -> CubeInfo(2d, 50),
+    c3 -> CubeInfo(2d, 50))
 
   "findClosestAncestorBottomUp" should "return the correct ancestor cube" in {
     findClosestAncestor(emptyTree, root) shouldBe None
