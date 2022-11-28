@@ -63,7 +63,7 @@ class CubeWeightsBuilder protected (
 
   private val byWeight = Ordering.by[PointWeightAndParent, Weight](_.weight).reverse
   protected val queue = new mutable.PriorityQueue[PointWeightAndParent]()(byWeight)
-  private var resultBuffer = Seq.empty[CubeNormalizedWeight]
+  private var resultBuffer = Seq.empty[LocalTree]
 
   /**
    * Updates the builder with given point with weight.
@@ -77,7 +77,8 @@ class CubeWeightsBuilder protected (
   def update(point: Point, weight: Weight, parent: Option[CubeId] = None): CubeWeightsBuilder = {
     queue.enqueue(PointWeightAndParent(point, weight, parent))
     if (queue.size >= bufferCapacity) {
-      resultBuffer ++= resultInternal()
+      val unpopulatedTree = resultInternal()
+      resultBuffer = resultBuffer :+ populateTreeSize(unpopulatedTree).toMap
       queue.clear()
     }
     this
@@ -88,11 +89,16 @@ class CubeWeightsBuilder protected (
    *
    * @return the resulting cube weights map
    */
-  def result(): Seq[CubeNormalizedWeight] = {
-    resultInternal() ++ resultBuffer
+  def result(): Seq[LocalTree] = {
+    val unpopulatedTree = resultInternal()
+    if (unpopulatedTree.nonEmpty) {
+      resultBuffer :+ populateTreeSize(unpopulatedTree).toMap
+    } else {
+      resultBuffer
+    }
   }
 
-  def resultInternal(): Seq[CubeNormalizedWeight] = {
+  def resultInternal(): mutable.Map[CubeId, CubeInfo] = {
     val weights = mutable.Map.empty[CubeId, WeightAndCount]
     while (queue.nonEmpty) {
       val PointWeightAndParent(point, weight, parent) = queue.dequeue()
@@ -113,15 +119,47 @@ class CubeWeightsBuilder protected (
         }
       }
     }
-    weights.map {
-      case (cubeId, weightAndCount) if weightAndCount.count == groupCubeSize =>
-        val scale = desiredCubeSize / groupCubeSize
-        CubeNormalizedWeight(cubeId.bytes, NormalizedWeight(weightAndCount.weight) * scale)
-      case (cubeId, weightAndCount) =>
-        CubeNormalizedWeight(
-          cubeId.bytes,
-          NormalizedWeight(desiredCubeSize, weightAndCount.count))
-    }.toSeq
+
+    weights
+      .map {
+        case (cubeId, weightAndCount) if weightAndCount.count == groupCubeSize =>
+          val nw = NormalizedWeight(weightAndCount.weight)
+          (cubeId, CubeInfo(nw, groupCubeSize))
+
+        case (cubeId, weightAndCount) =>
+          val nw = NormalizedWeight(desiredCubeSize, weightAndCount.count)
+          (cubeId, CubeInfo(nw, weightAndCount.count))
+      }
+  }
+
+  /**
+   * Populate cube tree sizes for all existing cubes in the tree
+   * @param cubeMap local tree
+   * @return
+   */
+  def populateTreeSize(cubeMap: mutable.Map[CubeId, CubeInfo]): mutable.Map[CubeId, CubeInfo] = {
+    // This could have been implemented in the DFS fashion if it wasn't for
+    // the optimization processes where we don't know the cubes the DFS traversal
+    // should begin with.
+    // Unlike the global index, the local trees are assumed to have no corrupt branches.
+
+    // TODO: Alternatively, we can usd DFS on cubes that don't have parent nodes
+    //  in the map as the starting cubes. This is to be discussed.
+    val levelCubes = cubeMap.keys.groupBy(_.depth)
+    val minLevel = levelCubes.keys.min
+    val maxLevel = levelCubes.keys.max
+    (maxLevel until minLevel by -1) foreach { level =>
+      // We group cubes by their parent cube to avoid copying CubeInfo too many times
+      // An alternative is to use a var for treeSize in CubeInfo, but we don't want
+      // this value to be modified once the values are populated.
+      levelCubes(level).groupBy(c => c.parent.get) foreach { case (parent, siblings) =>
+        val parentCubeInfo = cubeMap(parent)
+        var treeSize = parentCubeInfo.treeSize
+        siblings.foreach(c => treeSize += cubeMap(c).treeSize)
+        cubeMap(parent) = parentCubeInfo.copy(treeSize = treeSize)
+      }
+    }
+    cubeMap
   }
 
 }
@@ -143,10 +181,4 @@ private class WeightAndCount(var weight: Weight, var count: Int)
  */
 protected case class PointWeightAndParent(point: Point, weight: Weight, parent: Option[CubeId])
 
-/**
- * Cube and NormalizedWeight
- *
- * @param cubeBytes        the cube
- * @param normalizedWeight the weight
- */
-case class CubeNormalizedWeight(cubeBytes: Array[Byte], normalizedWeight: NormalizedWeight)
+case class CubeInfo(normalizedWeight: NormalizedWeight, treeSize: Double)
