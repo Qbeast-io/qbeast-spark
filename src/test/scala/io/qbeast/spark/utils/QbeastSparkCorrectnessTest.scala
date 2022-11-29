@@ -7,11 +7,11 @@ import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.functions._
+import org.apache.spark.sql.functions.{col, lit}
 
-class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
+class QbeastSparkCorrectnessTest extends QbeastIntegrationTestSpec {
 
-  "the Qbeast data source" should
+  "Qbeast datasource" should
     "expose the original number of columns and rows" in withQbeastContextSparkAndTmpDir {
       (spark, tmpDir) =>
         {
@@ -29,7 +29,7 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
         }
     }
 
-  it should "index correctly on bigger spaces" in withQbeastContextSparkAndTmpDir {
+  "Qbeast index" should "index correctly on bigger spaces" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
       {
         val data = loadTestData(spark)
@@ -159,55 +159,6 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
 
         df.count() shouldBe dataSize
 
-        val precision = 0.1
-        val tolerance = 0.01
-        // We allow a 1% of tolerance in the sampling
-        df.sample(withReplacement = false, precision)
-          .count()
-          .toDouble shouldBe (dataSize * precision) +- dataSize * precision * tolerance
-
-      }
-    }
-
-  "Appending to an existing qbeast table" should
-    "work without specifying cubeSize or columnsToIndex" in withQbeastContextSparkAndTmpDir {
-      (spark, tmpDir) =>
-        {
-          val original = loadTestData(spark)
-          original.write
-            .format("qbeast")
-            .option("cubeSize", 10000)
-            .option("columnsToIndex", "user_id,product_id")
-            .save(tmpDir)
-
-          original.write
-            .mode("append")
-            .format("qbeast")
-            .save(tmpDir)
-          val qDf = spark.read.format("qbeast").load(tmpDir)
-
-          qDf.count shouldBe original.count * 2
-        }
-    }
-
-  it should "work without specifying columnsToIndex" in
-    withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
-      {
-        val original = loadTestData(spark)
-        original.write
-          .format("qbeast")
-          .option("cubeSize", 10000)
-          .option("columnsToIndex", "user_id,product_id")
-          .save(tmpDir)
-
-        original.write
-          .mode("append")
-          .format("qbeast")
-          .option("cubeSize", 10000)
-          .save(tmpDir)
-        val qDf = spark.read.format("qbeast").load(tmpDir)
-
-        qDf.count shouldBe original.count * 2
       }
     }
 

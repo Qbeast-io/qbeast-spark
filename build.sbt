@@ -146,6 +146,11 @@ ThisBuild / pomExtra :=
       <name>Pol Santamaria</name>
       <url>https://github.com/polsm91</url>
     </developer>
+    <developer>
+      <id>Adricu8</id>
+      <name>Adria Correas</name>
+      <url>https://github.com/Adricu8</url>
+    </developer>
   </developers>
 
 // Scalafmt settings

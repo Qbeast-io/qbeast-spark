@@ -19,6 +19,12 @@ project/plugins/project/
 .worksheet
 .idea
 
+# VSCode specific
+.bloop/
+.metals/
+.vscode/
+metals.sbt
+
 # publication project
 nodep
 

@@ -1,7 +1,6 @@
 package io.qbeast.context
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import org.apache.spark.SparkConf
 import org.apache.spark.qbeast.config
 import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
@@ -15,7 +14,7 @@ class QbeastConfigTest extends AnyFlatSpec with Matchers with QbeastIntegrationT
   }
 
   it should "change configurations accordingly" in withExtendedSpark(
-    new SparkConf()
+    sparkConfWithSqlAndCatalog
       .set("spark.qbeast.index.defaultCubeSize", "1000")
       .set("spark.qbeast.index.cubeWeightsBufferCapacity", "1000")
       .set("spark.qbeast.index.numberOfRetries", "10")) { _ =>
@@ -32,7 +31,7 @@ class QbeastConfigTest extends AnyFlatSpec with Matchers with QbeastIntegrationT
   }
 
   it should "be defined" in withExtendedSpark(
-    new SparkConf()
+    sparkConfWithSqlAndCatalog
       .set("spark.qbeast.keeper", "myKeeper")) { spark =>
     val keeperString = spark.sparkContext.getConf.getOption("spark.qbeast.keeper")
     keeperString.get shouldBe "myKeeper"
