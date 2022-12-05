@@ -78,7 +78,7 @@ class CubeWeightsBuilder protected (
     queue.enqueue(PointWeightAndParent(point, weight, parent))
     if (queue.size >= bufferCapacity) {
       val unpopulatedTree = resultInternal()
-      resultBuffer = resultBuffer :+ populateTreeSize(unpopulatedTree).toMap
+      resultBuffer = resultBuffer :+ populateTreeSizeAndParentWeight(unpopulatedTree).toMap
       queue.clear()
     }
     this
@@ -92,7 +92,7 @@ class CubeWeightsBuilder protected (
   def result(): Seq[LocalTree] = {
     val unpopulatedTree = resultInternal()
     if (unpopulatedTree.nonEmpty) {
-      resultBuffer :+ populateTreeSize(unpopulatedTree).toMap
+      resultBuffer :+ populateTreeSizeAndParentWeight(unpopulatedTree).toMap
     } else {
       resultBuffer
     }
@@ -133,32 +133,35 @@ class CubeWeightsBuilder protected (
   }
 
   /**
-   * Populate cube tree sizes for all existing cubes in the tree
+   * Populate cube tree sizes and parent NormalizedWeights for all existing cubes in the tree
+   * in a bottom-up fashion
    * @param cubeMap local tree
    * @return
    */
-  def populateTreeSize(cubeMap: mutable.Map[CubeId, CubeInfo]): mutable.Map[CubeId, CubeInfo] = {
-    // This could have been implemented in the DFS fashion if it wasn't for
-    // the optimization processes where we don't know the cubes the DFS traversal
-    // should begin with.
-    // Unlike the global index, the local trees are assumed to have no corrupt branches.
-
-    // TODO: Alternatively, we can usd DFS on cubes that don't have parent nodes
-    //  in the map as the starting cubes. This is to be discussed.
+  def populateTreeSizeAndParentWeight(
+      cubeMap: mutable.Map[CubeId, CubeInfo]): mutable.Map[CubeId, CubeInfo] = {
+    // Compute tree sizes and parent weights from bottom up.
     val levelCubes = cubeMap.keys.groupBy(_.depth)
     val minLevel = levelCubes.keys.min
     val maxLevel = levelCubes.keys.max
     (maxLevel until minLevel by -1) foreach { level =>
-      // We group cubes by their parent cube to avoid copying CubeInfo too many times
-      // An alternative is to use a var for treeSize in CubeInfo, but we don't want
-      // this value to be modified once the values are populated.
-      levelCubes(level).groupBy(c => c.parent.get) foreach { case (parent, siblings) =>
-        val parentCubeInfo = cubeMap(parent)
-        var treeSize = parentCubeInfo.treeSize
-        siblings.foreach(c => treeSize += cubeMap(c).treeSize)
-        cubeMap(parent) = parentCubeInfo.copy(treeSize = treeSize)
-      }
+      levelCubes(level)
+        .groupBy(c => c.parent.get)
+        .foreach { case (parent, siblings) =>
+          val parentInfo = cubeMap(parent)
+          siblings.foreach(s => {
+            val siblingInfo = cubeMap(s)
+            // Update parent tree size
+            parentInfo.treeSize += siblingInfo.treeSize
+            // Update cube parent weight
+            siblingInfo.parentWeight = parentInfo.parentWeight
+          })
+        }
     }
+
+    // Set parent weight for the top level cubes to 0d
+    levelCubes(minLevel).foreach(c => cubeMap(c).parentWeight = 0d)
+
     cubeMap
   }
 
@@ -181,4 +184,4 @@ private class WeightAndCount(var weight: Weight, var count: Int)
  */
 protected case class PointWeightAndParent(point: Point, weight: Weight, parent: Option[CubeId])
 
-case class CubeInfo(normalizedWeight: NormalizedWeight, treeSize: Double)
+case class CubeInfo(var parentWeight: NormalizedWeight, var treeSize: Double)
