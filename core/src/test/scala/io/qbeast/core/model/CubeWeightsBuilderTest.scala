@@ -31,7 +31,7 @@ class CubeWeightsBuilderTest extends AnyFlatSpec with Matchers {
 
     val localTree = builder.result().head
 
-    localTree(root).normalizedWeight shouldBe Weight(9).fraction
+    localTree(root).parentWeight shouldBe Weight(9).fraction
     localTree(root).treeSize shouldBe 101d
   }
 
@@ -173,7 +173,7 @@ class CubeWeightsBuilderTest extends AnyFlatSpec with Matchers {
         c8 -> CubeInfo(-1d, 30d))
 
     val builder = new CubeWeightsBuilderTesting(50, 50, 100000)
-    val populatedTree = builder.populateTreeSize(initialTree.clone())
+    val populatedTree = builder.populateTreeSizeAndParentWeight(initialTree.clone())
 
     populatedTree.foreach { case (cube, info) =>
       val cubeSize = initialTree(cube).treeSize

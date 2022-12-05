@@ -4,15 +4,13 @@
 package io.qbeast.spark.index
 
 import io.qbeast.IISeq
-import io.qbeast.core.model.{BroadcastedTableChanges, _}
+import io.qbeast.core.model._
 import io.qbeast.core.transform.Transformer
 import io.qbeast.spark.index.QbeastColumns.{cubeToReplicateColumnName, weightColumnName}
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
 import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
-
-import scala.collection.immutable.SortedSet
 
 /**
  * Analyzes the data and extracts OTree structures
@@ -149,6 +147,14 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
     }
 
+  private[index] def skipCube(
+      cube: CubeId,
+      globalCubeNormalizedWeights: Map[CubeId, NormalizedWeight],
+      isReplication: Boolean): Boolean = {
+    !isReplication && !cube.isRoot && (globalCubeNormalizedWeights
+      .getOrElse(cube.parent.get, 1.0) >= 1.0)
+  }
+
   /**
    * Perform cube-wise merge of the local trees to find global cubes and weights.
    * @param localTrees local trees built on the partition data
@@ -157,76 +163,69 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
    * @return
    */
   private[index] def mergeLocalTrees(
-      localTrees: Seq[LocalTree],
+      localTrees: Dataset[LocalTree],
       desiredCubeSize: Int,
       indexStatus: IndexStatus,
       isReplication: Boolean)(
       missingCubeDomain: (CubeId, LocalTree) => Double): Map[CubeId, NormalizedWeight] = {
+    val spark = SparkSession.active
+    import spark.implicits._
+
+    val globalCubes = spark.sparkContext.broadcast(
+      localTrees
+        .select(explode(map_keys(col("value"))))
+        .select(
+          col("col.dimensionCount").as("dimensionCount"),
+          col("col.depth").as("depth"),
+          col("col.bitMask").as("bitMask"))
+        .as[CubeId]
+        .distinct()
+        .collect())
+
+    val globalTreeSizeAndDomains = localTrees
+      .flatMap(tree =>
+        globalCubes.value.map(cube =>
+          tree.get(cube) match {
+            case Some(info) =>
+              val treeSize = info.treeSize
+              val domain = info.treeSize / (1d - info.parentWeight)
+              CubeTreeSizeAndDomain(cube, treeSize, domain)
+            case None => CubeTreeSizeAndDomain(cube, 0d, missingCubeDomain(cube, tree))
+          }))
+      .groupBy(col("cube"))
+      .agg(sum(col("treeSize")).alias("treeSize"), sum(col("domain")).as("domain"))
+      .as[CubeTreeSizeAndDomain]
+      .collect()
+      .map { csd: CubeTreeSizeAndDomain => (csd.cube, (csd.treeSize, csd.domain)) }
+      .toMap
+
+    // Remove broadcast variable
+    globalCubes.destroy()
+
     var globalCubeNormalizedWeights = Map.empty[CubeId, NormalizedWeight]
+    val levelCubes = globalTreeSizeAndDomains.groupBy(_._1.depth)
+    val (minLevel, maxLevel) = (levelCubes.keys.min, levelCubes.keys.max)
 
-    // TODO This operation is very expensive. Find an alternative that allows a top-down \
-    //  traversal of the trees, without missing any cube.
-    val allCubes = SortedSet(localTrees.flatMap(_.keys): _*)
-    val minLeafWeight = 1d
-
-    allCubes.foreach(cube => {
-      // When not replicating, we can skip the cube, and consequently its subtree, when
-      // its immediate parent or any of its ancestor cubes was a leaf.
-      val skipCube = !isReplication && !cube.isRoot && (globalCubeNormalizedWeights
-        .getOrElse(cube.parent.get, minLeafWeight) >= minLeafWeight)
-
-      if (!skipCube) {
-        val parentGlobalWeight = cube.parent match {
-          case None => 0d // The root has 0d as parentWeight.
-          case Some(parent) =>
-            if (globalCubeNormalizedWeights.contains(parent)) globalCubeNormalizedWeights(parent)
-            // It is possible for a LocalTree to have some upper levels missing during optimization.
-            // In that case, if the parent is not present, we take the parent weight from the
-            // existing global index.
-            else if (isReplication) indexStatus.cubesStatuses(parent).normalizedWeight
-            else {
-              throw new RuntimeException(s"Unable to find global parent weight for cube: $cube")
-            }
-        }
-
-        var cubeTreeSize = 0d
-        var cubeDomain = 0d
-        for (tree <- localTrees) {
-          // cube exists in the local tree, its cube domain is to be computed using its tree size.
-          if (tree.contains(cube)) {
-            val treeSize = tree(cube).treeSize
-            val parentLocalWeight = cube.parent match {
-              case None => 0d
-              case Some(parent) =>
-                if (tree.contains(parent)) tree(parent).normalizedWeight
-                else if (isReplication) 0d
-                else {
-                  throw new RuntimeException(
-                    s"Unable to find local parent weight for cube: $cube")
-                }
-            }
-            cubeTreeSize += treeSize
-            cubeDomain += treeSize / (1d - parentLocalWeight)
-          } else {
-            // The cube is missing from the local tree, estimate an upper-bound
-            // for its domain from its chain of existing ancestors.
-            cubeDomain += missingCubeDomain(cube, tree)
+    (minLevel to maxLevel).foreach(level => {
+      levelCubes(level)
+        .filterNot(ctd => skipCube(ctd._1, globalCubeNormalizedWeights, isReplication))
+        .foreach { case (cube: CubeId, (treeSize: Double, domain: Double)) =>
+          val parentGlobalWeight = cube.parent match {
+            case None => 0d
+            case Some(parent) =>
+              if (isReplication && !globalCubeNormalizedWeights.contains(parent)) {
+                indexStatus.cubesStatuses(parent).normalizedWeight
+              } else {
+                globalCubeNormalizedWeights(parent)
+              }
           }
+          val normalizedWeight =
+            if (!isReplication && treeSize <= 0.98 * desiredCubeSize) {
+              NormalizedWeight.apply(desiredCubeSize, treeSize.toLong)
+            } else parentGlobalWeight + (desiredCubeSize / domain)
+
+          globalCubeNormalizedWeights += (cube -> normalizedWeight)
         }
-
-        // A cube is forced to be a leaf cube in the global index if its tree size is below
-        // the desired cube size. This is a preventive procedure for small inner cubes:
-        // When the domain estimation is too large with respect to the real value, which often
-        // happens in the vicinity of leaf cubes whose real domain values are small and there's
-        // a reduced margin for error, the algorithm outputs a much smaller weight leading to
-        // small inner cubes.
-        val normalizedWeight =
-          if (!isReplication && cubeTreeSize <= 0.98 * desiredCubeSize) {
-            NormalizedWeight.apply(desiredCubeSize, cubeTreeSize.toLong)
-          } else parentGlobalWeight + (desiredCubeSize / cubeDomain)
-
-        globalCubeNormalizedWeights += (cube -> normalizedWeight)
-      }
     })
 
     globalCubeNormalizedWeights
@@ -264,13 +263,13 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     val weightedDataFrame = dataFrame.transform(addRandomWeight(revision))
 
     // Second, construct local trees with partition data
-    val localTrees =
+
+    val localTrees: Dataset[LocalTree] =
       weightedDataFrame
         .transform(computeLocalTrees(numElements, revision, indexStatus, isReplication))
-        .collect()
 
     // Third, compute the overall estimated cube weights by merging local trees
-    val estimatedCubeWeights =
+    val estimatedCubeWeights: Map[CubeId, NormalizedWeight] =
       mergeLocalTrees(localTrees, revision.desiredCubeSize, indexStatus, isReplication)(
         MissingCubeDomainEstimation.domainThroughPayloadFractions)
 
@@ -285,4 +284,5 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     (weightedDataFrame, tableChanges)
   }
 
+  case class CubeTreeSizeAndDomain(cube: CubeId, treeSize: Double, domain: Double)
 }
