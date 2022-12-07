@@ -155,61 +155,58 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       .getOrElse(cube.parent.get, 1.0) >= 1.0)
   }
 
-  /**
-   * Perform cube-wise merge of the local trees to find global cubes and weights.
-   * @param localTrees local trees built on the partition data
-   * @param desiredCubeSize the desired size of the global cubes
-   * @param missingCubeDomain Strategy to use to find the cube domain in a local tree
-   * @return
-   */
-  private[index] def mergeLocalTrees(
+  private[index] def computeTreeSizeAndDomain(
       localTrees: Dataset[LocalTree],
-      desiredCubeSize: Int,
-      indexStatus: IndexStatus,
-      isReplication: Boolean)(
-      missingCubeDomain: (CubeId, LocalTree) => Double): Map[CubeId, NormalizedWeight] = {
+      dimensionCount: Int,
+      missingCubeDomain: (CubeId, LocalTree) => Double): Seq[TreeSizeAndDomain] = {
     val spark = SparkSession.active
     import spark.implicits._
 
     val globalCubes = spark.sparkContext.broadcast(
       localTrees
         .select(explode(map_keys(col("value"))))
-        .select(
-          col("col.dimensionCount").as("dimensionCount"),
-          col("col.depth").as("depth"),
-          col("col.bitMask").as("bitMask"))
+        .select(col("col.*"))
         .as[CubeId]
         .distinct()
         .collect())
 
-    val globalTreeSizeAndDomains = localTrees
+    val globalTreeSizeAndDomain = localTrees
       .flatMap(tree =>
         globalCubes.value.map(cube =>
           tree.get(cube) match {
             case Some(info) =>
-              val treeSize = info.treeSize
-              val domain = info.treeSize / (1d - info.parentWeight)
-              CubeTreeSizeAndDomain(cube, treeSize, domain)
-            case None => CubeTreeSizeAndDomain(cube, 0d, missingCubeDomain(cube, tree))
+              (cube.bytes, info.treeSize, info.treeSize / (1d - info.parentWeight))
+            case None =>
+              (cube.bytes, 0d, missingCubeDomain(cube, tree))
           }))
-      .groupBy(col("cube"))
-      .agg(sum(col("treeSize")).alias("treeSize"), sum(col("domain")).as("domain"))
-      .as[CubeTreeSizeAndDomain]
+      .groupBy(col("_1"))
+      .agg(sum(col("_2")), sum(col("_3")))
+      .map { row =>
+        val bytes = row.getAs[Array[Byte]](0)
+        val treeSize = row.getAs[Double](1)
+        val domain = row.getAs[Double](2)
+        TreeSizeAndDomain(CubeId(dimensionCount, bytes), treeSize, domain)
+      }
       .collect()
-      .map { csd: CubeTreeSizeAndDomain => (csd.cube, (csd.treeSize, csd.domain)) }
-      .toMap
 
-    // Remove broadcast variable
     globalCubes.destroy()
 
+    globalTreeSizeAndDomain
+  }
+
+  private[index] def estimateCubeWeights(
+      globalTreeSizeAndDomains: Seq[TreeSizeAndDomain],
+      indexStatus: IndexStatus,
+      isReplication: Boolean): Map[CubeId, NormalizedWeight] = {
     var globalCubeNormalizedWeights = Map.empty[CubeId, NormalizedWeight]
-    val levelCubes = globalTreeSizeAndDomains.groupBy(_._1.depth)
+    val desiredCubeSize = indexStatus.revision.desiredCubeSize
+    val levelCubes = globalTreeSizeAndDomains.groupBy(_.cube.depth)
     val (minLevel, maxLevel) = (levelCubes.keys.min, levelCubes.keys.max)
 
     (minLevel to maxLevel).foreach(level => {
       levelCubes(level)
-        .filterNot(ctd => skipCube(ctd._1, globalCubeNormalizedWeights, isReplication))
-        .foreach { case (cube: CubeId, (treeSize: Double, domain: Double)) =>
+        .filterNot(ctd => skipCube(ctd.cube, globalCubeNormalizedWeights, isReplication))
+        .foreach { case TreeSizeAndDomain(cube: CubeId, treeSize: Double, domain: Double) =>
           val parentGlobalWeight = cube.parent match {
             case None => 0d
             case Some(parent) =>
@@ -257,21 +254,24 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       case None => indexStatus.revision
     }
 
-    // Three step transformation
-
     // First, add a random weight column
     val weightedDataFrame = dataFrame.transform(addRandomWeight(revision))
 
     // Second, construct local trees with partition data
-
     val localTrees: Dataset[LocalTree] =
       weightedDataFrame
         .transform(computeLocalTrees(numElements, revision, indexStatus, isReplication))
 
-    // Third, compute the overall estimated cube weights by merging local trees
-    val estimatedCubeWeights: Map[CubeId, NormalizedWeight] =
-      mergeLocalTrees(localTrees, revision.desiredCubeSize, indexStatus, isReplication)(
+    // Compute tree size and domain for all unique cubes
+    val treeSizeAndDomain =
+      computeTreeSizeAndDomain(
+        localTrees,
+        columnTransformers.size,
         MissingCubeDomainEstimation.domainThroughPayloadFractions)
+
+    // Populate NormalizedWeight level-wise from top to bottom
+    val estimatedCubeWeights: Map[CubeId, NormalizedWeight] =
+      estimateCubeWeights(treeSizeAndDomain, indexStatus, isReplication)
 
     // Gather the new changes
     val tableChanges = BroadcastedTableChanges(
@@ -284,5 +284,4 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     (weightedDataFrame, tableChanges)
   }
 
-  case class CubeTreeSizeAndDomain(cube: CubeId, treeSize: Double, domain: Double)
 }

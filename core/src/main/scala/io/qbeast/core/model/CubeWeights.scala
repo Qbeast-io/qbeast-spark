@@ -185,3 +185,5 @@ private class WeightAndCount(var weight: Weight, var count: Int)
 protected case class PointWeightAndParent(point: Point, weight: Weight, parent: Option[CubeId])
 
 case class CubeInfo(var parentWeight: NormalizedWeight, var treeSize: Double)
+
+case class TreeSizeAndDomain(cube: CubeId, treeSize: Double, domain: Double)
