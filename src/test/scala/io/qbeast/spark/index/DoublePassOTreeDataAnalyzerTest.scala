@@ -8,6 +8,8 @@ import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer.{
   calculateRevisionChanges,
   computeLocalTrees,
+  computeTreeSizeAndDomain,
+  estimateCubeWeights,
   getDataFrameStats
 }
 import io.qbeast.spark.index.QbeastColumns.weightColumnName
@@ -33,24 +35,6 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     columnsSchema
       .map(field => Transformer(field.name, SparkToQTypesUtils.convertDataTypes(field.dataType)))
       .toIndexedSeq
-  }
-
-  def monotonicallyIncreasingWeights(
-      cube: CubeId,
-      parentWeight: NormalizedWeight,
-      cubeWeights: Map[CubeId, NormalizedWeight]): Boolean = {
-    if (cubeWeights.contains(cube)) {
-      val cubeMaxWeight = cubeWeights(cube)
-      if (cubeMaxWeight > parentWeight) {
-        cube.children
-          .forall(c => monotonicallyIncreasingWeights(c, cubeMaxWeight, cubeWeights))
-      } else false
-    } else {
-      val nextLevel = cube.children
-        .filter(cubeWeights.contains)
-      nextLevel.isEmpty || nextLevel.forall(c =>
-        monotonicallyIncreasingWeights(c, parentWeight, cubeWeights))
-    }
   }
 
   it should "calculateRevisionChanges correctly on single column" in withSpark { spark =>
@@ -227,40 +211,97 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     dataSize shouldBe dataFrameStats.getAs[Long]("count")
   }
 
-//  it should "merge local trees for global cube weights" in withSpark { spark =>
-//    val data = createDF(10000, spark)
-//    val columnsSchema = data.schema
-//    val columnTransformers = createTransformers(columnsSchema)
-//
-//    val emptyRevision =
-//      Revision(0, 1000, QTableID("test"), 1000, columnTransformers, Seq.empty.toIndexedSeq)
-//
-//    val dataFrameStats = getDataFrameStats(data.toDF(), columnTransformers)
-//    val revision =
-//      calculateRevisionChanges(dataFrameStats, emptyRevision).get.createNewRevision
-//
-//    val indexStatus = IndexStatus(revision, Set.empty)
-//    val weightedDataFrame =
-//      data.withColumn(weightColumnName, lit(scala.util.Random.nextInt()))
-//    val localTrees =
-//      weightedDataFrame
-//        .transform(computeLocalTrees(10000, revision, indexStatus, isReplication = false))
-//
-//    val cubeWeights =
-//      mergeLocalTrees(localTrees, revision.desiredCubeSize, indexStatus, isReplication = false)(
-//        MissingCubeDomainEstimation.domainThroughPayloadFractions)
-//
-//    // Cubes from all LocalTrees should be present in the merge tree
-//    cubeWeights.keys.size shouldBe <=(localTrees.flatMap(_.keys).distinct.length)
-//    cubeWeights.values.foreach(weight => weight shouldBe >(0.0))
-//
-//    // Cubes with a weight lager than 1d should not have children
-//    val leafCubesByWeight = cubeWeights.filter(cw => cw._2 >= 1d).keys
-//    leafCubesByWeight.exists(cube => cube.children.exists(cubeWeights.contains)) shouldBe false
-//
-//    // Test cubeWeights is monotonically increasing in all branches
-//    val root = revision.createCubeIdRoot()
-//    monotonicallyIncreasingWeights(root, 0d, cubeWeights)
-//  }
+  it should "compute global tree size and cube domain correctly" in withSpark { spark =>
+    import spark.implicits._
 
+    val data = createDF(10000, spark)
+    val columnsSchema = data.schema
+    val columnTransformers = createTransformers(columnsSchema)
+
+    val emptyRevision =
+      Revision(0, 1000, QTableID("test"), 1000, columnTransformers, Seq.empty.toIndexedSeq)
+
+    val dataFrameStats = getDataFrameStats(data.toDF(), columnTransformers)
+    val revision =
+      calculateRevisionChanges(dataFrameStats, emptyRevision).get.createNewRevision
+
+    val indexStatus = IndexStatus(revision, Set.empty)
+    val weightedDataFrame =
+      data.withColumn(weightColumnName, lit(scala.util.Random.nextInt()))
+    val localTrees =
+      weightedDataFrame
+        .transform(computeLocalTrees(10000, revision, indexStatus, isReplication = false))
+
+    val globalTreeSizeDomain =
+      computeTreeSizeAndDomain(localTrees, isReplication = false, columnTransformers.size).sortBy(
+        _._1)
+
+    val treeSizeDomainMap = globalTreeSizeDomain.toMap
+
+    // Should have the correct number of cubes
+    globalTreeSizeDomain.size shouldBe treeSizeDomainMap.size
+    treeSizeDomainMap.size shouldBe localTrees.flatMap(_.keys).distinct().count()
+
+    // Root should have the correct tree size and domain
+    val tsd = treeSizeDomainMap(revision.createCubeIdRoot())
+    tsd.treeSize shouldBe tsd.domain
+    tsd.domain shouldBe dataFrameStats.getAs[Long]("count")
+
+    // treeSize and domain are monotonically decreasing along branches
+    globalTreeSizeDomain.foreach { case (cube, TreeSizeAndDomain(treeSize, domain)) =>
+      // Check treeSize and domain relation
+      treeSize shouldBe <=(domain)
+
+      // monotonically decreasing tree size and domain
+      cube.children
+        .filter(treeSizeDomainMap.contains)
+        .foreach(child => {
+          val childTsd = treeSizeDomainMap(child)
+          childTsd.treeSize shouldBe <=(childTsd.domain)
+          treeSize shouldBe >=(childTsd.treeSize)
+          domain shouldBe >=(childTsd.domain)
+        })
+    }
+  }
+
+  it should "estimate global NormalizedWeight's correctly" in withSpark { spark =>
+    val data = createDF(10000, spark)
+    val columnsSchema = data.schema
+    val columnTransformers = createTransformers(columnsSchema)
+
+    val emptyRevision =
+      Revision(0, 1000, QTableID("test"), 1000, columnTransformers, Seq.empty.toIndexedSeq)
+
+    val dataFrameStats = getDataFrameStats(data.toDF(), columnTransformers)
+    val revision =
+      calculateRevisionChanges(dataFrameStats, emptyRevision).get.createNewRevision
+
+    val indexStatus = IndexStatus(revision, Set.empty)
+
+    val weightedDataFrame =
+      data.withColumn(weightColumnName, lit(scala.util.Random.nextInt()))
+
+    val localTrees =
+      weightedDataFrame
+        .transform(computeLocalTrees(10000, revision, indexStatus, isReplication = false))
+
+    val globalTreeSizeAndDomain =
+      computeTreeSizeAndDomain(localTrees, isReplication = false, columnTransformers.size)
+
+    val cubeWeights =
+      estimateCubeWeights(globalTreeSizeAndDomain, indexStatus, isReplication = false)
+
+    // Cubes with a weight lager than 1d should not have children
+    val leafCubesByWeight = cubeWeights.filter(cw => cw._2 >= 1d).keys
+    leafCubesByWeight.exists(cube => cube.children.exists(cubeWeights.contains)) shouldBe false
+
+    // Test cubeWeights is monotonically increasing in all branches
+    cubeWeights.toSeq
+      .sortBy(_._1)
+      .foreach { case (cube, weight) =>
+        cube.children
+          .filter(cubeWeights.contains)
+          .foreach(child => weight < cubeWeights(child))
+      }
+  }
 }

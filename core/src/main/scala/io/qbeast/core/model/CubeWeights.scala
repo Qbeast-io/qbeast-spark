@@ -186,4 +186,4 @@ protected case class PointWeightAndParent(point: Point, weight: Weight, parent: 
 
 case class CubeInfo(var parentWeight: NormalizedWeight, var treeSize: Double)
 
-case class TreeSizeAndDomain(cube: CubeId, treeSize: Double, domain: Double)
+case class TreeSizeAndDomain(treeSize: Double, domain: Double)
