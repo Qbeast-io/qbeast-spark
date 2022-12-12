@@ -16,6 +16,7 @@ import org.apache.spark.sql.catalyst.analysis.{
 import org.apache.spark.sql.{SparkCatalogUtils, SparkSession}
 import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.expressions.Transform
+import org.apache.spark.sql.delta.catalog.DeltaCatalog
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
@@ -37,19 +38,27 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces]
 
   private val tableFactory = QbeastContext.indexedTableFactory
 
+  private val deltaCatalog: DeltaCatalog = new DeltaCatalog()
+
   private var delegatedCatalog: CatalogPlugin = null
 
   private var catalogName: String = null
 
-  private def getSessionCatalog(): T = {
+  private def getDelegatedCatalog(): T = {
     val sessionCatalog = delegatedCatalog match {
       case null =>
         // In this case, any catalog has been delegated, so we need to search for the default
         SparkCatalogUtils.getV2SessionCatalog(SparkSession.active)
       case o => o
     }
-
     sessionCatalog.asInstanceOf[T]
+  }
+
+  private def getSessionCatalog(properties: Map[String, String] = Map.empty): T = {
+    properties.get("provider") match {
+      case Some("delta") => deltaCatalog.asInstanceOf[T]
+      case _ => getDelegatedCatalog()
+    }
   }
 
   override def loadTable(ident: Identifier): Table = {
@@ -93,7 +102,11 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces]
       // Load the table
       loadTable(ident)
     } else {
-      getSessionCatalog().createTable(ident, schema, partitions, properties)
+      getSessionCatalog(properties.asScala.toMap).createTable(
+        ident,
+        schema,
+        partitions,
+        properties)
     }
 
   }
@@ -119,12 +132,13 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces]
         properties,
         tableFactory)
     } else {
-      if (getSessionCatalog().tableExists(ident)) {
-        getSessionCatalog().dropTable(ident)
+      val sessionCatalog = getSessionCatalog(properties.asScala.toMap)
+      if (sessionCatalog.tableExists(ident)) {
+        sessionCatalog.dropTable(ident)
       }
       DefaultStagedTable(
         ident,
-        getSessionCatalog().createTable(ident, schema, partitions, properties),
+        sessionCatalog.createTable(ident, schema, partitions, properties),
         this)
     }
   }
@@ -143,12 +157,13 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces]
         properties,
         tableFactory)
     } else {
-      if (getSessionCatalog().tableExists(ident)) {
-        getSessionCatalog().dropTable(ident)
+      val sessionCatalog = getSessionCatalog(properties.asScala.toMap)
+      if (sessionCatalog.tableExists(ident)) {
+        sessionCatalog.dropTable(ident)
       }
       DefaultStagedTable(
         ident,
-        getSessionCatalog().createTable(ident, schema, partitions, properties),
+        sessionCatalog.createTable(ident, schema, partitions, properties),
         this)
 
     }
@@ -170,7 +185,8 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces]
     } else {
       DefaultStagedTable(
         ident,
-        getSessionCatalog().createTable(ident, schema, partitions, properties),
+        getSessionCatalog(properties.asScala.toMap)
+          .createTable(ident, schema, partitions, properties),
         this)
     }
   }
@@ -208,6 +224,7 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces]
   override def initialize(name: String, options: CaseInsensitiveStringMap): Unit = {
     // Initialize the catalog with the corresponding name
     this.catalogName = name
+    this.deltaCatalog.initialize(name, options)
   }
 
   override def name(): String = catalogName
@@ -216,6 +233,7 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces]
     // Check if the delegating catalog has Table and SupportsNamespace properties
     if (delegate.isInstanceOf[TableCatalog] && delegate.isInstanceOf[SupportsNamespaces]) {
       this.delegatedCatalog = delegate
+      this.deltaCatalog.setDelegateCatalog(delegate)
     } else throw new IllegalArgumentException("Invalid session catalog: " + delegate)
   }
 

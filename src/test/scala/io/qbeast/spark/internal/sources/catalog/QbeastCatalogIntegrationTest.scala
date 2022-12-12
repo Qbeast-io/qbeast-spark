@@ -7,7 +7,7 @@ import org.apache.spark.sql.AnalysisException
 class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with CatalogTestSuite {
 
   "QbeastCatalog" should
-    "coexist with Delta tables" in withTmpDir(tmpDir =>
+    "coexist with Delta Catalog" in withTmpDir(tmpDir =>
       withExtendedSpark(sparkConf = new SparkConf()
         .setMaster("local[8]")
         .set("spark.sql.extensions", "io.qbeast.spark.internal.QbeastSparkSessionExtension")
@@ -21,7 +21,6 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
 
         data.write.format("delta").saveAsTable("delta_table") // delta catalog
 
-        // spark.sql("USE CATALOG qbeast_catalog")
         data.write
           .format("qbeast")
           .option("columnsToIndex", "id")
@@ -40,6 +39,33 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
           ignoreNullable = true)
 
       }))
+
+  it should
+    "coexist with Delta tables in the same catalog" in withQbeastContextSparkAndTmpWarehouse(
+      (spark, _) => {
+
+        val data = createTestData(spark)
+
+        data.write.format("delta").saveAsTable("delta_table") // delta catalog
+
+        data.write
+          .format("qbeast")
+          .option("columnsToIndex", "id")
+          .saveAsTable("qbeast_table") // qbeast catalog
+
+        val tables = spark.sessionState.catalog.listTables("default")
+        tables.size shouldBe 2
+
+        val deltaTable = spark.read.table("delta_table")
+        val qbeastTable = spark.read.table("qbeast_table")
+
+        assertSmallDatasetEquality(
+          deltaTable,
+          qbeastTable,
+          orderedComparison = false,
+          ignoreNullable = true)
+
+      })
 
   it should "crate table" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
 
