@@ -7,7 +7,7 @@ import org.apache.spark.sql.AnalysisException
 class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with CatalogTestSuite {
 
   "QbeastCatalog" should
-    "coexist with Delta Catalog" in withTmpDir(tmpDir =>
+    "coexist with Delta tables" in withTmpDir(tmpDir =>
       withExtendedSpark(sparkConf = new SparkConf()
         .setMaster("local[8]")
         .set("spark.sql.extensions", "io.qbeast.spark.internal.QbeastSparkSessionExtension")
