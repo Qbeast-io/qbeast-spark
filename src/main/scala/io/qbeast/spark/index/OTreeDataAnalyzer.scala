@@ -168,17 +168,36 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         .select(col("col.*"))
         .as[CubeId]
         .distinct()
-        .collect())
+        .collect()
+        .sorted)
 
     val globalTreeSizeAndDomain = localTrees
-      .flatMap(tree =>
-        globalCubes.value.map(cube =>
+      .flatMap(tree => {
+        var treeSizeDomain = Map.empty[CubeId, TsAndDomain]
+
+        globalCubes.value.foreach(cube =>
           tree.get(cube) match {
             case Some(info) =>
-              (cube.bytes, info.treeSize, info.treeSize / (1d - info.parentWeight))
+              val treeSize = info.treeSize
+              val domain = info.treeSize / (1d - info.parentWeight)
+              treeSizeDomain += (cube -> TsAndDomain(treeSize, domain))
             case None =>
-              (cube.bytes, 0d, missingCubeDomain(cube, tree))
-          }))
+              val parent = cube.parent.get
+              val parentTreeSize = treeSizeDomain(parent).treeSize
+              val parentDomain = treeSizeDomain(parent).domain
+              val siblings = parent.children.filter(tree.contains)
+              val domain = if (siblings.isEmpty) {
+                parentDomain - parentTreeSize
+              } else {
+                val siblingSize = siblings.map(tree(_).treeSize).sum
+                val f = 1d / (siblingSize + 1d)
+                f * parentDomain
+              }
+
+              treeSizeDomain += (cube -> TsAndDomain(0d, domain))
+          })
+        treeSizeDomain.toSeq.map { case (c, tsd) => (c.bytes, tsd.treeSize, tsd.domain) }
+      })
       .groupBy(col("_1"))
       .agg(sum(col("_2")), sum(col("_3")))
       .map { row =>
@@ -284,4 +303,5 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     (weightedDataFrame, tableChanges)
   }
 
+  case class TsAndDomain(treeSize: Double, domain: Double)
 }
