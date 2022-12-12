@@ -217,7 +217,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
               }
           }
           val normalizedWeight =
-            if (!isReplication && treeSize <= 0.98 * desiredCubeSize) {
+            if (!isReplication && treeSize <= desiredCubeSize) {
               NormalizedWeight.apply(desiredCubeSize, treeSize.toLong)
             } else parentGlobalWeight + (desiredCubeSize / domain)
 
