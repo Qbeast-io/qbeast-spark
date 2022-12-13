@@ -8,7 +8,7 @@ import scala.collection.mutable
 
 class CubeWeightsBuilderTest extends AnyFlatSpec with Matchers {
 
-  private val point = Point(0.66, 0.28)
+  private val point = Point(0.9, 0.1)
   private val List(root, id10, id1001) = CubeId.containers(point).take(3).toList
 
   case class CubeAndInfoTesting(cube: CubeId, info: CubeInfo)
@@ -24,14 +24,17 @@ class CubeWeightsBuilderTest extends AnyFlatSpec with Matchers {
         bufferCapacity,
         announcedOrReplicatedSet)
 
-  "CubeWeightsBuilder" should "calculate maxWeight for the roots" in {
+  "CubeWeightsBuilder" should "calculate maxWeight for the root" in {
     val builder = new CubeWeightsBuilderTesting(10, 10, 100000)
 
     Random.shuffle(0.to(100).toList).foreach { value => builder.update(point, Weight(value)) }
 
     val localTree = builder.result().head
 
-    localTree(root).parentWeight shouldBe Weight(9).fraction
+    val levelOne = localTree.filter(kv => kv._1.depth == 1)
+    val rootWeight = levelOne.head._2.parentWeight
+    rootWeight shouldBe Weight(9).fraction
+
     localTree(root).treeSize shouldBe 101d
   }
 
@@ -51,7 +54,7 @@ class CubeWeightsBuilderTest extends AnyFlatSpec with Matchers {
     randomTree == sortedTree shouldBe true
   }
 
-  it should "add weights to the cube until it is full" in {
+  it should "respect groupCubeSize" in {
     val builder = new CubeWeightsBuilderTesting(2, 2, 100000)
 
     builder.update(point, Weight(1))
@@ -59,15 +62,13 @@ class CubeWeightsBuilderTest extends AnyFlatSpec with Matchers {
     builder.update(point, Weight(3))
     builder.update(point, Weight(4))
 
-    builder
-      .result()
-      .head
-      .toSeq shouldBe Seq(
-      (root, CubeInfo(Weight(2).fraction, 4)),
+    val unpopulatedLocalTree = builder.resultInternal()
+    unpopulatedLocalTree.toSeq shouldBe Seq(
+      (root, CubeInfo(Weight(2).fraction, 2)),
       (id10, CubeInfo(Weight(4).fraction, 2)))
   }
 
-  it should "assign a the correct normalized maxWeight if the cube is not full" in {
+  it should "assign the correct NormalizedWeight if the cube is not full" in {
     val builder = new CubeWeightsBuilderTesting(2, 2, 100000)
 
     builder.update(point, Weight(1))
@@ -76,13 +77,11 @@ class CubeWeightsBuilderTest extends AnyFlatSpec with Matchers {
     builder.update(point, Weight(4))
     builder.update(point, Weight(5))
 
-    builder
-      .result()
-      .head
-      .toSeq shouldBe Seq(
-      (root, CubeInfo(Weight(2).fraction, 5)),
-      (id10, CubeInfo(Weight(4).fraction, 3)),
-      (id1001, CubeInfo(2.0, 1)))
+    val localTree = builder.resultInternal()
+    localTree.toSeq shouldBe Seq(
+      (root, CubeInfo(Weight(2).fraction, 2)),
+      (id10, CubeInfo(Weight(4).fraction, 2)),
+      (id1001, CubeInfo(NormalizedWeight(2, 1), 1)))
   }
 
   it should "move the biggest maxWeight to a child cube if the cube is full" in {
@@ -95,55 +94,26 @@ class CubeWeightsBuilderTest extends AnyFlatSpec with Matchers {
     builder.update(point, Weight(1))
     builder.update(point, Weight(2))
 
-    builder
-      .result()
-      .head
-      .toSeq shouldBe Seq(
-      (root, CubeInfo(Weight(2).fraction, 6)),
-      (id10, CubeInfo(Weight(4).fraction, 4)),
+    val localTree = builder.resultInternal()
+    localTree.toSeq shouldBe Seq(
+      (root, CubeInfo(Weight(2).fraction, 2)),
+      (id10, CubeInfo(Weight(4).fraction, 2)),
       (id1001, CubeInfo(Weight(6).fraction, 2)))
   }
 
-  it should "add maxWeight to the child of announced cube" in {
+  it should "add maxWeight to the child of announced or replicated cube" in {
     val builder =
       new CubeWeightsBuilderTesting(1, 1, 100000, announcedOrReplicatedSet = Set(root))
 
     builder.update(point, Weight(2))
 
-    builder
-      .result()
-      .head
-      .toSeq shouldBe Seq(
-      (root, CubeInfo(Weight(2).fraction, 2)),
+    val localTree = builder.resultInternal()
+    localTree.toSeq shouldBe Seq(
+      (root, CubeInfo(Weight(2).fraction, 1)),
       (id10, CubeInfo(Weight(2).fraction, 1)))
   }
 
-  it should "add maxWeight to the child of replicated cube" in {
-    val builder =
-      new CubeWeightsBuilderTesting(1, 1, 100000, announcedOrReplicatedSet = Set(root))
-
-    builder.update(point, Weight(2))
-
-    builder
-      .result()
-      .head
-      .toSeq shouldBe Seq(
-      (root, CubeInfo(Weight(2).fraction, 2)),
-      (id10, CubeInfo(Weight(2).fraction, 1)))
-  }
-
-  it should "not duplicate elements in result" in {
-    val builder =
-      new CubeWeightsBuilderTesting(1, 1, 1000, announcedOrReplicatedSet = Set(root))
-
-    0.to(10000).map { _ => builder.update(point, Weight(Random.nextInt())) }
-
-    builder
-      .result()
-      .foreach(tree => tree.toSeq.size shouldBe tree.toSeq.distinct.size)
-  }
-
-  "populateTreeSize" should "create correct tree size results" in {
+  "populateTreeSizeAndParentWeight" should "create correct tree size results" in {
     // Initial Tree:
     //                                 root(_, 50)
     //                                /            \
@@ -160,23 +130,27 @@ class CubeWeightsBuilderTest extends AnyFlatSpec with Matchers {
     val Seq(c4, c5) = c3.children.take(2).toSeq
     val Seq(c7, c8) = c6.children.take(2).toSeq
 
-    val initialTree =
-      mutable.Map[CubeId, CubeInfo](
-        root -> CubeInfo(-1d, 50d),
-        c1 -> CubeInfo(-1d, 50d),
-        c2 -> CubeInfo(-1d, 15d),
-        c3 -> CubeInfo(-1d, 50d),
-        c4 -> CubeInfo(-1d, 1d),
-        c5 -> CubeInfo(-1d, 15d),
-        c6 -> CubeInfo(-1d, 50d),
-        c7 -> CubeInfo(-1d, 30d),
-        c8 -> CubeInfo(-1d, 30d))
+    val cubeSizes = Map(
+      root -> 50d,
+      c1 -> 50d,
+      c2 -> 15d,
+      c3 -> 50d,
+      c4 -> 1d,
+      c5 -> 15d,
+      c6 -> 50d,
+      c7 -> 30d,
+      c8 -> 30d)
+
+    val unpopulatedTree = mutable.Map.empty[CubeId, CubeInfo]
+    cubeSizes.foreach { case (cube, count) =>
+      unpopulatedTree += cube -> CubeInfo(-1, count)
+    }
 
     val builder = new CubeWeightsBuilderTesting(50, 50, 100000)
-    val populatedTree = builder.populateTreeSizeAndParentWeight(initialTree.clone())
+    val populatedTree = builder.populateTreeSizeAndParentWeight(unpopulatedTree.result())
 
     populatedTree.foreach { case (cube, info) =>
-      val cubeSize = initialTree(cube).treeSize
+      val cubeSize = cubeSizes(cube)
       val subtreeSize = cube.children
         .filter(populatedTree.contains)
         .map(populatedTree(_).treeSize)
