@@ -194,7 +194,8 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
   }
 
   /**
-   * Compute cube tree size and domain from all LocalTrees by broadcasting the unique cubes from all partitions.
+   * Compute cube tree size and domain from all LocalTrees by broadcasting
+   * the unique cubes from all partitions.
    * @param localTrees the collection of LocalTrees from all partitions
    * @param isReplication whether the current process is a replication process
    * @param dimensionCount the number of indexing columns
