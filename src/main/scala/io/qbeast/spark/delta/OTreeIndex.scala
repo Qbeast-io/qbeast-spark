@@ -59,14 +59,14 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
   protected def matchingFiles(
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[AddFile] = {
-    // Filter qbeast blocks
-    val matchingBlocksPath = matchingBlocks(partitionFilters, dataFilters).map(_.path)
-    // Apply data skipping strategy
+    // Apply Qbeast data skipping strategy
+    val qbeastMatchingBlocks = matchingBlocks(partitionFilters, dataFilters)
+    // Apply Delta data skipping strategy
     val deltaFilesForScan = snapshot
       .filesForScan(projection = Nil, partitionFilters ++ dataFilters)
       .files
     // Join
-    deltaFilesForScan.filter(f => matchingBlocksPath.contains(f.path))
+    deltaFilesForScan.filter(f => qbeastMatchingBlocks.exists(_.path == f.path))
   }
 
   override def listFiles(
