@@ -192,4 +192,23 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
       }
 
   }
+
+  it should "filter files even with non-indexed columns" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      {
+        val data = loadTestData(spark)
+
+        writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
+
+        val df = spark.read.format("qbeast").load(tmpDir)
+
+        val filters = Seq("price < 7.0")
+        val filter = filters.mkString(" and ")
+        val query = df.filter(filter)
+
+        checkFileFiltering(query)
+
+      }
+
+  }
 }

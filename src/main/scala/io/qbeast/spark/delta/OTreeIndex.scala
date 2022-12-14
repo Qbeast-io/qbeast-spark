@@ -11,10 +11,11 @@ import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.delta.files.TahoeLogFileIndex
 import org.apache.spark.sql.execution.datasources.{FileIndex, PartitionDirectory}
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{SparkSession}
 
 import java.net.URI
 import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.delta.actions.{AddFile}
 
 /**
  * FileIndex to prune files
@@ -40,6 +41,12 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
     }
   }
 
+  /**
+   * Returns the matching blocks for the query
+   * @param partitionFilters the query partition filters
+   * @param dataFilters the query data filters
+   * @return a sequence with the QbeastBlocks to read
+   */
   protected def matchingBlocks(
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[QbeastBlock] = {
@@ -49,18 +56,31 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
     queryExecutor.execute()
   }
 
+  protected def matchingFiles(
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): Seq[AddFile] = {
+    // Filter qbeast blocks
+    val matchingBlocksPath = matchingBlocks(partitionFilters, dataFilters).map(_.path)
+    // Apply data skipping strategy
+    val deltaFilesForScan = snapshot
+      .filesForScan(projection = Nil, partitionFilters ++ dataFilters)
+      .files
+    // Join
+    deltaFilesForScan.filter(f => matchingBlocksPath.contains(f.path))
+  }
+
   override def listFiles(
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
 
-    val fileStats = matchingBlocks(partitionFilters, dataFilters).map { qbeastBlock =>
+    val fileStats = matchingFiles(partitionFilters, dataFilters).map { file =>
       new FileStatus(
-        /* length */ qbeastBlock.size,
+        /* length */ file.size,
         /* isDir */ false,
         /* blockReplication */ 0,
         /* blockSize */ 1,
-        /* modificationTime */ qbeastBlock.modificationTime,
-        absolutePath(qbeastBlock.path))
+        /* modificationTime */ file.modificationTime,
+        absolutePath(file.path))
     }.toArray
 
     Seq(PartitionDirectory(new GenericInternalRow(Array.empty[Any]), fileStats))
