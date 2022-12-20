@@ -23,10 +23,13 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
 
     qbeastSnapshot.loadAllRevisions.flatMap { revision =>
       val querySpec = querySpecBuilder.build(revision)
-      val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
-
-      val matchingBlocks = executeRevision(querySpec, indexStatus)
-      matchingBlocks
+      querySpec.querySpace match {
+        case _: QuerySpaceFromTo =>
+          val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
+          val matchingBlocks = executeRevision(querySpec, indexStatus)
+          matchingBlocks
+        case _: EmptySpace => Seq.empty[QbeastBlock]
+      }
     }
   }
 

@@ -24,9 +24,9 @@ class QuerySpecBuilderTest
     And(lessThan, greaterThanOrEqual)
   }
 
-  private def createRevision() = {
+  private def createRevision(minVal: Int = Int.MinValue, maxVal: Int = Int.MaxValue) = {
     val transformations =
-      Seq(LinearTransformation(Int.MinValue, Int.MaxValue, IntegerDataType)).toIndexedSeq
+      Seq(LinearTransformation(minVal, maxVal, IntegerDataType)).toIndexedSeq
     val columnTransformers = Seq(Transformer("linear", "id", IntegerDataType)).toIndexedSeq
 
     Revision(
@@ -167,4 +167,41 @@ class QuerySpecBuilderTest
     querySpecBuilder.extractDataFilters(expressions, revision) shouldBe expressions
 
   })
+
+  "extractQuerySpace" should "filter Revision properly" in withSpark(_ => {
+    // Revision space ranges: [0, 10], [10, 20], [20, 30], [30, 40]
+    val revisions = (0 to 3).map(i => createRevision(10 * i, 10 * (i + 1)).copy(revisionID = i))
+    val expressions =
+      Seq(
+        ("id < -1", 0),
+        ("id < 9", 1),
+        ("id <= 10", 2),
+        ("id >= 15", 3),
+        ("id >= 10 AND id < 20", 3),
+        ("id < 41", 4)).map(tup => (expr(tup._1).expr, tup._2))
+
+    expressions.foreach { case (expression, answer) =>
+      revisions.count { revision =>
+        val querySpec = new QuerySpecBuilder(expression :: Nil).build(revision)
+        querySpec.querySpace match {
+          case _: QuerySpaceFromTo => true
+          case _: EmptySpace => false
+        }
+      } shouldBe answer
+    }
+  })
+
+  it should "retrieve all revisions with no filter expressions" in withSpark(_ => {
+    // Revision space ranges: [0, 10], [10, 20], [20, 30], [30, 40]
+    val revisions = (0 to 3).map(i => createRevision(10 * i, 10 * (i + 1)).copy(revisionID = i))
+
+    revisions.count { revision =>
+      val querySpec = new QuerySpecBuilder(Seq.empty).build(revision)
+      querySpec.querySpace match {
+        case _: QuerySpaceFromTo => true
+        case _: EmptySpace => false
+      }
+    } shouldBe revisions.size
+  })
+
 }

@@ -3,7 +3,7 @@
  */
 package io.qbeast.core.model
 
-import io.qbeast.core.transform.Transformation
+import io.qbeast.core.transform.{HashTransformation, Transformation}
 
 /**
  * Query space defines the domain area requested by the query.
@@ -25,6 +25,14 @@ trait QuerySpace {
 case class AllSpace() extends QuerySpace {
 
   override def intersectsWith(cube: CubeId): Boolean = true
+}
+
+/**
+ * Implementation of QuerySpace that represents an empty domain.
+ */
+case class EmptySpace() extends QuerySpace {
+
+  override def intersectsWith(cube: CubeId): Boolean = false
 }
 
 /**
@@ -58,15 +66,15 @@ class QuerySpaceFromTo(private val from: Seq[Option[Double]], private val to: Se
 
 }
 
-object QuerySpaceFromTo {
+object QuerySpace {
 
   def apply(
       originalFrom: Seq[Option[Any]],
       originalTo: Seq[Option[Any]],
-      transformations: Seq[Transformation]): QuerySpaceFromTo = {
-
+      transformations: Seq[Transformation]): QuerySpace = {
     assert(originalTo.size == originalFrom.size)
     assert(transformations.size == originalTo.size)
+
     val from = originalFrom.zip(transformations).map {
       case (Some(f), transformation) => Some(transformation.transform(f))
       case _ => None
@@ -76,7 +84,19 @@ object QuerySpaceFromTo {
       case _ => None
     }
 
-    new QuerySpaceFromTo(from, to)
+    val isValidSpaceForRevision = from.zip(to).zip(transformations).forall {
+      case ((_, _), _: HashTransformation) => true
+      case ((Some(f), Some(t)), _) => f <= t && f <= 1d && t >= 0d
+      case ((None, Some(t)), _) => t >= 0d
+      case ((Some(f), None), _) => f <= 1d
+      case ((None, None), _) => true
+    }
+
+    if (isValidSpaceForRevision) {
+      new QuerySpaceFromTo(from, to)
+    } else {
+      EmptySpace()
+    }
   }
 
 }
