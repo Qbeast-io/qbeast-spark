@@ -88,8 +88,7 @@ object QuerySpace {
       .zip(to)
       .zip(transformations)
       .map {
-        case ((_, _), _: HashTransformation) || ((None, None), _) => (true, true)
-        case ((None, None), _) => (true, true)
+        case ((_, _), _: HashTransformation) | ((None, None), _) => (true, true)
         case ((Some(f), Some(t)), _) =>
           (f <= t && f <= 1d && t >= 0d, f <= t && f <= 0d && t >= 1d)
         case ((None, Some(t)), _) => (t >= 0d, t >= 1d)

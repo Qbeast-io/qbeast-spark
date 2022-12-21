@@ -24,7 +24,7 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
     qbeastSnapshot.loadAllRevisions.flatMap { revision =>
       val querySpec = querySpecBuilder.build(revision)
       (querySpec.isSampling, querySpec.querySpace) match {
-        case (_, _: QuerySpaceFromTo) || (true, _: AllSpace) =>
+        case (_, _: QuerySpaceFromTo) | (true, _: AllSpace) =>
           val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
           val matchingBlocks = executeRevision(querySpec, indexStatus)
           matchingBlocks
@@ -33,7 +33,7 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
           indexStatus.cubesStatuses.values.flatMap { status =>
             status.files.filter(_.state == State.FLOODED)
           }
-        case (_, _: EmptySpace) => Seq.empty[QbeastBlock]
+        case _ => Seq.empty[QbeastBlock]
       }
     }
   }
