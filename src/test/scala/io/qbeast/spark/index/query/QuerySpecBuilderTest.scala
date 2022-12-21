@@ -54,12 +54,11 @@ class QuerySpecBuilderTest
     val expression = weightFilters(weightRange)
     val revision = createRevision()
     val queryWeightRange = new QuerySpecBuilder(Seq(expression)).build(revision).weightRange
-    queryWeightRange shouldBe weightRange
 
+    queryWeightRange shouldBe weightRange
   })
 
   "extractQueryRange" should "extract query range" in withSpark(spark => {
-
     val (from, to) = (3, 8)
     val expression = expr(s"id >= $from and id < $to").expr
     val revision = createRevision()
@@ -69,11 +68,9 @@ class QuerySpecBuilderTest
 
     querySpace invokePrivate privateFrom() shouldBe Seq(Some(tFrom))
     querySpace invokePrivate privateTo() shouldBe Seq(Some(tTo))
-
   })
 
   it should "extract query range when equal to" in withSpark(spark => {
-
     val revision = createRevision()
     val expression = expr("id == 3").expr
     val querySpace = new QuerySpecBuilder(Seq(expression)).build(revision).querySpace
@@ -81,7 +78,6 @@ class QuerySpecBuilderTest
 
     querySpace invokePrivate privateFrom() shouldBe Seq(Some(t))
     querySpace invokePrivate privateTo() shouldBe Seq(Some(t))
-
   })
 
   it should "extract query range when is null" in withSpark(spark => {
@@ -92,11 +88,9 @@ class QuerySpecBuilderTest
 
     querySpace invokePrivate privateFrom() shouldBe Seq(Some(t))
     querySpace invokePrivate privateTo() shouldBe Seq(Some(t))
-
   })
 
-  it should "extract query range when column is string" in withSpark(spark => {
-
+  it should "extract proper query space when column is string" in withSpark(spark => {
     val nameTransformation = HashTransformation()
     val transformations = Seq(nameTransformation).toIndexedSeq
     val columnTransformers = Seq(Transformer("hashing", "name", StringDataType)).toIndexedSeq
@@ -111,37 +105,28 @@ class QuerySpecBuilderTest
 
     val (from, to) = ("qbeast", "QBEAST")
 
-    val expression = expr(s"name == '$from'").expr
-    val t = nameTransformation.transform("qbeast")
-    val querySpace = new QuerySpecBuilder(Seq(expression)).build(revision).querySpace
-    querySpace invokePrivate privateFrom() shouldBe Seq(Some(t))
-    querySpace invokePrivate privateTo() shouldBe Seq(Some(t))
+    val equalToExpression = expr(s"name == '$from'").expr
+    val equalToSpace = new QuerySpecBuilder(Seq(equalToExpression)).build(revision).querySpace
+    equalToSpace shouldBe a[QuerySpaceFromTo]
 
     val rangeExpression = expr(s"name >= '$from' and name < '$to'").expr
-    val rangeQuerySpace = new QuerySpecBuilder(Seq(rangeExpression)).build(revision).querySpace
-    val resultFrom = Seq(Some(nameTransformation.transform(from)))
-    val resultTo = Seq(Some(nameTransformation.transform(to)))
-    rangeQuerySpace invokePrivate privateFrom() shouldBe resultFrom
-    rangeQuerySpace invokePrivate privateTo() shouldBe resultTo
-
+    val rangeSpace = new QuerySpecBuilder(Seq(rangeExpression)).build(revision).querySpace
+    rangeSpace shouldBe a[AllSpace]
   })
 
   it should "extract all query range when expressions is empty" in withSpark(spark => {
-
     val revision = createRevision()
     val querySpace = new QuerySpecBuilder(Seq.empty).build(revision).querySpace
-    querySpace invokePrivate privateFrom() shouldBe Seq(None)
-    querySpace invokePrivate privateTo() shouldBe Seq(None)
+
+    querySpace shouldBe a[AllSpace]
   })
 
   it should "not process disjunctive predicates" in withSpark(spark => {
-
     val revision = createRevision()
-    val expression = expr(s"id >= 3 OR id < 8").expr
+    val expression = expr(s"3 <= id OR id < 8").expr
     val querySpace = new QuerySpecBuilder(Seq(expression)).build(revision).querySpace
-    querySpace invokePrivate privateFrom() shouldBe Seq(None)
-    querySpace invokePrivate privateTo() shouldBe Seq(None)
 
+    querySpace shouldBe a[AllSpace]
   })
 
   it should "leverage otree index when filtering with GreaterThan and LessThanOrEqual" in withSpark(
@@ -185,6 +170,7 @@ class QuerySpecBuilderTest
         val querySpec = new QuerySpecBuilder(expression :: Nil).build(revision)
         querySpec.querySpace match {
           case _: QuerySpaceFromTo => true
+          case _: AllSpace => true
           case _: EmptySpace => false
         }
       } shouldBe answer
@@ -199,6 +185,7 @@ class QuerySpecBuilderTest
       val querySpec = new QuerySpecBuilder(Seq.empty).build(revision)
       querySpec.querySpace match {
         case _: QuerySpaceFromTo => true
+        case _: AllSpace => true
         case _: EmptySpace => false
       }
     } shouldBe revisions.size

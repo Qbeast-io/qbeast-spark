@@ -84,20 +84,30 @@ object QuerySpace {
       case _ => None
     }
 
-    val (isValidSpace, isAllSpace) = from
-      .zip(to)
-      .zip(transformations)
-      .map {
-        case ((_, _), _: HashTransformation) | ((None, None), _) => (true, true)
-        case ((Some(f), Some(t)), _) =>
-          (f <= t && f <= 1d && t >= 0d, f <= t && f <= 0d && t >= 1d)
-        case ((None, Some(t)), _) => (t >= 0d, t >= 1d)
-        case ((Some(f), None), _) => (f <= 1d, f <= 0d)
-      }
-      .unzip
+    var isPointStringSearch = false
+    var (isOverlappingSpace, isAllSpace) = (true, true)
 
-    if (isAllSpace.forall(b => b)) AllSpace()
-    else if (isValidSpace.forall(b => b)) new QuerySpaceFromTo(from, to)
+    from.indices.foreach { i =>
+      val (isOverlappingDim, isAllDim) = (from(i), to(i), transformations(i)) match {
+        case (Some(f), Some(t), _: HashTransformation) if f == t =>
+          isPointStringSearch = true
+          (true, true)
+        case (_, _, _: HashTransformation) | (None, None, _) =>
+          (true, true)
+        case (Some(f), Some(t), _) =>
+          (f <= t && f <= 1d && t >= 0d, f <= t && f <= 0d && t >= 1d)
+        case (None, Some(t), _) =>
+          (t >= 0d, t >= 1d)
+        case (Some(f), None, _) =>
+          (f <= 1d, f <= 0d)
+      }
+
+      isOverlappingSpace &&= isOverlappingDim
+      isAllSpace &&= isAllDim
+    }
+
+    if (isAllSpace && !isPointStringSearch) AllSpace()
+    else if (isPointStringSearch || isOverlappingSpace) new QuerySpaceFromTo(from, to)
     else EmptySpace()
   }
 
