@@ -84,19 +84,22 @@ object QuerySpace {
       case _ => None
     }
 
-    val isValidSpaceForRevision = from.zip(to).zip(transformations).forall {
-      case ((_, _), _: HashTransformation) => true
-      case ((Some(f), Some(t)), _) => f <= t && f <= 1d && t >= 0d
-      case ((None, Some(t)), _) => t >= 0d
-      case ((Some(f), None), _) => f <= 1d
-      case ((None, None), _) => true
-    }
+    val (isValidSpace, isAllSpace) = from
+      .zip(to)
+      .zip(transformations)
+      .map {
+        case ((_, _), _: HashTransformation) || ((None, None), _) => (true, true)
+        case ((None, None), _) => (true, true)
+        case ((Some(f), Some(t)), _) =>
+          (f <= t && f <= 1d && t >= 0d, f <= t && f <= 0d && t >= 1d)
+        case ((None, Some(t)), _) => (t >= 0d, t >= 1d)
+        case ((Some(f), None), _) => (f <= 1d, f <= 0d)
+      }
+      .unzip
 
-    if (isValidSpaceForRevision) {
-      new QuerySpaceFromTo(from, to)
-    } else {
-      EmptySpace()
-    }
+    if (isAllSpace.forall(b => b)) AllSpace()
+    else if (isValidSpace.forall(b => b)) new QuerySpaceFromTo(from, to)
+    else EmptySpace()
   }
 
 }

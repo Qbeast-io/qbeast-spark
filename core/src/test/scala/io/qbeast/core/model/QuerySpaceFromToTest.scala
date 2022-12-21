@@ -124,12 +124,14 @@ class QuerySpaceFromToTest extends AnyFlatSpec with Matchers {
 
   "QuerySpace" should
     "create an empty space when the query space is larger than the revision right limit" in {
+      val cube = CubeId.root(3)
       val from = Seq(Some(3))
       val to = Seq(Some(4))
       val transformation = Seq(LinearTransformation(1, 2, IntegerDataType))
       val emptySpace = QuerySpace(from, to, transformation)
 
       emptySpace shouldBe a[EmptySpace]
+      emptySpace.intersectsWith(cube) shouldBe false
     }
 
   it should "create an empty space when the query is smaller than the revision left limit" in {
