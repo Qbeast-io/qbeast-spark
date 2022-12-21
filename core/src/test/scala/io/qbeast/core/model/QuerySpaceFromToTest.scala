@@ -6,7 +6,7 @@ import org.scalatest.matchers.should.Matchers
 
 class QuerySpaceFromToTest extends AnyFlatSpec with Matchers {
 
-  val toSpaceCoordinates
+  private val toSpaceCoordinates
       : (Seq[Option[Any]], Seq[Transformation]) => Seq[Option[NormalizedWeight]] =
     (originalValues: Seq[Option[Any]], transformations: Seq[Transformation]) => {
       originalValues.zip(transformations).map {
@@ -30,7 +30,7 @@ class QuerySpaceFromToTest extends AnyFlatSpec with Matchers {
   }
 
   it should "exclude beyond left limit" in {
-    val cube = CubeId.root(3)
+    val cube = CubeId.root(1)
     val transformation = Seq(LinearTransformation(1, 2, IntegerDataType))
     val from = toSpaceCoordinates(Seq(Some(-1)), transformation)
     val to = toSpaceCoordinates(Seq(Some(0)), transformation)
@@ -40,7 +40,7 @@ class QuerySpaceFromToTest extends AnyFlatSpec with Matchers {
   }
 
   it should "exclude beyond right limit" in {
-    val cube = CubeId.root(3)
+    val cube = CubeId.root(1)
     val transformation = Seq(LinearTransformation(1, 2, IntegerDataType))
     val from = toSpaceCoordinates(Seq(Some(3)), transformation)
     val to = toSpaceCoordinates(Seq(Some(4)), transformation)
@@ -50,7 +50,7 @@ class QuerySpaceFromToTest extends AnyFlatSpec with Matchers {
   }
 
   it should "include the left limit" in {
-    val cube = CubeId.root(3)
+    val cube = CubeId.root(1)
     val from = Seq(Some(1))
     val to = Seq(Some(1))
     val transformation = Seq(LinearTransformation(1, 2, IntegerDataType))
@@ -61,7 +61,7 @@ class QuerySpaceFromToTest extends AnyFlatSpec with Matchers {
   }
 
   it should "include the right SPACE limit" in {
-    val cube = CubeId.root(3)
+    val cube = CubeId.root(1)
     val from = Seq(Some(2))
     val to = Seq(Some(2))
     val transformation = Seq(LinearTransformation(1, 2, IntegerDataType))
@@ -72,7 +72,7 @@ class QuerySpaceFromToTest extends AnyFlatSpec with Matchers {
   }
 
   it should "include the left limit and beyond" in {
-    val cube = CubeId.root(3)
+    val cube = CubeId.root(1)
     val from = Seq(Some(0))
     val to = Seq(Some(1))
     val transformation = Seq(LinearTransformation(1, 2, IntegerDataType))
@@ -83,7 +83,7 @@ class QuerySpaceFromToTest extends AnyFlatSpec with Matchers {
   }
 
   it should "include the right SPACE limit and beyond" in {
-    val cube = CubeId.root(3)
+    val cube = CubeId.root(1)
     val from = Seq(Some(2))
     val to = Seq(Some(3))
     val transformation = Seq(LinearTransformation(1, 2, IntegerDataType))
@@ -95,7 +95,7 @@ class QuerySpaceFromToTest extends AnyFlatSpec with Matchers {
 
   it should "include query range to, though not really desired" in {
     // For the implementation of LessThanOrEqual
-    val cube = CubeId.root(3)
+    val cube = CubeId.root(1)
     val from = Seq(Some(-1))
     val to = Seq(Some(1))
     val transformation = Seq(LinearTransformation(1, 2, IntegerDataType))
@@ -134,12 +134,35 @@ class QuerySpaceFromToTest extends AnyFlatSpec with Matchers {
       emptySpace.intersectsWith(cube) shouldBe false
     }
 
-  it should "create an empty space when the query is smaller than the revision left limit" in {
-    val from = Seq(Some(-1))
-    val to = Seq(Some(0))
-    val transformation = Seq(LinearTransformation(1, 2, IntegerDataType))
-    val emptySpace = QuerySpace(from, to, transformation)
+  it should
+    "create an empty space when the query space is smaller than the revision left limit" in {
+      val from = Seq(Some(-1))
+      val to = Seq(Some(0))
+      val transformation = Seq(LinearTransformation(1, 2, IntegerDataType))
+      val emptySpace = QuerySpace(from, to, transformation)
 
-    emptySpace shouldBe a[EmptySpace]
-  }
+      emptySpace shouldBe a[EmptySpace]
+    }
+
+  it should
+    "create an AllSpace instance when the query space is identical to the revision space" in {
+      val from = Seq(Some(1))
+      val to = Seq(Some(2))
+      val transformation = Seq(LinearTransformation(1, 2, IntegerDataType))
+      val allSpace = QuerySpace(from, to, transformation)
+
+      allSpace shouldBe a[AllSpace]
+    }
+
+  it should
+    "create an AllSpace instance when the query space contains the revision space" in {
+      val cube = CubeId.root(1)
+      val from = Seq(Some(-1))
+      val to = Seq(Some(3))
+      val transformation = Seq(LinearTransformation(1, 2, IntegerDataType))
+      val allSpace = QuerySpace(from, to, transformation)
+
+      allSpace shouldBe a[AllSpace]
+      allSpace.intersectsWith(cube)
+    }
 }
