@@ -102,7 +102,7 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression]) extends Ser
 
         // Get the coordinates of the column in the filters,
         // if not found, use the overall coordinates
-        val from_ = columnFilters
+        val columnFrom = columnFilters
           .collectFirst {
             case GreaterThan(_, Literal(value, _)) => sparkTypeToCoreType(value)
             case GreaterThanOrEqual(_, Literal(value, _)) => sparkTypeToCoreType(value)
@@ -110,7 +110,7 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression]) extends Ser
             case IsNull(_) => null
           }
 
-        val to_ = columnFilters
+        val columnTo = columnFilters
           .collectFirst {
             case LessThan(_, Literal(value, _)) => sparkTypeToCoreType(value)
             case LessThanOrEqual(_, Literal(value, _)) => sparkTypeToCoreType(value)
@@ -118,7 +118,7 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression]) extends Ser
             case IsNull(_) => null
           }
 
-        (from_, to_)
+        (columnFrom, columnTo)
       }.unzip
 
     QuerySpace(from, to, revision.transformations)
