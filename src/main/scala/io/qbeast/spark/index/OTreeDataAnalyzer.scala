@@ -147,8 +147,8 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
   /**
    * Extract tree size and domain from a given local tree.
-   * The domain of a missing cube is computed from its immediate parent node.
-   * The computation should be done in the top-down fashion
+   * The domain of a missing cube is computed from its immediate parent node,
+   * in a top-down fashion.
    * @param cube CubeId whose tree size and domain are of our interest
    * @param localTree LocalTree from which to extract tree size and domain
    * @param treeSizeDomain existing tree sizes and domains
@@ -221,15 +221,15 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         .sortBy(identity)
         .collect())
 
-    // Compute and aggregate cube tree size and domain from all partitions
+    // Compute and aggregate cube tree sizes and domains from all partitions
     val globalDomain = localTrees
       .flatMap(tree => {
-        var treeSizeDomain = Map.empty[CubeId, TreeSizeAndDomain]
-        globalCubes.value.foreach(cube => {
-          val tsd = computeLocalTreeSizeAndDomain(cube, tree, treeSizeDomain, isReplication)
-          treeSizeDomain += (cube -> tsd)
-        })
-        treeSizeDomain.map { case (cube, tsd) => (cube.bytes, tsd) }.toIterator
+        globalCubes.value
+          .foldLeft(Map.empty[CubeId, TreeSizeAndDomain]) { (accSizeAndDomain, cube) =>
+            val tsd = computeLocalTreeSizeAndDomain(cube, tree, accSizeAndDomain, isReplication)
+            accSizeAndDomain + (cube -> tsd)
+          }
+          .map { case (cube, tsd) => (cube.bytes, tsd) }
       })
       .groupBy(col("_1"))
       .agg(sum(col("_2.treeSize")).as("treeSize"), sum(col("_2.domain")).as("domain"))
@@ -264,7 +264,8 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
   /**
    * Populate global NormalizedWeights in a top-down fashion using cube domains:
-   * Wc = Wpc + desiredCubeSize / domain
+   * Wc = Wpc + desiredCubeSize / domain. When domain is <= desiredCubeSize, we
+   * force the cube to be a leaf.
    * @param globalDomain cube domain from the entire dataset
    * @param indexStatus existing Cube NormalizedWeights
    * @param isReplication whether the current process is a replication process
@@ -281,7 +282,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
     (minLevel to maxLevel).foreach(level => {
       levelCubes(level)
-        .filterNot(ctd => skipCube(ctd._1, globalCubeNormalizedWeights, isReplication))
+        .filterNot(cd => skipCube(cd._1, globalCubeNormalizedWeights, isReplication))
         .foreach { case (cube, domain) =>
           val normalizedWeight =
             if (!isReplication && domain <= desiredCubeSize) {
@@ -340,7 +341,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       weightedDataFrame
         .transform(computeLocalTrees(numElements, revision, indexStatus, isReplication))
 
-    // Compute tree size and domain for all unique cubes
+    // Compute domain(upper-bound) for all unique cubes
     val globalDomain: Seq[(CubeId, Double)] =
       computeGlobalDomain(
         localTrees,
