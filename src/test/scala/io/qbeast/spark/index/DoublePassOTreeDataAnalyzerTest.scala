@@ -7,8 +7,8 @@ import io.qbeast.core.transform.{HashTransformation, LinearTransformation, Trans
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer.{
   calculateRevisionChanges,
+  computeGlobalDomain,
   computeLocalTrees,
-  computeTreeSizeAndDomain,
   estimateCubeWeights,
   getDataFrameStats
 }
@@ -232,34 +232,30 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
       weightedDataFrame
         .transform(computeLocalTrees(10000, revision, indexStatus, isReplication = false))
 
-    val globalTreeSizeDomain =
-      computeTreeSizeAndDomain(localTrees, isReplication = false, columnTransformers.size).sortBy(
-        _._1)
+    val globalDomain =
+      computeGlobalDomain(
+        localTrees,
+        isReplication = false,
+        columnTransformers.size,
+        revision.desiredCubeSize).sortBy(_._1)
 
-    val treeSizeDomainMap = globalTreeSizeDomain.toMap
+    val globalDomainMap = globalDomain.toMap
 
     // Should have the correct number of cubes
-    globalTreeSizeDomain.size shouldBe treeSizeDomainMap.size
-    treeSizeDomainMap.size shouldBe localTrees.flatMap(_.keys).distinct().count()
+    globalDomain.size shouldBe globalDomainMap.size
+    globalDomainMap.size shouldBe localTrees.flatMap(_.keys).distinct().count()
 
-    // Root should have the correct tree size and domain
-    val tsd = treeSizeDomainMap(revision.createCubeIdRoot())
-    tsd.treeSize shouldBe tsd.domain
-    tsd.domain shouldBe dataFrameStats.getAs[Long]("count")
+    // Root should have the correct domain
+    val rootDomain = globalDomainMap(revision.createCubeIdRoot())
+    rootDomain shouldBe dataFrameStats.getAs[Long]("count")
 
     // treeSize and domain are monotonically decreasing along branches
-    globalTreeSizeDomain.foreach { case (cube, TreeSizeAndDomain(treeSize, domain)) =>
-      // Check treeSize and domain relation
-      treeSize shouldBe <=(domain)
-
+    globalDomain.foreach { case (cube, domain) =>
       // monotonically decreasing tree size and domain
       cube.children
-        .filter(treeSizeDomainMap.contains)
+        .filter(globalDomain.contains)
         .foreach(child => {
-          val childTsd = treeSizeDomainMap(child)
-          childTsd.treeSize shouldBe <=(childTsd.domain)
-          treeSize shouldBe >=(childTsd.treeSize)
-          domain shouldBe >=(childTsd.domain)
+          globalDomainMap(child) shouldBe <=(domain)
         })
     }
   }
@@ -285,11 +281,15 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
       weightedDataFrame
         .transform(computeLocalTrees(10000, revision, indexStatus, isReplication = false))
 
-    val globalTreeSizeAndDomain =
-      computeTreeSizeAndDomain(localTrees, isReplication = false, columnTransformers.size)
+    val globalDomain =
+      computeGlobalDomain(
+        localTrees,
+        isReplication = false,
+        columnTransformers.size,
+        revision.desiredCubeSize)
 
     val cubeWeights =
-      estimateCubeWeights(globalTreeSizeAndDomain, indexStatus, isReplication = false)
+      estimateCubeWeights(globalDomain, indexStatus, isReplication = false)
 
     // Cubes with a weight lager than 1d should not have children
     val leafCubesByWeight = cubeWeights.filter(cw => cw._2 >= 1d).keys
