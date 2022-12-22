@@ -91,10 +91,9 @@ export SPARK_HOME=$PWD/spark-3.1.1-bin-hadoop3.2
 
 ```bash
 $SPARK_HOME/bin/spark-shell \
---repositories https://s01.oss.sonatype.org/content/repositories/snapshots \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
 --conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog \
---packages io.qbeast:qbeast-spark_2.12:0.3.0-SNAPSHOT,io.delta:delta-core_2.12:1.2.0
+--packages io.qbeast:qbeast-spark_2.12:0.3.1,io.delta:delta-core_2.12:1.2.0
 ```
 
 ### 2. Indexing a dataset
@@ -174,11 +173,11 @@ qbeastTable.analyze()
 Go to [QbeastTable documentation](./docs/QbeastTable.md) for more detailed information.
 
 # Dependencies and Version Compatibility
-| Version    | Spark | Hadoop | Delta Lake |
-|------------|:-----:|:------:|:----------:|
-| 0.1.0      | 3.0.0 | 3.2.0  |   0.8.0    |
-| 0.2.0      | 3.1.x | 3.2.0  |   1.0.0    |
-| 0.3.0 | 3.2.x | 3.3.x  |   1.2.x    |
+| Version | Spark | Hadoop | Delta Lake |
+|---------|:-----:|:------:|:----------:|
+| 0.1.0   | 3.0.0 | 3.2.0  |   0.8.0    |
+| 0.2.0   | 3.1.x | 3.2.0  |   1.0.0    |
+| 0.3.1   | 3.2.x | 3.3.x  |   1.2.x    |
 
 Check [here](https://docs.delta.io/latest/releases.html) for **Delta Lake** and **Apache Spark** version compatibility.  
 
