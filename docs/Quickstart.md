@@ -16,13 +16,8 @@ Inside the project folder, launch a spark-shell with the required **dependencies
 ```bash
 $SPARK_HOME/bin/spark-shell \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
---conf spark.hadoop.fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider \
---packages io.qbeast:qbeast-spark_2.12:0.2.0,\
-io.delta:delta-core_2.12:1.0.0,\
-com.amazonaws:aws-java-sdk:1.12.20,\
-org.apache.hadoop:hadoop-common:3.2.0,\
-org.apache.hadoop:hadoop-client:3.2.0,\
-org.apache.hadoop:hadoop-aws:3.2.0
+--conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog \
+--packages io.qbeast:qbeast-spark_2.12:0.3.0,io.delta:delta-core_2.12:1.2.0
 ```
 As an **_extra configuration_**, you can also change two global parameters of the index:
 
@@ -37,25 +32,27 @@ As an **_extra configuration_**, you can also change two global parameters of th
 ```
 Consult the [Qbeast-Spark advanced configuration](AdvancedConfiguration.md) for more information.
 
-Read the ***store_sales*** public dataset from `TPC-DS`, the table has with **23** columns in total and was generated with a `scaleFactor` of 1. Check [The Making of TPC-DS](http://www.tpc.org/tpcds/presentations/the_making_of_tpcds.pdf) for more details on the dataset.
-
+Read the ***ecommerce*** test dataset from [Kaggle](https://www.kaggle.com/code/adilemrebilgic/e-commerce-analytics/data).
 ```scala
-val parquetTablePath = "s3a://qbeast-public-datasets/store_sales"
-
-val parquetDf = spark.read.format("parquet").load(parquetTablePath).na.drop()
+val ecommerce = spark.read
+  .format("csv")
+  .option("header", "true")
+  .option("inferSchema", "true")
+  .load("src/test/resources/ecommerce100K_2019_Oct.csv")
 ```
 
-Indexing the data with the desired columns, in this case `ss_cdemo_sk` and `ss_cdemo_sk`.
+Indexing the data with the desired columns, in this case `user_id` and `product_id`.
 ```scala
 val qbeastTablePath = "/tmp/qbeast-test-data/qtable"
 
-(parquetDf.write
+(ecommerce.write
     .mode("overwrite")
     .format("qbeast")     // Saving the dataframe in a qbeast datasource
-    .option("columnsToIndex", "ss_cdemo_sk,ss_cdemo_sk")      // Indexing the table
-    .option("cubeSize", 300000) // The desired number of records of the resulting files/cubes. Default is 100000
+    .option("columnsToIndex", "user_id,product_id")      // Indexing the table
+    .option("cubeSize", "500") // The desired number of records of the resulting files/cubes. Default is 5M
     .save(qbeastTablePath))
 ```
+
 
 ## Sampling
 
@@ -79,6 +76,35 @@ qbeastDf.sample(0.1).explain()
 ```
 
 Notice that the sample operator is no longer present in the physical plan. It's converted into a `Filter (qbeast_hash)` instead and is used to select files during data scanning(`DataFilters` from `FileScan`). We skip reading many files in this way, involving less I/O.
+
+## SQL
+
+Thanks to the `QbeastCatalog`, you can use plain SQL and `CREATE TABLE` or `INSERT INTO` in qbeast format.
+
+To check the different configuration on the Catalog, please go to [Advanced Configuration](AdvancedConfiguration.md)
+
+```scala
+ecommerce.createOrReplaceTmpView("ecommerce_october")
+
+spark.sql("CREATE OR REPLACE TABLE ecommerce_qbeast USING qbeast AS SELECT * FROM ecommerce_october")
+
+//OR
+
+val ecommerceNovember = spark.read
+  .format("csv")
+  .option("header", "true")
+  .option("inferSchema", "true")
+  .load("./src/test/resources/ecommerce100K_2019_Nov.csv")
+  
+ecommerceNovember.createOrReplaceTmpView("ecommerce_november")
+
+spark.sql("INSERT INTO ecommerce_qbeast SELECT * FROM ecommerce_november")
+```
+Sampling has also an operator called `TABLESAMPLE`, which can be expressed in both terms of rows or percentage. 
+
+```scala
+spark.sql("SELECT avg(price) FROM ecommerce_qbeast TABLESAMPLE(10 PERCENT)").show()
+```
 
 
 ## Analyze and Optimize

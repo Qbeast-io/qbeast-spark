@@ -125,7 +125,7 @@ For example:
 sbt assembly
 
 $SPARK_HOME/bin/spark-shell \
---jars ./target/scala-2.12/qbeast-spark-assembly-0.3.0-alpha.jar \
+--jars ./target/scala-2.12/qbeast-spark-assembly-0.3.0.jar \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
 --packages io.delta:delta-core_2.12:1.2.0
 ```
