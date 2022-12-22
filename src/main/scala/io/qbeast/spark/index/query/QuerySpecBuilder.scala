@@ -7,6 +7,7 @@ import io.qbeast.core.model._
 import io.qbeast.spark.index.query
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.analysis.Resolver
 import org.apache.spark.sql.catalyst.expressions.{
   And,
   BinaryComparison,
@@ -29,8 +30,8 @@ import org.apache.spark.unsafe.types.UTF8String
  */
 private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression]) extends Serializable {
 
-  lazy val spark = SparkSession.active
-  lazy val nameEquality = spark.sessionState.analyzer.resolver
+  lazy val spark: SparkSession = SparkSession.active
+  lazy val nameEquality: Resolver = spark.sessionState.analyzer.resolver
 
   private def hasQbeastColumnReference(expr: Expression, indexedColumns: Seq[String]): Boolean = {
     expr.references.forall { r =>
@@ -92,16 +93,16 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression]) extends Ser
 
     // Split conjunctive predicates
     val filters = dataFilters.flatMap(filter => splitConjunctivePredicates(filter))
-
     val indexedColumns = revision.columnTransformers.map(_.columnName)
-    val fromTo =
+
+    val (from, to) =
       indexedColumns.map { columnName =>
         // Get the filters related to the column
         val columnFilters = filters.filter(hasColumnReference(_, columnName))
 
         // Get the coordinates of the column in the filters,
         // if not found, use the overall coordinates
-        val from = columnFilters
+        val columnFrom = columnFilters
           .collectFirst {
             case GreaterThan(_, Literal(value, _)) => sparkTypeToCoreType(value)
             case GreaterThanOrEqual(_, Literal(value, _)) => sparkTypeToCoreType(value)
@@ -109,7 +110,7 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression]) extends Ser
             case IsNull(_) => null
           }
 
-        val to = columnFilters
+        val columnTo = columnFilters
           .collectFirst {
             case LessThan(_, Literal(value, _)) => sparkTypeToCoreType(value)
             case LessThanOrEqual(_, Literal(value, _)) => sparkTypeToCoreType(value)
@@ -117,12 +118,10 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression]) extends Ser
             case IsNull(_) => null
           }
 
-        (from, to)
-      }
+        (columnFrom, columnTo)
+      }.unzip
 
-    val from = fromTo.map(_._1)
-    val to = fromTo.map(_._2)
-    QuerySpaceFromTo(from, to, revision.transformations)
+    QuerySpace(from, to, revision.transformations)
   }
 
   /**
