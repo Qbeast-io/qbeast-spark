@@ -215,8 +215,9 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         .select(col("col.*"))
         .as[CubeId]
         .distinct()
-        .collect()
-        .sorted)
+        .rdd
+        .sortBy(identity)
+        .collect())
 
     // Compute and aggregate cube tree size and domain from all partitions
     val globalTreeSizeAndDomain = localTrees
