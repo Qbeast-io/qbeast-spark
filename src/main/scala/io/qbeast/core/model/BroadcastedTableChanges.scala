@@ -32,30 +32,28 @@ object BroadcastedTableChanges {
       CubeNormalizedWeights.mergeNormalizedWeights(Map.empty, deltaNormalizedCubeWeights)
     }
 
-    val announcedSet = if (revisionChanges.isEmpty) {
-      supersededIndexStatus.announcedSet ++ deltaAnnouncedSet
-    } else {
-      deltaAnnouncedSet
-    }
-    val replicatedSet = if (revisionChanges.isEmpty) {
-      supersededIndexStatus.replicatedSet ++ deltaReplicatedSet
-    } else {
-      deltaReplicatedSet
-    }
+    val announcedSet =
+      if (revisionChanges.isEmpty) supersededIndexStatus.announcedSet ++ deltaAnnouncedSet
+      else deltaAnnouncedSet
+
+    val replicatedSet =
+      if (revisionChanges.isEmpty) supersededIndexStatus.replicatedSet ++ deltaReplicatedSet
+      else deltaReplicatedSet
 
     val cubeStates = replicatedSet.map(id => id -> State.REPLICATED) ++
       (announcedSet -- replicatedSet).map(id => id -> State.ANNOUNCED)
 
     // Skip tree compression entirely during optimization
-    val isReplication = deltaReplicatedSet.nonEmpty
-    val compressionMap = if (isReplication) {
-      Map.empty[CubeId, CubeId]
-    } else {
-      CubeNormalizedWeights.treeCompression(
-        supersededIndexStatus.cubeNormalizedWeights,
+    val isReplication = true // deltaReplicatedSet.nonEmpty
+    val compressionMap = if (!isReplication) {
+      OTreeCompression.treeCompression(
         cubeWeights,
+        supersededIndexStatus.cubeNormalizedWeights,
         cubeStates.map(_._1),
-        updatedRevision.desiredCubeSize)
+        updatedRevision.desiredCubeSize,
+        OTreeCompression.leafRollUp)
+    } else {
+      Map.empty[CubeId, CubeId]
     }
 
     BroadcastedTableChanges(

@@ -123,6 +123,28 @@ class AppendCompressionTest extends QbeastIntegrationTestSpec with PrivateMethod
     // Write with compression and appending with compression and test sampling accuracy
   })
 
+  it should "do what I desire" in withSparkAndTmpDir((spark, tmpDir) => {
+    val df = loadTestData(spark)
+    df.write
+      .format("qbeast")
+      .option("cubeSize", 5000)
+      .option("columnsToIndex", "user_id,price")
+      .save(tmpDir)
+
+    val dataToAppend = createEcommerceInstances(10000)
+
+    dataToAppend.write
+      .mode("append")
+      .format("qbeast")
+      .option("cubeSize", 5000)
+      .option("columnsToIndex", "user_id,price")
+      .save(tmpDir)
+
+    val metrics = QbeastTable.forPath(spark, tmpDir).getIndexMetrics()
+    // scalastyle:off println
+    println(metrics)
+  })
+
 //  "Appending with tree compression" should "reduce cube count (via cubeMap comparison)" in
 //    withSparkAndTmpDir((spark, tmpDir) => {
 //      val original = loadTestData(spark)
