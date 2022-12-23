@@ -50,16 +50,16 @@ case class BlockWriter(
     }
     val revision = tableChanges.updatedRevision
     iter
-      .foldLeft[Map[CubeId, BlockContext]](Map()) { case (blocks, row) =>
+      .foldLeft(Map.empty[(CubeId, Boolean), BlockContext]) { case (blocks, row) =>
         val cubeId = revision.createCubeId(row.getBinary(qbeastColumns.cubeColumnIndex))
         // TODO make sure this does not compromise the structure of the index
         // It could happen than estimated weights
         // doesn't include all the cubes present in the final indexed dataframe
         // we save those newly added leaves with the max weight possible
-
         val state = tableChanges.cubeState(cubeId).getOrElse(State.FLOODED)
-        val maxWeight = tableChanges.cubeWeights(cubeId).getOrElse(Weight.MaxValue)
-        val blockCtx = blocks.getOrElse(cubeId, buildWriter(cubeId, state, maxWeight))
+
+        // Get the weight of the row to compute the minimumWeight per block
+        val rowWeight = Weight(row.getInt(qbeastColumns.weightColumnIndex))
 
         // The row with only the original columns
         val cleanRow = Seq.newBuilder[Any]
@@ -70,12 +70,20 @@ case class BlockWriter(
           }
         }
 
-        // Get the weight of the row to compute the minimumWeight per block
-        val rowWeight = Weight(row.getInt(qbeastColumns.weightColumnIndex))
+        // When compressed, the maxWeight for the compressed leaf cubes is set to
+        // Weight.maxValue, although the compressed block placed in their parent
+        // potentially has a cubeSize > desiredCubeSize
+        val isCompressed =
+          tableChanges.isNewRevision && row.getBoolean(qbeastColumns.isCompressedColumnIndex)
+        val maxWeight =
+          if (isCompressed) Weight.MaxValue
+          else tableChanges.cubeWeights(cubeId).getOrElse(Weight.MaxValue)
 
+        val blockCtx =
+          blocks.getOrElse((cubeId, isCompressed), buildWriter(cubeId, state, maxWeight))
         // Writing the data in a single file.
         blockCtx.writer.write(InternalRow.fromSeq(cleanRow.result()))
-        blocks.updated(cubeId, blockCtx.update(rowWeight))
+        blocks.updated((cubeId, isCompressed), blockCtx.update(rowWeight))
       }
       .values
       .flatMap {
@@ -101,7 +109,7 @@ case class BlockWriter(
 
           Iterator(
             AddFile(
-              path = path.getName(),
+              path = path.getName,
               partitionValues = Map(),
               size = fileStatus.getLen,
               modificationTime = fileStatus.getModificationTime,

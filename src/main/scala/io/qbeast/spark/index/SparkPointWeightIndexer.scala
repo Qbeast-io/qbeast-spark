@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.core.model.{PointWeightIndexer, TableChanges, Weight}
+import io.qbeast.core.model.{CubeId, PointWeightIndexer, TableChanges, Weight}
 import io.qbeast.spark.index.QbeastColumns._
 import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.functions._
@@ -14,6 +14,27 @@ private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication:
 
   private val revision = tableChanges.updatedRevision
   private val pointIndexer: PointWeightIndexer = PointWeightIndexer(tableChanges)
+
+  private def compressionMapping(cube: CubeId): CompressionResult = {
+    if (tableChanges.announcedOrReplicatedSet.contains(cube)) {
+      CompressionResult(cube.bytes, isCompressed = false)
+    } else {
+      val mappedCube = tableChanges.compressionMap.getOrElse(cube, cube)
+      CompressionResult(mappedCube.bytes, mappedCube != cube)
+    }
+  }
+
+  private val findTargetCubeIdsNewRevisionUDF: UserDefinedFunction = {
+
+    udf((rowValues: Row, weightValue: Int) => {
+      val point = RowUtils.rowValuesToPoint(rowValues, revision)
+      val weight = Weight(weightValue)
+      pointIndexer
+        .findTargetCubeIds(point, weight)
+        .map(compressionMapping)
+        .toArray
+    })
+  }
 
   private val findTargetCubeIdsUDF: UserDefinedFunction = {
 
@@ -53,6 +74,18 @@ private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication:
               struct(columnsToIndex.map(col): _*),
               col(weightColumnName),
               col(cubeToReplicateColumnName))))
+    } else if (tableChanges.isNewRevision) {
+      weightedDataFrame
+        .withColumn(
+          cubeAndIsCompressionColumnName,
+          explode(
+            findTargetCubeIdsNewRevisionUDF(
+              struct(columnsToIndex.map(col): _*),
+              col(weightColumnName))))
+        .select(
+          weightedDataFrame.columns.map(col) :+
+            col(s"$cubeAndIsCompressionColumnName.cubeBytes").as(cubeColumnName) :+
+            col(s"$cubeAndIsCompressionColumnName.isCompressed").as(isCompressedColumnName): _*)
     } else {
       weightedDataFrame
         .withColumn(
@@ -60,7 +93,8 @@ private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication:
           explode(
             findTargetCubeIdsUDF(struct(columnsToIndex.map(col): _*), col(weightColumnName))))
     }
-
   }
 
 }
+
+case class CompressionResult(cubeBytes: Array[Byte], isCompressed: Boolean)

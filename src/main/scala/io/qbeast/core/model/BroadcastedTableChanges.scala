@@ -24,8 +24,8 @@ object BroadcastedTableChanges {
       case Some(newRev) => newRev.createNewRevision
       case None => supersededIndexStatus.revision
     }
-    val cubeWeights = if (revisionChanges.isEmpty) {
 
+    val cubeWeights = if (revisionChanges.isEmpty) {
       CubeNormalizedWeights.mergeNormalizedWeights(
         supersededIndexStatus.cubeNormalizedWeights,
         deltaNormalizedCubeWeights)
@@ -33,29 +33,27 @@ object BroadcastedTableChanges {
       CubeNormalizedWeights.mergeNormalizedWeights(Map.empty, deltaNormalizedCubeWeights)
     }
 
-    val replicatedSet = if (revisionChanges.isEmpty) {
+    val replicatedSet =
+      if (revisionChanges.isEmpty) supersededIndexStatus.replicatedSet ++ deltaReplicatedSet
+      else deltaReplicatedSet
 
-      supersededIndexStatus.replicatedSet ++ deltaReplicatedSet
-
-    } else {
-      deltaReplicatedSet
-    }
-
-    val announcedSet = if (revisionChanges.isEmpty) {
-
-      supersededIndexStatus.announcedSet ++ deltaAnnouncedSet
-
-    } else {
-      deltaAnnouncedSet
-    }
+    val announcedSet =
+      if (revisionChanges.isEmpty) supersededIndexStatus.announcedSet ++ deltaAnnouncedSet
+      else deltaAnnouncedSet
 
     val cubeStates = replicatedSet.map(id => id -> State.REPLICATED) ++
       (announcedSet -- replicatedSet).map(id => id -> State.ANNOUNCED)
 
+    val isNewRevision = revisionChanges.isDefined
+    val compressionMap =
+      if (!isNewRevision) Map.empty[CubeId, CubeId]
+      else LeafCompression.compress(deltaNormalizedCubeWeights, updatedRevision.desiredCubeSize)
+
     BroadcastedTableChanges(
-      isNewRevision = revisionChanges.isDefined,
+      isNewRevision = isNewRevision,
       isOptimizeOperation = deltaReplicatedSet.nonEmpty,
       updatedRevision = updatedRevision,
+      compressionMap = compressionMap,
       deltaReplicatedSet = deltaReplicatedSet,
       announcedOrReplicatedSet = announcedSet ++ replicatedSet,
       cubeStates = SparkSession.active.sparkContext.broadcast(cubeStates.toMap),
@@ -68,6 +66,7 @@ case class BroadcastedTableChanges(
     isNewRevision: Boolean,
     isOptimizeOperation: Boolean,
     updatedRevision: Revision,
+    compressionMap: Map[CubeId, CubeId],
     deltaReplicatedSet: Set[CubeId],
     announcedOrReplicatedSet: Set[CubeId],
     cubeStates: Broadcast[Map[CubeId, String]],
