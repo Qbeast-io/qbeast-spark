@@ -20,7 +20,7 @@ class PointWeightIndexerTest extends AnyFlatSpec with Matchers {
     val isNewRevision: Boolean = false
     val isOptimizeOperation: Boolean = false
     val deltaReplicatedSet: Set[CubeId] = Set.empty
-    val compressionMap: Map[CubeId, CubeId] = Map.empty
+    val compressedLeaves: Set[CubeId] = Set.empty
 
     val updatedRevision: Revision =
       Revision(-1L, System.currentTimeMillis(), QTableID(""), 0, Vector.empty, Vector.empty)

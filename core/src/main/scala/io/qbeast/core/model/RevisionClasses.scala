@@ -236,7 +236,7 @@ trait TableChanges {
   val isNewRevision: Boolean
   val isOptimizeOperation: Boolean
   val updatedRevision: Revision
-  val compressionMap: Map[CubeId, CubeId]
+  val compressedLeaves: Set[CubeId]
   val deltaReplicatedSet: Set[CubeId]
   val announcedOrReplicatedSet: Set[CubeId]
   def cubeState(cubeId: CubeId): Option[String]

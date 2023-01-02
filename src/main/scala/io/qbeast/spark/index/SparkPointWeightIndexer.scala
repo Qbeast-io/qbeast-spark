@@ -16,12 +16,16 @@ private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication:
   private val pointIndexer: PointWeightIndexer = PointWeightIndexer(tableChanges)
 
   private def compressionMapping(cube: CubeId): CompressionResult = {
-    if (tableChanges.announcedOrReplicatedSet.contains(cube)) {
-      CompressionResult(cube.bytes, isCompressed = false)
-    } else {
-      val mappedCube = tableChanges.compressionMap.getOrElse(cube, cube)
-      CompressionResult(mappedCube.bytes, mappedCube != cube)
-    }
+    val (bytes, isCompressed) =
+      if (tableChanges.announcedOrReplicatedSet.contains(cube)) {
+        (cube.bytes, false)
+      } else if (tableChanges.compressedLeaves.contains(cube)) {
+        (cube.parent.get.bytes, true)
+      } else {
+        (cube.bytes, false)
+      }
+
+    CompressionResult(bytes, isCompressed)
   }
 
   private val findTargetCubeIdsNewRevisionUDF: UserDefinedFunction = {

@@ -45,15 +45,15 @@ object BroadcastedTableChanges {
       (announcedSet -- replicatedSet).map(id => id -> State.ANNOUNCED)
 
     val isNewRevision = revisionChanges.isDefined
-    val compressionMap =
-      if (!isNewRevision) Map.empty[CubeId, CubeId]
+    val compressedLeaves =
+      if (!isNewRevision) Set.empty[CubeId]
       else LeafCompression.compress(deltaNormalizedCubeWeights, updatedRevision.desiredCubeSize)
 
     BroadcastedTableChanges(
       isNewRevision = isNewRevision,
       isOptimizeOperation = deltaReplicatedSet.nonEmpty,
       updatedRevision = updatedRevision,
-      compressionMap = compressionMap,
+      compressedLeaves = compressedLeaves,
       deltaReplicatedSet = deltaReplicatedSet,
       announcedOrReplicatedSet = announcedSet ++ replicatedSet,
       cubeStates = SparkSession.active.sparkContext.broadcast(cubeStates.toMap),
@@ -66,7 +66,7 @@ case class BroadcastedTableChanges(
     isNewRevision: Boolean,
     isOptimizeOperation: Boolean,
     updatedRevision: Revision,
-    compressionMap: Map[CubeId, CubeId],
+    compressedLeaves: Set[CubeId],
     deltaReplicatedSet: Set[CubeId],
     announcedOrReplicatedSet: Set[CubeId],
     cubeStates: Broadcast[Map[CubeId, String]],
