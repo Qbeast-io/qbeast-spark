@@ -19,7 +19,7 @@ private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication:
     val (bytes, isCompressed) =
       if (tableChanges.announcedOrReplicatedSet.contains(cube)) {
         (cube.bytes, false)
-      } else if (tableChanges.compressedLeaves.contains(cube)) {
+      } else if (tableChanges.isCompressedLeaf(cube)) {
         (cube.parent.get.bytes, true)
       } else {
         (cube.bytes, false)

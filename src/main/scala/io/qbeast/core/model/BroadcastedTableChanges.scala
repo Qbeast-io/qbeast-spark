@@ -53,7 +53,7 @@ object BroadcastedTableChanges {
       isNewRevision = isNewRevision,
       isOptimizeOperation = deltaReplicatedSet.nonEmpty,
       updatedRevision = updatedRevision,
-      compressedLeaves = compressedLeaves,
+      compressedLeaves = SparkSession.active.sparkContext.broadcast(compressedLeaves),
       deltaReplicatedSet = deltaReplicatedSet,
       announcedOrReplicatedSet = announcedSet ++ replicatedSet,
       cubeStates = SparkSession.active.sparkContext.broadcast(cubeStates.toMap),
@@ -66,12 +66,14 @@ case class BroadcastedTableChanges(
     isNewRevision: Boolean,
     isOptimizeOperation: Boolean,
     updatedRevision: Revision,
-    compressedLeaves: Set[CubeId],
+    compressedLeaves: Broadcast[Set[CubeId]],
     deltaReplicatedSet: Set[CubeId],
     announcedOrReplicatedSet: Set[CubeId],
     cubeStates: Broadcast[Map[CubeId, String]],
     cubeWeights: Broadcast[Map[CubeId, Weight]])
     extends TableChanges {
+
+  override def isCompressedLeaf(cubeId: CubeId): Boolean = compressedLeaves.value.contains(cubeId)
 
   override def cubeWeights(cubeId: CubeId): Option[Weight] = cubeWeights.value.get(cubeId)
 
