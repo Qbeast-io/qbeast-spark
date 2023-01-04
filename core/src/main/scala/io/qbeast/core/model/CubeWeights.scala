@@ -63,7 +63,7 @@ class CubeWeightsBuilder protected (
 
   private val byWeight = Ordering.by[PointWeightAndParent, Weight](_.weight).reverse
   protected val queue = new mutable.PriorityQueue[PointWeightAndParent]()(byWeight)
-  private var resultBuffer = Seq.empty[CubeNormalizedWeight]
+  private var resultBuffer = Seq.empty[LocalTree]
 
   /**
    * Updates the builder with given point with weight.
@@ -77,7 +77,8 @@ class CubeWeightsBuilder protected (
   def update(point: Point, weight: Weight, parent: Option[CubeId] = None): CubeWeightsBuilder = {
     queue.enqueue(PointWeightAndParent(point, weight, parent))
     if (queue.size >= bufferCapacity) {
-      resultBuffer ++= resultInternal()
+      val unpopulatedTree = resultInternal()
+      resultBuffer = resultBuffer :+ populateTreeSizeAndParentWeight(unpopulatedTree).toMap
       queue.clear()
     }
     this
@@ -88,11 +89,16 @@ class CubeWeightsBuilder protected (
    *
    * @return the resulting cube weights map
    */
-  def result(): Seq[CubeNormalizedWeight] = {
-    resultInternal() ++ resultBuffer
+  def result(): Seq[LocalTree] = {
+    val unpopulatedTree = resultInternal()
+    if (unpopulatedTree.nonEmpty) {
+      resultBuffer :+ populateTreeSizeAndParentWeight(unpopulatedTree).toMap
+    } else {
+      resultBuffer
+    }
   }
 
-  def resultInternal(): Seq[CubeNormalizedWeight] = {
+  def resultInternal(): mutable.Map[CubeId, CubeInfo] = {
     val weights = mutable.Map.empty[CubeId, WeightAndCount]
     while (queue.nonEmpty) {
       val PointWeightAndParent(point, weight, parent) = queue.dequeue()
@@ -113,15 +119,50 @@ class CubeWeightsBuilder protected (
         }
       }
     }
-    weights.map {
-      case (cubeId, weightAndCount) if weightAndCount.count == groupCubeSize =>
-        val scale = desiredCubeSize / groupCubeSize
-        CubeNormalizedWeight(cubeId.bytes, NormalizedWeight(weightAndCount.weight) * scale)
-      case (cubeId, weightAndCount) =>
-        CubeNormalizedWeight(
-          cubeId.bytes,
-          NormalizedWeight(desiredCubeSize, weightAndCount.count))
-    }.toSeq
+
+    weights
+      .map {
+        case (cubeId, weightAndCount) if weightAndCount.count == groupCubeSize =>
+          val nw = NormalizedWeight(weightAndCount.weight)
+          (cubeId, CubeInfo(nw, groupCubeSize))
+
+        case (cubeId, weightAndCount) =>
+          val nw = NormalizedWeight(desiredCubeSize, weightAndCount.count)
+          (cubeId, CubeInfo(nw, weightAndCount.count))
+      }
+  }
+
+  /**
+   * Populate cube tree sizes and parent NormalizedWeights for all existing cubes in the tree
+   * in a bottom-up fashion
+   * @param cubeMap local tree
+   * @return
+   */
+  def populateTreeSizeAndParentWeight(
+      cubeMap: mutable.Map[CubeId, CubeInfo]): mutable.Map[CubeId, CubeInfo] = {
+    // Compute tree sizes and parent weights from bottom up.
+    val levelCubes = cubeMap.keys.groupBy(_.depth)
+    val minLevel = levelCubes.keys.min
+    val maxLevel = levelCubes.keys.max
+    (maxLevel until minLevel by -1) foreach { level =>
+      levelCubes(level)
+        .groupBy(c => c.parent.get)
+        .foreach { case (parent, siblings) =>
+          val parentInfo = cubeMap(parent)
+          siblings.foreach(s => {
+            val siblingInfo = cubeMap(s)
+            // Update parent tree size
+            parentInfo.treeSize += siblingInfo.treeSize
+            // Update cube parent weight
+            siblingInfo.parentWeight = parentInfo.parentWeight
+          })
+        }
+    }
+
+    // Set parent weight for the top level cubes to 0d
+    levelCubes(minLevel).foreach(c => cubeMap(c).parentWeight = 0d)
+
+    cubeMap
   }
 
 }
@@ -143,10 +184,6 @@ private class WeightAndCount(var weight: Weight, var count: Int)
  */
 protected case class PointWeightAndParent(point: Point, weight: Weight, parent: Option[CubeId])
 
-/**
- * Cube and NormalizedWeight
- *
- * @param cubeBytes        the cube
- * @param normalizedWeight the weight
- */
-case class CubeNormalizedWeight(cubeBytes: Array[Byte], normalizedWeight: NormalizedWeight)
+case class CubeInfo(var parentWeight: NormalizedWeight, var treeSize: Double)
+
+case class TreeSizeAndDomain(treeSize: Double, domain: Double)
