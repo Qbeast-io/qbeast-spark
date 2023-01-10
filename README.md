@@ -18,9 +18,9 @@
 
 **Qbeast Spark** is an extension for [**Data Lakehouses**](http://cidrdb.org/cidr2021/papers/cidr2021_paper17.pdf) that enables **multi-dimensional filtering** and **sampling** directly on the storage
 
-[![apache-spark](https://img.shields.io/badge/apache--spark-3.1.x-blue)](https://spark.apache.org/releases/spark-release-3-1-1.html) 
-[![apache-hadoop](https://img.shields.io/badge/apache--hadoop-3.2.0-blue)](https://hadoop.apache.org/release/3.2.0.html)
-[![delta-core](https://img.shields.io/badge/delta--core-1.0.0-blue)](https://github.com/delta-io/delta/releases/tag/v1.0.0)
+[![apache-spark](https://img.shields.io/badge/apache--spark-3.2.x-blue)](https://spark.apache.org/releases/spark-release-3-2-2.html) 
+[![apache-hadoop](https://img.shields.io/badge/apache--hadoop-3.3.x-blue)](https://hadoop.apache.org/release/3.3.1.html)
+[![delta-core](https://img.shields.io/badge/delta--core-1.2.0-blue)](https://github.com/delta-io/delta/releases/tag/v1.2.0)
 [![codecov](https://codecov.io/gh/Qbeast-io/qbeast-spark/branch/main/graph/badge.svg?token=8WO7HGZ4MW)](https://codecov.io/gh/Qbeast-io/qbeast-spark)
 
 </div>
@@ -92,7 +92,8 @@ export SPARK_HOME=$PWD/spark-3.1.1-bin-hadoop3.2
 ```bash
 $SPARK_HOME/bin/spark-shell \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
---packages io.qbeast:qbeast-spark_2.12:0.2.0,io.delta:delta-core_2.12:1.0.0
+--conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog \
+--packages io.qbeast:qbeast-spark_2.12:0.3.1,io.delta:delta-core_2.12:1.2.0
 ```
 
 ### 2. Indexing a dataset
@@ -116,6 +117,24 @@ csv_df.write
 	.format("qbeast")
 	.option("columnsToIndex", "user_id,product_id")
 	.save(tmp_dir)
+```
+
+#### SQL Syntax.
+You can create a table with Qbeast with the help of `QbeastCatalog`.
+
+```scala
+spark.sql(
+  "CREATE TABLE student (id INT, name STRING, age INT) " +
+    "USING qbeast OPTIONS ('columnsToIndex'='id')")
+
+```
+
+Use **`INSERT INTO`** to add records to the new table. It will update the index in a **dynamic** fashion when new data is inserted.
+
+```scala
+
+spark.sql("INSERT INTO table student SELECT * FROM visitor_students")
+
 ```
 
 ###  3. Load the dataset
@@ -151,21 +170,6 @@ qbeastTable.getIndexMetrics()
 qbeastTable.analyze()
 ```
 
-The format supports **Spark SQL** syntax. 
-It also updates the index in a **dynamic** fashion when new data is inserted.
-
-```scala
-val newData = Seq(1, 2, 3, 4).toDF("value")
-
-newData.createOrReplaceTempView("newTable")
-
-spark.sql("insert into table myTable select * from newTable")
-
-spark.sql("insert into table myTable (value) values (4)")
-
-
-```
-
 Go to [QbeastTable documentation](./docs/QbeastTable.md) for more detailed information.
 
 # Dependencies and Version Compatibility
@@ -173,6 +177,7 @@ Go to [QbeastTable documentation](./docs/QbeastTable.md) for more detailed infor
 |---------|:-----:|:------:|:----------:|
 | 0.1.0   | 3.0.0 | 3.2.0  |   0.8.0    |
 | 0.2.0   | 3.1.x | 3.2.0  |   1.0.0    |
+| 0.3.1   | 3.2.x | 3.3.x  |   1.2.x    |
 
 Check [here](https://docs.delta.io/latest/releases.html) for **Delta Lake** and **Apache Spark** version compatibility.  
 

@@ -8,7 +8,7 @@ import org.scalatest.AppendedClues.convertToClueful
 
 class DocumentationTests extends QbeastIntegrationTestSpec {
 
-  val config: SparkConf = new SparkConf().set(
+  val config: SparkConf = sparkConfWithSqlAndCatalog.set(
     "spark.hadoop.fs.s3a.aws.credentials.provider",
     "org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider")
 

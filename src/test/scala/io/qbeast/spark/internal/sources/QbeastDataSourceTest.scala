@@ -18,7 +18,6 @@ import org.scalatest.flatspec.FixtureAnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar
 
-import java.util.Collections
 import scala.collection.JavaConverters._
 
 /**
@@ -67,7 +66,7 @@ class QbeastDataSourceTest extends FixtureAnyFlatSpec with MockitoSugar with Mat
   it should "return correct table" in { f =>
     val schema = StructType(Seq())
     val partitioning = Array.empty[Transform]
-    val properties = Collections.emptyMap[String, String]()
+    val properties = Map("path" -> path).asJava
     val table = f.dataSource.getTable(schema, partitioning, properties)
     table.schema() shouldBe schema
     table.capabilities() shouldBe Set(
@@ -157,7 +156,7 @@ class QbeastDataSourceTest extends FixtureAnyFlatSpec with MockitoSugar with Mat
     val parameters = Map("path" -> path)
     val data = mock[DataFrame]
     a[AnalysisException] shouldBe thrownBy {
-      f.dataSource.createRelation(f.sqlContext, SaveMode.Append, parameters, data)
+      f.dataSource.createRelation(f.sqlContext, SaveMode.Overwrite, parameters, data)
     }
   }
 

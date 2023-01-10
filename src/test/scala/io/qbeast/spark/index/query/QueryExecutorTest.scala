@@ -161,11 +161,6 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
       val matchFiles = queryExecutor.execute().map(_.path)
       val diff = allFiles.toSet -- matchFiles.toSet
 
-      // scalastyle:off println
-      println(
-        s"Number of files: ${allFiles.length}, Matching files: ${matchFiles.length}, " +
-          s"Skipped files: ${diff.size}")
-
       val allQbeastFiles = allDeltaFiles.map(addFile =>
         QbeastBlock(addFile.path, addFile.tags, addFile.size, addFile.modificationTime))
 
@@ -219,5 +214,21 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
     indexed.where("a == 50000").count shouldBe 1
     indexed.where("c == 50000.0").count shouldBe 1
   })
+
+  it should "filter correctly using GreaterThan and LessThanOrEqual" in withSparkAndTmpDir(
+    (spark, tmpdir) => {
+      val source = createDF(50000, spark).toDF().coalesce(4)
+
+      writeTestData(source, Seq("a", "c"), 4000, tmpdir)
+
+      val indexed = spark.read.format("qbeast").load(tmpdir)
+
+      indexed.where("a > 1").count shouldBe 49999
+      indexed.where("a > 49999").count shouldBe 1
+
+      indexed.where("a <= 1").count shouldBe 2
+      indexed.where("a <= 49999").count shouldBe 50000
+
+    })
 
 }

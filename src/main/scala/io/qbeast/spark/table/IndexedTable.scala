@@ -8,6 +8,7 @@ import io.qbeast.core.model._
 import io.qbeast.spark.delta.CubeDataLoader
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.internal.QbeastOptions
+import io.qbeast.spark.internal.QbeastOptions.{COLUMNS_TO_INDEX, CUBE_SIZE}
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
 import org.apache.spark.sql.delta.actions.FileAction
@@ -148,6 +149,26 @@ private[table] class IndexedTableImpl(
 
   }
 
+  /**
+   * Add the required indexing parameters when the SaveMode is Append.
+   * The user-provided parameters are respected.
+   * @param latestRevision the latest revision
+   * @param params the parameters required for indexing
+   */
+  private def addRequiredParams(
+      latestRevision: Revision,
+      parameters: Map[String, String]): Map[String, String] = {
+    val columnsToIndex = latestRevision.columnTransformers.map(_.columnName).mkString(",")
+    val desiredCubeSize = latestRevision.desiredCubeSize.toString
+    (parameters.contains(COLUMNS_TO_INDEX), parameters.contains(CUBE_SIZE)) match {
+      case (true, true) => parameters
+      case (false, false) =>
+        parameters + (COLUMNS_TO_INDEX -> columnsToIndex, CUBE_SIZE -> desiredCubeSize)
+      case (true, false) => parameters + (CUBE_SIZE -> desiredCubeSize)
+      case (false, true) => parameters + (COLUMNS_TO_INDEX -> columnsToIndex)
+    }
+  }
+
   override def save(
       data: DataFrame,
       parameters: Map[String, String],
@@ -155,12 +176,13 @@ private[table] class IndexedTableImpl(
     val indexStatus =
       if (exists && append) {
         val latestIndexStatus = snapshot.loadLatestIndexStatus
-        if (checkRevisionParameters(QbeastOptions(parameters), latestIndexStatus)) {
+        val updatedParameters = addRequiredParams(latestIndexStatus.revision, parameters)
+        if (checkRevisionParameters(QbeastOptions(updatedParameters), latestIndexStatus)) {
           latestIndexStatus
         } else {
           val oldRevisionID = latestIndexStatus.revision.revisionID
           val newRevision = revisionBuilder
-            .createNextRevision(tableID, data.schema, parameters, oldRevisionID)
+            .createNextRevision(tableID, data.schema, updatedParameters, oldRevisionID)
           IndexStatus(newRevision)
         }
       } else {
@@ -201,7 +223,7 @@ private[table] class IndexedTableImpl(
    * @return the QbeastBaseRelation
    */
   private def createQbeastBaseRelation(): BaseRelation = {
-    QbeastBaseRelation.forQbeastTable(tableID, this)
+    QbeastBaseRelation.forQbeastTable(this)
   }
 
   private def write(data: DataFrame, indexStatus: IndexStatus, append: Boolean): BaseRelation = {

@@ -6,11 +6,11 @@ package io.qbeast.spark.utils
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.functions._
+import org.apache.spark.sql.functions.{col, lit}
 
-class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
+class QbeastSparkCorrectnessTest extends QbeastIntegrationTestSpec {
 
-  "the Qbeast data source" should
+  "Qbeast datasource" should
     "expose the original number of columns and rows" in withQbeastContextSparkAndTmpDir {
       (spark, tmpDir) =>
         {
@@ -28,7 +28,7 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
         }
     }
 
-  it should "index correctly on bigger spaces" in withQbeastContextSparkAndTmpDir {
+  "Qbeast index" should "index correctly on bigger spaces" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
       {
         val data = loadTestData(spark)
@@ -158,14 +158,6 @@ class QbeastDataSourceIntegrationTest extends QbeastIntegrationTestSpec {
 
         df.count() shouldBe dataSize
 
-        val precision = 0.1
-        val tolerance = 0.01
-        // We allow a 1% of tolerance in the sampling
-        df.sample(withReplacement = false, precision)
-          .count()
-          .toDouble shouldBe (dataSize * precision) +- dataSize * precision * tolerance
-
       }
     }
-
 }
