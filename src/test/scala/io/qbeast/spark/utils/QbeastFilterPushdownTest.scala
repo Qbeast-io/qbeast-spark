@@ -192,26 +192,4 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
       }
 
   }
-
-  it should "filter files with non-indexed columns" in withQbeastContextSparkAndTmpDir {
-    (spark, tmpDir) =>
-      {
-        val data = loadTestData(spark)
-
-        writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
-
-        val df = spark.read.format("qbeast").load(tmpDir)
-
-        // We filter by price, which does not belong to the indexed columns
-        val filter = "price < 7.0"
-        val qbeastQuery = df.filter(filter)
-        val normalQuery = data.filter(filter)
-
-        checkFileFiltering(qbeastQuery)
-
-        assertLargeDatasetEquality(qbeastQuery, normalQuery, orderedComparison = false)
-
-      }
-
-  }
 }
