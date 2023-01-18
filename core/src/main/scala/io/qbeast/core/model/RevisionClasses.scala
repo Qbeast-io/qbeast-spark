@@ -4,7 +4,8 @@ import com.fasterxml.jackson.annotation.{JsonCreator, JsonValue}
 import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import com.fasterxml.jackson.databind.annotation.JsonSerialize.Typing
 import io.qbeast.IISeq
-import io.qbeast.core.transform.{Transformation, Transformer}
+import io.qbeast.core.model.Revision.stagingRevisionID
+import io.qbeast.core.transform.{HashTransformation, HashTransformer, Transformation, Transformer}
 
 import scala.collection.immutable.SortedMap
 
@@ -41,6 +42,8 @@ final class QTableID(_id: String) extends Serializable {
  * Companion object for Revision
  */
 object Revision {
+  val stagingRevisionID: RevisionID = -1
+  val stagingIndexColumn: String = ""
 
   /**
    * Create a new first revision for a table
@@ -60,7 +63,16 @@ object Revision {
       desiredCubeSize,
       columnTransformers,
       Vector.empty)
+  }
 
+  def stagingRevision(tableID: QTableID): Revision = {
+    Revision(
+      stagingRevisionID,
+      System.currentTimeMillis(),
+      tableID,
+      desiredCubeSize = -1,
+      Vector(HashTransformer(stagingIndexColumn, StringDataType)),
+      Vector(HashTransformation()))
   }
 
 }
@@ -87,6 +99,8 @@ final case class Revision(
       typing = Typing.STATIC) transformations: IISeq[Transformation])
     extends Serializable {
   assert(columnTransformers != null || transformations != null)
+
+  val isStaging: Boolean = revisionID == stagingRevisionID
 
   /**
    * *
@@ -117,7 +131,7 @@ final case class Revision(
 
   /**
    * returns the normalized values
-   * @param values
+   * @param values row values for the indexing columns
    * @return the normalized values
    */
   def transform(values: IISeq[_]): IISeq[Double] = {
@@ -193,8 +207,12 @@ case class IndexStatus(
     cubesStatuses: SortedMap[CubeId, CubeStatus] = SortedMap.empty)
     extends Serializable {
 
-  def addAnnouncements(newAnnouncedSet: Set[CubeId]): IndexStatus =
-    copy(announcedSet = announcedSet ++ newAnnouncedSet)
+  val isStaging: Boolean = revision.isStaging
+
+  def addAnnouncements(newAnnouncedSet: Set[CubeId]): IndexStatus = {
+    if (isStaging) this
+    else copy(announcedSet = announcedSet ++ newAnnouncedSet)
+  }
 
   def cubesToOptimize: Set[CubeId] = announcedSet.diff(replicatedSet)
 

@@ -59,13 +59,17 @@ case class Compactor(
     val revision = tableChanges.updatedRevision
 
     // Update the tags of the block with the information of the cubeBlocks
-    val tags: Map[String, String] = Map(
-      TagUtils.cube -> cubeId.string,
-      TagUtils.minWeight -> minWeight.value.toString,
-      TagUtils.maxWeight -> maxWeight.value.toString,
-      TagUtils.state -> state,
-      TagUtils.revision -> revision.revisionID.toString,
-      TagUtils.elementCount -> elementCount.toString)
+    val tags: Map[String, String] =
+      if (revision.isStaging) null
+      else {
+        Map(
+          TagUtils.cube -> cubeId.string,
+          TagUtils.minWeight -> minWeight.value.toString,
+          TagUtils.maxWeight -> maxWeight.value.toString,
+          TagUtils.state -> state,
+          TagUtils.revision -> revision.revisionID.toString,
+          TagUtils.elementCount -> elementCount.toString)
+      }
 
     val writtenPath = new Path(tableID.id, s"${UUID.randomUUID()}.parquet")
     val writer: OutputWriter = factory.newInstance(

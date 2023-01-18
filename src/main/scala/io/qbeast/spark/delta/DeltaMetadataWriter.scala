@@ -137,7 +137,7 @@ private[delta] case class DeltaMetadataWriter(
       addFiles.map(_.copy(dataChange = !rearrangeOnly)) ++
         deletedFiles.map(_.copy(dataChange = !rearrangeOnly))
     } else {
-      newFiles ++ deletedFiles
+      addFiles ++ deletedFiles
     }
 
     if (isOptimizeOperation) {

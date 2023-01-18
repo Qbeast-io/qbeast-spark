@@ -5,6 +5,7 @@ package io.qbeast.spark.delta
 
 import io.qbeast.core.model.QbeastBlock
 import io.qbeast.spark.index.query.{QueryExecutor, QuerySpecBuilder}
+import io.qbeast.spark.utils.Staging.isStagingFile
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{Expression, GenericInternalRow}
@@ -49,8 +50,13 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
     queryExecutor.execute()
   }
 
+  /**
+   * Collect Staging AddFiles from _delta_log and convert them into FileStatuses.
+   * The output is merged with those built from QbeastBlocks.
+   * @return
+   */
   private def stagingFiles: Seq[FileStatus] = {
-    snapshot.allFiles.where("tags IS NULL").collect().map { a: AddFile =>
+    snapshot.allFiles.where(isStagingFile).collect().map { a: AddFile =>
       new FileStatus(
         /* length */ a.size,
         /* isDir */ false,

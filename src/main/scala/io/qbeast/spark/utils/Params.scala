@@ -40,3 +40,7 @@ object MetadataConfig {
   final val replicatedSet = "qbeast.replicatedSet"
   final val lastRevisionID = "qbeast.lastRevisionID"
 }
+
+object Staging {
+  final val isStagingFile = "tags IS NULL"
+}
