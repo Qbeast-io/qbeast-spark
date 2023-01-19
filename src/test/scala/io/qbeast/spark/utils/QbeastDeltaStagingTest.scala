@@ -61,21 +61,18 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec {
   }
 
   it should "sample a qbeast staging table correctly" in withSparkAndTmpDir((spark, tmpDir) => {
-//    val dataSize = 99986
-//    val df = loadTestData(spark) // 99986
-//
-//    df.write.format("delta").save(tmpDir)
-//    val qdf = spark.read.format("qbeast").load(tmpDir)
-//
-//    // We allow a 1% of tolerance in the sampling
-//    val tolerance = 0.01
-//    List(0.1, 0.2, 0.5, 0.7, 0.99).foreach(f => {
-//      val result = qdf
-//        .sample(withReplacement = false, f)
-//        .count()
-//        .toDouble
-//
-//      result shouldBe (dataSize * f) +- dataSize * f * tolerance
+    val dataSize = 99986
+    val df = loadTestData(spark) // 99986
+
+    df.write.format("delta").save(tmpDir)
+    val qdf = spark.read.format("qbeast").load(tmpDir)
+
+    // We allow a 1% of tolerance in the sampling
+    val tolerance = 0.01
+    List(0.1, 0.2, 0.5, 0.7, 0.99).foreach(f => {
+      val result = qdf.sample(withReplacement = false, f).count().toDouble
+      result shouldBe (dataSize * f) +- dataSize * f * tolerance
+    })
   })
 
 }

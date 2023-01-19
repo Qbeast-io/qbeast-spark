@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.internal.rules
 
-import io.qbeast.core.model.Weight
+import io.qbeast.core.model.{Weight, WeightRange}
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{And, GreaterThanOrEqual, LessThan, Literal}
@@ -11,8 +11,8 @@ import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, Project
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.SparkSession
-import io.qbeast.core.model.WeightRange
 import io.qbeast.IndexedColumns
+import io.qbeast.core.model.Revision.stagingIndexColumn
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import io.qbeast.spark.delta.OTreeIndex
 
@@ -48,8 +48,10 @@ class SampleRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
 
     val weightRange = extractWeightRange(sample)
 
+    val isStaging = indexedColumns.size == 1 && indexedColumns.head == stagingIndexColumn
     val columns =
-      indexedColumns.map(c => logicalRelation.output.find(_.name == c).get)
+      if (isStaging) logicalRelation.output
+      else indexedColumns.map(c => logicalRelation.output.find(_.name == c).get)
     val qbeastHash = new QbeastMurmur3Hash(columns)
 
     Filter(
