@@ -2,6 +2,56 @@
 
 There's different configurations for the index that can affect the performance on read or the writing process. Here is a resume of some of them.
 
+## Catalogs
+
+We designed the `QbeastCatalog` to work as an **entry point for other format's Catalog's** as well. 
+
+However, you can also handle different Catalogs simultanously.
+
+### 1. Unified Catalog
+
+```bash
+--conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
+```
+
+Using the `spark_catalog` configuration, you can write **qbeast** and **delta** ( or upcoming formats ;) ) tables into the `default` namespace.
+
+```scala
+df.write
+  .format("qbeast")
+  .option("columnsToIndex", "user_id,product_id")
+  .saveAsTable("qbeast_table")
+
+df.write
+  .format("delta")
+  .saveAsTable("delta_table")
+```
+### 2. Secondary catalog
+
+For using **more than one Catalog in the same session**, you can set it up in a different space. 
+
+```bash
+--conf spark.sql.catalog.spark_catalog = org.apache.spark.sql.delta.catalog.DeltaCatalog \
+--conf spark.sql.catalog.qbeast_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
+```
+
+Notice the `QbeastCatalog` conf parameter is not anymore `spark_catalog`, but has a customized name like `qbeast_catalog`. Each table written using the **qbeast** implementation, should have the prefix `qbeast_catalog`. 
+
+For example:
+
+```scala
+// DataFrame API
+df.write
+  .format("qbeast")
+  .option("columnsToIndex", "user_id,product_id")
+  .saveAsTable("qbeast_catalog.default.qbeast_table")
+
+// SQL
+spark.sql("CREATE TABLE qbeast_catalog.default.qbeast_table USING qbeast AS SELECT * FROM ecommerce")
+```
+
+
+
 ## ColumnsToIndex
 
 These are the columns you want to index. Try to find those which are interesting for your queries, or your data pipelines. 

@@ -3,7 +3,7 @@
  */
 package io.qbeast.core.model
 
-import io.qbeast.core.transform.Transformation
+import io.qbeast.core.transform.{HashTransformation, Transformation}
 
 /**
  * Query space defines the domain area requested by the query.
@@ -28,6 +28,14 @@ case class AllSpace() extends QuerySpace {
 }
 
 /**
+ * Implementation of QuerySpace that represents an empty domain.
+ */
+case class EmptySpace() extends QuerySpace {
+
+  override def intersectsWith(cube: CubeId): Boolean = false
+}
+
+/**
  * *
  * Describe the query range in the area included in [originalFrom,originalTo)
  * (inclusive, exclusive).
@@ -45,9 +53,12 @@ class QuerySpaceFromTo(private val from: Seq[Option[Double]], private val to: Se
   }
 
   override def intersectsWith(cube: CubeId): Boolean = {
+    // Use epsilon to support LessThanOrEqual: x <= t is approximated by x < t + epsilon
+    val epsilon = 1.1103e-16
+
     from.zip(to).zipWithIndex.forall {
-      case ((Some(f), Some(t)), i) => intersects(f, t, cube, i)
-      case ((None, Some(t)), i) => intersects(0.0, t, cube, i)
+      case ((Some(f), Some(t)), i) => intersects(f, t + epsilon, cube, i)
+      case ((None, Some(t)), i) => intersects(0.0, t + epsilon, cube, i)
       case ((Some(f), None), i) => intersects(f, 1.0, cube, i)
       case ((None, None), _) => true
     }
@@ -55,15 +66,15 @@ class QuerySpaceFromTo(private val from: Seq[Option[Double]], private val to: Se
 
 }
 
-object QuerySpaceFromTo {
+object QuerySpace {
 
   def apply(
       originalFrom: Seq[Option[Any]],
       originalTo: Seq[Option[Any]],
-      transformations: Seq[Transformation]): QuerySpaceFromTo = {
-
+      transformations: Seq[Transformation]): QuerySpace = {
     assert(originalTo.size == originalFrom.size)
     assert(transformations.size == originalTo.size)
+
     val from = originalFrom.zip(transformations).map {
       case (Some(f), transformation) => Some(transformation.transform(f))
       case _ => None
@@ -73,7 +84,31 @@ object QuerySpaceFromTo {
       case _ => None
     }
 
-    new QuerySpaceFromTo(from, to)
+    var isPointStringSearch = false
+    var (isOverlappingSpace, isAllSpace) = (true, true)
+
+    from.indices.foreach { i =>
+      val (isOverlappingDim, isAllDim) = (from(i), to(i), transformations(i)) match {
+        case (Some(f), Some(t), _: HashTransformation) if f == t =>
+          isPointStringSearch = true
+          (true, true)
+        case (_, _, _: HashTransformation) | (None, None, _) =>
+          (true, true)
+        case (Some(f), Some(t), _) =>
+          (f <= t && f <= 1d && t >= 0d, f <= t && f <= 0d && t >= 1d)
+        case (None, Some(t), _) =>
+          (t >= 0d, t >= 1d)
+        case (Some(f), None, _) =>
+          (f <= 1d, f <= 0d)
+      }
+
+      isOverlappingSpace &&= isOverlappingDim
+      isAllSpace &&= isAllDim
+    }
+
+    if (isAllSpace && !isPointStringSearch) AllSpace()
+    else if (isPointStringSearch || isOverlappingSpace) new QuerySpaceFromTo(from, to)
+    else EmptySpace()
   }
 
 }

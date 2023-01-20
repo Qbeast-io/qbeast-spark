@@ -6,7 +6,7 @@ import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.index.{NormalizedWeight, QbeastColumns, SparkRevisionFactory}
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.execution.datasources.OutputWriterFactory
+import org.apache.spark.sql.execution.datasources.{OutputWriterFactory}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.util.SerializableConfiguration
@@ -91,12 +91,13 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
   val tableChanges: TableChanges =
     BroadcastedTableChanges(None, IndexStatus(rev), deltaNormalizedCubeWeights = weightMap)
 
-  val writer: BlockWriter = BlockWriter(
+  val writer: BlockWriter = new BlockWriter(
     dataPath = tmpDir,
     schema = data.schema,
     schemaIndex = indexed.schema,
     factory = factory,
     serConf = serConf,
+    statsTrackers = Seq.empty,
     qbeastColumns = qbeastColumns,
     tableChanges = tableChanges)
 

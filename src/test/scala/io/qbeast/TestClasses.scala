@@ -34,4 +34,6 @@ object TestClasses {
       val2: Option[Long],
       val3: Option[Double])
 
+  case class Student(id: Int, name: String, age: Int)
+
 }

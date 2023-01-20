@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.index.query
 
-import io.qbeast.core.model.{QuerySpace, WeightRange}
+import io.qbeast.core.model.{QuerySpace, Weight, WeightRange}
 
 /**
  * Query specification
@@ -11,4 +11,9 @@ import io.qbeast.core.model.{QuerySpace, WeightRange}
  * @param weightRange the weight range
  * @param querySpace the query space
  */
-case class QuerySpec(weightRange: WeightRange, querySpace: QuerySpace)
+case class QuerySpec(weightRange: WeightRange, querySpace: QuerySpace) {
+
+  def isSampling: Boolean =
+    weightRange.from > Weight.MinValue || weightRange.to < Weight.MaxValue
+
+}
