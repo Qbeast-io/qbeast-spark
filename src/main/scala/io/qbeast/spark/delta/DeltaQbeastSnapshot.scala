@@ -4,7 +4,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.IISeq
-import io.qbeast.core.model.Revision.stagingRevisionID
+import io.qbeast.core.model.Revision.{isStaging, stagingID}
 import io.qbeast.core.model._
 import io.qbeast.spark.utils.Staging.isStagingFile
 import io.qbeast.spark.utils.{MetadataConfig, TagColumns}
@@ -22,17 +22,6 @@ case class DeltaQbeastSnapshot(private val snapshot: Snapshot) extends QbeastSna
 
   def isInitial: Boolean = snapshot.version == -1
 
-  private var stagingRevisionOption: Option[Revision] = None
-
-  private def stagingRevision: Revision = {
-    if (stagingRevisionOption.isEmpty) {
-      val tableID = QTableID(snapshot.deltaLog.dataPath.toString)
-      val stagingRevision = Revision.stagingRevision(tableID)
-      stagingRevisionOption = Some(stagingRevision)
-    }
-    stagingRevisionOption.get
-  }
-
   private val metadataMap: Map[String, String] = snapshot.metadata.configuration
 
   /**
@@ -47,7 +36,7 @@ case class DeltaQbeastSnapshot(private val snapshot: Snapshot) extends QbeastSna
       val revision = mapper
         .readValue[Revision](json, classOf[Revision])
       (revisionID, revision)
-    } + (stagingRevisionID -> stagingRevision)
+    }
   }
 
   /**
@@ -74,7 +63,7 @@ case class DeltaQbeastSnapshot(private val snapshot: Snapshot) extends QbeastSna
    * @return revision identifier
    */
   private val lastRevisionID: RevisionID =
-    metadataMap.getOrElse(MetadataConfig.lastRevisionID, stagingRevisionID.toString).toLong
+    metadataMap.getOrElse(MetadataConfig.lastRevisionID, "-1").toLong
 
   /**
    * Looks up for a revision with a certain identifier
@@ -136,7 +125,7 @@ case class DeltaQbeastSnapshot(private val snapshot: Snapshot) extends QbeastSna
    * @return an immutable Seq of Revision for qtable
    */
   override def loadAllRevisions: IISeq[Revision] =
-    (revisionsMap - stagingRevisionID).values.toVector
+    (revisionsMap - stagingID).values.toVector
 
   /**
    * Obtain the last Revisions
@@ -175,7 +164,7 @@ case class DeltaQbeastSnapshot(private val snapshot: Snapshot) extends QbeastSna
    * @return the Dataset of QbeastBlocks
    */
   def loadRevisionBlocks(revisionID: RevisionID): Dataset[AddFile] = {
-    if (getRevision(revisionID).isStaging) snapshot.allFiles.where(isStagingFile)
+    if (isStaging(revisionID)) snapshot.allFiles.where(isStagingFile)
     else snapshot.allFiles.where(TagColumns.revision === lit(revisionID.toString))
   }
 

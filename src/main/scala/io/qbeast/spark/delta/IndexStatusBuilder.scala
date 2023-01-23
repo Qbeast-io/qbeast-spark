@@ -3,6 +3,7 @@
  */
 package io.qbeast.spark.delta
 
+import io.qbeast.core.model.Revision.isStaging
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.QbeastMetadataSQL._
 import io.qbeast.spark.utils.State.FLOODED
@@ -70,9 +71,9 @@ private[delta] class IndexStatusBuilder(
     val spark = SparkSession.active
     val builder = SortedMap.newBuilder[CubeId, CubeStatus]
 
-    if (revision.isStaging) {
-      val stagingCs = stagingCubeStatus()
-      builder += (stagingCs.cubeId -> stagingCs)
+    if (isStaging(revision.revisionID)) {
+      val cubeStatus = stagingCubeStatus()
+      builder += (cubeStatus.cubeId -> cubeStatus)
 
     } else {
       import spark.implicits._

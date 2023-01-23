@@ -4,8 +4,8 @@ import com.fasterxml.jackson.annotation.{JsonCreator, JsonValue}
 import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import com.fasterxml.jackson.databind.annotation.JsonSerialize.Typing
 import io.qbeast.IISeq
-import io.qbeast.core.model.Revision.stagingRevisionID
-import io.qbeast.core.transform.{HashTransformation, HashTransformer, Transformation, Transformer}
+import io.qbeast.core.model.Revision.isStaging
+import io.qbeast.core.transform.{Transformation, Transformer}
 
 import scala.collection.immutable.SortedMap
 
@@ -42,8 +42,10 @@ final class QTableID(_id: String) extends Serializable {
  * Companion object for Revision
  */
 object Revision {
-  val stagingRevisionID: RevisionID = -1
-  val stagingIndexColumn: String = ""
+  val stagingID: RevisionID = 0
+
+  def isStaging(revisionID: RevisionID): Boolean =
+    revisionID == stagingID
 
   /**
    * Create a new first revision for a table
@@ -63,16 +65,6 @@ object Revision {
       desiredCubeSize,
       columnTransformers,
       Vector.empty)
-  }
-
-  def stagingRevision(tableID: QTableID): Revision = {
-    Revision(
-      stagingRevisionID,
-      System.currentTimeMillis(),
-      tableID,
-      desiredCubeSize = -1,
-      Vector(HashTransformer(stagingIndexColumn, StringDataType)),
-      Vector(HashTransformation()))
   }
 
 }
@@ -100,11 +92,8 @@ final case class Revision(
     extends Serializable {
   assert(columnTransformers != null || transformations != null)
 
-  val isStaging: Boolean = revisionID == stagingRevisionID
-
   /**
-   * *
-   * Controls that the this revision indexes all and only the provided columns.
+   * Controls that this revision indexes all and only the provided columns.
    *
    * @param columnsToIndex the column names to check.
    * @return true if the revision indexes all and only the provided columns.
@@ -207,10 +196,8 @@ case class IndexStatus(
     cubesStatuses: SortedMap[CubeId, CubeStatus] = SortedMap.empty)
     extends Serializable {
 
-  val isStaging: Boolean = revision.isStaging
-
   def addAnnouncements(newAnnouncedSet: Set[CubeId]): IndexStatus = {
-    if (isStaging) this
+    if (isStaging(revision.revisionID)) this
     else copy(announcedSet = announcedSet ++ newAnnouncedSet)
   }
 
