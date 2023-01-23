@@ -3,6 +3,7 @@
  */
 package io.qbeast.spark.internal.commands
 
+import io.qbeast.core.model.Revision.stagingID
 import io.qbeast.core.model._
 import io.qbeast.core.transform._
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
@@ -73,9 +74,8 @@ case class ConvertToQbeastCommand(
   private def isQbeastFormat(spark: SparkSession, path: String): Boolean = {
     val deltaLog = DeltaLog.forTable(spark, path)
     val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
-    val isDelta = deltaLog.tableExists
 
-    isDelta && qbeastSnapshot.loadAllRevisions.nonEmpty
+    qbeastSnapshot.existsRevision(stagingID) || qbeastSnapshot.loadAllRevisions.nonEmpty
   }
 
   override def run(spark: SparkSession): Seq[Row] = {
