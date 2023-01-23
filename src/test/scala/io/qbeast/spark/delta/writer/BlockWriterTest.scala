@@ -52,7 +52,7 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
       }
       .toSet
 
-    files.map(_.tags(TagUtils.cube)).forall(cube => cubes.contains(cube)) shouldBe true
+    files.map(_._1.tags(TagUtils.cube)).forall(cube => cubes.contains(cube)) shouldBe true
   }
 
   it should "work with empty partitions" in withSparkAndTmpDir { (spark, tmpDir) =>

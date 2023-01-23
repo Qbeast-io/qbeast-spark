@@ -27,9 +27,12 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
 
         // Insert using a SELECT statement
         spark.sql("insert into table t select * from t_lower")
-        spark.sql("select * from t").collect() shouldBe initialData
-          .union(insertDataLower)
-          .collect()
+        val dataInserted = spark.sql("SELECT * FROM t")
+        assertSmallDatasetEquality(
+          dataInserted,
+          initialData.union(insertDataLower),
+          orderedComparison = false,
+          ignoreNullable = true)
 
       }
     }
@@ -56,9 +59,12 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
 
         // Insert using a FROM statement
         spark.sql("insert into table t from t_lower select *")
-        spark.sql("select * from t").collect() shouldBe initialData
-          .union(insertDataLower)
-          .collect()
+        val dataInserted = spark.sql("SELECT * FROM t")
+        assertSmallDatasetEquality(
+          dataInserted,
+          initialData.union(insertDataLower),
+          orderedComparison = false,
+          ignoreNullable = true)
       }
     }
 
@@ -82,9 +88,12 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
 
         // Multi-Row Insert Using a VALUES Clause
         spark.sql("insert into table t (value) values (4),(5)")
-        spark.sql("select * from t").collect() shouldBe initialData
-          .union(Seq(4, 5).toDF())
-          .collect()
+        val dataInserted = spark.sql("SELECT * FROM t")
+        assertSmallDatasetEquality(
+          dataInserted,
+          initialData.union(Seq(4, 5).toDF()),
+          orderedComparison = false,
+          ignoreNullable = true)
       }
     }
 
@@ -108,9 +117,12 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
 
         // Single Row Insert Using a VALUES Clause
         spark.sql("insert into table t (value) values (4)")
-        spark.sql("select * from t").collect() shouldBe initialData
-          .union(Seq(4).toDF())
-          .collect()
+        val dataInserted = spark.sql("SELECT * FROM t")
+        assertSmallDatasetEquality(
+          dataInserted,
+          initialData.union(Seq(4).toDF()),
+          orderedComparison = false,
+          ignoreNullable = true)
       }
     }
 
@@ -136,9 +148,12 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
         // Insert using a TABLE statement
         spark.sql("INSERT INTO initial TABLE toInsert")
 
-        spark.sql("SELECT * FROM initial").collect() shouldBe initialData
-          .union(dataToInsert)
-          .collect()
+        val dataInserted = spark.sql("SELECT * FROM initial")
+        assertSmallDatasetEquality(
+          dataInserted,
+          initialData.union(dataToInsert),
+          orderedComparison = false,
+          ignoreNullable = true)
       }
   }
 
@@ -163,9 +178,12 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
         // Insert using a COLUMN LIST
         spark.sql("INSERT INTO initial (a, b) VALUES ('5', 5), ('6', 6)")
 
-        spark.sql("SELECT * FROM initial").collect() shouldBe initialData
-          .union(dataToInsert)
-          .collect()
+        val dataInserted = spark.sql("SELECT * FROM initial")
+        assertSmallDatasetEquality(
+          dataInserted,
+          initialData.union(dataToInsert),
+          orderedComparison = false,
+          ignoreNullable = true)
       }
   }
 
@@ -190,7 +208,12 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
         // Overwrite using a VALUE clause
         spark.sql("INSERT OVERWRITE initial VALUES ('5', 5), ('6', 6)")
 
-        spark.sql("SELECT * FROM initial").collect() shouldBe dataToInsert.collect()
+        val dataInserted = spark.sql("SELECT * FROM initial")
+        assertSmallDatasetEquality(
+          dataInserted,
+          dataToInsert,
+          orderedComparison = false,
+          ignoreNullable = true)
       }
   }
 
@@ -216,7 +239,12 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
         // Overwrite using a SELECT statement
         spark.sql("INSERT OVERWRITE initial SELECT a, b FROM toInsert")
 
-        spark.sql("SELECT * FROM initial").collect() shouldBe dataToInsert.collect()
+        val dataInserted = spark.sql("SELECT * FROM initial")
+        assertSmallDatasetEquality(
+          dataInserted,
+          dataToInsert,
+          orderedComparison = false,
+          ignoreNullable = true)
       }
   }
 
@@ -242,7 +270,12 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
         // Overwrite using a TABLE statement
         spark.sql("INSERT OVERWRITE initial TABLE toInsert")
 
-        spark.sql("SELECT * FROM initial").collect() shouldBe dataToInsert.collect()
+        val dataInserted = spark.sql("SELECT * FROM initial")
+        assertSmallDatasetEquality(
+          dataInserted,
+          dataToInsert,
+          orderedComparison = false,
+          ignoreNullable = true)
       }
   }
 
@@ -268,7 +301,12 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
         // Overwrite using a FROM statement
         spark.sql("INSERT OVERWRITE initial FROM toInsert SELECT *")
 
-        spark.sql("SELECT * FROM initial").collect() shouldBe dataToInsert.collect()
+        val dataInserted = spark.sql("SELECT * FROM initial")
+        assertSmallDatasetEquality(
+          dataInserted,
+          dataToInsert,
+          orderedComparison = false,
+          ignoreNullable = true)
       }
   }
 
@@ -330,7 +368,12 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
         // Overwrite using a TABLE statement on real data
         spark.sql("INSERT OVERWRITE initial TABLE toInsert")
 
-        spark.sql("SELECT * FROM initial").collect() shouldBe dataToInsert.collect()
+        val dataInserted = spark.sql("SELECT * FROM initial")
+        assertSmallDatasetEquality(
+          dataInserted,
+          dataToInsert,
+          orderedComparison = false,
+          ignoreNullable = true)
       }
     }
 
