@@ -4,6 +4,7 @@
 package io.qbeast.spark.delta.writer
 
 import io.qbeast.IISeq
+import io.qbeast.core.model.Revision.isStaging
 import io.qbeast.core.model.{CubeId, QTableID, QbeastBlock, TableChanges, Weight}
 import io.qbeast.spark.utils.{State, TagUtils}
 import org.apache.hadoop.fs.Path
@@ -60,7 +61,7 @@ case class Compactor(
 
     // Update the tags of the block with the information of the cubeBlocks
     val tags: Map[String, String] =
-      if (revision.isStaging) null
+      if (isStaging(revision.revisionID)) null
       else {
         Map(
           TagUtils.cube -> cubeId.string,

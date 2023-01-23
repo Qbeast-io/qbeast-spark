@@ -42,23 +42,20 @@ object SparkOTreeManager extends IndexManager[DataFrame] with Serializable {
   // PRIVATE METHODS //
 
   private def findCubesToOptimize(indexStatus: IndexStatus): IISeq[CubeId] = {
-    if (indexStatus.cubesStatuses.isEmpty) Vector.empty
-    else {
-      val overflowedSet = indexStatus.overflowedSet
-      val replicatedSet = indexStatus.replicatedSet
+    val overflowedSet = indexStatus.overflowedSet
+    val replicatedSet = indexStatus.replicatedSet
 
-      val cubesToOptimize = overflowedSet
-        .filter(cube => {
-          !replicatedSet.contains(cube) && (cube.parent match {
-            case None => true
-            case Some(p) => replicatedSet.contains(p)
-          })
+    val cubesToOptimize = overflowedSet
+      .filter(cube => {
+        !replicatedSet.contains(cube) && (cube.parent match {
+          case None => true
+          case Some(p) => replicatedSet.contains(p)
         })
+      })
 
-      if (cubesToOptimize.isEmpty && replicatedSet.isEmpty) {
-        Seq(indexStatus.revision.createCubeIdRoot()).toIndexedSeq
-      } else cubesToOptimize.toIndexedSeq
-    }
+    if (cubesToOptimize.isEmpty && replicatedSet.isEmpty) {
+      Seq(indexStatus.revision.createCubeIdRoot()).toIndexedSeq
+    } else cubesToOptimize.toIndexedSeq
   }
 
   private def index(

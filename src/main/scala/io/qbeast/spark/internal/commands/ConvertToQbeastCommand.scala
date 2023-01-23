@@ -5,7 +5,6 @@ package io.qbeast.spark.internal.commands
 
 import io.qbeast.core.model.Revision.stagingID
 import io.qbeast.core.model._
-import io.qbeast.core.transform._
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.utils.MetadataConfig.{lastRevisionID, revision}
 import org.apache.http.annotation.Experimental
@@ -16,7 +15,6 @@ import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.delta.DeltaOperations.Convert
 import org.apache.spark.sql.delta.metering.DeltaLogging
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
-import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{AnalysisExceptionFactory, Row, SparkSession}
 
 import java.util.Locale
@@ -51,43 +49,21 @@ case class ConvertToQbeastCommand(
     spark.sql(conversionCommand)
   }
 
-  /**
-   * Initialize Revision for table conversion. The RevisionID for a converted table is 0.
-   * EmptyTransformers and EmptyTransformations are used. This Revision should always be
-   * superseded.
-   * @param schema table schema
-   * @return
-   */
-  private def emptyRevision(path: String, schema: StructType): Revision = {
-    val transformers = columnsToIndex.map(s => EmptyTransformer(s)).toIndexedSeq
-    val transformations = transformers.map(_.makeTransformation(r => r))
-
-    Revision(
-      0,
-      System.currentTimeMillis(),
-      QTableID(path),
-      cubeSize,
-      transformers,
-      transformations)
-  }
-
-  private def isQbeastFormat(spark: SparkSession, path: String): Boolean = {
-    val deltaLog = DeltaLog.forTable(spark, path)
-    val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
-
-    qbeastSnapshot.existsRevision(stagingID) || qbeastSnapshot.loadAllRevisions.nonEmpty
-  }
-
   override def run(spark: SparkSession): Seq[Row] = {
     val (fileFormat, tableId) = resolveTableFormat(spark)
 
-    if (isQbeastFormat(spark, tableId.table)) {
+    val deltaLog = DeltaLog.forTable(spark, tableId.table)
+    val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+    val isQbeast = qbeastSnapshot.loadAllRevisions.nonEmpty
+    val isConverted = qbeastSnapshot.existsRevision(stagingID)
+
+    if (isConverted) {
       logInfo("The table you are trying to convert is already a qbeast table")
     } else {
       fileFormat match {
         // Convert parquet to delta
         case "parquet" => convertParquetToDelta(spark, tableId.quotedString)
-        case "delta" =>
+        case "delta" | "qbeast" =>
         case _ => throw AnalysisExceptionFactory.create(s"Unsupported file format: $fileFormat")
       }
 
@@ -96,17 +72,22 @@ case class ConvertToQbeastCommand(
 
       val txn = deltaLog.startTransaction()
 
-      val convRevision = emptyRevision(tableId.table, deltaLog.snapshot.schema)
+      val convRevision = Revision.emptyRevision(QTableID(tableId.table), cubeSize, columnsToIndex)
       val revisionID = convRevision.revisionID
 
       // If the table has partition columns, its conversion to qbeast will
       // remove them by overwriting the schema
       val isOverwritingSchema = txn.metadata.partitionColumns.nonEmpty
 
-      // Add revision map as a metadata entry
-      val updatedConf = txn.metadata.configuration
-        .updated(lastRevisionID, revisionID.toString)
+      // Update revision map
+      var updatedConf =
+        if (isQbeast) txn.metadata.configuration
+        // Create latestRevisionID for the table has no existing Revisions
+        else txn.metadata.configuration.updated(lastRevisionID, revisionID.toString)
+
+      updatedConf = updatedConf
         .updated(s"$revision.$revisionID", mapper.writeValueAsString(convRevision))
+
       val newMetadata =
         txn.metadata.copy(configuration = updatedConf, partitionColumns = Seq.empty)
 

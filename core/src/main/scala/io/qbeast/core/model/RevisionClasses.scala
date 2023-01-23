@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import com.fasterxml.jackson.databind.annotation.JsonSerialize.Typing
 import io.qbeast.IISeq
 import io.qbeast.core.model.Revision.isStaging
-import io.qbeast.core.transform.{Transformation, Transformer}
+import io.qbeast.core.transform.{EmptyTransformer, Transformation, Transformer}
 
 import scala.collection.immutable.SortedMap
 
@@ -65,6 +65,27 @@ object Revision {
       desiredCubeSize,
       columnTransformers,
       Vector.empty)
+  }
+
+  /**
+   * Initialize Revision for table conversion. The RevisionID for a converted table is 0.
+   * EmptyTransformers and EmptyTransformations are used. This Revision should always be
+   * superseded.
+   */
+  def emptyRevision(
+      tableID: QTableID,
+      desiredCubeSize: Int,
+      columnsToIndex: Seq[String]): Revision = {
+    val transformers = columnsToIndex.map(s => EmptyTransformer(s)).toIndexedSeq
+    val transformations = transformers.map(_.makeTransformation(r => r))
+
+    Revision(
+      stagingID,
+      System.currentTimeMillis(),
+      tableID,
+      desiredCubeSize,
+      transformers,
+      transformations)
   }
 
 }
