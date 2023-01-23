@@ -9,5 +9,5 @@ case class EmptyTransformation() extends Transformation {
 
   override def isSupersededBy(newTransformation: Transformation): Boolean = true
 
-  override def merge(other: Transformation): Transformation = this
+  override def merge(other: Transformation): Transformation = other
 }
