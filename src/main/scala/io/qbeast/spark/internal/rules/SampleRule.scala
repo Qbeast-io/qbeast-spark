@@ -12,7 +12,6 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.SparkSession
 import io.qbeast.IndexedColumns
-import io.qbeast.core.model.Revision.stagingIndexColumn
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import io.qbeast.spark.delta.OTreeIndex
 
@@ -48,10 +47,8 @@ class SampleRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
 
     val weightRange = extractWeightRange(sample)
 
-    val isStaging = indexedColumns.size == 1 && indexedColumns.head == stagingIndexColumn
     val columns =
-      if (isStaging) logicalRelation.output
-      else indexedColumns.map(c => logicalRelation.output.find(_.name == c).get)
+      indexedColumns.map(c => logicalRelation.output.find(_.name == c).get)
     val qbeastHash = new QbeastMurmur3Hash(columns)
 
     Filter(
