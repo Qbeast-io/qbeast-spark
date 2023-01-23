@@ -8,7 +8,7 @@ import io.qbeast.core.transform._
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand.dataTypeMinMax
-import io.qbeast.spark.utils.MetadataConfig
+import io.qbeast.spark.utils.MetadataConfig.{lastRevisionID, revision}
 import org.apache.http.annotation.Experimental
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
@@ -32,11 +32,6 @@ case class ConvertToQbeastCommand(
 
   private val isPartitioned: Boolean = partitionColumns.isDefined
 
-  /**
-   * Format inference for the input table. If partition columns are provided,
-   * the format is assumed to be parquet. Any unsupported format is considered
-   * as parquet and is detected when trying to convert it into delta.
-   */
   private def resolveTableFormat(): (String, String) =
     identifier.split("\\.") match {
       case Array(f, p) => (f.toLowerCase(Locale.ROOT), p)
@@ -45,18 +40,20 @@ case class ConvertToQbeastCommand(
 
   /**
    * Convert the parquet table using ConvertToDeltaCommand from Delta Lake.
-   * Any unsupported format will cause a SparkException error.
    */
   private def convertParquetToDelta(spark: SparkSession, path: String): Unit = {
-    if (!isPartitioned) spark.sql(s"CONVERT TO DELTA parquet.`$path`")
-    else {
-      spark.sql(s"CONVERT TO DELTA parquet.`$path` PARTITIONED BY (${partitionColumns.get})")
-    }
+    val conversionCommand =
+      if (!isPartitioned) s"CONVERT TO DELTA parquet.`$path`"
+      else s"CONVERT TO DELTA parquet.`$path` PARTITIONED BY (${partitionColumns.get})"
+
+    spark.sql(conversionCommand)
   }
 
   /**
-   * Initialize Revision for table conversion.
-   * The smallest RevisionID for a converted table is 0.
+   * Initialize Revision for table conversion. The RevisionID for a converted table is 0.
+   * Invalid dimension ranges are used to make sure the Transformations are always superseded.
+   *
+   * e.g. LinearTransformation(minNumber = Int.MaxValue, maxNumber = Int.MinValue)
    * @param schema table schema
    * @return
    */
@@ -99,15 +96,21 @@ case class ConvertToQbeastCommand(
 
       // Convert delta to qbeast
       val txn = deltaLog.startTransaction()
-      val revision = initializeRevision(path, deltaLog.snapshot.schema)
-      val revisionID = revision.revisionID
+
+      val convRevision = initializeRevision(path, deltaLog.snapshot.schema)
+      val revisionID = convRevision.revisionID
+
+      // If the table has partition columns, its conversion to qbeast will
+      // remove them by overwriting the schema
       val isOverwritingSchema = txn.metadata.partitionColumns.nonEmpty
+
+      // Add revision map as a metadata entry
       val updatedConf = txn.metadata.configuration
-        .updated(MetadataConfig.lastRevisionID, revisionID.toString)
-        .updated(
-          s"${MetadataConfig.revision}.$revisionID" -> mapper.writeValueAsString(revisionID))
+        .updated(lastRevisionID, revisionID.toString)
+        .updated(s"$revision.$revisionID", mapper.writeValueAsString(convRevision))
       val newMetadata =
         txn.metadata.copy(configuration = updatedConf, partitionColumns = Seq.empty)
+
       txn.updateMetadata(newMetadata)
       if (isOverwritingSchema) recordDeltaEvent(txn.deltaLog, "delta.ddl.overwriteSchema")
     }
