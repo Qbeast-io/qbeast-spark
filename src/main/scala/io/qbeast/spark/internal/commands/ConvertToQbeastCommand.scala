@@ -6,17 +6,17 @@ package io.qbeast.spark.internal.commands
 import io.qbeast.core.model._
 import io.qbeast.core.transform._
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.index.SparkRevisionFactory
-import io.qbeast.spark.internal.commands.ConvertToQbeastCommand.dataTypeMinMax
 import io.qbeast.spark.utils.MetadataConfig.{lastRevisionID, revision}
 import org.apache.http.annotation.Experimental
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
+import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.delta.DeltaOperations.Convert
 import org.apache.spark.sql.delta.metering.DeltaLogging
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{Row, SparkSession}
+import org.apache.spark.sql.{AnalysisExceptionFactory, Row, SparkSession}
 
 import java.util.Locale
 
@@ -25,16 +25,17 @@ case class ConvertToQbeastCommand(
     identifier: String,
     columnsToIndex: Seq[String],
     cubeSize: Int = DEFAULT_CUBE_SIZE,
-    partitionColumns: Option[String])
+    partitionColumns: Option[String] = None)
     extends LeafRunnableCommand
     with Logging
     with DeltaLogging {
 
   private val isPartitioned: Boolean = partitionColumns.isDefined
 
-  private def resolveTableFormat(): (String, String) =
+  private def resolveTableFormat(spark: SparkSession): (String, TableIdentifier) =
     identifier.split("\\.") match {
-      case Array(f, p) => (f.toLowerCase(Locale.ROOT), p)
+      case Array(f, p) =>
+        (f.toLowerCase(Locale.ROOT), spark.sessionState.sqlParser.parseTableIdentifier(p))
       case _ => throw new RuntimeException(s"Table doesn't exists at $identifier")
     }
 
@@ -43,38 +44,34 @@ case class ConvertToQbeastCommand(
    */
   private def convertParquetToDelta(spark: SparkSession, path: String): Unit = {
     val conversionCommand =
-      if (!isPartitioned) s"CONVERT TO DELTA parquet.`$path`"
-      else s"CONVERT TO DELTA parquet.`$path` PARTITIONED BY (${partitionColumns.get})"
+      if (!isPartitioned) s"CONVERT TO DELTA parquet.$path"
+      else s"CONVERT TO DELTA parquet.$path PARTITIONED BY (${partitionColumns.get})"
 
     spark.sql(conversionCommand)
   }
 
   /**
    * Initialize Revision for table conversion. The RevisionID for a converted table is 0.
-   * Invalid dimension ranges are used to make sure the Transformations are always superseded.
-   *
-   * e.g. LinearTransformation(minNumber = Int.MaxValue, maxNumber = Int.MinValue)
+   * EmptyTransformers and EmptyTransformations are used. This Revision should always be
+   * superseded.
    * @param schema table schema
    * @return
    */
-  private def initializeRevision(path: String, schema: StructType): Revision = {
-    val revision =
-      SparkRevisionFactory.createNewRevision(
-        QTableID(path),
-        schema,
-        Map("columnsToIndex" -> columnsToIndex.mkString(","), "cubeSize" -> cubeSize.toString))
+  private def emptyRevision(path: String, schema: StructType): Revision = {
+    val transformers = columnsToIndex.map(s => EmptyTransformer(s)).toIndexedSeq
+    val transformations = transformers.map(_.makeTransformation(r => r))
 
-    val transformations = revision.columnTransformers.map {
-      case LinearTransformer(_, dataType: OrderedDataType) =>
-        val minMax = dataTypeMinMax(dataType)
-        LinearTransformation(minMax.minValue, minMax.maxValue, dataType)
-      case HashTransformer(_, _) => HashTransformation()
-    }.toIndexedSeq
-
-    revision.copy(transformations = transformations)
+    Revision(
+      0,
+      System.currentTimeMillis(),
+      QTableID(path),
+      cubeSize,
+      transformers,
+      transformations)
   }
 
-  private def isQbeastFormat(deltaLog: DeltaLog): Boolean = {
+  private def isQbeastFormat(spark: SparkSession, path: String): Boolean = {
+    val deltaLog = DeltaLog.forTable(spark, path)
     val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
     val isDelta = deltaLog.tableExists
 
@@ -82,22 +79,24 @@ case class ConvertToQbeastCommand(
   }
 
   override def run(spark: SparkSession): Seq[Row] = {
-    val (fileFormat, path) = resolveTableFormat()
+    val (fileFormat, tableId) = resolveTableFormat(spark)
 
-    val deltaLog = DeltaLog.forTable(spark, path)
-    if (isQbeastFormat(deltaLog)) {
+    if (isQbeastFormat(spark, tableId.table)) {
       logInfo("The table you are trying to convert is already a qbeast table")
     } else {
       fileFormat match {
         // Convert parquet to delta
-        case "parquet" => convertParquetToDelta(spark, path)
-        case _ =>
+        case "parquet" => convertParquetToDelta(spark, tableId.quotedString)
+        case "delta" =>
+        case _ => throw AnalysisExceptionFactory.create(s"Unsupported file format: $fileFormat")
       }
 
       // Convert delta to qbeast
+      val deltaLog = DeltaLog.forTable(spark, tableId.table)
+
       val txn = deltaLog.startTransaction()
 
-      val convRevision = initializeRevision(path, deltaLog.snapshot.schema)
+      val convRevision = emptyRevision(tableId.table, deltaLog.snapshot.schema)
       val revisionID = convRevision.revisionID
 
       // If the table has partition columns, its conversion to qbeast will
@@ -113,25 +112,10 @@ case class ConvertToQbeastCommand(
 
       txn.updateMetadata(newMetadata)
       if (isOverwritingSchema) recordDeltaEvent(txn.deltaLog, "delta.ddl.overwriteSchema")
+      txn.commit(Seq.empty, Convert(0, Seq.empty, collectStats = false, None))
     }
     Seq.empty[Row]
   }
-
-}
-
-object ConvertToQbeastCommand {
-  private val intMinMax = ColumnMinMax(Int.MaxValue, Int.MinValue)
-  private val doubleMinMax = ColumnMinMax(Double.MaxValue, Double.MinValue)
-  private val longMinMax = ColumnMinMax(Long.MaxValue, Long.MinValue)
-
-  private val dataTypeMinMax = Map(
-    DoubleDataType -> doubleMinMax,
-    IntegerDataType -> intMinMax,
-    LongDataType -> longMinMax,
-    FloatDataType -> doubleMinMax,
-    DecimalDataType -> doubleMinMax,
-    TimestampDataType -> longMinMax,
-    DateDataType -> longMinMax)
 
 }
 
