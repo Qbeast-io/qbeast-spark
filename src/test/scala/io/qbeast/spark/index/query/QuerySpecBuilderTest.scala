@@ -30,7 +30,7 @@ class QuerySpecBuilderTest
     val columnTransformers = Seq(Transformer("linear", "id", IntegerDataType)).toIndexedSeq
 
     Revision(
-      0,
+      1,
       System.currentTimeMillis(),
       QTableID("test"),
       100,
@@ -96,7 +96,7 @@ class QuerySpecBuilderTest
     val columnTransformers = Seq(Transformer("hashing", "name", StringDataType)).toIndexedSeq
 
     val revision = Revision(
-      0,
+      1,
       System.currentTimeMillis(),
       QTableID("test"),
       100,
@@ -155,7 +155,8 @@ class QuerySpecBuilderTest
 
   "extractQuerySpace" should "filter Revision properly" in withSpark(_ => {
     // Revision space ranges: [0, 10], [10, 20], [20, 30], [30, 40]
-    val revisions = (0 to 3).map(i => createRevision(10 * i, 10 * (i + 1)).copy(revisionID = i))
+    val revisions =
+      (0 to 3).map(i => createRevision(10 * i, 10 * (i + 1)).copy(revisionID = i + 1))
     val expressions =
       Seq(
         ("id < -1", 0),
@@ -179,7 +180,8 @@ class QuerySpecBuilderTest
 
   it should "retrieve all revisions with no filter expressions" in withSpark(_ => {
     // Revision space ranges: [0, 10], [10, 20], [20, 30], [30, 40]
-    val revisions = (0 to 3).map(i => createRevision(10 * i, 10 * (i + 1)).copy(revisionID = i))
+    val revisions =
+      (0 to 3).map(i => createRevision(10 * i, 10 * (i + 1)).copy(revisionID = i + 1))
 
     revisions.count { revision =>
       val querySpec = new QuerySpecBuilder(Seq.empty).build(revision)

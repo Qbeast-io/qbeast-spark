@@ -153,7 +153,8 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
     writeTestDataInBatches(newData, tmpDir, 4)
 
     val tableId = QTableID(tmpDir)
-    SparkDeltaMetadataManager.loadSnapshot(tableId).loadAllRevisions.size shouldBe 2
+    // Including the staging revision
+    SparkDeltaMetadataManager.loadSnapshot(tableId).loadAllRevisions.size shouldBe 3
 
     // Count files written for each revision
     val allFiles = DeltaLog.forTable(spark, tmpDir).snapshot.allFiles
@@ -192,7 +193,8 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
     writeTestDataInBatches(newData, tmpDir, 4)
 
     val tableId = QTableID(tmpDir)
-    SparkDeltaMetadataManager.loadSnapshot(tableId).loadAllRevisions.size shouldBe 2
+    // Including the staging revision
+    SparkDeltaMetadataManager.loadSnapshot(tableId).loadAllRevisions.size shouldBe 3
 
     // Count files written for each revision
     val allFiles = DeltaLog.forTable(spark, tmpDir).snapshot.allFiles

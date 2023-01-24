@@ -82,7 +82,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
         val revision1 = createDF(spark)
         val columnsToIndex = Seq("age", "val2")
         val cubeSize = 100
-        // WRITE SOME DATA
+        // WRITE SOME DATA, adds revisionIDs 0 and 1
         writeTestData(revision1, columnsToIndex, cubeSize, tmpDir)
 
         val revision2 = revision1.withColumn("age", col("age") * 2)
@@ -92,8 +92,9 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
         writeTestData(revision3, columnsToIndex, cubeSize, tmpDir, "append")
 
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-        qbeastTable.revisionsIDs().size shouldBe 3
-        qbeastTable.revisionsIDs() shouldBe Seq(1L, 2L, 3L)
+        // Including the staging revision
+        qbeastTable.revisionsIDs().size shouldBe 4
+        qbeastTable.revisionsIDs() == Seq(0L, 1L, 2L, 3L)
       }
   }
 

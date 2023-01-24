@@ -1,6 +1,7 @@
 package io.qbeast.spark.index.query
 
 import io.qbeast.TestClasses.T2
+import io.qbeast.core.model.Revision.isStaging
 import io.qbeast.core.model.{CubeId, QbeastBlock, Weight, WeightRange}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
@@ -121,7 +122,8 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
     val deltaLog = DeltaLog.forTable(spark, tmpdir)
     val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
 
-    qbeastSnapshot.loadAllRevisions.size shouldBe 2
+    // Including the staging revision
+    qbeastSnapshot.loadAllRevisions.size shouldBe 3
 
     val filters = Seq.empty
 
@@ -180,7 +182,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
     val deltaLog = DeltaLog.forTable(spark, tmpdir)
 
     val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
-    val revision = qbeastSnapshot.loadAllRevisions.head
+    val revision = qbeastSnapshot.loadLatestRevision
     val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
 
     val innerCubesLevel1 =
