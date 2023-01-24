@@ -5,6 +5,7 @@ package io.qbeast.spark.delta
 
 import io.qbeast.core.model.{ReplicatedSet, Revision, TableChanges, mapper}
 import io.qbeast.spark.utils.MetadataConfig
+import io.qbeast.spark.utils.MetadataConfig.{lastRevisionID, revision}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.schema.{ImplicitMetadataOperation, SchemaMergingUtils}
 import org.apache.spark.sql.delta.{
@@ -78,15 +79,27 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
   private def updateQbeastRevision(
       baseConfiguration: Configuration,
       newRevision: Revision): Configuration = {
-
     val newRevisionID = newRevision.revisionID
+    val isFirstWrite = newRevisionID == 1
 
-    // Qbeast configuration metadata
-    baseConfiguration
-      .updated(MetadataConfig.lastRevisionID, newRevisionID.toString)
-      .updated(
-        s"${MetadataConfig.revision}.$newRevisionID",
-        mapper.writeValueAsString(newRevision))
+    val configuration =
+      if (isFirstWrite) {
+        // Add staging revision during first write
+        val stagingRevision = Revision.emptyRevision(
+          newRevision.tableID,
+          newRevision.desiredCubeSize,
+          newRevision.columnTransformers.map(_.columnName))
+
+        baseConfiguration
+          .updated(
+            s"$revision.${stagingRevision.revisionID}",
+            mapper.writeValueAsString(stagingRevision))
+      } else baseConfiguration
+
+    // Update latest revision id and add new revision to metadata
+    configuration
+      .updated(lastRevisionID, newRevisionID.toString)
+      .updated(s"$revision.$newRevisionID", mapper.writeValueAsString(newRevision))
 
   }
 
@@ -103,13 +116,11 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
     val dataSchema = StructType(schema.fields.map(field =>
       field.copy(nullable = true, dataType = asNullable(field.dataType))))
 
-    val mergedSchema = if (isOverwriteMode && canOverwriteSchema) {
-      dataSchema
-    } else {
-      SchemaMergingUtils.mergeSchemas(txn.metadata.schema, dataSchema)
-    }
-    val normalizedPartitionCols =
-      Seq.empty
+    val mergedSchema =
+      if (isOverwriteMode && canOverwriteSchema) dataSchema
+      else SchemaMergingUtils.mergeSchemas(txn.metadata.schema, dataSchema)
+
+    val normalizedPartitionCols = Seq.empty
 
     // Merged schema will contain additional columns at the end
     val isNewSchema: Boolean = txn.metadata.schema != mergedSchema
@@ -120,15 +131,17 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
       if (txn.readVersion == -1) Map.empty
       else if (isOverwriteMode) overwriteQbeastConfiguration(txn.metadata.configuration)
       else txn.metadata.configuration
+
     // Qbeast configuration metadata
-    val configuration = if (isNewRevision || isOverwriteMode) {
-      updateQbeastRevision(baseConfiguration, latestRevision)
-    } else if (isOptimizeOperation) {
-      updateQbeastReplicatedSet(
-        baseConfiguration,
-        latestRevision,
-        tableChanges.announcedOrReplicatedSet)
-    } else { baseConfiguration }
+    val configuration =
+      if (isNewRevision || isOverwriteMode) {
+        updateQbeastRevision(baseConfiguration, latestRevision)
+      } else if (isOptimizeOperation) {
+        updateQbeastReplicatedSet(
+          baseConfiguration,
+          latestRevision,
+          tableChanges.announcedOrReplicatedSet)
+      } else baseConfiguration
 
     if (txn.readVersion == -1) {
       super.updateMetadata(
@@ -163,15 +176,12 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
     } else if (isNewSchema) {
       recordDeltaEvent(txn.deltaLog, "delta.schemaValidation.failure")
       val errorBuilder = new MetadataMismatchErrorBuilder
-      if (isOverwriteMode) {
-        errorBuilder.addOverwriteBit()
-      } else {
+      if (isOverwriteMode) errorBuilder.addOverwriteBit()
+      else {
         errorBuilder.addSchemaMismatch(txn.metadata.schema, dataSchema, txn.metadata.id)
       }
       errorBuilder.finalizeAndThrow(spark.sessionState.conf)
-    } else {
-      txn.updateMetadata(txn.metadata.copy(configuration = configuration))
-    }
+    } else txn.updateMetadata(txn.metadata.copy(configuration = configuration))
   }
 
   override protected val canMergeSchema: Boolean = true
