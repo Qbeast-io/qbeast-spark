@@ -65,11 +65,7 @@ private[delta] class IndexStatusBuilder(
           addFile.modificationTime))
       .toIndexedSeq
 
-    if (blocks.nonEmpty) {
-      SortedMap(root -> CubeStatus(root, maxWeight, maxWeight.fraction, blocks))
-    } else {
-      SortedMap.empty[CubeId, CubeStatus]
-    }
+    SortedMap(root -> CubeStatus(root, maxWeight, maxWeight.fraction, blocks))
   }
 
   /**
