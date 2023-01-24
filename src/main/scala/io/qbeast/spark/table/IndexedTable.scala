@@ -4,6 +4,7 @@
 package io.qbeast.spark.table
 
 import io.qbeast.core.keeper.Keeper
+import io.qbeast.core.model.Revision.isStaging
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.CubeDataLoader
 import io.qbeast.spark.index.QbeastColumns
@@ -153,7 +154,7 @@ private[table] class IndexedTableImpl(
    * Add the required indexing parameters when the SaveMode is Append.
    * The user-provided parameters are respected.
    * @param latestRevision the latest revision
-   * @param params the parameters required for indexing
+   * @param parameters the parameters required for indexing
    */
   private def addRequiredParams(
       latestRevision: Revision,
@@ -175,15 +176,20 @@ private[table] class IndexedTableImpl(
       append: Boolean): BaseRelation = {
     val indexStatus =
       if (exists && append) {
-        val latestIndexStatus = snapshot.loadLatestIndexStatus
-        val updatedParameters = addRequiredParams(latestIndexStatus.revision, parameters)
-        if (checkRevisionParameters(QbeastOptions(updatedParameters), latestIndexStatus)) {
-          latestIndexStatus
+        val latestRevision = snapshot.loadLatestRevision
+        val updatedParameters = addRequiredParams(latestRevision, parameters)
+        if (isStaging(latestRevision)) {
+          IndexStatus(revisionBuilder.createNewRevision(tableID, data.schema, updatedParameters))
         } else {
-          val oldRevisionID = latestIndexStatus.revision.revisionID
-          val newRevision = revisionBuilder
-            .createNextRevision(tableID, data.schema, updatedParameters, oldRevisionID)
-          IndexStatus(newRevision)
+          val latestIndexStatus = snapshot.loadIndexStatus(latestRevision.revisionID)
+          if (checkRevisionParameters(QbeastOptions(updatedParameters), latestIndexStatus)) {
+            latestIndexStatus
+          } else {
+            val oldRevisionID = latestIndexStatus.revision.revisionID
+            val newRevision = revisionBuilder
+              .createNextRevision(tableID, data.schema, updatedParameters, oldRevisionID)
+            IndexStatus(newRevision)
+          }
         }
       } else {
         IndexStatus(revisionBuilder.createNewRevision(tableID, data.schema, parameters))
@@ -219,7 +225,6 @@ private[table] class IndexedTableImpl(
 
   /**
    * Creates a QbeastBaseRelation for the given table.
-   * @param tableID the table identifier
    * @return the QbeastBaseRelation
    */
   private def createQbeastBaseRelation(): BaseRelation = {
@@ -332,7 +337,7 @@ private[table] class IndexedTableImpl(
     val schema = metadataManager.loadCurrentSchema(tableID)
     val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
 
-    metadataManager.updateWithTransaction(tableID, schema, true) {
+    metadataManager.updateWithTransaction(tableID, schema, append = true) {
       // There's no affected table changes on compaction, so we send an empty object
       val tableChanges = BroadcastedTableChanges(None, currentIndexStatus, Map.empty)
       val fileActions =
