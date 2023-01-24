@@ -125,7 +125,7 @@ case class DeltaQbeastSnapshot(private val snapshot: Snapshot) extends QbeastSna
    * @return an immutable Seq of Revision for qtable
    */
   override def loadAllRevisions: IISeq[Revision] =
-    (revisionsMap - stagingID).values.toVector
+    revisionsMap.values.toVector
 
   /**
    * Obtain the last Revisions

@@ -16,7 +16,7 @@ import scala.collection.mutable
 class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSnapshot) {
 
   /**
-   * Executes the query
+   * Executes the query on each revision according to their QuerySpec
    * @return the final sequence of blocks that match the query
    */
   def execute(): Seq[QbeastBlock] = {

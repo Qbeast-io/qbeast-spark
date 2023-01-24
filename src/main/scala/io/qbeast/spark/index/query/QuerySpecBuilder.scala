@@ -3,8 +3,8 @@
  */
 package io.qbeast.spark.index.query
 
+import io.qbeast.core.model.Revision.isStaging
 import io.qbeast.core.model._
-import io.qbeast.spark.index.query
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.analysis.Resolver
@@ -90,38 +90,42 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression]) extends Ser
    */
 
   def extractQuerySpace(dataFilters: Seq[Expression], revision: Revision): QuerySpace = {
-
     // Split conjunctive predicates
     val filters = dataFilters.flatMap(filter => splitConjunctivePredicates(filter))
-    val indexedColumns = revision.columnTransformers.map(_.columnName)
 
-    val (from, to) =
-      indexedColumns.map { columnName =>
-        // Get the filters related to the column
-        val columnFilters = filters.filter(hasColumnReference(_, columnName))
+    // Include all revision space when no filter is applied on its indexing columns
+    if (filters.isEmpty) AllSpace()
+    else {
+      val indexedColumns = revision.columnTransformers.map(_.columnName)
 
-        // Get the coordinates of the column in the filters,
-        // if not found, use the overall coordinates
-        val columnFrom = columnFilters
-          .collectFirst {
-            case GreaterThan(_, Literal(value, _)) => sparkTypeToCoreType(value)
-            case GreaterThanOrEqual(_, Literal(value, _)) => sparkTypeToCoreType(value)
-            case EqualTo(_, Literal(value, _)) => sparkTypeToCoreType(value)
-            case IsNull(_) => null
-          }
+      val (from, to) =
+        indexedColumns.map { columnName =>
+          // Get the filters related to the column
+          val columnFilters = filters.filter(hasColumnReference(_, columnName))
 
-        val columnTo = columnFilters
-          .collectFirst {
-            case LessThan(_, Literal(value, _)) => sparkTypeToCoreType(value)
-            case LessThanOrEqual(_, Literal(value, _)) => sparkTypeToCoreType(value)
-            case EqualTo(_, Literal(value, _)) => sparkTypeToCoreType(value)
-            case IsNull(_) => null
-          }
+          // Get the coordinates of the column in the filters,
+          // if not found, use the overall coordinates
+          val columnFrom = columnFilters
+            .collectFirst {
+              case GreaterThan(_, Literal(value, _)) => sparkTypeToCoreType(value)
+              case GreaterThanOrEqual(_, Literal(value, _)) => sparkTypeToCoreType(value)
+              case EqualTo(_, Literal(value, _)) => sparkTypeToCoreType(value)
+              case IsNull(_) => null
+            }
 
-        (columnFrom, columnTo)
-      }.unzip
+          val columnTo = columnFilters
+            .collectFirst {
+              case LessThan(_, Literal(value, _)) => sparkTypeToCoreType(value)
+              case LessThanOrEqual(_, Literal(value, _)) => sparkTypeToCoreType(value)
+              case EqualTo(_, Literal(value, _)) => sparkTypeToCoreType(value)
+              case IsNull(_) => null
+            }
 
-    QuerySpace(from, to, revision.transformations)
+          (columnFrom, columnTo)
+        }.unzip
+
+      QuerySpace(from, to, revision.transformations)
+    }
   }
 
   /**
@@ -157,8 +161,14 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression]) extends Ser
    */
 
   def build(revision: Revision): QuerySpec = {
-    val qbeastFilters = extractDataFilters(sparkFilters, revision)
-    query.QuerySpec(extractWeightRange(qbeastFilters), extractQuerySpace(qbeastFilters, revision))
+    val (weightRange, querySpace) =
+      if (isStaging(revision.revisionID)) {
+        (WeightRange(Weight(Int.MinValue), Weight(Int.MaxValue)), EmptySpace())
+      } else {
+        val qbeastFilters = extractDataFilters(sparkFilters, revision)
+        (extractWeightRange(qbeastFilters), extractQuerySpace(qbeastFilters, revision))
+      }
+    QuerySpec(weightRange, querySpace)
   }
 
 }
