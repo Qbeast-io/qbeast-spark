@@ -1,23 +1,28 @@
 package io.qbeast.spark.utils
 
+import io.qbeast.core.model.Revision.{isStaging, stagingID}
+import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
+import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
 import org.scalatest.PrivateMethodTester
 
 class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTester {
   val columnsToIndex: Seq[String] = Seq("user_id", "price", "event_type")
   val partitionColumns: Option[String] = Some("event_type STRING")
+  val numSparkPartitions = 20
   val dataSize = 50000
+  val dcs = 5000
 
-  def convertFormatsFromTo(
+  def convertFromFormat(
       spark: SparkSession,
       format: String,
       tablePath: String,
       partitionColumns: Option[String] = None,
       columnsToIndex: Seq[String] = columnsToIndex,
-      desiredCubeSize: Int = 50000): DataFrame = {
-    val data = loadTestData(spark).limit(dataSize)
+      desiredCubeSize: Int = dcs): DataFrame = {
+    val data = loadTestData(spark).limit(dataSize).repartition(numSparkPartitions)
 
     if (partitionColumns.isDefined) {
       val cols = partitionColumns.get.split(", ").map(_.split(" ").head)
@@ -31,58 +36,77 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
     spark.read.format("qbeast").load(tablePath)
   }
 
+  def getQbeastSnapshot(spark: SparkSession, dir: String): DeltaQbeastSnapshot = {
+    val deltaLog = DeltaLog.forTable(spark, dir)
+    DeltaQbeastSnapshot(deltaLog.snapshot)
+  }
+
   "ConvertToQbeastCommand" should "convert a delta table" in
     withSparkAndTmpDir((spark, tmpDir) => {
-      val convertedTable = convertFormatsFromTo(spark, "delta", tmpDir)
+      val convertedTable = convertFromFormat(spark, "delta", tmpDir)
 
-      val metrics = QbeastTable.forPath(spark, tmpDir).getIndexMetrics()
       convertedTable.count shouldBe dataSize
       spark.read.parquet(tmpDir).count shouldBe dataSize
 
-      metrics.elementCount shouldBe 0
-      metrics.cubeCount shouldBe 0
+      val indexStatus = getQbeastSnapshot(spark, tmpDir).loadIndexStatus(stagingID)
+      // All non-qbeast files are considered staging files and are placed
+      // directly into the staging revision(RevisionID = 0)
+      indexStatus.cubesStatuses.size shouldBe 1
+      indexStatus.cubesStatuses.head._2.files.size shouldBe numSparkPartitions
     })
 
   it should "convert a PARTITIONED delta table" in
     withSparkAndTmpDir((spark, tmpDir) => {
-      val convertedTable = convertFormatsFromTo(spark, "delta", tmpDir, partitionColumns)
+      val convertedTable = convertFromFormat(spark, "delta", tmpDir, partitionColumns)
 
-      val metrics = QbeastTable.forPath(spark, tmpDir).getIndexMetrics()
       convertedTable.count shouldBe dataSize
-      metrics.elementCount shouldBe 0
-      metrics.cubeCount shouldBe 0
+      spark.read.parquet(tmpDir).count shouldBe dataSize
+
+      val indexStatus = getQbeastSnapshot(spark, tmpDir).loadIndexStatus(stagingID)
+      indexStatus.cubesStatuses.size shouldBe 1
     })
 
   it should "convert a parquet table" in
     withSparkAndTmpDir((spark, tmpDir) => {
-      val convertedTable = convertFormatsFromTo(spark, "parquet", tmpDir)
+      val convertedTable = convertFromFormat(spark, "parquet", tmpDir)
 
-      val metrics = QbeastTable.forPath(spark, tmpDir).getIndexMetrics()
       convertedTable.count shouldBe dataSize
-      metrics.elementCount shouldBe 0
-      metrics.cubeCount shouldBe 0
+      spark.read.parquet(tmpDir).count shouldBe dataSize
+
+      val indexStatus = getQbeastSnapshot(spark, tmpDir).loadIndexStatus(stagingID)
+      indexStatus.cubesStatuses.size shouldBe 1
+      indexStatus.cubesStatuses.head._2.files.size shouldBe numSparkPartitions
     })
 
   it should "convert a PARTITIONED parquet table" in
     withSparkAndTmpDir((spark, tmpDir) => {
-      val convertedTable = convertFormatsFromTo(spark, "parquet", tmpDir, partitionColumns)
+      val convertedTable = convertFromFormat(spark, "parquet", tmpDir, partitionColumns)
 
-      val metrics = QbeastTable.forPath(spark, tmpDir).getIndexMetrics()
       convertedTable.count shouldBe dataSize
-      metrics.elementCount shouldBe 0
-      metrics.cubeCount shouldBe 0
+      spark.read.parquet(tmpDir).count shouldBe dataSize
+
+      val indexStatus = getQbeastSnapshot(spark, tmpDir).loadIndexStatus(stagingID)
+      indexStatus.cubesStatuses.size shouldBe 1
     })
 
-  it should "not try to convert a qbeast table" in withSparkAndTmpDir((spark, tmpDir) => {
+  it should "add a staging revision for a qbeast table" in withSparkAndTmpDir((spark, tmpDir) => {
     val data = loadTestData(spark).limit(dataSize)
     data.write
       .format("qbeast")
       .option("columnsToIndex", columnsToIndex.mkString(","))
-      .option("cubeSize", 5000)
+      .option("cubeSize", dcs)
       .save(tmpDir)
 
-    ConvertToQbeastCommand(s"parquet.`$tmpDir`", columnsToIndex, 5000)
+    val qsBefore = getQbeastSnapshot(spark, tmpDir)
+    val revisionsBefore = qsBefore.loadAllRevisions
+
+    ConvertToQbeastCommand(s"parquet.`$tmpDir`", columnsToIndex, dcs)
+
+    val qsAfter = getQbeastSnapshot(spark, tmpDir)
+    val revisionsAfter = qsAfter.loadAllRevisions
+
     spark.read.parquet(tmpDir).count shouldBe dataSize
+    revisionsAfter shouldBe revisionsBefore
   })
 
   it should "throw an exception when attempting to convert an unsupported format" in
@@ -94,30 +118,8 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
         ConvertToQbeastCommand(s"json.`$tmpDir`", columnsToIndex).run(spark))
     })
 
-  "Analyzing the conversion revision" should "do nothing" in withSparkAndTmpDir(
-    (spark, tmpDir) => {
-      convertFormatsFromTo(spark, "parquet", tmpDir)
-      val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-
-      qbeastTable.analyze().isEmpty shouldBe true
-    })
-
-  "Optimizing the conversion revision" should "do nothing" in
-    withSparkAndTmpDir((spark, tmpDir) => {
-      convertFormatsFromTo(spark, "parquet", tmpDir)
-      val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-
-      qbeastTable.analyze()
-      qbeastTable.optimize()
-
-      val metrics = QbeastTable.forPath(spark, tmpDir).getIndexMetrics()
-      spark.read.parquet(tmpDir).count shouldBe dataSize
-      metrics.cubeCount shouldBe 0
-      metrics.elementCount shouldBe 0
-    })
-
   it should "preserve sampling accuracy" in withSparkAndTmpDir((spark, tmpDir) => {
-    convertFormatsFromTo(spark, "parquet", tmpDir)
+    convertFromFormat(spark, "parquet", tmpDir)
     val qbeastTable = QbeastTable.forPath(spark, tmpDir)
 
     qbeastTable.analyze()
@@ -136,20 +138,60 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
     })
   })
 
-  "Compacting the conversion revision" should "do nothing" in
+  "Appending to a converted table" should "create a new non-staging revision" in withSparkAndTmpDir(
+    (spark, tmpDir) => {
+      convertFromFormat(spark, "parquet", tmpDir)
+      val df = loadTestData(spark).limit(dataSize)
+      df.write
+        .mode("append")
+        .format("qbeast")
+        .option("columnsToIndex", columnsToIndex.mkString(","))
+        .option("cubeSize", dcs)
+        .save(tmpDir)
+
+      val qs = getQbeastSnapshot(spark, tmpDir)
+      val rev = qs.loadLatestRevision
+      isStaging(rev) shouldBe false
+    })
+
+  "Analyzing the staging revision" should "not change the ANNOUNCED set" in
+    withSparkAndTmpDir((spark, tmpDir) => {
+      convertFromFormat(spark, "parquet", tmpDir)
+      val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+      qbeastTable.analyze()
+
+      val qs = getQbeastSnapshot(spark, tmpDir)
+      qs.loadLatestIndexStatus.announcedSet.isEmpty shouldBe true
+    })
+
+  "Optimizing the staging revision" should "not replicate any data" in
+    withSparkAndTmpDir((spark, tmpDir) => {
+      convertFromFormat(spark, "parquet", tmpDir)
+      val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+
+      qbeastTable.analyze()
+      qbeastTable.optimize()
+
+      spark.read.parquet(tmpDir).count shouldBe dataSize
+    })
+
+  "Compacting the staging revision" should "reduce the number of delta AddFiles" in
     withExtendedSparkAndTmpDir(
       sparkConfWithSqlAndCatalog
         .set("spark.qbeast.compact.minFileSize", "1")
         .set("spark.qbeast.compact.maxFileSize", "2000000")) { (spark, tmpDir) =>
       {
-        convertFormatsFromTo(spark, "parquet", tmpDir)
+        convertFromFormat(spark, "parquet", tmpDir)
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
         qbeastTable.compact()
 
-        val metrics = QbeastTable.forPath(spark, tmpDir).getIndexMetrics()
-        spark.read.parquet(tmpDir).count shouldBe dataSize
-        metrics.cubeCount shouldBe 0
-        metrics.elementCount shouldBe 0
+        spark.read.parquet(tmpDir).count shouldBe >(dataSize.toLong)
+
+        val qs = getQbeastSnapshot(spark, tmpDir)
+        val stagingCs = qs.loadLatestIndexStatus.cubesStatuses
+
+        stagingCs.size shouldBe 1
+        stagingCs.head._2.files.size shouldBe <(numSparkPartitions)
       }
     }
 }
