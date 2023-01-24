@@ -3,6 +3,7 @@
  */
 package io.qbeast.spark.delta
 
+import io.qbeast.core.model.Revision.stagingID
 import io.qbeast.core.model.{ReplicatedSet, Revision, TableChanges, mapper}
 import io.qbeast.spark.utils.MetadataConfig
 import io.qbeast.spark.utils.MetadataConfig.{lastRevisionID, revision}
@@ -80,27 +81,27 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
       baseConfiguration: Configuration,
       newRevision: Revision): Configuration = {
     val newRevisionID = newRevision.revisionID
-    val isFirstWrite = newRevisionID == 1
 
+    // Add staging revision if necessary
+    val stagingRevisionKey = s"$revision.$stagingID"
+    val addStagingRevision =
+      newRevisionID == 1 && !baseConfiguration.contains(stagingRevisionKey)
     val configuration =
-      if (isFirstWrite) {
-        // Add staging revision during first write
+      if (!addStagingRevision) baseConfiguration
+      else {
         val stagingRevision = Revision.emptyRevision(
           newRevision.tableID,
           newRevision.desiredCubeSize,
           newRevision.columnTransformers.map(_.columnName))
 
         baseConfiguration
-          .updated(
-            s"$revision.${stagingRevision.revisionID}",
-            mapper.writeValueAsString(stagingRevision))
-      } else baseConfiguration
+          .updated(stagingRevisionKey, mapper.writeValueAsString(stagingRevision))
+      }
 
     // Update latest revision id and add new revision to metadata
     configuration
       .updated(lastRevisionID, newRevisionID.toString)
       .updated(s"$revision.$newRevisionID", mapper.writeValueAsString(newRevision))
-
   }
 
   def updateQbeastMetadata(

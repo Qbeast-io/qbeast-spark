@@ -3,7 +3,6 @@
  */
 package io.qbeast.spark.internal.commands
 
-import io.qbeast.core.model.Revision.stagingID
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.utils.MetadataConfig.{lastRevisionID, revision}
@@ -55,20 +54,19 @@ case class ConvertToQbeastCommand(
     val deltaLog = DeltaLog.forTable(spark, tableId.table)
     val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
     val isQbeast = qbeastSnapshot.loadAllRevisions.nonEmpty
-    val isConverted = qbeastSnapshot.existsRevision(stagingID)
 
-    if (isConverted) {
+    if (isQbeast) {
       logInfo("The table you are trying to convert is already a qbeast table")
     } else {
       fileFormat match {
         // Convert parquet to delta
         case "parquet" => convertParquetToDelta(spark, tableId.quotedString)
-        case "delta" | "qbeast" =>
+        case "delta" =>
         case _ => throw AnalysisExceptionFactory.create(s"Unsupported file format: $fileFormat")
       }
 
       // Convert delta to qbeast
-      val deltaLog = DeltaLog.forTable(spark, tableId.table)
+      deltaLog.update()
 
       val txn = deltaLog.startTransaction()
 
@@ -80,13 +78,10 @@ case class ConvertToQbeastCommand(
       val isOverwritingSchema = txn.metadata.partitionColumns.nonEmpty
 
       // Update revision map
-      var updatedConf =
-        if (isQbeast) txn.metadata.configuration
-        // Create latestRevisionID for the table has no existing Revisions
-        else txn.metadata.configuration.updated(lastRevisionID, revisionID.toString)
-
-      updatedConf = updatedConf
-        .updated(s"$revision.$revisionID", mapper.writeValueAsString(convRevision))
+      val updatedConf =
+        txn.metadata.configuration
+          .updated(lastRevisionID, revisionID.toString)
+          .updated(s"$revision.$revisionID", mapper.writeValueAsString(convRevision))
 
       val newMetadata =
         txn.metadata.copy(configuration = updatedConf, partitionColumns = Seq.empty)
