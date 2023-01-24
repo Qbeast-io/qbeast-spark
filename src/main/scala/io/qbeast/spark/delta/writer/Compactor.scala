@@ -98,7 +98,7 @@ case class Compactor(
       partitionValues = Map(),
       size = fileStatus.getLen,
       modificationTime = fileStatus.getModificationTime,
-      dataChange = true,
+      dataChange = false,
       stats = "",
       tags = tags)
 
