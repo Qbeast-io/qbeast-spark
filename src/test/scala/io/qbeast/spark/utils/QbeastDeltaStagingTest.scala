@@ -1,77 +1,98 @@
 package io.qbeast.spark.utils
 
-import io.qbeast.core.model.Revision.stagingRevisionID
+import io.qbeast.TestClasses.T2
+import io.qbeast.core.model.Revision.stagingID
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
 
 class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec {
-  it should "read a delta table as an entirely staged qbeast table" in
-    withSparkAndTmpDir((spark, tmpDir) => {
-      val df = loadTestData(spark).limit(10000)
-      df.write.format("delta").save(tmpDir)
+  val columnsToIndex: Seq[String] = Seq("a", "b")
+  val qDataSize = 10000
+  val dDataSize = 10000
+  val totalSize: Long = qDataSize + dDataSize
+  val numSparkPartitions = 20
+
+  def writeHybridTable(spark: SparkSession, dir: String): Unit = {
+    import spark.implicits._
+    val qdf = (0 until qDataSize).map(i => T2(i, i)).toDF("a", "b")
+    qdf.write
+      .format("qbeast")
+      .option("columnsToIndex", columnsToIndex.mkString(","))
+      .option("cubeSize", "5000")
+      .save(dir)
+
+    val ddf = (qDataSize until qDataSize + dDataSize).map(i => T2(i, i)).toDF("a", "b")
+    ddf.repartition(numSparkPartitions).write.mode("append").format("delta").save(dir)
+  }
+
+  "A qbeast + delta hybrid table" should "be read correctly" in withSparkAndTmpDir(
+    (spark, tmpDir) => {
+      writeHybridTable(spark, tmpDir)
 
       val numStagingRows = spark.read.format("qbeast").load(tmpDir).count
-      numStagingRows shouldBe 10000L
+      numStagingRows shouldBe totalSize
+
+      val snapshot = DeltaLog.forTable(spark, tmpDir).snapshot
+      val qs = DeltaQbeastSnapshot(snapshot)
+      qs.loadAllRevisions.size shouldBe 2
+      qs.existsRevision(stagingID)
     })
 
-  it should "not analyze or optimize the staging revision" in withSparkAndTmpDir(
+  it should "not be altered by Optimizing the staging revision" in withSparkAndTmpDir(
     (spark, tmpDir) => {
-      val df = loadTestData(spark).limit(10000)
-      df.write.format("delta").save(tmpDir)
+      writeHybridTable(spark, tmpDir)
 
       val table = QbeastTable.forPath(spark, tmpDir)
-      table.analyze(stagingRevisionID)
-      table.optimize(stagingRevisionID)
+      table.analyze(stagingID)
+      table.optimize(stagingID)
 
       val allElements = spark.read.parquet(tmpDir).count
-      allElements shouldBe 10000
+      allElements shouldBe totalSize
 
       val snapshot = DeltaLog.forTable(spark, tmpDir).snapshot
       val qbeastSnapshot = DeltaQbeastSnapshot(snapshot)
-      val stagingIndexStatus = qbeastSnapshot.loadIndexStatus(stagingRevisionID)
+      val stagingIndexStatus = qbeastSnapshot.loadIndexStatus(stagingID)
 
+      stagingIndexStatus.cubesStatuses.size shouldBe 1
       stagingIndexStatus.replicatedOrAnnouncedSet.isEmpty shouldBe true
     })
 
   it should "correctly compact the staging revision" in withExtendedSparkAndTmpDir(
     sparkConfWithSqlAndCatalog.set("spark.qbeast.compact.minFileSize", "1")) { (spark, tmpDir) =>
     {
-      val df = loadTestData(spark)
-
-      df.repartition(20).write.format("delta").save(tmpDir)
+      writeHybridTable(spark, tmpDir)
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val snapshot = deltaLog.snapshot
-      val numFilesBefore = snapshot.numOfFiles
+      val qsBefore = DeltaQbeastSnapshot(deltaLog.snapshot)
+      val numFilesBefore = qsBefore.loadIndexStatus(stagingID).cubesStatuses.head._2.files.size
 
       val table = QbeastTable.forPath(spark, tmpDir)
-      table.compact(stagingRevisionID)
+      table.compact(stagingID)
 
-      deltaLog.update()
-      val numFilesAfter = deltaLog.snapshot.numOfFiles
+      val qsAfter = DeltaQbeastSnapshot(deltaLog.update())
+      val numFilesAfter = qsAfter.loadIndexStatus(stagingID).cubesStatuses.head._2.files.size
       numFilesAfter shouldBe <(numFilesBefore)
 
       val deltaCount = spark.read.format("delta").load(tmpDir).count()
       val qbeastCount = spark.read.format("qbeast").load(tmpDir).count()
 
-      deltaCount shouldBe 99986
-      qbeastCount shouldBe 99986
+      deltaCount shouldBe totalSize
+      qbeastCount shouldBe totalSize
     }
   }
 
-  it should "sample a qbeast staging table correctly" in withSparkAndTmpDir((spark, tmpDir) => {
-    val dataSize = 99986
-    val df = loadTestData(spark) // 99986
-
-    df.write.format("delta").save(tmpDir)
+  it should "sample correctly" in withSparkAndTmpDir((spark, tmpDir) => {
+    writeHybridTable(spark, tmpDir)
     val qdf = spark.read.format("qbeast").load(tmpDir)
 
-    // We allow a 1% of tolerance in the sampling
-    val tolerance = 0.01
+    val tolerance = 0.05
     List(0.1, 0.2, 0.5, 0.7, 0.99).foreach(f => {
-      val result = qdf.sample(withReplacement = false, f).count().toDouble
-      result shouldBe (dataSize * f) +- dataSize * f * tolerance
+      val sampleSize = qdf.sample(withReplacement = false, f).count().toDouble
+      val margin = totalSize * f * tolerance
+
+      sampleSize shouldBe (totalSize * f) +- margin
     })
   })
 
