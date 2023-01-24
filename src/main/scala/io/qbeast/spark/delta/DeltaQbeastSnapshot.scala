@@ -153,7 +153,7 @@ case class DeltaQbeastSnapshot(private val snapshot: Snapshot) extends QbeastSna
    * @return the latest Revision at a concrete timestamp
    */
   override def loadRevisionAt(timestamp: Long): Revision = {
-    revisionsMap.values.find(_.timestamp <= timestamp).getOrElse {
+    (revisionsMap - stagingID).values.find(_.timestamp <= timestamp).getOrElse {
       throw AnalysisExceptionFactory.create(s"No space revision available before $timestamp")
     }
   }
