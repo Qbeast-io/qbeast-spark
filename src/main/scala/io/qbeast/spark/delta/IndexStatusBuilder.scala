@@ -37,14 +37,18 @@ private[delta] class IndexStatusBuilder(
     qbeastSnapshot.loadRevisionBlocks(revision.revisionID)
 
   def build(): IndexStatus = {
+    val cubeStatus =
+      if (isStaging(revision.revisionID)) stagingCubeStatuses
+      else buildCubesStatuses
+
     IndexStatus(
       revision = revision,
       replicatedSet = replicatedSet,
       announcedSet = announcedSet,
-      cubesStatuses = buildCubesStatuses)
+      cubesStatuses = cubeStatus)
   }
 
-  private def stagingCubeStatus(): CubeStatus = {
+  def stagingCubeStatuses: SortedMap[CubeId, CubeStatus] = {
     val root = revision.createCubeIdRoot()
     val maxWeight = Weight.MaxValue
     val blocks = revisionFiles
@@ -60,7 +64,12 @@ private[delta] class IndexStatusBuilder(
           addFile.size,
           addFile.modificationTime))
       .toIndexedSeq
-    CubeStatus(root, maxWeight, maxWeight.fraction, blocks)
+
+    if (blocks.nonEmpty) {
+      SortedMap(root -> CubeStatus(root, maxWeight, maxWeight.fraction, blocks))
+    } else {
+      SortedMap.empty[CubeId, CubeStatus]
+    }
   }
 
   /**
@@ -69,35 +78,29 @@ private[delta] class IndexStatusBuilder(
    */
   def buildCubesStatuses: SortedMap[CubeId, CubeStatus] = {
     val spark = SparkSession.active
+    import spark.implicits._
+
     val builder = SortedMap.newBuilder[CubeId, CubeStatus]
 
-    if (isStaging(revision.revisionID)) {
-      val cubeStatus = stagingCubeStatus()
-      builder += (cubeStatus.cubeId -> cubeStatus)
+    val dimCount: Int = revision.transformations.size
+    val dcs = revision.desiredCubeSize
 
-    } else {
-      import spark.implicits._
+    revisionFiles
+      .groupBy(TagColumns.cube)
+      .agg(
+        min(weight(TagColumns.maxWeight)).as("maxWeight"),
+        sum(TagColumns.elementCount).as("elementCount"),
+        collect_list(qblock).as("files"))
+      .select(
+        createCube(col("cube"), lit(dimCount)).as("cubeId"),
+        col("maxWeight"),
+        normalizeWeight(col("maxWeight"), col("elementCount"), lit(dcs))
+          .as("normalizedWeight"),
+        col("files"))
+      .as[CubeStatus]
+      .collect()
+      .foreach(row => builder += row.cubeId -> row)
 
-      val dimCount: Int = revision.transformations.size
-      val dcs = revision.desiredCubeSize
-
-      revisionFiles
-        .groupBy(TagColumns.cube)
-        .agg(
-          min(weight(TagColumns.maxWeight)).as("maxWeight"),
-          sum(TagColumns.elementCount).as("elementCount"),
-          collect_list(qblock).as("files"))
-        .select(
-          createCube(col("cube"), lit(dimCount)).as("cubeId"),
-          col("maxWeight"),
-          normalizeWeight(col("maxWeight"), col("elementCount"), lit(dcs))
-            .as("normalizedWeight"),
-          col("files"))
-        .as[CubeStatus]
-        .collect()
-        .foreach(row => builder += row.cubeId -> row)
-
-    }
     builder.result()
   }
 
