@@ -162,7 +162,7 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression]) extends Ser
 
   def build(revision: Revision): QuerySpec = {
     val (weightRange, querySpace) =
-      if (isStaging(revision.revisionID)) {
+      if (isStaging(revision)) {
         (WeightRange(Weight(Int.MinValue), Weight(Int.MaxValue)), EmptySpace())
       } else {
         val qbeastFilters = extractDataFilters(sparkFilters, revision)

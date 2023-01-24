@@ -61,7 +61,7 @@ case class Compactor(
 
     // Update the tags of the block with the information of the cubeBlocks
     val tags: Map[String, String] =
-      if (isStaging(revision.revisionID)) null
+      if (isStaging(revision)) null
       else {
         Map(
           TagUtils.cube -> cubeId.string,

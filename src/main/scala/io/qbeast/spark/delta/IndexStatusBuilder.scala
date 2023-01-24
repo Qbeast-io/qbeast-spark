@@ -38,7 +38,7 @@ private[delta] class IndexStatusBuilder(
 
   def build(): IndexStatus = {
     val cubeStatus =
-      if (isStaging(revision.revisionID)) stagingCubeStatuses
+      if (isStaging(revision)) stagingCubeStatuses
       else buildCubesStatuses
 
     IndexStatus(

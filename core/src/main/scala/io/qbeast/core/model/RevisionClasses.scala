@@ -47,6 +47,13 @@ object Revision {
   def isStaging(revisionID: RevisionID): Boolean =
     revisionID == stagingID
 
+  def isStaging(revision: Revision): Boolean =
+    isStaging(revision.revisionID) &&
+      revision.columnTransformers.forall {
+        case _: EmptyTransformer => true
+        case _ => false
+      }
+
   /**
    * Create a new first revision for a table
    * @param tableID the table identifier
@@ -218,7 +225,7 @@ case class IndexStatus(
     extends Serializable {
 
   def addAnnouncements(newAnnouncedSet: Set[CubeId]): IndexStatus = {
-    if (isStaging(revision.revisionID)) this
+    if (isStaging(revision)) this
     else copy(announcedSet = announcedSet ++ newAnnouncedSet)
   }
 
