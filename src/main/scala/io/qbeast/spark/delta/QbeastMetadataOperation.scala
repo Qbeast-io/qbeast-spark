@@ -90,11 +90,14 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
     val configuration =
       if (!addStagingRevision) baseConfiguration
       else {
-        // Create staging revision with EmptyTransformers(and EmptyTransformations)
-        val stagingRevision = Revision.emptyRevision(
-          newRevision.tableID,
-          newRevision.desiredCubeSize,
-          newRevision.columnTransformers.map(_.columnName))
+        // Create staging revision with EmptyTransformers (and EmptyTransformations).
+        // We modify its timestamp to secure loadRevisionAt
+        val stagingRevision = Revision
+          .emptyRevision(
+            newRevision.tableID,
+            newRevision.desiredCubeSize,
+            newRevision.columnTransformers.map(_.columnName))
+          .copy(timestamp = newRevision.timestamp - 1)
 
         // Add the staging revision to the revisionMap without overwriting
         // the latestRevisionID

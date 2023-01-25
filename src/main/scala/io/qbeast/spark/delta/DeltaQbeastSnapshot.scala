@@ -4,7 +4,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.IISeq
-import io.qbeast.core.model.RevisionUtils.{isStaging, stagingID}
+import io.qbeast.core.model.RevisionUtils.isStaging
 import io.qbeast.core.model._
 import io.qbeast.spark.utils.{MetadataConfig, TagColumns}
 import org.apache.spark.sql.delta.Snapshot
@@ -154,8 +154,11 @@ case class DeltaQbeastSnapshot(private val snapshot: Snapshot) extends QbeastSna
    * @return the latest Revision at a concrete timestamp
    */
   override def loadRevisionAt(timestamp: Long): Revision = {
-    (revisionsMap - stagingID).values.find(_.timestamp <= timestamp).getOrElse {
-      throw AnalysisExceptionFactory.create(s"No space revision available before $timestamp")
+    val candidateRevisions = revisionsMap.values.filter(_.timestamp <= timestamp)
+    if (candidateRevisions.nonEmpty) candidateRevisions.maxBy(_.timestamp)
+    else {
+      throw AnalysisExceptionFactory
+        .create(s"No space revision available before $timestamp")
     }
   }
 
