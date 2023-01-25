@@ -1,7 +1,7 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.TestClasses.T2
-import io.qbeast.core.model.Revision.stagingID
+import io.qbeast.core.model.RevisionUtils.stagingID
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
 import org.apache.spark.sql.SparkSession
