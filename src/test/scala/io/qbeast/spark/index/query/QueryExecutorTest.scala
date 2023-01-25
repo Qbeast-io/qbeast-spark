@@ -1,7 +1,6 @@
 package io.qbeast.spark.index.query
 
 import io.qbeast.TestClasses.T2
-import io.qbeast.core.model.Revision.isStaging
 import io.qbeast.core.model.{CubeId, QbeastBlock, Weight, WeightRange}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.DeltaQbeastSnapshot

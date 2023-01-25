@@ -3,14 +3,13 @@
  */
 package io.qbeast.spark.index
 
+import io.qbeast.TestClasses._
 import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
 import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import io.qbeast.TestClasses._
-import io.qbeast.core.model.Revision.isStaging
 
 class NewRevisionTest
     extends AnyFlatSpec
