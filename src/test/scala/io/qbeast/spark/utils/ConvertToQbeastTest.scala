@@ -89,7 +89,7 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
       indexStatus.cubesStatuses.size shouldBe 1
     })
 
-  it should "add a staging revision for a qbeast table" in withSparkAndTmpDir((spark, tmpDir) => {
+  it should "not change a qbeast table" in withSparkAndTmpDir((spark, tmpDir) => {
     val data = loadTestData(spark).limit(dataSize)
     data.write
       .format("qbeast")
@@ -97,13 +97,11 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
       .option("cubeSize", dcs)
       .save(tmpDir)
 
-    val qsBefore = getQbeastSnapshot(spark, tmpDir)
-    val revisionsBefore = qsBefore.loadAllRevisions
+    val revisionsBefore = getQbeastSnapshot(spark, tmpDir).loadAllRevisions
 
     ConvertToQbeastCommand(s"parquet.`$tmpDir`", columnsToIndex, dcs)
 
-    val qsAfter = getQbeastSnapshot(spark, tmpDir)
-    val revisionsAfter = qsAfter.loadAllRevisions
+    val revisionsAfter = getQbeastSnapshot(spark, tmpDir).loadAllRevisions
 
     spark.read.parquet(tmpDir).count shouldBe dataSize
     revisionsAfter shouldBe revisionsBefore
@@ -138,8 +136,8 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
     })
   })
 
-  "Appending to a converted table" should "create a new non-staging revision" in withSparkAndTmpDir(
-    (spark, tmpDir) => {
+  "Appending to a converted table" should "create a new, non-staging revision" in
+    withSparkAndTmpDir((spark, tmpDir) => {
       convertFromFormat(spark, "parquet", tmpDir)
       val df = loadTestData(spark).limit(dataSize)
       df.write
@@ -150,6 +148,8 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
         .save(tmpDir)
 
       val qs = getQbeastSnapshot(spark, tmpDir)
+      qs.loadAllRevisions.size shouldBe 2
+
       val rev = qs.loadLatestRevision
       isStaging(rev) shouldBe false
     })
