@@ -18,6 +18,21 @@ import org.apache.spark.sql.{AnalysisExceptionFactory, Row, SparkSession}
 
 import java.util.Locale
 
+/**
+ * Command to convert a parquet or a delta table, partitioned or not, into a qbeast table.
+ * The command creates the an empty revision for the metadata, the qbeast options provided
+ * should be those with which the user want to index the table. When the source table is
+ * partitioned, the partitionColumns should be provided in the form of "columnName DataType",
+ * e.g. "col1 STRING".
+ * @param identifier STRING, table identifier consisting of "format.`tablePath`"
+ *                   e.g. parquet.`/tmp/test/`
+ * @param columnsToIndex Seq[STRING], the columns on which the index is built
+ *                       e.g. Seq("col1", "col2")
+ * @param cubeSize INT, the desired cube size for the index
+ *                 e.g. 5000
+ * @param partitionColumns STRING, the columns with which the source table is partitioned
+ *                         "col1 STRING, col2 INT"
+ */
 @Experimental
 case class ConvertToQbeastCommand(
     identifier: String,
