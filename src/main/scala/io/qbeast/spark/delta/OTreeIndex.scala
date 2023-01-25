@@ -104,13 +104,7 @@ object OTreeIndex {
 
   def apply(spark: SparkSession, path: Path): OTreeIndex = {
     val deltaLog = DeltaLog.forTable(spark, path)
-    val tahoe = TahoeLogFileIndex(
-      spark,
-      deltaLog,
-      path,
-      deltaLog.snapshot,
-      Seq.empty,
-      isTimeTravelQuery = false)
+    val tahoe = TahoeLogFileIndex(spark, deltaLog, path, deltaLog.snapshot, Seq.empty, false)
     OTreeIndex(tahoe)
   }
 
