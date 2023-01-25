@@ -28,9 +28,6 @@ class QbeastSparkSessionExtension extends DeltaSparkSessionExtension {
     extensions.injectOptimizerRule { session =>
       new SaveAsTableRule(session)
     }
-    // extensions.injectPlannerStrategy { session =>
-    //   new QbeastDataSourceScanExec(session)
-    // }
 
   }
 
