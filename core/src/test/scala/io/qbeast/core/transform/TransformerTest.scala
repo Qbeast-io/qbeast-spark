@@ -94,4 +94,12 @@ class TransformerTest extends AnyFlatSpec with Matchers {
 
     transformer.maybeUpdateTransformation(currentTransformation, transformation) shouldBe None
   }
+
+  "An EmptyTransformer" should "create an EmptyTransformation without stats" in {
+    val colName = "a"
+    val transformer = EmptyTransformer(colName)
+    val transformation = transformer.makeTransformation(r => r)
+
+    transformation shouldBe a[EmptyTransformation]
+  }
 }
