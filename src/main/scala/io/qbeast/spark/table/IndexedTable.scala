@@ -4,7 +4,7 @@
 package io.qbeast.spark.table
 
 import io.qbeast.core.keeper.Keeper
-import io.qbeast.core.model.Revision.isStaging
+import io.qbeast.core.model.RevisionUtils.isStaging
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.CubeDataLoader
 import io.qbeast.spark.index.QbeastColumns

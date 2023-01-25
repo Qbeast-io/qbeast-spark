@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.Revision.isStaging
+import io.qbeast.core.model.RevisionUtils.isStaging
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.QbeastMetadataSQL._
 import io.qbeast.spark.utils.State.FLOODED
@@ -73,14 +73,14 @@ private[delta] class IndexStatusBuilder(
    * @return Dataset containing cube information
    */
   def buildCubesStatuses: SortedMap[CubeId, CubeStatus] = {
-    val spark = SparkSession.active
-    import spark.implicits._
 
+    val spark = SparkSession.active
     val builder = SortedMap.newBuilder[CubeId, CubeStatus]
 
-    val dimCount: Int = revision.transformations.size
-    val dcs = revision.desiredCubeSize
+    val rev = revision
 
+    import spark.implicits._
+    val ndims: Int = rev.transformations.size
     revisionFiles
       .groupBy(TagColumns.cube)
       .agg(
@@ -88,15 +88,14 @@ private[delta] class IndexStatusBuilder(
         sum(TagColumns.elementCount).as("elementCount"),
         collect_list(qblock).as("files"))
       .select(
-        createCube(col("cube"), lit(dimCount)).as("cubeId"),
+        createCube(col("cube"), lit(ndims)).as("cubeId"),
         col("maxWeight"),
-        normalizeWeight(col("maxWeight"), col("elementCount"), lit(dcs))
-          .as("normalizedWeight"),
+        normalizeWeight(col("maxWeight"), col("elementCount"), lit(rev.desiredCubeSize)).as(
+          "normalizedWeight"),
         col("files"))
       .as[CubeStatus]
       .collect()
       .foreach(row => builder += row.cubeId -> row)
-
     builder.result()
   }
 

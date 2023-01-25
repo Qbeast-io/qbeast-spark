@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.index.query
 
-import io.qbeast.core.model.Revision.isStaging
+import io.qbeast.core.model.RevisionUtils.isStaging
 import io.qbeast.core.model._
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import org.apache.spark.sql.SparkSession

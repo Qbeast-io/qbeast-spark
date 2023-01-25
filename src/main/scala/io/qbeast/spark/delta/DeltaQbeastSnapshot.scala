@@ -4,7 +4,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.IISeq
-import io.qbeast.core.model.Revision.{isStaging, stagingID}
+import io.qbeast.core.model.RevisionUtils.{isStaging, stagingID}
 import io.qbeast.core.model._
 import io.qbeast.spark.utils.Staging.isStagingFile
 import io.qbeast.spark.utils.{MetadataConfig, TagColumns}

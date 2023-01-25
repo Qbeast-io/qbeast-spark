@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.Revision.stagingID
+import io.qbeast.core.model.RevisionUtils.stagingID
 import io.qbeast.core.model.{ReplicatedSet, Revision, TableChanges, mapper}
 import io.qbeast.spark.utils.MetadataConfig
 import io.qbeast.spark.utils.MetadataConfig.{lastRevisionID, revision}

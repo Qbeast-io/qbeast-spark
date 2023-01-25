@@ -4,7 +4,7 @@
 package io.qbeast.spark.delta.writer
 
 import io.qbeast.IISeq
-import io.qbeast.core.model.Revision.isStaging
+import io.qbeast.core.model.RevisionUtils.isStaging
 import io.qbeast.core.model.{CubeId, QTableID, QbeastBlock, TableChanges, Weight}
 import io.qbeast.spark.utils.{State, TagUtils}
 import org.apache.hadoop.fs.Path

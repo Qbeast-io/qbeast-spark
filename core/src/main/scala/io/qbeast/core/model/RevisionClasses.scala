@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.{JsonCreator, JsonValue}
 import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import com.fasterxml.jackson.databind.annotation.JsonSerialize.Typing
 import io.qbeast.IISeq
-import io.qbeast.core.model.Revision.isStaging
+import io.qbeast.core.model.RevisionUtils.{isStaging, stagingID}
 import io.qbeast.core.transform.{EmptyTransformer, Transformation, Transformer}
 
 import scala.collection.immutable.SortedMap
@@ -42,17 +42,6 @@ final class QTableID(_id: String) extends Serializable {
  * Companion object for Revision
  */
 object Revision {
-  val stagingID: RevisionID = 0
-
-  def isStaging(revisionID: RevisionID): Boolean =
-    revisionID == stagingID
-
-  def isStaging(revision: Revision): Boolean =
-    isStaging(revision.revisionID) &&
-      revision.columnTransformers.forall {
-        case _: EmptyTransformer => true
-        case _ => false
-      }
 
   /**
    * Create a new first revision for a table
@@ -83,17 +72,32 @@ object Revision {
       tableID: QTableID,
       desiredCubeSize: Int,
       columnsToIndex: Seq[String]): Revision = {
-    val transformers = columnsToIndex.map(s => EmptyTransformer(s)).toIndexedSeq
-    val transformations = transformers.map(_.makeTransformation(r => r))
+    val emptyTransformers = columnsToIndex.map(s => EmptyTransformer(s)).toIndexedSeq
+    val emptyTransformations = emptyTransformers.map(_.makeTransformation(r => r))
 
     Revision(
       stagingID,
       System.currentTimeMillis(),
       tableID,
       desiredCubeSize,
-      transformers,
-      transformations)
+      emptyTransformers,
+      emptyTransformations)
   }
+
+}
+
+object RevisionUtils {
+  val stagingID: RevisionID = 0
+
+  def isStaging(revisionID: RevisionID): Boolean =
+    revisionID == stagingID
+
+  def isStaging(revision: Revision): Boolean =
+    isStaging(revision.revisionID) &&
+      revision.columnTransformers.forall {
+        case _: EmptyTransformer => true
+        case _ => false
+      }
 
 }
 
