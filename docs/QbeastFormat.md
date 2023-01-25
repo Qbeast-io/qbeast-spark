@@ -153,7 +153,7 @@ In Revision, you can find different information about the tree status and config
 
 In this case, we index columns `user_id` and `product_id` (which are both `Integers`) with a linear transformation. This means that they will not suffer any transformation besides the normalization.
 
-### Staging Revision and ConvertToQbeastConvertToQbeastCommand
+### Staging Revision and ConvertToQbeastCommand
 The introduction of the staging revision allows users to read a delta or a hybrid `qbeast + delta` table using qbeast format.
 The non-qbeast `AddFile`s are considered as part of this staging revision.
 
