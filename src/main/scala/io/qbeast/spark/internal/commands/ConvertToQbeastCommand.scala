@@ -47,7 +47,7 @@ case class ConvertToQbeastCommand(
       case Array(f, p) if f.nonEmpty && p.nonEmpty =>
         (f.toLowerCase(Locale.ROOT), spark.sessionState.sqlParser.parseTableIdentifier(p))
       case _ =>
-        throw new RuntimeException(incorrectIdentifierFormat(identifier))
+        throw AnalysisExceptionFactory.create(incorrectIdentifierFormat(identifier))
     }
 
   override def run(spark: SparkSession): Seq[Row] = {

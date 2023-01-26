@@ -137,7 +137,7 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
   it should "fail to convert when the identifier format is not correct" in withSparkAndTmpDir(
     (spark, tmpDir) => {
       val identifier = s"parquet`$tmpDir`"
-      val thrown = the[RuntimeException] thrownBy
+      val thrown = the[AnalysisException] thrownBy
         ConvertToQbeastCommand(identifier, columnsToIndex, dcs).run(spark)
 
       thrown.getMessage shouldBe incorrectIdentifierFormat(identifier)
