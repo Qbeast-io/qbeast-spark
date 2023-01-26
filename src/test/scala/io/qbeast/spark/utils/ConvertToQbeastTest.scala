@@ -3,7 +3,7 @@ package io.qbeast.spark.utils
 import io.qbeast.core.model.RevisionUtils.{isStaging, stagingID}
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
-import io.qbeast.spark.internal.commands.ConvertToQbeastCommand.{
+import io.qbeast.spark.utils.QbeastExceptionMessages.{
   partitionedTableExceptionMsg,
   unsupportedFormatExceptionMsg
 }

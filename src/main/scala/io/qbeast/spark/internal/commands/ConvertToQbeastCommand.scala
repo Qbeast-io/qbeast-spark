@@ -5,11 +5,11 @@ package io.qbeast.spark.internal.commands
 
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.internal.commands.ConvertToQbeastCommand.{
+import io.qbeast.spark.utils.MetadataConfig.{lastRevisionID, revision}
+import io.qbeast.spark.utils.QbeastExceptionMessages.{
   partitionedTableExceptionMsg,
   unsupportedFormatExceptionMsg
 }
-import io.qbeast.spark.utils.MetadataConfig.{lastRevisionID, revision}
 import org.apache.http.annotation.Experimental
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
@@ -85,6 +85,7 @@ case class ConvertToQbeastCommand(
       if (isPartitionedDelta) {
         throw AnalysisExceptionFactory.create(partitionedTableExceptionMsg)
       }
+
       val convRevision = Revision.emptyRevision(QTableID(tableId.table), cubeSize, columnsToIndex)
       val revisionID = convRevision.revisionID
 
@@ -95,23 +96,12 @@ case class ConvertToQbeastCommand(
           .updated(s"$revision.$revisionID", mapper.writeValueAsString(convRevision))
 
       val newMetadata =
-        txn.metadata.copy(configuration = updatedConf) // , partitionColumns = Seq.empty
+        txn.metadata.copy(configuration = updatedConf)
 
       txn.updateMetadata(newMetadata)
       txn.commit(Seq.empty, Convert(0, Seq.empty, collectStats = false, None))
     }
     Seq.empty[Row]
   }
-
-}
-
-object ConvertToQbeastCommand {
-
-  val partitionedTableExceptionMsg: String =
-    """Converting a partitioned table into qbeast is not supported.
-      |Consider overwriting the entire data using qbeast.""".stripMargin.replaceAll("\n", " ")
-
-  def unsupportedFormatExceptionMsg: String => String = (fileFormat: String) =>
-    s"Unsupported file format: $fileFormat"
 
 }
