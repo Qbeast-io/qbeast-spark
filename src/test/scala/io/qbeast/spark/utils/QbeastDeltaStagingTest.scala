@@ -16,6 +16,8 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec {
 
   def writeHybridTable(spark: SparkSession, dir: String): Unit = {
     import spark.implicits._
+
+    // Write qbeast data
     val qdf = (0 until qDataSize).map(i => T2(i, i)).toDF("a", "b")
     qdf.write
       .format("qbeast")
@@ -23,38 +25,51 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec {
       .option("cubeSize", "5000")
       .save(dir)
 
+    // Create hybrid table by appending delta data
     val ddf = (qDataSize until qDataSize + dDataSize).map(i => T2(i, i)).toDF("a", "b")
-    ddf.repartition(numSparkPartitions).write.mode("append").format("delta").save(dir)
+    ddf
+      .repartition(numSparkPartitions)
+      .write
+      .mode("append")
+      .format("delta")
+      .save(dir)
   }
 
   "A qbeast + delta hybrid table" should "be read correctly" in withSparkAndTmpDir(
     (spark, tmpDir) => {
       writeHybridTable(spark, tmpDir)
 
-      val numStagingRows = spark.read.format("qbeast").load(tmpDir).count
-      numStagingRows shouldBe totalSize
+      val qbeastDf = spark.read.format("qbeast").load(tmpDir)
+      val deltaDf = spark.read.format("delta").load(tmpDir)
+      assertLargeDatasetEquality(qbeastDf, deltaDf)
 
+      // Should have the staging revision and the first revision
       val snapshot = DeltaLog.forTable(spark, tmpDir).snapshot
       val qs = DeltaQbeastSnapshot(snapshot)
       qs.loadAllRevisions.size shouldBe 2
       qs.existsRevision(stagingID)
     })
 
-  it should "not be altered by Optimizing the staging revision" in withSparkAndTmpDir(
+  it should "be readable using both formats after Analyze and Optimize" in withSparkAndTmpDir(
     (spark, tmpDir) => {
       writeHybridTable(spark, tmpDir)
 
+      // Analyze and Optimize the staging revision
       val table = QbeastTable.forPath(spark, tmpDir)
       table.analyze(stagingID)
       table.optimize(stagingID)
 
-      val allElements = spark.read.parquet(tmpDir).count
-      allElements shouldBe totalSize
+      // DataFrame should not change by optimizing the staging revision
+      val qbeastDf = spark.read.format("qbeast").load(tmpDir)
+      val deltaDf = spark.read.format("delta").load(tmpDir)
+      qbeastDf.count() shouldBe deltaDf.count()
 
+      assertLargeDatasetEquality(qbeastDf, deltaDf)
+
+      // Should preserve standing staging revision behavior
       val snapshot = DeltaLog.forTable(spark, tmpDir).snapshot
       val qbeastSnapshot = DeltaQbeastSnapshot(snapshot)
       val stagingIndexStatus = qbeastSnapshot.loadIndexStatus(stagingID)
-
       stagingIndexStatus.cubesStatuses.size shouldBe 1
       stagingIndexStatus.replicatedOrAnnouncedSet.isEmpty shouldBe true
     })
@@ -64,22 +79,25 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec {
     {
       writeHybridTable(spark, tmpDir)
 
+      // Number of delta files before compaction
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
       val qsBefore = DeltaQbeastSnapshot(deltaLog.snapshot)
       val numFilesBefore = qsBefore.loadIndexStatus(stagingID).cubesStatuses.head._2.files.size
 
+      // Perform compaction
       val table = QbeastTable.forPath(spark, tmpDir)
       table.compact(stagingID)
 
+      // Number of delta files after compaction
       val qsAfter = DeltaQbeastSnapshot(deltaLog.update())
       val numFilesAfter = qsAfter.loadIndexStatus(stagingID).cubesStatuses.head._2.files.size
+
       numFilesAfter shouldBe <(numFilesBefore)
 
-      val deltaCount = spark.read.format("delta").load(tmpDir).count()
-      val qbeastCount = spark.read.format("qbeast").load(tmpDir).count()
+      val deltaDf = spark.read.format("delta").load(tmpDir)
+      val qbeastDf = spark.read.format("qbeast").load(tmpDir)
 
-      deltaCount shouldBe totalSize
-      qbeastCount shouldBe totalSize
+      assertLargeDatasetEquality(qbeastDf, deltaDf)
     }
   }
 
