@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.{JsonCreator, JsonValue}
 import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import com.fasterxml.jackson.databind.annotation.JsonSerialize.Typing
 import io.qbeast.IISeq
-import io.qbeast.core.model.RevisionUtils.{isStaging, stagingID}
+import io.qbeast.core.model.RevisionUtils.stagingID
 import io.qbeast.core.transform.{EmptyTransformer, Transformation, Transformer}
 
 import scala.collection.immutable.SortedMap
@@ -229,8 +229,7 @@ case class IndexStatus(
     extends Serializable {
 
   def addAnnouncements(newAnnouncedSet: Set[CubeId]): IndexStatus = {
-    if (isStaging(revision)) this
-    else copy(announcedSet = announcedSet ++ newAnnouncedSet)
+    copy(announcedSet = announcedSet ++ newAnnouncedSet)
   }
 
   def cubesToOptimize: Set[CubeId] = announcedSet.diff(replicatedSet)
