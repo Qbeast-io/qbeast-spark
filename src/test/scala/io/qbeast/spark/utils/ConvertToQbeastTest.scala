@@ -4,6 +4,7 @@ import io.qbeast.core.model.RevisionUtils.{isStaging, stagingID}
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.utils.QbeastExceptionMessages.{
+  incorrectIdentifierFormat,
   partitionedTableExceptionMsg,
   unsupportedFormatExceptionMsg
 }
@@ -126,11 +127,20 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
         .save(tmpDir)
 
       val revisionsBefore = getQbeastSnapshot(spark, tmpDir).loadAllRevisions
-      ConvertToQbeastCommand(s"qbeast.`$tmpDir`", columnsToIndex, dcs)
+      ConvertToQbeastCommand(s"qbeast.`$tmpDir`", columnsToIndex, dcs).run(spark)
       val revisionsAfter = getQbeastSnapshot(spark, tmpDir).loadAllRevisions
 
       // Revisions should not modify
       revisionsAfter shouldBe revisionsBefore
+    })
+
+  it should "fail to convert when the identifier format is not correct" in withSparkAndTmpDir(
+    (spark, tmpDir) => {
+      val identifier = s"parquet`$tmpDir`"
+      val thrown = the[RuntimeException] thrownBy
+        ConvertToQbeastCommand(identifier, columnsToIndex, dcs).run(spark)
+
+      thrown.getMessage shouldBe incorrectIdentifierFormat(identifier)
     })
 
   it should "preserve sampling accuracy" in withSparkAndTmpDir((spark, tmpDir) => {

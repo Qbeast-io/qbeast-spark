@@ -7,6 +7,7 @@ import io.qbeast.core.model._
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.utils.MetadataConfig.{lastRevisionID, revision}
 import io.qbeast.spark.utils.QbeastExceptionMessages.{
+  incorrectIdentifierFormat,
   partitionedTableExceptionMsg,
   unsupportedFormatExceptionMsg
 }
@@ -43,9 +44,10 @@ case class ConvertToQbeastCommand(
 
   private def resolveTableFormat(spark: SparkSession): (String, TableIdentifier) =
     identifier.split("\\.") match {
-      case Array(f, p) =>
+      case Array(f, p) if f.nonEmpty && p.nonEmpty =>
         (f.toLowerCase(Locale.ROOT), spark.sessionState.sqlParser.parseTableIdentifier(p))
-      case _ => throw new RuntimeException(s"Table doesn't exists at $identifier")
+      case _ =>
+        throw new RuntimeException(incorrectIdentifierFormat(identifier))
     }
 
   override def run(spark: SparkSession): Seq[Row] = {

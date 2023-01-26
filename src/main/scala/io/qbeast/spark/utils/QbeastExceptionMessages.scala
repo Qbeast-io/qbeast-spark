@@ -19,4 +19,12 @@ object QbeastExceptionMessages {
   def unsupportedFormatExceptionMsg: String => String = (fileFormat: String) =>
     s"Unsupported file format: $fileFormat"
 
+  /**
+   * Conversion error for incorrect identifier format
+   * @return
+   */
+  def incorrectIdentifierFormat: String => String = (identifier: String) =>
+    "Required table identifier format: fileFormat.`<tablePath>` " +
+      s"identifier received: $identifier"
+
 }
