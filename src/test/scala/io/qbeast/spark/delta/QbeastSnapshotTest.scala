@@ -8,7 +8,7 @@ import io.qbeast.core.model.{CubeStatus, QTableID}
 import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.{Dataset, SparkSession}
+import org.apache.spark.sql.{AnalysisException, Dataset, SparkSession}
 import org.scalatest.AppendedClues.convertToClueful
 
 class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
@@ -95,6 +95,31 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
         val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
         val timestamp = System.currentTimeMillis()
         qbeastSnapshot.loadRevisionAt(timestamp) shouldBe qbeastSnapshot.loadLatestRevision
+
+      }
+    }
+
+  it should "throw an exception when no revision satisfy timestamp requirement" in
+    withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
+      {
+        val invalidRevisionTimestamp = System.currentTimeMillis()
+
+        val df = createDF(1000)
+        val names = List("age", "val2")
+        val cubeSize = 10
+        val options =
+          Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> cubeSize.toString)
+
+        df.write
+          .format("qbeast")
+          .mode("overwrite")
+          .options(options)
+          .save(tmpDir)
+
+        val deltaLog = DeltaLog.forTable(spark, tmpDir)
+        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+        an[AnalysisException] shouldBe thrownBy(
+          qbeastSnapshot.loadRevisionAt(invalidRevisionTimestamp))
 
       }
     }
