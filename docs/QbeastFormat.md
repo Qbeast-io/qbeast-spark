@@ -154,12 +154,12 @@ In Revision, you can find different information about the tree status and config
 In this case, we index columns `user_id` and `product_id` (which are both `Integers`) with a linear transformation. This means that they will not suffer any transformation besides the normalization.
 
 ### Staging Revision and ConvertToQbeastCommand
-The introduction of the staging revision allows users to read a delta or a hybrid `qbeast + delta` table using qbeast format.
-The non-qbeast `AddFile`s are considered as part of this staging revision.
+The introduction of the staging revision enables reading tables in a hybrid `qbeast + delta` state.
+The non-qbeast `AddFile`s are considered as part of this staging revision, all belonging to the root.
 
 Its RevisionID is fixed to `stagingID = 0`, and it has `EmptyTransformer`s and `EmptyTransformation`s.
-This Revision is normally created during the first write or when overwriting a table using qbeast.
-For a table that is entirely written in `delta` or `parquet`, partitioned or not, we can use the `ConvertToQbeastCommand` to create this revision:
+It is automatically created during the first write or when overwriting a table using qbeast.
+For a table that is entirely written in `delta` or `parquet`, we can use the `ConvertToQbeastCommand` to create this revision:
 ```scala
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 
@@ -172,10 +172,10 @@ ConvertToQbeastCommand(tableIdentifier, columnsToIndex, desiredCubeSize).run(spa
 
 val qTable = spark.read.format("qbeast").load(path)
 ```
+By doing so, we also enable subsequent appends using either delta or qbeast.
+Conversion on a partitioned table is not supported.
 
-By doing so, we also enable appends using either delta or the qbeast format.
-
-`Compaction` is allowed to group small files in the staging revision:
+`Compaction` can be performed on the staging revision to group small delta files:
 ```scala
 import io.qbeast.spark.QbeastTable
 
