@@ -4,6 +4,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.IISeq
+import io.qbeast.core.model.RevisionUtils.isStaging
 import io.qbeast.core.model._
 import io.qbeast.spark.utils.{MetadataConfig, TagColumns}
 import org.apache.spark.sql.delta.Snapshot
@@ -19,6 +20,8 @@ import org.apache.spark.sql.{AnalysisExceptionFactory, Dataset}
 case class DeltaQbeastSnapshot(private val snapshot: Snapshot) extends QbeastSnapshot {
 
   def isInitial: Boolean = snapshot.version == -1
+
+  private val isStagingFile = "tags IS NULL"
 
   private val metadataMap: Map[String, String] = snapshot.metadata.configuration
 
@@ -122,7 +125,8 @@ case class DeltaQbeastSnapshot(private val snapshot: Snapshot) extends QbeastSna
    *
    * @return an immutable Seq of Revision for qtable
    */
-  override def loadAllRevisions: IISeq[Revision] = revisionsMap.values.toVector
+  override def loadAllRevisions: IISeq[Revision] =
+    revisionsMap.values.toVector
 
   /**
    * Obtain the last Revisions
@@ -150,8 +154,11 @@ case class DeltaQbeastSnapshot(private val snapshot: Snapshot) extends QbeastSna
    * @return the latest Revision at a concrete timestamp
    */
   override def loadRevisionAt(timestamp: Long): Revision = {
-    revisionsMap.values.find(_.timestamp <= timestamp).getOrElse {
-      throw AnalysisExceptionFactory.create(s"No space revision available before $timestamp")
+    val candidateRevisions = revisionsMap.values.filter(_.timestamp <= timestamp)
+    if (candidateRevisions.nonEmpty) candidateRevisions.maxBy(_.timestamp)
+    else {
+      throw AnalysisExceptionFactory
+        .create(s"No space revision available before $timestamp")
     }
   }
 
@@ -161,8 +168,8 @@ case class DeltaQbeastSnapshot(private val snapshot: Snapshot) extends QbeastSna
    * @return the Dataset of QbeastBlocks
    */
   def loadRevisionBlocks(revisionID: RevisionID): Dataset[AddFile] = {
-    snapshot.allFiles
-      .where(TagColumns.revision === lit(revisionID.toString))
+    if (isStaging(revisionID)) snapshot.allFiles.where(isStagingFile)
+    else snapshot.allFiles.where(TagColumns.revision === lit(revisionID.toString))
   }
 
 }

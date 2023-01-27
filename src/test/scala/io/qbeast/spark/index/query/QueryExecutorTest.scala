@@ -121,7 +121,8 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
     val deltaLog = DeltaLog.forTable(spark, tmpdir)
     val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
 
-    qbeastSnapshot.loadAllRevisions.size shouldBe 2
+    // Including the staging revision
+    qbeastSnapshot.loadAllRevisions.size shouldBe 3
 
     val filters = Seq.empty
 
@@ -180,7 +181,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
     val deltaLog = DeltaLog.forTable(spark, tmpdir)
 
     val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
-    val revision = qbeastSnapshot.loadAllRevisions.head
+    val revision = qbeastSnapshot.loadLatestRevision
     val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
 
     val innerCubesLevel1 =

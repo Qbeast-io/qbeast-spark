@@ -84,7 +84,8 @@ class QbeastSparkCorrectnessTest extends QbeastIntegrationTestSpec {
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
         val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
 
-        qbeastSnapshot.loadAllRevisions.size shouldBe 1
+        // Include the staging revision
+        qbeastSnapshot.loadAllRevisions.size shouldBe 2
         qbeastSnapshot.loadLatestRevision.revisionID shouldBe 1L
 
       }

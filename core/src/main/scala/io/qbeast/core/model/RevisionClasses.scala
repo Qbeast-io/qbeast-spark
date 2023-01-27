@@ -4,7 +4,8 @@ import com.fasterxml.jackson.annotation.{JsonCreator, JsonValue}
 import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import com.fasterxml.jackson.databind.annotation.JsonSerialize.Typing
 import io.qbeast.IISeq
-import io.qbeast.core.transform.{Transformation, Transformer}
+import io.qbeast.core.model.RevisionUtils.stagingID
+import io.qbeast.core.transform.{EmptyTransformer, Transformation, Transformer}
 
 import scala.collection.immutable.SortedMap
 
@@ -60,8 +61,43 @@ object Revision {
       desiredCubeSize,
       columnTransformers,
       Vector.empty)
-
   }
+
+  /**
+   * Initialize Revision for table conversion. The RevisionID for a converted table is 0.
+   * EmptyTransformers and EmptyTransformations are used. This Revision should always be
+   * superseded.
+   */
+  def emptyRevision(
+      tableID: QTableID,
+      desiredCubeSize: Int,
+      columnsToIndex: Seq[String]): Revision = {
+    val emptyTransformers = columnsToIndex.map(s => EmptyTransformer(s)).toIndexedSeq
+    val emptyTransformations = emptyTransformers.map(_.makeTransformation(r => r))
+
+    Revision(
+      stagingID,
+      System.currentTimeMillis(),
+      tableID,
+      desiredCubeSize,
+      emptyTransformers,
+      emptyTransformations)
+  }
+
+}
+
+object RevisionUtils {
+  val stagingID: RevisionID = 0
+
+  def isStaging(revisionID: RevisionID): Boolean =
+    revisionID == stagingID
+
+  def isStaging(revision: Revision): Boolean =
+    isStaging(revision.revisionID) &&
+      revision.columnTransformers.forall {
+        case _: EmptyTransformer => true
+        case _ => false
+      }
 
 }
 
@@ -89,8 +125,7 @@ final case class Revision(
   assert(columnTransformers != null || transformations != null)
 
   /**
-   * *
-   * Controls that the this revision indexes all and only the provided columns.
+   * Controls that this revision indexes all and only the provided columns.
    *
    * @param columnsToIndex the column names to check.
    * @return true if the revision indexes all and only the provided columns.
@@ -117,7 +152,7 @@ final case class Revision(
 
   /**
    * returns the normalized values
-   * @param values
+   * @param values row values for the indexing columns
    * @return the normalized values
    */
   def transform(values: IISeq[_]): IISeq[Double] = {
@@ -193,8 +228,9 @@ case class IndexStatus(
     cubesStatuses: SortedMap[CubeId, CubeStatus] = SortedMap.empty)
     extends Serializable {
 
-  def addAnnouncements(newAnnouncedSet: Set[CubeId]): IndexStatus =
+  def addAnnouncements(newAnnouncedSet: Set[CubeId]): IndexStatus = {
     copy(announcedSet = announcedSet ++ newAnnouncedSet)
+  }
 
   def cubesToOptimize: Set[CubeId] = announcedSet.diff(replicatedSet)
 

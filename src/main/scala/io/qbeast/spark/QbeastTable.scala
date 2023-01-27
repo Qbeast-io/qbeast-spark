@@ -4,6 +4,7 @@
 package io.qbeast.spark
 
 import io.qbeast.context.QbeastContext
+import io.qbeast.core.model.RevisionUtils.isStaging
 import io.qbeast.core.model.{CubeId, CubeStatus, QTableID, RevisionID}
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.commands.{
@@ -56,13 +57,17 @@ class QbeastTable private (
    *                          If doesn't exist or none is specified, would be the last available
    */
   def optimize(revisionID: RevisionID): Unit = {
-    checkRevisionAvailable(revisionID)
-    OptimizeTableCommand(revisionID, indexedTable)
-      .run(sparkSession)
+    if (!isStaging(revisionID)) {
+      checkRevisionAvailable(revisionID)
+      OptimizeTableCommand(revisionID, indexedTable)
+        .run(sparkSession)
+    }
   }
 
   def optimize(): Unit = {
-    optimize(latestRevisionAvailableID)
+    if (!isStaging(latestRevisionAvailableID)) {
+      optimize(latestRevisionAvailableID)
+    }
   }
 
   /**
@@ -73,14 +78,18 @@ class QbeastTable private (
    * @return the sequence of cubes to optimize in string representation
    */
   def analyze(revisionID: RevisionID): Seq[String] = {
-    checkRevisionAvailable(revisionID)
-    AnalyzeTableCommand(revisionID, indexedTable)
-      .run(sparkSession)
-      .map(_.getString(0))
+    if (isStaging(revisionID)) Seq.empty
+    else {
+      checkRevisionAvailable(revisionID)
+      AnalyzeTableCommand(revisionID, indexedTable)
+        .run(sparkSession)
+        .map(_.getString(0))
+    }
   }
 
   def analyze(): Seq[String] = {
-    analyze(latestRevisionAvailableID)
+    if (isStaging(latestRevisionAvailableID)) Seq.empty
+    else analyze(latestRevisionAvailableID)
   }
 
   /**
@@ -103,7 +112,7 @@ class QbeastTable private (
     val allCubeStatuses = qbeastSnapshot.loadLatestIndexStatus.cubesStatuses
 
     val cubeCount = allCubeStatuses.size
-    val depth = allCubeStatuses.map(_._1.depth).max
+    val depth = if (cubeCount == 0) 0 else allCubeStatuses.map(_._1.depth).max
     val rowCount = allCubeStatuses.flatMap(_._2.files.map(_.elementCount)).sum
 
     val dimensionCount = indexedColumns().size

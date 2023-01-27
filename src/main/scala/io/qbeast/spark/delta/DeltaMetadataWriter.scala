@@ -5,14 +5,9 @@ package io.qbeast.spark.delta
 
 import io.qbeast.core.model.{QTableID, RevisionID, TableChanges}
 import io.qbeast.spark.delta.writer.StatsTracker.registerStatsTrackers
+import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
 import io.qbeast.spark.utils.TagColumns
-import org.apache.spark.sql.delta.actions.{
-  Action,
-  AddFile,
-  FileAction,
-  RemoveFile,
-  SetTransaction
-}
+import org.apache.spark.sql.delta.actions._
 import org.apache.spark.sql.delta.commands.DeltaCommand
 import org.apache.spark.sql.delta.{DeltaLog, DeltaOperations, DeltaOptions, OptimisticTransaction}
 import org.apache.spark.sql.execution.datasources.{
@@ -81,6 +76,24 @@ private[delta] case class DeltaMetadataWriter(
       val finalActions = updateMetadata(txn, changes, newFiles)
       // Commit the information to the DeltaLog
       txn.commit(finalActions, deltaOperation)
+    }
+  }
+
+  def updateMetadataWithTransaction(update: => Configuration): Unit = {
+    deltaLog.withNewTransaction { txn =>
+      if (txn.metadata.partitionColumns.nonEmpty) {
+        throw AnalysisExceptionFactory.create(partitionedTableExceptionMsg)
+      }
+
+      val config = update
+      val updatedConfig = config.foldLeft(txn.metadata.configuration) { case (accConf, (k, v)) =>
+        accConf.updated(k, v)
+      }
+      val updatedMetadata = txn.metadata.copy(configuration = updatedConfig)
+
+      val op = DeltaOperations.SetTableProperties(config)
+      txn.updateMetadata(updatedMetadata)
+      txn.commit(Seq.empty, op)
     }
   }
 
@@ -168,7 +181,7 @@ private[delta] case class DeltaMetadataWriter(
       addFiles.map(_.copy(dataChange = !rearrangeOnly)) ++
         deletedFiles.map(_.copy(dataChange = !rearrangeOnly))
     } else {
-      newFiles ++ deletedFiles
+      addFiles ++ deletedFiles
     }
 
     if (isOptimizeOperation) {
