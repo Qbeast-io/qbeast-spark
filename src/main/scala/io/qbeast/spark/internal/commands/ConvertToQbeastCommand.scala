@@ -4,7 +4,7 @@
 package io.qbeast.spark.internal.commands
 
 import io.qbeast.core.model._
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
+import io.qbeast.spark.delta.{DeltaQbeastSnapshot, SparkDeltaMetadataManager}
 import io.qbeast.spark.utils.MetadataConfig.{lastRevisionID, revision}
 import io.qbeast.spark.utils.QbeastExceptionMessages.{
   incorrectIdentifierFormat,
@@ -16,7 +16,6 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.delta.DeltaOperations.Convert
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
 import org.apache.spark.sql.{AnalysisException, AnalysisExceptionFactory, Row, SparkSession}
 
@@ -76,33 +75,21 @@ case class ConvertToQbeastCommand(
         case _ => throw AnalysisExceptionFactory.create(unsupportedFormatExceptionMsg(fileFormat))
       }
 
-      // Convert delta to qbeast
-      deltaLog.update()
+      // Convert delta to qbeast through metadata modification
+      val tableID = QTableID(tableId.table)
+      val schema = deltaLog.snapshot.schema
 
-      val txn = deltaLog.startTransaction()
+      SparkDeltaMetadataManager.updateMetadataWithTransaction(tableID, schema) {
+        val convRevision = Revision.emptyRevision(tableID, cubeSize, columnsToIndex)
+        val revisionID = convRevision.revisionID
 
-      // Converting a partitioned delta table is not supported, for qbeast files
-      // are not partitioned.
-      val isPartitionedDelta = txn.metadata.partitionColumns.nonEmpty
-      if (isPartitionedDelta) {
-        throw AnalysisExceptionFactory.create(partitionedTableExceptionMsg)
+        // Add staging revision to Revision Map, set it as the latestRevision
+        Map(
+          lastRevisionID -> revisionID.toString,
+          s"$revision.$revisionID" -> mapper.writeValueAsString(convRevision))
       }
-
-      val convRevision = Revision.emptyRevision(QTableID(tableId.table), cubeSize, columnsToIndex)
-      val revisionID = convRevision.revisionID
-
-      // Update revision map
-      val updatedConf =
-        txn.metadata.configuration
-          .updated(lastRevisionID, revisionID.toString)
-          .updated(s"$revision.$revisionID", mapper.writeValueAsString(convRevision))
-
-      val newMetadata =
-        txn.metadata.copy(configuration = updatedConf)
-
-      txn.updateMetadata(newMetadata)
-      txn.commit(Seq.empty, Convert(0, Seq.empty, collectStats = false, None))
     }
+
     Seq.empty[Row]
   }
 
