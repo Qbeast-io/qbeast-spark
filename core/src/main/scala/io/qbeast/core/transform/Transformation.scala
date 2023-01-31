@@ -54,11 +54,15 @@ object Transformation {
 
   def fractionMapping(v: Double, percentileValues: IISeq[Double]): Double = {
     var i = 0
-    while (i < maxPos && v >= percentileValues(i + 1)) {
+    while (i < maxPos && percentileValues(i + 1) < v) {
       i += 1
     }
 
-    val j = if (i == maxPos) i else i + 1
+    var j = maxPos
+    while (0 < j && percentileValues(j - 1) > v) {
+      j -= 1
+    }
+
     val (x0, x1) = (percentiles(i), percentiles(j))
     val (y0, y1) = (percentileValues(i), percentileValues(j))
 
