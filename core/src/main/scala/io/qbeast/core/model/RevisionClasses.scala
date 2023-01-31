@@ -276,4 +276,5 @@ trait TableChanges {
   val announcedOrReplicatedSet: Set[CubeId]
   def cubeState(cubeId: CubeId): Option[String]
   def cubeWeights(cubeId: CubeId): Option[Weight]
+  def columnPercentiles: Seq[Seq[Any]]
 }

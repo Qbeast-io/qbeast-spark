@@ -5,6 +5,7 @@ package io.qbeast.core.transform
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import io.qbeast.core.model.{OrderedDataType, QDataType, StringDataType}
+import io.qbeast.core.transform.Transformer.{accuracy, percentiles}
 
 import java.util.Locale
 
@@ -12,6 +13,10 @@ import java.util.Locale
  * Transformer object that choose the right transformation function
  */
 object Transformer {
+
+  val percentiles: Array[Double] = Array(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)
+
+  val accuracy: Int = 1000
 
   private val transformersRegistry: Map[String, TransformerType] =
     Seq(LinearTransformer, HashTransformer).map(a => (a.transformerSimpleName, a)).toMap
@@ -112,6 +117,12 @@ trait Transformer extends Serializable {
   }
 
   def spec: String = s"$columnName:${transformerType.transformerSimpleName}"
+
+  val colPercentiles = s"${columnName}_p_approx"
+
+  def columnPercentiles: String =
+    s"percentile_approx($columnName, ${percentiles.mkString("Array(", ", ", ")")}, $accuracy)" +
+      s"AS $colPercentiles"
 
 }
 

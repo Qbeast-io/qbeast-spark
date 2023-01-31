@@ -4,7 +4,10 @@
 package io.qbeast.core.transform
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import java.sql.{Timestamp, Date}
+import io.qbeast.IISeq
+import io.qbeast.core.transform.Transformer.percentiles
+
+import java.sql.{Date, Timestamp}
 
 /**
  * Double value transformation.
@@ -23,6 +26,8 @@ trait Transformation extends Serializable {
    */
   def transform(value: Any): Double
 
+  def transformWithPercentiles(value: Any, percentiles: IISeq[Any]): Double
+
   /**
    * This method should determine if the new data will cause the creation of a new revision.
    *
@@ -34,7 +39,6 @@ trait Transformation extends Serializable {
   /**
    * Merges two transformations. The domain of the resulting transformation is the union of this
    *
-   * @param other
    * @return a new Transformation that contains both this and other.
    */
   def merge(other: Transformation): Transformation
@@ -42,6 +46,28 @@ trait Transformation extends Serializable {
 
 trait OrdinalTransformation extends Transformation {
   def ordering: Ordering[Any]
+
+}
+
+object Transformation {
+  val maxPos: Int = percentiles.length - 1
+
+  def fractionMapping(v: Double, percentileValues: IISeq[Double]): Double = {
+    var i = 0
+    while (i < maxPos && v >= percentileValues(i + 1)) {
+      i += 1
+    }
+
+    val j = if (i == maxPos) i else i + 1
+    val (x0, x1) = (percentiles(i), percentiles(j))
+    val (y0, y1) = (percentileValues(i), percentileValues(j))
+
+    if (y0 == y1) x0
+    else {
+      val m = (y1 - y0) / (x1 - x0)
+      (v - y0) / m + x0
+    }
+  }
 
 }
 
@@ -63,6 +89,7 @@ case class IdentityToZeroTransformation(identityValue: Any) extends Transformati
 
   override def merge(other: Transformation): Transformation = this
 
+  override def transformWithPercentiles(value: Any, percentile: IISeq[Any]): Double = 0d
 }
 
 /**
@@ -79,4 +106,5 @@ object NullToZeroTransformation extends Transformation {
 
   override def merge(other: Transformation): Transformation = this
 
+  override def transformWithPercentiles(value: Any, percentile: IISeq[Any]): Double = 0d
 }

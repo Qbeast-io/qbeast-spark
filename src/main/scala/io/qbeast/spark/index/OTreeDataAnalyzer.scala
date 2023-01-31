@@ -52,6 +52,13 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     data.selectExpr(columnsExpr ++ Seq("count(1) AS count"): _*).first()
   }
 
+  private[index] def getDataFrameColumnPercentiles(
+      data: DataFrame,
+      columnTransformers: IISeq[Transformer]): Row = {
+    val columnPercentilesExpr = columnTransformers.map(_.columnPercentiles)
+    data.selectExpr(columnPercentilesExpr ++ Seq("count(1) AS count"): _*).first()
+  }
+
   /**
    * Given a Row with Statistics, outputs the RevisionChange
    * @param row the row with statistics
@@ -120,7 +127,8 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       numElements: Long,
       revision: Revision,
       indexStatus: IndexStatus,
-      isReplication: Boolean): DataFrame => Dataset[CubeNormalizedWeight] =
+      isReplication: Boolean,
+      columnPercentiles: Seq[Seq[Any]]): DataFrame => Dataset[CubeNormalizedWeight] =
     (weightedDataFrame: DataFrame) => {
 
       val spark = SparkSession.active
@@ -150,7 +158,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
               numElements = numElements,
               bufferCapacity = bufferCapacity)
           rows.foreach { row =>
-            val point = RowUtils.rowValuesToPoint(row, revision)
+            val point = RowUtils.rowValuesToPercentilePoint(row, revision, columnPercentiles)
             val weight = Weight(row.getAs[Int](weightIndex))
             if (isReplication) {
               val parentBytes = row.getAs[Array[Byte]](cubeToReplicateColumnName)
@@ -188,6 +196,10 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       case None => indexStatus.revision
     }
 
+    val columnPercentiles: Seq[Seq[Any]] =
+      revision.columnTransformers
+        .map(t => dataFrameStats.getAs[Seq[Any]](t.colPercentiles))
+
     // Three step transformation
 
     // First, add a random weight column
@@ -195,7 +207,12 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
     // Second, estimate the cube weights at partition level
     val partitionedEstimatedCubeWeights = weightedDataFrame.transform(
-      estimatePartitionCubeWeights(numElements, revision, indexStatus, isReplication))
+      estimatePartitionCubeWeights(
+        numElements,
+        revision,
+        indexStatus,
+        isReplication,
+        columnPercentiles))
 
     // Third, compute the overall estimated cube weights
     val estimatedCubeWeights =
@@ -209,8 +226,9 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       spaceChanges,
       indexStatus,
       estimatedCubeWeights,
-      if (isReplication) indexStatus.cubesToOptimize
-      else Set.empty[CubeId])
+      if (isReplication) indexStatus.cubesToOptimize else Set.empty[CubeId],
+      Set.empty[CubeId],
+      columnPercentiles = columnPercentiles)
 
     (weightedDataFrame, tableChanges)
   }

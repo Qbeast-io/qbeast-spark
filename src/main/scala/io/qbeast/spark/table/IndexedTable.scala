@@ -339,7 +339,13 @@ private[table] class IndexedTableImpl(
 
     metadataManager.updateWithTransaction(tableID, schema, append = true) {
       // There's no affected table changes on compaction, so we send an empty object
-      val tableChanges = BroadcastedTableChanges(None, currentIndexStatus, Map.empty)
+      val tableChanges = BroadcastedTableChanges(
+        None,
+        currentIndexStatus,
+        Map.empty,
+        Set.empty,
+        Set.empty,
+        Seq.empty)
       val fileActions =
         dataWriter.compact(tableID, schema, currentIndexStatus, tableChanges)
       (tableChanges, fileActions)

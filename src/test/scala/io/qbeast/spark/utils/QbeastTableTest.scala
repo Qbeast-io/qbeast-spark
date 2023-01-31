@@ -141,4 +141,17 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
         metrics.avgFanout.isNaN shouldBe true
       }
     }
+
+  it should "check" in withSparkAndTmpDir((spark, tmpDir) => {
+    val df = loadTestData(spark)
+    df.write
+      .format("qbeast")
+      .option("cubeSize", "500")
+      .option("columnsToIndex", "price,user_id")
+      .save(tmpDir)
+
+    val qt = QbeastTable.forPath(spark, tmpDir).getIndexMetrics()
+    // scalastyle:off println
+    println(qt)
+  })
 }

@@ -89,7 +89,13 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
   val indexStatus: IndexStatus = IndexStatus(rev, Set.empty, Set.empty, cubeStatuses)
 
   val tableChanges: TableChanges =
-    BroadcastedTableChanges(None, IndexStatus(rev), deltaNormalizedCubeWeights = weightMap)
+    BroadcastedTableChanges(
+      None,
+      IndexStatus(rev),
+      deltaNormalizedCubeWeights = weightMap,
+      Set.empty,
+      Set.empty,
+      Seq.empty)
 
   val writer: BlockWriter = new BlockWriter(
     dataPath = tmpDir,

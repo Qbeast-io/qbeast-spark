@@ -35,4 +35,23 @@ object RowUtils {
 
   }
 
+  def rowValuesToPercentilePoint(
+      row: Row,
+      revision: Revision,
+      columnPercentiles: Seq[Seq[Any]]): Point = Point {
+    if (revision.transformations.isEmpty) {
+      throw AnalysisExceptionFactory.create("Trying to index on a not initialized Revision")
+    }
+
+    val coordinates = Vector.newBuilder[Double]
+    coordinates.sizeHint(revision.columnTransformers.length)
+    for (i <- revision.transformations.indices) {
+      val v = row.get(i)
+      val percentiles = columnPercentiles(i)
+      val t = revision.transformations(i)
+      coordinates += t.transformWithPercentiles(v, percentiles.toIndexedSeq)
+    }
+    coordinates.result()
+  }
+
 }

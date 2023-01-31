@@ -10,19 +10,21 @@ import com.fasterxml.jackson.databind.jsontype.TypeSerializer
 import com.fasterxml.jackson.databind.node.{DoubleNode, IntNode, NumericNode, TextNode}
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import com.fasterxml.jackson.databind.{DeserializationContext, SerializerProvider}
+import io.qbeast.IISeq
 import io.qbeast.core.model.{
+  DateDataType,
   DecimalDataType,
   DoubleDataType,
   FloatDataType,
   IntegerDataType,
   LongDataType,
   OrderedDataType,
-  TimestampDataType,
-  DateDataType
+  TimestampDataType
 }
+import io.qbeast.core.transform.Transformation.fractionMapping
 
 import java.math.BigDecimal
-import java.sql.{Timestamp, Date}
+import java.sql.{Date, Timestamp}
 import scala.util.Random
 import scala.util.hashing.MurmurHash3
 
@@ -65,11 +67,25 @@ case class LinearTransformation(
     }
   }
 
+  override def transformWithPercentiles(value: Any, percentiles: IISeq[Any]): Double = {
+    val v = if (value == null) nullValue else value
+    val doublePercentiles = percentiles.map(_.toDouble())
+    v match {
+      case v: Double => fractionMapping(v, doublePercentiles)
+      case v: Float => fractionMapping(v, doublePercentiles)
+      case v: Long => fractionMapping(v.toDouble, doublePercentiles)
+      case v: Int => fractionMapping(v.toDouble, doublePercentiles)
+      case v: BigDecimal => fractionMapping(v.doubleValue, doublePercentiles)
+      case v: Date => fractionMapping(v.getTime, doublePercentiles)
+      case v: Timestamp => fractionMapping(v.getTime, doublePercentiles)
+    }
+  }
+
   /**
-   * Merges two transformations. The domain of the resulting transformation is the union of this
-   * and the other transformation. The range of the resulting transformation is the intersection of
-   * this and the other transformation, which can be a LinearTransformation or IdentityTransformation
-   * @param other
+   * Merges two transformations. The domain of the resulting transformation is the union
+   * of this and the other transformation. The range of the resulting transformation is
+   * the intersection of this and the other transformation, which can be a
+   * LinearTransformation or IdentityTransformation
    * @return a new Transformation that contains both this and other.
    */
   override def merge(other: Transformation): Transformation = {
@@ -162,11 +178,6 @@ object LinearTransformation {
   /**
    * Creates a LinearTransformation that has random value for the nulls
    * within the [minNumber, maxNumber] range
-   * @param minNumber
-   * @param maxNumber
-   * @param orderedDataType
-   * @param seed
-   * @return
    */
 
   def apply(
@@ -228,11 +239,6 @@ object LinearTransformationUtils {
   /**
    * Creates a LinearTransformationUtils object that contains
    * useful functions that can be used outside of the LinearTransformation class.
-   * @param minNumber
-   * @param maxNumber
-   * @param orderedDataType
-   * @param seed
-   * @return
    */
 
   def generateRandomNumber(min: Any, max: Any, seed: Option[Long]): Any = {
@@ -244,7 +250,7 @@ object LinearTransformationUtils {
       case (min: Long, max: Long) => min + (random * (max - min)).toLong
       case (min: Int, max: Int) => min + (random * (max - min)).toInt
       case (min: Float, max: Float) => min + (random * (max - min)).toFloat
-      case (min, max) =>
+      case (min, _) =>
         throw new IllegalArgumentException(
           s"Cannot generate random number for type ${min.getClass.getName}")
 

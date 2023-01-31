@@ -4,7 +4,7 @@
 package io.qbeast.spark.index
 
 import io.qbeast.TestClasses.{Client3, Client4}
-import io.qbeast.core.model.{BroadcastedTableChanges, _}
+import io.qbeast.core.model._
 import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.col

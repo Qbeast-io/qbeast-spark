@@ -187,12 +187,21 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val revision =
       calculateRevisionChanges(dataFrameStats, emptyRevision).get.createNewRevision
 
+    val columnPercentiles: Seq[Seq[Any]] =
+      revision.columnTransformers
+        .map(t => dataFrameStats.getAs[Seq[Any]](t.colPercentiles))
+
     val indexStatus = IndexStatus(revision, Set.empty)
     val weightedDataFrame =
       data.withColumn(weightColumnName, lit(scala.util.Random.nextInt()))
     val cubeNormalizedWeights =
       weightedDataFrame.transform(
-        estimatePartitionCubeWeights(10000, revision, indexStatus, isReplication = false))
+        estimatePartitionCubeWeights(
+          10000,
+          revision,
+          indexStatus,
+          isReplication = false,
+          columnPercentiles))
 
     val partitions = weightedDataFrame.rdd.getNumPartitions
 
@@ -217,12 +226,21 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val revision =
       calculateRevisionChanges(dataFrameStats, emptyRevision).get.createNewRevision
 
+    val columnPercentiles: Seq[Seq[Any]] =
+      revision.columnTransformers
+        .map(t => dataFrameStats.getAs[Seq[Any]](t.colPercentiles))
+
     val indexStatus = IndexStatus(revision, Set.empty)
     val weightedDataFrame =
       data.withColumn(weightColumnName, lit(scala.util.Random.nextInt()))
     val cubeNormalizedWeights =
       weightedDataFrame.transform(
-        estimatePartitionCubeWeights(10000, revision, indexStatus, isReplication = false))
+        estimatePartitionCubeWeights(
+          10000,
+          revision,
+          indexStatus,
+          isReplication = false,
+          columnPercentiles))
 
     val cubeWeights = cubeNormalizedWeights.transform(estimateCubeWeights(revision))
     cubeWeights.columns.length shouldBe 2
