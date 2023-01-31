@@ -100,9 +100,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
   private[index] def addRandomWeight(revision: Revision): DataFrame => DataFrame =
     (df: DataFrame) => {
-      df.withColumn(
-        weightColumnName,
-        qbeastHash(revision.columnTransformers.map(name => df(name.columnName)): _*))
+      df.withColumn(weightColumnName, qbeastHash(rand()))
     }
 
   private[index] def estimateCubeWeights(
