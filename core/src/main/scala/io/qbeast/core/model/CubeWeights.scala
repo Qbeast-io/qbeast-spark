@@ -61,6 +61,8 @@ class CubeWeightsBuilder protected (
       bufferCapacity,
       indexStatus.replicatedOrAnnouncedSet)
 
+  private class WeightAndTreeSize(var weight: NormalizedWeight, var treeSize: Double)
+
   private val byWeight = Ordering.by[PointWeightAndParent, Weight](_.weight).reverse
   protected val queue = new mutable.PriorityQueue[PointWeightAndParent]()(byWeight)
   private var resultBuffer = Seq.empty[CubeDomain]
@@ -87,45 +89,11 @@ class CubeWeightsBuilder protected (
    *
    * @return the resulting cube weights map
    */
-  def result(): Seq[CubeDomain] = resultBuffer ++ resultInternal()
+  def result(): Seq[CubeDomain] = {
+    resultBuffer ++ resultInternal()
+  }
 
   def resultInternal(): Seq[CubeDomain] = {
-    def computeCubeDomains(
-        weightsAndTreeSizes: mutable.Map[CubeId, CubeInfo]): Seq[CubeDomain] = {
-      val cubeDomainBuilder = Seq.newBuilder[CubeDomain]
-      cubeDomainBuilder.sizeHint(weightsAndTreeSizes.size)
-
-      // Compute cube domain from bottom up
-      val levelCubes = weightsAndTreeSizes.groupBy(_._1.depth)
-      val minLevel = levelCubes.keys.min
-      val maxLevel = levelCubes.keys.max
-
-      (maxLevel until minLevel by -1) foreach { level =>
-        levelCubes(level).foreach { case (cube, CubeInfo(_, treeSize)) =>
-          cube.parent match {
-            case Some(parent) =>
-              val pInfo = weightsAndTreeSizes(parent)
-
-              // Compute cube domain
-              val domain = treeSize / (1d - pInfo.weight)
-              cubeDomainBuilder += (cube.bytes -> domain)
-
-              // Update parent treeSize
-              val updatedTreeSize = pInfo.treeSize + treeSize
-              weightsAndTreeSizes(parent) = pInfo.copy(treeSize = updatedTreeSize)
-            case None =>
-          }
-        }
-      }
-
-      // Top level cube domain = treeSize
-      levelCubes(minLevel).foreach { case (cube, CubeInfo(_, treeSize)) =>
-        cubeDomainBuilder += (cube.bytes -> treeSize)
-      }
-
-      cubeDomainBuilder.result()
-    }
-
     val weights = mutable.Map.empty[CubeId, WeightAndCount]
     while (queue.nonEmpty) {
       val PointWeightAndParent(point, weight, parent) = queue.dequeue()
@@ -147,50 +115,63 @@ class CubeWeightsBuilder protected (
       }
     }
 
-    val weightsAndCubeSizes = weights
-      .map { case (cubeId, weightAndCount) =>
-        val nw =
-          if (weightAndCount.count == groupCubeSize) NormalizedWeight(weightAndCount.weight)
-          else NormalizedWeight(desiredCubeSize, weightAndCount.count)
+    // Convert the information into a Map[CubeId, (NormalizedWeight, Double)]
+    // from which the cube domains are computed.
+    val weightsAndCubeSizes = weights.map { case (cubeId, weightAndCount) =>
+      val nw =
+        if (weightAndCount.count == groupCubeSize) NormalizedWeight(weightAndCount.weight)
+        else NormalizedWeight(desiredCubeSize, weightAndCount.count)
+      cubeId -> new WeightAndTreeSize(nw, weightAndCount.count)
+    }.toMap
 
-        cubeId -> CubeInfo(nw, weightAndCount.count)
-      }
-
-    computeCubeDomains(weightsAndCubeSizes)
+    if (weightsAndCubeSizes.nonEmpty) computeCubeDomains(weightsAndCubeSizes)
+    else Seq.empty[CubeDomain]
   }
 
-//  /**
-//   * Populate cube tree sizes and parent NormalizedWeights for all existing cubes in the tree
-//   * in a bottom-up fashion
-//   * @param cubeMap local tree
-//   * @return
-//   */
-//  def populateTreeSizeAndParentWeight(
-//      cubeMap: mutable.Map[CubeId, CubeInfo]): mutable.Map[CubeId, CubeInfo] = {
-//    // Compute tree sizes and parent weights from bottom up.
-//    val levelCubes = cubeMap.keys.groupBy(_.depth)
-//    val minLevel = levelCubes.keys.min
-//    val maxLevel = levelCubes.keys.max
-//    (maxLevel until minLevel by -1) foreach { level =>
-//      levelCubes(level)
-//        .groupBy(c => c.parent.get)
-//        .foreach { case (parent, siblings) =>
-//          val parentInfo = cubeMap(parent)
-//          siblings.foreach(s => {
-//            val siblingInfo = cubeMap(s)
-//            // Update parent tree size
-//            parentInfo.treeSize += siblingInfo.treeSize
-//            // Update cube parent weight
-//            siblingInfo.parentWeight = parentInfo.parentWeight
-//          })
-//        }
-//    }
-//
-//    // Set parent weight for the top level cubes to 0d
-//    levelCubes(minLevel).foreach(c => cubeMap(c).parentWeight = 0d)
-//
-//    cubeMap
-//  }
+  /**
+   * Compute cube domain from an unpopulated tree, which has cube NormalizedWeight and cube size.
+   * Computation is done from bottom-up, at each step we update the parent tree size with that
+   * of the current cube, and compute cube domain using treeSize / (1d - parentWeight).
+   * @param weightsAndTreeSizes Map containing cube weight and cube size. Cube size is constantly updated
+   *                            to cube tree size before it's used to compute cube domain
+   * @return Map of cube bytes and domain
+   */
+  private def computeCubeDomains(
+      weightsAndTreeSizes: Map[CubeId, WeightAndTreeSize]): Seq[CubeDomain] = {
+    val cubeDomainBuilder = Seq.newBuilder[CubeDomain]
+    cubeDomainBuilder.sizeHint(weightsAndTreeSizes.size)
+
+    // Compute cube domain from bottom-up
+    val levelCubes = weightsAndTreeSizes.keys.groupBy(_.depth)
+    val minLevel = levelCubes.keys.min
+    val maxLevel = levelCubes.keys.max
+
+    (maxLevel until minLevel by -1) foreach { level =>
+      levelCubes(level).foreach(cube => {
+        cube.parent match {
+          case Some(parent) =>
+            val cTreeSize = weightsAndTreeSizes(cube).treeSize
+            val pInfo = weightsAndTreeSizes(parent)
+
+            // Compute cube domain
+            val domain = cTreeSize / (1d - pInfo.weight)
+            cubeDomainBuilder += CubeDomain(cube.bytes, domain)
+
+            // Update parent treeSize
+            pInfo.treeSize += cTreeSize
+          case None =>
+        }
+      })
+    }
+
+    // Top level cube domain = treeSize
+    levelCubes(minLevel).foreach { cube =>
+      val ts = weightsAndTreeSizes(cube).treeSize
+      cubeDomainBuilder += CubeDomain(cube.bytes, ts)
+    }
+
+    cubeDomainBuilder.result()
+  }
 
 }
 
@@ -211,8 +192,11 @@ private class WeightAndCount(var weight: Weight, var count: Int)
  */
 protected case class PointWeightAndParent(point: Point, weight: Weight, parent: Option[CubeId])
 
-case class CubeInfo(weight: NormalizedWeight, treeSize: Double)
-
+/**
+ * Cube bytes and its domain size from a given data partition. A cube's domain size
+ * is defined as the number of records in a partitions that has values that fall within
+ * a cube's space.
+ * @param cubeBytes Array[Byte] unique to a cube
+ * @param domain The number of records in a partition that fit in the said cube
+ */
 case class CubeDomain(cubeBytes: Array[Byte], domain: Double)
-
-case class TreeSizeAndDomain(treeSize: Double, domain: Double)

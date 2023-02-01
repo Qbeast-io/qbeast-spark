@@ -149,11 +149,14 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     val spark = SparkSession.active
     import spark.implicits._
 
-    partitionCubeDomains.groupBy("cubeBytes").agg(sum("domain")).map { row =>
-      val bytes = row.getAs[Array[Byte]](0)
-      val domain = row.getAs[Double](1)
-      (revision.createCubeId(bytes), domain)
-    }
+    partitionCubeDomains
+      .groupBy("cubeBytes")
+      .agg(sum("domain"))
+      .map { row =>
+        val bytes = row.getAs[Array[Byte]](0)
+        val domain = row.getAs[Double](1)
+        (revision.createCubeId(bytes), domain)
+      }
   }
 
   /**

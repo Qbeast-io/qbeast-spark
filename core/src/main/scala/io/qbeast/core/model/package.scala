@@ -11,7 +11,6 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 package object model {
   type NormalizedWeight = Double
   type RevisionID = Long
-  type LocalTree = Map[CubeId, CubeInfo]
 
   /**
    * ReplicatedSet is used to represent a set of CubeId's that had been replicated

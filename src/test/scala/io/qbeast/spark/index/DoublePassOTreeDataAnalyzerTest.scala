@@ -7,9 +7,9 @@ import io.qbeast.core.transform.{HashTransformation, LinearTransformation, Trans
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer.{
   calculateRevisionChanges,
-  computeGlobalDomain,
-  computeLocalTrees,
+  computePartitionCubeDomains,
   estimateCubeWeights,
+  estimateGlobalCubeDomains,
   getDataFrameStats
 }
 import io.qbeast.spark.index.QbeastColumns.weightColumnName
@@ -35,6 +35,17 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     columnsSchema
       .map(field => Transformer(field.name, SparkToQTypesUtils.convertDataTypes(field.dataType)))
       .toIndexedSeq
+  }
+
+  private def checkDecreasingBranchDomain(
+      cube: CubeId,
+      domainMap: Map[CubeId, Double],
+      parentDomain: Double): Boolean = {
+    val cubeDomain = domainMap(cube)
+    cubeDomain < parentDomain && cube.children
+      .filter(domainMap.contains)
+      .forall(c => checkDecreasingBranchDomain(c, domainMap, cubeDomain))
+
   }
 
   it should "calculateRevisionChanges correctly on single column" in withSpark { spark =>
@@ -169,51 +180,46 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
   }
 
-  it should "compute local trees correctly" in withSpark { spark =>
-    val data = createDF(10000, spark)
-    val columnsSchema = data.schema
-    val columnTransformers = createTransformers(columnsSchema)
-
-    val emptyRevision =
-      Revision(0, 1000, QTableID("test"), 1000, columnTransformers, Seq.empty.toIndexedSeq)
-    val dataFrameStats = getDataFrameStats(data.toDF(), columnTransformers)
-    val revision =
-      calculateRevisionChanges(dataFrameStats, emptyRevision).get.createNewRevision
-
-    val indexStatus = IndexStatus(revision, Set.empty)
-
-    val weightedDataFrame =
-      data.withColumn(weightColumnName, lit(scala.util.Random.nextInt()))
-
-    val localTrees =
-      weightedDataFrame
-        .transform(computeLocalTrees(10000, revision, indexStatus, isReplication = false))
-        .collect()
-
-    var dataSize = 0d
-    val root = revision.createCubeIdRoot()
-
-    localTrees.foreach(t => {
-      // Update data size
-      dataSize += t(root).treeSize
-
-      // Root node must be present in all localTrees
-      t.contains(root) shouldBe true
-
-      t.values.foreach(info => {
-        info.parentWeight shouldBe >=(0d)
-        // No node should have empty payload
-        info.treeSize shouldBe >(0d)
-      })
-    })
-
-    // The root nodes should have a treeSizes equal to the size of their corresponding partitions
-    dataSize shouldBe dataFrameStats.getAs[Long]("count")
-  }
-
-  it should "compute global tree size and cube domain correctly" in withSpark { spark =>
+  it should "compute root for all partitions" in withSpark { spark =>
     import spark.implicits._
 
+    // Repartition the data to make sure no empty partitions
+    // The amount of data we have for each partition is much smaller
+    // than the bufferCapacity
+    val data = createDF(100000, spark).repartition(50)
+    val columnsSchema = data.schema
+    val columnTransformers = createTransformers(columnsSchema)
+
+    val emptyRevision =
+      Revision(0, 1000, QTableID("test"), 1000, columnTransformers, Seq.empty.toIndexedSeq)
+    val dataFrameStats = getDataFrameStats(data.toDF(), columnTransformers)
+    val revision =
+      calculateRevisionChanges(dataFrameStats, emptyRevision).get.createNewRevision
+
+    val indexStatus = IndexStatus(revision, Set.empty)
+
+    val weightedDataFrame =
+      data.withColumn(weightColumnName, lit(scala.util.Random.nextInt()))
+
+    val cubeCount =
+      weightedDataFrame
+        .transform(
+          computePartitionCubeDomains(1000, revision, indexStatus, isReplication = false))
+        .groupBy("cubeBytes")
+        .count()
+        .map { row =>
+          val bytes = row.getAs[Array[Byte]](0)
+          val cnt = row.getAs[Long](1)
+          (revision.createCubeId(bytes), cnt)
+        }
+        .collect()
+        .toMap
+
+    val root = revision.createCubeIdRoot()
+    cubeCount(root).toInt shouldBe 50
+  }
+
+  it should "compute cube domains correctly" in withSpark { spark =>
     val data = createDF(10000, spark)
     val columnsSchema = data.schema
     val columnTransformers = createTransformers(columnsSchema)
@@ -222,42 +228,28 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
       Revision(0, 1000, QTableID("test"), 1000, columnTransformers, Seq.empty.toIndexedSeq)
 
     val dataFrameStats = getDataFrameStats(data.toDF(), columnTransformers)
+    val elementCount = dataFrameStats.getAs[Long]("count")
+
     val revision =
       calculateRevisionChanges(dataFrameStats, emptyRevision).get.createNewRevision
 
     val indexStatus = IndexStatus(revision, Set.empty)
+
     val weightedDataFrame =
       data.withColumn(weightColumnName, lit(scala.util.Random.nextInt()))
-    val localTrees =
+
+    val partitionCubeDomains =
       weightedDataFrame
-        .transform(computeLocalTrees(10000, revision, indexStatus, isReplication = false))
+        .transform(
+          computePartitionCubeDomains(elementCount, revision, indexStatus, isReplication = false))
 
-    val globalDomain =
-      computeGlobalDomain(
-        localTrees,
-        isReplication = false,
-        columnTransformers.size,
-        revision.desiredCubeSize).sortBy(_._1)
+    val globalCubeDomains =
+      estimateGlobalCubeDomains(partitionCubeDomains, revision).collect().toMap
 
-    val globalDomainMap = globalDomain.toMap
+    checkDecreasingBranchDomain(revision.createCubeIdRoot(), globalCubeDomains, 0d)
 
-    // Should have the correct number of cubes
-    globalDomain.size shouldBe globalDomainMap.size
-    globalDomainMap.size shouldBe localTrees.flatMap(_.keys).distinct().count()
-
-    // Root should have the correct domain
-    val rootDomain = globalDomainMap(revision.createCubeIdRoot())
-    rootDomain shouldBe dataFrameStats.getAs[Long]("count")
-
-    // treeSize and domain are monotonically decreasing along branches
-    globalDomain.foreach { case (cube, domain) =>
-      // monotonically decreasing tree size and domain
-      cube.children
-        .filter(globalDomain.contains)
-        .foreach(child => {
-          globalDomainMap(child) shouldBe <=(domain)
-        })
-    }
+    // Root should be present in all partitions, its global domain should be the elementCount
+    globalCubeDomains(revision.createCubeIdRoot()).toLong shouldBe elementCount
   }
 
   it should "estimate global NormalizedWeight's correctly" in withSpark { spark =>
@@ -277,31 +269,28 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val weightedDataFrame =
       data.withColumn(weightColumnName, lit(scala.util.Random.nextInt()))
 
-    val localTrees =
+    val partitionCubeDomains =
       weightedDataFrame
-        .transform(computeLocalTrees(10000, revision, indexStatus, isReplication = false))
+        .transform(
+          computePartitionCubeDomains(1000, revision, indexStatus, isReplication = false))
 
-    val globalDomain =
-      computeGlobalDomain(
-        localTrees,
-        isReplication = false,
-        columnTransformers.size,
-        revision.desiredCubeSize)
+    val globalDomain = estimateGlobalCubeDomains(partitionCubeDomains, revision).collect()
 
-    val cubeWeights =
+    val estimatedCubeWeights: Map[CubeId, NormalizedWeight] =
       estimateCubeWeights(globalDomain, indexStatus, isReplication = false)
 
     // Cubes with a weight lager than 1d should not have children
-    val leafCubesByWeight = cubeWeights.filter(cw => cw._2 >= 1d).keys
-    leafCubesByWeight.exists(cube => cube.children.exists(cubeWeights.contains)) shouldBe false
+    val leafCubesByWeight = estimatedCubeWeights.filter(cw => cw._2 >= 1d).keys
+    leafCubesByWeight.exists(cube =>
+      cube.children.exists(estimatedCubeWeights.contains)) shouldBe false
 
-    // Test cubeWeights is monotonically increasing in all branches
-    cubeWeights.toSeq
+    // Test estimatedCubeWeights is monotonically increasing in all branches
+    estimatedCubeWeights.toSeq
       .sortBy(_._1)
       .foreach { case (cube, weight) =>
         cube.children
-          .filter(cubeWeights.contains)
-          .foreach(child => weight < cubeWeights(child))
+          .filter(estimatedCubeWeights.contains)
+          .foreach(child => weight < estimatedCubeWeights(child))
       }
   }
 }
