@@ -153,6 +153,36 @@ In Revision, you can find different information about the tree status and config
 
 In this case, we index columns `user_id` and `product_id` (which are both `Integers`) with a linear transformation. This means that they will not suffer any transformation besides the normalization.
 
+### Staging Revision and ConvertToQbeastCommand
+The introduction of the staging revision enables reading tables in a hybrid `qbeast + delta` state.
+The non-qbeast `AddFile`s are considered as part of this staging revision, all belonging to the root.
+
+Its RevisionID is fixed to `stagingID = 0`, and it has `EmptyTransformer`s and `EmptyTransformation`s.
+It is automatically created during the first write or when overwriting a table using qbeast.
+For a table that is entirely written in `delta` or `parquet`, we can use the `ConvertToQbeastCommand` to create this revision:
+```scala
+import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
+
+val path = "/pathToTable/"
+val tableIdentifier = s"parquet.`$path`"
+val columnsToIndex = Seq("col1", "col2", "col3")
+val desiredCubeSize = 50000
+
+ConvertToQbeastCommand(tableIdentifier, columnsToIndex, desiredCubeSize).run(spark)
+
+val qTable = spark.read.format("qbeast").load(path)
+```
+By doing so, we also enable subsequent appends using either delta or qbeast.
+Conversion on a partitioned table is not supported.
+
+`Compaction` can be performed on the staging revision to group small delta files:
+```scala
+import io.qbeast.spark.QbeastTable
+
+val table = QbeastTable.forPath(spark, "/pathToTable/")
+table.compact(0)
+```
+
 ### State changes in MetaData
 
 **Data de-normalization** is a crucial component behind our multi-dimensional index. Instead of storing an index in a separate tree-like data structure, we reorganize the data and their replications in an `OTree`, whose **hierarchical structure** is the actual index.

@@ -4,19 +4,22 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model.{QTableID, RevisionID, TableChanges}
+import io.qbeast.spark.delta.writer.StatsTracker.registerStatsTrackers
+import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
 import io.qbeast.spark.utils.TagColumns
-import org.apache.spark.sql.delta.actions.{
-  Action,
-  AddFile,
-  FileAction,
-  RemoveFile,
-  SetTransaction
-}
+import org.apache.spark.sql.delta.actions._
 import org.apache.spark.sql.delta.commands.DeltaCommand
 import org.apache.spark.sql.delta.{DeltaLog, DeltaOperations, DeltaOptions, OptimisticTransaction}
+import org.apache.spark.sql.execution.datasources.{
+  BasicWriteJobStatsTracker,
+  WriteJobStatsTracker
+}
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{AnalysisExceptionFactory, SaveMode, SparkSession}
+import org.apache.spark.util.SerializableConfiguration
+
+import scala.collection.mutable.ListBuffer
 
 /**
  * DeltaMetadataWriter is in charge of writing data to a table
@@ -45,11 +48,52 @@ private[delta] case class DeltaMetadataWriter(
     DeltaOperations.Write(mode, None, options.replaceWhere, options.userMetadata)
   }
 
+  /**
+   * Creates an instance of basic stats tracker on the desired transaction
+   * @param txn
+   * @return
+   */
+  private def createStatsTrackers(txn: OptimisticTransaction): Seq[WriteJobStatsTracker] = {
+    val statsTrackers: ListBuffer[WriteJobStatsTracker] = ListBuffer()
+    // Create basic stats trackers to add metrics on the Write Operation
+    val hadoopConf = sparkSession.sessionState.newHadoopConf() // TODO check conf
+    val basicWriteJobStatsTracker = new BasicWriteJobStatsTracker(
+      new SerializableConfiguration(hadoopConf),
+      BasicWriteJobStatsTracker.metrics)
+    txn.registerSQLMetrics(sparkSession, basicWriteJobStatsTracker.driverSideMetrics)
+    statsTrackers.append(basicWriteJobStatsTracker)
+    statsTrackers
+  }
+
   def writeWithTransaction(writer: => (TableChanges, Seq[FileAction])): Unit = {
     deltaLog.withNewTransaction { txn =>
+      // Register metrics to use in the Commit Info
+      val statsTrackers = createStatsTrackers(txn)
+      registerStatsTrackers(statsTrackers)
+      // Execute write
       val (changes, newFiles) = writer
+      // Update Qbeast Metadata (replicated set, revision..)
       val finalActions = updateMetadata(txn, changes, newFiles)
+      // Commit the information to the DeltaLog
       txn.commit(finalActions, deltaOperation)
+    }
+  }
+
+  def updateMetadataWithTransaction(update: => Configuration): Unit = {
+    deltaLog.withNewTransaction { txn =>
+      if (txn.metadata.partitionColumns.nonEmpty) {
+        throw AnalysisExceptionFactory.create(partitionedTableExceptionMsg)
+      }
+
+      val config = update
+      val updatedConfig = config.foldLeft(txn.metadata.configuration) { case (accConf, (k, v)) =>
+        accConf.updated(k, v)
+      }
+      val updatedMetadata = txn.metadata.copy(configuration = updatedConfig)
+
+      val op = DeltaOperations.SetTableProperties(config)
+      txn.updateMetadata(updatedMetadata)
+      txn.commit(Seq.empty, op)
     }
   }
 
@@ -137,7 +181,7 @@ private[delta] case class DeltaMetadataWriter(
       addFiles.map(_.copy(dataChange = !rearrangeOnly)) ++
         deletedFiles.map(_.copy(dataChange = !rearrangeOnly))
     } else {
-      newFiles ++ deletedFiles
+      addFiles ++ deletedFiles
     }
 
     if (isOptimizeOperation) {

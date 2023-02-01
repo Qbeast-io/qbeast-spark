@@ -3,8 +3,10 @@
  */
 package io.qbeast.spark.delta
 
+import io.qbeast.core.model.RevisionUtils.isStaging
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.QbeastMetadataSQL._
+import io.qbeast.spark.utils.State.FLOODED
 import io.qbeast.spark.utils.TagColumns
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.functions.{col, collect_list, lit, min, sum}
@@ -35,11 +37,35 @@ private[delta] class IndexStatusBuilder(
     qbeastSnapshot.loadRevisionBlocks(revision.revisionID)
 
   def build(): IndexStatus = {
+    val cubeStatus =
+      if (isStaging(revision)) stagingCubeStatuses
+      else buildCubesStatuses
+
     IndexStatus(
       revision = revision,
       replicatedSet = replicatedSet,
       announcedSet = announcedSet,
-      cubesStatuses = buildCubesStatuses)
+      cubesStatuses = cubeStatus)
+  }
+
+  def stagingCubeStatuses: SortedMap[CubeId, CubeStatus] = {
+    val root = revision.createCubeIdRoot()
+    val maxWeight = Weight.MaxValue
+    val blocks = revisionFiles
+      .collect()
+      .map(addFile =>
+        QbeastBlock(
+          addFile.path,
+          revision.revisionID,
+          Weight.MinValue,
+          maxWeight,
+          FLOODED,
+          0,
+          addFile.size,
+          addFile.modificationTime))
+      .toIndexedSeq
+
+    SortedMap(root -> CubeStatus(root, maxWeight, maxWeight.fraction, blocks))
   }
 
   /**

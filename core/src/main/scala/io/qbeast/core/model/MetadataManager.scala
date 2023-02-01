@@ -8,6 +8,7 @@ import io.qbeast.IISeq
  * @tparam FileDescriptor type of file descriptor
  */
 trait MetadataManager[DataSchema, FileDescriptor] {
+  type Configuration = Map[String, String]
 
   /**
    * Gets the Snapshot for a given table
@@ -32,6 +33,16 @@ trait MetadataManager[DataSchema, FileDescriptor] {
    */
   def updateWithTransaction(tableID: QTableID, schema: DataSchema, append: Boolean)(
       writer: => (TableChanges, IISeq[FileDescriptor])): Unit
+
+  /**
+   * Updates the table metadata by overwriting the metadata configurations
+   * with the provided key-value pairs.
+   * @param tableID QTableID
+   * @param schema table schema
+   * @param update configurations used to overwrite the existing metadata
+   */
+  def updateMetadataWithTransaction(tableID: QTableID, schema: DataSchema)(
+      update: => Configuration): Unit
 
   /**
    * Updates the Revision with the given RevisionChanges

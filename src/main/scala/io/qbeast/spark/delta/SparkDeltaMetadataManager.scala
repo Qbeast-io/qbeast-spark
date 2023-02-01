@@ -4,11 +4,11 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.IISeq
-import io.qbeast.core.model.{MetadataManager, _}
-import org.apache.spark.sql.{SaveMode, SparkSession}
-import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions}
+import io.qbeast.core.model._
 import org.apache.spark.sql.delta.actions.FileAction
+import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions}
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.{SaveMode, SparkSession}
 
 /**
  * Spark+Delta implementation of the MetadataManager interface
@@ -24,6 +24,18 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction]
       new DeltaOptions(Map("path" -> tableID.id), SparkSession.active.sessionState.conf)
     val metadataWriter = DeltaMetadataWriter(tableID, mode, deltaLog, options, schema)
     metadataWriter.writeWithTransaction(writer)
+  }
+
+  override def updateMetadataWithTransaction(tableID: QTableID, schema: StructType)(
+      update: => Configuration): Unit = {
+    val deltaLog = loadDeltaQbeastLog(tableID).deltaLog
+    val options =
+      new DeltaOptions(Map("path" -> tableID.id), SparkSession.active.sessionState.conf)
+
+    val metadataWriter =
+      DeltaMetadataWriter(tableID, mode = SaveMode.Append, deltaLog, options, schema)
+
+    metadataWriter.updateMetadataWithTransaction(update)
   }
 
   override def loadSnapshot(tableID: QTableID): DeltaQbeastSnapshot = {

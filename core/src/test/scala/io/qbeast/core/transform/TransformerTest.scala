@@ -1,8 +1,9 @@
 package io.qbeast.core.transform
 
-import io.qbeast.core.model.{DateDataType, IntegerDataType, TimestampDataType}
+import io.qbeast.core.model.{DateDataType, IntegerDataType, StringDataType, TimestampDataType}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
 import java.sql.{Date, Timestamp}
 
 class TransformerTest extends AnyFlatSpec with Matchers {
@@ -93,5 +94,15 @@ class TransformerTest extends AnyFlatSpec with Matchers {
     }
 
     transformer.maybeUpdateTransformation(currentTransformation, transformation) shouldBe None
+  }
+
+  "An EmptyTransformer" should "create an EmptyTransformation without stats" in {
+    EmptyTransformer.transformerSimpleName shouldBe "empty"
+
+    val colName = "a"
+    val transformer = EmptyTransformer(colName, StringDataType)
+
+    val transformation = transformer.makeTransformation(r => r)
+    transformation shouldBe a[EmptyTransformation]
   }
 }

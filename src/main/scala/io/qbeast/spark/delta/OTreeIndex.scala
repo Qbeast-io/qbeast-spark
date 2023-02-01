@@ -4,17 +4,18 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model.QbeastBlock
+import io.qbeast.core.model.RevisionUtils.stagingID
 import io.qbeast.spark.index.query.{QueryExecutor, QuerySpecBuilder}
 import org.apache.hadoop.fs.{FileStatus, Path}
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{Expression, GenericInternalRow}
-import org.apache.spark.sql.delta.Snapshot
+import org.apache.spark.sql.delta.{DeltaLog, Snapshot}
+import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.files.TahoeLogFileIndex
 import org.apache.spark.sql.execution.datasources.{FileIndex, PartitionDirectory}
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.SparkSession
 
 import java.net.URI
-import org.apache.spark.sql.delta.DeltaLog
 
 /**
  * FileIndex to prune files
@@ -49,11 +50,28 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
     queryExecutor.execute()
   }
 
+  /**
+   * Collect Staging AddFiles from _delta_log and convert them into FileStatuses.
+   * The output is merged with those built from QbeastBlocks.
+   * @return
+   */
+  private def stagingFiles: Seq[FileStatus] = {
+    qbeastSnapshot.loadRevisionBlocks(stagingID).collect().map { a: AddFile =>
+      new FileStatus(
+        /* length */ a.size,
+        /* isDir */ false,
+        /* blockReplication */ 0,
+        /* blockSize */ 1,
+        /* modificationTime */ a.modificationTime,
+        absolutePath(a.path))
+    }
+  }
+
   override def listFiles(
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
 
-    val fileStats = matchingBlocks(partitionFilters, dataFilters).map { qbeastBlock =>
+    val qbeastFileStats = matchingBlocks(partitionFilters, dataFilters).map { qbeastBlock =>
       new FileStatus(
         /* length */ qbeastBlock.size,
         /* isDir */ false,
@@ -62,6 +80,8 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
         /* modificationTime */ qbeastBlock.modificationTime,
         absolutePath(qbeastBlock.path))
     }.toArray
+    val stagingStats = stagingFiles
+    val fileStats = qbeastFileStats ++ stagingStats
 
     Seq(PartitionDirectory(new GenericInternalRow(Array.empty[Any]), fileStats))
 
@@ -80,12 +100,6 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
   override def partitionSchema: StructType = index.partitionSchema
 }
 
-/**
- * Object OTreeIndex to create a new OTreeIndex
- * @param sparkSession the spark session
- * @param path the path to the delta log
- * @return the OTreeIndex
- */
 object OTreeIndex {
 
   def apply(spark: SparkSession, path: Path): OTreeIndex = {

@@ -4,6 +4,7 @@
 package io.qbeast.spark.delta.writer
 
 import io.qbeast.IISeq
+import io.qbeast.core.model.RevisionUtils.isStaging
 import io.qbeast.core.model.{CubeId, QTableID, QbeastBlock, TableChanges, Weight}
 import io.qbeast.spark.utils.{State, TagUtils}
 import org.apache.hadoop.fs.Path
@@ -59,13 +60,17 @@ case class Compactor(
     val revision = tableChanges.updatedRevision
 
     // Update the tags of the block with the information of the cubeBlocks
-    val tags: Map[String, String] = Map(
-      TagUtils.cube -> cubeId.string,
-      TagUtils.minWeight -> minWeight.value.toString,
-      TagUtils.maxWeight -> maxWeight.value.toString,
-      TagUtils.state -> state,
-      TagUtils.revision -> revision.revisionID.toString,
-      TagUtils.elementCount -> elementCount.toString)
+    val tags: Map[String, String] =
+      if (isStaging(revision)) null
+      else {
+        Map(
+          TagUtils.cube -> cubeId.string,
+          TagUtils.minWeight -> minWeight.value.toString,
+          TagUtils.maxWeight -> maxWeight.value.toString,
+          TagUtils.state -> state,
+          TagUtils.revision -> revision.revisionID.toString,
+          TagUtils.elementCount -> elementCount.toString)
+      }
 
     val writtenPath = new Path(tableID.id, s"${UUID.randomUUID()}.parquet")
     val writer: OutputWriter = factory.newInstance(
@@ -93,7 +98,7 @@ case class Compactor(
       partitionValues = Map(),
       size = fileStatus.getLen,
       modificationTime = fileStatus.getModificationTime,
-      dataChange = true,
+      dataChange = false,
       stats = "",
       tags = tags)
 

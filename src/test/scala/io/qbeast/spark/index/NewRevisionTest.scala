@@ -3,13 +3,13 @@
  */
 package io.qbeast.spark.index
 
+import io.qbeast.TestClasses._
 import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
 import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import io.qbeast.TestClasses._
 
 class NewRevisionTest
     extends AnyFlatSpec
@@ -42,7 +42,8 @@ class NewRevisionTest
       val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
       val spaceRevisions = qbeastSnapshot.loadAllRevisions
 
-      spaceRevisions.size shouldBe spaceMultipliers.length
+      // Including the staging revision
+      spaceRevisions.size shouldBe spaceMultipliers.length + 1
 
   }
 
@@ -121,7 +122,8 @@ class NewRevisionTest
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
       val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
 
-      qbeastSnapshot.loadAllRevisions.length shouldBe 2
+      // Including the staging revision
+      qbeastSnapshot.loadAllRevisions.size shouldBe 3
       qbeastSnapshot.loadLatestRevision.desiredCubeSize shouldBe cubeSize2
     })
 
