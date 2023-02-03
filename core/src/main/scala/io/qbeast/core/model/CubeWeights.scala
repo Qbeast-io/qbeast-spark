@@ -61,8 +61,6 @@ class CubeWeightsBuilder protected (
       bufferCapacity,
       indexStatus.replicatedOrAnnouncedSet)
 
-  private class WeightAndTreeSize(var weight: NormalizedWeight, var treeSize: Double)
-
   private val byWeight = Ordering.by[PointWeightAndParent, Weight](_.weight).reverse
   protected val queue = new mutable.PriorityQueue[PointWeightAndParent]()(byWeight)
   private var resultBuffer = Seq.empty[CubeDomain]
@@ -79,21 +77,30 @@ class CubeWeightsBuilder protected (
   def update(point: Point, weight: Weight, parent: Option[CubeId] = None): CubeWeightsBuilder = {
     queue.enqueue(PointWeightAndParent(point, weight, parent))
     if (queue.size >= bufferCapacity) {
-      resultBuffer = resultBuffer ++ resultInternal()
+      resultBuffer ++= resultInternal()
     }
     this
   }
 
   /**
-   * Builds the resulting cube weights sequence.
+   * Builds the resulting cube domain sequence.
    *
-   * @return the resulting cube weights map
+   * @return the resulting cube domain map
    */
   def result(): Seq[CubeDomain] = {
     resultBuffer ++ resultInternal()
   }
 
   def resultInternal(): Seq[CubeDomain] = {
+    val weightAndSize = computeWeightsAndSizes()
+    if (weightAndSize.nonEmpty) computeCubeDomains(weightAndSize)
+    else Seq.empty[CubeDomain]
+  }
+
+  /**
+   * Compute OTree cube weights and sizes.
+   */
+  private def computeWeightsAndSizes(): Map[CubeId, WeightAndTreeSize] = {
     val weights = mutable.Map.empty[CubeId, WeightAndCount]
     while (queue.nonEmpty) {
       val PointWeightAndParent(point, weight, parent) = queue.dequeue()
@@ -115,25 +122,24 @@ class CubeWeightsBuilder protected (
       }
     }
 
-    // Convert the information into a Map[CubeId, (NormalizedWeight, Double)]
-    // from which the cube domains are computed.
-    val weightsAndCubeSizes = weights.map { case (cubeId, weightAndCount) =>
+    // Convert cube Weight and size into a Map[CubeId, (NormalizedWeight, Double)] from which
+    // the cube domains are computed.
+    weights.map { case (cubeId, weightAndCount) =>
       val nw =
         if (weightAndCount.count == groupCubeSize) NormalizedWeight(weightAndCount.weight)
         else NormalizedWeight(desiredCubeSize, weightAndCount.count)
+
       cubeId -> new WeightAndTreeSize(nw, weightAndCount.count)
     }.toMap
 
-    if (weightsAndCubeSizes.nonEmpty) computeCubeDomains(weightsAndCubeSizes)
-    else Seq.empty[CubeDomain]
   }
 
   /**
    * Compute cube domain from an unpopulated tree, which has cube NormalizedWeight and cube size.
-   * Computation is done from bottom-up, at each step we update the parent tree size with that
-   * of the current cube, and compute cube domain using treeSize / (1d - parentWeight).
-   * @param weightsAndTreeSizes Map containing cube weight and cube size. Cube size is constantly updated
-   *                            to cube tree size before it's used to compute cube domain
+   * Done in a bottom-up, updating at each step the parent tree size with that of the current cube,
+   * and compute cube domain using treeSize / (1d - parentWeight).
+   * @param weightsAndTreeSizes NormalizedWeight and size for each cube. Cube size is constantly
+   *                            updated to reach tree size before it's used to compute cube domain
    * @return Map of cube bytes and domain
    */
   private def computeCubeDomains(
@@ -166,8 +172,8 @@ class CubeWeightsBuilder protected (
 
     // Top level cube domain = treeSize
     levelCubes(minLevel).foreach { cube =>
-      val ts = weightsAndTreeSizes(cube).treeSize
-      cubeDomainBuilder += CubeDomain(cube.bytes, ts)
+      val domain = weightsAndTreeSizes(cube).treeSize
+      cubeDomainBuilder += CubeDomain(cube.bytes, domain)
     }
 
     cubeDomainBuilder.result()
@@ -193,9 +199,18 @@ private class WeightAndCount(var weight: Weight, var count: Int)
 protected case class PointWeightAndParent(point: Point, weight: Weight, parent: Option[CubeId])
 
 /**
- * Cube bytes and its domain size from a given data partition. A cube's domain size
- * is defined as the number of records in a partitions that has values that fall within
- * a cube's space.
+ * NormalizedWeight and tree size of a given cube, with tree size defined as the
+ * sum of its own payload and all that of its descendents. The tree size is
+ * initialized with cube size and updated to the tree size during computation
+ * before being used.
+ * @param weight NormalizedWeight
+ * @param treeSize Cube tree size
+ */
+protected class WeightAndTreeSize(val weight: NormalizedWeight, var treeSize: Double)
+
+/**
+ * Cube bytes and its domain size from a given data partition, with domain defined as
+ * the number of records in a partition that has values within a cube's space limits.
  * @param cubeBytes Array[Byte] unique to a cube
  * @param domain The number of records in a partition that fit in the said cube
  */

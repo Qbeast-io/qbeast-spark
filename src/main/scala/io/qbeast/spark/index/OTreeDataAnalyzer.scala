@@ -143,6 +143,12 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
     }
 
+  /**
+   * Aggregate partition cube domains to obtain global domains
+   * @param partitionCubeDomains cubeBytes-domain pairs from all partitions
+   * @param revision current index revision
+   * @return A Map of domain value for all unique CubeIds
+   */
   private[index] def estimateGlobalCubeDomains(
       partitionCubeDomains: Dataset[CubeDomain],
       revision: Revision): Dataset[(CubeId, Double)] = {
@@ -177,8 +183,8 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
   /**
    * Populate global NormalizedWeights in a top-down fashion using cube domains:
-   * Wc = Wpc + desiredCubeSize / domain. When domain is <= desiredCubeSize, we
-   * force the cube to be a leaf.
+   * Wc = Wpc + desiredCubeSize / domain. When domain smaller than or equal to
+   * desiredCubeSize, we force the cube to be a leaf.
    * @param globalDomain cube domain from the entire dataset
    * @param indexStatus existing Cube NormalizedWeights
    * @param isReplication whether the current process is a replication process
@@ -194,29 +200,27 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     val levelCubes = globalDomain.groupBy(_._1.depth)
     val (minLevel, maxLevel) = (levelCubes.keys.min, levelCubes.keys.max)
 
-    (minLevel to maxLevel).foreach(level => {
+    (minLevel to maxLevel).foreach { level =>
       levelCubes(level)
         .filterNot(cd => skipCube(cd._1, cubeNormalizedWeights, isReplication))
         .foreach { case (cube, domain) =>
           val normalizedWeight =
-            if (!isReplication && domain <= desiredCubeSize) {
+            if (domain <= desiredCubeSize && !isReplication) {
               NormalizedWeight.apply(desiredCubeSize, domain.toLong)
             } else {
-              val parentGlobalWeight = cube.parent match {
+              val parentWeight = cube.parent match {
                 case None => 0d
                 case Some(parent) =>
-                  if (isReplication && !cubeNormalizedWeights.contains(parent)) {
-                    indexStatus.cubesStatuses(parent).normalizedWeight
-                  } else {
+                  if (cubeNormalizedWeights.contains(parent) && !isReplication) {
                     cubeNormalizedWeights(parent)
-                  }
+                  } else indexStatus.cubesStatuses(parent).normalizedWeight
               }
-              parentGlobalWeight + (desiredCubeSize / domain)
+              parentWeight + (desiredCubeSize / domain)
             }
 
           cubeNormalizedWeights += (cube -> normalizedWeight)
         }
-    })
+    }
 
     cubeNormalizedWeights
   }

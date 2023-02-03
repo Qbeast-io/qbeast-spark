@@ -5,13 +5,7 @@ import io.qbeast.TestClasses._
 import io.qbeast.core.model._
 import io.qbeast.core.transform.{HashTransformation, LinearTransformation, Transformer}
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer.{
-  calculateRevisionChanges,
-  computePartitionCubeDomains,
-  estimateCubeWeights,
-  estimateGlobalCubeDomains,
-  getDataFrameStats
-}
+import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer._
 import io.qbeast.spark.index.QbeastColumns.weightColumnName
 import io.qbeast.spark.utils.SparkToQTypesUtils
 import org.apache.spark.sql.functions._
@@ -24,7 +18,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
   private def createDF(size: Int, spark: SparkSession): Dataset[T3] = {
     import spark.implicits._
 
-    0.to(size)
+    1.to(size)
       .map(i => T3(i, i.toDouble, i.toString, i.toFloat))
       .toDF()
       .as[T3]
@@ -45,7 +39,6 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     cubeDomain < parentDomain && cube.children
       .filter(domainMap.contains)
       .forall(c => checkDecreasingBranchDomain(c, domainMap, cubeDomain))
-
   }
 
   it should "calculateRevisionChanges correctly on single column" in withSpark { spark =>
@@ -180,6 +173,20 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
   }
 
+  it should "not compute weight for descendent of leaf cubes" in {
+    val c0 = CubeId.root(2)
+    val c1 = c0.firstChild
+    val c2 = c1.firstChild
+
+    skipCube(c0, Map.empty, isReplication = false) shouldBe false
+
+    skipCube(c1, Map(c0 -> 0.9), isReplication = false) shouldBe false
+
+    skipCube(c2, Map(c0 -> 0.9, c1 -> 1d), isReplication = false) shouldBe true
+
+    skipCube(c2, Map(c0 -> 0.9, c1 -> 1d), isReplication = true) shouldBe false
+  }
+
   it should "compute root for all partitions" in withSpark { spark =>
     import spark.implicits._
 
@@ -246,7 +253,11 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val globalCubeDomains =
       estimateGlobalCubeDomains(partitionCubeDomains, revision).collect().toMap
 
-    checkDecreasingBranchDomain(revision.createCubeIdRoot(), globalCubeDomains, 0d)
+    // Cube domains should monotonically decrease
+    checkDecreasingBranchDomain(
+      revision.createCubeIdRoot(),
+      globalCubeDomains,
+      10001d) shouldBe true
 
     // Root should be present in all partitions, its global domain should be the elementCount
     globalCubeDomains(revision.createCubeIdRoot()).toLong shouldBe elementCount
