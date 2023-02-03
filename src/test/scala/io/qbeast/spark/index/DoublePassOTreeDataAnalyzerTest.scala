@@ -18,7 +18,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
   private def createDF(size: Int, spark: SparkSession): Dataset[T3] = {
     import spark.implicits._
 
-    1.to(size)
+    0.to(size)
       .map(i => T3(i, i.toDouble, i.toString, i.toFloat))
       .toDF()
       .as[T3]
@@ -257,7 +257,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     checkDecreasingBranchDomain(
       revision.createCubeIdRoot(),
       globalCubeDomains,
-      10001d) shouldBe true
+      10002d) shouldBe true
 
     // Root should be present in all partitions, its global domain should be the elementCount
     globalCubeDomains(revision.createCubeIdRoot()).toLong shouldBe elementCount

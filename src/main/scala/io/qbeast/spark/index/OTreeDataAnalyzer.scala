@@ -211,9 +211,9 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
               val parentWeight = cube.parent match {
                 case None => 0d
                 case Some(parent) =>
-                  if (cubeNormalizedWeights.contains(parent) && !isReplication) {
-                    cubeNormalizedWeights(parent)
-                  } else indexStatus.cubesStatuses(parent).normalizedWeight
+                  if (isReplication && !cubeNormalizedWeights.contains(parent)) {
+                    indexStatus.cubesStatuses(parent).normalizedWeight
+                  } else cubeNormalizedWeights(parent)
               }
               parentWeight + (desiredCubeSize / domain)
             }
