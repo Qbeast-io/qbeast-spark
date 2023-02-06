@@ -98,32 +98,37 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
       }
   }
 
-  "Metrics" should "return index metrics" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
-    {
-      val data = createDF(spark)
-      val columnsToIndex = Seq("age", "val2")
-      val cubeSize = 100
-      writeTestData(data, columnsToIndex, cubeSize, tmpDir)
+  "getIndexMetrics" should "return index metrics" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      {
+        val data = createDF(spark)
+        val columnsToIndex = Seq("age", "val2")
+        val cubeSize = 100
+        writeTestData(data, columnsToIndex, cubeSize, tmpDir)
 
-      val metrics = QbeastTable.forPath(spark, tmpDir).getIndexMetrics()
-      val details = metrics.nonLeafCubeSizeDetails
+        val metrics = QbeastTable.forPath(spark, tmpDir).getIndexMetrics()
+        val cubeSizeMetrics = metrics.innerCubeSizeMetrics
 
-      // scalastyle:off println
-      println(metrics)
-      // scalastyle:on
+        // scalastyle:off println
+        println(metrics)
+        // scalastyle:on
 
-      metrics.elementCount shouldBe data.count()
-      metrics.dimensionCount shouldBe columnsToIndex.size
-      metrics.desiredCubeSize shouldBe cubeSize
-      // If the tree has any inner node, avgFanout cannot be < 1.0
-      metrics.avgFanout shouldBe >=(1.0)
+        metrics.elementCount shouldBe 1001
+        metrics.dimensionCount shouldBe columnsToIndex.size
+        metrics.desiredCubeSize shouldBe cubeSize
+        // If the tree has any inner node, avgFanout cannot be < 1.0
+        metrics.avgFanout shouldBe >=(1.0)
+        metrics.indexingColumns shouldBe columnsToIndex.mkString(",")
 
-      details.min shouldBe <=(details.firstQuartile)
-      details.firstQuartile shouldBe <=(details.secondQuartile)
-      details.secondQuartile shouldBe <=(details.thirdQuartile)
-      details.thirdQuartile shouldBe <=(details.max)
+        cubeSizeMetrics.min shouldBe <=(cubeSizeMetrics.firstQuartile)
+        cubeSizeMetrics.firstQuartile shouldBe <=(cubeSizeMetrics.secondQuartile)
+        cubeSizeMetrics.secondQuartile shouldBe <=(cubeSizeMetrics.thirdQuartile)
+        cubeSizeMetrics.thirdQuartile shouldBe <=(cubeSizeMetrics.max)
 
-    }
+        // scalastyle:off println
+        println(metrics.leafCubeSizeMetrics)
+        // scalastyle:on
+      }
   }
 
   it should "single cube tree correctly" in
