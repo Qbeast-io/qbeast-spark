@@ -41,9 +41,9 @@ qbeastTable.compact() // compacts small files into bigger ones
 
 ## Index Metrics
 
-`IndexMetrics` is a **case class** implemented to retrieve information about your table's **OTree index**.
+`IndexMetrics` aims to provide an overview for a given revision of the index.
 
-You can use it to **compare the index** build **with different indexing parameters** such as the `desiredCubeSize` and `columnsToIndex`.
+You can use it during development to compare different indexes built using different indexing parameters such as the `desiredCubeSize` and `columnsToIndex`.
 
 This is meant to be used as an easy access point to analyze the resulting index, which should come handy for comparing different index parameters or even implementations.
 
@@ -51,52 +51,61 @@ This is meant to be used as an easy access point to analyze the resulting index,
 val metrics = qbeastTable.getIndexMetrics()
 
 println(metrics)
+```
 
+```
 // EXAMPLE OUTPUT
 
-Tree Index Metrics:
-dimensionCount: 3
+OTree Index Metrics:
+dimensionCount: 2
 elementCount: 2879966589
-depth: 7
-cubeCount: 22217
+depth: 8
+cubeCount: 13141
 desiredCubeSize: 500000
-avgFan0ut: 8.0
-depthOnBalance: 1.4740213633300192
+indexingColumns: ss_sold_date_sk,ss_item_sk
+avgFanout: 4.0
+depthOnBalance: 1.206019253488489
 
-Non-Leaf Cube Size Stats
-Quantiles:
-- min: 482642
-- 1stQ: 542859
-- 2ndQ: 557161
-- 3rdQ: 576939
-- max: 633266
-- dev(l1, l2): (0.11743615196254953, 0.0023669553335121983)
-
-(level, average weight, average cube size):
-(0, (1.6781478192839184E-4,482642))
-(1, (0.001726577786432248,550513))
-(2, (0.014704148241220776,566831))
-(3, (0.1260420146029599,570841))
-(4, (0.7243052757165773, 557425))
-(5, (0.4040913470739245,527043))
-(6, (0.8873759316622165, 513460))
+Cubes size stats:
+Quartiles:
+- min: 456367
+- 1stQ: 498510
+- 2ndQ: 499954
+- 3rdQ: 501410
+- max: 536430
+Stats:
+- count: 3285
+- l1_dev: 0.00449603896499239
+- l2_dev: 1.3487574366807247E-4
+Level-wise stats:
+level, avgCubeSize, stdCubeSize, cubeCount, avgWeight:
+- 0:	497810,		4442,		1,	1.7361319627929786E-4
+- 1:	494798,		6480,		4,	8.689350799817908E-4
+- 2:	499781,		3871,		16,	0.003668841950401859
+- 3:	500516,		3899,		64,	0.015534089088738918
+- 4:	500289,		3876,		256,	0.06698862054431544
+- 5:	499966,		3865,		1024,	0.287867372830027
+- 6:	499962,		3865,		1792,	0.6729941083529944
+- 7:	500142,		3867,		128,	0.7959112180321912
 ```
 
 ## Metrics
 ### 1. General index metadata:
 
-- **dimensionCount**: the number of dimensions (indexed columns) in the index.
-- **elementCount**: the number of rows in the table.
-- **desiredCubeSize**: the desired cube size chosen at the moment of indexing.
-- **Number of cubes**: the number of nodes in the index tree.
-- **depth**: the number of levels in the tree.
-- **avgFanOut**: the average number of children per non-leaf cube. The max value for this metrics is `2 ^ dimensionCount`.
-- **depthOnBalance**: how far the depth of the tree is to the theoretical value if we were to have the same number of cubes and max fan out.
+- **dimensionCount**: the number of dimensions (indexed columns) in the index
+- **elementCount**: the number of records for this revision
+- **desiredCubeSize**: the desired cube size chosen at the moment of indexing
+- **Number of cubes**: the number of nodes in the index tree
+- **depth**: the number of levels in the tree
+- **avgFanOut**: the average number of children per non-leaf cube. The max value for this metrics is `2 ^ dimensionCount`
+- **depthOnBalance**: how far the depth of the tree is from the theoretical value, assuming all inner cubes have max fan out
+- **indexingColumns**: the indexing column names
 
-### 2. Cube sizes for non-leaf cubes:
-`Non-leaf cube size stats` is meant to describe the distribution of inner cube sizes:
+### 2. Cube sizes stats:
+Meant to describe the distribution of cube sizes:
+- `metrics.innerCubeSizeMetrics` for inner cubes. `metrics.leafCubeSizeMetrics` for leaf cubes
 - **min**, **max**, **quartiles**, and how far the cube sizes are from the `desiredCubeSize`(**l1 and l2 error**).
-- The average normalizedWeight and cube size per level.
+- The average normalizedWeight, cube size, count, and standard deviation per level.
 
 ### 3. `Map[CubeId, CubeStatus]`
-- More information can be extracted from the index tree through `metrics.cubeStatuses`.
+- More information can be extracted from the index tree through `metrics.cubeStatuses`

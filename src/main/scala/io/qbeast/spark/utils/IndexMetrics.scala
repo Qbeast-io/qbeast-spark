@@ -78,6 +78,7 @@ case class CubeSizeMetrics(
        |- count: $count
        |- l1_dev: $l1_dev
        |- l2_dev: $l2_dev
+       |Level-wise stats:
        |$levelStats
        |""".stripMargin
   }
@@ -95,7 +96,7 @@ object CubeSizeMetrics {
       val l1_dev = l1Deviation(cubeSizes, desiredCubeSize)
       val l2_dev = l2Deviation(cubeSizes, desiredCubeSize)
 
-      val levelStats = "\n(level, avgWeight, avgCubeSize, stdCubeSize, cubeCount):\n" +
+      val levelStats = "level, avgCubeSize, stdCubeSize, cubeCount, avgWeight:\n" +
         cubeStatuses
           .groupBy(cs => cs._1.depth)
           .toSeq
@@ -105,7 +106,7 @@ object CubeSizeMetrics {
             val avgWeight = m.values.map(_.normalizedWeight).sum / cnt
             val cubeSizeSum = m.values.map(_.files.map(_.elementCount).sum).sum
             val avgCubeSize = cubeSizeSum / cnt
-            s"- $level:\t $avgWeight, $avgCubeSize, ${std(cubeSizes, avgCubeSize)}, $cnt"
+            s"- $level:\t$avgCubeSize,\t\t${std(cubeSizes, avgCubeSize)},\t\t$cnt,\t$avgWeight"
           }
           .mkString("\n")
 
