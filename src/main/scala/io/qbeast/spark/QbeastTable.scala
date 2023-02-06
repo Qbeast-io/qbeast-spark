@@ -6,6 +6,7 @@ package io.qbeast.spark
 import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.RevisionUtils.isStaging
 import io.qbeast.core.model.{CubeId, CubeStatus, QTableID, RevisionID}
+import io.qbeast.spark.MathOps.{depthOnBalance, l1Deviation, l2Deviation, std}
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.commands.{
   AnalyzeTableCommand,
@@ -109,7 +110,10 @@ class QbeastTable private (
   }
 
   def getIndexMetrics(revisionID: Option[RevisionID] = None): IndexMetrics = {
-    val allCubeStatuses = qbeastSnapshot.loadLatestIndexStatus.cubesStatuses
+    val allCubeStatuses = revisionID match {
+      case Some(id) => qbeastSnapshot.loadIndexStatus(id).cubesStatuses
+      case None => qbeastSnapshot.loadLatestIndexStatus.cubesStatuses
+    }
 
     val cubeCount = allCubeStatuses.size
     val depth = if (cubeCount == 0) 0 else allCubeStatuses.map(_._1.depth).max
@@ -132,21 +136,10 @@ class QbeastTable private (
       details)
   }
 
-  private def logOfBase(base: Int, value: Double): Double = {
-    math.log10(value) / math.log10(base)
-  }
-
-  private def depthOnBalance(depth: Int, cubeCount: Int, dimensionCount: Int): Double = {
-    val c = math.pow(2, dimensionCount).toInt
-    val theoreticalDepth = logOfBase(c, 1 - cubeCount * (1 - c)) - 1
-    depth / theoreticalDepth
-  }
-
   private def getInnerCubeSizeDetails(
       cubeStatuses: SortedMap[CubeId, CubeStatus],
       desiredCubeSize: Int): (Double, NonLeafCubeSizeDetails) = {
-    val innerCubeStatuses =
-      cubeStatuses.filter(_._1.children.exists(cubeStatuses.contains))
+    val innerCubeStatuses = cubeStatuses.filterKeys(_.children.exists(cubeStatuses.contains))
     val innerCubeSizes =
       innerCubeStatuses.values.map(_.files.map(_.elementCount).sum).toSeq.sorted
     val innerCubeCount = innerCubeSizes.size.toDouble
@@ -159,22 +152,17 @@ class QbeastTable private (
       if (innerCubeCount == 0) {
         NonLeafCubeSizeDetails(0, 0, 0, 0, 0, 0, 0, "")
       } else {
-        val l1_dev = innerCubeSizes
-          .map(cs => math.abs(cs - desiredCubeSize))
-          .sum / innerCubeCount / desiredCubeSize
-
-        val l2_dev = math.sqrt(
-          innerCubeSizes
-            .map(cs => (cs - desiredCubeSize) * (cs - desiredCubeSize))
-            .sum) / innerCubeCount / desiredCubeSize
+        val l1_dev = l1Deviation(innerCubeSizes, desiredCubeSize)
+        val l2_dev = l2Deviation(innerCubeSizes, desiredCubeSize)
 
         val levelStats = "\n(level, average weight, average cube size):\n" +
           innerCubeStatuses
-            .groupBy(cw => cw._1.depth)
+            .groupBy(cs => cs._1.depth)
             .mapValues { m =>
               val weights = m.values.map(_.normalizedWeight)
-              val elementCounts = m.values.map(_.files.map(_.elementCount).sum)
-              (weights.sum / weights.size, elementCounts.sum / elementCounts.size)
+              val elementCounts = m.values.map(_.files.map(_.elementCount).sum).toSeq
+              val mean = elementCounts.sum / elementCounts.size
+              (weights.sum / weights.size, mean, std(elementCounts, mean))
             }
             .toSeq
             .sortBy(_._1)
@@ -301,6 +289,35 @@ case class IndexMetrics(
        |depthOnBalance: $depthOnBalance
        |\n$nonLeafCubeSizeDetails
        |""".stripMargin
+  }
+
+}
+
+object MathOps {
+
+  def depthOnBalance(depth: Int, cubeCount: Int, dimensionCount: Int): Double = {
+    val c = math.pow(2, dimensionCount).toInt
+    val theoreticalDepth = logOfBase(c, 1 - cubeCount * (1 - c)) - 1
+    depth / theoreticalDepth
+  }
+
+  def logOfBase(base: Int, value: Double): Double = {
+    math.log10(value) / math.log10(base)
+  }
+
+  def l1Deviation(nums: Seq[Long], target: Int): Double =
+    nums
+      .map(num => math.abs(num - target))
+      .sum / nums.size.toDouble / target
+
+  def l2Deviation(nums: Seq[Long], target: Int): Double =
+    math.sqrt(
+      nums
+        .map(num => (num - target) * (num - target))
+        .sum) / nums.size.toDouble / target
+
+  def std(nums: Seq[Long], mean: Long): Long = {
+    math.sqrt(nums.map(n => (n - mean) * (n - mean)).sum / nums.size.toDouble).toLong
   }
 
 }
