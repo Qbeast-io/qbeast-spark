@@ -146,7 +146,23 @@ private[table] class IndexedTableImpl(
       latestIndexStatus: IndexStatus): Boolean = {
     // TODO feature: columnsToIndex may change between revisions
     checkColumnsToMatchSchema(latestIndexStatus)
-    latestIndexStatus.revision.desiredCubeSize == qbeastOptions.cubeSize
+    val rewritingStats =
+      if (qbeastOptions.stats.isEmpty) false
+      else {
+        val transformations = latestIndexStatus.revision.transformations
+        val rowStats = qbeastOptions.stats.first()
+        val newPossibleTransformations =
+          latestIndexStatus.revision.columnTransformers.map(t =>
+            t.makeTransformation(columnName => rowStats.getAs[Object](columnName)))
+
+        transformations
+          .zip(newPossibleTransformations)
+          .forall(t => {
+            t._1.isSupersededBy(t._2)
+          })
+      }
+
+    latestIndexStatus.revision.desiredCubeSize == qbeastOptions.cubeSize && !rewritingStats
 
   }
 
@@ -185,6 +201,7 @@ private[table] class IndexedTableImpl(
           if (checkRevisionParameters(QbeastOptions(updatedParameters), latestIndexStatus)) {
             latestIndexStatus
           } else {
+            // If the new parameters generate a new revision, we need to create another one
             val oldRevisionID = latestIndexStatus.revision.revisionID
             val newRevision = revisionBuilder
               .createNextRevision(tableID, data.schema, updatedParameters, oldRevisionID)

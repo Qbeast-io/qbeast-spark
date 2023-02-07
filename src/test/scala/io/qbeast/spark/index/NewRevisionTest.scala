@@ -128,7 +128,7 @@ class NewRevisionTest
       qbeastSnapshot.loadLatestRevision.desiredCubeSize shouldBe cubeSize2
     })
 
-  it should "create a Revision based on stats" in withQbeastContextSparkAndTmpDir {
+  it should "create a Revision based on columnStats" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
       {
         val rdd =
@@ -160,7 +160,7 @@ class NewRevisionTest
   }
 
   it should "create the correct revision " +
-    "regarding stats and data" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
+    "regarding columnStats and data" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
       {
         val rdd =
           spark.sparkContext.parallelize(
@@ -191,4 +191,40 @@ class NewRevisionTest
 
       }
     }
+
+  it should "append with columnStats" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
+    {
+      val rdd =
+        spark.sparkContext.parallelize(
+          Seq(
+            Client3(1, s"student-1", 1, 1000 + 123, 2567.3432143),
+            Client3(2, s"student-2", 2, 2 * 1000 + 123, 2 * 2567.3432143)))
+
+      val df = spark.createDataFrame(rdd)
+      val names = List("age")
+      val stats = """{ "age_min": 1, "age_max": 100 }"""
+
+      df.write
+        .format("qbeast")
+        .mode("overwrite")
+        .options(Map("columnsToIndex" -> names.mkString(",")))
+        .save(tmpDir)
+
+      // APPEND
+      df.write
+        .format("qbeast")
+        .mode("append")
+        .options(Map("columnsToIndex" -> names.mkString(","), "columnStats" -> stats))
+        .save(tmpDir)
+
+      val deltaLog = DeltaLog.forTable(spark, tmpDir)
+      val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
+      val transformation = qbeastSnapshot.loadLatestRevision.transformations.head
+
+      transformation shouldBe a[LinearTransformation]
+      transformation.asInstanceOf[LinearTransformation].minNumber shouldBe 1
+      transformation.asInstanceOf[LinearTransformation].maxNumber shouldBe 100
+
+    }
+  }
 }
