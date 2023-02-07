@@ -145,10 +145,7 @@ class NewRevisionTest
         df.write
           .format("qbeast")
           .mode("overwrite")
-          .options(
-            Map(
-              "columnsToIndex" -> names.mkString(","),
-              "stats" -> stats))
+          .options(Map("columnsToIndex" -> names.mkString(","), "columnStats" -> stats))
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
@@ -161,5 +158,4 @@ class NewRevisionTest
 
       }
   }
-
 }

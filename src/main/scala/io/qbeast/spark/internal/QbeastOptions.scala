@@ -23,7 +23,7 @@ object QbeastOptions {
   val COLUMNS_TO_INDEX = "columnsToIndex"
   val CUBE_SIZE = "cubeSize"
   val PATH = "path"
-  val STATS = "stats"
+  val STATS = "columnStats"
 
   /**
    * Gets the columns to index from the options

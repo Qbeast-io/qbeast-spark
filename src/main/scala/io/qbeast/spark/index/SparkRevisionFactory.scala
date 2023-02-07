@@ -6,7 +6,7 @@ package io.qbeast.spark.index
 import io.qbeast.core.model.{QDataType, QTableID, Revision, RevisionFactory, RevisionID}
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.utils.SparkToQTypesUtils
-import io.qbeast.core.transform.Transformer
+import io.qbeast.core.transform.{EmptyTransformation, Transformation, Transformer}
 import org.apache.spark.sql.types.StructType
 
 import scala.util.matching.Regex
@@ -44,9 +44,22 @@ object SparkRevisionFactory extends RevisionFactory[StructType] {
     val transformations =
       if (stats.isEmpty) Vector.empty
       else {
-        transformers
-          .map(transformer =>
-            transformer.makeTransformation(columnName => stats.first().getAs[Object](columnName)))
+
+        val builder = Vector.newBuilder[Transformation]
+        builder.sizeHint(transformers.size)
+
+        transformers.foreach(transformer => {
+          // We are going to try if the column is present in the stats option
+          try {
+            builder += transformer.makeTransformation(columnName =>
+              stats.first().getAs[Object](columnName))
+          } catch {
+            // If it's not present on the dataframe,
+            // we can return an empty transformation that will be directly superseed
+            case _: NullPointerException => builder += EmptyTransformation()
+          }
+        })
+        builder.result()
       }
 
     Revision.firstRevision(qtableID, desiredCubeSize, transformers, transformations)
