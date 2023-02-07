@@ -67,7 +67,7 @@ case class CubeSizeMetrics(
     levelStats: String) {
 
   override def toString: String = {
-    s"""Cubes size stats:
+    s"""Stats on cube sizes:
        |Quartiles:
        |- min: $min
        |- 1stQ: $firstQuartile
@@ -88,7 +88,7 @@ case class CubeSizeMetrics(
 object CubeSizeMetrics {
 
   def apply(cubeStatuses: Map[CubeId, CubeStatus], desiredCubeSize: Int): CubeSizeMetrics = {
-    if (cubeStatuses.isEmpty) CubeSizeMetrics(0, 0, 0, 0, 0, 0, 0, 0, "")
+    if (cubeStatuses.isEmpty) CubeSizeMetrics(-1, -1, -1, -1, -1, 0, -1, -1, "")
     else {
       val cubeSizes = cubeStatuses.values.map(_.files.map(_.elementCount).sum).toSeq.sorted
       val cubeCount = cubeStatuses.size.toDouble
