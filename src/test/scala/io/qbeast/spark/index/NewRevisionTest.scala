@@ -4,6 +4,7 @@
 package io.qbeast.spark.index
 
 import io.qbeast.TestClasses._
+import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
@@ -126,5 +127,39 @@ class NewRevisionTest
       qbeastSnapshot.loadAllRevisions.size shouldBe 3
       qbeastSnapshot.loadLatestRevision.desiredCubeSize shouldBe cubeSize2
     })
+
+  it should "create a Revision based on stats" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      {
+        val rdd =
+          spark.sparkContext.parallelize(
+            Seq(
+              Client3(1, s"student-1", 1, 1000 + 123, 2567.3432143),
+              Client3(2, s"student-2", 2, 2 * 1000 + 123, 2 * 2567.3432143)))
+
+        val df = spark.createDataFrame(rdd)
+
+        val names = List("age")
+        val stats = """{ "age_min": 0, "age_max": 20 }"""
+
+        df.write
+          .format("qbeast")
+          .mode("overwrite")
+          .options(
+            Map(
+              "columnsToIndex" -> names.mkString(","),
+              "stats" -> stats))
+          .save(tmpDir)
+
+        val deltaLog = DeltaLog.forTable(spark, tmpDir)
+        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
+        val transformation = qbeastSnapshot.loadLatestRevision.transformations.head
+        
+        transformation shouldBe a[LinearTransformation]
+        transformation.asInstanceOf[LinearTransformation].minNumber shouldBe 0
+        transformation.asInstanceOf[LinearTransformation].maxNumber shouldBe 20
+
+      }
+  }
 
 }
