@@ -206,7 +206,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         .foreach { case (cube, domain) =>
           val normalizedWeight =
             if (domain <= desiredCubeSize && !isReplication) {
-              NormalizedWeight.apply(desiredCubeSize, domain.toLong)
+              NormalizedWeight(desiredCubeSize, domain.toLong)
             } else {
               val parentWeight = cube.parent match {
                 case None => 0d
