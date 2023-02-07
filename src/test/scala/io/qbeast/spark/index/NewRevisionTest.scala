@@ -154,7 +154,7 @@ class NewRevisionTest
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
         val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
         val transformation = qbeastSnapshot.loadLatestRevision.transformations.head
-        
+
         transformation shouldBe a[LinearTransformation]
         transformation.asInstanceOf[LinearTransformation].minNumber shouldBe 0
         transformation.asInstanceOf[LinearTransformation].maxNumber shouldBe 20
