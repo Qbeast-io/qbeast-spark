@@ -104,8 +104,7 @@ object CubeSizeMetrics {
           .map { case (level, m) =>
             val cnt = m.size
             val avgWeight = m.values.map(_.normalizedWeight).sum / cnt
-            val cubeSizeSum = m.values.map(_.files.map(_.elementCount).sum).sum
-            val avgCubeSize = cubeSizeSum / cnt
+            val avgCubeSize = m.values.map(_.files.map(_.elementCount).sum).sum / cnt
             s"- $level:\t$avgCubeSize,\t\t${std(cubeSizes, avgCubeSize)},\t\t$cnt,\t$avgWeight"
           }
           .mkString("\n")
