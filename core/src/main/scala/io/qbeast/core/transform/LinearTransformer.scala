@@ -23,6 +23,7 @@ case class LinearTransformer(columnName: String, dataType: QDataType) extends Tr
 
   private def getValue(row: Any): Any = {
     row match {
+      case d: java.lang.Long => d.intValue()
       case d: java.math.BigDecimal => d.doubleValue()
       case d: Timestamp => d.getTime()
       case d: Date => d.getTime()

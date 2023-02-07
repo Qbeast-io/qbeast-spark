@@ -64,6 +64,29 @@ object Revision {
   }
 
   /**
+   * Create a new first revision for a table with pre-loaded transformations
+   * @param tableID the table identifier
+   * @param desiredCubeSize the desired cube size
+   * @param columnTransformers the column transformers
+   * @param columnTransformations the column transformations
+   * @return the new revision, with the specified transformations
+   */
+
+  def firstRevision(
+      tableID: QTableID,
+      desiredCubeSize: Int,
+      columnTransformers: IISeq[Transformer],
+      columnTransformations: IISeq[Transformation]): Revision = {
+    Revision(
+      0,
+      System.currentTimeMillis(),
+      tableID,
+      desiredCubeSize,
+      columnTransformers,
+      columnTransformations)
+  }
+
+  /**
    * Initialize Revision for table conversion. The RevisionID for a converted table is 0.
    * EmptyTransformers and EmptyTransformations are used. This Revision should always be
    * superseded.

@@ -30,6 +30,7 @@ object SparkRevisionFactory extends RevisionFactory[StructType] {
     val qbeastOptions = QbeastOptions(options)
     val columnSpecs = qbeastOptions.columnsToIndex
     val desiredCubeSize = qbeastOptions.cubeSize
+    val stats = qbeastOptions.stats
 
     val transformers = columnSpecs.map {
       case SpecExtractor(columnName, transformerType) =>
@@ -40,7 +41,16 @@ object SparkRevisionFactory extends RevisionFactory[StructType] {
 
     }.toVector
 
-    Revision.firstRevision(qtableID, desiredCubeSize, transformers)
+    val transformations =
+      if (stats.isEmpty) Vector.empty
+      else {
+        transformers
+          .map(transformer =>
+            transformer.makeTransformation(columnName => stats.first().getAs[Object](columnName)))
+      }
+
+    Revision.firstRevision(qtableID, desiredCubeSize, transformers, transformations)
+
   }
 
   override def createNextRevision(
