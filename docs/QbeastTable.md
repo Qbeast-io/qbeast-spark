@@ -66,7 +66,7 @@ indexingColumns: ss_sold_date_sk,ss_item_sk
 avgFanout: 4.0
 depthOnBalance: 1.206019253488489
 
-Cubes size stats:
+Stats on cube sizes:
 Quartiles:
 - min: 456367
 - 1stQ: 498510
