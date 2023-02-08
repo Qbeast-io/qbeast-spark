@@ -45,9 +45,24 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[QbeastBlock] = {
 
+    // Initialize the QuerySpec
     val querySpecBuilder = new QuerySpecBuilder(dataFilters ++ partitionFilters)
-    val queryExecutor = new QueryExecutor(querySpecBuilder, qbeastSnapshot)
-    queryExecutor.execute()
+
+    if (querySpecBuilder.isSampling || !DeltaReadingUtils.useStats) {
+      // If the query involves sampling predicate or the Delta Format does not have stats
+      // (so it does not apply data skipping on files)
+      // We filter the blocks with Qbeast
+      new QueryExecutor(querySpecBuilder, qbeastSnapshot).execute()
+    } else {
+      // Filter files with the underlying contract
+      // and map them to QbeastBlock
+      index
+        .matchingFiles(partitionFilters, dataFilters)
+        .map(a => {
+          QbeastBlock(a.path, Map.empty, a.size, a.modificationTime)
+        })
+    }
+
   }
 
   /**

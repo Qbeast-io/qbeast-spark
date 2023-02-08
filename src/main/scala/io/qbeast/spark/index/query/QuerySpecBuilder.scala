@@ -171,4 +171,9 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression]) extends Ser
     QuerySpec(weightRange, querySpace)
   }
 
+  val isSampling: Boolean = {
+    !sparkFilters
+      .flatMap(filter => splitConjunctivePredicates(filter)).exists(isQbeastWeightExpression)
+  }
+
 }
