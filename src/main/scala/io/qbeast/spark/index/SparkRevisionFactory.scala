@@ -49,14 +49,15 @@ object SparkRevisionFactory extends RevisionFactory[StructType] {
         builder.sizeHint(transformers.size)
 
         transformers.foreach(transformer => {
+          val rowStats = stats.first()
           // We are going to try if the column is present in the stats option
-          try {
+          if (rowStats.schema.exists(_.name.contains(transformer.columnName))) {
             builder += transformer.makeTransformation(columnName =>
-              stats.first().getAs[Object](columnName))
-          } catch {
+              rowStats.getAs[Object](columnName))
+          } else {
             // If it's not present on the dataframe,
             // we can return an empty transformation that will be directly superseed
-            case _: NullPointerException => builder += EmptyTransformation()
+            builder += EmptyTransformation()
           }
         })
         builder.result()
