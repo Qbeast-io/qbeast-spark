@@ -57,7 +57,7 @@ object QbeastOptions {
    * Get the column stats from the options
    * This stats should be in a JSON formatted string
    * with the following schema
-   * {min(a):value, max(a):value, min(b):value...}
+   * {columnName_min:value, columnName_max:value, ...}
    * @param options the options passed on the dataframe
    * @return
    */

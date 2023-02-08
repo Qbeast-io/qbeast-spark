@@ -133,10 +133,13 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
     // Merged schema will contain additional columns at the end
     val isNewSchema: Boolean = txn.metadata.schema != mergedSchema
     // Either the data triggered a new revision or the user specified options to amplify the ranges
+    val isQbeastMetadata: Boolean = txn.metadata.configuration.contains(lastRevisionID)
     val isNewRevision: Boolean =
-      tableChanges.isNewRevision || tableChanges.updatedRevision.revisionID == txn.metadata
-        .configuration(lastRevisionID)
-        .toInt + 1
+      tableChanges.isNewRevision ||
+        (isQbeastMetadata &&
+          tableChanges.updatedRevision.revisionID == txn.metadata
+            .configuration(lastRevisionID)
+            .toInt + 1)
 
     val latestRevision = tableChanges.updatedRevision
     val baseConfiguration: Configuration =
