@@ -7,6 +7,7 @@ import io.qbeast.core.transform.{HashTransformation, LinearTransformation, Trans
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer._
 import io.qbeast.spark.index.QbeastColumns.weightColumnName
+import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
 import io.qbeast.spark.utils.SparkToQTypesUtils
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructField
@@ -205,8 +206,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
     val indexStatus = IndexStatus(revision, Set.empty)
 
-    val weightedDataFrame =
-      data.withColumn(weightColumnName, lit(scala.util.Random.nextInt()))
+    val weightedDataFrame = data.withColumn(weightColumnName, qbeastHash(rand()))
 
     val cubeCount =
       weightedDataFrame
@@ -242,8 +242,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
     val indexStatus = IndexStatus(revision, Set.empty)
 
-    val weightedDataFrame =
-      data.withColumn(weightColumnName, lit(scala.util.Random.nextInt()))
+    val weightedDataFrame = data.withColumn(weightColumnName, qbeastHash(rand()))
 
     val partitionCubeDomains =
       weightedDataFrame
@@ -277,8 +276,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
     val indexStatus = IndexStatus(revision, Set.empty)
 
-    val weightedDataFrame =
-      data.withColumn(weightColumnName, lit(scala.util.Random.nextInt()))
+    val weightedDataFrame = data.withColumn(weightColumnName, qbeastHash(rand()))
 
     val partitionCubeDomains =
       weightedDataFrame
