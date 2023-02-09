@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.QbeastBlock
+import io.qbeast.core.model.{QbeastBlock, Weight}
 import io.qbeast.core.model.RevisionUtils.stagingID
 import io.qbeast.spark.index.query.{QueryExecutor, QuerySpecBuilder}
 import org.apache.hadoop.fs.{FileStatus, Path}
@@ -59,7 +59,15 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
       index
         .matchingFiles(partitionFilters, dataFilters)
         .map(a => {
-          QbeastBlock(a.path, Map.empty, a.size, a.modificationTime)
+          QbeastBlock(
+            a.path,
+            0L,
+            Weight.MinValue,
+            Weight.MaxValue,
+            "",
+            0,
+            a.size,
+            a.modificationTime)
         })
     }
 
