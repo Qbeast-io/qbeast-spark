@@ -6,6 +6,7 @@ package io.qbeast.spark.delta
 import io.qbeast.core.model.{QbeastBlock, Weight}
 import io.qbeast.core.model.RevisionUtils.stagingID
 import io.qbeast.spark.index.query.{QueryExecutor, QuerySpecBuilder}
+import io.qbeast.spark.utils.{State, TagUtils}
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{Expression, GenericInternalRow}
@@ -56,12 +57,16 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
     } else {
       // Filter files with the underlying contract
       // and map them to QbeastBlock
+      // TODO probably we can combine this somehow with staging files
       index
         .matchingFiles(partitionFilters, dataFilters)
+        .filter(a =>
+          a.tags != null && a.tags.contains(TagUtils.state) && a.tags(
+            TagUtils.state) == State.FLOODED)
         .map(a => {
           QbeastBlock(
             a.path,
-            0L,
+            stagingID,
             Weight.MinValue,
             Weight.MaxValue,
             "",
