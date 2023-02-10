@@ -73,6 +73,33 @@ CubeSize option lets you specify the maximum size of the cube, in number of reco
 df.write.format("qbeast").option("cubeSize", "10000")
 ```
 
+## ColumnStats
+
+One feature of the Qbeast Format is the `Revision`. 
+
+This `Revision` contains some **characteristics of the index**, such as columns to index or cube size. But it also **saves the info of the space that you are writing** (min and maximum values of the columns). 
+
+This space is computed based on the dataset that is currently being indexed, and **if you append records that fall outside this space will trigger another `Revision`**.
+
+Having many `Revision` could be painful for reading process, since we have to query each one separately. 
+
+To avoid that, you can tune the space dimensions by adding the `columnStats` option.
+
+```scala
+df.write.format("qbeast")
+.option("columnsToIndex", "a,b")
+.option("columnStats","""{"a_min":0,"a_max":10,"b_min":20.0,"b_max":70.0}""")
+.save("/tmp/table")
+```
+In a `JSON` string, you can pass the **minimum and maximum values of the columns you are indexing** with the following schema:
+```json
+{
+  "columnName_min" : value
+  "columnName_max" : value
+
+}
+```
+
 ## DefaultCubeSize
 
 If you don't specify the cubeSize at DataFrame level, the default value is used. This is set to 5M, so if you want to change it

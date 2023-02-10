@@ -6,7 +6,7 @@ package io.qbeast.spark.index
 import io.qbeast.core.model.{QDataType, QTableID, Revision, RevisionFactory, RevisionID}
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.utils.SparkToQTypesUtils
-import io.qbeast.core.transform.Transformer
+import io.qbeast.core.transform.{EmptyTransformation, Transformation, Transformer}
 import org.apache.spark.sql.types.StructType
 
 import scala.util.matching.Regex
@@ -30,6 +30,7 @@ object SparkRevisionFactory extends RevisionFactory[StructType] {
     val qbeastOptions = QbeastOptions(options)
     val columnSpecs = qbeastOptions.columnsToIndex
     val desiredCubeSize = qbeastOptions.cubeSize
+    val stats = qbeastOptions.stats
 
     val transformers = columnSpecs.map {
       case SpecExtractor(columnName, transformerType) =>
@@ -40,7 +41,30 @@ object SparkRevisionFactory extends RevisionFactory[StructType] {
 
     }.toVector
 
-    Revision.firstRevision(qtableID, desiredCubeSize, transformers)
+    val transformations =
+      if (stats.isEmpty) Vector.empty
+      else {
+
+        val builder = Vector.newBuilder[Transformation]
+        builder.sizeHint(transformers.size)
+
+        transformers.foreach(transformer => {
+          val rowStats = stats.first()
+          // We are going to try if the column is present in the stats option
+          if (rowStats.schema.exists(_.name.contains(transformer.columnName))) {
+            builder += transformer.makeTransformation(columnName =>
+              rowStats.getAs[Object](columnName))
+          } else {
+            // If it's not present on the dataframe,
+            // we can return an empty transformation that will be directly superseed
+            builder += EmptyTransformation()
+          }
+        })
+        builder.result()
+      }
+
+    Revision.firstRevision(qtableID, desiredCubeSize, transformers, transformations)
+
   }
 
   override def createNextRevision(
