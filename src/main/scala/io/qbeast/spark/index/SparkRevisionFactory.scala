@@ -41,10 +41,9 @@ object SparkRevisionFactory extends RevisionFactory[StructType] {
 
     }.toVector
 
-    val transformations =
-      if (stats.isEmpty) Vector.empty
-      else {
-
+    if (stats.isEmpty) Revision.firstRevision(qtableID, desiredCubeSize, transformers)
+    else {
+      val transformations = {
         val builder = Vector.newBuilder[Transformation]
         builder.sizeHint(transformers.size)
 
@@ -63,8 +62,9 @@ object SparkRevisionFactory extends RevisionFactory[StructType] {
         builder.result()
       }
 
-    Revision.firstRevision(qtableID, desiredCubeSize, transformers, transformations)
+      Revision.firstRevision(qtableID, desiredCubeSize, transformers, transformations)
 
+    }
   }
 
   override def createNextRevision(
