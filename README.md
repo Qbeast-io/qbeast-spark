@@ -172,6 +172,8 @@ qbeastTable.analyze()
 
 Go to [QbeastTable documentation](./docs/QbeastTable.md) for more detailed information.
 
+### 6. [Visualize index](./utils/visualizer/README.md)
+
 # Dependencies and Version Compatibility
 | Version | Spark | Hadoop | Delta Lake |
 |---------|:-----:|:------:|:----------:|
