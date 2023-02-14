@@ -29,6 +29,18 @@ class QuerySpaceFromToTest extends AnyFlatSpec with Matchers {
     querySpaceFromTo.intersectsWith(cube) shouldBe true
   }
 
+  it should "intersect correctly with non-existing coordinates" in {
+    val cube = CubeId.root(2)
+    val transformation = Seq(
+      LinearTransformation(1, 2, IntegerDataType),
+      LinearTransformation(1, 2, IntegerDataType))
+    val from = toSpaceCoordinates(Seq(None, Some(0)), transformation)
+    val to = toSpaceCoordinates(Seq(Some(2), None), transformation)
+    val querySpaceFromTo = new QuerySpaceFromTo(from, to)
+
+    querySpaceFromTo.intersectsWith(cube) shouldBe true
+  }
+
   it should "exclude beyond left limit" in {
     val cube = CubeId.root(1)
     val transformation = Seq(LinearTransformation(1, 2, IntegerDataType))
