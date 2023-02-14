@@ -1,5 +1,9 @@
 # OTree Index Visualizer
-Python visualizer for qbeast index.
+Python visualizer for qbeast index. Visually examine your index, get clues about tree balance, and gather information about sampling efficiency.
+
+The index is displayed in a top-down fashion, with each node decorated with their normalized weight.
+
+With a given sampling fraction, details about the sampling operation are shown in the terminal, and selected nodes are highlighted with a different color.
 
 ### Installation
 ```
