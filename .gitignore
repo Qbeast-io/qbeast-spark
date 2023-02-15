@@ -28,5 +28,10 @@ metals.sbt
 # publication project
 nodep
 
-#Jupyter temp files
+# Jupyter temp files
 **/.ipynb_checkpoints/
+
+# visualizer
+/utils/visualizer/qviz.egg-info
+*.iml
+__pycache__
