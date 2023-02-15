@@ -88,7 +88,7 @@ class CubeWeightsBuilder protected (
    * @return the resulting cube domain map
    */
   def result(): Seq[CubeDomain] = {
-    resultBuffer ++ resultInternal()
+    resultInternal() ++ resultBuffer
   }
 
   def resultInternal(): Seq[CubeDomain] = {
@@ -156,15 +156,15 @@ class CubeWeightsBuilder protected (
       levelCubes(level).foreach(cube => {
         cube.parent match {
           case Some(parent) =>
-            val cTreeSize = weightsAndTreeSizes(cube).treeSize
-            val pInfo = weightsAndTreeSizes(parent)
+            val cubeTreeSize = weightsAndTreeSizes(cube).treeSize
+            val parentInfo = weightsAndTreeSizes(parent)
 
             // Compute cube domain
-            val domain = cTreeSize / (1d - pInfo.weight)
+            val domain = cubeTreeSize / (1d - parentInfo.weight)
             cubeDomainBuilder += CubeDomain(cube.bytes, domain)
 
             // Update parent treeSize
-            pInfo.treeSize += cTreeSize
+            parentInfo.treeSize += cubeTreeSize
           case None =>
         }
       })
