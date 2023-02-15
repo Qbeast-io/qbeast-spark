@@ -122,6 +122,15 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
 
         val leafCsMetrics = metrics.leafCubeSizeMetrics
         innerCsMetrics.count + leafCsMetrics.count shouldBe metrics.cubeCount
+
+        // Cube size std for the root
+        val rootSizeStd =
+          metrics.innerCubeSizeMetrics.levelStats
+            .split("\n")(1)
+            .split(",")(1)
+            .replaceAll("\t", "")
+
+        rootSizeStd shouldBe "0"
       }
   }
 
