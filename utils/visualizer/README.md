@@ -18,6 +18,8 @@ cd ./qbeast-spark/utils/visualizer/
 make install
 ```
 ### Usage
+
+Launch a `Flask` serve with the following command and open the link with a browser: 
 ```
 qviz ./docs/test_table/
 
