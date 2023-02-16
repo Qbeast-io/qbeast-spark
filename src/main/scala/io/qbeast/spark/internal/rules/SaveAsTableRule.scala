@@ -24,15 +24,11 @@ class SaveAsTableRule(spark: SparkSession) extends Rule[LogicalPlan] with Loggin
     // We need to pass the writeOptions as properties to the creation of the table
     // to make sure columnsToIndex is present
     plan transformDown {
-      case saveAsSelect: CreateTableAsSelect
-          if isQbeastProvider(saveAsSelect.tableSpec.properties) =>
-        val options = saveAsSelect.writeOptions
-        val finalProperties = saveAsSelect.tableSpec.properties ++ options
+      case saveAsSelect: CreateTableAsSelect if isQbeastProvider(saveAsSelect.tableSpec) =>
+        val finalProperties = saveAsSelect.writeOptions ++ saveAsSelect.tableSpec.properties
         saveAsSelect.copy(tableSpec = saveAsSelect.tableSpec.copy(properties = finalProperties))
-      case replaceAsSelect: ReplaceTableAsSelect
-          if isQbeastProvider(replaceAsSelect.tableSpec.properties) =>
-        val options = replaceAsSelect.writeOptions
-        val finalProperties = replaceAsSelect.tableSpec.properties ++ options
+      case replaceAsSelect: ReplaceTableAsSelect if isQbeastProvider(replaceAsSelect.tableSpec) =>
+        val finalProperties = replaceAsSelect.tableSpec.properties ++ replaceAsSelect.writeOptions
         replaceAsSelect.copy(tableSpec =
           replaceAsSelect.tableSpec.copy(properties = finalProperties))
     }
