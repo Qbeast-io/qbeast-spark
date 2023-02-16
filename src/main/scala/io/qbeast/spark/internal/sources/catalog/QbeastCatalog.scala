@@ -30,7 +30,7 @@ import scala.collection.JavaConverters._
  * QbeastCatalog uses a session catalog of type T
  * to delegate high-level operations
  */
-class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with DelegatingCatalogExtension]
+class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatalog]
     extends CatalogExtension
     with SupportsNamespaces
     with StagingTableCatalog {
