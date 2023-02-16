@@ -172,6 +172,9 @@ qbeastTable.analyze()
 
 Go to [QbeastTable documentation](./docs/QbeastTable.md) for more detailed information.
 
+### 6. Visualize index
+Use [Python index visualizer](./utils/visualizer/README.md) for your indexed table to visually examine index structure and gather sampling metrics.
+
 # Dependencies and Version Compatibility
 | Version | Spark | Hadoop | Delta Lake |
 |---------|:-----:|:------:|:----------:|
