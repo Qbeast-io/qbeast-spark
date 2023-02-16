@@ -53,7 +53,7 @@ Test / javaOptions += "-Xmx2G"
 Test / fork := true
 
 // Scala compiler settings
-ThisBuild / scalaVersion := "2.12.12"
+ThisBuild / scalaVersion := "2.12.14"
 ThisBuild / scalacOptions ++= Seq(
   "-encoding",
   "UTF-8",
