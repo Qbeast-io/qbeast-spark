@@ -191,7 +191,7 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
     qbeastCatalog.listNamespaces() shouldBe Array(defaultNamespace, Array("new_namespace"))
 
     // Drop Namespace
-    qbeastCatalog.dropNamespace(newNamespace)
+    qbeastCatalog.dropNamespace(newNamespace, true)
 
     qbeastCatalog.listNamespaces() shouldBe Array(defaultNamespace)
 
