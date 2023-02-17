@@ -5,7 +5,7 @@ import sbt._
  */
 object Dependencies {
   lazy val sparkVersion: String = sys.props.get("spark.version").getOrElse("3.3.0")
-    lazy val hadoopVersion: String = sys.props.get("hadoop.version").getOrElse("3.3.4")
+  lazy val hadoopVersion: String = sys.props.get("hadoop.version").getOrElse("3.3.4")
   lazy val deltaVersion: String = "2.1.0"
 
   val sparkCore = "org.apache.spark" %% "spark-core" % sparkVersion

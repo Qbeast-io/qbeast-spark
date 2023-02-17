@@ -9,7 +9,7 @@ import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
-import io.qbeast.spark.delta.OTreeIndex
+import io.qbeast.spark.delta.{EmptyIndex, OTreeIndex}
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import io.qbeast.spark.table.IndexedTable
 import io.qbeast.context.QbeastContext
@@ -45,7 +45,7 @@ object QbeastBaseRelation {
       // This could happen if we CREATE/REPLACE TABLE without inserting data
       // In this case, we use the options variable
       new HadoopFsRelation(
-        OTreeIndex(spark, new Path(tableID.id)),
+        EmptyIndex(spark, new Path(tableID.id)),
         partitionSchema = StructType(Seq.empty[StructField]),
         dataSchema = schema,
         bucketSpec = None,

@@ -9,7 +9,7 @@ import io.qbeast.spark.index.query.{QueryExecutor, QuerySpecBuilder}
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{Expression, GenericInternalRow}
-import org.apache.spark.sql.delta.{DeltaAnalysisException, DeltaLog, Snapshot}
+import org.apache.spark.sql.delta.{DeltaLog, Snapshot}
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.files.TahoeLogFileIndex
 import org.apache.spark.sql.execution.datasources.{FileIndex, PartitionDirectory}
@@ -28,13 +28,7 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
    * Snapshot to analyze
    * @return the snapshot
    */
-  protected def snapshot: Snapshot = {
-    try { index.getSnapshot }
-    catch { // catch exception when trying to read a table with empty schema
-      // TODO better handle of this situation
-      case _: DeltaAnalysisException => index.snapshotAtAnalysis
-    }
-  }
+  protected def snapshot: Snapshot = index.getSnapshot
 
   private def qbeastSnapshot = DeltaQbeastSnapshot(snapshot)
 
@@ -114,4 +108,20 @@ object OTreeIndex {
     OTreeIndex(tahoe)
   }
 
+}
+
+case class EmptyIndex() extends FileIndex {
+  override def rootPaths: Seq[Path] = Seq.empty
+
+  override def listFiles(
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): Seq[PartitionDirectory] = Seq.empty
+
+  override def inputFiles: Array[String] = Array.empty
+
+  override def refresh(): Unit = {}
+
+  override def sizeInBytes: Long = 0L
+
+  override def partitionSchema: StructType = StructType(Seq.empty)
 }
