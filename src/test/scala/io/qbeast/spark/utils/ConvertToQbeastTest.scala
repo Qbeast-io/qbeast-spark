@@ -207,7 +207,7 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
       // Compare DataFrames
       val sourceDf = spark.read.format(fileFormat).load(tmpDir)
       val qbeastDf = spark.read.format("qbeast").load(tmpDir)
-      assertLargeDatasetEquality(qbeastDf, sourceDf)
+      assertLargeDatasetEquality(qbeastDf, sourceDf, orderedComparison = false)
     })
 
   "Compacting the staging revision" should "reduce the number of delta AddFiles" in

@@ -256,7 +256,7 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
   }
 
   override def listFunctions(namespace: Array[String]): Array[Identifier] =
-    getDelegatedCatalog().listFunctions(namespace)
+    getSessionCatalog().listFunctions(namespace)
 
   override def loadFunction(ident: Identifier): UnboundFunction =
     getSessionCatalog().loadFunction(ident)
