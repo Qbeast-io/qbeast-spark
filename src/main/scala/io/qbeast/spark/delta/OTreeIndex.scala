@@ -31,7 +31,7 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
   protected def snapshot: Snapshot = {
     try { index.getSnapshot }
     catch { // catch exception when trying to read a table with empty schema
-          // TODO better handle of this situation
+      // TODO better handle of this situation
       case _: DeltaAnalysisException => index.snapshotAtAnalysis
     }
   }
