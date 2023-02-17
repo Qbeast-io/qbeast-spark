@@ -45,7 +45,7 @@ object QbeastBaseRelation {
       // This could happen if we CREATE/REPLACE TABLE without inserting data
       // In this case, we use the options variable
       new HadoopFsRelation(
-        EmptyIndex(spark, new Path(tableID.id)),
+        EmptyIndex(),
         partitionSchema = StructType(Seq.empty[StructField]),
         dataSchema = schema,
         bucketSpec = None,
