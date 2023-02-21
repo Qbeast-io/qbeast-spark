@@ -132,6 +132,24 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
 
     })
 
+  it should "crate external table" in withQbeastContextSparkAndTmpWarehouse(
+    (spark, tmpWarehouse) => {
+
+      val tmpDir = tmpWarehouse + "/test"
+      val data = createTestData(spark)
+      data.write.format("qbeast").option("columnsToIndex", "id").save(tmpDir)
+
+      spark.sql(
+        s"CREATE EXTERNAL TABLE student " +
+          s"USING qbeast OPTIONS ('columnsToIndex'='id') LOCATION '$tmpDir'")
+
+      val table = spark.table("student")
+      table.schema shouldBe data.schema
+      table.count() shouldBe data.count()
+      assertSmallDatasetEquality(table, data, orderedComparison = false)
+
+    })
+
   it should "throw an error when no columnsToIndex is specified" in
     withQbeastContextSparkAndTmpWarehouse((spark, _) => {
 

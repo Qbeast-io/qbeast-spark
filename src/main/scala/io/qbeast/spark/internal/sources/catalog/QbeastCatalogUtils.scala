@@ -11,6 +11,7 @@ import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.CannotReplaceMissingTableException
 import org.apache.spark.sql.catalyst.catalog._
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.connector.catalog.{Identifier, Table}
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.datasources.DataSource
@@ -87,6 +88,24 @@ object QbeastCatalogUtils {
     }
   }
 
+  private def verifyTableAndSolidify(tableDesc: CatalogTable): CatalogTable = {
+
+    if (tableDesc.bucketSpec.isDefined) {
+      throw AnalysisExceptionFactory.create("Qbeast Format does not support bucketing")
+    }
+
+    val schema = tableDesc.schema
+
+    val validatedConfigurations = DeltaConfigs.validateConfigurations(tableDesc.properties)
+
+    val db = tableDesc.identifier.database.getOrElse(catalog.getCurrentDatabase)
+    val tableIdentWithDB = tableDesc.identifier.copy(database = Some(db))
+    tableDesc.copy(
+      identifier = tableIdentWithDB,
+      schema = schema,
+      properties = validatedConfigurations)
+  }
+
   /**
    * Creates a Table on the Catalog
    * @param ident the Identifier of the table
@@ -147,6 +166,10 @@ object QbeastCatalogUtils {
     }
 
     // Create the CatalogTable representation for updating the Catalog
+    // scalastyle:off
+    println("schema is " + schema)
+    println("table exists? " + existingTableOpt.isDefined)
+
     val table = new CatalogTable(
       identifier = id,
       tableType = tableType,
@@ -157,6 +180,8 @@ object QbeastCatalogUtils {
       bucketSpec = None,
       properties = allTableProperties.asScala.toMap,
       comment = commentOpt)
+
+    verifyTableAndSolidify(table)
 
     // Write data, if any
     val append = tableCreationMode.saveMode == SaveMode.Append
