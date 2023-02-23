@@ -89,6 +89,9 @@ object QbeastCatalogUtils {
   }
 
   private def verifySchema(fs: FileSystem, path: Path, table: CatalogTable): CatalogTable = {
+
+    val isTablePopulated = table.tableType == CatalogTableType.EXTERNAL && fs
+      .exists(path) && fs.listStatus(path).nonEmpty
     // Users did not specify the schema. We expect the schema exists in Delta.
     if (table.schema.isEmpty) {
       if (table.tableType == CatalogTableType.EXTERNAL) {
@@ -107,7 +110,18 @@ object QbeastCatalogUtils {
             "Trying to create a managed table without schema. " +
               "Do you want to create it as EXTERNAL?")
       }
-    } else table
+    } else {
+      if (isTablePopulated) {
+        val existingSchema = DeltaLog.forTable(spark, path.toString).snapshot.metadata.schema
+        if (existingSchema != table.schema) {
+          throw AnalysisExceptionFactory
+            .create(
+              "Trying to create a managed table with a different schema. " +
+                "Do you want to want to ALTER TABLE first?")
+        }
+      }
+      table
+    }
   }
 
   /**
