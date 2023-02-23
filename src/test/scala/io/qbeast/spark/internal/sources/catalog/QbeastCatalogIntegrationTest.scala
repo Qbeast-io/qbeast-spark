@@ -132,7 +132,7 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
 
     })
 
-  it should "crate external table without the schema specified" in
+  it should "crate external table" in
     withQbeastContextSparkAndTmpWarehouse((spark, tmpWarehouse) => {
 
       val tmpDir = tmpWarehouse + "/test"
@@ -145,8 +145,6 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
 
       val table = spark.table("student")
       val indexed = spark.read.format("qbeast").load(tmpDir)
-      table.schema shouldBe indexed.schema
-      table.count() shouldBe indexed.count()
       assertSmallDatasetEquality(table, indexed, orderedComparison = false)
 
     })
@@ -164,8 +162,6 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
 
       val table = spark.table("student")
       val indexed = spark.read.format("qbeast").load(tmpDir)
-      table.schema shouldBe indexed.schema
-      table.count() shouldBe indexed.count()
       assertSmallDatasetEquality(table, indexed, orderedComparison = false)
 
     })
@@ -180,6 +176,15 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
       an[AnalysisException] shouldBe thrownBy(
         spark.sql(s"CREATE EXTERNAL TABLE student (id INT, age INT) " +
           s"USING qbeast OPTIONS ('columnsToIndex'='id') LOCATION '$tmpDir'"))
+
+    })
+
+  it should "throw error when no schema and no populated table" in
+    withQbeastContextSparkAndTmpWarehouse((spark, tmpWarehouse) => {
+
+      an[AnalysisException] shouldBe thrownBy(
+        spark.sql(s"CREATE EXTERNAL TABLE student " +
+          s"USING qbeast OPTIONS ('columnsToIndex'='id') LOCATION '$tmpWarehouse'"))
 
     })
 
