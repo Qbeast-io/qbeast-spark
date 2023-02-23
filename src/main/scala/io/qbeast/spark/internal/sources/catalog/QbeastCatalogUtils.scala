@@ -7,13 +7,13 @@ import io.qbeast.context.QbeastContext.metadataManager
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
 import io.qbeast.spark.table.IndexedTableFactory
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.CannotReplaceMissingTableException
 import org.apache.spark.sql.catalyst.catalog._
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.connector.catalog.{Identifier, Table}
 import org.apache.spark.sql.connector.expressions.Transform
+import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.datasources.DataSource
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{
@@ -88,22 +88,26 @@ object QbeastCatalogUtils {
     }
   }
 
-  private def verifyTableAndSolidify(tableDesc: CatalogTable): CatalogTable = {
-
-    if (tableDesc.bucketSpec.isDefined) {
-      throw AnalysisExceptionFactory.create("Qbeast Format does not support bucketing")
-    }
-
-    val schema = tableDesc.schema
-
-    val validatedConfigurations = DeltaConfigs.validateConfigurations(tableDesc.properties)
-
-    val db = tableDesc.identifier.database.getOrElse(catalog.getCurrentDatabase)
-    val tableIdentWithDB = tableDesc.identifier.copy(database = Some(db))
-    tableDesc.copy(
-      identifier = tableIdentWithDB,
-      schema = schema,
-      properties = validatedConfigurations)
+  private def verifySchema(fs: FileSystem, path: Path, table: CatalogTable): CatalogTable = {
+    // Users did not specify the schema. We expect the schema exists in Delta.
+    if (table.schema.isEmpty) {
+      if (table.tableType == CatalogTableType.EXTERNAL) {
+        if (fs.exists(path) && fs.listStatus(path).nonEmpty) {
+          val existingSchema = DeltaLog.forTable(spark, path.toString).snapshot.metadata.schema
+          table.copy(schema = existingSchema)
+        } else {
+          throw AnalysisExceptionFactory
+            .create(
+              "Trying to create an External Table without any schema. " +
+                "Please specify the schema in the command or use a path of a populated table.")
+        }
+      } else {
+        throw AnalysisExceptionFactory
+          .create(
+            "Trying to create a managed table without schema. " +
+              "Do you want to create it as EXTERNAL?")
+      }
+    } else table
   }
 
   /**
@@ -165,12 +169,7 @@ object QbeastCatalogUtils {
             "to get all the benefits of data skipping. ")
     }
 
-    // Create the CatalogTable representation for updating the Catalog
-    // scalastyle:off
-    println("schema is " + schema)
-    println("table exists? " + existingTableOpt.isDefined)
-
-    val table = new CatalogTable(
+    val t = new CatalogTable(
       identifier = id,
       tableType = tableType,
       storage = storage,
@@ -181,7 +180,11 @@ object QbeastCatalogUtils {
       properties = allTableProperties.asScala.toMap,
       comment = commentOpt)
 
-    verifyTableAndSolidify(table)
+    // Verify the schema if it's an external table
+    val tableLocation = new Path(loc)
+    val hadoopConf = spark.sharedState.sparkContext.hadoopConfiguration
+    val fs = tableLocation.getFileSystem(hadoopConf)
+    val table = verifySchema(fs, tableLocation, t)
 
     // Write data, if any
     val append = tableCreationMode.saveMode == SaveMode.Append

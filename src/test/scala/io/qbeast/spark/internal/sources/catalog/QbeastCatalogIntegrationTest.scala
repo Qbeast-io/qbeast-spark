@@ -132,8 +132,8 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
 
     })
 
-  it should "crate external table" in withQbeastContextSparkAndTmpWarehouse(
-    (spark, tmpWarehouse) => {
+  it should "crate external table without the schema specified" in
+    withQbeastContextSparkAndTmpWarehouse((spark, tmpWarehouse) => {
 
       val tmpDir = tmpWarehouse + "/test"
       val data = createTestData(spark)
@@ -144,9 +144,10 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
           s"USING qbeast OPTIONS ('columnsToIndex'='id') LOCATION '$tmpDir'")
 
       val table = spark.table("student")
-      table.schema shouldBe data.schema
-      table.count() shouldBe data.count()
-      assertSmallDatasetEquality(table, data, orderedComparison = false)
+      val indexed = spark.read.format("qbeast").load(tmpDir)
+      table.schema shouldBe indexed.schema
+      table.count() shouldBe indexed.count()
+      assertSmallDatasetEquality(table, indexed, orderedComparison = false)
 
     })
 
