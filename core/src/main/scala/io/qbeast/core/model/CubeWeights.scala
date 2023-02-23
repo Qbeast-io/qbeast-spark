@@ -62,7 +62,7 @@ class CubeWeightsBuilder protected (
       indexStatus.replicatedOrAnnouncedSet)
 
   private val byWeight = Ordering.by[PointWeightAndParent, Weight](_.weight).reverse
-  protected val queue = new mutable.PriorityQueue[PointWeightAndParent]()(byWeight)
+  private val queue = new mutable.PriorityQueue[PointWeightAndParent]()(byWeight)
   private var resultBuffer = Seq.empty[CubeDomain]
 
   /**
@@ -196,7 +196,7 @@ private class WeightAndCount(var weight: Weight, var count: Int)
  * @param weight the weight
  * @param parent the parent
  */
-protected case class PointWeightAndParent(point: Point, weight: Weight, parent: Option[CubeId])
+private case class PointWeightAndParent(point: Point, weight: Weight, parent: Option[CubeId])
 
 /**
  * NormalizedWeight and tree size of a given cube, with tree size defined as the
@@ -206,7 +206,7 @@ protected case class PointWeightAndParent(point: Point, weight: Weight, parent: 
  * @param weight NormalizedWeight
  * @param treeSize Cube tree size
  */
-protected class WeightAndTreeSize(val weight: NormalizedWeight, var treeSize: Double)
+private class WeightAndTreeSize(val weight: NormalizedWeight, var treeSize: Double)
 
 /**
  * Cube bytes and its domain size from a given data partition, with domain defined as
