@@ -48,7 +48,7 @@ def process_table_delta_log(table_path: str, revision_id: str) -> (list[dict], O
         for file in all_json_files:
             file_name = file.split("/")[-1]
             version = int(file_name.split(".")[0])
-            if version >= checkpoint_version:
+            if version > checkpoint_version:
                 json_files.append(file)
 
         result = extract_addFiles(checkpoint_file, json_files, revision_id)
@@ -125,10 +125,11 @@ def addFiles_from_checkpoint_file(checkpoint_file: str, revision_id: str) -> lis
                 path = add_file['path']
                 add_file['tags'] = tags
                 add_files_dict[path] = add_file
+    for entry in log_entry_list:
         # RemoveFile entry
-        elif entry['remove']:
+        if entry['remove']:
             path = entry['remove']['path']
-            add_files_dict.pop(path)
+            add_files_dict.pop(path, None)
 
     return list(add_files_dict.values())
 
@@ -179,9 +180,7 @@ def load_single_log_file(file_path: str, revision_id: str) -> (list[dict], set[s
         # RemoveFile entry
         elif 'remove' in action_file:
             remove_file = action_file['remove']
-            _id = remove_file['tags']['revision']
-            if _id == revision_id:
-                remove_paths.add(remove_file['path'])
+            remove_paths.add(remove_file['path'])
 
     return add_files, remove_paths
 
