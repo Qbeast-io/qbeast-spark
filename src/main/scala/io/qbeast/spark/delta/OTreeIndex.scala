@@ -46,36 +46,29 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[QbeastBlock] = {
 
-    // Initialize the QuerySpec
     val querySpecBuilder = new QuerySpecBuilder(dataFilters ++ partitionFilters)
+    val queryExecutor = new QueryExecutor(querySpecBuilder, qbeastSnapshot)
+    queryExecutor.execute()
 
-    if (querySpecBuilder.isSampling || !DeltaReadingUtils.useStats) {
-      // If the query involves sampling predicate or the Delta Format does not have stats
-      // (so it does not apply data skipping on files)
-      // We filter the blocks with Qbeast
-      new QueryExecutor(querySpecBuilder, qbeastSnapshot).execute()
-    } else {
-      // Filter files with the underlying contract
-      // and map them to QbeastBlock
-      // TODO probably we can combine this somehow with staging files
-      index
-        .matchingFiles(partitionFilters, dataFilters)
-        .filter(a =>
-          a.tags != null && a.tags.contains(TagUtils.state) && a.tags(
-            TagUtils.state) == State.FLOODED)
-        .map(a => {
-          QbeastBlock(
-            a.path,
-            stagingID,
-            Weight.MinValue,
-            Weight.MaxValue,
-            "",
-            0,
-            a.size,
-            a.modificationTime)
-        })
-    }
+  }
 
+  private def deltaMatchingFiles(
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): Seq[FileStatus] = {
+    index
+      .matchingFiles(partitionFilters, dataFilters)
+      .filter(a =>
+        a.tags != null && a.tags.contains(TagUtils.state) && a.tags(
+          TagUtils.state) == State.FLOODED)
+      .map { a: AddFile =>
+        new FileStatus(
+          /* length */ a.size,
+          /* isDir */ false,
+          /* blockReplication */ 0,
+          /* blockSize */ 1,
+          /* modificationTime */ a.modificationTime,
+          absolutePath(a.path))
+      }
   }
 
   /**
@@ -99,17 +92,24 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
 
-    val qbeastFileStats = matchingBlocks(partitionFilters, dataFilters).map { qbeastBlock =>
-      new FileStatus(
-        /* length */ qbeastBlock.size,
-        /* isDir */ false,
-        /* blockReplication */ 0,
-        /* blockSize */ 1,
-        /* modificationTime */ qbeastBlock.modificationTime,
-        absolutePath(qbeastBlock.path))
-    }.toArray
-    val stagingStats = stagingFiles
-    val fileStats = qbeastFileStats ++ stagingStats
+    val querySpecBuilder = new QuerySpecBuilder(dataFilters ++ partitionFilters)
+
+    val fileStats = if (querySpecBuilder.isSampling || !DeltaReadingUtils.useStats) {
+      // If the query involves sampling predicate or the Delta Format does not have stats
+      // (so it does not apply data skipping on files)
+      // We filter the blocks with Qbeast
+      val qbeastFiles = matchingBlocks(partitionFilters, dataFilters).map { qbeastBlock =>
+        new FileStatus(
+          /* length */ qbeastBlock.size,
+          /* isDir */ false,
+          /* blockReplication */ 0,
+          /* blockSize */ 1,
+          /* modificationTime */ qbeastBlock.modificationTime,
+          absolutePath(qbeastBlock.path))
+      }
+
+      qbeastFiles ++ stagingFiles
+    } else deltaMatchingFiles(partitionFilters, dataFilters)
 
     Seq(PartitionDirectory(new GenericInternalRow(Array.empty[Any]), fileStats))
 
