@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.{QbeastBlock, Weight}
+import io.qbeast.core.model.{QbeastBlock}
 import io.qbeast.core.model.RevisionUtils.stagingID
 import io.qbeast.spark.index.query.{QueryExecutor, QuerySpecBuilder}
 import io.qbeast.spark.utils.{State, TagUtils}
