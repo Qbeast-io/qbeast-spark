@@ -2,28 +2,16 @@ package io.qbeast.spark.index
 
 import io.qbeast.IISeq
 import io.qbeast.TestClasses._
-import io.qbeast.core.model.{
-  CubeNormalizedWeight,
-  DoubleDataType,
-  FloatDataType,
-  IndexStatus,
-  IntegerDataType,
-  QTableID,
-  Revision
-}
+import io.qbeast.core.model._
 import io.qbeast.core.transform.{HashTransformation, LinearTransformation, Transformer}
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer.{
-  calculateRevisionChanges,
-  estimateCubeWeights,
-  estimatePartitionCubeWeights,
-  getDataFrameStats
-}
+import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer._
 import io.qbeast.spark.index.QbeastColumns.weightColumnName
+import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
 import io.qbeast.spark.utils.SparkToQTypesUtils
-import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalatest.matchers.must.Matchers.convertToAnyMustWrapper
 
 class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
@@ -42,6 +30,16 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     columnsSchema
       .map(field => Transformer(field.name, SparkToQTypesUtils.convertDataTypes(field.dataType)))
       .toIndexedSeq
+  }
+
+  private def checkDecreasingBranchDomain(
+      cube: CubeId,
+      domainMap: Map[CubeId, Double],
+      parentDomain: Double): Boolean = {
+    val cubeDomain = domainMap(cube)
+    cubeDomain < parentDomain && cube.children
+      .filter(domainMap.contains)
+      .forall(c => checkDecreasingBranchDomain(c, domainMap, cubeDomain))
   }
 
   it should "calculateRevisionChanges correctly on single column" in withSpark { spark =>
@@ -176,8 +174,27 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
   }
 
-  it should "estimatePartitionCubeWeights" in withSpark { spark =>
-    val data = createDF(10000, spark)
+  it should "not compute weight for descendent of leaf cubes" in {
+    val c0 = CubeId.root(2)
+    val c1 = c0.firstChild
+    val c2 = c1.firstChild
+
+    skipCube(c0, Map.empty, isReplication = false) shouldBe false
+
+    skipCube(c1, Map(c0 -> 0.9), isReplication = false) shouldBe false
+
+    skipCube(c2, Map(c0 -> 0.9, c1 -> 1d), isReplication = false) shouldBe true
+
+    skipCube(c2, Map(c0 -> 0.9, c1 -> 1d), isReplication = true) shouldBe false
+  }
+
+  it should "compute root for all partitions" in withSpark { spark =>
+    import spark.implicits._
+
+    // Repartition the data to make sure no empty partitions
+    // The amount of data we have for each partition is much smaller
+    // than the bufferCapacity
+    val data = createDF(100000, spark).repartition(50)
     val columnsSchema = data.schema
     val columnTransformers = createTransformers(columnsSchema)
 
@@ -188,51 +205,101 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
       calculateRevisionChanges(dataFrameStats, emptyRevision).get.createNewRevision
 
     val indexStatus = IndexStatus(revision, Set.empty)
-    val weightedDataFrame =
-      data.withColumn(weightColumnName, lit(scala.util.Random.nextInt()))
-    val cubeNormalizedWeights =
-      weightedDataFrame.transform(
-        estimatePartitionCubeWeights(10000, revision, indexStatus, isReplication = false))
 
-    val partitions = weightedDataFrame.rdd.getNumPartitions
+    val weightedDataFrame = data.withColumn(weightColumnName, qbeastHash(rand()))
 
-    cubeNormalizedWeights
-      .collect()
-      .groupBy(_.cubeBytes)
-      .foreach { case (_, weights: Array[CubeNormalizedWeight]) =>
-        weights.foreach(w => w.normalizedWeight shouldBe >(0.0))
-        weights.length shouldBe <=(partitions)
+    val cubeCount =
+      weightedDataFrame
+        .transform(
+          computePartitionCubeDomains(1000, revision, indexStatus, isReplication = false))
+        .groupBy("cubeBytes")
+        .count()
+        .map { row =>
+          val bytes = row.getAs[Array[Byte]](0)
+          val cnt = row.getAs[Long](1)
+          (revision.createCubeId(bytes), cnt)
+        }
+        .collect()
+        .toMap
+
+    val root = revision.createCubeIdRoot()
+    cubeCount(root).toInt shouldBe 50
+  }
+
+  it should "compute cube domains correctly" in withSpark { spark =>
+    val data = createDF(10000, spark)
+    val columnsSchema = data.schema
+    val columnTransformers = createTransformers(columnsSchema)
+
+    val emptyRevision =
+      Revision(0, 1000, QTableID("test"), 1000, columnTransformers, Seq.empty.toIndexedSeq)
+
+    val dataFrameStats = getDataFrameStats(data.toDF(), columnTransformers)
+    val elementCount = dataFrameStats.getAs[Long]("count")
+
+    val revision =
+      calculateRevisionChanges(dataFrameStats, emptyRevision).get.createNewRevision
+
+    val indexStatus = IndexStatus(revision, Set.empty)
+
+    val weightedDataFrame = data.withColumn(weightColumnName, qbeastHash(rand()))
+
+    val partitionCubeDomains =
+      weightedDataFrame
+        .transform(
+          computePartitionCubeDomains(elementCount, revision, indexStatus, isReplication = false))
+
+    val globalCubeDomains =
+      estimateGlobalCubeDomains(partitionCubeDomains, revision).collect().toMap
+
+    // Cube domains should monotonically decrease
+    checkDecreasingBranchDomain(
+      revision.createCubeIdRoot(),
+      globalCubeDomains,
+      10002d) shouldBe true
+
+    // Root should be present in all partitions, its global domain should be the elementCount
+    globalCubeDomains(revision.createCubeIdRoot()).toLong shouldBe elementCount
+  }
+
+  it should "estimate global NormalizedWeight's correctly" in withSpark { spark =>
+    val data = createDF(10000, spark)
+    val columnsSchema = data.schema
+    val columnTransformers = createTransformers(columnsSchema)
+
+    val emptyRevision =
+      Revision(0, 1000, QTableID("test"), 1000, columnTransformers, Seq.empty.toIndexedSeq)
+
+    val dataFrameStats = getDataFrameStats(data.toDF(), columnTransformers)
+    val revision =
+      calculateRevisionChanges(dataFrameStats, emptyRevision).get.createNewRevision
+
+    val indexStatus = IndexStatus(revision, Set.empty)
+
+    val weightedDataFrame = data.withColumn(weightColumnName, qbeastHash(rand()))
+
+    val partitionCubeDomains =
+      weightedDataFrame
+        .transform(
+          computePartitionCubeDomains(1000, revision, indexStatus, isReplication = false))
+
+    val globalDomain = estimateGlobalCubeDomains(partitionCubeDomains, revision).collect()
+
+    val estimatedCubeWeights: Map[CubeId, NormalizedWeight] =
+      estimateCubeWeights(globalDomain, indexStatus, isReplication = false)
+
+    // Cubes with a weight lager than 1d should not have children
+    val leafCubesByWeight = estimatedCubeWeights.filter(cw => cw._2 >= 1d).keys
+    leafCubesByWeight.exists(cube =>
+      cube.children.exists(estimatedCubeWeights.contains)) shouldBe false
+
+    // Test estimatedCubeWeights is monotonically increasing in all branches
+    estimatedCubeWeights.toSeq
+      .sortBy(_._1)
+      .foreach { case (cube, weight) =>
+        cube.children
+          .filter(estimatedCubeWeights.contains)
+          .foreach(child => weight < estimatedCubeWeights(child))
       }
   }
-
-  it should "estimateCubeWeights" in withSpark { spark =>
-    val data = createDF(10000, spark)
-    val columnsSchema = data.schema
-    val columnTransformers = createTransformers(columnsSchema)
-
-    val emptyRevision =
-      Revision(0, 1000, QTableID("test"), 1000, columnTransformers, Seq.empty.toIndexedSeq)
-
-    val dataFrameStats = getDataFrameStats(data.toDF(), columnTransformers)
-    val revision =
-      calculateRevisionChanges(dataFrameStats, emptyRevision).get.createNewRevision
-
-    val indexStatus = IndexStatus(revision, Set.empty)
-    val weightedDataFrame =
-      data.withColumn(weightColumnName, lit(scala.util.Random.nextInt()))
-    val cubeNormalizedWeights =
-      weightedDataFrame.transform(
-        estimatePartitionCubeWeights(10000, revision, indexStatus, isReplication = false))
-
-    val cubeWeights = cubeNormalizedWeights.transform(estimateCubeWeights(revision))
-    cubeWeights.columns.length shouldBe 2
-
-    val cubeWeightsCollect = cubeWeights.collect()
-    cubeWeightsCollect.map(_._1).distinct.length shouldBe cubeWeightsCollect.length
-    cubeWeightsCollect.foreach { case (_, weight) =>
-      weight shouldBe >(0.0)
-    }
-
-  }
-
 }
