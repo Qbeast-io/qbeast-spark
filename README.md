@@ -93,7 +93,7 @@ export SPARK_HOME=$PWD/spark-3.1.1-bin-hadoop3.2
 $SPARK_HOME/bin/spark-shell \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
 --conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog \
---packages io.qbeast:qbeast-spark_2.12:0.3.1,io.delta:delta-core_2.12:1.2.0
+--packages io.qbeast:qbeast-spark_2.12:0.3.2,io.delta:delta-core_2.12:1.2.0
 ```
 
 ### 2. Indexing a dataset
@@ -180,7 +180,7 @@ Use [Python index visualizer](./utils/visualizer/README.md) for your indexed tab
 |---------|:-----:|:------:|:----------:|
 | 0.1.0   | 3.0.0 | 3.2.0  |   0.8.0    |
 | 0.2.0   | 3.1.x | 3.2.0  |   1.0.0    |
-| 0.3.1   | 3.2.x | 3.3.x  |   1.2.x    |
+| 0.3.x   | 3.2.x | 3.3.x  |   1.2.x    |
 
 Check [here](https://docs.delta.io/latest/releases.html) for **Delta Lake** and **Apache Spark** version compatibility.  
 
