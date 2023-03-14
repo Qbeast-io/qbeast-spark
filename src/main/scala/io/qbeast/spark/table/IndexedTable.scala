@@ -4,18 +4,20 @@
 package io.qbeast.spark.table
 
 import io.qbeast.core.keeper.Keeper
-import io.qbeast.core.model.RevisionUtils.isStaging
+import io.qbeast.core.model.RevisionUtils.{isStaging, stagingID}
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.CubeDataLoader
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.QbeastOptions.{COLUMNS_TO_INDEX, CUBE_SIZE}
+import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
-import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
-import org.apache.spark.sql.delta.actions.FileAction
+import org.apache.hadoop.fs.Path
+import org.apache.spark.qbeast.config.{DEFAULT_NUMBER_OF_RETRIES, STAGING_SIZE}
+import org.apache.spark.sql.delta.actions.{FileAction, RemoveFile}
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame}
+import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, SaveMode, SparkSession}
 
 import java.util.ConcurrentModificationException
 
@@ -280,16 +282,58 @@ private[table] class IndexedTableImpl(
     createQbeastBaseRelation()
   }
 
-  private def doWrite(data: DataFrame, indexStatus: IndexStatus, append: Boolean): Unit = {
-
-    val schema = data.schema
-    metadataManager.updateWithTransaction(tableID, schema, append) {
-      val (qbeastData, tableChanges) =
-        indexManager.index(data, indexStatus)
-      val fileActions = dataWriter.write(tableID, schema, qbeastData, tableChanges)
-      (tableChanges, fileActions)
+  /**
+   * @param data DataFrame to write
+   * @return The new DataFrame that contains the staging data, the staging RemoveFiles, and a
+   *         Boolean stating whether the data is to be put in the staging revision without indexing.
+   */
+  private def checkForStaging(data: DataFrame): (DataFrame, Seq[RemoveFile], Boolean) = {
+    if (STAGING_SIZE < 0L) {
+      (data, Nil, false)
+    } else if (snapshot.isInitial) {
+      (data, Nil, true)
+    } else {
+      val stagingBlocks =
+        snapshot.loadIndexStatus(stagingID).cubesStatuses.values.toSeq.flatMap(cs => cs.files)
+      val stagingSize = stagingBlocks.map(b => b.size).sum
+      if (stagingSize > STAGING_SIZE) {
+        val spark = SparkSession.active
+        val stagingFilePaths = stagingBlocks.map(b => new Path(tableID.id, b.path).toString)
+        val stagingData = spark.read.parquet(stagingFilePaths: _*)
+        // Merge staging data with the data to write
+        val newData = data.unionByName(stagingData)
+        // Remove staging files
+        val removeFiles =
+          stagingBlocks.map(b => RemoveFile(b.path, Some(System.currentTimeMillis())))
+        (newData, removeFiles, false)
+      } else (data, Nil, true)
     }
+  }
 
+  private def doWrite(data: DataFrame, indexStatus: IndexStatus, append: Boolean): Unit = {
+    val (dataToWrite, removeFiles, stageData) = checkForStaging(data)
+    if (stageData) {
+      // Write data to the staging area in the delta format
+      data.write
+        .format("delta")
+        .mode(if (append) SaveMode.Append else SaveMode.Overwrite)
+        .save(tableID.id)
+
+      // Convert if the table is not yet qbeast
+      if (snapshot.isInitial) {
+        val spark = SparkSession.active
+        val colsToIndex = indexStatus.revision.columnTransformers.map(_.columnName)
+        val dcs = indexStatus.revision.desiredCubeSize
+        ConvertToQbeastCommand(s"delta.`${tableID.id}`", colsToIndex, dcs).run(spark)
+      }
+    } else {
+      val schema = dataToWrite.schema
+      metadataManager.updateWithTransaction(tableID, schema, append) {
+        val (qbeastData, tableChanges) = indexManager.index(dataToWrite, indexStatus)
+        val fileActions = dataWriter.write(tableID, schema, qbeastData, tableChanges)
+        (tableChanges, fileActions ++ removeFiles)
+      }
+    }
   }
 
   override def analyze(revisionID: RevisionID): Seq[String] = {

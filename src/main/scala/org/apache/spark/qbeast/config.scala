@@ -38,6 +38,12 @@ package object config {
       .intConf
       .createWithDefault(1024 * 1024 * 1024)
 
+  private[config] val stagingSize: ConfigEntry[Long] =
+    ConfigBuilder("spark.qbeast.index.stagingSize")
+      .version("0.2.0")
+      .longConf
+      .createWithDefault(-1L)
+
   def DEFAULT_NUMBER_OF_RETRIES: Int = QbeastContext.config
     .get(defaultNumberOfRetries)
 
@@ -50,5 +56,7 @@ package object config {
   def MIN_FILE_SIZE_COMPACTION: Int = QbeastContext.config.get(minFileSizeCompaction)
 
   def MAX_FILE_SIZE_COMPACTION: Int = QbeastContext.config.get(maxFileSizeCompaction)
+
+  def STAGING_SIZE: Long = QbeastContext.config.get(stagingSize)
 
 }
