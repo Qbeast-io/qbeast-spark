@@ -4,7 +4,8 @@
 package io.qbeast.spark.internal.commands
 
 import io.qbeast.core.model._
-import io.qbeast.spark.delta.{CubeDataLoader, DeltaQbeastSnapshot}
+import io.qbeast.spark.delta.writer.SparkDeltaDataWriter
+import io.qbeast.spark.delta.{CubeDataLoader, DeltaQbeastSnapshot, SparkDeltaMetadataManager}
 import io.qbeast.spark.index.SparkOTreeManager
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.DeltaLog
@@ -16,12 +17,8 @@ import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 case class RevisionCompactionCommand(
     tableID: QTableID,
     tierScale: Int = 10,
-    maxTierSize: Int = 10,
-    indexManager: IndexManager[DataFrame],
-    metadataManager: MetadataManager[StructType, FileAction],
-    dataWriter: DataWriter[DataFrame, StructType, FileAction])
+    maxTierSize: Int = 10)
     extends LeafRunnableCommand {
-
   // Revisions are split into different tiers, depending on their number of elements
   // tier 0: tierScale ^ 0 * desiredCubeSize
   // tier 1: tierScale ^ 1 * desiredCubeSize
@@ -30,6 +27,10 @@ case class RevisionCompactionCommand(
   // There can be a number of maxTierSize revisions per tier, and
   // maxTierSize * tierCapacity records in each tier. Otherwise the tier
   // should be compacted.
+
+  private val indexManager: IndexManager[DataFrame] = SparkOTreeManager
+  private val metadataManager: MetadataManager[StructType, FileAction] = SparkDeltaMetadataManager
+  private val dataWriter: DataWriter[DataFrame, StructType, FileAction] = SparkDeltaDataWriter
 
   override def run(spark: SparkSession): Seq[Row] = {
     val deltaLog = DeltaLog.forTable(spark, tableID.id)
@@ -133,7 +134,7 @@ case class RevisionCompactionCommand(
     val removeFiles = allAddFiles.map(_.remove)
     val schema = data.schema
     metadataManager.updateWithTransaction(tableID, schema, append = true) {
-      val (qbeastData, tableChanges) = SparkOTreeManager.index(data, indexStatus)
+      val (qbeastData, tableChanges) = indexManager.index(data, indexStatus)
       val fileActions = dataWriter.write(tableID, schema, qbeastData, tableChanges)
 
       val revCompactionTc = RevisionCompactionTableChanges(tableChanges, compactedRevisionIDs)
