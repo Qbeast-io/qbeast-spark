@@ -4,13 +4,14 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model.{CubeId, QTableID, Revision, RevisionID}
-import io.qbeast.spark.utils.TagColumns.{elementCount, revision}
-import io.qbeast.spark.utils.{State, TagColumns, TagUtils}
+import io.qbeast.spark.utils.State.FLOODED
+import io.qbeast.spark.utils.TagColumns.{elementCount, revision, state, tags}
+import io.qbeast.spark.utils.{State, TagColumns}
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.functions.{lit, sum}
 import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.apache.spark.sql.functions.{col, lit, sum}
 
 /**
  * Loads cube data from a specific table
@@ -78,10 +79,9 @@ case class CubeDataLoader(tableID: QTableID) {
 
   def loadFilesFromRevisions(revisions: Seq[Revision]): Seq[AddFile] = {
     val allFiles = snapshot.allFiles
-    val revisionIdStrings = revisions.map(_.revisionID)
+    val revisionIDs = revisions.map(_.revisionID).mkString(",")
     allFiles
-      .where(
-        s"${TagUtils.revision} IN (${revisionIdStrings.mkString(",")}) AND ${TagUtils.state} === ${State.FLOODED}")
+      .where(revision.isin(revisionIDs: _*).and(state.equalTo(FLOODED)))
       .collect()
   }
 
@@ -89,7 +89,7 @@ case class CubeDataLoader(tableID: QTableID) {
     import spark.implicits._
 
     snapshot.allFiles
-      .where("tags IS NOT NULL AND tags.state == 'FLOODED'")
+      .where(tags.isNotNull.and(state.equalTo(FLOODED)))
       .groupBy(revision.cast("long"))
       .agg(sum(elementCount).cast("long"))
       .as[(Long, Long)]

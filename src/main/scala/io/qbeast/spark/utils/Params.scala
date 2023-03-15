@@ -18,6 +18,7 @@ object State {
  * Tag keys for saving qbeast index metadata into the delta commit log
  */
 object TagColumns {
+  final val tags = col("tags")
   final val cube = col("tags.cube")
   final val minWeight = col("tags.minWeight")
   final val maxWeight = col("tags.maxWeight")

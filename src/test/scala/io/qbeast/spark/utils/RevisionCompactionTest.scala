@@ -5,7 +5,7 @@ package io.qbeast.spark.utils
 
 import io.qbeast.TestClasses.T2
 import io.qbeast.core.model.QTableID
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
 import io.qbeast.spark.delta.writer.SparkDeltaDataWriter
 import io.qbeast.spark.delta.{DeltaQbeastSnapshot, SparkDeltaMetadataManager}
 import io.qbeast.spark.index.SparkOTreeManager
@@ -129,50 +129,49 @@ class RevisionCompactionTest extends QbeastIntegrationTestSpec {
       val revisionsToCompact = compactor.findRevisionsToCompact(qSnapshot)
 
       revisionsToCompact.size shouldBe 2
-      revisionsToCompact.head.revisions.map(_.revisionID).sorted shouldBe Seq(1, 2, 3, 4, 5)
-      revisionsToCompact(1).revisions.map(_.revisionID).sorted shouldBe Seq(6, 7, 8)
+      revisionsToCompact.head.revisions
+        .map(_.revisionID) should contain theSameElementsAs Vector(1, 2, 3, 4, 5)
+      revisionsToCompact(1).revisions
+        .map(_.revisionID) should contain theSameElementsAs Vector(6, 7, 8)
     })
 
-  "executeRevisionCompaction" should "maintain the number of elements" in withSparkAndTmpDir(
-    (spark, tmpDir) => {
-      val valueRanges =
-        Seq(
-          (0, 500), // 500
-          (500, 1000), // 500
-          (1000, 1500), // 500
-          (1500, 3000), // 1500
-          (3000, 4500), // 1500
-          (4500, 6001) // 1501
-        )
-      // tier 0: maxRevisionSize: 500, tierCapacity: 1500
-      // revision row count: 500, 500, 500, sum: 1500
+  "executeRevisionCompaction" should "merge revisions" in withSparkAndTmpDir((spark, tmpDir) => {
+    val tmpDir = "/tmp/test1/"
+    val valueRanges =
+      Seq(
+        (0, 500), // 500
+        (500, 1000), // 500
+        (1000, 1500), // 500
+        (1500, 3000), // 1500
+        (3000, 4500) // 1500
+      )
+    // tier 0: maxRevisionSize: 500, tierCapacity: 1500
+    // revision row count: 500, 500, 500, sum: 1500
 
-      // tier 1: maxRevisionSize: 1500, tierCapacity: 4500
-      // revision row count: 1500, 1500, sum: 3000
+    // tier 1: maxRevisionSize: 1500, tierCapacity: 4500
+    // revision row count: 1500, 1500, sum: 3000
 
-      // tier 2: maxRevisionSize: 4500, tierCapacity: 13500
-      // revision row count: 1501, sum: 1501
+    // tier 2: maxRevisionSize: 4500, tierCapacity: 13500
+    // revision row count: 0, sum: 0
 
-      valueRanges.foreach { case (f, t) =>
-        createDataFromTo(f, t, tmpDir, spark)
-      }
+    valueRanges.foreach { case (f, t) =>
+      createDataFromTo(f, t, tmpDir, spark)
+    }
 
-      val compactor = Compactor(tmpDir)
-      val rowCountBefore = spark.read.format("qbeast").load(tmpDir).count()
+    val revisionIDsBefore = QbeastTable.forPath(spark, tmpDir).revisionsIDs()
 
-      compactor.run(spark)
+    val compactor = Compactor(tmpDir)
+    compactor.run(spark)
 
-      val rowCountAfter = spark.read.format("qbeast").load(tmpDir).count()
-      rowCountAfter shouldBe rowCountBefore
+    val qTable = QbeastTable.forPath(spark, tmpDir)
+    val indexMetrics = qTable.getIndexMetrics(Some(5))
+    val rowCountAfter = indexMetrics.elementCount
+    val revisionIDsAfter = qTable.revisionsIDs()
 
-      val qbeastSnapshot = DeltaQbeastSnapshot(DeltaLog.forTable(spark, tmpDir).snapshot)
-      val allRevisionIDs = qbeastSnapshot.loadAllRevisions.map(_.revisionID)
-      val revisionIDsAfter =
-        allRevisionIDs
-          .filterNot(id => qbeastSnapshot.loadRevisionBlocks(id).isEmpty)
+    revisionIDsBefore should contain theSameElementsAs Vector(0, 1, 2, 3, 4, 5)
+    rowCountAfter shouldBe 4500
+    revisionIDsAfter should contain theSameElementsAs Vector(0, 5)
 
-      revisionIDsAfter.size shouldBe 2
-      revisionIDsAfter.contains(5) shouldBe true
-      revisionIDsAfter.contains(6) shouldBe true
-    })
+  })
+
 }
