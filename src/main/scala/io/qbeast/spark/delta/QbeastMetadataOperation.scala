@@ -4,7 +4,14 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model.RevisionUtils.stagingID
-import io.qbeast.core.model.{ReplicatedSet, Revision, TableChanges, mapper}
+import io.qbeast.core.model.{
+  ReplicatedSet,
+  Revision,
+  RevisionCompactionTableChanges,
+  RevisionID,
+  TableChanges,
+  mapper
+}
 import io.qbeast.spark.utils.MetadataConfig
 import io.qbeast.spark.utils.MetadataConfig.{lastRevisionID, revision}
 import org.apache.spark.sql.SparkSession
@@ -79,7 +86,8 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
    */
   private def updateQbeastRevision(
       baseConfiguration: Configuration,
-      newRevision: Revision): Configuration = {
+      newRevision: Revision,
+      compactedRevisionIDs: Seq[RevisionID]): Configuration = {
     val newRevisionID = newRevision.revisionID
 
     // Add staging revision, if necessary. The qbeast metadata configuration
@@ -88,8 +96,8 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
     val addStagingRevision =
       newRevisionID == 1 && !baseConfiguration.contains(stagingRevisionKey)
     val configuration =
-      if (!addStagingRevision) baseConfiguration
-      else {
+      if (!addStagingRevision && compactedRevisionIDs.isEmpty) baseConfiguration
+      else if (addStagingRevision) {
         // Create staging revision with EmptyTransformers (and EmptyTransformations).
         // We modify its timestamp to secure loadRevisionAt
         val stagingRevision = Revision
@@ -103,6 +111,9 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
         // the latestRevisionID
         baseConfiguration
           .updated(stagingRevisionKey, mapper.writeValueAsString(stagingRevision))
+      } else {
+        val compactedRevisionKeys = compactedRevisionIDs.map(id => s"$revision.$id")
+        baseConfiguration -- compactedRevisionKeys
       }
 
     // Update latest revision id and add new revision to metadata
@@ -140,6 +151,10 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
           tableChanges.updatedRevision.revisionID == txn.metadata
             .configuration(lastRevisionID)
             .toInt + 1)
+    val (isRevisionCompactionOperation, compactedRevisionIDs) = tableChanges match {
+      case tc: RevisionCompactionTableChanges => (true, tc.compactedRevisionIDs)
+      case _ => (false, Nil)
+    }
 
     val latestRevision = tableChanges.updatedRevision
     val baseConfiguration: Configuration =
@@ -149,8 +164,8 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
 
     // Qbeast configuration metadata
     val configuration =
-      if (isNewRevision || isOverwriteMode) {
-        updateQbeastRevision(baseConfiguration, latestRevision)
+      if (isNewRevision || isOverwriteMode || isRevisionCompactionOperation) {
+        updateQbeastRevision(baseConfiguration, latestRevision, compactedRevisionIDs)
       } else if (isOptimizeOperation) {
         updateQbeastReplicatedSet(
           baseConfiguration,
