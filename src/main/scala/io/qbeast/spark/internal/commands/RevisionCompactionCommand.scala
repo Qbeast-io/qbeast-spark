@@ -9,6 +9,7 @@ import io.qbeast.spark.delta.writer.SparkDeltaDataWriter
 import io.qbeast.spark.delta.{CubeDataLoader, DeltaQbeastSnapshot, SparkDeltaMetadataManager}
 import io.qbeast.spark.index.SparkOTreeManager
 import org.apache.hadoop.fs.Path
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
@@ -32,7 +33,8 @@ case class RevisionCompactionCommand(
     tableID: QTableID,
     tierScale: Int = 10,
     maxTierRevisionCount: Int = 10)
-    extends LeafRunnableCommand {
+    extends LeafRunnableCommand
+    with Logging {
 
   // Enforce lower-bound for tier parameters
   private val _tierScale = math.max(2, tierScale)
@@ -50,7 +52,7 @@ case class RevisionCompactionCommand(
     for (revisionGroup <- revisionGroups) {
       val revisions = revisionGroup.revisions
       if (revisions.size > 1) {
-        executeLeveledCompaction(spark, revisions)
+        executeRevisionCompaction(spark, revisions)
       }
     }
     Seq.empty
@@ -147,19 +149,22 @@ case class RevisionCompactionCommand(
    * the latest revision is used for the compacted data, other revisions are removed from the
    * table metadata.
    */
-  def executeLeveledCompaction(spark: SparkSession, revisions: Seq[Revision]): Unit = {
+  def executeRevisionCompaction(spark: SparkSession, revisions: Seq[Revision]): Unit = {
+    // The staging revision should not be compacted
     val revsToCompact = revisions.filterNot(isStaging)
     if (revsToCompact.nonEmpty) {
-      val allAddFiles = CubeDataLoader(tableID).loadFilesFromRevisions(revisions)
+      logInfo(s"Revisions to compact: (${revsToCompact.map(_.revisionID).mkString(", ")})")
+      val allAddFiles = CubeDataLoader(tableID).loadFilesFromRevisions(revsToCompact)
       val paths = allAddFiles.map(a => new Path(tableID.id, a.path).toString)
       val data = spark.read.parquet(paths: _*)
 
       // Revisions are compacted to the latest one:
       // e.g. rev1 + rev2 + rev3 -> rev3
       // Both rev1 and rev2 will be removed from the table metadata
-      val finalRevision = revisions.maxBy(_.timestamp)
+      val finalRevision = revsToCompact.maxBy(_.timestamp)
       val indexStatus = IndexStatus(finalRevision)
-      val compactedRevisionIDs = revisions.map(_.revisionID).filter(_ != finalRevision.revisionID)
+      val compactedRevisionIDs =
+        revsToCompact.map(_.revisionID).filter(_ != finalRevision.revisionID)
       val removeFiles = allAddFiles.map(_.remove)
       val schema = data.schema
       metadataManager.updateWithTransaction(tableID, schema, append = true) {

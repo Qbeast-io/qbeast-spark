@@ -117,7 +117,7 @@ class RevisionCompactionTest extends QbeastIntegrationTestSpec {
         .map(_.revisionID) should contain theSameElementsAs Vector(6, 7, 8)
     })
 
-  "executeRevisionCompaction" should "merge revisions" in withSparkAndTmpDir((spark, tmpDir) => {
+  "RevisionCompactionCommand" should "merge revisions" in withSparkAndTmpDir((spark, tmpDir) => {
     val valueRanges =
       Seq(
         (0, 500), // 500
@@ -154,5 +154,24 @@ class RevisionCompactionTest extends QbeastIntegrationTestSpec {
     revisionIDsAfter should contain theSameElementsAs Vector(0, 5)
 
   })
+
+  "executeRevisionCompaction" should "compact specified revisions" in withSparkAndTmpDir(
+    (spark, tmpDir) => {
+      val valueRanges = Seq((0, 500), (500, 1000), (1000, 1500))
+      valueRanges.foreach { case (f, t) =>
+        createDataFromTo(f, t, tmpDir, spark)
+      }
+      val qTableID = new QTableID(tmpDir)
+      val deltaLog = DeltaLog.forTable(spark, qTableID.id)
+      val qSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+      val revisionsBefore = qSnapshot.loadAllRevisions
+
+      RevisionCompactionCommand(qTableID, tierScale, maxTierRevisionCount)
+        .executeRevisionCompaction(spark, revisionsBefore)
+
+      val revisionIDsAfter = QbeastTable.forPath(spark, qTableID.id).revisionsIDs()
+      revisionsBefore.map(_.revisionID) should contain theSameElementsAs Vector(0, 1, 2, 3)
+      revisionIDsAfter should contain theSameElementsAs Vector(0, 3)
+    })
 
 }
