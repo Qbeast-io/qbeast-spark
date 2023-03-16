@@ -91,7 +91,7 @@ class RevisionCompactionTest extends QbeastIntegrationTestSpec {
         (3000, 4500), // 1500
         (4500, 18000), // 13500
         (18000, 31500), // 13500
-        (31500, 63000) // 13500
+        (31500, 45000) // 13500
       )
       // tier 0: maxRevisionSize: 500, tierCapacity: 1500
       // revision row count: 500, 500, 500, sum: 1500
@@ -120,7 +120,6 @@ class RevisionCompactionTest extends QbeastIntegrationTestSpec {
     })
 
   "executeRevisionCompaction" should "merge revisions" in withSparkAndTmpDir((spark, tmpDir) => {
-    val tmpDir = "/tmp/test1/"
     val valueRanges =
       Seq(
         (0, 500), // 500
@@ -136,7 +135,6 @@ class RevisionCompactionTest extends QbeastIntegrationTestSpec {
     // revision row count: 1500, 1500, sum: 3000
 
     // tier 2: maxRevisionSize: 4500, tierCapacity: 13500
-    // revision row count: 0, sum: 0
 
     valueRanges.foreach { case (f, t) =>
       createDataFromTo(f, t, tmpDir, spark)
