@@ -16,8 +16,8 @@ import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 
 /**
  * Revisions are split into different tiers, depending on the bracket of elementCount they fall in:
- * maxTierElementCount = math.pow(tierScale, tier).toLong * desiredCubeSize.
- * Tier capacity is defined as maxTierElementCount * maxTierRevisionCount.
+ * maxTierRevisionSize = math.pow(tierScale, tier).toLong * desiredCubeSize.
+ * Tier capacity is defined as maxTierRevisionSize * maxTierRevisionCount.
  * When the sum of elementCounts exceed this value, or the number of revisions
  * exceed maxTierRevisionCount, the tier is to be compacted.
  * When several consecutive tiers are all full, or the compaction of one tier triggers
@@ -33,6 +33,10 @@ case class RevisionCompactionCommand(
     maxTierRevisionCount: Int = 10)
     extends LeafRunnableCommand {
 
+  // Enforce lower-bound for tier parameters
+  private val _tierScale = math.max(2, tierScale)
+  private val _maxTierRevisionCount = math.max(1, maxTierRevisionCount)
+
   private val indexManager: IndexManager[DataFrame] = SparkOTreeManager
   private val metadataManager: MetadataManager[StructType, FileAction] = SparkDeltaMetadataManager
   private val dataWriter: DataWriter[DataFrame, StructType, FileAction] = SparkDeltaDataWriter
@@ -41,7 +45,7 @@ case class RevisionCompactionCommand(
     val deltaLog = DeltaLog.forTable(spark, tableID.id)
     val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
 
-    val revisionGroups = findRevisionsToCompact(qbeastSnapshot)
+    val revisionGroups = findRevisionsToCompact(qbeastSnapshot.loadAllRevisions)
     for (revisionGroup <- revisionGroups) {
       executeLeveledCompaction(spark, revisionGroup)
     }
@@ -53,11 +57,11 @@ case class RevisionCompactionCommand(
     // tier 1: tierScale ^ 1 * desiredCubeSize * maxTierRevisionCount
     // tier 2: tierScale ^ 2 * desiredCubeSize * maxTierRevisionCount
     // ...
-    val maxTierElementCount = math.pow(tierScale, tier).toLong * desiredCubeSize
-    maxTierElementCount * maxTierRevisionCount
+    val maxTierRevisionSize = math.pow(_tierScale, tier).toLong * desiredCubeSize
+    maxTierRevisionSize * _maxTierRevisionCount
   }
 
-  def revisionTier(value: Double, base: Int = tierScale): Int = {
+  def revisionTier(value: Double, base: Int = _tierScale): Int = {
     val tier = math.ceil(math.log10(value) / math.log10(base)).toInt
     math.max(0, tier)
   }
@@ -93,12 +97,11 @@ case class RevisionCompactionCommand(
       val tierRowCount = revTier.elementCount
       val numRevisions =
         if (accRowCount == 0) revTier.revisions.size else revTier.revisions.size + 1
-      accRowCount + tierRowCount >= tc || numRevisions >= maxTierRevisionCount
+      accRowCount + tierRowCount >= tc || numRevisions >= _maxTierRevisionCount
     } else false
   }
 
-  def findRevisionsToCompact(qbeastSnapshot: DeltaQbeastSnapshot): Seq[RevisionGroup] = {
-    val revisions = qbeastSnapshot.loadAllRevisions
+  def findRevisionsToCompact(revisions: Seq[Revision]): Seq[RevisionGroup] = {
     if (revisions.isEmpty) Nil
     else {
       val cubeSize = revisions.head.desiredCubeSize

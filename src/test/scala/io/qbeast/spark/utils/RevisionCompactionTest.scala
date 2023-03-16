@@ -14,7 +14,7 @@ import org.apache.spark.sql.delta.DeltaLog
 class RevisionCompactionTest extends QbeastIntegrationTestSpec {
   val dcs = 500
   val tierScale = 3
-  val maxTierSize = 3
+  val maxTierRevisionCount = 3
   // tier 0: maxRevisionSize: 500, tierCapacity: 1500
   // tier 1: maxRevisionSize: 1500, tierCapacity: 4500
   // tier 2: maxRevisionSize: 4500, tierCapacity: 13500
@@ -37,20 +37,20 @@ class RevisionCompactionTest extends QbeastIntegrationTestSpec {
   }
 
   "revisionTier" should "classify revisions correctly" in withSparkAndTmpDir((_, tmpDir) => {
-    val compactor = RevisionCompactionCommand(new QTableID(tmpDir), tierScale, maxTierSize)
+    val compactor =
+      RevisionCompactionCommand(new QTableID(tmpDir), tierScale, maxTierRevisionCount)
     Seq((1, 0), (500, 0), (1500, 1), (13500, 3), (88573500, 11)).foreach {
       case (elemCount, tier) =>
         compactor.revisionTier(elemCount.toDouble / dcs) shouldBe tier
     }
   })
 
-  "computeRevisionTiers" should "divide revisions in tiers" in withSparkAndTmpDir(
+  "computeRevisionTiers" should "divide revisions into tiers" in withSparkAndTmpDir(
     (spark, tmpDir) => {
       val valueRanges = Seq(
         (0, 500), // 500
         (500, 1000), // 500
         (1000, 2000), // 1000
-        (2000, 4000), // 2000
         (4000, 24000) // 20000
       )
       // tier 0: maxRevisionSize: 500, tierCapacity: 1500
@@ -58,9 +58,6 @@ class RevisionCompactionTest extends QbeastIntegrationTestSpec {
 
       // tier 1: maxRevisionSize: 1500, tierCapacity: 4500
       // revision row counts: 1000, sum: 1000
-
-      // tier 2: maxRevisionSize: 4500, tierCapacity: 13500
-      // revision row counts: 2000, 2000, sum: 2000
 
       // tier 4: maxRevisionSize: 40500, tierCapacity: 121500
       // revision row counts: 20000 sum: 20000
@@ -71,13 +68,13 @@ class RevisionCompactionTest extends QbeastIntegrationTestSpec {
 
       val revisions =
         DeltaQbeastSnapshot(DeltaLog.forTable(spark, tmpDir).snapshot).loadAllRevisions
-      val compactor = RevisionCompactionCommand(new QTableID(tmpDir), tierScale, maxTierSize)
+      val compactor =
+        RevisionCompactionCommand(new QTableID(tmpDir), tierScale, maxTierRevisionCount)
       val (revisionTiers, _) =
         compactor.computeRevisionTiersAndRowCounts(revisions, dcs)
-      revisionTiers.keys.toSeq.sorted shouldBe Seq(0, 1, 2, 4)
+      revisionTiers.keys.toSeq.sorted shouldBe Seq(0, 1, 4)
       revisionTiers(0).elementCount shouldBe 1000
       revisionTiers(1).elementCount shouldBe 1000
-      revisionTiers(2).elementCount shouldBe 2000
       revisionTiers(4).elementCount shouldBe 20000
     })
 
@@ -109,8 +106,9 @@ class RevisionCompactionTest extends QbeastIntegrationTestSpec {
       }
 
       val qSnapshot = DeltaQbeastSnapshot(DeltaLog.forTable(spark, tmpDir).snapshot)
-      val compactor = RevisionCompactionCommand(new QTableID(tmpDir), tierScale, maxTierSize)
-      val revisionsToCompact = compactor.findRevisionsToCompact(qSnapshot)
+      val compactor =
+        RevisionCompactionCommand(new QTableID(tmpDir), tierScale, maxTierRevisionCount)
+      val revisionsToCompact = compactor.findRevisionsToCompact(qSnapshot.loadAllRevisions)
 
       revisionsToCompact.size shouldBe 2
       revisionsToCompact.head.revisions
@@ -142,7 +140,8 @@ class RevisionCompactionTest extends QbeastIntegrationTestSpec {
 
     val revisionIDsBefore = QbeastTable.forPath(spark, tmpDir).revisionsIDs()
 
-    val compactor = RevisionCompactionCommand(new QTableID(tmpDir), tierScale, maxTierSize)
+    val compactor =
+      RevisionCompactionCommand(new QTableID(tmpDir), tierScale, maxTierRevisionCount)
     compactor.run(spark)
 
     val qTable = QbeastTable.forPath(spark, tmpDir)
