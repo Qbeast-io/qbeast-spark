@@ -3,6 +3,7 @@
  */
 package io.qbeast.spark.internal.commands
 
+import io.qbeast.core.model.RevisionUtils.isStaging
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.writer.SparkDeltaDataWriter
 import io.qbeast.spark.delta.{CubeDataLoader, DeltaQbeastSnapshot, SparkDeltaMetadataManager}
@@ -147,24 +148,27 @@ case class RevisionCompactionCommand(
    * table metadata.
    */
   def executeLeveledCompaction(spark: SparkSession, revisions: Seq[Revision]): Unit = {
-    val allAddFiles = CubeDataLoader(tableID).loadFilesFromRevisions(revisions)
-    val paths = allAddFiles.map(a => new Path(tableID.id, a.path).toString)
-    val data = spark.read.parquet(paths: _*)
+    val revsToCompact = revisions.filterNot(isStaging)
+    if (revsToCompact.nonEmpty) {
+      val allAddFiles = CubeDataLoader(tableID).loadFilesFromRevisions(revisions)
+      val paths = allAddFiles.map(a => new Path(tableID.id, a.path).toString)
+      val data = spark.read.parquet(paths: _*)
 
-    // Revisions are compacted to the latest one:
-    // e.g. rev1 + rev2 + rev3 -> rev3
-    // Both rev1 and rev2 will be removed from the table metadata
-    val finalRevision = revisions.maxBy(_.timestamp)
-    val indexStatus = IndexStatus(finalRevision)
-    val compactedRevisionIDs = revisions.map(_.revisionID).filter(_ != finalRevision.revisionID)
-    val removeFiles = allAddFiles.map(_.remove)
-    val schema = data.schema
-    metadataManager.updateWithTransaction(tableID, schema, append = true) {
-      val (qbeastData, tableChanges) = indexManager.index(data, indexStatus)
-      val fileActions = dataWriter.write(tableID, schema, qbeastData, tableChanges)
+      // Revisions are compacted to the latest one:
+      // e.g. rev1 + rev2 + rev3 -> rev3
+      // Both rev1 and rev2 will be removed from the table metadata
+      val finalRevision = revisions.maxBy(_.timestamp)
+      val indexStatus = IndexStatus(finalRevision)
+      val compactedRevisionIDs = revisions.map(_.revisionID).filter(_ != finalRevision.revisionID)
+      val removeFiles = allAddFiles.map(_.remove)
+      val schema = data.schema
+      metadataManager.updateWithTransaction(tableID, schema, append = true) {
+        val (qbeastData, tableChanges) = indexManager.index(data, indexStatus)
+        val fileActions = dataWriter.write(tableID, schema, qbeastData, tableChanges)
 
-      val revCompactionTc = RevisionCompactionTableChanges(tableChanges, compactedRevisionIDs)
-      (revCompactionTc, fileActions ++ removeFiles)
+        val revCompactionTc = RevisionCompactionTableChanges(tableChanges, compactedRevisionIDs)
+        (revCompactionTc, fileActions ++ removeFiles)
+      }
     }
   }
 
