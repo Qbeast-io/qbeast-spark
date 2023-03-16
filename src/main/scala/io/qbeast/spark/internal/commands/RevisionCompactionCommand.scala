@@ -14,19 +14,24 @@ import org.apache.spark.sql.execution.command.LeafRunnableCommand
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 
+/**
+ * Revisions are split into different tiers, depending on the bracket of elementCount they fall in:
+ * maxTierElementCount = math.pow(tierScale, tier).toLong * desiredCubeSize.
+ * Tier capacity is defined as maxTierElementCount * maxTierRevisionCount.
+ * When the sum of elementCounts exceed this value, or the number of revisions
+ * exceed maxTierRevisionCount, the tier is to be compacted.
+ * When several consecutive tiers are all full, or the compaction of one tier triggers
+ * the compaction of one or more tiers down the line, all involved revisions are compacted
+ * in one operation.
+ * @param tableID path to the table to compact
+ * @param tierScale determines the tier capacities and how they from tier to tier
+ * @param maxTierRevisionCount the max number of revisions to have for each tier
+ */
 case class RevisionCompactionCommand(
     tableID: QTableID,
     tierScale: Int = 10,
-    maxTierSize: Int = 10)
+    maxTierRevisionCount: Int = 10)
     extends LeafRunnableCommand {
-  // Revisions are split into different tiers, depending on their number of elements
-  // tier 0: tierScale ^ 0 * desiredCubeSize
-  // tier 1: tierScale ^ 1 * desiredCubeSize
-  // tier 2: tierScale ^ 2 * desiredCubeSize
-
-  // There can be a number of maxTierSize revisions per tier, and
-  // maxTierSize * tierCapacity records in each tier. Otherwise the tier
-  // should be compacted.
 
   private val indexManager: IndexManager[DataFrame] = SparkOTreeManager
   private val metadataManager: MetadataManager[StructType, FileAction] = SparkDeltaMetadataManager
@@ -43,11 +48,23 @@ case class RevisionCompactionCommand(
     Seq.empty
   }
 
+  def tierCapacity(tier: Int, desiredCubeSize: Int): Long = {
+    // tier 0: tierScale ^ 0 * desiredCubeSize * maxTierRevisionCount
+    // tier 1: tierScale ^ 1 * desiredCubeSize * maxTierRevisionCount
+    // tier 2: tierScale ^ 2 * desiredCubeSize * maxTierRevisionCount
+    // ...
+    val maxTierElementCount = math.pow(tierScale, tier).toLong * desiredCubeSize
+    maxTierElementCount * maxTierRevisionCount
+  }
+
   def revisionTier(value: Double, base: Int = tierScale): Int = {
     val tier = math.ceil(math.log10(value) / math.log10(base)).toInt
     math.max(0, tier)
   }
 
+  /**
+   * Extract elementCount for each Revision and group them by their tier
+   */
   def computeRevisionTiersAndRowCounts(
       revisions: Seq[Revision],
       cubeSize: Int): (Map[Int, RevisionGroup], Map[RevisionID, Long]) = {
@@ -71,13 +88,12 @@ case class RevisionCompactionCommand(
       accRowCount: Long,
       tier: Int): Boolean = {
     if (revisionTiers.contains(tier)) {
-      // tierCapacity = maxRevisionSize * numRevisionsPerTier
-      val tierCapacity = math.pow(tierScale, tier).toLong * cubeSize * maxTierSize
+      val tc = tierCapacity(tier, cubeSize)
       val revTier = revisionTiers(tier)
       val tierRowCount = revTier.elementCount
       val numRevisions =
         if (accRowCount == 0) revTier.revisions.size else revTier.revisions.size + 1
-      accRowCount + tierRowCount >= tierCapacity || numRevisions >= maxTierSize
+      accRowCount + tierRowCount >= tc || numRevisions >= maxTierRevisionCount
     } else false
   }
 
@@ -119,16 +135,21 @@ case class RevisionCompactionCommand(
     }
   }
 
+  /**
+   * Executing the compaction of a single RevisionGroup. All records are indexed at once, and
+   * the latest revision is used for the compacted data, other revisions are removed from the
+   * table metadata.
+   */
   def executeLeveledCompaction(spark: SparkSession, revisionGroup: RevisionGroup): Unit = {
     val allAddFiles = CubeDataLoader(tableID).loadFilesFromRevisions(revisionGroup.revisions)
     val paths = allAddFiles.map(a => new Path(tableID.id, a.path).toString)
     val data = spark.read.parquet(paths: _*)
 
-    // Revision and IndexStatus to use
+    // Revisions are compacted to the latest one:
+    // e.g. rev1 + rev2 + rev3 -> rev3
+    // Both rev1 and rev2 will be removed from the table metadata
     val finalRevision = revisionGroup.revisions.maxBy(_.timestamp)
     val indexStatus = IndexStatus(finalRevision)
-
-    // Revisions to remove
     val compactedRevisionIDs =
       revisionGroup.revisions.map(_.revisionID).filter(_ != finalRevision.revisionID)
     val removeFiles = allAddFiles.map(_.remove)
