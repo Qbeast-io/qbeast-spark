@@ -47,7 +47,10 @@ case class RevisionCompactionCommand(
 
     val revisionGroups = findRevisionsToCompact(qbeastSnapshot.loadAllRevisions)
     for (revisionGroup <- revisionGroups) {
-      executeLeveledCompaction(spark, revisionGroup)
+      val revisions = revisionGroup.revisions
+      if (revisions.size > 1) {
+        executeLeveledCompaction(spark, revisions)
+      }
     }
     Seq.empty
   }
@@ -143,18 +146,17 @@ case class RevisionCompactionCommand(
    * the latest revision is used for the compacted data, other revisions are removed from the
    * table metadata.
    */
-  def executeLeveledCompaction(spark: SparkSession, revisionGroup: RevisionGroup): Unit = {
-    val allAddFiles = CubeDataLoader(tableID).loadFilesFromRevisions(revisionGroup.revisions)
+  def executeLeveledCompaction(spark: SparkSession, revisions: Seq[Revision]): Unit = {
+    val allAddFiles = CubeDataLoader(tableID).loadFilesFromRevisions(revisions)
     val paths = allAddFiles.map(a => new Path(tableID.id, a.path).toString)
     val data = spark.read.parquet(paths: _*)
 
     // Revisions are compacted to the latest one:
     // e.g. rev1 + rev2 + rev3 -> rev3
     // Both rev1 and rev2 will be removed from the table metadata
-    val finalRevision = revisionGroup.revisions.maxBy(_.timestamp)
+    val finalRevision = revisions.maxBy(_.timestamp)
     val indexStatus = IndexStatus(finalRevision)
-    val compactedRevisionIDs =
-      revisionGroup.revisions.map(_.revisionID).filter(_ != finalRevision.revisionID)
+    val compactedRevisionIDs = revisions.map(_.revisionID).filter(_ != finalRevision.revisionID)
     val removeFiles = allAddFiles.map(_.remove)
     val schema = data.schema
     metadataManager.updateWithTransaction(tableID, schema, append = true) {
