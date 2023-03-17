@@ -140,6 +140,7 @@ class NewRevisionTest
         val df = spark.createDataFrame(rdd)
 
         val names = List("age")
+        // The actual values are contained within the provided min/max
         val stats = """{ "age_min": 0, "age_max": 20 }"""
 
         df.write
@@ -152,6 +153,7 @@ class NewRevisionTest
         val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
         val transformation = qbeastSnapshot.loadLatestRevision.transformations.head
 
+        qbeastSnapshot.loadLatestRevision.revisionID shouldBe 1
         transformation shouldBe a[LinearTransformation]
         transformation.asInstanceOf[LinearTransformation].minNumber shouldBe 0
         transformation.asInstanceOf[LinearTransformation].maxNumber shouldBe 20
@@ -215,7 +217,8 @@ class NewRevisionTest
         val revision = qbeastSnapshot.loadLatestRevision
         val transformation = revision.transformations.head
 
-        revision.revisionID shouldBe 1
+        // columnStats < actualMinMax, this makes the RevisionID to be incremented twice.
+        revision.revisionID shouldBe 2
         transformation shouldBe a[LinearTransformation]
         transformation.asInstanceOf[LinearTransformation].minNumber shouldBe 1
         transformation.asInstanceOf[LinearTransformation].maxNumber shouldBe 10
@@ -235,13 +238,15 @@ class NewRevisionTest
       val names = List("age")
       val stats = """{ "age_min": 1, "age_max": 100 }"""
 
+      // Creates a Revision with ID = 1
       df.write
         .format("qbeast")
         .mode("overwrite")
         .options(Map("columnsToIndex" -> names.mkString(",")))
         .save(tmpDir)
 
-      // APPEND
+      // APPEND: existingMinMax == appendMinMax < columnStats
+      // This should create a second Revision with ID = 2
       df.write
         .format("qbeast")
         .mode("append")
@@ -252,10 +257,52 @@ class NewRevisionTest
       val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
       val transformation = qbeastSnapshot.loadLatestRevision.transformations.head
 
+      qbeastSnapshot.loadLatestRevision.revisionID shouldBe 2
       transformation shouldBe a[LinearTransformation]
       transformation.asInstanceOf[LinearTransformation].minNumber shouldBe 1
       transformation.asInstanceOf[LinearTransformation].maxNumber shouldBe 100
 
     }
+  }
+
+  it should "append with 'invalid' columnStats" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      {
+        import spark.implicits._
+
+        val df1 = Seq(
+          Client3(1, s"student-1", 1, 1000 + 123, 2567.3432143),
+          Client3(2, s"student-2", 2, 2 * 1000 + 123, 2 * 2567.3432143)).toDF()
+
+        // Creates a Revision with ID = 1
+        df1.write
+          .format("qbeast")
+          .mode("overwrite")
+          .option("columnsToIndex", "age")
+          .save(tmpDir)
+
+        // APPEND: existingMinMax <= columnStats < appendMinMax,
+        // this should create a Revision with ID = 3
+        val df2 = Seq(
+          Client3(1, s"student-1", 1, 1000 + 123, 2567.3432143),
+          Client3(2, s"student-2", 20, 2 * 1000 + 123, 2 * 2567.3432143)).toDF()
+        val columnStats = """{ "age_min": 1, "age_max": 10 }"""
+        df2.write
+          .format("qbeast")
+          .mode("append")
+          .option("columnsToIndex", "age")
+          .option("columnStats", columnStats)
+          .save(tmpDir)
+
+        val deltaLog = DeltaLog.forTable(spark, tmpDir)
+        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
+        val transformation = qbeastSnapshot.loadLatestRevision.transformations.head
+
+        qbeastSnapshot.loadLatestRevision.revisionID shouldBe 3
+        transformation shouldBe a[LinearTransformation]
+        transformation.asInstanceOf[LinearTransformation].minNumber shouldBe 1
+        transformation.asInstanceOf[LinearTransformation].maxNumber shouldBe 20
+
+      }
   }
 }
