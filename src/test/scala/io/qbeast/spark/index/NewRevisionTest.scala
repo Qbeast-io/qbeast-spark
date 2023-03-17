@@ -219,7 +219,7 @@ class NewRevisionTest
         val revision = qbeastSnapshot.loadLatestRevision
         val transformation = revision.transformations.head
 
-        revision.revisionID shouldBe >(0)
+        revision.revisionID should be > 0L
         transformation shouldBe a[LinearTransformation]
         transformation.asInstanceOf[LinearTransformation].minNumber shouldBe 1
         transformation.asInstanceOf[LinearTransformation].maxNumber shouldBe 10
