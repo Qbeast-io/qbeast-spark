@@ -146,23 +146,26 @@ private[table] class IndexedTableImpl(
       latestIndexStatus: IndexStatus): Boolean = {
     // TODO feature: columnsToIndex may change between revisions
     checkColumnsToMatchSchema(latestIndexStatus)
-    val rewritingStats =
-      if (qbeastOptions.stats.isEmpty) false
-      else {
+    // Checks if the user-provided column boundaries would trigger the creation of
+    // a new revision.
+    val isNewSpace = qbeastOptions.stats match {
+      case None => false
+      case Some(stats) =>
+        val columnStats = stats.first()
         val transformations = latestIndexStatus.revision.transformations
-        val rowStats = qbeastOptions.stats.first()
+
         val newPossibleTransformations =
           latestIndexStatus.revision.columnTransformers.map(t =>
-            t.makeTransformation(columnName => rowStats.getAs[Object](columnName)))
+            t.makeTransformation(columnName => columnStats.getAs[Object](columnName)))
 
         transformations
           .zip(newPossibleTransformations)
           .forall(t => {
             t._1.isSupersededBy(t._2)
           })
-      }
+    }
 
-    latestIndexStatus.revision.desiredCubeSize == qbeastOptions.cubeSize && !rewritingStats
+    latestIndexStatus.revision.desiredCubeSize == qbeastOptions.cubeSize && !isNewSpace
 
   }
 
