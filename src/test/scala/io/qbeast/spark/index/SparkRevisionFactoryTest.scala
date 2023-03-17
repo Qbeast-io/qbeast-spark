@@ -103,7 +103,8 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
           QbeastOptions.STATS -> """{ "a_min": 0, "a_max": 10 }"""))
 
     revision.tableID shouldBe qid
-    revision.revisionID shouldBe 0
+    // the reason while it's 1 is because columnStats are provided here
+    revision.revisionID shouldBe 1
     revision.desiredCubeSize shouldBe 10
     revision.columnTransformers shouldBe Vector(LinearTransformer("a", IntegerDataType))
 
@@ -131,7 +132,8 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
               """{ "a_min": 0, "a_max": 10, "b_min": 10.0, "b_max": 20.0}""".stripMargin))
 
       revision.tableID shouldBe qid
-      revision.revisionID shouldBe 0
+      // the reason while it's 1 is because columnStats are provided here
+      revision.revisionID shouldBe 1
       revision.desiredCubeSize shouldBe 10
       revision.columnTransformers shouldBe Vector(
         LinearTransformer("a", IntegerDataType),
