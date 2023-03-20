@@ -6,9 +6,9 @@ package io.qbeast.spark.delta
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.RevisionUtils.isStagingFile
 import org.apache.hadoop.fs.Path
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.delta.actions.{AddFile, RemoveFile}
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
 case class StagingDataManager(tableID: QTableID) {
   private val spark = SparkSession.active
@@ -17,11 +17,15 @@ case class StagingDataManager(tableID: QTableID) {
 
   lazy val stagingFiles: Dataset[AddFile] = snapshot.allFiles.where(isStagingFile)
 
-  lazy val stagingSize: Long = stagingFiles.selectExpr("sum(size)").first().getLong(0)
-
   lazy val stagingRemoveFiles: Seq[RemoveFile] = {
     import spark.implicits._
     stagingFiles.map(a => a.remove).as[RemoveFile].collect()
+  }
+
+  def stagingSize: Long = {
+    val row = stagingFiles.selectExpr("sum(size)").first()
+    if (row.isNullAt(0)) 0L
+    else row.getLong(0)
   }
 
   def mergeWithStagingData(data: DataFrame): DataFrame = {
