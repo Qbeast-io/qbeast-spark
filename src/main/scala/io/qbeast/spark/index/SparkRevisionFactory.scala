@@ -30,7 +30,6 @@ object SparkRevisionFactory extends RevisionFactory[StructType] {
     val qbeastOptions = QbeastOptions(options)
     val columnSpecs = qbeastOptions.columnsToIndex
     val desiredCubeSize = qbeastOptions.cubeSize
-    val stats = qbeastOptions.stats
 
     val transformers = columnSpecs.map {
       case SpecExtractor(columnName, transformerType) =>
@@ -41,29 +40,38 @@ object SparkRevisionFactory extends RevisionFactory[StructType] {
 
     }.toVector
 
-    if (stats.isEmpty) Revision.firstRevision(qtableID, desiredCubeSize, transformers)
-    else {
-      val transformations = {
-        val builder = Vector.newBuilder[Transformation]
-        builder.sizeHint(transformers.size)
+    qbeastOptions.stats match {
+      case None => Revision.firstRevision(qtableID, desiredCubeSize, transformers)
+      case Some(stats) =>
+        val columnStats = stats.first()
+        var shouldCreateNewSpace = true
+        val transformations = {
+          val builder = Vector.newBuilder[Transformation]
+          builder.sizeHint(transformers.size)
 
-        transformers.foreach(transformer => {
-          val rowStats = stats.first()
-          // We are going to try if the column is present in the stats option
-          if (rowStats.schema.exists(_.name.contains(transformer.columnName))) {
-            builder += transformer.makeTransformation(columnName =>
-              rowStats.getAs[Object](columnName))
-          } else {
-            // If it's not present on the dataframe,
-            // we can return an empty transformation that will be directly superseed
-            builder += EmptyTransformation()
-          }
-        })
-        builder.result()
-      }
+          transformers.foreach(transformer => {
+            if (columnStats.schema.exists(_.name.contains(transformer.columnName))) {
+              // Create transformation with provided boundaries
+              builder += transformer.makeTransformation(columnName =>
+                columnStats.getAs[Object](columnName))
+            } else {
+              // Use an EmptyTransformation which will always be superseded
+              builder += EmptyTransformation()
+              shouldCreateNewSpace = false
+            }
+          })
+          builder.result()
+        }
 
-      Revision.firstRevision(qtableID, desiredCubeSize, transformers, transformations)
+        val firstRevision =
+          Revision.firstRevision(qtableID, desiredCubeSize, transformers, transformations)
 
+        // When all indexing columns have been provided with a boundary, update the RevisionID
+        // to 1 to avoid using the StagingRevisionID(0). It is possible for this RevisionID to
+        // to be later updated to 2 if the actual column boundaries are larger that than the
+        // provided values. In this case, we will have Revision 2 instead of Revision 1.
+        if (shouldCreateNewSpace) firstRevision.copy(revisionID = 1)
+        else firstRevision
     }
   }
 

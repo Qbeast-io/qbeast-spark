@@ -61,6 +61,10 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
   private[index] def calculateRevisionChanges(
       row: Row,
       revision: Revision): Option[RevisionChange] = {
+    // TODO: When all indexing columns are provided with a boundary, a new revision is
+    //  created directly. If the actual data boundaries are not contained by those
+    //  values, the RevisionID would then increase again by 1, leaving a discontinued
+    //  sequence of RevisionIDs in the metadata.
 
     val newTransformation =
       revision.columnTransformers.map(_.makeTransformation(colName => row.getAs[Object](colName)))
