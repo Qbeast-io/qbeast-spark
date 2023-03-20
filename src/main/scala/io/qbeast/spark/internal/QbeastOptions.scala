@@ -13,7 +13,7 @@ import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, SparkSession}
  * @param columnsToIndex value of columnsToIndex option
  * @param cubeSize value of cubeSize option
  */
-case class QbeastOptions(columnsToIndex: Seq[String], cubeSize: Int, stats: DataFrame)
+case class QbeastOptions(columnsToIndex: Seq[String], cubeSize: Int, stats: Option[DataFrame])
 
 /**
  * Options available when trying to write in qbeast format
@@ -61,14 +61,14 @@ object QbeastOptions {
    * @param options the options passed on the dataframe
    * @return
    */
-  private def getStats(options: Map[String, String]): DataFrame = {
+  private def getStats(options: Map[String, String]): Option[DataFrame] = {
     val spark = SparkSession.active
 
     options.get(STATS) match {
       case Some(value) =>
         import spark.implicits._
-        spark.read.json(Seq(value).toDS)
-      case None => spark.emptyDataFrame
+        Some(spark.read.json(Seq(value).toDS))
+      case None => None
     }
   }
 
