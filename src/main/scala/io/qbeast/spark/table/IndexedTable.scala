@@ -4,15 +4,14 @@
 package io.qbeast.spark.table
 
 import io.qbeast.core.keeper.Keeper
-import io.qbeast.core.model.RevisionUtils.{isStaging, stagingID}
+import io.qbeast.core.model.RevisionUtils.isStaging
 import io.qbeast.core.model._
-import io.qbeast.spark.delta.CubeDataLoader
+import io.qbeast.spark.delta.{CubeDataLoader, StagingDataManager}
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.QbeastOptions.{COLUMNS_TO_INDEX, CUBE_SIZE}
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
-import org.apache.hadoop.fs.Path
 import org.apache.spark.qbeast.config.{DEFAULT_NUMBER_OF_RETRIES, STAGING_SIZE}
 import org.apache.spark.sql.delta.actions.{FileAction, RemoveFile}
 import org.apache.spark.sql.sources.BaseRelation
@@ -148,23 +147,26 @@ private[table] class IndexedTableImpl(
       latestIndexStatus: IndexStatus): Boolean = {
     // TODO feature: columnsToIndex may change between revisions
     checkColumnsToMatchSchema(latestIndexStatus)
-    val rewritingStats =
-      if (qbeastOptions.stats.isEmpty) false
-      else {
+    // Checks if the user-provided column boundaries would trigger the creation of
+    // a new revision.
+    val isNewSpace = qbeastOptions.stats match {
+      case None => false
+      case Some(stats) =>
+        val columnStats = stats.first()
         val transformations = latestIndexStatus.revision.transformations
-        val rowStats = qbeastOptions.stats.first()
+
         val newPossibleTransformations =
           latestIndexStatus.revision.columnTransformers.map(t =>
-            t.makeTransformation(columnName => rowStats.getAs[Object](columnName)))
+            t.makeTransformation(columnName => columnStats.getAs[Object](columnName)))
 
         transformations
           .zip(newPossibleTransformations)
           .forall(t => {
             t._1.isSupersededBy(t._2)
           })
-      }
+    }
 
-    latestIndexStatus.revision.desiredCubeSize == qbeastOptions.cubeSize && !rewritingStats
+    latestIndexStatus.revision.desiredCubeSize == qbeastOptions.cubeSize && !isNewSpace
 
   }
 
@@ -289,24 +291,23 @@ private[table] class IndexedTableImpl(
    */
   private def checkForStaging(data: DataFrame): (DataFrame, Seq[RemoveFile], Boolean) = {
     if (STAGING_SIZE < 0L) {
+      // Staging data ignored
       (data, Nil, false)
     } else if (snapshot.isInitial) {
+      // The staging area is empty and the staging size is not negative, write to the staging area
       (data, Nil, true)
     } else {
-      val stagingBlocks =
-        snapshot.loadIndexStatus(stagingID).cubesStatuses.values.toSeq.flatMap(cs => cs.files)
-      val stagingSize = stagingBlocks.map(b => b.size).sum
-      if (stagingSize > STAGING_SIZE) {
-        val spark = SparkSession.active
-        val stagingFilePaths = stagingBlocks.map(b => new Path(tableID.id, b.path).toString)
-        val stagingData = spark.read.parquet(stagingFilePaths: _*)
-        // Merge staging data with the data to write
-        val newData = data.unionByName(stagingData)
-        // Remove staging files
-        val removeFiles =
-          stagingBlocks.map(b => RemoveFile(b.path, Some(System.currentTimeMillis())))
+      val stagingDataManager = StagingDataManager(tableID)
+      if (stagingDataManager.stagingSize >= STAGING_SIZE) {
+        // Full staging area, merge current data with the staging data and mark all
+        // staging AddFiles as removed
+        val removeFiles = stagingDataManager.stagingRemoveFiles
+        val newData = stagingDataManager.mergeWithStagingData(data)
         (newData, removeFiles, false)
-      } else (data, Nil, true)
+      } else {
+        // The staging area is not full, stage the data
+        (data, Nil, true)
+      }
     }
   }
 
