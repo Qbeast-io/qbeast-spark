@@ -11,6 +11,7 @@ import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.CannotReplaceMissingTableException
 import org.apache.spark.sql.catalyst.catalog._
+import org.apache.spark.sql.catalyst.plans.logical.TableSpec
 import org.apache.spark.sql.connector.catalog.{Identifier, Table}
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.delta.DeltaLog
@@ -44,6 +45,10 @@ object QbeastCatalogUtils {
    */
   def isQbeastProvider(provider: Option[String]): Boolean = {
     provider.isDefined && provider.get == QBEAST_PROVIDER_NAME
+  }
+
+  def isQbeastProvider(tableSpec: TableSpec): Boolean = {
+    tableSpec.provider.contains(QBEAST_PROVIDER_NAME)
   }
 
   def isQbeastProvider(properties: Map[String, String]): Boolean = isQbeastProvider(

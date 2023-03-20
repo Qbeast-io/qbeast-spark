@@ -60,7 +60,7 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
     val sourceDf = spark.read.format(fileFormat).load(tmpDir)
     val qbeastDf = spark.read.format("qbeast").load(tmpDir)
 
-    assertLargeDatasetEquality(qbeastDf, sourceDf)
+    assertLargeDatasetEquality(qbeastDf, sourceDf, orderedComparison = false)
 
     // All non-qbeast files are considered staging files and are placed
     // directly into the staging revision(RevisionID = 0)
@@ -76,7 +76,7 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
     val sourceDf = spark.read.format(fileFormat).load(tmpDir)
     val qbeastDf = spark.read.format("qbeast").load(tmpDir)
 
-    assertLargeDatasetEquality(qbeastDf, sourceDf)
+    assertLargeDatasetEquality(qbeastDf, sourceDf, orderedComparison = false)
 
     // All non-qbeast files are considered staging files and are placed
     // directly into the staging revision(RevisionID = 0)
@@ -207,7 +207,7 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
       // Compare DataFrames
       val sourceDf = spark.read.format(fileFormat).load(tmpDir)
       val qbeastDf = spark.read.format("qbeast").load(tmpDir)
-      assertLargeDatasetEquality(qbeastDf, sourceDf)
+      assertLargeDatasetEquality(qbeastDf, sourceDf, orderedComparison = false)
     })
 
   "Compacting the staging revision" should "reduce the number of delta AddFiles" in
@@ -226,7 +226,7 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
         // Compare DataFrames
         val sourceDf = spark.read.format(fileFormat).load(tmpDir)
         val qbeastDf = spark.read.format("qbeast").load(tmpDir)
-        assertLargeDatasetEquality(qbeastDf, sourceDf)
+        assertLargeDatasetEquality(qbeastDf, sourceDf, orderedComparison = false)
 
         // Standard staging revision behavior
         val qs = getQbeastSnapshot(spark, tmpDir)
