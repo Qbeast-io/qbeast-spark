@@ -4,7 +4,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.IISeq
-import io.qbeast.core.model.RevisionUtils.isStaging
+import io.qbeast.core.model.RevisionUtils.{isStaging, isStagingFile}
 import io.qbeast.core.model._
 import io.qbeast.spark.utils.{MetadataConfig, TagColumns}
 import org.apache.spark.sql.delta.Snapshot
@@ -20,8 +20,6 @@ import org.apache.spark.sql.{AnalysisExceptionFactory, Dataset}
 case class DeltaQbeastSnapshot(private val snapshot: Snapshot) extends QbeastSnapshot {
 
   def isInitial: Boolean = snapshot.version == -1
-
-  private val isStagingFile = "tags IS NULL"
 
   private val metadataMap: Map[String, String] = snapshot.metadata.configuration
 

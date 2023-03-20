@@ -110,6 +110,8 @@ object Revision {
 }
 
 object RevisionUtils {
+  val isStagingFile = "tags IS NULL"
+
   val stagingID: RevisionID = 0
 
   def isStaging(revisionID: RevisionID): Boolean =

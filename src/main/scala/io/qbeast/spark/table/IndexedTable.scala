@@ -4,15 +4,14 @@
 package io.qbeast.spark.table
 
 import io.qbeast.core.keeper.Keeper
-import io.qbeast.core.model.RevisionUtils.{isStaging, stagingID}
+import io.qbeast.core.model.RevisionUtils.isStaging
 import io.qbeast.core.model._
-import io.qbeast.spark.delta.CubeDataLoader
+import io.qbeast.spark.delta.{CubeDataLoader, StagingDataManager}
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.QbeastOptions.{COLUMNS_TO_INDEX, CUBE_SIZE}
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
-import org.apache.hadoop.fs.Path
 import org.apache.spark.qbeast.config.{DEFAULT_NUMBER_OF_RETRIES, STAGING_SIZE}
 import org.apache.spark.sql.delta.actions.{FileAction, RemoveFile}
 import org.apache.spark.sql.sources.BaseRelation
@@ -292,24 +291,23 @@ private[table] class IndexedTableImpl(
    */
   private def checkForStaging(data: DataFrame): (DataFrame, Seq[RemoveFile], Boolean) = {
     if (STAGING_SIZE < 0L) {
+      // Staging data ignored
       (data, Nil, false)
     } else if (snapshot.isInitial) {
+      // The staging area is empty and the staging size is not negative, write to the staging area
       (data, Nil, true)
     } else {
-      val stagingBlocks =
-        snapshot.loadIndexStatus(stagingID).cubesStatuses.values.toSeq.flatMap(cs => cs.files)
-      val stagingSize = stagingBlocks.map(b => b.size).sum
-      if (stagingSize > STAGING_SIZE) {
-        val spark = SparkSession.active
-        val stagingFilePaths = stagingBlocks.map(b => new Path(tableID.id, b.path).toString)
-        val stagingData = spark.read.parquet(stagingFilePaths: _*)
-        // Merge staging data with the data to write
-        val newData = data.unionByName(stagingData)
-        // Remove staging files
-        val removeFiles =
-          stagingBlocks.map(b => RemoveFile(b.path, Some(System.currentTimeMillis())))
+      val stagingDataManager = StagingDataManager(tableID)
+      if (stagingDataManager.stagingSize >= STAGING_SIZE) {
+        // Full staging area, merge current data with the staging data and mark all
+        // staging AddFiles as removed
+        val removeFiles = stagingDataManager.stagingRemoveFiles
+        val newData = stagingDataManager.mergeWithStagingData(data)
         (newData, removeFiles, false)
-      } else (data, Nil, true)
+      } else {
+        // The staging area is not full, stage the data
+        (data, Nil, true)
+      }
     }
   }
 
