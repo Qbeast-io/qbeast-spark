@@ -100,6 +100,10 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
   override def partitionSchema: StructType = index.partitionSchema
 }
 
+/**
+ * Companion object for OTreeIndex
+ * Builds an OTreeIndex instance from the path to a table
+ */
 object OTreeIndex {
 
   def apply(spark: SparkSession, path: Path): OTreeIndex = {
@@ -110,7 +114,12 @@ object OTreeIndex {
 
 }
 
-case class EmptyIndex() extends FileIndex {
+/**
+ * Singleton object for EmptyIndex.
+ * Used when creating a table with no data added
+ */
+
+object EmptyIndex extends FileIndex {
   override def rootPaths: Seq[Path] = Seq.empty
 
   override def listFiles(
