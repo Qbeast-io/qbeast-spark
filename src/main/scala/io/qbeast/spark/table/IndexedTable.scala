@@ -6,17 +6,16 @@ package io.qbeast.spark.table
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model.RevisionUtils.isStaging
 import io.qbeast.core.model._
-import io.qbeast.spark.delta.{CubeDataLoader, StagingDataManager}
+import io.qbeast.spark.delta.{CubeDataLoader, StagingDataManager, StagingResolution}
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.QbeastOptions.{COLUMNS_TO_INDEX, CUBE_SIZE}
-import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
-import org.apache.spark.qbeast.config.{DEFAULT_NUMBER_OF_RETRIES, STAGING_SIZE}
-import org.apache.spark.sql.delta.actions.{FileAction, RemoveFile}
+import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
+import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, SaveMode, SparkSession}
+import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame}
 
 import java.util.ConcurrentModificationException
 
@@ -284,56 +283,19 @@ private[table] class IndexedTableImpl(
     createQbeastBaseRelation()
   }
 
-  /**
-   * @param data DataFrame to write
-   * @return The new DataFrame that contains the staging data, the staging RemoveFiles, and a
-   *         Boolean stating whether the data is to be put in the staging revision without indexing.
-   */
-  private def checkForStaging(data: DataFrame): (DataFrame, Seq[RemoveFile], Boolean) = {
-    if (STAGING_SIZE < 0L) {
-      // Staging data ignored
-      (data, Nil, false)
-    } else if (snapshot.isInitial) {
-      // The staging area is empty and the staging size is not negative, write to the staging area
-      (data, Nil, true)
-    } else {
-      val stagingDataManager = StagingDataManager(tableID)
-      if (stagingDataManager.stagingSize >= STAGING_SIZE) {
-        // Full staging area, merge current data with the staging data and mark all
-        // staging AddFiles as removed
-        val removeFiles = stagingDataManager.stagingRemoveFiles
-        val newData = stagingDataManager.mergeWithStagingData(data)
-        (newData, removeFiles, false)
-      } else {
-        // The staging area is not full, stage the data
-        (data, Nil, true)
-      }
-    }
-  }
-
   private def doWrite(data: DataFrame, indexStatus: IndexStatus, append: Boolean): Unit = {
-    val (dataToWrite, removeFiles, stageData) = checkForStaging(data)
-    if (stageData) {
-      // Write data to the staging area in the delta format
-      data.write
-        .format("delta")
-        .mode(if (append) SaveMode.Append else SaveMode.Overwrite)
-        .save(tableID.id)
+    val stagingDataManager = StagingDataManager(tableID)
+    stagingDataManager.updateWithStagedData(data) match {
+      case r: StagingResolution if r.sendToStaging =>
+        stagingDataManager.stageData(data, indexStatus, append)
 
-      // Convert if the table is not yet qbeast
-      if (snapshot.isInitial) {
-        val spark = SparkSession.active
-        val colsToIndex = indexStatus.revision.columnTransformers.map(_.columnName)
-        val dcs = indexStatus.revision.desiredCubeSize
-        ConvertToQbeastCommand(s"delta.`${tableID.id}`", colsToIndex, dcs).run(spark)
-      }
-    } else {
-      val schema = dataToWrite.schema
-      metadataManager.updateWithTransaction(tableID, schema, append) {
-        val (qbeastData, tableChanges) = indexManager.index(dataToWrite, indexStatus)
-        val fileActions = dataWriter.write(tableID, schema, qbeastData, tableChanges)
-        (tableChanges, fileActions ++ removeFiles)
-      }
+      case StagingResolution(dataToWrite, removeFiles, false) =>
+        val schema = dataToWrite.schema
+        metadataManager.updateWithTransaction(tableID, schema, append) {
+          val (qbeastData, tableChanges) = indexManager.index(dataToWrite, indexStatus)
+          val fileActions = dataWriter.write(tableID, schema, qbeastData, tableChanges)
+          (tableChanges, fileActions ++ removeFiles)
+        }
     }
   }
 

@@ -70,7 +70,7 @@ class DataStagingTest extends QbeastIntegrationTestSpec {
         .flatMap(_.files.map(_.elementCount))
         .sum
 
-      stagingDataManager.stagingSize shouldBe 0L
+      stagingDataManager.currentStagingSize shouldBe 0L
       indexedDataSize shouldBe 20000L
     }
   }
@@ -111,7 +111,7 @@ class DataStagingTest extends QbeastIntegrationTestSpec {
         .flatMap(_.files.map(_.elementCount))
         .sum
 
-      stagingDataManager.stagingSize shouldBe 0L
+      stagingDataManager.currentStagingSize shouldBe 0L
       indexedDataSize shouldBe 10001L
     }
 }
