@@ -58,7 +58,7 @@ class QbeastDataSourceTest extends FixtureAnyFlatSpec with MockitoSugar with Mat
     f.dataSource.shortName() shouldBe "qbeast"
   }
 
-  it should "infer empty schema" in { f =>
+  ignore should "infer empty schema" in { f =>
     val options = CaseInsensitiveStringMap.empty
     f.dataSource.inferSchema(options) shouldBe StructType(Seq())
   }

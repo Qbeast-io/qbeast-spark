@@ -11,13 +11,21 @@ import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.catalog.CatalogTable
 import org.apache.spark.sql.{SparkSession, V2toV1Fallback}
-import org.apache.spark.sql.connector.catalog.{SupportsWrite, Table, TableCapability}
+import org.apache.spark.sql.connector.catalog.{
+  SupportsRead,
+  SupportsWrite,
+  Table,
+  TableCapability
+}
+import org.apache.spark.sql.connector.read.ScanBuilder
 import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 import java.util
 import scala.collection.JavaConverters._
+import io.qbeast.spark.delta.{OTreeIndex, EmptyIndex}
 
 /**
  * Table Implementation for Qbeast Format
@@ -36,6 +44,7 @@ class QbeastTableImpl private[sources] (
     private val tableFactory: IndexedTableFactory)
     extends Table
     with SupportsWrite
+    with SupportsRead
     with V2toV1Fallback {
 
   private val pathString = path.toString
@@ -62,6 +71,15 @@ class QbeastTableImpl private[sources] (
   // Returns the write builder for the query in info
   override def newWriteBuilder(info: LogicalWriteInfo): WriteBuilder = {
     new QbeastWriteBuilder(info, options, indexedTable)
+  }
+
+  override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder = {
+    val index = if (indexedTable.exists) {
+      OTreeIndex(SparkSession.active, path)
+    } else {
+      EmptyIndex
+    }
+    new QbeastScanBuilder(index, schema(), this.options)
   }
 
   def toBaseRelation: BaseRelation = {

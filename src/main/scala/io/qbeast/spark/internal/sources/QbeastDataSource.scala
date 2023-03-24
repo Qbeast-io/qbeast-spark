@@ -47,39 +47,35 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
 
   override def shortName(): String = "qbeast"
 
-  override def inferSchema(options: CaseInsensitiveStringMap): StructType = StructType(Seq())
+  override def inferSchema(options: CaseInsensitiveStringMap): StructType = {
+    val parameters = options.asScala.toMap
+    val tableId = QbeastOptions.loadTableIDFromParameters(parameters)
+    QbeastContext.metadataManager.loadCurrentSchema(tableId)
+  }
 
   // Used to get the table of an existing one
   override def getTable(
       schema: StructType,
       partitioning: Array[Transform],
       properties: util.Map[String, String]): Table = {
-    val tableId = QbeastOptions.loadTableIDFromParameters(properties.asScala.toMap)
+    val tableProperties = new util.HashMap[String, String](properties).asScala
+    val tableId = QbeastOptions.loadTableIDFromParameters(tableProperties.toMap)
     val indexedTable = tableFactory.getIndexedTable(tableId)
     if (indexedTable.exists) {
       // If the table exists, we make sure to pass all the properties to QbeastTableImpl
       val currentRevision = metadataManager.loadSnapshot(tableId).loadLatestRevision
-      val indexProperties = Map(
-        "columnsToIndex" -> currentRevision.columnTransformers.map(_.columnName).mkString(","),
-        "cubeSize" -> currentRevision.desiredCubeSize.toString)
-      val tableProperties = properties.asScala.toMap ++ indexProperties
-      new QbeastTableImpl(
-        TableIdentifier(tableId.id),
-        new Path(tableId.id),
-        tableProperties,
-        Some(schema),
-        None,
-        tableFactory)
-    } else {
-      new QbeastTableImpl(
-        TableIdentifier(tableId.id),
-        new Path(tableId.id),
-        properties.asScala.toMap,
-        Some(schema),
-        None,
-        tableFactory)
+      tableProperties += "columnsToIndex" -> currentRevision.columnTransformers
+        .map(_.columnName)
+        .mkString(",")
+      tableProperties += "cubeSize" -> currentRevision.desiredCubeSize.toString
     }
-
+    new QbeastTableImpl(
+      TableIdentifier(tableId.id),
+      new Path(tableId.id),
+      tableProperties.toMap,
+      Some(schema),
+      None,
+      tableFactory)
   }
 
   def inferSchema(
