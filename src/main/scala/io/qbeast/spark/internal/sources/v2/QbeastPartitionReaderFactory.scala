@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Qbeast Analytics, S.L.
+ * Copyright 2023 Qbeast Analytics, S.L.
  */
 package io.qbeast.spark.internal.sources.v2
 
@@ -17,7 +17,7 @@ import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.types.StructType
 
 /**
- * Implementation of [[PartitionReaderFactory]].
+ * Implementation of [[org.apache.spark.sql.connector.read.PartitionReaderFactory]].
  */
 class QbeastPartitionReaderFactory private[v2] (
     private val index: FileIndex,

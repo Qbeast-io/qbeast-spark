@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Qbeast Analytics, S.L.
+ * Copyright 2023 Qbeast Analytics, S.L.
  */
 package io.qbeast.spark.internal.sources.v2
 
@@ -8,7 +8,7 @@ import org.apache.spark.sql.execution.datasources.FileIndex
 import org.apache.spark.sql.types.StructType
 
 /**
- * Implementation of [[Batch]].
+ * Implementation of [[org.apache.spark.sql.connector.read.Batch]].
  */
 class QbeastBatch private[v2] (
     private val index: FileIndex,

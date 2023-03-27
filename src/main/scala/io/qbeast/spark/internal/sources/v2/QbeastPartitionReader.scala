@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Qbeast Analytics, S.L.
+ * Copyright 2023 Qbeast Analytics, S.L.
  */
 package io.qbeast.spark.internal.sources.v2
 
@@ -7,7 +7,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.read.PartitionReader
 
 /**
- * Implementation of [[PartitionReader]].
+ * Implementation of [[org.apache.spark.sql.connector.read.PartitionReader]].
  */
 class QbeastPartitionReader private[v2] (private val iterator: Iterator[InternalRow])
     extends PartitionReader[InternalRow] {

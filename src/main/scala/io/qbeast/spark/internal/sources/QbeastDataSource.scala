@@ -58,21 +58,23 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       schema: StructType,
       partitioning: Array[Transform],
       properties: util.Map[String, String]): Table = {
-    val tableProperties = new util.HashMap[String, String](properties).asScala
-    val tableId = QbeastOptions.loadTableIDFromParameters(tableProperties.toMap)
+    var tableProperties = properties.asScala.toMap
+    val tableId = QbeastOptions.loadTableIDFromParameters(tableProperties)
     val indexedTable = tableFactory.getIndexedTable(tableId)
     if (indexedTable.exists) {
       // If the table exists, we make sure to pass all the properties to QbeastTableImpl
       val currentRevision = metadataManager.loadSnapshot(tableId).loadLatestRevision
-      tableProperties += "columnsToIndex" -> currentRevision.columnTransformers
+      val builder = Map.canBuildFrom[String, String](tableProperties)
+      builder += "columnsToIndex" -> currentRevision.columnTransformers
         .map(_.columnName)
         .mkString(",")
-      tableProperties += "cubeSize" -> currentRevision.desiredCubeSize.toString
+      builder += "cubeSize" -> currentRevision.desiredCubeSize.toString
+      tableProperties = builder.result()
     }
     new QbeastTableImpl(
       TableIdentifier(tableId.id),
       new Path(tableId.id),
-      tableProperties.toMap,
+      tableProperties,
       Some(schema),
       None,
       tableFactory)
