@@ -17,7 +17,7 @@ import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.types.StructType
 
 /**
- * Implementation of [[org.apache.spark.sql.connector.read.PartitionReaderFactory]].
+ * Implementation of org.apache.spark.sql.connector.read.PartitionReaderFactory.
  */
 class QbeastPartitionReaderFactory private[v2] (
     private val index: FileIndex,

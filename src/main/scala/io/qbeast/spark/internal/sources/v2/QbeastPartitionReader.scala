@@ -7,7 +7,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.read.PartitionReader
 
 /**
- * Implementation of [[org.apache.spark.sql.connector.read.PartitionReader]].
+ * Implementation of org.apache.spark.sql.connector.read.PartitionReader.
  */
 class QbeastPartitionReader private[v2] (private val iterator: Iterator[InternalRow])
     extends PartitionReader[InternalRow] {

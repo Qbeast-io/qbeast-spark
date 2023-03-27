@@ -8,7 +8,7 @@ import org.apache.spark.sql.execution.datasources.FileIndex
 import org.apache.spark.sql.types.StructType
 
 /**
- * Implementation of [[org.apache.spark.sql.connector.read.ScanBuilder]].
+ * Implementation of org.apache.spark.sql.connector.read.ScanBuilder.
  */
 class QbeastScanBuilder private[v2] (
     private val index: FileIndex,
