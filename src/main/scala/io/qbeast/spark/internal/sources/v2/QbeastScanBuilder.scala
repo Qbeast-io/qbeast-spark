@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Qbeast Analytics, S.L.
+ * Copyright 2021 Qbeast Analytics, S.L.
  */
 package io.qbeast.spark.internal.sources.v2
 
