@@ -23,7 +23,7 @@ class DataStagingTest extends QbeastIntegrationTestSpec {
 
   "Data Staging" should "stage data during first write" in withExtendedSparkAndTmpDir(
     sparkConfWithSqlAndCatalog
-      .set("spark.qbeast.index.stagingSize", "1")) { (spark, tmpDir) =>
+      .set("spark.qbeast.index.stagingSizeInBytes", "1")) { (spark, tmpDir) =>
     {
       val df = createDF(spark)
       df.write
@@ -40,7 +40,7 @@ class DataStagingTest extends QbeastIntegrationTestSpec {
 
   it should "not stage data when the staging is full" in withExtendedSparkAndTmpDir(
     sparkConfWithSqlAndCatalog
-      .set("spark.qbeast.index.stagingSize", "1")) { (spark, tmpDir) =>
+      .set("spark.qbeast.index.stagingSizeInBytes", "1")) { (spark, tmpDir) =>
     {
       val df = createDF(spark)
       df.write
@@ -78,7 +78,7 @@ class DataStagingTest extends QbeastIntegrationTestSpec {
   it should "clear the staging area by setting spark.qbeast.index.stagingSize=0" in
     withExtendedSparkAndTmpDir(
       sparkConfWithSqlAndCatalog
-        .set("spark.qbeast.index.stagingSize", "0")) { (spark, tmpDir) =>
+        .set("spark.qbeast.index.stagingSizeInBytes", "0")) { (spark, tmpDir) =>
       // Write with delta
       val df = createDF(spark)
       df.write
@@ -111,7 +111,7 @@ class DataStagingTest extends QbeastIntegrationTestSpec {
         .flatMap(_.files.map(_.elementCount))
         .sum
 
-      stagingDataManager.currentStagingSize shouldBe 0L
+      stagingDataManager.currentStagingSize() shouldBe 0L
       indexedDataSize shouldBe 10001L
     }
 }

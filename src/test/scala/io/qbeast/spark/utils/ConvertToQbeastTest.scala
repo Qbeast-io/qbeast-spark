@@ -213,8 +213,8 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
   "Compacting the staging revision" should "reduce the number of delta AddFiles" in
     withExtendedSparkAndTmpDir(
       sparkConfWithSqlAndCatalog
-        .set("spark.qbeast.compact.minFileSize", "1")
-        .set("spark.qbeast.compact.maxFileSize", "2000000")) { (spark, tmpDir) =>
+        .set("spark.qbeast.compact.minFileSizeInBytes", "1")
+        .set("spark.qbeast.compact.maxFileSizeInBytes", "2000000")) { (spark, tmpDir) =>
       {
         val fileFormat = "delta"
         convertFromFormat(spark, fileFormat, tmpDir)

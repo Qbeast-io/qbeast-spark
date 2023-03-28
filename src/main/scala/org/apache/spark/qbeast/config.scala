@@ -4,7 +4,7 @@
 package org.apache.spark.qbeast
 
 import io.qbeast.context.QbeastContext
-import org.apache.spark.internal.config.{ConfigBuilder, ConfigEntry}
+import org.apache.spark.internal.config.{ConfigBuilder, ConfigEntry, OptionalConfigEntry}
 
 package object config {
 
@@ -26,23 +26,23 @@ package object config {
       .intConf
       .createWithDefault(2)
 
-  private[config] val minFileSizeCompaction: ConfigEntry[Int] =
-    ConfigBuilder("spark.qbeast.compact.minFileSize")
+  private[config] val minCompactionFileSizeInBytes: ConfigEntry[Int] =
+    ConfigBuilder("spark.qbeast.compact.minFileSizeInBytes")
       .version("0.2.0")
       .intConf
       .createWithDefault(1024 * 1024 * 1024)
 
-  private[config] val maxFileSizeCompaction: ConfigEntry[Int] =
-    ConfigBuilder("spark.qbeast.compact.maxFileSize")
+  private[config] val maxCompactionFileSizeInBytes: ConfigEntry[Int] =
+    ConfigBuilder("spark.qbeast.compact.maxFileSizeInBytes")
       .version("0.2.0")
       .intConf
       .createWithDefault(1024 * 1024 * 1024)
 
-  private[config] val stagingSize: ConfigEntry[Long] =
-    ConfigBuilder("spark.qbeast.index.stagingSize")
+  private[config] val stagingSizeInBytes: OptionalConfigEntry[Long] =
+    ConfigBuilder("spark.qbeast.index.stagingSizeInBytes")
       .version("0.2.0")
       .longConf
-      .createWithDefault(-1L)
+      .createOptional
 
   def DEFAULT_NUMBER_OF_RETRIES: Int = QbeastContext.config
     .get(defaultNumberOfRetries)
@@ -53,10 +53,12 @@ package object config {
   def CUBE_WEIGHTS_BUFFER_CAPACITY: Long = QbeastContext.config
     .get(cubeWeightsBufferCapacity)
 
-  def MIN_FILE_SIZE_COMPACTION: Int = QbeastContext.config.get(minFileSizeCompaction)
+  def MIN_COMPACTION_FILE_SIZE_IN_BYTES: Int =
+    QbeastContext.config.get(minCompactionFileSizeInBytes)
 
-  def MAX_FILE_SIZE_COMPACTION: Int = QbeastContext.config.get(maxFileSizeCompaction)
+  def MAX_COMPACTION_FILE_SIZE_IN_BYTES: Int =
+    QbeastContext.config.get(maxCompactionFileSizeInBytes)
 
-  def STAGING_SIZE: Long = QbeastContext.config.get(stagingSize)
+  def STAGING_SIZE_IN_BYTES: Option[Long] = QbeastContext.config.get(stagingSizeInBytes)
 
 }
