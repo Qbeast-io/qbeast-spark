@@ -111,115 +111,115 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
   }
 
   it should "respect cube information" in withExtendedSparkAndTmpDir(
-    sparkConfWithSqlAndCatalog.set("spark.qbeast.compact.minFileSizeInBytes", "1"))(
-    (spark, tmpDir) => {
+    sparkConfWithSqlAndCatalog
+      .set("spark.qbeast.compact.minFileSizeInBytes", "1"))((spark, tmpDir) => {
 
-      val data = loadTestData(spark)
+    val data = loadTestData(spark)
 
-      // Write four batches
-      writeTestDataInBatches(data, tmpDir, 4)
+    // Write four batches
+    writeTestDataInBatches(data, tmpDir, 4)
 
-      // Load the index status before manipulating the files
-      val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val originalIndexStatus = DeltaQbeastSnapshot(deltaLog.snapshot).loadLatestIndexStatus
+    // Load the index status before manipulating the files
+    val deltaLog = DeltaLog.forTable(spark, tmpDir)
+    val originalIndexStatus = DeltaQbeastSnapshot(deltaLog.snapshot).loadLatestIndexStatus
 
-      // Compact the table
-      val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-      qbeastTable.compact()
+    // Compact the table
+    val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+    qbeastTable.compact()
 
-      val newIndexStatus = DeltaQbeastSnapshot(deltaLog.update()).loadLatestIndexStatus
+    val newIndexStatus = DeltaQbeastSnapshot(deltaLog.update()).loadLatestIndexStatus
 
-      // Check if both index status are coherent with each other
-      newIndexStatus.revision shouldBe originalIndexStatus.revision
-      originalIndexStatus.cubeNormalizedWeights.foreach { case (cube, weight) =>
-        newIndexStatus.cubeNormalizedWeights.get(cube) shouldBe defined
-        newIndexStatus.cubeNormalizedWeights(cube) shouldBe weight
-      }
-      newIndexStatus.replicatedSet shouldBe originalIndexStatus.replicatedSet
-      newIndexStatus.announcedSet shouldBe originalIndexStatus.announcedSet
-    })
+    // Check if both index status are coherent with each other
+    newIndexStatus.revision shouldBe originalIndexStatus.revision
+    originalIndexStatus.cubeNormalizedWeights.foreach { case (cube, weight) =>
+      newIndexStatus.cubeNormalizedWeights.get(cube) shouldBe defined
+      newIndexStatus.cubeNormalizedWeights(cube) shouldBe weight
+    }
+    newIndexStatus.replicatedSet shouldBe originalIndexStatus.replicatedSet
+    newIndexStatus.announcedSet shouldBe originalIndexStatus.announcedSet
+  })
 
   it should "compact the latest revision available" in withExtendedSparkAndTmpDir(
-    sparkConfWithSqlAndCatalog.set("spark.qbeast.compact.minFileSizeInBytes", "1"))(
-    (spark, tmpDir) => {
+    sparkConfWithSqlAndCatalog
+      .set("spark.qbeast.compact.minFileSizeInBytes", "1"))((spark, tmpDir) => {
 
-      val data = loadTestData(spark)
+    val data = loadTestData(spark)
 
-      // Write four batches
-      writeTestDataInBatches(data, tmpDir, 4)
+    // Write four batches
+    writeTestDataInBatches(data, tmpDir, 4)
 
-      // Write next revision batches
-      val newData = data
-        .withColumn("product_id", col("product_id") * 2)
-        .withColumn("user_id", col("user_id") * 6)
-      writeTestDataInBatches(newData, tmpDir, 4)
+    // Write next revision batches
+    val newData = data
+      .withColumn("product_id", col("product_id") * 2)
+      .withColumn("user_id", col("user_id") * 6)
+    writeTestDataInBatches(newData, tmpDir, 4)
 
-      val tableId = QTableID(tmpDir)
-      // Including the staging revision
-      SparkDeltaMetadataManager.loadSnapshot(tableId).loadAllRevisions.size shouldBe 3
+    val tableId = QTableID(tmpDir)
+    // Including the staging revision
+    SparkDeltaMetadataManager.loadSnapshot(tableId).loadAllRevisions.size shouldBe 3
 
-      // Count files written for each revision
-      val allFiles = DeltaLog.forTable(spark, tmpDir).snapshot.allFiles
-      val originalFilesRevisionOne =
-        allFiles.filter("tags.revision == 1").count()
-      val originalFilesRevisionTwo =
-        allFiles.filter("tags.revision == 2").count()
+    // Count files written for each revision
+    val allFiles = DeltaLog.forTable(spark, tmpDir).snapshot.allFiles
+    val originalFilesRevisionOne =
+      allFiles.filter("tags.revision == 1").count()
+    val originalFilesRevisionTwo =
+      allFiles.filter("tags.revision == 2").count()
 
-      // Compact the table
-      val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-      qbeastTable.compact()
+    // Compact the table
+    val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+    qbeastTable.compact()
 
-      // Count files compacted for each revision
-      val newAllFiles = DeltaLog.forTable(spark, tmpDir).snapshot.allFiles
-      val newFilesRevisionOne = newAllFiles.filter("tags.revision == 1").count()
-      val newFilesRevisionTwo = newAllFiles.filter("tags.revision == 2").count()
+    // Count files compacted for each revision
+    val newAllFiles = DeltaLog.forTable(spark, tmpDir).snapshot.allFiles
+    val newFilesRevisionOne = newAllFiles.filter("tags.revision == 1").count()
+    val newFilesRevisionTwo = newAllFiles.filter("tags.revision == 2").count()
 
-      // Check if the compaction worked for the latest one
-      newFilesRevisionOne shouldBe originalFilesRevisionOne
-      newFilesRevisionTwo shouldBe <(originalFilesRevisionTwo)
+    // Check if the compaction worked for the latest one
+    newFilesRevisionOne shouldBe originalFilesRevisionOne
+    newFilesRevisionTwo shouldBe <(originalFilesRevisionTwo)
 
-    })
+  })
 
   it should "compact the specified revision" in withExtendedSparkAndTmpDir(
-    sparkConfWithSqlAndCatalog.set("spark.qbeast.compact.minFileSizeInBytes", "1"))(
-    (spark, tmpDir) => {
+    sparkConfWithSqlAndCatalog
+      .set("spark.qbeast.compact.minFileSizeInBytes", "1"))((spark, tmpDir) => {
 
-      val data = loadTestData(spark)
+    val data = loadTestData(spark)
 
-      // Write four batches
-      writeTestDataInBatches(data, tmpDir, 4)
+    // Write four batches
+    writeTestDataInBatches(data, tmpDir, 4)
 
-      // Write next revision batches
-      val newData = data
-        .withColumn("product_id", col("product_id") * 2)
-        .withColumn("user_id", col("user_id") * 6)
-      writeTestDataInBatches(newData, tmpDir, 4)
+    // Write next revision batches
+    val newData = data
+      .withColumn("product_id", col("product_id") * 2)
+      .withColumn("user_id", col("user_id") * 6)
+    writeTestDataInBatches(newData, tmpDir, 4)
 
-      val tableId = QTableID(tmpDir)
-      // Including the staging revision
-      SparkDeltaMetadataManager.loadSnapshot(tableId).loadAllRevisions.size shouldBe 3
+    val tableId = QTableID(tmpDir)
+    // Including the staging revision
+    SparkDeltaMetadataManager.loadSnapshot(tableId).loadAllRevisions.size shouldBe 3
 
-      // Count files written for each revision
-      val allFiles = DeltaLog.forTable(spark, tmpDir).snapshot.allFiles
-      val originalFilesRevisionOne =
-        allFiles.filter("tags.revision == 1").count()
-      val originalFilesRevisionTwo =
-        allFiles.filter("tags.revision == 2").count()
+    // Count files written for each revision
+    val allFiles = DeltaLog.forTable(spark, tmpDir).snapshot.allFiles
+    val originalFilesRevisionOne =
+      allFiles.filter("tags.revision == 1").count()
+    val originalFilesRevisionTwo =
+      allFiles.filter("tags.revision == 2").count()
 
-      // Compact the table
-      val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-      qbeastTable.compact(1)
+    // Compact the table
+    val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+    qbeastTable.compact(1)
 
-      // Count files compacted for each revision
-      val newAllFiles = DeltaLog.forTable(spark, tmpDir).snapshot.allFiles
-      val newFilesRevisionOne = newAllFiles.filter("tags.revision == 1").count()
-      val newFilesRevisionTwo = newAllFiles.filter("tags.revision == 2").count()
+    // Count files compacted for each revision
+    val newAllFiles = DeltaLog.forTable(spark, tmpDir).snapshot.allFiles
+    val newFilesRevisionOne = newAllFiles.filter("tags.revision == 1").count()
+    val newFilesRevisionTwo = newAllFiles.filter("tags.revision == 2").count()
 
-      // Check if the compaction worked for the number one
-      newFilesRevisionOne shouldBe <(originalFilesRevisionOne)
-      newFilesRevisionTwo shouldBe originalFilesRevisionTwo
+    // Check if the compaction worked for the number one
+    newFilesRevisionOne shouldBe <(originalFilesRevisionOne)
+    newFilesRevisionTwo shouldBe originalFilesRevisionTwo
 
-    })
+  })
 
   it should "not compact if the revision does not exists" in withExtendedSparkAndTmpDir(
     sparkConfWithSqlAndCatalog.set("spark.qbeast.compact.minFileSize", "1"))((spark, tmpDir) => {
