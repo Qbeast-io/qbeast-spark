@@ -3,7 +3,6 @@
  */
 package io.qbeast.spark.index.query
 
-import io.qbeast.core.model.RevisionUtils.isStaging
 import io.qbeast.core.model._
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import org.apache.spark.sql.SparkSession
@@ -28,7 +27,9 @@ import org.apache.spark.unsafe.types.UTF8String
  * Builds a query specification from a set of filters
  * @param sparkFilters the filters
  */
-private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression]) extends Serializable {
+private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
+    extends Serializable
+    with StagingUtils {
 
   lazy val spark: SparkSession = SparkSession.active
   lazy val nameEquality: Resolver = spark.sessionState.analyzer.resolver

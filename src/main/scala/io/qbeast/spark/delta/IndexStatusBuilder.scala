@@ -3,7 +3,6 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.RevisionUtils.isStaging
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.QbeastMetadataSQL._
 import io.qbeast.spark.utils.State.FLOODED
@@ -26,7 +25,8 @@ private[delta] class IndexStatusBuilder(
     revision: Revision,
     replicatedSet: ReplicatedSet,
     announcedSet: Set[CubeId] = Set.empty)
-    extends Serializable {
+    extends Serializable
+    with StagingUtils {
 
   /**
    * Dataset of files belonging to the specific revision

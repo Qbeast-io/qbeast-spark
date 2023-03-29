@@ -3,35 +3,28 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.RevisionUtils.isStagingFile
 import io.qbeast.core.model.{IndexStatus, QTableID}
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import org.apache.hadoop.fs.Path
 import org.apache.spark.qbeast.config.STAGING_SIZE_IN_BYTES
-import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.delta.actions.{AddFile, RemoveFile}
-import org.apache.spark.sql.{DataFrame, Dataset, SaveMode, SparkSession}
+import org.apache.spark.sql.delta.actions.RemoveFile
+import org.apache.spark.sql.delta.{DeltaLog, Snapshot}
+import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 
 /**
  * Access point for staged data
  */
-private[spark] case class StagingDataManager(tableID: QTableID) {
+private[spark] class StagingDataManager(tableID: QTableID) extends DeltaStagingUtils {
   private val spark = SparkSession.active
 
-  private val snapshot = DeltaLog.forTable(spark, tableID.id).snapshot
-
-  private val isInitial = snapshot.version == -1
-
-  private def stagingFiles(): Dataset[AddFile] = {
-    snapshot.allFiles.where(isStagingFile)
-  }
+  protected override val snapshot: Snapshot = DeltaLog.forTable(spark, tableID.id).snapshot
 
   private def stagingRemoveFiles: Seq[RemoveFile] = {
     import spark.implicits._
     stagingFiles().map(a => a.remove).as[RemoveFile].collect()
   }
 
-  def currentStagingSize(): Long = {
+  private def currentStagingSize(): Long = {
     val row = stagingFiles().selectExpr("sum(size)").first()
     if (row.isNullAt(0)) 0L
     else row.getLong(0)

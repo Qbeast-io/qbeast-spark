@@ -1,15 +1,18 @@
 package io.qbeast.spark.index
 
 import io.qbeast.TestClasses.T2
-import io.qbeast.core.model.QTableID
-import io.qbeast.core.model.RevisionUtils.isStaging
+import io.qbeast.core.model.{QTableID, StagingUtils}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.{DeltaQbeastSnapshot, StagingDataManager}
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.scalatest.PrivateMethodTester
 
-class DataStagingTest extends QbeastIntegrationTestSpec {
+class DataStagingTest
+    extends QbeastIntegrationTestSpec
+    with PrivateMethodTester
+    with StagingUtils {
 
   def createDF(spark: SparkSession): DataFrame = {
     import spark.implicits._
@@ -20,6 +23,9 @@ class DataStagingTest extends QbeastIntegrationTestSpec {
     val deltaLog = DeltaLog.forTable(spark, dir)
     DeltaQbeastSnapshot(deltaLog.snapshot)
   }
+
+  private val getCurrentStagingSize: PrivateMethod[Long] =
+    PrivateMethod[Long]('currentStagingSize)
 
   "Data Staging" should "stage data during first write" in withExtendedSparkAndTmpDir(
     sparkConfWithSqlAndCatalog
@@ -61,7 +67,7 @@ class DataStagingTest extends QbeastIntegrationTestSpec {
       val revisions = snapshot.loadAllRevisions
       revisions.size shouldBe 2
 
-      val stagingDataManager = StagingDataManager(QTableID(tmpDir))
+      val stagingDataManager = new StagingDataManager(QTableID(tmpDir))
 
       val indexedDataSize = snapshot
         .loadIndexStatus(1)
@@ -70,7 +76,7 @@ class DataStagingTest extends QbeastIntegrationTestSpec {
         .flatMap(_.files.map(_.elementCount))
         .sum
 
-      stagingDataManager.currentStagingSize shouldBe 0L
+      stagingDataManager invokePrivate getCurrentStagingSize() shouldBe 0L
       indexedDataSize shouldBe 20000L
     }
   }
@@ -102,7 +108,7 @@ class DataStagingTest extends QbeastIntegrationTestSpec {
       val revisions = snapshot.loadAllRevisions
       revisions.size shouldBe 2
 
-      val stagingDataManager = StagingDataManager(QTableID(tmpDir))
+      val stagingDataManager = new StagingDataManager(QTableID(tmpDir))
 
       val indexedDataSize = snapshot
         .loadIndexStatus(1)
@@ -111,7 +117,7 @@ class DataStagingTest extends QbeastIntegrationTestSpec {
         .flatMap(_.files.map(_.elementCount))
         .sum
 
-      stagingDataManager.currentStagingSize() shouldBe 0L
+      stagingDataManager invokePrivate getCurrentStagingSize() shouldBe 0L
       indexedDataSize shouldBe 10001L
     }
 }

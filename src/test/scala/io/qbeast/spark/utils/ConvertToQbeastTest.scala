@@ -1,6 +1,6 @@
 package io.qbeast.spark.utils
 
-import io.qbeast.core.model.RevisionUtils.{isStaging, stagingID}
+import io.qbeast.core.model.StagingUtils
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.utils.QbeastExceptionMessages.{
@@ -13,7 +13,10 @@ import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.scalatest.PrivateMethodTester
 
-class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTester {
+class ConvertToQbeastTest
+    extends QbeastIntegrationTestSpec
+    with PrivateMethodTester
+    with StagingUtils {
   val dataSize = 50000
   val numSparkPartitions = 20
 
