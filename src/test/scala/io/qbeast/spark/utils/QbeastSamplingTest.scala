@@ -2,8 +2,9 @@ package io.qbeast.spark.utils
 
 import io.qbeast.spark.delta.OTreeIndex
 import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
-import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
 
 class QbeastSamplingTest extends QbeastIntegrationTestSpec {
 
@@ -12,17 +13,20 @@ class QbeastSamplingTest extends QbeastIntegrationTestSpec {
 
     leaves.exists(p =>
       p
-        .asInstanceOf[FileSourceScanExec]
-        .relation
-        .location
+        .asInstanceOf[BatchScanExec]
+        .scan
+        .asInstanceOf[ParquetScan]
+        .fileIndex
         .isInstanceOf[OTreeIndex]) shouldBe true
 
     leaves
       .foreach {
-        case f: FileSourceScanExec if f.relation.location.isInstanceOf[OTreeIndex] =>
-          val index = f.relation.location
+        case f: BatchScanExec
+            if f.scan.asInstanceOf[ParquetScan].fileIndex.isInstanceOf[OTreeIndex] =>
+          val scan = f.scan.asInstanceOf[ParquetScan]
+          val index = scan.fileIndex
           val matchingFiles =
-            index.listFiles(f.partitionFilters, f.dataFilters).flatMap(_.files)
+            index.listFiles(scan.partitionFilters, scan.dataFilters).flatMap(_.files)
           val allFiles = index.inputFiles
           matchingFiles.length shouldBe <(allFiles.length)
       }
