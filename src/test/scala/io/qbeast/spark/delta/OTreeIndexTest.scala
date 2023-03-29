@@ -11,7 +11,8 @@ import org.apache.spark.sql.delta.files.TahoeLogFileIndex
 
 class OTreeIndexTest extends QbeastIntegrationTestSpec {
 
-  class OTreeIndexTest(tahoe: TahoeLogFileIndex) extends OTreeIndex(index = tahoe) {
+  class OTreeIndexTest(spark: SparkSession, index: TahoeLogFileIndex)
+      extends OTreeIndex(spark, index) {
 
     // Testing protected method
     override def matchingBlocks(
@@ -47,7 +48,7 @@ class OTreeIndexTest extends QbeastIntegrationTestSpec {
     val tahoeFileIndex = {
       TahoeLogFileIndex(spark, deltaLog, deltaLog.dataPath, deltaLog.snapshot, Seq.empty, false)
     }
-    val oTreeIndex = new OTreeIndexTest(tahoeFileIndex)
+    val oTreeIndex = new OTreeIndexTest(spark, tahoeFileIndex)
 
     val allFiles = deltaLog.snapshot.allFiles.collect().map(_.path)
 
@@ -75,7 +76,7 @@ class OTreeIndexTest extends QbeastIntegrationTestSpec {
     val tahoeFileIndex = {
       TahoeLogFileIndex(spark, deltaLog, deltaLog.dataPath, deltaLog.snapshot, Seq.empty, false)
     }
-    val oTreeIndex = new OTreeIndexTest(tahoeFileIndex)
+    val oTreeIndex = new OTreeIndexTest(spark, tahoeFileIndex)
 
     oTreeIndex.inputFiles shouldBe deltaLog.snapshot.allFiles
       .collect()
@@ -97,7 +98,7 @@ class OTreeIndexTest extends QbeastIntegrationTestSpec {
       val tahoeFileIndex = {
         TahoeLogFileIndex(spark, deltaLog, deltaLog.dataPath, deltaLog.snapshot, Seq.empty, false)
       }
-      val oTreeIndex = new OTreeIndexTest(tahoeFileIndex)
+      val oTreeIndex = new OTreeIndexTest(spark, tahoeFileIndex)
       val allFiles = deltaLog.snapshot.allFiles.collect().map(_.path)
 
       oTreeIndex.matchingBlocks(Seq.empty, Seq.empty).map(_.path).toSet shouldBe allFiles.toSet
@@ -117,7 +118,7 @@ class OTreeIndexTest extends QbeastIntegrationTestSpec {
     val tahoeFileIndex = {
       TahoeLogFileIndex(spark, deltaLog, deltaLog.dataPath, deltaLog.snapshot, Seq.empty, false)
     }
-    val oTreeIndex = new OTreeIndexTest(tahoeFileIndex)
+    val oTreeIndex = new OTreeIndexTest(spark, tahoeFileIndex)
 
     val sizeInBytes = deltaLog.snapshot.allFiles.collect().map(_.size).sum
     oTreeIndex.sizeInBytes shouldBe sizeInBytes

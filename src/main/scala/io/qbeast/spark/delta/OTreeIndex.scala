@@ -12,17 +12,24 @@ import org.apache.spark.sql.catalyst.expressions.{Expression, GenericInternalRow
 import org.apache.spark.sql.delta.{DeltaLog, Snapshot}
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.files.TahoeLogFileIndex
-import org.apache.spark.sql.execution.datasources.{FileIndex, PartitionDirectory}
+import org.apache.spark.sql.execution.datasources.{
+  PartitioningAwareFileIndex,
+  PartitionDirectory,
+  PartitionSpec
+}
 import org.apache.spark.sql.types.StructType
 
 import java.net.URI
+import scala.collection.mutable.LinkedHashMap
 
 /**
  * FileIndex to prune files
  *
+ * @param spark the SparkSession instance
  * @param index the Tahoe log file index
  */
-case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
+case class OTreeIndex(spark: SparkSession, index: TahoeLogFileIndex)
+    extends PartitioningAwareFileIndex(spark, Map.empty, None) {
 
   /**
    * Snapshot to analyze
@@ -97,7 +104,14 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
 
   override def rootPaths: Seq[Path] = index.rootPaths
 
-  override def partitionSchema: StructType = index.partitionSchema
+  override def partitionSpec(): PartitionSpec = PartitionSpec.emptySpec
+
+  override def partitionSchema: StructType = partitionSpec().partitionColumns
+
+  override protected def leafFiles: LinkedHashMap[Path, FileStatus] = LinkedHashMap.empty
+
+  override protected def leafDirToChildrenFiles: Map[Path, Array[FileStatus]] = Map.empty
+
 }
 
 /**
@@ -109,28 +123,26 @@ object OTreeIndex {
   def apply(spark: SparkSession, path: Path): OTreeIndex = {
     val deltaLog = DeltaLog.forTable(spark, path)
     val tahoe = TahoeLogFileIndex(spark, deltaLog, path, deltaLog.snapshot, Seq.empty, false)
-    OTreeIndex(tahoe)
+    OTreeIndex(spark, tahoe)
   }
 
 }
 
 /**
- * Singleton object for EmptyIndex.
- * Used when creating a table with no data added
+ * File index implementation for the cases when the table is empty or does not
+ * exist.
+ *
+ * @param spark the SparkSession instance
  */
+class EmptyIndex(spark: SparkSession) extends PartitioningAwareFileIndex(spark, Map.empty, None) {
 
-object EmptyIndex extends FileIndex {
   override def rootPaths: Seq[Path] = Seq.empty
 
-  override def listFiles(
-      partitionFilters: Seq[Expression],
-      dataFilters: Seq[Expression]): Seq[PartitionDirectory] = Seq.empty
+  override def refresh(): Unit = ()
 
-  override def inputFiles: Array[String] = Array.empty
+  override def partitionSpec(): PartitionSpec = PartitionSpec.emptySpec
 
-  override def refresh(): Unit = {}
+  override protected def leafFiles: LinkedHashMap[Path, FileStatus] = LinkedHashMap.empty
 
-  override def sizeInBytes: Long = 0L
-
-  override def partitionSchema: StructType = StructType(Seq.empty)
+  override protected def leafDirToChildrenFiles: Map[Path, Array[FileStatus]] = Map.empty
 }

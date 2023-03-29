@@ -26,6 +26,7 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import java.util
 import scala.collection.JavaConverters._
 import io.qbeast.spark.delta.{OTreeIndex, EmptyIndex}
+import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScanBuilder
 
 /**
  * Table Implementation for Qbeast Format
@@ -74,12 +75,10 @@ class QbeastTableImpl private[sources] (
   }
 
   override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder = {
-    val index = if (indexedTable.exists) {
-      OTreeIndex(SparkSession.active, path)
-    } else {
-      EmptyIndex
-    }
-    new QbeastScanBuilder(index, schema(), this.options)
+    val spark = SparkSession.active
+    val index = if (indexedTable.exists) OTreeIndex(spark, path) else new EmptyIndex(spark)
+    val schema = this.schema()
+    new ParquetScanBuilder(spark, index, schema, schema, options)
   }
 
   def toBaseRelation: BaseRelation = {
