@@ -1,5 +1,6 @@
 package io.qbeast.core.model
 
+import io.qbeast.core.transform.HashTransformer
 import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -11,8 +12,15 @@ class CubeWeightsBuilderTest extends AnyFlatSpec with Matchers with PrivateMetho
   private val point = Point(0.9, 0.1)
   private val dcs = 400
 
+  private val transformers =
+    Vector(HashTransformer("a", StringDataType), HashTransformer("b", StringDataType))
+
+  private val transformations = transformers.map(t => t.makeTransformation(r => r))
+
   private val rev =
-    Revision.emptyRevision(QTableID("test"), dcs, Seq("a", "b")).copy(revisionID = 1)
+    Revision
+      .firstRevision(QTableID("test"), dcs, transformers, transformations)
+      .copy(revisionID = 1)
 
   private val emptyIndexStatus = IndexStatus.empty(rev)
 

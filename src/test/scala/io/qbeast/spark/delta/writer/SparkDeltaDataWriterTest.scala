@@ -5,7 +5,10 @@ import io.qbeast.core.model.{CubeId, IndexStatus, QTableID, Weight}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionFactory}
 import io.qbeast.spark.utils.{State, TagUtils}
-import org.apache.spark.qbeast.config.{MAX_FILE_SIZE_COMPACTION, MIN_FILE_SIZE_COMPACTION}
+import org.apache.spark.qbeast.config.{
+  MIN_COMPACTION_FILE_SIZE_IN_BYTES,
+  MAX_COMPACTION_FILE_SIZE_IN_BYTES
+}
 import org.apache.spark.sql.delta.actions.AddFile
 
 import scala.reflect.io.Path
@@ -48,8 +51,8 @@ class SparkDeltaDataWriterTest extends QbeastIntegrationTestSpec {
 
       groupedFiles.foreach(blocks => {
         val size = blocks.map(_.size).sum
-        size shouldBe >=(MIN_FILE_SIZE_COMPACTION)
-        size shouldBe <=(MAX_FILE_SIZE_COMPACTION)
+        size shouldBe >=(MIN_COMPACTION_FILE_SIZE_IN_BYTES)
+        size shouldBe <=(MAX_COMPACTION_FILE_SIZE_IN_BYTES)
       })
 
     }

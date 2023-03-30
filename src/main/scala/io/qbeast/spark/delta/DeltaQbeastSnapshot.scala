@@ -4,7 +4,6 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.IISeq
-import io.qbeast.core.model.RevisionUtils.isStaging
 import io.qbeast.core.model._
 import io.qbeast.spark.utils.{MetadataConfig, TagColumns}
 import org.apache.spark.sql.delta.Snapshot
@@ -17,11 +16,16 @@ import org.apache.spark.sql.{AnalysisExceptionFactory, Dataset}
  *
  * @param snapshot the internal Delta Lakes log snapshot
  */
-case class DeltaQbeastSnapshot(private val snapshot: Snapshot) extends QbeastSnapshot {
+case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
+    extends QbeastSnapshot
+    with DeltaStagingUtils {
 
-  def isInitial: Boolean = snapshot.version == -1
-
-  private val isStagingFile = "tags IS NULL"
+  /**
+   * The current state of the snapshot.
+   *
+   * @return
+   */
+  override def isInitial: Boolean = snapshot.version == -1
 
   private val metadataMap: Map[String, String] = snapshot.metadata.configuration
 
@@ -168,8 +172,12 @@ case class DeltaQbeastSnapshot(private val snapshot: Snapshot) extends QbeastSna
    * @return the Dataset of QbeastBlocks
    */
   def loadRevisionBlocks(revisionID: RevisionID): Dataset[AddFile] = {
-    if (isStaging(revisionID)) snapshot.allFiles.where(isStagingFile)
+    if (isStaging(revisionID)) loadStagingBlocks()
     else snapshot.allFiles.where(TagColumns.revision === lit(revisionID.toString))
   }
 
+  /**
+   * Loads Staging AddFiles
+   */
+  def loadStagingBlocks(): Dataset[AddFile] = stagingFiles()
 }

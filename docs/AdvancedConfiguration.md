@@ -6,7 +6,7 @@ There's different configurations for the index that can affect the performance o
 
 We designed the `QbeastCatalog` to work as an **entry point for other format's Catalog's** as well. 
 
-However, you can also handle different Catalogs simultanously.
+However, you can also handle different Catalogs simultaneously.
 
 ### 1. Unified Catalog
 
@@ -146,6 +146,25 @@ You can change the number of retries for the LocalKeeper in order to test it.
 You can set the minimum and maximum size of your files for the compaction process.
 
 ```shell
---conf spark.qbeast.compact.minFileSize=1\
---conf spark.qbeast.compact.maxFileSize=10000
+--conf spark.qbeast.compact.minFileSizeInBytes=1 \
+--conf spark.qbeast.compact.maxFileSizeInBytes=10000
+```
+
+## Data Staging
+You can set up the `SparkSession` with a **data staging area** for all your Qbeast table writes.
+
+A staging area is where you can put the data you don't yet want to index but still want to be available for your queries.
+To activate staging, set the following configuration to a non-negative value.
+
+```scala
+--conf spark.qbeast.index.stagingSizeInBytes=1000000000
+```
+When the staging area is not full, all writes are staged without indexing(written in `delta`).
+When the staging size reaches the defined value, the current data is merged with the staged data and written at once.
+
+The feature can be helpful when your workflow does frequent small appends. Setting up a staging area makes sure that all index appends are at least of the staging size.
+
+We can empty the staging area with a given write by setting the staging size to `0`:
+```scala
+--conf spark.qbeast.index.stagingSizeInBytes=0
 ```

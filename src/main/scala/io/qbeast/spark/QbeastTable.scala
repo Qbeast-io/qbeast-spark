@@ -4,8 +4,7 @@
 package io.qbeast.spark
 
 import io.qbeast.context.QbeastContext
-import io.qbeast.core.model.RevisionUtils.isStaging
-import io.qbeast.core.model.{QTableID, RevisionID}
+import io.qbeast.core.model.{QTableID, RevisionID, StagingUtils}
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.commands.{
   AnalyzeTableCommand,
@@ -13,8 +12,8 @@ import io.qbeast.spark.internal.commands.{
   OptimizeTableCommand
 }
 import io.qbeast.spark.table._
-import io.qbeast.spark.utils.{CubeSizeMetrics, IndexMetrics}
 import io.qbeast.spark.utils.MathOps.depthOnBalance
+import io.qbeast.spark.utils.{CubeSizeMetrics, IndexMetrics}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{AnalysisExceptionFactory, SparkSession}
 
@@ -29,7 +28,8 @@ class QbeastTable private (
     sparkSession: SparkSession,
     tableID: QTableID,
     indexedTableFactory: IndexedTableFactory)
-    extends Serializable {
+    extends Serializable
+    with StagingUtils {
 
   private def deltaLog: DeltaLog = DeltaLog.forTable(sparkSession, tableID.id)
 
