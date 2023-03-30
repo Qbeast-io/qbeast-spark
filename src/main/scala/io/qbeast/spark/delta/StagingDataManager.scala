@@ -7,7 +7,7 @@ import io.qbeast.core.model.{IndexStatus, QTableID}
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import org.apache.hadoop.fs.Path
 import org.apache.spark.qbeast.config.STAGING_SIZE_IN_BYTES
-import org.apache.spark.sql.delta.actions.RemoveFile
+import org.apache.spark.sql.delta.actions.{FileAction, RemoveFile}
 import org.apache.spark.sql.delta.{DeltaLog, Snapshot}
 import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 
@@ -33,10 +33,10 @@ private[spark] class StagingDataManager(tableID: QTableID) extends DeltaStagingU
   /**
    * Stack a given DataFrame with all staged data.
    */
-  private def mergeWithStagingData(data: DataFrame): DataFrame = {
-    if (stagingRemoveFiles.isEmpty) data
+  private def mergeWithStagingData(data: DataFrame, stagedFiles: Seq[FileAction]): DataFrame = {
+    if (stagedFiles.isEmpty) data
     else {
-      val paths = stagingRemoveFiles.map(r => new Path(tableID.id, r.path).toString)
+      val paths = stagedFiles.map(r => new Path(tableID.id, r.path).toString)
       val stagingData = spark.read.parquet(paths: _*)
       data.unionByName(stagingData, allowMissingColumns = true)
     }
@@ -65,7 +65,9 @@ private[spark] class StagingDataManager(tableID: QTableID) extends DeltaStagingU
         } else if (currentStagingSize >= stagingSize) {
           // Full staging area, merge current data with the staging data and mark
           // all staging AddFiles as removed
-          StagingResolution(mergeWithStagingData(data), stagingRemoveFiles, sendToStaging = false)
+          val stagedFiles = stagingRemoveFiles
+          val dataToWrite = mergeWithStagingData(data, stagedFiles)
+          StagingResolution(dataToWrite, stagedFiles, sendToStaging = false)
         } else {
           // The staging area is not full, stage the data
           StagingResolution(data, Nil, sendToStaging = true)

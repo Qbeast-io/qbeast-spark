@@ -70,6 +70,10 @@ class ConvertToQbeastTest
     val indexStatus = getQbeastSnapshot(spark, tmpDir).loadIndexStatus(stagingID)
     indexStatus.cubesStatuses.size shouldBe 1
     indexStatus.cubesStatuses.head._2.files.size shouldBe numSparkPartitions
+
+    val valuesToTransform = Vector(544496263, 76.96, "view")
+    indexStatus.revision.transform(valuesToTransform) shouldBe Vector(0d, 0d, 0d)
+
   })
 
   it should "convert a parquet table" in withSparkAndTmpDir((spark, tmpDir) => {
