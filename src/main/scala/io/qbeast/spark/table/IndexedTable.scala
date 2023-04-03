@@ -4,9 +4,8 @@
 package io.qbeast.spark.table
 
 import io.qbeast.core.keeper.Keeper
-import io.qbeast.core.model.RevisionUtils.isStaging
 import io.qbeast.core.model._
-import io.qbeast.spark.delta.CubeDataLoader
+import io.qbeast.spark.delta.{CubeDataLoader, StagingDataManager, StagingResolution}
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.QbeastOptions.{COLUMNS_TO_INDEX, CUBE_SIZE}
@@ -136,26 +135,27 @@ private[table] class IndexedTableImpl(
     private val metadataManager: MetadataManager[StructType, FileAction],
     private val dataWriter: DataWriter[DataFrame, StructType, FileAction],
     private val revisionBuilder: RevisionFactory[StructType])
-    extends IndexedTable {
+    extends IndexedTable
+    with StagingUtils {
   private var snapshotCache: Option[QbeastSnapshot] = None
 
   override def exists: Boolean = !snapshot.isInitial
 
   private def checkRevisionParameters(
       qbeastOptions: QbeastOptions,
-      latestIndexStatus: IndexStatus): Boolean = {
+      latestRevision: Revision): Boolean = {
     // TODO feature: columnsToIndex may change between revisions
-    checkColumnsToMatchSchema(latestIndexStatus)
+    checkColumnsToMatchSchema(latestRevision)
     // Checks if the user-provided column boundaries would trigger the creation of
     // a new revision.
     val isNewSpace = qbeastOptions.stats match {
       case None => false
       case Some(stats) =>
         val columnStats = stats.first()
-        val transformations = latestIndexStatus.revision.transformations
+        val transformations = latestRevision.transformations
 
         val newPossibleTransformations =
-          latestIndexStatus.revision.columnTransformers.map(t =>
+          latestRevision.columnTransformers.map(t =>
             t.makeTransformation(columnName => columnStats.getAs[Object](columnName)))
 
         transformations
@@ -165,7 +165,7 @@ private[table] class IndexedTableImpl(
           })
     }
 
-    latestIndexStatus.revision.desiredCubeSize == qbeastOptions.cubeSize && !isNewSpace
+    latestRevision.desiredCubeSize == qbeastOptions.cubeSize && !isNewSpace
 
   }
 
@@ -200,12 +200,11 @@ private[table] class IndexedTableImpl(
         if (isStaging(latestRevision)) {
           IndexStatus(revisionBuilder.createNewRevision(tableID, data.schema, updatedParameters))
         } else {
-          val latestIndexStatus = snapshot.loadIndexStatus(latestRevision.revisionID)
-          if (checkRevisionParameters(QbeastOptions(updatedParameters), latestIndexStatus)) {
-            latestIndexStatus
+          if (checkRevisionParameters(QbeastOptions(updatedParameters), latestRevision)) {
+            snapshot.loadIndexStatus(latestRevision.revisionID)
           } else {
             // If the new parameters generate a new revision, we need to create another one
-            val oldRevisionID = latestIndexStatus.revision.revisionID
+            val oldRevisionID = latestRevision.revisionID
             val newRevision = revisionBuilder
               .createNextRevision(tableID, data.schema, updatedParameters, oldRevisionID)
             IndexStatus(newRevision)
@@ -235,8 +234,8 @@ private[table] class IndexedTableImpl(
     snapshotCache = None
   }
 
-  private def checkColumnsToMatchSchema(indexStatus: IndexStatus): Unit = {
-    val columnsToIndex = indexStatus.revision.columnTransformers.map(_.columnName)
+  private def checkColumnsToMatchSchema(revision: Revision): Unit = {
+    val columnsToIndex = revision.columnTransformers.map(_.columnName)
     if (!snapshot.loadLatestRevision.matchColumns(columnsToIndex)) {
       throw AnalysisExceptionFactory.create(
         s"Columns to index '$columnsToIndex' do not match existing index.")
@@ -284,15 +283,19 @@ private[table] class IndexedTableImpl(
   }
 
   private def doWrite(data: DataFrame, indexStatus: IndexStatus, append: Boolean): Unit = {
+    val stagingDataManager: StagingDataManager = new StagingDataManager(tableID)
+    stagingDataManager.updateWithStagedData(data) match {
+      case r: StagingResolution if r.sendToStaging =>
+        stagingDataManager.stageData(data, indexStatus, append)
 
-    val schema = data.schema
-    metadataManager.updateWithTransaction(tableID, schema, append) {
-      val (qbeastData, tableChanges) =
-        indexManager.index(data, indexStatus)
-      val fileActions = dataWriter.write(tableID, schema, qbeastData, tableChanges)
-      (tableChanges, fileActions)
+      case StagingResolution(dataToWrite, removeFiles, false) =>
+        val schema = dataToWrite.schema
+        metadataManager.updateWithTransaction(tableID, schema, append) {
+          val (qbeastData, tableChanges) = indexManager.index(dataToWrite, indexStatus)
+          val fileActions = dataWriter.write(tableID, schema, qbeastData, tableChanges)
+          (tableChanges, fileActions ++ removeFiles)
+        }
     }
-
   }
 
   override def analyze(revisionID: RevisionID): Seq[String] = {

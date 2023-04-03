@@ -17,7 +17,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
 
   "Compaction command" should
     "reduce the number of files" in withExtendedSparkAndTmpDir(
-      sparkConfWithSqlAndCatalog.set("spark.qbeast.compact.minFileSize", "1")) {
+      sparkConfWithSqlAndCatalog.set("spark.qbeast.compact.minFileSizeInBytes", "1")) {
       (spark, tmpDir) =>
         {
 
@@ -55,8 +55,8 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
     "compact in more than one file if MAX_FILE_SIZE_COMPACTION " +
     "is exceeded" in withExtendedSparkAndTmpDir(
       sparkConfWithSqlAndCatalog
-        .set("spark.qbeast.compact.minFileSize", "1")
-        .set("spark.qbeast.compact.maxFileSize", "2000000")) { (spark, tmpDir) =>
+        .set("spark.qbeast.compact.minFileSizeInBytes", "1")
+        .set("spark.qbeast.compact.maxFileSizeInBytes", "2000000")) { (spark, tmpDir) =>
       {
 
         val data = loadTestData(spark)
@@ -111,7 +111,8 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
   }
 
   it should "respect cube information" in withExtendedSparkAndTmpDir(
-    sparkConfWithSqlAndCatalog.set("spark.qbeast.compact.minFileSize", "1"))((spark, tmpDir) => {
+    sparkConfWithSqlAndCatalog
+      .set("spark.qbeast.compact.minFileSizeInBytes", "1"))((spark, tmpDir) => {
 
     val data = loadTestData(spark)
 
@@ -139,7 +140,8 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
   })
 
   it should "compact the latest revision available" in withExtendedSparkAndTmpDir(
-    sparkConfWithSqlAndCatalog.set("spark.qbeast.compact.minFileSize", "1"))((spark, tmpDir) => {
+    sparkConfWithSqlAndCatalog
+      .set("spark.qbeast.compact.minFileSizeInBytes", "1"))((spark, tmpDir) => {
 
     val data = loadTestData(spark)
 
@@ -179,7 +181,8 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
   })
 
   it should "compact the specified revision" in withExtendedSparkAndTmpDir(
-    sparkConfWithSqlAndCatalog.set("spark.qbeast.compact.minFileSize", "1"))((spark, tmpDir) => {
+    sparkConfWithSqlAndCatalog
+      .set("spark.qbeast.compact.minFileSizeInBytes", "1"))((spark, tmpDir) => {
 
     val data = loadTestData(spark)
 

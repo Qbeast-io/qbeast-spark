@@ -9,7 +9,10 @@ import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.index.QbeastColumns.cubeColumnName
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.Job
-import org.apache.spark.qbeast.config.{MAX_FILE_SIZE_COMPACTION, MIN_FILE_SIZE_COMPACTION}
+import org.apache.spark.qbeast.config.{
+  MAX_COMPACTION_FILE_SIZE_IN_BYTES,
+  MIN_COMPACTION_FILE_SIZE_IN_BYTES
+}
 import org.apache.spark.sql.delta.DeltaStatsCollectionUtils
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.delta.actions.FileAction
@@ -112,7 +115,7 @@ object SparkDeltaDataWriter
     // Check what cubes are suitable for compaction
     val cubesToCompact = cubeStatuses
       .map { case (cubeId, cubeBlocks) =>
-        (cubeId, cubeBlocks.filter(_.size >= MIN_FILE_SIZE_COMPACTION))
+        (cubeId, cubeBlocks.filter(_.size >= MIN_COMPACTION_FILE_SIZE_IN_BYTES))
       }
       .filter(_._2.nonEmpty)
 
@@ -122,7 +125,7 @@ object SparkDeltaDataWriter
       var count = 0L
 
       blocks.foreach(b => {
-        if (b.size + count > MAX_FILE_SIZE_COMPACTION) {
+        if (b.size + count > MAX_COMPACTION_FILE_SIZE_IN_BYTES) {
           // If we reach the MAX_FILE_SIZE_COMPACTION limit
           // we output a group of files for that cube
           groups += group.result()

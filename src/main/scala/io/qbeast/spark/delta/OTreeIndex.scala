@@ -4,7 +4,6 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model.QbeastBlock
-import io.qbeast.core.model.RevisionUtils.stagingID
 import io.qbeast.spark.index.query.{QueryExecutor, QuerySpecBuilder}
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.spark.sql.SparkSession
@@ -63,7 +62,7 @@ case class OTreeIndex(spark: SparkSession, index: TahoeLogFileIndex)
    * @return
    */
   private def stagingFiles: Seq[FileStatus] = {
-    qbeastSnapshot.loadRevisionBlocks(stagingID).collect().map { a: AddFile =>
+    qbeastSnapshot.loadStagingBlocks().collect().map { a: AddFile =>
       new FileStatus(
         /* length */ a.size,
         /* isDir */ false,

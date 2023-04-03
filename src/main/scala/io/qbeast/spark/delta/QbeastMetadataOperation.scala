@@ -3,8 +3,7 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.RevisionUtils.stagingID
-import io.qbeast.core.model.{ReplicatedSet, Revision, TableChanges, mapper}
+import io.qbeast.core.model.{ReplicatedSet, Revision, StagingUtils, TableChanges, mapper}
 import io.qbeast.spark.utils.MetadataConfig
 import io.qbeast.spark.utils.MetadataConfig.{lastRevisionID, revision}
 import org.apache.spark.sql.SparkSession
@@ -19,7 +18,7 @@ import org.apache.spark.sql.types.{ArrayType, DataType, MapType, StructType}
 /**
  * Qbeast metadata changes on a Delta Table.
  */
-private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
+private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation with StagingUtils {
 
   type Configuration = Map[String, String]
 
@@ -92,17 +91,17 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation {
       else {
         // Create staging revision with EmptyTransformers (and EmptyTransformations).
         // We modify its timestamp to secure loadRevisionAt
-        val stagingRevision = Revision
-          .emptyRevision(
+        val stagingRev =
+          stagingRevision(
             newRevision.tableID,
             newRevision.desiredCubeSize,
             newRevision.columnTransformers.map(_.columnName))
-          .copy(timestamp = newRevision.timestamp - 1)
+            .copy(timestamp = newRevision.timestamp - 1)
 
         // Add the staging revision to the revisionMap without overwriting
         // the latestRevisionID
         baseConfiguration
-          .updated(stagingRevisionKey, mapper.writeValueAsString(stagingRevision))
+          .updated(stagingRevisionKey, mapper.writeValueAsString(stagingRev))
       }
 
     // Update latest revision id and add new revision to metadata

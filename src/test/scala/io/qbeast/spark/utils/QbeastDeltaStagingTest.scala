@@ -1,13 +1,13 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.TestClasses.T2
-import io.qbeast.core.model.RevisionUtils.stagingID
+import io.qbeast.core.model.StagingUtils
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
 
-class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec {
+class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils {
   val columnsToIndex: Seq[String] = Seq("a", "b")
   val qDataSize = 10000
   val dDataSize = 10000
@@ -75,7 +75,8 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec {
     })
 
   it should "correctly compact the staging revision" in withExtendedSparkAndTmpDir(
-    sparkConfWithSqlAndCatalog.set("spark.qbeast.compact.minFileSize", "1")) { (spark, tmpDir) =>
+    sparkConfWithSqlAndCatalog
+      .set("spark.qbeast.compact.minFileSizeInBytes", "1")) { (spark, tmpDir) =>
     {
       writeHybridTable(spark, tmpDir)
 
