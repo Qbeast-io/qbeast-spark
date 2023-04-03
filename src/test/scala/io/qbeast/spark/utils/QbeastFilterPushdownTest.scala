@@ -4,8 +4,9 @@ import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.OTreeIndex
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.functions.{avg, col, rand, when}
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
 
 class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
@@ -19,17 +20,20 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
     leaves.exists(p =>
       p
-        .asInstanceOf[FileSourceScanExec]
-        .relation
-        .location
+        .asInstanceOf[BatchScanExec]
+        .scan
+        .asInstanceOf[ParquetScan]
+        .fileIndex
         .isInstanceOf[OTreeIndex]) shouldBe true
 
     leaves
       .foreach {
-        case f: FileSourceScanExec if f.relation.location.isInstanceOf[OTreeIndex] =>
-          val index = f.relation.location
+        case f: BatchScanExec
+            if f.scan.asInstanceOf[ParquetScan].fileIndex.isInstanceOf[OTreeIndex] =>
+          val scan = f.scan.asInstanceOf[ParquetScan]
+          val index = scan.fileIndex
           val matchingFiles =
-            index.listFiles(f.partitionFilters, f.dataFilters).flatMap(_.files)
+            index.listFiles(scan.partitionFilters, scan.dataFilters).flatMap(_.files)
           val allFiles = index.inputFiles
           matchingFiles.length shouldBe <(allFiles.length)
       }
@@ -39,10 +43,16 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
   private def checkLogicalFilterPushdown(sqlFilters: Seq[String], query: DataFrame): Unit = {
     val leaves = query.queryExecution.sparkPlan.collectLeaves()
 
+    // leaves shouldBe List()
+
     val dataFilters = leaves
       .collectFirst {
-        case f: FileSourceScanExec if f.relation.location.isInstanceOf[OTreeIndex] =>
-          f.dataFilters.filterNot(_.isInstanceOf[QbeastMurmur3Hash])
+        case f: BatchScanExec
+            if f.scan.asInstanceOf[ParquetScan].fileIndex.isInstanceOf[OTreeIndex] =>
+          f.scan
+            .asInstanceOf[ParquetScan]
+            .dataFilters
+            .filterNot(_.isInstanceOf[QbeastMurmur3Hash])
       }
       .getOrElse(Seq.empty)
 
