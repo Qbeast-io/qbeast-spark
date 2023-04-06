@@ -13,6 +13,8 @@ import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.files.TahoeLogFileIndex
 import org.apache.spark.sql.execution.datasources.{FileIndex, PartitionDirectory}
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.execution.SQLExecution
 
 import java.net.URI
 
@@ -20,8 +22,11 @@ import java.net.URI
  * FileIndex to prune files
  *
  * @param index the Tahoe log file index
+ * @param spark spark session
  */
-case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
+case class OTreeIndex(index: TahoeLogFileIndex, spark: SparkSession)
+    extends FileIndex
+    with Logging {
 
   /**
    * Snapshot to analyze
@@ -69,7 +74,6 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
   override def listFiles(
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
-
     val qbeastFileStats = matchingBlocks(partitionFilters, dataFilters).map { qbeastBlock =>
       new FileStatus(
         /* length */ qbeastBlock.size,
@@ -81,7 +85,18 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
     }.toArray
     val stagingStats = stagingFiles
     val fileStats = qbeastFileStats ++ stagingStats
-
+    val execId = spark.sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
+    partitionFilters.foreach(f => {
+      logInfo(s"OTreeIndex partition filter (exec id ${execId}): ${f.toString}")
+    })
+    dataFilters.foreach(f => {
+      logInfo(s"OTreeIndex data filter (exec id ${execId}): ${f.toString}")
+    })
+    val allFilesCount = snapshot.allFiles.count
+    val nFiltered = allFilesCount - fileStats.length
+    val filteredPct = (((nFiltered * 1.0) / allFilesCount) * 100.0).round
+    val filteredMsg = s"${nFiltered} of ${allFilesCount} (${filteredPct}%)"
+    logInfo(s"OTreeIndex filtered files (exec id ${execId}): ${filteredMsg}")
     Seq(PartitionDirectory(new GenericInternalRow(Array.empty[Any]), fileStats))
 
   }
@@ -108,7 +123,7 @@ object OTreeIndex {
   def apply(spark: SparkSession, path: Path): OTreeIndex = {
     val deltaLog = DeltaLog.forTable(spark, path)
     val tahoe = TahoeLogFileIndex(spark, deltaLog, path, deltaLog.snapshot, Seq.empty, false)
-    OTreeIndex(tahoe)
+    OTreeIndex(tahoe, spark)
   }
 
 }
