@@ -1,13 +1,25 @@
 import Dependencies._
 import xerial.sbt.Sonatype._
 
-val mainVersion = "0.3.3"
+val mainVersion = "0.4.0-SNAPSHOT"
 
 lazy val qbeastCore = (project in file("core"))
   .settings(
     name := "qbeast-core",
     version := mainVersion,
     libraryDependencies ++= Seq(apacheCommons % Test))
+
+lazy val qbeastPhoton = (project in file("photon"))
+  .dependsOn(qbeastCore)
+  .settings(
+    name := "qbeast-photon",
+    version := mainVersion,
+    libraryDependencies := Seq(
+      sparkCore % Provided,
+      sparkSql % Provided,
+      deltaCore % Provided,
+      scalaTest % Test,
+      sparkFastTests % Test))
 
 // Projects
 lazy val qbeastSpark = (project in file("."))
@@ -26,7 +38,7 @@ lazy val qbeastSpark = (project in file("."))
     Test / parallelExecution := false,
     assembly / test := {},
     assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false),
-    publish / skip := true)
+    publish / skip := false)
   .settings(noWarningInConsole)
 
 qbeastSpark / Compile / doc / scalacOptions ++= Seq(

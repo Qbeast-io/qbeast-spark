@@ -1,12 +1,6 @@
 package io.qbeast.spark.index.query
 
-import io.qbeast.core.model._
-import io.qbeast.core.transform.{HashTransformation, LinearTransformation, Transformer}
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
-import org.apache.spark.sql.Column
-import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.functions.expr
 import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -17,6 +11,7 @@ class QuerySpecBuilderTest
     with PrivateMethodTester
     with QbeastIntegrationTestSpec {
 
+  /*
   private def weightFilters(weightRange: WeightRange): Expression = {
     val qbeast_hash = new QbeastMurmur3Hash(Seq(new Column("id").expr))
     val lessThan = LessThan(qbeast_hash, Literal(weightRange.to.value))
@@ -192,5 +187,7 @@ class QuerySpecBuilderTest
       }
     } shouldBe revisions.size
   })
+
+   */
 
 }

@@ -8,14 +8,13 @@ import io.qbeast.core.model._
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
 import io.qbeast.spark.delta.writer.SparkDeltaDataWriter
 import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionFactory}
+import io.qbeast.spark.internal.{SparkPlan, SparkQueryManager}
 import io.qbeast.spark.table.{IndexedTableFactory, IndexedTableFactoryImpl}
 import org.apache.spark.SparkConf
 import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationEnd}
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, SparkSession}
-
-import scala.reflect.ClassTag
 
 /**
  * Qbeast context provides access to internal mechanisms of
@@ -59,7 +58,7 @@ trait QbeastContext {
  */
 object QbeastContext
     extends QbeastContext
-    with QbeastCoreContext[DataFrame, StructType, FileAction] {
+    with QbeastCoreContext[DataFrame, SparkPlan, StructType, FileAction] {
   private var managedOption: Option[QbeastContext] = None
   private var unmanagedOption: Option[QbeastContext] = None
 
@@ -74,7 +73,8 @@ object QbeastContext
   // Override methods from QbeastCoreContext
 
   // TODO : Add query manager implementation
-  override def queryManager[SparkPlan: ClassTag]: QueryManager[SparkPlan, DataFrame] = null
+  override def queryManager: QueryManager[SparkPlan] =
+    SparkQueryManager
 
   override def indexManager: IndexManager[DataFrame] = SparkOTreeManager
 

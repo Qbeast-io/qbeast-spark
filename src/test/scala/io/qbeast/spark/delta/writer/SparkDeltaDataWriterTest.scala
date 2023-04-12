@@ -4,7 +4,7 @@ import io.qbeast.TestClasses._
 import io.qbeast.core.model.{CubeId, IndexStatus, QTableID, Weight}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionFactory}
-import io.qbeast.spark.utils.{State, TagUtils}
+import io.qbeast.spark.utils.{TagUtils}
 import org.apache.spark.qbeast.config.{
   MIN_COMPACTION_FILE_SIZE_IN_BYTES,
   MAX_COMPACTION_FILE_SIZE_IN_BYTES
@@ -127,9 +127,9 @@ class SparkDeltaDataWriterTest extends QbeastIntegrationTestSpec {
         .foreach(a => {
           val cube = CubeId(1, a.tags(TagUtils.cube))
           val realState = {
-            if (writeTestSpec.replicatedSet.contains(cube)) State.REPLICATED
-            else if (writeTestSpec.announcedSet.contains(cube)) State.ANNOUNCED
-            else State.FLOODED
+            if (writeTestSpec.replicatedSet.contains(cube)) "REPLICATED"
+            else if (writeTestSpec.announcedSet.contains(cube)) "ANNOUNCED"
+            else "FLOODED"
           }
           val tagState = a.tags(TagUtils.state)
           tagState shouldBe realState

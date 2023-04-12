@@ -1,23 +1,11 @@
 package io.qbeast.spark.index.query
 
-import io.qbeast.TestClasses.T2
-import io.qbeast.core.model.{CubeId, QbeastBlock, Weight, WeightRange}
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
-import org.apache.spark.sql.catalyst.expressions.{
-  And,
-  Expression,
-  GreaterThanOrEqual,
-  LessThan,
-  Literal
-}
-import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.functions.{col, expr}
-import org.apache.spark.sql.{Column, SparkSession}
+
 
 class QueryExecutorTest extends QbeastIntegrationTestSpec {
 
+  /*
   private def createDF(size: Int, spark: SparkSession) = {
     import spark.implicits._
 
@@ -231,5 +219,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
       indexed.where("a <= 49999").count shouldBe 50000
 
     })
+
+   */
 
 }

@@ -2,19 +2,18 @@ package io.qbeast.core.model
 
 import io.qbeast.core.keeper.Keeper
 
-import scala.reflect.ClassTag
-
 /**
  * Qbeast Core main components
  * @tparam DATA type of the data
+ * @tparam QUERY the type of query
  * @tparam DataSchema type of the data schema
  * @tparam FileDescriptor type of the file descriptor
  */
-trait QbeastCoreContext[DATA, DataSchema, FileDescriptor] {
+trait QbeastCoreContext[DATA, QUERY, DataSchema, FileDescriptor] {
   def metadataManager: MetadataManager[DataSchema, FileDescriptor]
   def dataWriter: DataWriter[DATA, DataSchema, FileDescriptor]
   def indexManager: IndexManager[DATA]
-  def queryManager[QUERY: ClassTag]: QueryManager[QUERY, DATA]
+  def queryManager: QueryManager[QUERY]
   def revisionBuilder: RevisionFactory[DataSchema]
   def keeper: Keeper
 
