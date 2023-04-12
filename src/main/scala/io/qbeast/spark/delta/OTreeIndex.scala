@@ -24,9 +24,7 @@ import java.net.URI
  * @param index the Tahoe log file index
  * @param spark spark session
  */
-case class OTreeIndex(index: TahoeLogFileIndex, spark: SparkSession)
-    extends FileIndex
-    with Logging {
+case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
 
   /**
    * Snapshot to analyze
@@ -85,20 +83,18 @@ case class OTreeIndex(index: TahoeLogFileIndex, spark: SparkSession)
     }.toArray
     val stagingStats = stagingFiles
     val fileStats = qbeastFileStats ++ stagingStats
-    val execId = spark.sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
-    partitionFilters.foreach(f => {
-      logInfo(s"OTreeIndex partition filter (exec id ${execId}): ${f.toString}")
-    })
-    dataFilters.foreach(f => {
-      logInfo(s"OTreeIndex data filter (exec id ${execId}): ${f.toString}")
-    })
+    val sc = SparkSession.active.sparkContext
+    val execId = sc.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
+    val pfStr = partitionFilters.map(f => f.toString).mkString(" ")
+    logInfo(s"OTreeIndex partition filters (exec id ${execId}): ${pfStr}")
+    val dfStr = dataFilters.map(f => f.toString).mkString(" ")
+    logInfo(s"OTreeIndex data filters (exec id ${execId}): ${dfStr}")
     val allFilesCount = snapshot.allFiles.count
     val nFiltered = allFilesCount - fileStats.length
     val filteredPct = (((nFiltered * 1.0) / allFilesCount) * 100.0).round
     val filteredMsg = s"${nFiltered} of ${allFilesCount} (${filteredPct}%)"
-    logInfo(s"OTreeIndex filtered files (exec id ${execId}): ${filteredMsg}")
+    logInfo(s"Qbeast filtered files (exec id ${execId}): ${filteredMsg}")
     Seq(PartitionDirectory(new GenericInternalRow(Array.empty[Any]), fileStats))
-
   }
 
   override def inputFiles: Array[String] = {
@@ -123,7 +119,7 @@ object OTreeIndex {
   def apply(spark: SparkSession, path: Path): OTreeIndex = {
     val deltaLog = DeltaLog.forTable(spark, path)
     val tahoe = TahoeLogFileIndex(spark, deltaLog, path, deltaLog.snapshot, Seq.empty, false)
-    OTreeIndex(tahoe, spark)
+    OTreeIndex(tahoe)
   }
 
 }
