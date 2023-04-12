@@ -72,4 +72,28 @@ class QbeastIntegrationTest extends QbeastTestSpec {
 
   })
 
+  it should "filter pushdown" in withSparkAndTmpDir((spark, _) => {
+
+    val qbeastData = spark.read
+      .format("qbeast")
+      .load(qbeastDataPath)
+
+    val filterUser = "(user_id < 546280860 and user_id >= 536764969)"
+
+    val query = qbeastData.filter(filterUser)
+
+    // Check if file filtering is used
+    checkFileFiltering(query)
+
+    val originalQuery = loadRawData(spark).filter(filterUser)
+
+    // Check if the result is correct
+    assertSmallDatasetEquality(
+      query,
+      originalQuery,
+      orderedComparison = false,
+      ignoreNullable = true)
+
+  })
+
 }

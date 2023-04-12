@@ -16,6 +16,11 @@ import org.apache.spark.sql.types.StructType
 
 import scala.collection.immutable.SortedMap
 
+/**
+ * QbeastSnapshot for Photon
+ * @param sparkSession the current spark session
+ * @param path the path of the table
+ */
 case class QbeastPhotonSnapshot(sparkSession: SparkSession, path: String)
     extends QbeastSnapshot
     with StagingUtils {

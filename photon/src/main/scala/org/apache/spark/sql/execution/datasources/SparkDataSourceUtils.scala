@@ -8,6 +8,9 @@ import org.apache.spark.sql.connector.expressions.filter.Predicate
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 
+/**
+ * Contains utility methods to interact with the datasource
+ */
 object SparkDataSourceUtils {
 
   def getPartitionFiltersAndDataFilters(

@@ -3,7 +3,18 @@ package io.qbeast.spark.sql.execution
 import io.qbeast.core.model._
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.analysis.Resolver
-import org.apache.spark.sql.catalyst.expressions.{And, EqualTo, Expression, GreaterThan, GreaterThanOrEqual, IsNull, LessThan, LessThanOrEqual, Literal, SubqueryExpression}
+import org.apache.spark.sql.catalyst.expressions.{
+  And,
+  EqualTo,
+  Expression,
+  GreaterThan,
+  GreaterThanOrEqual,
+  IsNull,
+  LessThan,
+  LessThanOrEqual,
+  Literal,
+  SubqueryExpression
+}
 import org.apache.spark.unsafe.types.UTF8String
 
 object PhotonQueryManager extends QueryManager[QueryOperators] with StagingUtils {
@@ -103,8 +114,8 @@ object PhotonQueryManager extends QueryManager[QueryOperators] with StagingUtils
   /**
    * Builds a QuerySpec for a specific revision
    *
-   * @param query
-   * @param revision
+   * @param query the QueryOperators involved
+   * @param revision the specific Revision
    * @return
    */
   override def buildSpec(query: QueryOperators, revision: Revision): QuerySpec = {

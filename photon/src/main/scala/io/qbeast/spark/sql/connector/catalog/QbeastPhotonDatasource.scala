@@ -11,6 +11,9 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import java.util
 import scala.collection.JavaConverters._
 
+/**
+ * DatasourceV2 for Qbeast Format
+ */
 class QbeastPhotonDatasource extends TableProvider with DataSourceRegister {
 
   private lazy val sparkSession = SparkSession.active

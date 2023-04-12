@@ -95,9 +95,9 @@ trait QueryManager[QUERY] {
 
   /**
    * Builds a QuerySpec for a specific revision
-   * @param query
-   * @param revision
-   * @return
+   * @param query the query
+   * @param revision the Revision
+   * @return the QuerySpec
    */
   def buildSpec(query: QUERY, revision: Revision): QuerySpec
 

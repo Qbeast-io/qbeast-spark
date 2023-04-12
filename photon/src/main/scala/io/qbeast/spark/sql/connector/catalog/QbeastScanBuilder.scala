@@ -7,7 +7,12 @@ import org.apache.spark.sql.{SparkSession, sources}
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.connector.expressions.filter.Predicate
-import org.apache.spark.sql.connector.read.{Scan, ScanBuilder, SupportsPushDownAggregates, SupportsPushDownTableSample}
+import org.apache.spark.sql.connector.read.{
+  Scan,
+  ScanBuilder,
+  SupportsPushDownAggregates,
+  SupportsPushDownTableSample
+}
 import org.apache.spark.sql.execution.datasources.{AggregatePushDownUtils, SparkDataSourceUtils}
 import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
 import org.apache.spark.sql.internal.connector.SupportsPushDownCatalystFilters
@@ -17,6 +22,14 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+
+/**
+ * Creates a Scan for Qbeast Datasource with the corresponding pushdown operators
+ * @param sparkSession the active Spark Session
+ * @param schema the schema of the table
+ * @param snapshot the current snapshot of the table
+ * @param options the options to read
+ */
 
 class QbeastScanBuilder(
     sparkSession: SparkSession,
@@ -40,7 +53,7 @@ class QbeastScanBuilder(
 
   private val partitionSchema = StructType(Seq.empty)
 
-  private var finalSchema: StructType = schema
+  private var finalSchema: StructType = StructType(Seq.empty)
 
   lazy val hadoopConf: Configuration = {
     val caseSensitiveMap = options.asCaseSensitiveMap.asScala.toMap
@@ -50,8 +63,18 @@ class QbeastScanBuilder(
 
   override def build(): Scan = {
 
-    val queryOperators = QueryOperators(pushDownAggregates, pushdownSample, dataFilters)
+    // the `finalSchema` is either pruned in pushAggregation (if aggregates are
+    // pushed down), or pruned in readDataSchema() (in regular column pruning). These
+    // two are mutual exclusive.
+    if (pushDownAggregates.isEmpty) {
+      finalSchema = schema
+    }
 
+    // Initializes QueryOperators, which would be analyzed on the OTreePhotonIndex
+    val queryOperators =
+      QueryOperators(pushDownAggregates, pushdownSample, dataFilters ++ partitionFilters)
+
+    // Initializes OTreePhotonIndex to filter the files accordingly
     val fileIndex = OTreePhotonIndex(
       sparkSession,
       snapshot,

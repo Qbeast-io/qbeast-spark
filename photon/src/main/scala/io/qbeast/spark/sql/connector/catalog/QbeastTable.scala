@@ -10,6 +10,14 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import java.util
 import scala.collection.JavaConverters._
 
+/**
+ * QbeastTable for Spark
+ * @param name the name of the table
+ * @param sparkSession the current spark session
+ * @param options the options
+ * @param path the path of the table
+ * @param userSpecifiedSchema the user specified schema, if any
+ */
 case class QbeastTable(
     name: String,
     sparkSession: SparkSession,

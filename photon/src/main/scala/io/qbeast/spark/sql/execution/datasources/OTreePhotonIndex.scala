@@ -4,18 +4,18 @@ import io.qbeast.spark.sql.execution.{PhotonQueryManager, QueryOperators}
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{Expression, GenericInternalRow}
-import org.apache.spark.sql.execution.datasources.{
-  InMemoryFileIndex,
-  PartitionDirectory
-}
+import org.apache.spark.sql.execution.datasources.{InMemoryFileIndex, PartitionDirectory}
 import org.apache.spark.sql.types.StructType
 
 import java.net.URI
 
 /**
- * FileIndex to prune files
- *
- * @param index the Tahoe log file index
+ * File Index to prune files
+ * @param sparkSession the current spark session
+ * @param snapshot the current QbeastSnapshot
+ * @param options the options
+ * @param queryOperators the query operators
+ * @param userSpecifiedSchema the user specified schema, if any
  */
 case class OTreePhotonIndex(
     sparkSession: SparkSession,
@@ -48,8 +48,11 @@ case class OTreePhotonIndex(
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
 
+    // Update the query operators with the filters coming from the plan
+    val queryOp = queryOperators.copy(filters = partitionFilters ++ dataFilters)
+
     // Use PhotonQueryManager to filter the files
-    val qbeastBlocks = PhotonQueryManager.query(queryOperators, snapshot)
+    val qbeastBlocks = PhotonQueryManager.query(queryOp, snapshot)
 
     // Convert QbeastBlocks into FileStatus
     val fileStats = qbeastBlocks.map { b =>
