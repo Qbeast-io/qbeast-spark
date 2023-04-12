@@ -3,9 +3,9 @@
  */
 package io.qbeast.spark.internal.commands
 
+import io.qbeast.core.model.MetadataConfig.{lastRevisionID, revision}
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.{DeltaQbeastSnapshot, SparkDeltaMetadataManager}
-import io.qbeast.spark.utils.MetadataConfig.{lastRevisionID, revision}
 import io.qbeast.spark.utils.QbeastExceptionMessages.{
   incorrectIdentifierFormat,
   partitionedTableExceptionMsg,

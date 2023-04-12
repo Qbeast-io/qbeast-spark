@@ -3,9 +3,15 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.{ReplicatedSet, Revision, StagingUtils, TableChanges, mapper}
-import io.qbeast.spark.utils.MetadataConfig
-import io.qbeast.spark.utils.MetadataConfig.{lastRevisionID, revision}
+import io.qbeast.core.model.MetadataConfig.{lastRevisionID, revision}
+import io.qbeast.core.model.{
+  MetadataConfig,
+  ReplicatedSet,
+  Revision,
+  StagingUtils,
+  TableChanges,
+  mapper
+}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.schema.{ImplicitMetadataOperation, SchemaMergingUtils}
 import org.apache.spark.sql.delta.{

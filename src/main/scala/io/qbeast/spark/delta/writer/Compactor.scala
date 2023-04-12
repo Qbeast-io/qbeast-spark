@@ -4,8 +4,16 @@
 package io.qbeast.spark.delta.writer
 
 import io.qbeast.IISeq
-import io.qbeast.core.model.{CubeId, QTableID, QbeastBlock, StagingUtils, TableChanges, Weight}
-import io.qbeast.spark.utils.{State, TagUtils}
+import io.qbeast.core.model.{
+  CubeId,
+  QTableID,
+  QbeastBlock,
+  StagingUtils,
+  State,
+  TableChanges,
+  Weight
+}
+import io.qbeast.spark.utils.TagUtils
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapred.{JobConf, TaskAttemptContextImpl, TaskAttemptID}
 import org.apache.hadoop.mapreduce.TaskType

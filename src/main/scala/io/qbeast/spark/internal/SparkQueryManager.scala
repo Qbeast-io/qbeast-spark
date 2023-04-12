@@ -3,21 +3,40 @@
  */
 package io.qbeast.spark.internal
 
-import io.qbeast.core.model.{AllSpace, EmptySpace, QueryManager, QuerySpace, QuerySpec, Revision, StagingUtils, Weight, WeightRange}
+import io.qbeast.core.model.{
+  AllSpace,
+  EmptySpace,
+  QueryManager,
+  QuerySpace,
+  QuerySpec,
+  Revision,
+  StagingUtils,
+  Weight,
+  WeightRange
+}
 import org.apache.spark.sql.SparkSession
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import org.apache.spark.sql.catalyst.analysis.Resolver
-import org.apache.spark.sql.catalyst.expressions.{And, BinaryComparison, EqualTo, Expression, GreaterThan, GreaterThanOrEqual, IsNull, LessThan, LessThanOrEqual, Literal, SubqueryExpression}
+import org.apache.spark.sql.catalyst.expressions.{
+  And,
+  BinaryComparison,
+  EqualTo,
+  Expression,
+  GreaterThan,
+  GreaterThanOrEqual,
+  IsNull,
+  LessThan,
+  LessThanOrEqual,
+  Literal,
+  SubqueryExpression
+}
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.unsafe.types.UTF8String
 
 /**
  * Manages a query against a Qbeast Table with Spark
  */
-object SparkQueryManager
-    extends QueryManager[SparkPlan]
-    with Serializable
-    with StagingUtils {
+object SparkQueryManager extends QueryManager[SparkPlan] with Serializable with StagingUtils {
 
   lazy val spark: SparkSession = SparkSession.active
   lazy val nameEquality: Resolver = spark.sessionState.analyzer.resolver

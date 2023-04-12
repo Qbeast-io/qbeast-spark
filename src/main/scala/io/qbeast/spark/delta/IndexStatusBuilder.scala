@@ -3,9 +3,9 @@
  */
 package io.qbeast.spark.delta
 
+import io.qbeast.core.model.State.FLOODED
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.QbeastMetadataSQL._
-import io.qbeast.spark.utils.State.FLOODED
 import io.qbeast.spark.utils.TagColumns
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.functions.{col, collect_list, lit, min, sum}

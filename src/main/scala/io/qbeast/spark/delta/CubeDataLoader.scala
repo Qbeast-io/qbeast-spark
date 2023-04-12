@@ -3,8 +3,8 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.{CubeId, QTableID, Revision}
-import io.qbeast.spark.utils.{State, TagColumns}
+import io.qbeast.core.model.{CubeId, QTableID, Revision, State}
+import io.qbeast.spark.utils.TagColumns
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{DataFrame, SparkSession}

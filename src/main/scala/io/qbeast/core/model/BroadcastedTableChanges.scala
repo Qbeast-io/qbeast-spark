@@ -3,7 +3,6 @@
  */
 package io.qbeast.core.model
 
-import io.qbeast.spark.utils.State
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.SparkSession
 

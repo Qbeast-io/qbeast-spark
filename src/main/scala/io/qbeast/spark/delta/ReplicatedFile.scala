@@ -3,7 +3,8 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.spark.utils.{State, TagUtils}
+import io.qbeast.core.model.State
+import io.qbeast.spark.utils.TagUtils
 import org.apache.spark.sql.delta.actions.AddFile
 
 /**
