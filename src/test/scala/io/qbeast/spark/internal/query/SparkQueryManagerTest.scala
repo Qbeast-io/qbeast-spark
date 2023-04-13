@@ -1,11 +1,23 @@
-package io.qbeast.spark.index.query
+package io.qbeast.spark.internal.query
 
+import io.qbeast.TestClasses.T2
+import io.qbeast.core.model.{CubeId, QbeastBlock, Weight, WeightRange}
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.delta.DeltaQbeastSnapshot
+import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
+import org.apache.spark.sql.catalyst.expressions.{
+  And,
+  Expression,
+  GreaterThanOrEqual,
+  LessThan,
+  Literal
+}
+import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.functions.{col, expr}
+import org.apache.spark.sql.{Column, SparkSession}
 
+class SparkQueryManagerTest extends QbeastIntegrationTestSpec {
 
-class QueryExecutorTest extends QbeastIntegrationTestSpec {
-
-  /*
   private def createDF(size: Int, spark: SparkSession) = {
     import spark.implicits._
 
@@ -23,7 +35,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
     And(lessThan, greaterThanOrEqual)
   }
 
-  behavior of "QueryExecutor"
+  behavior of "SparkQueryManager"
 
   it should "find all sample files" in withSparkAndTmpDir((spark, tmpdir) => {
     val source = createDF(80000, spark)
@@ -34,13 +46,10 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
     val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
     val filters = Seq.empty
 
-    val querySpec = new QuerySpecBuilder(filters)
-    val queryExecutor = new QueryExecutor(querySpec, qbeastSnapshot)
-
     val allDeltaFiles = deltaLog.snapshot.allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.path)
+    val matchFiles = SparkQueryManager.query(filters, qbeastSnapshot).map(_.path)
 
     val diff = allFiles.toSet -- matchFiles.toSet
 
@@ -59,13 +68,11 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
     val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
 
     val filters = Seq(weightFilters(WeightRange(Weight.MinValue, Weight(0.001))))
-    val querySpec = new QuerySpecBuilder(filters)
-    val queryExecutor = new QueryExecutor(querySpec, qbeastSnapshot)
 
     val allDeltaFiles = deltaLog.snapshot.allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.path)
+    val matchFiles = SparkQueryManager.query(filters, qbeastSnapshot).map(_.path)
 
     matchFiles.size shouldBe <(allFiles.length)
     matchFiles.foreach(file => allFiles should contain(file))
@@ -81,13 +88,11 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
     val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
 
     val filters = Seq(expr("a >= 2 and a < 10").expr)
-    val querySpec = new QuerySpecBuilder(filters)
-    val queryExecutor = new QueryExecutor(querySpec, qbeastSnapshot)
 
     val allDeltaFiles = deltaLog.snapshot.allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.path)
+    val matchFiles = SparkQueryManager.query(filters, qbeastSnapshot).map(_.path)
 
     matchFiles.size shouldBe <(allFiles.length)
     matchFiles.foreach(file => allFiles should contain(file))
@@ -113,14 +118,10 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
     qbeastSnapshot.loadAllRevisions.size shouldBe 3
 
     val filters = Seq.empty
-
-    val querySpec = new QuerySpecBuilder(filters)
-    val queryExecutor = new QueryExecutor(querySpec, qbeastSnapshot)
-
     val allDeltaFiles = deltaLog.snapshot.allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.path)
+    val matchFiles = SparkQueryManager.query(filters, qbeastSnapshot).map(_.path)
 
     val diff = allFiles.toSet -- matchFiles.toSet
     diff.size shouldBe 0
@@ -140,14 +141,11 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
 
       val weightRange = WeightRange(Weight(3), Weight(5))
       val expressionFilters = weightFilters(weightRange)
-      val querySpecBuilder = new QuerySpecBuilder(Seq(expressionFilters))
-
-      val queryExecutor = new QueryExecutor(querySpecBuilder, qbeastSnapshot)
 
       val allDeltaFiles = deltaLog.snapshot.allFiles.collect()
       val allFiles = allDeltaFiles.map(_.path)
 
-      val matchFiles = queryExecutor.execute().map(_.path)
+      val matchFiles = SparkQueryManager.query(Seq(expressionFilters), qbeastSnapshot).map(_.path)
       val diff = allFiles.toSet -- matchFiles.toSet
 
       val allQbeastFiles = allDeltaFiles.map(addFile =>
@@ -180,12 +178,9 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
     val faultyIndexStatus =
       indexStatus.copy(cubesStatuses = indexStatus.cubesStatuses - cubeToRemove)
 
-    val querySpecBuilder = new QuerySpecBuilder(Seq.empty)
-    val querySpec = querySpecBuilder.build(revision)
-    val queryExecutor = new QueryExecutor(querySpecBuilder, qbeastSnapshot)
-    val matchFiles = queryExecutor
-      .executeRevision(querySpec, faultyIndexStatus)
-      .map(_.path)
+    val querySpec = SparkQueryManager.buildSpec(Seq.empty, revision)
+
+    val matchFiles = SparkQueryManager.queryRevision(querySpec, faultyIndexStatus).map(_.path)
 
     val allFiles = deltaLog.snapshot.allFiles.collect().map(_.path)
 
@@ -219,7 +214,5 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
       indexed.where("a <= 49999").count shouldBe 50000
 
     })
-
-   */
 
 }

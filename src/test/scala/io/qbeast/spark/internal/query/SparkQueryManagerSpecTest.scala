@@ -1,17 +1,22 @@
-package io.qbeast.spark.index.query
+package io.qbeast.spark.internal.query
 
+import io.qbeast.core.model._
+import io.qbeast.core.transform.{HashTransformation, LinearTransformation, Transformer}
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.functions.expr
 import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class QuerySpecBuilderTest
+class SparkQueryManagerSpecTest
     extends AnyFlatSpec
     with Matchers
     with PrivateMethodTester
     with QbeastIntegrationTestSpec {
 
-  /*
   private def weightFilters(weightRange: WeightRange): Expression = {
     val qbeast_hash = new QbeastMurmur3Hash(Seq(new Column("id").expr))
     val lessThan = LessThan(qbeast_hash, Literal(weightRange.to.value))
@@ -39,7 +44,7 @@ class QuerySpecBuilderTest
   "extractWeightRange" should
     "extract all weight range when expressions is empty" in withSpark(spark => {
       val revision = createRevision()
-      val weightRange = new QuerySpecBuilder(Seq.empty).build(revision).weightRange
+      val weightRange = SparkQueryManager.buildSpec(Seq.empty, revision).weightRange
 
       weightRange shouldBe WeightRange(Weight.MinValue, Weight.MaxValue)
     })
@@ -48,7 +53,7 @@ class QuerySpecBuilderTest
     val weightRange = WeightRange(Weight(3), Weight(8))
     val expression = weightFilters(weightRange)
     val revision = createRevision()
-    val queryWeightRange = new QuerySpecBuilder(Seq(expression)).build(revision).weightRange
+    val queryWeightRange = SparkQueryManager.buildSpec(Seq(expression), revision).weightRange
 
     queryWeightRange shouldBe weightRange
   })
@@ -57,7 +62,7 @@ class QuerySpecBuilderTest
     val (from, to) = (3, 8)
     val expression = expr(s"id >= $from and id < $to").expr
     val revision = createRevision()
-    val querySpace = new QuerySpecBuilder(Seq(expression)).build(revision).querySpace
+    val querySpace = SparkQueryManager.buildSpec(Seq(expression), revision).querySpace
     val tFrom = revision.transformations.head.transform(3)
     val tTo = revision.transformations.head.transform(8)
 
@@ -68,7 +73,7 @@ class QuerySpecBuilderTest
   it should "extract query range when equal to" in withSpark(spark => {
     val revision = createRevision()
     val expression = expr("id == 3").expr
-    val querySpace = new QuerySpecBuilder(Seq(expression)).build(revision).querySpace
+    val querySpace = SparkQueryManager.buildSpec(Seq(expression), revision).querySpace
     val t = revision.transformations.head.transform(3)
 
     querySpace invokePrivate privateFrom() shouldBe Seq(Some(t))
@@ -78,7 +83,7 @@ class QuerySpecBuilderTest
   it should "extract query range when is null" in withSpark(spark => {
     val revision = createRevision()
     val expression = expr("id is null").expr
-    val querySpace = new QuerySpecBuilder(Seq(expression)).build(revision).querySpace
+    val querySpace = SparkQueryManager.buildSpec(Seq(expression), revision).querySpace
     val t = revision.transformations.head.transform(null)
 
     querySpace invokePrivate privateFrom() shouldBe Seq(Some(t))
@@ -101,17 +106,17 @@ class QuerySpecBuilderTest
     val (from, to) = ("qbeast", "QBEAST")
 
     val equalToExpression = expr(s"name == '$from'").expr
-    val equalToSpace = new QuerySpecBuilder(Seq(equalToExpression)).build(revision).querySpace
+    val equalToSpace = SparkQueryManager.buildSpec(Seq(equalToExpression), revision).querySpace
     equalToSpace shouldBe a[QuerySpaceFromTo]
 
     val rangeExpression = expr(s"name >= '$from' and name < '$to'").expr
-    val rangeSpace = new QuerySpecBuilder(Seq(rangeExpression)).build(revision).querySpace
+    val rangeSpace = SparkQueryManager.buildSpec(Seq(rangeExpression), revision).querySpace
     rangeSpace shouldBe a[AllSpace]
   })
 
   it should "extract all query range when expressions is empty" in withSpark(spark => {
     val revision = createRevision()
-    val querySpace = new QuerySpecBuilder(Seq.empty).build(revision).querySpace
+    val querySpace = SparkQueryManager.buildSpec(Seq.empty, revision).querySpace
 
     querySpace shouldBe a[AllSpace]
   })
@@ -119,7 +124,7 @@ class QuerySpecBuilderTest
   it should "not process disjunctive predicates" in withSpark(spark => {
     val revision = createRevision()
     val expression = expr(s"3 <= id OR id < 8").expr
-    val querySpace = new QuerySpecBuilder(Seq(expression)).build(revision).querySpace
+    val querySpace = SparkQueryManager.buildSpec(Seq(expression), revision).querySpace
 
     querySpace shouldBe a[AllSpace]
   })
@@ -130,7 +135,7 @@ class QuerySpecBuilderTest
 
       val expressions = Seq(expr(s"id > $f AND id <= $t").expr)
       val revision = createRevision()
-      val querySpace = new QuerySpecBuilder(expressions).build(revision).querySpace
+      val querySpace = SparkQueryManager.buildSpec(expressions, revision).querySpace
       val idTransformation = LinearTransformation(Int.MinValue, Int.MaxValue, IntegerDataType)
 
       querySpace invokePrivate privateFrom() shouldBe Seq(Some(idTransformation.transform(f)))
@@ -142,9 +147,7 @@ class QuerySpecBuilderTest
     val rangeExpression = expr(s"id >= 3 OR id < 8").expr
     val weightExpression = weightFilters(WeightRange(Weight(Int.MinValue), Weight(Int.MaxValue)))
     val expressions = Seq(rangeExpression, weightExpression)
-    val querySpecBuilder = new QuerySpecBuilder(expressions)
-
-    querySpecBuilder.extractDataFilters(expressions, revision) shouldBe expressions
+    SparkQueryManager.extractDataFilters(expressions, revision) shouldBe expressions
 
   })
 
@@ -163,7 +166,7 @@ class QuerySpecBuilderTest
 
     expressions.foreach { case (expression, answer) =>
       revisions.count { revision =>
-        val querySpec = new QuerySpecBuilder(expression :: Nil).build(revision)
+        val querySpec = SparkQueryManager.buildSpec(expression :: Nil, revision)
         querySpec.querySpace match {
           case _: QuerySpaceFromTo => true
           case _: AllSpace => true
@@ -179,7 +182,7 @@ class QuerySpecBuilderTest
       (0 to 3).map(i => createRevision(10 * i, 10 * (i + 1)).copy(revisionID = i + 1))
 
     revisions.count { revision =>
-      val querySpec = new QuerySpecBuilder(Seq.empty).build(revision)
+      val querySpec = SparkQueryManager.buildSpec(Seq.empty, revision)
       querySpec.querySpace match {
         case _: QuerySpaceFromTo => true
         case _: AllSpace => true
@@ -187,7 +190,5 @@ class QuerySpecBuilderTest
       }
     } shouldBe revisions.size
   })
-
-   */
 
 }

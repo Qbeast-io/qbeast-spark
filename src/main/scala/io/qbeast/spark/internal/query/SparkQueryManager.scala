@@ -1,21 +1,12 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.internal
+package io.qbeast.spark.internal.query
 
-import io.qbeast.core.model.{
-  AllSpace,
-  EmptySpace,
-  QueryManager,
-  QuerySpace,
-  QuerySpec,
-  Revision,
-  StagingUtils,
-  Weight,
-  WeightRange
-}
-import org.apache.spark.sql.SparkSession
+import io.qbeast.core.model._
+import io.qbeast.spark.internal.SparkPlan
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.analysis.Resolver
 import org.apache.spark.sql.catalyst.expressions.{
   And,

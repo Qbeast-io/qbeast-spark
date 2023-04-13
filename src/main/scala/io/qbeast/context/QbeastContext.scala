@@ -8,7 +8,8 @@ import io.qbeast.core.model._
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
 import io.qbeast.spark.delta.writer.SparkDeltaDataWriter
 import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionFactory}
-import io.qbeast.spark.internal.{SparkPlan, SparkQueryManager}
+import io.qbeast.spark.internal.SparkPlan
+import io.qbeast.spark.internal.query.SparkQueryManager
 import io.qbeast.spark.table.{IndexedTableFactory, IndexedTableFactoryImpl}
 import org.apache.spark.SparkConf
 import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationEnd}
