@@ -20,6 +20,7 @@ lazy val qbeastPhoton = (project in file("photon"))
       deltaCore % Provided,
       scalaTest % Test,
       sparkFastTests % Test),
+    Test / parallelExecution := false,
     assembly / test := {})
 
 // Projects
