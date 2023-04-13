@@ -19,7 +19,8 @@ lazy val qbeastPhoton = (project in file("photon"))
       sparkSql % Provided,
       deltaCore % Provided,
       scalaTest % Test,
-      sparkFastTests % Test))
+      sparkFastTests % Test),
+    assembly / test := {})
 
 // Projects
 lazy val qbeastSpark = (project in file("."))
