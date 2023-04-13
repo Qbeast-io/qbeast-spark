@@ -24,7 +24,7 @@ case class OTreePhotonIndex(
     queryOperators: QueryOperators,
     userSpecifiedSchema: Option[StructType] = None)
     extends InMemoryFileIndex(
-      sparkSession = SparkSession.active,
+      sparkSession = sparkSession,
       rootPathsSpecified = Seq(new Path(snapshot.path)),
       parameters = options,
       userSpecifiedSchema = userSpecifiedSchema) {

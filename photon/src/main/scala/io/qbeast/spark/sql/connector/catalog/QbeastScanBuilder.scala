@@ -3,8 +3,10 @@ package io.qbeast.spark.sql.connector.catalog
 import io.qbeast.spark.sql.execution.{QueryOperators, SampleOperator}
 import io.qbeast.spark.sql.execution.datasources.{OTreePhotonIndex, QbeastPhotonSnapshot}
 import org.apache.hadoop.conf.Configuration
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, sources}
 import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.util.RebaseDateTime.RebaseSpec
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.connector.expressions.filter.Predicate
 import org.apache.spark.sql.connector.read.{
@@ -13,8 +15,13 @@ import org.apache.spark.sql.connector.read.{
   SupportsPushDownAggregates,
   SupportsPushDownTableSample
 }
+import org.apache.spark.sql.execution.datasources.parquet.{
+  ParquetFilters,
+  SparkToParquetSchemaConverter
+}
 import org.apache.spark.sql.execution.datasources.{AggregatePushDownUtils, SparkDataSourceUtils}
 import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
+import org.apache.spark.sql.internal.SQLConf.LegacyBehaviorPolicy
 import org.apache.spark.sql.internal.connector.SupportsPushDownCatalystFilters
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
@@ -39,7 +46,8 @@ class QbeastScanBuilder(
     extends ScanBuilder
     with SupportsPushDownTableSample
     with SupportsPushDownCatalystFilters
-    with SupportsPushDownAggregates {
+    with SupportsPushDownAggregates
+    with Logging {
 
   private var pushdownSample: Option[SampleOperator] = None
 
@@ -50,8 +58,6 @@ class QbeastScanBuilder(
   private var dataFilters: Seq[Expression] = Seq.empty
 
   private var pushedDataFilters: Array[Filter] = Array.empty
-
-  private val partitionSchema = StructType(Seq.empty)
 
   private var finalSchema: StructType = StructType(Seq.empty)
 
@@ -82,6 +88,35 @@ class QbeastScanBuilder(
       queryOperators,
       Some(schema))
 
+    // From ParquetScanBuilder
+    val pushedParquetFilters = {
+      val sqlConf = sparkSession.sessionState.conf
+      if (sqlConf.parquetFilterPushDown) {
+        val pushDownDate = sqlConf.parquetFilterPushDownDate
+        val pushDownTimestamp = sqlConf.parquetFilterPushDownTimestamp
+        val pushDownDecimal = sqlConf.parquetFilterPushDownDecimal
+        val pushDownStringStartWith = sqlConf.parquetFilterPushDownStringStartWith
+        val pushDownInFilterThreshold = sqlConf.parquetFilterPushDownInFilterThreshold
+        val isCaseSensitive = sqlConf.caseSensitiveAnalysis
+        val parquetSchema =
+          new SparkToParquetSchemaConverter(sparkSession.sessionState.conf).convert(schema)
+        val parquetFilters = new ParquetFilters(
+          parquetSchema,
+          pushDownDate,
+          pushDownTimestamp,
+          pushDownDecimal,
+          pushDownStringStartWith,
+          pushDownInFilterThreshold,
+          isCaseSensitive,
+          // The rebase mode doesn't matter here because the filters are used to determine
+          // whether they is convertible.
+          RebaseSpec(LegacyBehaviorPolicy.CORRECTED))
+        parquetFilters.convertibleFilters(pushedDataFilters).toArray
+      } else {
+        Array.empty[Filter]
+      }
+    }
+
     ParquetScan(
       sparkSession,
       hadoopConf,
@@ -89,7 +124,7 @@ class QbeastScanBuilder(
       finalSchema,
       finalSchema,
       StructType(Seq.empty),
-      pushedDataFilters,
+      pushedParquetFilters,
       options,
       pushDownAggregates,
       partitionFilters,
@@ -97,14 +132,17 @@ class QbeastScanBuilder(
 
   }
 
+  /*
+   * Pushes down table sample by deleting the operation from the SparkPlan
+   * and updating pushdownSample var
+   */
   override def pushTableSample(
       lowerBound: Double,
       upperBound: Double,
       withReplacement: Boolean,
       seed: Long): Boolean = {
     pushdownSample = Some(SampleOperator(lowerBound, upperBound, withReplacement, seed))
-    // scalastyle:off
-    println(
+    logInfo(
       s"QBEAST PUSHING DOWN SAMPLE lowerBound: $lowerBound," +
         s" upperBound: $upperBound, " +
         s"withReplacement: $withReplacement, " +
@@ -121,10 +159,10 @@ class QbeastScanBuilder(
 
   // Based on FileScanBuilder
   override def pushFilters(filters: Seq[Expression]): Seq[Expression] = {
-    val (partitionFilters, dataFilters) =
-      SparkDataSourceUtils.getPartitionFiltersAndDataFilters(partitionSchema, filters)
-    this.partitionFilters = partitionFilters
-    this.dataFilters = dataFilters
+    // Qbeast does not have partition filters,
+    // so we can skip the split between them
+    this.partitionFilters = Seq.empty
+    this.dataFilters = filters
     val translatedFilters = mutable.ArrayBuffer.empty[sources.Filter]
     for (filterExpr <- dataFilters) {
       val translated = SparkDataSourceUtils.translateFilter(filterExpr, true)
