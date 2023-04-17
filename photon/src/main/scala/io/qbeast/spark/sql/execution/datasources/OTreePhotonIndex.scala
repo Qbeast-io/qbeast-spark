@@ -1,13 +1,18 @@
 package io.qbeast.spark.sql.execution.datasources
 
-import io.qbeast.spark.sql.execution.{PhotonQueryManager, QueryOperators}
+import io.qbeast.spark.sql.execution.{PhotonQueryManager, QueryOperators, SampleOperator}
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{Expression, GenericInternalRow}
-import org.apache.spark.sql.execution.datasources.{InMemoryFileIndex, PartitionDirectory}
+import org.apache.spark.sql.execution.datasources.{
+  PartitionDirectory,
+  PartitionSpec,
+  PartitioningAwareFileIndex
+}
 import org.apache.spark.sql.types.StructType
 
 import java.net.URI
+import scala.collection.mutable
 
 /**
  * File Index to prune files
@@ -21,13 +26,14 @@ case class OTreePhotonIndex(
     sparkSession: SparkSession,
     snapshot: QbeastPhotonSnapshot,
     options: Map[String, String],
-    queryOperators: QueryOperators,
     userSpecifiedSchema: Option[StructType] = None)
-    extends InMemoryFileIndex(
-      sparkSession = sparkSession,
-      rootPathsSpecified = Seq(new Path(snapshot.path)),
-      parameters = options,
-      userSpecifiedSchema = userSpecifiedSchema) {
+    extends PartitioningAwareFileIndex(sparkSession, options, userSpecifiedSchema) {
+
+  private var samplingOperator: Option[SampleOperator] = None
+
+  def pushdownSample(sample: SampleOperator): Unit = {
+    samplingOperator = Some(sample)
+  }
 
   protected def absolutePath(child: String): Path = {
     val p = new Path(new URI(child))
@@ -38,21 +44,9 @@ case class OTreePhotonIndex(
     }
   }
 
-  /**
-   * List Files with pushdown filters
-   * @param partitionFilters
-   * @param dataFilters
-   * @return
-   */
-  override def listFiles(
-      partitionFilters: Seq[Expression],
-      dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
-
-    // Update the query operators with the filters coming from the plan
-    val queryOp = queryOperators.copy(filters = partitionFilters ++ dataFilters)
-
+  private def listFiles(queryOperators: QueryOperators): Seq[PartitionDirectory] = {
     // Use PhotonQueryManager to filter the files
-    val qbeastBlocks = PhotonQueryManager.query(queryOp, snapshot)
+    val qbeastBlocks = PhotonQueryManager.query(queryOperators, snapshot)
 
     // Convert QbeastBlocks into FileStatus
     val fileStats = qbeastBlocks.map { b =>
@@ -67,6 +61,18 @@ case class OTreePhotonIndex(
 
     // Return a PartitionDirectory
     Seq(PartitionDirectory(new GenericInternalRow(Array.empty[Any]), fileStats))
+  }
+
+  /**
+   * List Files with pushdown filters
+   * @param partitionFilters
+   * @param dataFilters
+   * @return
+   */
+  override def listFiles(
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
+    listFiles(QueryOperators(samplingOperator, partitionFilters ++ dataFilters))
 
   }
 
@@ -76,8 +82,7 @@ case class OTreePhotonIndex(
    */
 
   override def inputFiles: Array[String] = {
-    listFiles(Seq.empty, Seq.empty)
-      .flatMap(_.files)
+    allFiles()
       .map(f => absolutePath(f.getPath.toString).toString)
       .toArray
   }
@@ -87,4 +92,21 @@ case class OTreePhotonIndex(
   override def sizeInBytes: Long = snapshot.allBlocks().map(_.size).sum
 
   override def partitionSchema: StructType = StructType(Seq.empty)
+
+  override def partitionSpec(): PartitionSpec = PartitionSpec(partitionSchema, Seq.empty)
+
+  override protected def leafFiles: mutable.LinkedHashMap[Path, FileStatus] = {
+    val output = mutable.LinkedHashMap[Path, FileStatus]()
+    val files = allFiles()
+    files.foreach(f => output += (absolutePath(f.getPath.toString) -> f))
+    output
+
+  }
+
+  override protected def leafDirToChildrenFiles: Map[Path, Array[FileStatus]] = {
+    val output = Map(new Path(snapshot.path) -> allFiles().toArray)
+    output
+  }
+
+  override def rootPaths: Seq[Path] = Seq(new Path(snapshot.path))
 }

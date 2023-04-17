@@ -22,7 +22,7 @@ Use `init_scripts` **to enable access to the customized `SessionExtension`**. Th
    ```bash
    #!/bin/bash
    
-   cp /dbfs/FileStore/jars/qbeast_core_2_12_0_3_3.jar /databricks/jars/
+   cp /dbfs/FileStore/jars/qbeast_core_2_12_0_4_0.jar /databricks/jars/
    cp /dbfs/FileStore/jars/qbeast_photon_2_12_0_4_0.jar /databricks/jars/
    
    ```

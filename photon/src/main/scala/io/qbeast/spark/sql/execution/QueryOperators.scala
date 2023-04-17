@@ -1,7 +1,6 @@
 package io.qbeast.spark.sql.execution
 
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 
 /**
  * Container class for the pushdown query operators
@@ -10,6 +9,5 @@ import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
  * @param filters sequence of pushed filters
  */
 case class QueryOperators(
-    aggregation: Option[Aggregation],
     sample: Option[SampleOperator],
     filters: Seq[Expression])

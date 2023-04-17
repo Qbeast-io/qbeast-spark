@@ -1,6 +1,6 @@
 package io.qbeast.spark.sql.connector.catalog
 
-import io.qbeast.spark.sql.execution.datasources.QbeastPhotonSnapshot
+import io.qbeast.spark.sql.execution.datasources.{OTreePhotonIndex, QbeastPhotonSnapshot}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.connector.catalog.{SupportsRead, Table, TableCapability}
 import org.apache.spark.sql.connector.read.ScanBuilder
@@ -34,7 +34,9 @@ case class QbeastTable(
   override def capabilities(): util.Set[TableCapability] = Set(TableCapability.BATCH_READ).asJava
 
   override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder = {
-    new QbeastScanBuilder(sparkSession, schema(), snapshot, options)
+    val fileIndex =
+      OTreePhotonIndex(sparkSession, snapshot, options.asScala.toMap, userSpecifiedSchema)
+    new QbeastScanBuilder(sparkSession, schema(), fileIndex, options)
   }
 
 }

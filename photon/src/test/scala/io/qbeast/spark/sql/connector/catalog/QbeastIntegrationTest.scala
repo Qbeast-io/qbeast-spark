@@ -1,29 +1,24 @@
 package io.qbeast.spark.sql.connector.catalog
 
-import io.qbeast.spark.sql.execution.datasources.OTreePhotonIndex
+import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.FileSourceScanExec
+import org.apache.spark.sql.execution.datasources.InMemoryFileIndex
 
 class QbeastIntegrationTest extends QbeastTestSpec {
 
-  private def checkFileFiltering(query: DataFrame): Unit = {
+  private def checkFileFiltering(query: DataFrame, path: String): Unit = {
     val leaves = query.queryExecution.executedPlan.collectLeaves()
-
-    leaves.exists(p =>
-      p
-        .asInstanceOf[FileSourceScanExec]
-        .relation
-        .location
-        .isInstanceOf[OTreePhotonIndex]) shouldBe true
+    val fullIndex =
+      new InMemoryFileIndex(query.sparkSession, Seq(new Path(path)), Map.empty, None)
+    val allFiles = fullIndex.allFiles()
 
     leaves
       .foreach {
-        case f: FileSourceScanExec if f.relation.location.isInstanceOf[OTreePhotonIndex] =>
-          val index = f.relation.location.asInstanceOf[OTreePhotonIndex]
-          val matchingFiles =
-            index.listFiles(f.partitionFilters, f.dataFilters).flatMap(_.files)
-          val allFiles = index.allFiles()
-          matchingFiles.length shouldBe <(allFiles.length)
+        case f: FileSourceScanExec if f.relation.location.isInstanceOf[InMemoryFileIndex] =>
+          val index = f.relation.location.asInstanceOf[InMemoryFileIndex]
+          val filesToRead = index.inputFiles
+          filesToRead.length shouldBe <(allFiles.length)
       }
 
   }
@@ -59,7 +54,7 @@ class QbeastIntegrationTest extends QbeastTestSpec {
         .sample(withReplacement = false, precision)
 
       // Check if the files are being filtered by the index
-      checkFileFiltering(query)
+      checkFileFiltering(query, qbeastDataPath)
 
       val result = query.count()
 
@@ -83,7 +78,7 @@ class QbeastIntegrationTest extends QbeastTestSpec {
     val query = qbeastData.filter(filterUser)
 
     // Check if file filtering is used
-    checkFileFiltering(query)
+    checkFileFiltering(query, qbeastDataPath)
 
     val originalQuery = loadRawData(spark).filter(filterUser)
 
