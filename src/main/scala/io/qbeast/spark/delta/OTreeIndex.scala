@@ -83,7 +83,7 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
     }.toArray
     val stagingStats = stagingFiles
     val fileStats = qbeastFileStats ++ stagingStats
-    val sc = SparkSession.active.sparkContext
+    val sc = index.spark.sparkContext
     val execId = sc.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
     val pfStr = partitionFilters.map(f => f.toString).mkString(" ")
     logInfo(s"OTreeIndex partition filters (exec id ${execId}): ${pfStr}")
@@ -91,8 +91,8 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
     logInfo(s"OTreeIndex data filters (exec id ${execId}): ${dfStr}")
     val allFilesCount = snapshot.allFiles.count
     val nFiltered = allFilesCount - fileStats.length
-    val filteredPct = (((nFiltered * 1.0) / allFilesCount) * 100.0).round
-    val filteredMsg = s"${nFiltered} of ${allFilesCount} (${filteredPct}%)"
+    val filteredPct = ((nFiltered * 1.0) / allFilesCount) * 100.0
+    val filteredMsg = f"${nFiltered} of ${allFilesCount} (${filteredPct}%.2f%%)"
     logInfo(s"Qbeast filtered files (exec id ${execId}): ${filteredMsg}")
     Seq(PartitionDirectory(new GenericInternalRow(Array.empty[Any]), fileStats))
   }
