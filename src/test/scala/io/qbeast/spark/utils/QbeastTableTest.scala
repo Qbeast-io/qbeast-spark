@@ -127,8 +127,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
         val rootSizeStd =
           metrics.innerCubeSizeMetrics.levelStats
             .split("\n")(1)
-            .split(",")(1)
-            .replaceAll("\t", "")
+            .split(" +")(3)
 
         rootSizeStd shouldBe "0"
       }

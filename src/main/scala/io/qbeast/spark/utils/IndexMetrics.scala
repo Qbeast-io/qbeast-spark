@@ -4,7 +4,7 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.core.model.{CubeId, CubeStatus}
-import io.qbeast.spark.utils.MathOps.{l1Deviation, l2Deviation, std}
+import io.qbeast.spark.utils.MathOps.{l1Deviation, l2Deviation, roundToPrecision, std}
 
 /**
  * Metrics that aim to provide an overview for a given index revision
@@ -96,7 +96,8 @@ object CubeSizeMetrics {
       val l1_dev = l1Deviation(cubeSizes, desiredCubeSize)
       val l2_dev = l2Deviation(cubeSizes, desiredCubeSize)
 
-      val levelStats = "level, avgCubeSize, stdCubeSize, cubeCount, avgWeight:\n" +
+      val columns = Seq("level", "avgCubeSize", "stdCubeSize", "cubeCount", "avgWeight")
+      val levelStats =
         cubeStatuses
           .groupBy(cs => cs._1.depth)
           .toSeq
@@ -106,9 +107,13 @@ object CubeSizeMetrics {
             val avgWeight = m.values.map(_.normalizedWeight).sum / cnt
             val levelCubeSizes = m.values.toSeq.map(_.files.map(_.elementCount).sum)
             val avgCubeSize = levelCubeSizes.sum / cnt
-            s"- $level:\t$avgCubeSize,\t\t${std(levelCubeSizes, avgCubeSize)},\t\t$cnt,\t$avgWeight"
+            Seq(
+              level.toString,
+              avgCubeSize.toString,
+              std(levelCubeSizes, avgCubeSize).toString,
+              cnt.toString,
+              roundToPrecision(avgWeight).toString)
           }
-          .mkString("\n")
 
       CubeSizeMetrics(
         cubeSizes.min,
@@ -119,7 +124,7 @@ object CubeSizeMetrics {
         cubeStatuses.size,
         l1_dev,
         l2_dev,
-        levelStats)
+        Tabulator.format(columns +: levelStats))
     }
   }
 
@@ -158,6 +163,36 @@ object MathOps {
 
   def std(nums: Seq[Long], mean: Long): Long = {
     math.sqrt(nums.map(n => (n - mean) * (n - mean)).sum / nums.size.toDouble).toLong
+  }
+
+  def roundToPrecision(value: Double, digits: Int = 5): Double = {
+    val precision = math.pow(10, digits)
+    (value * precision).toLong.toDouble / precision
+  }
+
+}
+
+object Tabulator {
+
+  def format(table: Seq[Seq[Any]]): String = table match {
+    case Seq() => ""
+    case _ =>
+      val columnSizes =
+        table
+          .map(row => row.map(cell => if (cell == null) 0 else cell.toString.length))
+          .transpose
+          .map(_.max)
+      val rows = table.map(row => formatRow(row, columnSizes))
+      (rows.head :: rows.tail.toList ::: Nil).mkString("\n")
+  }
+
+  def formatRow(row: Seq[Any], columnSizes: Seq[Int]): String = {
+    row
+      .zip(columnSizes)
+      .map { case (cell, size) =>
+        if (size == 0) "" else ("%" + size + "s").format(cell)
+      }
+      .mkString(" ")
   }
 
 }
