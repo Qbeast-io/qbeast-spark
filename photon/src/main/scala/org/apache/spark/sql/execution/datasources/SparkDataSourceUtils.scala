@@ -3,7 +3,6 @@ package org.apache.spark.sql.execution.datasources
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.{AnalysisExceptionFactory, SparkSession}
-import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.connector.expressions.filter.Predicate
 import org.apache.spark.sql.sources.Filter
 
