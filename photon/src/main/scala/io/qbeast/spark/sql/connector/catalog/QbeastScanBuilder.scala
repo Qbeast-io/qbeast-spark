@@ -35,9 +35,9 @@ import scala.collection.JavaConverters._
 class QbeastScanBuilder(
     sparkSession: SparkSession,
     schema: StructType,
-    fileIndex: OTreePhotonIndex,
+    oTreePhotonIndex: OTreePhotonIndex,
     options: CaseInsensitiveStringMap)
-    extends FileScanBuilder(sparkSession, fileIndex, schema)
+    extends FileScanBuilder(sparkSession, oTreePhotonIndex, schema)
     with SupportsPushDownTableSample
     with SupportsPushDownAggregates
     with Logging {
@@ -60,12 +60,20 @@ class QbeastScanBuilder(
       finalSchema = schema
     }
 
-    val filesToRead =
-      fileIndex.listFiles(partitionFilters, dataFilters).flatMap(_.files.map(_.getPath))
+    // We filter the files prior to initialise the ParquetScan
+    // Due to similar issue https://github.com/microsoft/hyperspace/issues/302
+    // where FileStatus is not compatible with internal Databricks SerializableFileStatus
+    // TODO having two indexes is redundant,
+    //  the main objective would be to filter directly with PhotonQueryManager
+    val userSpecifiedSchema = oTreePhotonIndex.userSpecifiedSchema
+    val scalaOptions = options.asScala.toMap
+    val rootPathsToRead =
+      oTreePhotonIndex.listFiles(partitionFilters, dataFilters).flatMap(_.files.map(_.getPath))
 
     val inMemoryFileIndex =
-      new InMemoryFileIndex(sparkSession, filesToRead, options.asScala.toMap, None)
+      new InMemoryFileIndex(sparkSession, rootPathsToRead, scalaOptions, userSpecifiedSchema)
 
+    // The ParquetScan is initialised with the new inMemoryFileIndex
     ParquetScan(
       sparkSession,
       hadoopConf,
@@ -89,7 +97,7 @@ class QbeastScanBuilder(
       withReplacement: Boolean,
       seed: Long): Boolean = {
     // Pushdown sample to the OTreePhotonIndex
-    fileIndex.pushdownSample(SampleOperator(lowerBound, upperBound, withReplacement, seed))
+    oTreePhotonIndex.pushdownSample(SampleOperator(lowerBound, upperBound, withReplacement, seed))
     logInfo(
       s"QBEAST PUSHING DOWN SAMPLE lowerBound: $lowerBound," +
         s" upperBound: $upperBound, " +

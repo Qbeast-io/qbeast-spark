@@ -34,9 +34,9 @@ case class QbeastTable(
   override def capabilities(): util.Set[TableCapability] = Set(TableCapability.BATCH_READ).asJava
 
   override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder = {
-    val fileIndex =
+    val oTreePhotonIndex =
       OTreePhotonIndex(sparkSession, snapshot, options.asScala.toMap, userSpecifiedSchema)
-    new QbeastScanBuilder(sparkSession, schema(), fileIndex, options)
+    new QbeastScanBuilder(sparkSession, schema(), oTreePhotonIndex, options)
   }
 
 }
