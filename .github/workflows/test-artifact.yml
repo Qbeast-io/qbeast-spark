@@ -19,9 +19,8 @@ jobs:
       run: sbt assembly
     - name: Test
       run: |
-        sbt coverage 'test' coverageReport
-        sbt "project qbeastCore" coverage 'test' coverageReport
-        sbt "project qbeastPhoton" coverage 'test' coverageReport
+        sbt clean coverage 'test' coverageReport
+        sbt coverageAggregate
     - name: Upload to Codecov
       run: |
         curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import # One-time step

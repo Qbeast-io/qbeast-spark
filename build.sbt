@@ -14,12 +14,7 @@ lazy val qbeastPhoton = (project in file("photon"))
   .settings(
     name := "qbeast-photon",
     version := mainVersion,
-    libraryDependencies := Seq(
-      sparkCore % Provided,
-      sparkSql % Provided,
-      deltaCore % Provided,
-      scalaTest % Test,
-      sparkFastTests % Test),
+    libraryDependencies := Seq(sparkCore % Provided, sparkSql % Provided, deltaCore % Provided),
     Test / parallelExecution := false,
     assembly / test := {},
     assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false))
