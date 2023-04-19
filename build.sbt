@@ -1,7 +1,7 @@
 import Dependencies._
 import xerial.sbt.Sonatype._
 
-val mainVersion = "0.4.0-SNAPSHOT"
+val mainVersion = "0.4.0"
 
 lazy val qbeastCore = (project in file("core"))
   .settings(
@@ -19,7 +19,11 @@ lazy val qbeastPhoton = (project in file("photon"))
       sparkSql % Provided,
       deltaCore % Provided,
       scalaTest % Test,
-      sparkFastTests % Test))
+      sparkFastTests % Test),
+    Test / parallelExecution := false,
+    assembly / test := {},
+    assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false),
+    publish / skip := false)
 
 // Projects
 lazy val qbeastSpark = (project in file("."))

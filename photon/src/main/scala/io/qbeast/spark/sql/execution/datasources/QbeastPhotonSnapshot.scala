@@ -3,19 +3,19 @@ package io.qbeast.spark.sql.execution.datasources
 import io.delta.tables.DeltaTable
 import io.qbeast.IISeq
 import io.qbeast.core.model._
-import io.qbeast.spark.sql.utils.QbeastMetadataSQL.{
-  createCube,
-  normalizeWeight,
-  qBlock,
-  qbeastBlock,
-  weight
-}
+import io.qbeast.spark.sql.utils.QbeastMetadataSQL.{createCube, normalizeWeight, qBlock, qbeastBlock, weight}
+import io.qbeast.spark.utils.MetadataConfig
 import org.apache.spark.sql.functions.{col, collect_list, lit, min, sum}
 import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, SparkSession}
 import org.apache.spark.sql.types.StructType
 
 import scala.collection.immutable.SortedMap
 
+/**
+ * QbeastSnapshot for Photon
+ * @param sparkSession the current spark session
+ * @param path the path of the table
+ */
 case class QbeastPhotonSnapshot(sparkSession: SparkSession, path: String)
     extends QbeastSnapshot
     with StagingUtils {

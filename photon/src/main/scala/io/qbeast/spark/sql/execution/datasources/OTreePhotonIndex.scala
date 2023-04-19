@@ -1,33 +1,40 @@
 package io.qbeast.spark.sql.execution.datasources
 
-import io.qbeast.spark.sql.execution.{PhotonQueryManager, QueryOperators}
+import io.qbeast.spark.index.query.{QueryExecutor, QuerySpecBuilder}
+import io.qbeast.spark.sql.execution.{QueryOperators, SampleOperator}
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{Expression, GenericInternalRow}
 import org.apache.spark.sql.execution.datasources.{
-  InMemoryFileIndex,
-  PartitionDirectory
+  PartitionDirectory,
+  PartitionSpec,
+  PartitioningAwareFileIndex
 }
 import org.apache.spark.sql.types.StructType
 
 import java.net.URI
+import scala.collection.mutable
 
 /**
- * FileIndex to prune files
- *
- * @param index the Tahoe log file index
+ * File Index to prune files
+ * @param sparkSession the current spark session
+ * @param snapshot the current QbeastSnapshot
+ * @param options the options
+ * @param queryOperators the query operators
+ * @param userSpecifiedSchema the user specified schema, if any
  */
 case class OTreePhotonIndex(
     sparkSession: SparkSession,
     snapshot: QbeastPhotonSnapshot,
     options: Map[String, String],
-    queryOperators: QueryOperators,
     userSpecifiedSchema: Option[StructType] = None)
-    extends InMemoryFileIndex(
-      sparkSession = SparkSession.active,
-      rootPathsSpecified = Seq(new Path(snapshot.path)),
-      parameters = options,
-      userSpecifiedSchema = userSpecifiedSchema) {
+    extends PartitioningAwareFileIndex(sparkSession, options, userSpecifiedSchema) {
+
+  private var samplingOperator: Option[SampleOperator] = None
+
+  def pushdownSample(sample: SampleOperator): Unit = {
+    samplingOperator = Some(sample)
+  }
 
   protected def absolutePath(child: String): Path = {
     val p = new Path(new URI(child))
@@ -38,18 +45,11 @@ case class OTreePhotonIndex(
     }
   }
 
-  /**
-   * List Files with pushdown filters
-   * @param partitionFilters
-   * @param dataFilters
-   * @return
-   */
-  override def listFiles(
-      partitionFilters: Seq[Expression],
-      dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
-
+  private def listFiles(queryOperators: QueryOperators): Seq[PartitionDirectory] = {
     // Use PhotonQueryManager to filter the files
-    val qbeastBlocks = PhotonQueryManager.query(queryOperators, snapshot)
+    val querySpecBuilder = new QuerySpecBuilder(queryOperators)
+    val queryExecutor = new QueryExecutor(querySpecBuilder, snapshot)
+    val qbeastBlocks = queryExecutor.execute()
 
     // Convert QbeastBlocks into FileStatus
     val fileStats = qbeastBlocks.map { b =>
@@ -64,6 +64,18 @@ case class OTreePhotonIndex(
 
     // Return a PartitionDirectory
     Seq(PartitionDirectory(new GenericInternalRow(Array.empty[Any]), fileStats))
+  }
+
+  /**
+   * List Files with pushdown filters
+   * @param partitionFilters
+   * @param dataFilters
+   * @return
+   */
+  override def listFiles(
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
+    listFiles(QueryOperators(samplingOperator, partitionFilters ++ dataFilters))
 
   }
 
@@ -73,8 +85,7 @@ case class OTreePhotonIndex(
    */
 
   override def inputFiles: Array[String] = {
-    listFiles(Seq.empty, Seq.empty)
-      .flatMap(_.files)
+    allFiles()
       .map(f => absolutePath(f.getPath.toString).toString)
       .toArray
   }
@@ -84,4 +95,21 @@ case class OTreePhotonIndex(
   override def sizeInBytes: Long = snapshot.allBlocks().map(_.size).sum
 
   override def partitionSchema: StructType = StructType(Seq.empty)
+
+  override def partitionSpec(): PartitionSpec = PartitionSpec(partitionSchema, Seq.empty)
+
+  override protected def leafFiles: mutable.LinkedHashMap[Path, FileStatus] = {
+    val output = mutable.LinkedHashMap[Path, FileStatus]()
+    val files = allFiles()
+    files.foreach(f => output += (absolutePath(f.getPath.toString) -> f))
+    output
+
+  }
+
+  override protected def leafDirToChildrenFiles: Map[Path, Array[FileStatus]] = {
+    val output = Map(new Path(snapshot.path) -> allFiles().toArray)
+    output
+  }
+
+  override def rootPaths: Seq[Path] = Seq(new Path(snapshot.path))
 }

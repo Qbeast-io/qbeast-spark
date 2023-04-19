@@ -1,7 +1,7 @@
 /*
  * Copyright 2021 Qbeast Analytics, S.L.
  */
-package io.qbeast.spark.index
+package io.qbeast.spark.index.query
 
 import io.qbeast.core.model._
 import io.qbeast.spark.sql.execution.QueryOperators
@@ -9,7 +9,6 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.analysis.Resolver
 import org.apache.spark.sql.catalyst.expressions.{
   And,
-  BinaryComparison,
   EqualTo,
   Expression,
   GreaterThan,
@@ -20,7 +19,6 @@ import org.apache.spark.sql.catalyst.expressions.{
   Literal,
   SubqueryExpression
 }
-import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.unsafe.types.UTF8String
 
 /**
@@ -126,11 +124,10 @@ private[spark] class QuerySpecBuilder(queryOperators: QueryOperators)
   /**
    * Builds a QuerySpec for a specific revision
    *
-   * @param query    the QueryOperators involved
    * @param revision the specific Revision
    * @return
    */
-  def buildSpec(revision: Revision): QuerySpec = {
+  def build(revision: Revision): QuerySpec = {
 
     val querySpace =
       if (isStaging(revision)) EmptySpace()

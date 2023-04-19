@@ -1,46 +1,49 @@
 package io.qbeast.spark.sql.connector.catalog
 
-import io.qbeast.spark.sql.execution.{QueryOperators, SampleOperator}
-import io.qbeast.spark.sql.execution.datasources.{OTreePhotonIndex, QbeastPhotonSnapshot}
+import io.qbeast.spark.sql.execution.SampleOperator
+import io.qbeast.spark.sql.execution.datasources.{OTreePhotonIndex}
 import org.apache.hadoop.conf.Configuration
-import org.apache.spark.sql.{SparkSession, sources}
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.{SparkSession}
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.connector.expressions.filter.Predicate
-import org.apache.spark.sql.connector.read.{Scan, ScanBuilder, SupportsPushDownAggregates, SupportsPushDownTableSample}
-import org.apache.spark.sql.execution.datasources.{AggregatePushDownUtils, SparkDataSourceUtils}
+import org.apache.spark.sql.connector.read.{
+  Scan,
+  SupportsPushDownAggregates,
+  SupportsPushDownTableSample
+}
+import org.apache.spark.sql.execution.datasources.v2.FileScanBuilder
+import org.apache.spark.sql.execution.datasources.{
+  AggregatePushDownUtils,
+  InMemoryFileIndex,
+  SparkDataSourceUtils
+}
 import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
-import org.apache.spark.sql.internal.connector.SupportsPushDownCatalystFilters
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
-
 import scala.collection.JavaConverters._
-import scala.collection.mutable
+
+/**
+ * Creates a Scan for Qbeast Datasource with the corresponding pushdown operators
+ * @param sparkSession the active Spark Session
+ * @param schema the schema of the table
+ * @param snapshot the current snapshot of the table
+ * @param options the options to read
+ */
 
 class QbeastScanBuilder(
     sparkSession: SparkSession,
     schema: StructType,
-    snapshot: QbeastPhotonSnapshot,
+    oTreePhotonIndex: OTreePhotonIndex,
     options: CaseInsensitiveStringMap)
-    extends ScanBuilder
+    extends FileScanBuilder(sparkSession, oTreePhotonIndex, schema)
     with SupportsPushDownTableSample
-    with SupportsPushDownCatalystFilters
-    with SupportsPushDownAggregates {
+    with SupportsPushDownAggregates
+    with Logging {
+  private var pushDownAggregate: Option[Aggregation] = None
 
-  private var pushdownSample: Option[SampleOperator] = None
-
-  private var pushDownAggregates: Option[Aggregation] = None
-
-  private var partitionFilters: Seq[Expression] = Seq.empty
-
-  private var dataFilters: Seq[Expression] = Seq.empty
-
-  private var pushedDataFilters: Array[Filter] = Array.empty
-
-  private val partitionSchema = StructType(Seq.empty)
-
-  private var finalSchema: StructType = schema
+  private var finalSchema: StructType = StructType(Seq.empty)
 
   lazy val hadoopConf: Configuration = {
     val caseSensitiveMap = options.asCaseSensitiveMap.asScala.toMap
@@ -50,38 +53,52 @@ class QbeastScanBuilder(
 
   override def build(): Scan = {
 
-    val queryOperators = QueryOperators(pushDownAggregates, pushdownSample, dataFilters)
+    // the `finalSchema` is either pruned in pushAggregation (if aggregates are
+    // pushed down), or pruned in readDataSchema() (in regular column pruning). These
+    // two are mutual exclusive.
+    if (pushDownAggregate.isEmpty) {
+      finalSchema = schema
+    }
 
-    val fileIndex = OTreePhotonIndex(
-      sparkSession,
-      snapshot,
-      options.asCaseSensitiveMap().asScala.toMap,
-      queryOperators,
-      Some(schema))
+    // We filter the files prior to initialise the ParquetScan
+    // Due to similar issue https://github.com/microsoft/hyperspace/issues/302
+    // where FileStatus is not compatible with internal Databricks SerializableFileStatus
+    // TODO having two indexes is redundant,
+    //  the main objective would be to filter directly with PhotonQueryManager
+    val userSpecifiedSchema = oTreePhotonIndex.userSpecifiedSchema
+    val scalaOptions = options.asScala.toMap
+    val rootPathsToRead =
+      oTreePhotonIndex.listFiles(partitionFilters, dataFilters).flatMap(_.files.map(_.getPath))
 
+    val inMemoryFileIndex =
+      new InMemoryFileIndex(sparkSession, rootPathsToRead, scalaOptions, userSpecifiedSchema)
+
+    // The ParquetScan is initialised with the new inMemoryFileIndex
     ParquetScan(
       sparkSession,
       hadoopConf,
-      fileIndex,
+      inMemoryFileIndex,
       finalSchema,
       finalSchema,
       StructType(Seq.empty),
       pushedDataFilters,
       options,
-      pushDownAggregates,
-      partitionFilters,
-      dataFilters)
+      pushDownAggregate)
 
   }
 
+  /*
+   * Pushes down table sample by deleting the operation from the SparkPlan
+   * and updating pushdownSample var
+   */
   override def pushTableSample(
       lowerBound: Double,
       upperBound: Double,
       withReplacement: Boolean,
       seed: Long): Boolean = {
-    pushdownSample = Some(SampleOperator(lowerBound, upperBound, withReplacement, seed))
-    // scalastyle:off
-    println(
+    // Pushdown sample to the OTreePhotonIndex
+    oTreePhotonIndex.pushdownSample(SampleOperator(lowerBound, upperBound, withReplacement, seed))
+    logInfo(
       s"QBEAST PUSHING DOWN SAMPLE lowerBound: $lowerBound," +
         s" upperBound: $upperBound, " +
         s"withReplacement: $withReplacement, " +
@@ -89,30 +106,7 @@ class QbeastScanBuilder(
     true
   }
 
-  /*
-   * Push down data filters to the file source, so the data filters can be evaluated there to
-   * reduce the size of the data to be read. By default, data filters are not pushed down.
-   * File source needs to implement this method to push down data filters.
-   */
-  protected def pushDataFilters(dataFilters: Array[Filter]): Array[Filter] = dataFilters
-
-  // Based on FileScanBuilder
-  override def pushFilters(filters: Seq[Expression]): Seq[Expression] = {
-    val (partitionFilters, dataFilters) =
-      SparkDataSourceUtils.getPartitionFiltersAndDataFilters(partitionSchema, filters)
-    this.partitionFilters = partitionFilters
-    this.dataFilters = dataFilters
-    val translatedFilters = mutable.ArrayBuffer.empty[sources.Filter]
-    for (filterExpr <- dataFilters) {
-      val translated = SparkDataSourceUtils.translateFilter(filterExpr, true)
-      if (translated.nonEmpty) {
-        translatedFilters += translated.get
-      }
-    }
-
-    pushedDataFilters = pushDataFilters(translatedFilters.toArray)
-    dataFilters
-  }
+  override def pushDataFilters(dataFilters: Array[Filter]): Array[Filter] = dataFilters
 
   override def pushedFilters: Array[Predicate] =
     SparkDataSourceUtils.mapFiltersToV2(pushedDataFilters).toArray
@@ -131,7 +125,7 @@ class QbeastScanBuilder(
 
       case Some(schema) =>
         finalSchema = schema
-        this.pushDownAggregates = Some(aggregation)
+        this.pushDownAggregate = Some(aggregation)
         true
       case _ => false
     }

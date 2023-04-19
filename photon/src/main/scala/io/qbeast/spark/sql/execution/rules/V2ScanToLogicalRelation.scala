@@ -19,6 +19,10 @@ import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
 
 import scala.collection.JavaConverters._
 
+/**
+ * Changes V2DataSource scan to V1 Logical Relation
+ * @param sparkSession the current spark session
+ */
 class V2ScanToLogicalRelation(sparkSession: SparkSession)
     extends SparkStrategy
     with PredicateHelper {
