@@ -7,10 +7,12 @@ The original purpose is to work with Databricks + Photon clusters without any co
 To use the library, you should follow the steps:
 
 ### 1. Package the code
+You have to **package both `photon` and `core` modules**:
  ```bash
- sbt project qbeastPhoton
- sbt package
+ sbt project qbeastPhoton; sbt package
+ sbt project qbeastCore; sbt package
  ```
+
 ### 2. Install the libraries in your Databricks cluster. 
 
 ### 3. Use init_scripts to enable extensions
@@ -19,13 +21,11 @@ Use `init_scripts` **to enable access to the customized `SessionExtension`**. Th
    **An example of the script**:
    ```bash
    #!/bin/bash
-
-   echo "Executing"
-   cp /dbfs/FileStore/jars/qbeast_core_2_12_0_3_3.jar /databricks/jars/
+   
+   cp /dbfs/FileStore/jars/qbeast_core_2_12_0_4_0.jar /databricks/jars/
    cp /dbfs/FileStore/jars/qbeast_photon_2_12_0_4_0.jar /databricks/jars/
-   echo "finished copying jars"
+   
    ```
-
 ### 4. Add the following configuration to your Spark Application:
  ```bash 
  $SPARK_330/bin/spark-shell \
@@ -39,7 +39,7 @@ Use `init_scripts` **to enable access to the customized `SessionExtension`**. Th
    spark.databricks.cluster.profile singleNode
    spark.sql.extensions io.qbeast.spark.sql.QbeastPhotonSessionExtension
    spark.databricks.delta.formatCheck.enabled false
-   spark.jars /databricks/jars/qbeast_photon_2_12_0_1_0.jar,/databricks/jars/qbeast_core_2_12_0_3_3.jar
+   spark.jars /databricks/jars/qbeast_photon_2_12_0_4_0.jar,/databricks/jars/qbeast_core_2_12_0_4_0.jar
    spark.master local[*, 4]
   ```
 
@@ -57,7 +57,6 @@ This is an example of how `qbeast` datasource could **pushdown** **Sampling** ov
 ```scala
 spark.read.format("qbeast").load("dbfs:/FileStore/tables/tpcds-1gb-qbeast/store_sales").sample(0.01).explain()
 
-PUSHING DOWN! lowerBound: 0.0, upperBound: 0.01, withReplacement: false, seed: -6732841976509339491
 == Physical Plan ==
         *(1) ColumnarToRow
         +- PhotonResultStage
