@@ -18,6 +18,7 @@ import org.apache.spark.sql.catalyst.expressions.{
   LessThan,
   LessThanOrEqual,
   Literal,
+  Or,
   SubqueryExpression
 }
 import org.apache.spark.sql.types.IntegerType
@@ -49,6 +50,14 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
 
   private def isQbeastExpression(expression: Expression, indexedColumns: Seq[String]): Boolean =
     isQbeastWeightExpression(expression) || hasQbeastColumnReference(expression, indexedColumns)
+
+  private def splitDisjunctivePredicates(condition: Expression): Seq[Expression] = {
+    condition match {
+      case Or(cond1, cond2) =>
+        splitDisjunctivePredicates(cond1) ++ splitDisjunctivePredicates(cond2)
+      case other => other :: Nil
+    }
+  }
 
   private def splitConjunctivePredicates(condition: Expression): Seq[Expression] = {
     condition match {
@@ -84,7 +93,8 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
   }
 
   /**
-   * Extracts the space of the query
+   * Extracts the sequence of query spaces
+   * That we should union after
    * @param dataFilters the filters passed by the spark engine
    * @param revision the characteristics of the index
    * @return
@@ -110,7 +120,10 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
             .collectFirst {
               case GreaterThan(_, Literal(value, _)) => sparkTypeToCoreType(value)
               case GreaterThanOrEqual(_, Literal(value, _)) => sparkTypeToCoreType(value)
+              case LessThan(Literal(value, _), _) => sparkTypeToCoreType(value)
+              case LessThanOrEqual(Literal(value, _), _) => sparkTypeToCoreType(value)
               case EqualTo(_, Literal(value, _)) => sparkTypeToCoreType(value)
+              case EqualTo(Literal(value, _), _) => sparkTypeToCoreType(value)
               case IsNull(_) => null
             }
 
@@ -118,7 +131,10 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
             .collectFirst {
               case LessThan(_, Literal(value, _)) => sparkTypeToCoreType(value)
               case LessThanOrEqual(_, Literal(value, _)) => sparkTypeToCoreType(value)
+              case GreaterThan(Literal(value, _), _) => sparkTypeToCoreType(value)
+              case GreaterThanOrEqual(Literal(value, _), _) => sparkTypeToCoreType(value)
               case EqualTo(_, Literal(value, _)) => sparkTypeToCoreType(value)
+              case EqualTo(Literal(value, _), _) => sparkTypeToCoreType(value)
               case IsNull(_) => null
             }
 
@@ -161,15 +177,24 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
    * @return the QuerySpec
    */
 
-  def build(revision: Revision): QuerySpec = {
-    val (weightRange, querySpace) =
-      if (isStaging(revision)) {
-        (WeightRange(Weight(Int.MinValue), Weight(Int.MaxValue)), EmptySpace())
-      } else {
-        val qbeastFilters = extractDataFilters(sparkFilters, revision)
-        (extractWeightRange(qbeastFilters), extractQuerySpace(qbeastFilters, revision))
-      }
-    QuerySpec(weightRange, querySpace)
+  def build(revision: Revision): Seq[QuerySpec] = {
+    // First split disjunctive predicates
+    // To generate a QuerySpec for each space
+    val disjunctivePredicates = sparkFilters.flatMap(f => splitDisjunctivePredicates(f))
+
+    // Process each disjunctive predicate aside
+    disjunctivePredicates.map { f =>
+      val filters = Seq(f)
+      val (weightRange, querySpace) =
+        if (isStaging(revision)) {
+          (WeightRange(Weight(Int.MinValue), Weight(Int.MaxValue)), EmptySpace())
+        } else {
+          val qbeastFilters = extractDataFilters(filters, revision)
+          (extractWeightRange(qbeastFilters), extractQuerySpace(qbeastFilters, revision))
+        }
+      QuerySpec(weightRange, querySpace)
+    }
+
   }
 
 }

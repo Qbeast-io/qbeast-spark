@@ -193,7 +193,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
       indexStatus.copy(cubesStatuses = indexStatus.cubesStatuses - cubeToRemove)
 
     val querySpecBuilder = new QuerySpecBuilder(Seq.empty)
-    val querySpec = querySpecBuilder.build(revision)
+    val querySpec = querySpecBuilder.build(revision).head
     val queryExecutor = new QueryExecutor(querySpecBuilder, qbeastSnapshot)
     val matchFiles = queryExecutor
       .executeRevision(querySpec, faultyIndexStatus)

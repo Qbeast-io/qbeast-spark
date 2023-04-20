@@ -44,7 +44,7 @@ class QuerySpecBuilderTest
   "extractWeightRange" should
     "extract all weight range when expressions is empty" in withSpark(spark => {
       val revision = createRevision()
-      val weightRange = new QuerySpecBuilder(Seq.empty).build(revision).weightRange
+      val weightRange = new QuerySpecBuilder(Seq.empty).build(revision).head.weightRange
 
       weightRange shouldBe WeightRange(Weight.MinValue, Weight.MaxValue)
     })
@@ -53,7 +53,7 @@ class QuerySpecBuilderTest
     val weightRange = WeightRange(Weight(3), Weight(8))
     val expression = weightFilters(weightRange)
     val revision = createRevision()
-    val queryWeightRange = new QuerySpecBuilder(Seq(expression)).build(revision).weightRange
+    val queryWeightRange = new QuerySpecBuilder(Seq(expression)).build(revision).head.weightRange
 
     queryWeightRange shouldBe weightRange
   })
@@ -62,7 +62,8 @@ class QuerySpecBuilderTest
     val (from, to) = (3, 8)
     val expression = expr(s"id >= $from and id < $to").expr
     val revision = createRevision()
-    val querySpace = new QuerySpecBuilder(Seq(expression)).build(revision).querySpace
+    val querySpace = new QuerySpecBuilder(Seq(expression)).build(revision).head.querySpace
+
     val tFrom = revision.transformations.head.transform(3)
     val tTo = revision.transformations.head.transform(8)
 
@@ -73,7 +74,7 @@ class QuerySpecBuilderTest
   it should "extract query range when equal to" in withSpark(spark => {
     val revision = createRevision()
     val expression = expr("id == 3").expr
-    val querySpace = new QuerySpecBuilder(Seq(expression)).build(revision).querySpace
+    val querySpace = new QuerySpecBuilder(Seq(expression)).build(revision).head.querySpace
     val t = revision.transformations.head.transform(3)
 
     querySpace invokePrivate privateFrom() shouldBe Seq(Some(t))
@@ -83,7 +84,7 @@ class QuerySpecBuilderTest
   it should "extract query range when is null" in withSpark(spark => {
     val revision = createRevision()
     val expression = expr("id is null").expr
-    val querySpace = new QuerySpecBuilder(Seq(expression)).build(revision).querySpace
+    val querySpace = new QuerySpecBuilder(Seq(expression)).build(revision).head.querySpace
     val t = revision.transformations.head.transform(null)
 
     querySpace invokePrivate privateFrom() shouldBe Seq(Some(t))
@@ -106,27 +107,41 @@ class QuerySpecBuilderTest
     val (from, to) = ("qbeast", "QBEAST")
 
     val equalToExpression = expr(s"name == '$from'").expr
-    val equalToSpace = new QuerySpecBuilder(Seq(equalToExpression)).build(revision).querySpace
+    val equalToSpace =
+      new QuerySpecBuilder(Seq(equalToExpression)).build(revision).head.querySpace
     equalToSpace shouldBe a[QuerySpaceFromTo]
 
     val rangeExpression = expr(s"name >= '$from' and name < '$to'").expr
-    val rangeSpace = new QuerySpecBuilder(Seq(rangeExpression)).build(revision).querySpace
+    val rangeSpace = new QuerySpecBuilder(Seq(rangeExpression)).build(revision).head.querySpace
     rangeSpace shouldBe a[AllSpace]
   })
 
   it should "extract all query range when expressions is empty" in withSpark(spark => {
     val revision = createRevision()
-    val querySpace = new QuerySpecBuilder(Seq.empty).build(revision).querySpace
+    val querySpace = new QuerySpecBuilder(Seq.empty).build(revision).head.querySpace
 
     querySpace shouldBe a[AllSpace]
   })
 
-  it should "not process disjunctive predicates" in withSpark(spark => {
+  // TODO process disjunctive predicates
+  it should "process disjunctive predicates" in withSpark(spark => {
     val revision = createRevision()
     val expression = expr(s"3 <= id OR id < 8").expr
-    val querySpace = new QuerySpecBuilder(Seq(expression)).build(revision).querySpace
+    val querySpecs = new QuerySpecBuilder(Seq(expression)).build(revision)
 
-    querySpace shouldBe a[AllSpace]
+    querySpecs.size shouldBe 2
+
+    val tFrom = revision.transformations.head.transform(3)
+    val firstQuerySpec = querySpecs.head.querySpace
+
+    firstQuerySpec invokePrivate privateFrom() shouldBe Seq(Some(tFrom))
+    firstQuerySpec invokePrivate privateTo() shouldBe Seq(None)
+
+    val tTo = revision.transformations.head.transform(8)
+    val secondQuerySpec = querySpecs(1).querySpace
+
+    secondQuerySpec invokePrivate privateFrom() shouldBe Seq(None)
+    secondQuerySpec invokePrivate privateTo() shouldBe Seq(Some(tTo))
   })
 
   it should "leverage otree index when filtering with GreaterThan and LessThanOrEqual" in withSpark(
@@ -135,7 +150,7 @@ class QuerySpecBuilderTest
 
       val expressions = Seq(expr(s"id > $f AND id <= $t").expr)
       val revision = createRevision()
-      val querySpace = new QuerySpecBuilder(expressions).build(revision).querySpace
+      val querySpace = new QuerySpecBuilder(expressions).build(revision).head.querySpace
       val idTransformation = LinearTransformation(Int.MinValue, Int.MaxValue, IntegerDataType)
 
       querySpace invokePrivate privateFrom() shouldBe Seq(Some(idTransformation.transform(f)))
@@ -168,7 +183,7 @@ class QuerySpecBuilderTest
 
     expressions.foreach { case (expression, answer) =>
       revisions.count { revision =>
-        val querySpec = new QuerySpecBuilder(expression :: Nil).build(revision)
+        val querySpec = new QuerySpecBuilder(expression :: Nil).build(revision).head
         querySpec.querySpace match {
           case _: QuerySpaceFromTo => true
           case _: AllSpace => true
@@ -184,7 +199,7 @@ class QuerySpecBuilderTest
       (0 to 3).map(i => createRevision(10 * i, 10 * (i + 1)).copy(revisionID = i + 1))
 
     revisions.count { revision =>
-      val querySpec = new QuerySpecBuilder(Seq.empty).build(revision)
+      val querySpec = new QuerySpecBuilder(Seq.empty).build(revision).head
       querySpec.querySpace match {
         case _: QuerySpaceFromTo => true
         case _: AllSpace => true
