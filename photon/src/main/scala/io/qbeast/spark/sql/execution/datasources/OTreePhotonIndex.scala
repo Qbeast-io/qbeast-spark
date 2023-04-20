@@ -1,11 +1,16 @@
 package io.qbeast.spark.sql.execution.datasources
 
+import io.qbeast.core.model.QbeastBlock
 import io.qbeast.spark.index.query._
 import io.qbeast.spark.sql.execution.{QueryOperators, SampleOperator}
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{Expression, GenericInternalRow}
-import org.apache.spark.sql.execution.datasources.{PartitionDirectory, PartitionSpec, PartitioningAwareFileIndex}
+import org.apache.spark.sql.execution.datasources.{
+  PartitionDirectory,
+  PartitionSpec,
+  PartitioningAwareFileIndex
+}
 import org.apache.spark.sql.types.StructType
 
 import java.net.URI
@@ -40,14 +45,17 @@ case class OTreePhotonIndex(
     }
   }
 
-  private def listFiles(queryOperators: QueryOperators): Seq[PartitionDirectory] = {
+  private def matchingBlocks(queryOperators: QueryOperators): Seq[QbeastBlock] = {
     // Use PhotonQueryManager to filter the files
     val querySpecBuilder = new QuerySpecBuilder(queryOperators)
     val queryExecutor = new QueryExecutor(querySpecBuilder, snapshot)
-    val qbeastBlocks = queryExecutor.execute()
+    queryExecutor.execute()
+  }
+
+  private def matchingFiles(queryOperators: QueryOperators): Seq[PartitionDirectory] = {
 
     // Convert QbeastBlocks into FileStatus
-    val fileStats = qbeastBlocks.map { b =>
+    val fileStats = matchingBlocks(queryOperators).map { b =>
       new FileStatus(
         /* length */ b.size,
         /* isDir */ false,
@@ -70,12 +78,12 @@ case class OTreePhotonIndex(
   override def listFiles(
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
-    listFiles(QueryOperators(samplingOperator, partitionFilters ++ dataFilters))
+    matchingFiles(QueryOperators(samplingOperator, partitionFilters ++ dataFilters))
 
   }
 
   override def allFiles(): Seq[FileStatus] = {
-    listFiles(QueryOperators(None, Seq.empty)).head.files
+    matchingFiles(QueryOperators(None, Seq.empty)).head.files
   }
 
   /**
