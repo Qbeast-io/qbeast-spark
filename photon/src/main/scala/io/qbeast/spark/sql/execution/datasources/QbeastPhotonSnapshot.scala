@@ -12,7 +12,7 @@ import io.qbeast.spark.sql.utils.QbeastMetadataSQL.{
 }
 import io.qbeast.spark.utils.MetadataConfig
 import org.apache.spark.sql.functions.{col, collect_list, lit, min, sum}
-import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, SparkSession}
+import org.apache.spark.sql.{AnalysisException, AnalysisExceptionFactory, DataFrame, SparkSession}
 import org.apache.spark.sql.types.StructType
 
 import scala.collection.immutable.SortedMap
@@ -26,9 +26,16 @@ case class QbeastPhotonSnapshot(sparkSession: SparkSession, path: String)
     extends QbeastSnapshot
     with StagingUtils {
 
-  private val deltaTable = DeltaTable.forPath(sparkSession, path)
-  private val deltaLog = deltaTable.getClass.getMethod("deltaLog").invoke(deltaTable)
-  private val snapshot = deltaLog.getClass.getMethod("snapshot").invoke(deltaLog)
+  private lazy val deltaTable = {
+    try {
+      DeltaTable.forPath(sparkSession, path)
+    } catch {
+      case e: AnalysisException => throw e.copy(message = s"$path is not a Qbeast Table")
+    }
+  }
+
+  private lazy val deltaLog = deltaTable.getClass.getMethod("deltaLog").invoke(deltaTable)
+  private lazy val snapshot = deltaLog.getClass.getMethod("snapshot").invoke(deltaLog)
 
   private val allFiles = snapshot.getClass
     .getMethod("allFiles")

@@ -32,8 +32,7 @@ class QbeastPhotonSnapshotTest extends QbeastTestSpec {
     val snapshot = QbeastPhotonSnapshot(spark, qbeastDataPath)
     snapshot.isInitial shouldBe false
 
-    val nonExistingSnapshot = QbeastPhotonSnapshot(spark, tmpDir)
-    nonExistingSnapshot.isInitial shouldBe true
+    a[AnalysisException] shouldBe thrownBy(QbeastPhotonSnapshot(spark, tmpDir))
   })
 
   it should "loadLatestIndexStatus" in withSpark(spark => {
