@@ -1,15 +1,11 @@
 package io.qbeast.spark.sql.execution.datasources
 
-import io.qbeast.spark.index.query.{QueryExecutor, QuerySpecBuilder}
+import io.qbeast.spark.index.query._
 import io.qbeast.spark.sql.execution.{QueryOperators, SampleOperator}
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{Expression, GenericInternalRow}
-import org.apache.spark.sql.execution.datasources.{
-  PartitionDirectory,
-  PartitionSpec,
-  PartitioningAwareFileIndex
-}
+import org.apache.spark.sql.execution.datasources.{PartitionDirectory, PartitionSpec, PartitioningAwareFileIndex}
 import org.apache.spark.sql.types.StructType
 
 import java.net.URI
@@ -20,7 +16,6 @@ import scala.collection.mutable
  * @param sparkSession the current spark session
  * @param snapshot the current QbeastSnapshot
  * @param options the options
- * @param queryOperators the query operators
  * @param userSpecifiedSchema the user specified schema, if any
  */
 case class OTreePhotonIndex(
@@ -77,6 +72,10 @@ case class OTreePhotonIndex(
       dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
     listFiles(QueryOperators(samplingOperator, partitionFilters ++ dataFilters))
 
+  }
+
+  override def allFiles(): Seq[FileStatus] = {
+    listFiles(QueryOperators(None, Seq.empty)).head.files
   }
 
   /**

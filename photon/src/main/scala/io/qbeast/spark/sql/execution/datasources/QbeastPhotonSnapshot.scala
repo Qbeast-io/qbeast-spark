@@ -3,7 +3,13 @@ package io.qbeast.spark.sql.execution.datasources
 import io.delta.tables.DeltaTable
 import io.qbeast.IISeq
 import io.qbeast.core.model._
-import io.qbeast.spark.sql.utils.QbeastMetadataSQL.{createCube, normalizeWeight, qBlock, qbeastBlock, weight}
+import io.qbeast.spark.sql.utils.QbeastMetadataSQL.{
+  createCube,
+  normalizeWeight,
+  qBlock,
+  qbeastBlock,
+  weight
+}
 import io.qbeast.spark.utils.MetadataConfig
 import org.apache.spark.sql.functions.{col, collect_list, lit, min, sum}
 import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, SparkSession}
@@ -115,7 +121,7 @@ case class QbeastPhotonSnapshot(sparkSession: SparkSession, path: String)
   }
 
   override def isInitial: Boolean =
-    snapshot.getClass.getMethod("isInitial").invoke(snapshot).asInstanceOf[Boolean]
+    snapshot.getClass.getMethod("version").invoke(snapshot).asInstanceOf[Long] == -1
 
   override def loadLatestIndexStatus: IndexStatus = loadIndexStatus(lastRevisionID)
 

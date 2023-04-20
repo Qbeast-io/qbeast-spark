@@ -2,7 +2,8 @@ package io.qbeast.spark.sql.connector.catalog
 
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.execution.FileSourceScanExec
+import org.apache.spark.sql.catalyst.plans.logical.Sample
+import org.apache.spark.sql.execution.{FileSourceScanExec}
 import org.apache.spark.sql.execution.datasources.InMemoryFileIndex
 
 class QbeastIntegrationTest extends QbeastTestSpec {
@@ -21,6 +22,17 @@ class QbeastIntegrationTest extends QbeastTestSpec {
           filesToRead.length shouldBe <(allFiles.length)
       }
 
+  }
+
+  private def checkSamplingPushdown(query: DataFrame): Unit = {
+    val analyzed = query.queryExecution.analyzed
+    val optimized = query.queryExecution.optimizedPlan
+
+    val sampleOperator = analyzed.collectFirst { case a: Sample => a }
+    val sampleOperatorOptimized = optimized.collectFirst { case a: Sample => a }
+
+    sampleOperator shouldBe defined
+    sampleOperatorOptimized should not be defined
   }
 
   "Qbeast Datasource" should "load data in qbeast format" in withSparkAndTmpDir((spark, _) => {
@@ -52,6 +64,9 @@ class QbeastIntegrationTest extends QbeastTestSpec {
     List(0.1, 0.2, 0.5).foreach(precision => {
       val query = qbeastData
         .sample(withReplacement = false, precision)
+
+      // Check if the Sample operator is being pushed down
+      checkSamplingPushdown(query)
 
       // Check if the files are being filtered by the index
       checkFileFiltering(query, qbeastDataPath)

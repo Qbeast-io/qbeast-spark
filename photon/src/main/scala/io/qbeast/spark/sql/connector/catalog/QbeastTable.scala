@@ -1,7 +1,7 @@
 package io.qbeast.spark.sql.connector.catalog
 
 import io.qbeast.spark.sql.execution.datasources.{OTreePhotonIndex, QbeastPhotonSnapshot}
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{AnalysisExceptionFactory, SparkSession}
 import org.apache.spark.sql.connector.catalog.{SupportsRead, Table, TableCapability}
 import org.apache.spark.sql.connector.read.ScanBuilder
 import org.apache.spark.sql.types.StructType
@@ -27,16 +27,37 @@ case class QbeastTable(
     extends Table
     with SupportsRead {
 
-  lazy val snapshot: QbeastPhotonSnapshot = QbeastPhotonSnapshot(sparkSession, path)
+  private lazy val snapshot: QbeastPhotonSnapshot = QbeastPhotonSnapshot(sparkSession, path)
 
-  override def schema(): StructType = snapshot.schema
+  private lazy val oTreePhotonIndex =
+    OTreePhotonIndex(sparkSession, snapshot, options, userSpecifiedSchema)
+
+  private lazy val fileSchema = snapshot.schema
+
+  private lazy val dataSchema: StructType = {
+    val schema = userSpecifiedSchema
+      .map { schema =>
+        val partitionSchema = oTreePhotonIndex.partitionSchema
+        val resolver = sparkSession.sessionState.conf.resolver
+        StructType(schema.filterNot(f => partitionSchema.exists(p => resolver(p.name, f.name))))
+      }
+      .orElse {
+        Some(snapshot.schema)
+      }
+      .getOrElse {
+        throw AnalysisExceptionFactory.create(
+          "Schema not specified and not present in the current files")
+      }
+
+    schema
+  }
+
+  override def schema(): StructType = dataSchema
 
   override def capabilities(): util.Set[TableCapability] = Set(TableCapability.BATCH_READ).asJava
 
   override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder = {
-    val oTreePhotonIndex =
-      OTreePhotonIndex(sparkSession, snapshot, options.asScala.toMap, userSpecifiedSchema)
-    new QbeastScanBuilder(sparkSession, schema(), oTreePhotonIndex, options)
+    new QbeastScanBuilder(sparkSession, fileSchema, dataSchema, oTreePhotonIndex, options)
   }
 
 }
