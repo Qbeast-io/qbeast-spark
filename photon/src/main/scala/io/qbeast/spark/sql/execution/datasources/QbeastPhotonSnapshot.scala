@@ -30,7 +30,9 @@ case class QbeastPhotonSnapshot(sparkSession: SparkSession, path: String)
     try {
       DeltaTable.forPath(sparkSession, path)
     } catch {
-      case e: AnalysisException => throw e.copy(message = s"$path is not a Qbeast Table")
+      case e: AnalysisException if e.message.contains("is not a Delta Table") =>
+        throw e.copy(message = s"$path is not a Qbeast Table")
+      case other => other
     }
   }
 
