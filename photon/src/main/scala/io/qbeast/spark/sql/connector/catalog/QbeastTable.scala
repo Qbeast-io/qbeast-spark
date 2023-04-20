@@ -36,11 +36,7 @@ case class QbeastTable(
 
   private lazy val dataSchema: StructType = {
     val schema = userSpecifiedSchema
-      .map { schema =>
-        val partitionSchema = oTreePhotonIndex.partitionSchema
-        val resolver = sparkSession.sessionState.conf.resolver
-        StructType(schema.filterNot(f => partitionSchema.exists(p => resolver(p.name, f.name))))
-      }
+      .map { schema => schema }
       .orElse {
         Some(snapshot.schema)
       }
