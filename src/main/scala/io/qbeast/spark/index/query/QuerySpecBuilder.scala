@@ -48,8 +48,9 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
     }
   }
 
-  private def isQbeastExpression(expression: Expression, indexedColumns: Seq[String]): Boolean =
-    isQbeastWeightExpression(expression) || hasQbeastColumnReference(expression, indexedColumns)
+  private def isDisjunctivePredicate(condition: Expression): Boolean = {
+    condition.isInstanceOf[Or]
+  }
 
   private def splitDisjunctivePredicates(condition: Expression): Seq[Expression] = {
     condition match {
@@ -77,12 +78,14 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
    * @param revision the revision of the index
    * @return sequence of filters involving qbeast format
    */
-  def extractDataFilters(dataFilters: Seq[Expression], revision: Revision): Seq[Expression] = {
-    dataFilters.filter(expression =>
-      isQbeastExpression(
-        expression,
-        revision.columnTransformers.map(_.columnName)) && !SubqueryExpression
-        .hasSubquery(expression))
+  def extractQbeastFilters(dataFilters: Seq[Expression], revision: Revision): QbeastFilters = {
+    val indexedColumns = revision.columnTransformers.map(_.columnName)
+    val notSubqueryFilters =
+      dataFilters.filter(!SubqueryExpression.hasSubquery(_)).flatMap(splitConjunctivePredicates)
+    val weightFilters = notSubqueryFilters.filter(isQbeastWeightExpression)
+    val queryFilters = notSubqueryFilters.filter(hasQbeastColumnReference(_, indexedColumns))
+
+    QbeastFilters(weightFilters, queryFilters)
   }
 
   private def sparkTypeToCoreType(value: Any): Any = {
@@ -95,54 +98,52 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
   /**
    * Extracts the sequence of query spaces
    * That we should union after
-   * @param dataFilters the filters passed by the spark engine
+   * @param rangePredicate the predicates passed by the spark engine
    * @param revision the characteristics of the index
    * @return
    */
 
-  def extractQuerySpace(dataFilters: Seq[Expression], revision: Revision): QuerySpace = {
-    // Split conjunctive predicates
-    val filters = dataFilters.flatMap(filter => splitConjunctivePredicates(filter))
+  def extractQuerySpace(rangePredicate: Seq[Expression], revision: Revision): QuerySpace = {
 
-    // Include all revision space when no filter is applied on its indexing columns
-    if (filters.isEmpty) AllSpace()
-    else {
-      val indexedColumns = revision.columnTransformers.map(_.columnName)
+    // Data Filters should not be empty
+    assert(rangePredicate.nonEmpty)
 
-      val (from, to) =
-        indexedColumns.map { columnName =>
-          // Get the filters related to the column
-          val columnFilters = filters.filter(hasColumnReference(_, columnName))
+    val indexedColumns = revision.columnTransformers.map(_.columnName)
 
-          // Get the coordinates of the column in the filters,
-          // if not found, use the overall coordinates
-          val columnFrom = columnFilters
-            .collectFirst {
-              case GreaterThan(_, Literal(value, _)) => sparkTypeToCoreType(value)
-              case GreaterThanOrEqual(_, Literal(value, _)) => sparkTypeToCoreType(value)
-              case LessThan(Literal(value, _), _) => sparkTypeToCoreType(value)
-              case LessThanOrEqual(Literal(value, _), _) => sparkTypeToCoreType(value)
-              case EqualTo(_, Literal(value, _)) => sparkTypeToCoreType(value)
-              case EqualTo(Literal(value, _), _) => sparkTypeToCoreType(value)
-              case IsNull(_) => null
-            }
+    val (from, to) =
+      indexedColumns.map { columnName =>
+        // Get the filters related to the column
+        val columnFilters = rangePredicate.filter(hasColumnReference(_, columnName))
 
-          val columnTo = columnFilters
-            .collectFirst {
-              case LessThan(_, Literal(value, _)) => sparkTypeToCoreType(value)
-              case LessThanOrEqual(_, Literal(value, _)) => sparkTypeToCoreType(value)
-              case GreaterThan(Literal(value, _), _) => sparkTypeToCoreType(value)
-              case GreaterThanOrEqual(Literal(value, _), _) => sparkTypeToCoreType(value)
-              case EqualTo(_, Literal(value, _)) => sparkTypeToCoreType(value)
-              case EqualTo(Literal(value, _), _) => sparkTypeToCoreType(value)
-              case IsNull(_) => null
-            }
+        // Get the coordinates of the column in the filters,
+        // if not found, use the overall coordinates
+        val columnFrom = columnFilters
+          .collectFirst {
+            case GreaterThan(_, Literal(value, _)) => sparkTypeToCoreType(value)
+            case GreaterThanOrEqual(_, Literal(value, _)) => sparkTypeToCoreType(value)
+            case LessThan(Literal(value, _), _) => sparkTypeToCoreType(value)
+            case LessThanOrEqual(Literal(value, _), _) => sparkTypeToCoreType(value)
+            case EqualTo(_, Literal(value, _)) => sparkTypeToCoreType(value)
+            case EqualTo(Literal(value, _), _) => sparkTypeToCoreType(value)
+            case IsNull(_) => null
+          }
 
-          (columnFrom, columnTo)
-        }.unzip
+        val columnTo = columnFilters
+          .collectFirst {
+            case LessThan(_, Literal(value, _)) => sparkTypeToCoreType(value)
+            case LessThanOrEqual(_, Literal(value, _)) => sparkTypeToCoreType(value)
+            case GreaterThan(Literal(value, _), _) => sparkTypeToCoreType(value)
+            case GreaterThanOrEqual(Literal(value, _), _) => sparkTypeToCoreType(value)
+            case EqualTo(_, Literal(value, _)) => sparkTypeToCoreType(value)
+            case EqualTo(Literal(value, _), _) => sparkTypeToCoreType(value)
+            case IsNull(_) => null
+          }
 
-      QuerySpace(from, to, revision.transformations)
-    }
+        (columnFrom, columnTo)
+      }.unzip
+
+    QuerySpace(from, to, revision.transformations)
+
   }
 
   /**
@@ -152,9 +153,7 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
    */
   def extractWeightRange(dataFilters: Seq[Expression]): WeightRange = {
 
-    val weightFilters = dataFilters
-      .flatMap(filter => splitConjunctivePredicates(filter))
-      .filter(isQbeastWeightExpression)
+    val weightFilters = dataFilters.filter(isQbeastWeightExpression)
 
     val min = weightFilters
       .collectFirst { case GreaterThanOrEqual(_, Literal(m, IntegerType)) =>
@@ -178,23 +177,36 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
    */
 
   def build(revision: Revision): Seq[QuerySpec] = {
-    // First split disjunctive predicates
-    // To generate a QuerySpec for each space
-    val disjunctivePredicates = sparkFilters.flatMap(f => splitDisjunctivePredicates(f))
 
-    // Process each disjunctive predicate aside
-    disjunctivePredicates.map { f =>
-      val filters = Seq(f)
-      val (weightRange, querySpace) =
-        if (isStaging(revision)) {
-          (WeightRange(Weight(Int.MinValue), Weight(Int.MaxValue)), EmptySpace())
-        } else {
-          val qbeastFilters = extractDataFilters(filters, revision)
-          (extractWeightRange(qbeastFilters), extractQuerySpace(qbeastFilters, revision))
-        }
-      QuerySpec(weightRange, querySpace)
+    val qbeastFilters = extractQbeastFilters(sparkFilters, revision)
+    val weightRange = extractWeightRange(qbeastFilters.weightFilters)
+
+    if (isStaging(revision)) {
+      Seq(QuerySpec(WeightRange(Weight(Int.MinValue), Weight(Int.MaxValue)), EmptySpace()))
+    } else if (qbeastFilters.queryFilters.isEmpty) {
+      Seq(QuerySpec(weightRange, AllSpace()))
+    } else {
+
+      // First split disjunctive predicates
+      // To generate a QuerySpec for each space
+      val (disjunctivePredicates, conjunctivePredicates) =
+        qbeastFilters.queryFilters.partition(isDisjunctivePredicate)
+
+      // Process the conjunctive predicates, if any
+      val processedPredicates =
+        if (conjunctivePredicates.isEmpty) Seq.empty
+        else Seq(QuerySpec(weightRange, extractQuerySpace(conjunctivePredicates, revision)))
+
+      // Process each disjunctive predicate as a different QuerySpec
+      val processedDisjunctivePredicates = disjunctivePredicates
+        .flatMap(splitDisjunctivePredicates)
+        .map(f => {
+          QuerySpec(weightRange, extractQuerySpace(splitConjunctivePredicates(f), revision))
+        })
+
+      // Add both sets of predicates to the final query
+      processedDisjunctivePredicates ++ processedPredicates
     }
-
   }
 
 }

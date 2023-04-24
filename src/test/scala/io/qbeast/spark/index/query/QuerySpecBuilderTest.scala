@@ -3,43 +3,11 @@ package io.qbeast.spark.index.query
 import io.qbeast.core.model._
 import io.qbeast.core.transform.{HashTransformation, LinearTransformation, Transformer}
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
-import org.apache.spark.sql.Column
-import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.functions.expr
-import org.scalatest.PrivateMethodTester
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
-class QuerySpecBuilderTest
-    extends AnyFlatSpec
-    with Matchers
-    with PrivateMethodTester
-    with QbeastIntegrationTestSpec {
+class QuerySpecBuilderTest extends QbeastIntegrationTestSpec with QueryTestSpec {
 
-  private def weightFilters(weightRange: WeightRange): Expression = {
-    val qbeast_hash = new QbeastMurmur3Hash(Seq(new Column("id").expr))
-    val lessThan = LessThan(qbeast_hash, Literal(weightRange.to.value))
-    val greaterThanOrEqual = GreaterThanOrEqual(qbeast_hash, Literal(weightRange.from.value))
-    And(lessThan, greaterThanOrEqual)
-  }
-
-  private def createRevision(minVal: Int = Int.MinValue, maxVal: Int = Int.MaxValue) = {
-    val transformations =
-      Seq(LinearTransformation(minVal, maxVal, IntegerDataType)).toIndexedSeq
-    val columnTransformers = Seq(Transformer("linear", "id", IntegerDataType)).toIndexedSeq
-
-    Revision(
-      1,
-      System.currentTimeMillis(),
-      QTableID("test"),
-      100,
-      columnTransformers,
-      transformations)
-  }
-
-  val privateFrom: PrivateMethod[QuerySpaceFromTo] = PrivateMethod[QuerySpaceFromTo]('from)
-  val privateTo: PrivateMethod[QuerySpaceFromTo] = PrivateMethod[QuerySpaceFromTo]('to)
+  behavior of "QuerySpecBuilder"
 
   "extractWeightRange" should
     "extract all weight range when expressions is empty" in withSpark(spark => {
@@ -123,27 +91,6 @@ class QuerySpecBuilderTest
     querySpace shouldBe a[AllSpace]
   })
 
-  // TODO process disjunctive predicates
-  it should "process disjunctive predicates" in withSpark(spark => {
-    val revision = createRevision()
-    val expression = expr(s"3 <= id OR id < 8").expr
-    val querySpecs = new QuerySpecBuilder(Seq(expression)).build(revision)
-
-    querySpecs.size shouldBe 2
-
-    val tFrom = revision.transformations.head.transform(3)
-    val firstQuerySpec = querySpecs.head.querySpace
-
-    firstQuerySpec invokePrivate privateFrom() shouldBe Seq(Some(tFrom))
-    firstQuerySpec invokePrivate privateTo() shouldBe Seq(None)
-
-    val tTo = revision.transformations.head.transform(8)
-    val secondQuerySpec = querySpecs(1).querySpace
-
-    secondQuerySpec invokePrivate privateFrom() shouldBe Seq(None)
-    secondQuerySpec invokePrivate privateTo() shouldBe Seq(Some(tTo))
-  })
-
   it should "leverage otree index when filtering with GreaterThan and LessThanOrEqual" in withSpark(
     spark => {
       val (f, t) = (3, 8)
@@ -157,14 +104,16 @@ class QuerySpecBuilderTest
       querySpace invokePrivate privateTo() shouldBe Seq(Some(idTransformation.transform(t)))
     })
 
-  "extractDataFilters" should "extract qbeast filters correctly" in withSpark(spark => {
+  "extractQbeastFilters" should "extract qbeast filters correctly" in withSpark(spark => {
     val revision = createRevision()
     val rangeExpression = expr(s"id >= 3 OR id < 8").expr
     val weightExpression = weightFilters(WeightRange(Weight(Int.MinValue), Weight(Int.MaxValue)))
     val expressions = Seq(rangeExpression, weightExpression)
     val querySpecBuilder = new QuerySpecBuilder(expressions)
 
-    querySpecBuilder.extractDataFilters(expressions, revision) shouldBe expressions
+    querySpecBuilder.extractQbeastFilters(expressions, revision) shouldBe QbeastFilters(
+      weightExpression.children,
+      Seq(rangeExpression))
 
   })
 
