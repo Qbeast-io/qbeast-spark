@@ -15,7 +15,10 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
   private val filter_product_greaterThanOrEq = "(product_id < 50500010)"
 
   private def checkFileFiltering(query: DataFrame): Unit = {
-    val leaves = query.queryExecution.executedPlan.collectLeaves()
+    val leaves =
+      query.queryExecution.executedPlan.collectLeaves().filter(_.isInstanceOf[FileSourceScanExec])
+
+    leaves should not be empty
 
     leaves.exists(p =>
       p
@@ -191,5 +194,42 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
       }
 
+  }
+
+  it should "pushdown filters with OR operator" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      {
+        val data = loadTestData(spark)
+
+        writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
+
+        val df = spark.read.format("qbeast").load(tmpDir)
+
+        val filter = s"($filter_user_lessThan OR $filter_product_greaterThanOrEq)"
+        val query = df.filter(filter).agg(avg("price"))
+
+        // OR filters are not split, so we need to match them entirely
+        checkLogicalFilterPushdown(Seq(filter), query)
+
+      }
+  }
+
+  it should "pushdown filters with OR and AND operator" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      {
+        val data = loadTestData(spark)
+
+        writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
+
+        val df = spark.read.format("qbeast").load(tmpDir)
+
+        val filter =
+          s"(($filter_user_lessThan AND $filter_user_greaterThanOrEq) " +
+            s"OR ($filter_product_greaterThanOrEq AND $filter_product_lessThan))"
+        val query = df.filter(filter).agg(avg("price"))
+
+        // OR filters are not split, so we need to match them entirely
+        checkLogicalFilterPushdown(Seq(filter), query)
+      }
   }
 }
