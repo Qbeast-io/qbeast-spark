@@ -98,35 +98,89 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
       }
   }
 
-  "Metrics" should "return index metrics" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
-    {
-      val data = createDF(spark)
-      val columnsToIndex = Seq("age", "val2")
-      val cubeSize = 100
-      writeTestData(data, columnsToIndex, cubeSize, tmpDir)
+  "getIndexMetrics" should "return index metrics" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      {
+        val data = createDF(spark)
+        val columnsToIndex = Seq("age", "val2")
+        val cubeSize = 100
+        writeTestData(data, columnsToIndex, cubeSize, tmpDir)
 
-      val metrics = QbeastTable.forPath(spark, tmpDir).getIndexMetrics()
-      val details = metrics.nonLeafCubeSizeDetails
+        val metrics = QbeastTable.forPath(spark, tmpDir).getIndexMetrics()
+        metrics.elementCount shouldBe 1001
+        metrics.dimensionCount shouldBe columnsToIndex.size
+        metrics.desiredCubeSize shouldBe cubeSize
+        // If the tree has any inner node, avgFanout cannot be < 1.0
+        metrics.avgFanout shouldBe >=(1.0)
+        metrics.indexingColumns shouldBe columnsToIndex.mkString(",")
 
-      // scalastyle:off println
-      println(metrics)
-      // scalastyle:on
+        val innerCsMetrics = metrics.innerCubeSizeMetrics
+        innerCsMetrics.min shouldBe <=(innerCsMetrics.firstQuartile)
+        innerCsMetrics.firstQuartile shouldBe <=(innerCsMetrics.secondQuartile)
+        innerCsMetrics.secondQuartile shouldBe <=(innerCsMetrics.thirdQuartile)
+        innerCsMetrics.thirdQuartile shouldBe <=(innerCsMetrics.max)
 
-      metrics.elementCount shouldBe data.count()
-      metrics.dimensionCount shouldBe columnsToIndex.size
-      metrics.desiredCubeSize shouldBe cubeSize
-      // If the tree has any inner node, avgFanout cannot be < 1.0
-      metrics.avgFanout shouldBe >=(1.0)
+        val leafCsMetrics = metrics.leafCubeSizeMetrics
+        innerCsMetrics.count + leafCsMetrics.count shouldBe metrics.cubeCount
 
-      details.min shouldBe <=(details.firstQuartile)
-      details.firstQuartile shouldBe <=(details.secondQuartile)
-      details.secondQuartile shouldBe <=(details.thirdQuartile)
-      details.thirdQuartile shouldBe <=(details.max)
+        // Cube size std for the root
+        val rootSizeStd =
+          metrics.innerCubeSizeMetrics.levelStats
+            .split("\n")(1)
+            .split(" +")(3)
 
-    }
+        rootSizeStd shouldBe "0"
+      }
   }
 
-  it should "single cube tree correctly" in
+  it should "return proper metrics string formats" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      {
+        val data = createDF(spark)
+        val columnsToIndex = Seq("age", "val2")
+        val cubeSize = 100
+        writeTestData(data, columnsToIndex, cubeSize, tmpDir)
+
+        val metrics = QbeastTable.forPath(spark, tmpDir).getIndexMetrics()
+
+        val metricsStringLines = metrics.toString.split("\n")
+        val innerCsMetricsStringLines = metrics.innerCubeSizeMetrics.toString.split("\n")
+        val leafCsMetricsStringLines = metrics.leafCubeSizeMetrics.toString.split("\n")
+
+        val metricsAttributes = Seq(
+          "OTree Index Metrics",
+          "dimensionCount",
+          "elementCount",
+          "depth:",
+          "cubeCount",
+          "desiredCubeSize",
+          "indexingColumns",
+          "avgFanout",
+          "depthOnBalance")
+
+        val csMetricsAttributes = Seq(
+          "Stats on cube sizes",
+          "Quartiles",
+          "- min",
+          "- 1stQ",
+          "- 2ndQ",
+          "- 3rdQ",
+          "- max",
+          "Stats:",
+          "- count",
+          "- l1_dev",
+          "- l2_dev",
+          "Level-wise stats")
+        metricsAttributes.foreach(attr => metricsStringLines.count(_.startsWith(attr)) shouldBe 1)
+
+        csMetricsAttributes.foreach(attr => {
+          innerCsMetricsStringLines.count(_.startsWith(attr)) shouldBe 1
+          leafCsMetricsStringLines.count(_.startsWith(attr)) shouldBe 1
+        })
+      }
+  }
+
+  it should "handle single cube index correctly" in
     withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
       {
         val data = createDF(spark)
@@ -135,10 +189,19 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
         writeTestData(data, columnsToIndex, cubeSize, tmpDir)
 
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-        val metrics = qbeastTable.getIndexMetrics()
+        val metrics = qbeastTable.getIndexMetrics(Some(1L))
 
-        metrics.depth shouldBe 0
-        metrics.avgFanout.isNaN shouldBe true
+        metrics.depth shouldBe 1
+        metrics.avgFanout shouldBe 0d
+
+        // There is no inner cube
+        val innerCsMetrics = metrics.innerCubeSizeMetrics
+        innerCsMetrics.count shouldBe 0
+        innerCsMetrics.min shouldBe -1
+        innerCsMetrics.levelStats shouldBe ""
+
+        val leafCsMetrics = metrics.leafCubeSizeMetrics
+        leafCsMetrics.count shouldBe 1
       }
     }
 
@@ -146,7 +209,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
     val df = loadTestData(spark)
     df.write
       .format("qbeast")
-      .option("cubeSize", "500")
+      .option("cubeSize", "5000")
       .option("columnsToIndex", "price,user_id")
       .save(tmpDir)
 
@@ -154,4 +217,5 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
     // scalastyle:off println
     println(qt)
   })
+
 }

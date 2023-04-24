@@ -39,7 +39,7 @@
 4. **Table Tolerance** - Model for sampling fraction and **query accuracy** trade-off. 
 
 
-### What does it mean? - Let's see an example:
+## Query example with Qbeast
 
 <div>
 <img src="./docs/images/spark_delta_demo.gif" width="49%" alt="Demo for Delta format GIF" />
@@ -49,24 +49,12 @@
 
 As you can see above, the Qbeast Spark extension allows **faster** queries with statistically **accurate** sampling.
 
-
 | Format | Execution Time |   Result  |
 |--------|:--------------:|:---------:|
-| Delta  | ~ 2.5 min.     | 37.869383 |
-| Qbeast | ~ 6.6 sec.     | 37.856333 |
+| Delta  |  ~ 151.3 sec.  | 37.869383 |
+| Qbeast |   ~ 6.6 sec.   | 37.856333 |
 
 In this example, **1% sampling** provides the result **x22 times faster** compared to using Delta format, with an **error of 0,034%**.
-
-# Getting Started
-
->### Warning: DO NOT USE IN PRODUCTION!
-> This project is in an early development phase: there are missing functionalities and the API might change drastically.
-> 
-> Join ⨝ the community to be a part of this project!
-> 
-> See Issues tab to know what is cooking 😎
-
-
 
 
 # Quickstart
@@ -79,11 +67,11 @@ Download **Spark 3.1.1 with Hadoop 3.2**, unzip it, and create the `SPARK_HOME` 
 >:information_source: **Note**: You can use Hadoop 2.7 if desired, but you could have some troubles with different cloud providers' storage, read more about it [here](docs/CloudStorages.md).
 
 ```bash
-wget https://archive.apache.org/dist/spark/spark-3.1.1/spark-3.1.1-bin-hadoop3.2.tgz
+wget https://www.apache.org/dyn/closer.lua/spark/spark-3.3.2/spark-3.3.2-bin-hadoop3.tgz
 
-tar xzvf spark-3.1.1-bin-hadoop3.2.tgz
+tar xzvf spark-3.3.2-bin-hadoop3.tgz
 
-export SPARK_HOME=$PWD/spark-3.1.1-bin-hadoop3.2
+export SPARK_HOME=$PWD/spark-3.3.2-bin-hadoop3
  ```
 ### 1. Launch a spark-shell
 
@@ -93,7 +81,7 @@ export SPARK_HOME=$PWD/spark-3.1.1-bin-hadoop3.2
 $SPARK_HOME/bin/spark-shell \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
 --conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog \
---packages io.qbeast:qbeast-spark_2.12:0.3.1,io.delta:delta-core_2.12:1.2.0
+--packages io.qbeast:qbeast-spark_2.12:0.3.2,io.delta:delta-core_2.12:1.2.0
 ```
 
 ### 2. Indexing a dataset
@@ -172,12 +160,16 @@ qbeastTable.analyze()
 
 Go to [QbeastTable documentation](./docs/QbeastTable.md) for more detailed information.
 
+### 6. Visualize index
+Use [Python index visualizer](./utils/visualizer/README.md) for your indexed table to visually examine index structure and gather sampling metrics.
+
 # Dependencies and Version Compatibility
-| Version | Spark | Hadoop | Delta Lake |
-|---------|:-----:|:------:|:----------:|
-| 0.1.0   | 3.0.0 | 3.2.0  |   0.8.0    |
-| 0.2.0   | 3.1.x | 3.2.0  |   1.0.0    |
-| 0.3.1   | 3.2.x | 3.3.x  |   1.2.x    |
+| Version              | Spark | Hadoop | Delta Lake |
+|----------------------|:-----:|:------:|:----------:|
+| 0.1.0                | 3.0.0 | 3.2.0  |   0.8.0    |
+| 0.2.0                | 3.1.x | 3.2.0  |   1.0.0    |
+| 0.3.x                | 3.2.x | 3.3.x  |   1.2.x    |
+| 0.4.x (coming soon!) | 3.3.x | 3.3.x  |   2.1.x    |
 
 Check [here](https://docs.delta.io/latest/releases.html) for **Delta Lake** and **Apache Spark** version compatibility.  
 

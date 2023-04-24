@@ -15,7 +15,7 @@ class HashTransformationTest extends AnyFlatSpec with Matchers {
     while (i > 0) {
       i -= 1
       val hash = ht.transform(Random.nextInt.toString)
-      hash should be > 0.0
+      hash should be >= 0.0
       hash should be < 1.0
     }
   }

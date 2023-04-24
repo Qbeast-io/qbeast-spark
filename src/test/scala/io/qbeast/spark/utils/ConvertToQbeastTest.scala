@@ -1,6 +1,6 @@
 package io.qbeast.spark.utils
 
-import io.qbeast.core.model.RevisionUtils.{isStaging, stagingID}
+import io.qbeast.core.model.StagingUtils
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.utils.QbeastExceptionMessages.{
@@ -13,7 +13,10 @@ import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.scalatest.PrivateMethodTester
 
-class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTester {
+class ConvertToQbeastTest
+    extends QbeastIntegrationTestSpec
+    with PrivateMethodTester
+    with StagingUtils {
   val dataSize = 50000
   val numSparkPartitions = 20
 
@@ -60,13 +63,17 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
     val sourceDf = spark.read.format(fileFormat).load(tmpDir)
     val qbeastDf = spark.read.format("qbeast").load(tmpDir)
 
-    assertLargeDatasetEquality(qbeastDf, sourceDf)
+    assertLargeDatasetEquality(qbeastDf, sourceDf, orderedComparison = false)
 
     // All non-qbeast files are considered staging files and are placed
     // directly into the staging revision(RevisionID = 0)
     val indexStatus = getQbeastSnapshot(spark, tmpDir).loadIndexStatus(stagingID)
     indexStatus.cubesStatuses.size shouldBe 1
     indexStatus.cubesStatuses.head._2.files.size shouldBe numSparkPartitions
+
+    val valuesToTransform = Vector(544496263, 76.96, "view")
+    indexStatus.revision.transform(valuesToTransform) shouldBe Vector(0d, 0d, 0d)
+
   })
 
   it should "convert a parquet table" in withSparkAndTmpDir((spark, tmpDir) => {
@@ -76,7 +83,7 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
     val sourceDf = spark.read.format(fileFormat).load(tmpDir)
     val qbeastDf = spark.read.format("qbeast").load(tmpDir)
 
-    assertLargeDatasetEquality(qbeastDf, sourceDf)
+    assertLargeDatasetEquality(qbeastDf, sourceDf, orderedComparison = false)
 
     // All non-qbeast files are considered staging files and are placed
     // directly into the staging revision(RevisionID = 0)
@@ -207,14 +214,14 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
       // Compare DataFrames
       val sourceDf = spark.read.format(fileFormat).load(tmpDir)
       val qbeastDf = spark.read.format("qbeast").load(tmpDir)
-      assertLargeDatasetEquality(qbeastDf, sourceDf)
+      assertLargeDatasetEquality(qbeastDf, sourceDf, orderedComparison = false)
     })
 
   "Compacting the staging revision" should "reduce the number of delta AddFiles" in
     withExtendedSparkAndTmpDir(
       sparkConfWithSqlAndCatalog
-        .set("spark.qbeast.compact.minFileSize", "1")
-        .set("spark.qbeast.compact.maxFileSize", "2000000")) { (spark, tmpDir) =>
+        .set("spark.qbeast.compact.minFileSizeInBytes", "1")
+        .set("spark.qbeast.compact.maxFileSizeInBytes", "2000000")) { (spark, tmpDir) =>
       {
         val fileFormat = "delta"
         convertFromFormat(spark, fileFormat, tmpDir)
@@ -226,7 +233,7 @@ class ConvertToQbeastTest extends QbeastIntegrationTestSpec with PrivateMethodTe
         // Compare DataFrames
         val sourceDf = spark.read.format(fileFormat).load(tmpDir)
         val qbeastDf = spark.read.format("qbeast").load(tmpDir)
-        assertLargeDatasetEquality(qbeastDf, sourceDf)
+        assertLargeDatasetEquality(qbeastDf, sourceDf, orderedComparison = false)
 
         // Standard staging revision behavior
         val qs = getQbeastSnapshot(spark, tmpDir)

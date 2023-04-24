@@ -6,23 +6,30 @@ package io.qbeast.spark.internal
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.index.ColumnsToIndex
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
-import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, SparkSession}
 
 /**
  * Container for Qbeast options.
  * @param columnsToIndex value of columnsToIndex option
  * @param cubeSize value of cubeSize option
  */
-case class QbeastOptions(columnsToIndex: Seq[String], cubeSize: Int)
+case class QbeastOptions(columnsToIndex: Seq[String], cubeSize: Int, stats: Option[DataFrame])
 
 /**
  * Options available when trying to write in qbeast format
  */
+
 object QbeastOptions {
   val COLUMNS_TO_INDEX = "columnsToIndex"
   val CUBE_SIZE = "cubeSize"
   val PATH = "path"
+  val STATS = "columnStats"
 
+  /**
+   * Gets the columns to index from the options
+   * @param options the options passed on the dataframe
+   * @return
+   */
   private def getColumnsToIndex(options: Map[String, String]): Seq[String] = {
     val encodedColumnsToIndex = options.getOrElse(
       COLUMNS_TO_INDEX, {
@@ -33,10 +40,35 @@ object QbeastOptions {
     ColumnsToIndex.decode(encodedColumnsToIndex)
   }
 
+  /**
+   * Gets the desired cube size from the options
+   * @param options the options passed on the dataframe
+   * @return
+   */
+
   private def getDesiredCubeSize(options: Map[String, String]): Int = {
     options.get(CUBE_SIZE) match {
       case Some(value) => value.toInt
       case None => DEFAULT_CUBE_SIZE
+    }
+  }
+
+  /**
+   * Get the column stats from the options
+   * This stats should be in a JSON formatted string
+   * with the following schema
+   * {columnName_min:value, columnName_max:value, ...}
+   * @param options the options passed on the dataframe
+   * @return
+   */
+  private def getStats(options: Map[String, String]): Option[DataFrame] = {
+    val spark = SparkSession.active
+
+    options.get(STATS) match {
+      case Some(value) =>
+        import spark.implicits._
+        Some(spark.read.json(Seq(value).toDS))
+      case None => None
     }
   }
 
@@ -48,7 +80,8 @@ object QbeastOptions {
   def apply(options: Map[String, String]): QbeastOptions = {
     val columnsToIndex = getColumnsToIndex(options)
     val desiredCubeSize = getDesiredCubeSize(options)
-    QbeastOptions(columnsToIndex, desiredCubeSize)
+    val stats = getStats(options)
+    QbeastOptions(columnsToIndex, desiredCubeSize, stats)
   }
 
   def loadTableIDFromParameters(parameters: Map[String, String]): QTableID = {

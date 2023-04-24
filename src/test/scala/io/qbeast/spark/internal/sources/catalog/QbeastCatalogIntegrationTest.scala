@@ -132,6 +132,62 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
 
     })
 
+  it should "crate external table" in
+    withQbeastContextSparkAndTmpWarehouse((spark, tmpWarehouse) => {
+
+      val tmpDir = tmpWarehouse + "/test"
+      val data = createTestData(spark)
+      data.write.format("qbeast").option("columnsToIndex", "id").save(tmpDir)
+
+      spark.sql(
+        s"CREATE EXTERNAL TABLE student " +
+          s"USING qbeast OPTIONS ('columnsToIndex'='id') LOCATION '$tmpDir'")
+
+      val table = spark.table("student")
+      val indexed = spark.read.format("qbeast").load(tmpDir)
+      assertSmallDatasetEquality(table, indexed, orderedComparison = false)
+
+    })
+
+  it should "crate external table with the schema" in
+    withQbeastContextSparkAndTmpWarehouse((spark, tmpWarehouse) => {
+
+      val tmpDir = tmpWarehouse + "/test"
+      val data = createTestData(spark)
+      data.write.format("qbeast").option("columnsToIndex", "id").save(tmpDir)
+
+      spark.sql(
+        s"CREATE EXTERNAL TABLE student (id INT, name STRING, age INT) " +
+          s"USING qbeast OPTIONS ('columnsToIndex'='id') LOCATION '$tmpDir'")
+
+      val table = spark.table("student")
+      val indexed = spark.read.format("qbeast").load(tmpDir)
+      assertSmallDatasetEquality(table, indexed, orderedComparison = false)
+
+    })
+
+  it should "throw error when the specified schema mismatch existing schema" in
+    withQbeastContextSparkAndTmpWarehouse((spark, tmpWarehouse) => {
+
+      val tmpDir = tmpWarehouse + "/test"
+      val data = createTestData(spark)
+      data.write.format("qbeast").option("columnsToIndex", "id").save(tmpDir)
+
+      an[AnalysisException] shouldBe thrownBy(
+        spark.sql(s"CREATE EXTERNAL TABLE student (id INT, age INT) " +
+          s"USING qbeast OPTIONS ('columnsToIndex'='id') LOCATION '$tmpDir'"))
+
+    })
+
+  it should "throw error when no schema and no populated table" in
+    withQbeastContextSparkAndTmpWarehouse((spark, tmpWarehouse) => {
+
+      an[AnalysisException] shouldBe thrownBy(
+        spark.sql(s"CREATE EXTERNAL TABLE student " +
+          s"USING qbeast OPTIONS ('columnsToIndex'='id') LOCATION '$tmpWarehouse'"))
+
+    })
+
   it should "throw an error when no columnsToIndex is specified" in
     withQbeastContextSparkAndTmpWarehouse((spark, _) => {
 

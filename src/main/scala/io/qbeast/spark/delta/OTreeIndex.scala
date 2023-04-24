@@ -4,7 +4,6 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model.QbeastBlock
-import io.qbeast.core.model.RevisionUtils.stagingID
 import io.qbeast.spark.index.query.{QueryExecutor, QuerySpecBuilder}
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.spark.sql.SparkSession
@@ -14,6 +13,8 @@ import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.files.TahoeLogFileIndex
 import org.apache.spark.sql.execution.datasources.{FileIndex, PartitionDirectory}
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.execution.SQLExecution
 
 import java.net.URI
 
@@ -21,8 +22,9 @@ import java.net.URI
  * FileIndex to prune files
  *
  * @param index the Tahoe log file index
+ * @param spark spark session
  */
-case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
+case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
 
   /**
    * Snapshot to analyze
@@ -56,7 +58,7 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
    * @return
    */
   private def stagingFiles: Seq[FileStatus] = {
-    qbeastSnapshot.loadRevisionBlocks(stagingID).collect().map { a: AddFile =>
+    qbeastSnapshot.loadStagingBlocks().collect().map { a: AddFile =>
       new FileStatus(
         /* length */ a.size,
         /* isDir */ false,
@@ -70,7 +72,6 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
   override def listFiles(
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
-
     val qbeastFileStats = matchingBlocks(partitionFilters, dataFilters).map { qbeastBlock =>
       new FileStatus(
         /* length */ qbeastBlock.size,
@@ -82,9 +83,18 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
     }.toArray
     val stagingStats = stagingFiles
     val fileStats = qbeastFileStats ++ stagingStats
-
+    val sc = index.spark.sparkContext
+    val execId = sc.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
+    val pfStr = partitionFilters.map(f => f.toString).mkString(" ")
+    logInfo(s"OTreeIndex partition filters (exec id ${execId}): ${pfStr}")
+    val dfStr = dataFilters.map(f => f.toString).mkString(" ")
+    logInfo(s"OTreeIndex data filters (exec id ${execId}): ${dfStr}")
+    val allFilesCount = snapshot.allFiles.count
+    val nFiltered = allFilesCount - fileStats.length
+    val filteredPct = ((nFiltered * 1.0) / allFilesCount) * 100.0
+    val filteredMsg = f"${nFiltered} of ${allFilesCount} (${filteredPct}%.2f%%)"
+    logInfo(s"Qbeast filtered files (exec id ${execId}): ${filteredMsg}")
     Seq(PartitionDirectory(new GenericInternalRow(Array.empty[Any]), fileStats))
-
   }
 
   override def inputFiles: Array[String] = {
@@ -100,6 +110,10 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex {
   override def partitionSchema: StructType = index.partitionSchema
 }
 
+/**
+ * Companion object for OTreeIndex
+ * Builds an OTreeIndex instance from the path to a table
+ */
 object OTreeIndex {
 
   def apply(spark: SparkSession, path: Path): OTreeIndex = {
@@ -108,4 +122,25 @@ object OTreeIndex {
     OTreeIndex(tahoe)
   }
 
+}
+
+/**
+ * Singleton object for EmptyIndex.
+ * Used when creating a table with no data added
+ */
+
+object EmptyIndex extends FileIndex {
+  override def rootPaths: Seq[Path] = Seq.empty
+
+  override def listFiles(
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): Seq[PartitionDirectory] = Seq.empty
+
+  override def inputFiles: Array[String] = Array.empty
+
+  override def refresh(): Unit = {}
+
+  override def sizeInBytes: Long = 0L
+
+  override def partitionSchema: StructType = StructType(Seq.empty)
 }

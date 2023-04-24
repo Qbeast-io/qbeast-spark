@@ -6,7 +6,7 @@ There's different configurations for the index that can affect the performance o
 
 We designed the `QbeastCatalog` to work as an **entry point for other format's Catalog's** as well. 
 
-However, you can also handle different Catalogs simultanously.
+However, you can also handle different Catalogs simultaneously.
 
 ### 1. Unified Catalog
 
@@ -73,6 +73,33 @@ CubeSize option lets you specify the maximum size of the cube, in number of reco
 df.write.format("qbeast").option("cubeSize", "10000")
 ```
 
+## ColumnStats
+
+One feature of the Qbeast Format is the `Revision`. 
+
+This `Revision` contains some **characteristics of the index**, such as columns to index or cube size. But it also **saves the info of the space that you are writing** (min and maximum values of the columns). 
+
+This space is computed based on the dataset that is currently being indexed, and **if you append records that fall outside this space will trigger another `Revision`**.
+
+Having many `Revision` could be painful for reading process, since we have to query each one separately. 
+
+To avoid that, you can tune the space dimensions by adding the `columnStats` option.
+
+```scala
+df.write.format("qbeast")
+.option("columnsToIndex", "a,b")
+.option("columnStats","""{"a_min":0,"a_max":10,"b_min":20.0,"b_max":70.0}""")
+.save("/tmp/table")
+```
+In a `JSON` string, you can pass the **minimum and maximum values of the columns you are indexing** with the following schema:
+```json
+{
+  "columnName_min" : value
+  "columnName_max" : value
+
+}
+```
+
 ## DefaultCubeSize
 
 If you don't specify the cubeSize at DataFrame level, the default value is used. This is set to 5M, so if you want to change it
@@ -119,6 +146,25 @@ You can change the number of retries for the LocalKeeper in order to test it.
 You can set the minimum and maximum size of your files for the compaction process.
 
 ```shell
---conf spark.qbeast.compact.minFileSize=1\
---conf spark.qbeast.compact.maxFileSize=10000
+--conf spark.qbeast.compact.minFileSizeInBytes=1 \
+--conf spark.qbeast.compact.maxFileSizeInBytes=10000
+```
+
+## Data Staging
+You can set up the `SparkSession` with a **data staging area** for all your Qbeast table writes.
+
+A staging area is where you can put the data you don't yet want to index but still want to be available for your queries.
+To activate staging, set the following configuration to a non-negative value.
+
+```scala
+--conf spark.qbeast.index.stagingSizeInBytes=1000000000
+```
+When the staging area is not full, all writes are staged without indexing(written in `delta`).
+When the staging size reaches the defined value, the current data is merged with the staged data and written at once.
+
+The feature can be helpful when your workflow does frequent small appends. Setting up a staging area makes sure that all index appends are at least of the staging size.
+
+We can empty the staging area with a given write by setting the staging size to `0`:
+```scala
+--conf spark.qbeast.index.stagingSizeInBytes=0
 ```

@@ -39,7 +39,8 @@ case class ConvertToQbeastCommand(
     columnsToIndex: Seq[String],
     cubeSize: Int = DEFAULT_CUBE_SIZE)
     extends LeafRunnableCommand
-    with Logging {
+    with Logging
+    with StagingUtils {
 
   private def resolveTableFormat(spark: SparkSession): (String, TableIdentifier) =
     identifier.split("\\.") match {
@@ -80,7 +81,7 @@ case class ConvertToQbeastCommand(
       val schema = deltaLog.snapshot.schema
 
       SparkDeltaMetadataManager.updateMetadataWithTransaction(tableID, schema) {
-        val convRevision = Revision.emptyRevision(tableID, cubeSize, columnsToIndex)
+        val convRevision = stagingRevision(tableID, cubeSize, columnsToIndex)
         val revisionID = convRevision.revisionID
 
         // Add staging revision to Revision Map, set it as the latestRevision

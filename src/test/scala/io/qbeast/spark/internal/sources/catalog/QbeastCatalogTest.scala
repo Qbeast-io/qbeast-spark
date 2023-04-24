@@ -163,7 +163,8 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
       val qbeastCatalog = createQbeastCatalog(spark)
       qbeastCatalog.loadNamespaceMetadata(defaultNamespace) shouldBe Map(
         "comment" -> "default database",
-        "location" -> ("file:" + tmpLocation)).asJava
+        "location" -> ("file:" + tmpLocation),
+        "owner" -> scala.util.Properties.userName).asJava
     })
 
   it should "alter namespace" in withQbeastContextSparkAndTmpWarehouse((spark, tmpLocation) => {
@@ -179,6 +180,7 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
     qbeastCatalog.loadNamespaceMetadata(newNamespace) shouldBe Map(
       "comment" -> "",
       "location" -> ("file:" + tmpLocation + "/new_namespace.db"),
+      "owner" -> scala.util.Properties.userName,
       "newPropertie" -> "newValue").asJava
 
   })
@@ -191,7 +193,7 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
     qbeastCatalog.listNamespaces() shouldBe Array(defaultNamespace, Array("new_namespace"))
 
     // Drop Namespace
-    qbeastCatalog.dropNamespace(newNamespace)
+    qbeastCatalog.dropNamespace(newNamespace, true)
 
     qbeastCatalog.listNamespaces() shouldBe Array(defaultNamespace)
 
