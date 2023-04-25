@@ -210,7 +210,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
     df.write
       .mode("overwrite")
       .format("qbeast")
-      .option("cubeSize", "500")
+      .option("cubeSize", "5000")
       .option("columnsToIndex", "price,user_id")
       .save(tmpDir)
 
