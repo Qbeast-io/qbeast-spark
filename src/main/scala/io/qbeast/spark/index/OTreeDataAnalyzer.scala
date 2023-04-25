@@ -69,9 +69,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     val newTransformation =
       revision.columnTransformers.map(_.makeTransformation(colName => row.getAs[Object](colName)))
 
-    // scalastyle:off println
-    println(newTransformation)
-
     val transformationDelta = if (revision.transformations.isEmpty) {
       newTransformation.map(a => Some(a))
     } else {
