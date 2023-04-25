@@ -26,7 +26,9 @@ trait Transformation extends Serializable {
    */
   def transform(value: Any): Double
 
-  def transformWithPercentiles(value: Any, percentiles: IISeq[Any]): Double
+  def percentiles: IISeq[Any]
+
+  def transformWithPercentiles(value: Any): Double
 
   /**
    * This method should determine if the new data will cause the creation of a new revision.
@@ -93,7 +95,9 @@ case class IdentityToZeroTransformation(identityValue: Any) extends Transformati
 
   override def merge(other: Transformation): Transformation = this
 
-  override def transformWithPercentiles(value: Any, percentile: IISeq[Any]): Double = 0d
+  override def percentiles: IISeq[Any] = Nil
+
+  override def transformWithPercentiles(value: Any): Double = 0d
 }
 
 /**
@@ -110,5 +114,7 @@ object NullToZeroTransformation extends Transformation {
 
   override def merge(other: Transformation): Transformation = this
 
-  override def transformWithPercentiles(value: Any, percentile: IISeq[Any]): Double = 0d
+  override def percentiles: IISeq[Any] = Nil
+
+  override def transformWithPercentiles(value: Any): Double = 0d
 }

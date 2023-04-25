@@ -3,9 +3,11 @@
  */
 package io.qbeast.core.transform
 
+import io.qbeast.IISeq
 import io.qbeast.core.model.{OrderedDataType, QDataType}
 
 import java.sql.{Date, Timestamp}
+import scala.collection.mutable
 
 object LinearTransformer extends TransformerType {
   override def transformerSimpleName: String = "linear"
@@ -38,9 +40,17 @@ case class LinearTransformer(columnName: String, dataType: QDataType) extends Tr
       statsSqlPredicates =
         Seq(s"max($columnName) AS $colMax", s"min($columnName) AS $colMin", columnPercentiles))
 
+  private def getPercentiles(a: Any): IISeq[Any] = {
+    a match {
+      case arr: mutable.WrappedArray[_] => arr.toIndexedSeq.map(getValue)
+      case _ => throw new Exception("No percentiles found")
+    }
+  }
+
   override def makeTransformation(row: String => Any): Transformation = {
     val minAux = row(colMin)
     val maxAux = row(colMax)
+    val percentiles = getPercentiles(row(colPercentiles))
     if (minAux == null && maxAux == null) {
       // If all values are null,
       // we return a Transformation where null values are transformed to 0
@@ -53,7 +63,7 @@ case class LinearTransformer(columnName: String, dataType: QDataType) extends Tr
       val max = getValue(maxAux)
       dataType match {
         case ordered: OrderedDataType =>
-          LinearTransformation(min, max, ordered)
+          LinearTransformation(min, max, percentiles, ordered)
 
       }
     }

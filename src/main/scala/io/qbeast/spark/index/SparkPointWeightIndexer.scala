@@ -19,7 +19,7 @@ private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication:
 
     udf((rowValues: Row, weightValue: Int) => {
       val point =
-        RowUtils.rowValuesToPercentilePoint(rowValues, revision, tableChanges.columnPercentiles)
+        RowUtils.rowValuesToPercentilePoint(rowValues, revision)
       val weight = Weight(weightValue)
       pointIndexer
         .findTargetCubeIds(point, weight)

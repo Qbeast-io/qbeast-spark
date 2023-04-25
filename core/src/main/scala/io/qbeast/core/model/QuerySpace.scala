@@ -76,11 +76,11 @@ object QuerySpace {
     assert(transformations.size == originalTo.size)
 
     val from = originalFrom.zip(transformations).map {
-      case (Some(f), transformation) => Some(transformation.transform(f))
+      case (Some(f), transformation) => Some(transformation.transformWithPercentiles(f))
       case _ => None
     }
     val to = originalTo.zip(transformations).map {
-      case (Some(t), transformation) => Some(transformation.transform(t))
+      case (Some(t), transformation) => Some(transformation.transformWithPercentiles(t))
       case _ => None
     }
 

@@ -118,7 +118,7 @@ trait Transformer extends Serializable {
 
   def spec: String = s"$columnName:${transformerType.transformerSimpleName}"
 
-  val colPercentiles = s"${columnName}_p_approx"
+  def colPercentiles: String = s"${columnName}_p_approx"
 
   def columnPercentiles: String =
     s"percentile_approx($columnName, ${percentiles.mkString("Array(", ", ", ")")}, $accuracy) " +

@@ -38,7 +38,7 @@ class TransformerTest extends AnyFlatSpec with Matchers {
     val transformation = Map("a_min" -> 0, "a_max" -> 1)
     transformer
       .makeTransformation(transformation) should matchPattern {
-      case LinearTransformation(0, 1, _, IntegerDataType) =>
+      case LinearTransformation(0, 1, _, _, IntegerDataType) =>
     }
   }
 
@@ -90,7 +90,7 @@ class TransformerTest extends AnyFlatSpec with Matchers {
     transformer.maybeUpdateTransformation(
       currentTransformation,
       newTransformation) should matchPattern {
-      case Some(LinearTransformation(0, 8, _, IntegerDataType)) =>
+      case Some(LinearTransformation(0, 8, _, _, IntegerDataType)) =>
     }
 
     transformer.maybeUpdateTransformation(currentTransformation, transformation) shouldBe None

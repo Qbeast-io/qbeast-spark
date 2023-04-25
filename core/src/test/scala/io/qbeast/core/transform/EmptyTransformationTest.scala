@@ -18,7 +18,7 @@ class EmptyTransformationTest extends AnyFlatSpec with Matchers {
   it should "be superseded by another Transformation" in {
     val et = EmptyTransformation()
     val ht = HashTransformation()
-    val lt = LinearTransformation(1d, 1.1, DoubleDataType)
+    val lt = LinearTransformation(1d, 1.1, Nil, DoubleDataType)
 
     et.isSupersededBy(ht) shouldBe true
     et.isSupersededBy(lt) shouldBe true
@@ -27,7 +27,7 @@ class EmptyTransformationTest extends AnyFlatSpec with Matchers {
   it should "return the other Transformation when merging" in {
     val et = EmptyTransformation()
     val ht = HashTransformation()
-    val lt = LinearTransformation(1d, 1.1, DoubleDataType)
+    val lt = LinearTransformation(1d, 1.1, Nil, DoubleDataType)
 
     et.merge(ht) shouldBe ht
     et.merge(lt) shouldBe lt

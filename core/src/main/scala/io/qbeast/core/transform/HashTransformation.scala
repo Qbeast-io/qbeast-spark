@@ -34,7 +34,9 @@ case class HashTransformation(nullValue: Any = Random.nextInt()) extends Transfo
 
   override def merge(other: Transformation): Transformation = this
 
-  override def transformWithPercentiles(value: Any, percentiles: IISeq[Any]): Double = {
+  override def percentiles: IISeq[Any] = Nil
+
+  override def transformWithPercentiles(value: Any): Double = {
     val v = if (value == null) nullValue else value
     val doublePercentiles = (0 to 10).map(_.toDouble / 10)
     val hash = v match {

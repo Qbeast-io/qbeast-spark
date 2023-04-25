@@ -7,7 +7,7 @@ import com.fasterxml.jackson.core.{JsonGenerator, JsonParser, TreeNode}
 import com.fasterxml.jackson.databind.annotation.{JsonDeserialize, JsonSerialize}
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.jsontype.TypeSerializer
-import com.fasterxml.jackson.databind.node.{DoubleNode, IntNode, NumericNode, TextNode}
+import com.fasterxml.jackson.databind.node.{ArrayNode, DoubleNode, IntNode, NumericNode, TextNode}
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import com.fasterxml.jackson.databind.{DeserializationContext, SerializerProvider}
 import io.qbeast.IISeq
@@ -25,6 +25,7 @@ import io.qbeast.core.transform.Transformation.fractionMapping
 
 import java.math.BigDecimal
 import java.sql.{Date, Timestamp}
+import scala.collection.immutable.VectorBuilder
 import scala.util.Random
 import scala.util.hashing.MurmurHash3
 
@@ -41,6 +42,7 @@ case class LinearTransformation(
     minNumber: Any,
     maxNumber: Any,
     nullValue: Any,
+    percentiles: IISeq[Any],
     orderedDataType: OrderedDataType)
     extends Transformation {
 
@@ -67,7 +69,7 @@ case class LinearTransformation(
     }
   }
 
-  override def transformWithPercentiles(value: Any, percentiles: IISeq[Any]): Double = {
+  override def transformWithPercentiles(value: Any): Double = {
     val v = if (value == null) nullValue else value
     val doublePercentiles = percentiles.map(_.toDouble())
     v match {
@@ -90,12 +92,19 @@ case class LinearTransformation(
    */
   override def merge(other: Transformation): Transformation = {
     other match {
-      case LinearTransformation(otherMin, otherMax, otherNullValue, otherOrdering)
-          if orderedDataType == otherOrdering =>
+      case LinearTransformation(
+            otherMin,
+            otherMax,
+            otherNullValue,
+            otherPercentile,
+            otherOrdering) if orderedDataType == otherOrdering =>
+        val mergedPercentiles =
+          percentiles.zip(otherPercentile).map { case (thisP, otherP) => thisP.max(otherP) }
         LinearTransformation(
           min(minNumber, otherMin),
           max(maxNumber, otherMax),
           otherNullValue,
+          mergedPercentiles,
           orderedDataType)
           .asInstanceOf[Transformation]
       case IdentityToZeroTransformation(newVal) =>
@@ -109,6 +118,7 @@ case class LinearTransformation(
           min(minNumber, newVal),
           max(maxNumber, newVal),
           otherNullValue,
+          percentiles,
           orderedDataType)
           .asInstanceOf[Transformation]
 
@@ -122,7 +132,7 @@ case class LinearTransformation(
    */
   override def isSupersededBy(newTransformation: Transformation): Boolean =
     newTransformation match {
-      case LinearTransformation(newMin, newMax, _, otherOrdering)
+      case LinearTransformation(newMin, newMax, _, _, otherOrdering)
           if orderedDataType == otherOrdering =>
         gt(minNumber, newMin) || lt(maxNumber, newMax)
       case IdentityToZeroTransformation(newVal) =>
@@ -155,6 +165,11 @@ class LinearTransformationSerializer
     writeNumb(gen, "minNumber", value.minNumber)
     writeNumb(gen, "maxNumber", value.maxNumber)
     writeNumb(gen, "nullValue", value.nullValue)
+
+    gen.writeArrayFieldStart("percentiles")
+    value.percentiles.foreach(e => gen.writeString(e.toString))
+    gen.writeEndArray()
+
     gen.writeObjectField("orderedDataType", value.orderedDataType)
     gen.writeEndObject()
   }
@@ -167,6 +182,11 @@ class LinearTransformationSerializer
     writeNumb(gen, "minNumber", value.minNumber)
     writeNumb(gen, "maxNumber", value.maxNumber)
     writeNumb(gen, "nullValue", value.nullValue)
+
+    gen.writeArrayFieldStart("percentiles")
+    value.percentiles.foreach(e => gen.writeString(e.toString))
+    gen.writeEndArray()
+
     gen.writeObjectField("orderedDataType", value.orderedDataType)
     gen.writeEndObject()
   }
@@ -183,10 +203,11 @@ object LinearTransformation {
   def apply(
       minNumber: Any,
       maxNumber: Any,
+      percentiles: IISeq[Any],
       orderedDataType: OrderedDataType,
       seed: Option[Long] = None): LinearTransformation = {
     val randomNull = LinearTransformationUtils.generateRandomNumber(minNumber, maxNumber, seed)
-    LinearTransformation(minNumber, maxNumber, randomNull, orderedDataType)
+    LinearTransformation(minNumber, maxNumber, randomNull, percentiles, orderedDataType)
   }
 
 }
@@ -211,6 +232,32 @@ class LinearTransformationDeserializer
 
   }
 
+  private def getTypedValueFromString(odt: OrderedDataType, tree: TreeNode): Any = {
+    (odt, tree) match {
+      case (IntegerDataType, n: TextNode) => n.asText().toInt
+      case (DoubleDataType, n: TextNode) => n.asText().toDouble
+      case (LongDataType, n: TextNode) => n.asText().toLong
+      case (FloatDataType, n: TextNode) => n.asText().toFloat
+      case (DecimalDataType, n: TextNode) => n.asText().toDouble
+      case (TimestampDataType, n: TextNode) => n.asText().toLong
+      case (DateDataType, n: TextNode) => n.asText().toLong
+      case (_, null) => null
+      case (a, b) =>
+        throw new IllegalArgumentException(s"Invalid data type  ($a,$b) ${b.getClass} ")
+    }
+
+  }
+
+  private def getPercentiles(odt: OrderedDataType, tree: TreeNode): IISeq[Any] = {
+    val elements = new VectorBuilder[Any]
+    tree match {
+      case arr: ArrayNode =>
+        arr.elements().forEachRemaining(e => elements += getTypedValueFromString(odt, e))
+      case _ => throw new Exception("Percentiles not found!")
+    }
+    elements.result()
+  }
+
   override def deserialize(p: JsonParser, ctxt: DeserializationContext): LinearTransformation = {
     val json = p.getCodec
     val tree: TreeNode = json
@@ -223,12 +270,13 @@ class LinearTransformationDeserializer
     val min = getTypedValue(odt, tree.get("minNumber"))
     val max = getTypedValue(odt, tree.get("maxNumber"))
     val nullValue = getTypedValue(odt, tree.get("nullValue"))
+    val percentiles = getPercentiles(odt, tree.get("percentiles"))
 
     if (nullValue == null) {
       // the hash acts like a seed to generate the same random null value
       val hash = MurmurHash3.stringHash(tree.toString)
-      LinearTransformation(min, max, odt, seed = Some(hash))
-    } else LinearTransformation(min, max, nullValue, odt)
+      LinearTransformation(min, max, percentiles, odt, seed = Some(hash))
+    } else LinearTransformation(min, max, nullValue, percentiles, odt)
 
   }
 

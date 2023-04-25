@@ -94,8 +94,7 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
       IndexStatus(rev),
       deltaNormalizedCubeWeights = weightMap,
       Set.empty,
-      Set.empty,
-      Seq.empty)
+      Set.empty)
 
   val writer: BlockWriter = new BlockWriter(
     dataPath = tmpDir,

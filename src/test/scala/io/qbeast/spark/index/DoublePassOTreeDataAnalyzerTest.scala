@@ -121,10 +121,11 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val two = revision.transformations(2)
     val three = revision.transformations(3)
 
-    zero should matchPattern { case LinearTransformation(0, 10000, _, IntegerDataType) => }
-    one should matchPattern { case LinearTransformation(0.0, 10000.0, _, DoubleDataType) => }
+    zero should matchPattern { case LinearTransformation(0, 10000, _, _, IntegerDataType) => }
+    one should matchPattern { case LinearTransformation(0.0, 10000.0, _, _, DoubleDataType) => }
     two should matchPattern { case HashTransformation(_) => }
-    three should matchPattern { case LinearTransformation(0.0f, 10000.0f, _, FloatDataType) => }
+    three should matchPattern { case LinearTransformation(0.0f, 10000.0f, _, _, FloatDataType) =>
+    }
 
   }
 
@@ -166,10 +167,10 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val two = newRevision.transformations(2)
     val three = newRevision.transformations(3)
 
-    zero should matchPattern { case LinearTransformation(0, 20000, _, IntegerDataType) => }
-    one should matchPattern { case LinearTransformation(0.0, 20000.0, _, DoubleDataType) => }
+    zero should matchPattern { case LinearTransformation(0, 20000, _, _, IntegerDataType) => }
+    one should matchPattern { case LinearTransformation(0.0, 20000.0, _, _, DoubleDataType) => }
     two should matchPattern { case HashTransformation(_) => }
-    three should matchPattern { case LinearTransformation(0.0f, 20000.0f, _, FloatDataType) =>
+    three should matchPattern { case LinearTransformation(0.0f, 20000.0f, _, _, FloatDataType) =>
     }
 
   }
@@ -204,10 +205,6 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val revision =
       calculateRevisionChanges(dataFrameStats, emptyRevision).get.createNewRevision
 
-    val columnPercentiles: Seq[Seq[Any]] =
-      revision.columnTransformers
-        .map(t => dataFrameStats.getAs[Seq[Any]](t.colPercentiles))
-
     val indexStatus = IndexStatus(revision, Set.empty)
 
     val weightedDataFrame = data.withColumn(weightColumnName, qbeastHash(rand()))
@@ -215,12 +212,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val cubeCount =
       weightedDataFrame
         .transform(
-          computePartitionCubeDomains(
-            1000,
-            revision,
-            indexStatus,
-            isReplication = false,
-            columnPercentiles))
+          computePartitionCubeDomains(1000, revision, indexStatus, isReplication = false))
         .groupBy("cubeBytes")
         .count()
         .map { row =>
@@ -249,10 +241,6 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val revision =
       calculateRevisionChanges(dataFrameStats, emptyRevision).get.createNewRevision
 
-    val columnPercentiles: Seq[Seq[Any]] =
-      revision.columnTransformers
-        .map(t => dataFrameStats.getAs[Seq[Any]](t.colPercentiles))
-
     val indexStatus = IndexStatus(revision, Set.empty)
 
     val weightedDataFrame = data.withColumn(weightColumnName, qbeastHash(rand()))
@@ -260,12 +248,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val partitionCubeDomains =
       weightedDataFrame
         .transform(
-          computePartitionCubeDomains(
-            elementCount,
-            revision,
-            indexStatus,
-            isReplication = false,
-            columnPercentiles))
+          computePartitionCubeDomains(elementCount, revision, indexStatus, isReplication = false))
 
     val globalCubeDomains =
       estimateGlobalCubeDomains(partitionCubeDomains, revision).collect().toMap
@@ -292,10 +275,6 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val revision =
       calculateRevisionChanges(dataFrameStats, emptyRevision).get.createNewRevision
 
-    val columnPercentiles: Seq[Seq[Any]] =
-      revision.columnTransformers
-        .map(t => dataFrameStats.getAs[Seq[Any]](t.colPercentiles))
-
     val indexStatus = IndexStatus(revision, Set.empty)
 
     val weightedDataFrame = data.withColumn(weightColumnName, qbeastHash(rand()))
@@ -303,12 +282,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val partitionCubeDomains =
       weightedDataFrame
         .transform(
-          computePartitionCubeDomains(
-            1000,
-            revision,
-            indexStatus,
-            isReplication = false,
-            columnPercentiles))
+          computePartitionCubeDomains(1000, revision, indexStatus, isReplication = false))
 
     val globalDomain = estimateGlobalCubeDomains(partitionCubeDomains, revision).collect()
 

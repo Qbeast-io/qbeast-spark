@@ -13,5 +13,7 @@ case class EmptyTransformation() extends Transformation {
 
   override def merge(other: Transformation): Transformation = other
 
-  override def transformWithPercentiles(value: Any, percentiles: IISeq[Any]): Double = 0d
+  override def percentiles: IISeq[Any] = Nil
+
+  override def transformWithPercentiles(value: Any): Double = 0d
 }

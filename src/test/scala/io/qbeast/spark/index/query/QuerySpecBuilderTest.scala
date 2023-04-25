@@ -26,7 +26,7 @@ class QuerySpecBuilderTest
 
   private def createRevision(minVal: Int = Int.MinValue, maxVal: Int = Int.MaxValue) = {
     val transformations =
-      Seq(LinearTransformation(minVal, maxVal, IntegerDataType)).toIndexedSeq
+      Seq(LinearTransformation(minVal, maxVal, Nil, IntegerDataType)).toIndexedSeq
     val columnTransformers = Seq(Transformer("linear", "id", IntegerDataType)).toIndexedSeq
 
     Revision(
@@ -136,7 +136,8 @@ class QuerySpecBuilderTest
       val expressions = Seq(expr(s"id > $f AND id <= $t").expr)
       val revision = createRevision()
       val querySpace = new QuerySpecBuilder(expressions).build(revision).querySpace
-      val idTransformation = LinearTransformation(Int.MinValue, Int.MaxValue, IntegerDataType)
+      val idTransformation =
+        LinearTransformation(Int.MinValue, Int.MaxValue, Nil, IntegerDataType)
 
       querySpace invokePrivate privateFrom() shouldBe Seq(Some(idTransformation.transform(f)))
       querySpace invokePrivate privateTo() shouldBe Seq(Some(idTransformation.transform(t)))

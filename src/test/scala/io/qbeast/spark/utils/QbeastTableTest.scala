@@ -208,8 +208,9 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
   it should "check" in withSparkAndTmpDir((spark, tmpDir) => {
     val df = loadTestData(spark)
     df.write
+      .mode("overwrite")
       .format("qbeast")
-      .option("cubeSize", "5000")
+      .option("cubeSize", "500")
       .option("columnsToIndex", "price,user_id")
       .save(tmpDir)
 

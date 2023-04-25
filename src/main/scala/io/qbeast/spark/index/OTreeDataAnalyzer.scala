@@ -52,13 +52,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     data.selectExpr(columnsExpr ++ Seq("count(1) AS count"): _*).first()
   }
 
-  private[index] def getDataFrameColumnPercentiles(
-      data: DataFrame,
-      columnTransformers: IISeq[Transformer]): Row = {
-    val columnPercentilesExpr = columnTransformers.map(_.columnPercentiles)
-    data.selectExpr(columnPercentilesExpr ++ Seq("count(1) AS count"): _*).first()
-  }
-
   /**
    * Given a Row with Statistics, outputs the RevisionChange
    * @param row the row with statistics
@@ -75,6 +68,9 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
     val newTransformation =
       revision.columnTransformers.map(_.makeTransformation(colName => row.getAs[Object](colName)))
+
+    // scalastyle:off println
+    println(newTransformation)
 
     val transformationDelta = if (revision.transformations.isEmpty) {
       newTransformation.map(a => Some(a))
@@ -116,8 +112,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       numElements: Long,
       revision: Revision,
       indexStatus: IndexStatus,
-      isReplication: Boolean,
-      columnPercentiles: Seq[Seq[Any]]): DataFrame => Dataset[CubeDomain] =
+      isReplication: Boolean): DataFrame => Dataset[CubeDomain] =
     (weightedDataFrame: DataFrame) => {
       val spark = SparkSession.active
       import spark.implicits._
@@ -144,7 +139,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
               numElements = numElements,
               bufferCapacity = bufferCapacity)
           rows.foreach { row =>
-            val point = RowUtils.rowValuesToPercentilePoint(row, revision, columnPercentiles)
+            val point = RowUtils.rowValuesToPercentilePoint(row, revision)
             val weight = Weight(row.getAs[Int](weightIndex))
             if (isReplication) {
               val parentBytes = row.getAs[Array[Byte]](cubeToReplicateColumnName)
@@ -265,10 +260,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       case None => indexStatus.revision
     }
 
-    val columnPercentiles: Seq[Seq[Any]] =
-      revision.columnTransformers
-        .map(t => dataFrameStats.getAs[Seq[Any]](t.colPercentiles))
-
     // Three step transformation
 
     // First, add a random weight column
@@ -277,13 +268,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     // Second, compute partition-level cube domains
     val partitionCubeDomains: Dataset[CubeDomain] =
       weightedDataFrame
-        .transform(
-          computePartitionCubeDomains(
-            numElements,
-            revision,
-            indexStatus,
-            isReplication,
-            columnPercentiles))
+        .transform(computePartitionCubeDomains(numElements, revision, indexStatus, isReplication))
 
     // Estimate global domain
     val globalDomain: Seq[(CubeId, Double)] =
@@ -299,8 +284,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       indexStatus,
       estimatedCubeWeights,
       if (isReplication) indexStatus.cubesToOptimize else Set.empty[CubeId],
-      Set.empty[CubeId],
-      columnPercentiles = columnPercentiles)
+      Set.empty[CubeId])
 
     (weightedDataFrame, tableChanges)
   }
