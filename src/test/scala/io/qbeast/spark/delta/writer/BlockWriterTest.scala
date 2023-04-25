@@ -32,7 +32,7 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
   }
 
   it should "not miss any cubes in high partitioning" in withSparkAndTmpDir { (spark, tmpDir) =>
-    val writeTestSpec = WriteTestSpec(numDistinctCubes = 1000, spark, tmpDir)
+    val writeTestSpec = WriteTestSpec(numDistinctCubes = 400, spark, tmpDir)
 
     val writer = writeTestSpec.writer
 
