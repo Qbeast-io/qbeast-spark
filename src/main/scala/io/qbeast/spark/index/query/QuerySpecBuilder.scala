@@ -4,12 +4,7 @@
 package io.qbeast.spark.index.query
 
 import io.qbeast.core.model._
-import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.analysis.Resolver
 import org.apache.spark.sql.catalyst.expressions.{
-  And,
-  BinaryComparison,
   EqualTo,
   Expression,
   GreaterThan,
@@ -18,11 +13,9 @@ import org.apache.spark.sql.catalyst.expressions.{
   LessThan,
   LessThanOrEqual,
   Literal,
-  Or,
   SubqueryExpression
 }
 import org.apache.spark.sql.types.IntegerType
-import org.apache.spark.unsafe.types.UTF8String
 
 /**
  * Builds a query specification from a set of filters
@@ -30,69 +23,27 @@ import org.apache.spark.unsafe.types.UTF8String
  */
 private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
     extends Serializable
-    with StagingUtils {
-
-  lazy val spark: SparkSession = SparkSession.active
-  lazy val nameEquality: Resolver = spark.sessionState.analyzer.resolver
-
-  private def hasQbeastColumnReference(expr: Expression, indexedColumns: Seq[String]): Boolean = {
-    expr.references.forall { r =>
-      indexedColumns.exists(nameEquality(r.name, _))
-    }
-  }
-
-  private def isQbeastWeightExpression(expression: Expression): Boolean = {
-    expression match {
-      case BinaryComparison(_: QbeastMurmur3Hash, _) => true
-      case _ => false
-    }
-  }
-
-  private def isDisjunctivePredicate(condition: Expression): Boolean = {
-    condition.isInstanceOf[Or]
-  }
-
-  private def splitDisjunctivePredicates(condition: Expression): Seq[Expression] = {
-    condition match {
-      case Or(cond1, cond2) =>
-        splitDisjunctivePredicates(cond1) ++ splitDisjunctivePredicates(cond2)
-      case other => other :: Nil
-    }
-  }
-
-  private def splitConjunctivePredicates(condition: Expression): Seq[Expression] = {
-    condition match {
-      case And(cond1, cond2) =>
-        splitConjunctivePredicates(cond1) ++ splitConjunctivePredicates(cond2)
-      case other => other :: Nil
-    }
-  }
-
-  private def hasColumnReference(expr: Expression, columnName: String): Boolean = {
-    expr.references.forall(r => nameEquality(r.name, columnName))
-  }
+    with StagingUtils
+    with QueryFiltersUtils {
 
   /**
    * Extracts the data filters from the query that can be used by qbeast
+   *
    * @param dataFilters filters passed to the relation
-   * @param revision the revision of the index
+   * @param revision    the revision of the index
    * @return sequence of filters involving qbeast format
    */
   def extractQbeastFilters(dataFilters: Seq[Expression], revision: Revision): QbeastFilters = {
     val indexedColumns = revision.columnTransformers.map(_.columnName)
-    val notSubqueryFilters =
+    val conjunctiveSplit =
       dataFilters.filter(!SubqueryExpression.hasSubquery(_)).flatMap(splitConjunctivePredicates)
-    val weightFilters = notSubqueryFilters.filter(isQbeastWeightExpression)
-    val queryFilters = notSubqueryFilters.filter(hasQbeastColumnReference(_, indexedColumns))
+
+    val weightFilters = conjunctiveSplit.filter(isQbeastWeightExpression)
+    val queryFilters = conjunctiveSplit
+      .filter(hasQbeastColumnReference(_, indexedColumns))
+      .flatMap(transformPredicates)
 
     QbeastFilters(weightFilters, queryFilters)
-  }
-
-  private def sparkTypeToCoreType(value: Any): Any = {
-    value match {
-      case s: UTF8String => s.toString
-      case _ => value
-    }
   }
 
   /**
@@ -121,10 +72,7 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
           .collectFirst {
             case GreaterThan(_, Literal(value, _)) => sparkTypeToCoreType(value)
             case GreaterThanOrEqual(_, Literal(value, _)) => sparkTypeToCoreType(value)
-            case LessThan(Literal(value, _), _) => sparkTypeToCoreType(value)
-            case LessThanOrEqual(Literal(value, _), _) => sparkTypeToCoreType(value)
             case EqualTo(_, Literal(value, _)) => sparkTypeToCoreType(value)
-            case EqualTo(Literal(value, _), _) => sparkTypeToCoreType(value)
             case IsNull(_) => null
           }
 
@@ -132,10 +80,7 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
           .collectFirst {
             case LessThan(_, Literal(value, _)) => sparkTypeToCoreType(value)
             case LessThanOrEqual(_, Literal(value, _)) => sparkTypeToCoreType(value)
-            case GreaterThan(Literal(value, _), _) => sparkTypeToCoreType(value)
-            case GreaterThanOrEqual(Literal(value, _), _) => sparkTypeToCoreType(value)
             case EqualTo(_, Literal(value, _)) => sparkTypeToCoreType(value)
-            case EqualTo(Literal(value, _), _) => sparkTypeToCoreType(value)
             case IsNull(_) => null
           }
 
@@ -173,7 +118,7 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
   /**
    * Builds the QuerySpec for the desired Revision
    * @param revision the revision
-   * @return the QuerySpec
+   * @return the non overlapping sequence of QuerySpecs
    */
 
   def build(revision: Revision): Seq[QuerySpec] = {
@@ -205,7 +150,19 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
         })
 
       // Add both sets of predicates to the final query
-      processedDisjunctivePredicates ++ processedPredicates
+      val querySpecs = processedDisjunctivePredicates ++ processedPredicates
+
+      // Discard overlapping query specs to avoid retrieving the same set of results
+      var nonOverlappingQuerySpecs = Seq.empty[QuerySpec]
+      querySpecs.foreach(querySpec => {
+        val space = querySpec.querySpace
+        val existsOverlapping = nonOverlappingQuerySpecs.exists(_.querySpace.contains(space))
+        if (!existsOverlapping) {
+          nonOverlappingQuerySpecs = nonOverlappingQuerySpecs ++ Seq(querySpec)
+        }
+      })
+
+      nonOverlappingQuerySpecs
     }
   }
 

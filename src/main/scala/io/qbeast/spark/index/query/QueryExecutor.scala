@@ -19,11 +19,11 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
    * Executes the query on each revision according to their QuerySpec
    * @return the final sequence of blocks that match the query
    */
-  def execute(): Seq[QbeastBlock] = {
+  def execute(): Iterable[QbeastBlock] = {
 
     qbeastSnapshot.loadAllRevisions.flatMap { revision =>
       val querySpecs = querySpecBuilder.build(revision)
-      querySpecs.flatMap { querySpec =>
+      querySpecs.par.flatMap { querySpec =>
         (querySpec.isSampling, querySpec.querySpace) match {
           case (_, _: QuerySpaceFromTo) | (true, _: AllSpace) =>
             val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
@@ -37,7 +37,7 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
           case _ => Seq.empty[QbeastBlock]
         }
       }
-    }
+    }.toSet
   }
 
   private[query] def executeRevision(

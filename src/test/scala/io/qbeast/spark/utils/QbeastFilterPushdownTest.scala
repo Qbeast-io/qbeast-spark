@@ -206,10 +206,11 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
         val df = spark.read.format("qbeast").load(tmpDir)
 
         val filter = s"($filter_user_lessThan OR $filter_product_greaterThanOrEq)"
-        val query = df.filter(filter).agg(avg("price"))
+        val query = df.filter(filter)
 
         // OR filters are not split, so we need to match them entirely
         checkLogicalFilterPushdown(Seq(filter), query)
+        checkFileFiltering(query)
 
       }
   }
@@ -226,10 +227,31 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
         val filter =
           s"(($filter_user_lessThan AND $filter_user_greaterThanOrEq) " +
             s"OR ($filter_product_greaterThanOrEq AND $filter_product_lessThan))"
-        val query = df.filter(filter).agg(avg("price"))
+        val query = df.filter(filter)
 
         // OR filters are not split, so we need to match them entirely
         checkLogicalFilterPushdown(Seq(filter), query)
+        checkFileFiltering(query)
+      }
+  }
+
+  it should "pushdown filters with IN predicate" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      {
+        val data = loadTestData(spark)
+
+        writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
+
+        val df = spark.read.format("qbeast").load(tmpDir)
+
+        val filter =
+          s"(user_id IN (555304906, 514439763))"
+        val query = df.filter(filter)
+
+        // OR filters are not split, so we need to match them entirely
+        checkLogicalFilterPushdown(Seq(filter), query)
+        query.count() shouldBe data.filter(filter).count()
+        checkFileFiltering(query)
       }
   }
 }

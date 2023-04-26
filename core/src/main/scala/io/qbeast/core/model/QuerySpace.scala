@@ -11,6 +11,14 @@ import io.qbeast.core.transform.{HashTransformation, Transformation}
 trait QuerySpace {
 
   /**
+   * Checks if other query space is contained in the current
+   * @param other the other query space
+   * @return true if they overlap
+   */
+
+  def contains(other: QuerySpace): Boolean
+
+  /**
    * Returns whether the space intersects with a given cube.
    *
    * @param cube the cube
@@ -25,6 +33,8 @@ trait QuerySpace {
 case class AllSpace() extends QuerySpace {
 
   override def intersectsWith(cube: CubeId): Boolean = true
+
+  override def contains(other: QuerySpace): Boolean = true
 }
 
 /**
@@ -33,6 +43,8 @@ case class AllSpace() extends QuerySpace {
 case class EmptySpace() extends QuerySpace {
 
   override def intersectsWith(cube: CubeId): Boolean = false
+
+  override def contains(other: QuerySpace): Boolean = false
 }
 
 /**
@@ -43,8 +55,7 @@ case class EmptySpace() extends QuerySpace {
  * @param from inclusive starting range
  * @param to   exclusive ending query range
  */
-class QuerySpaceFromTo(private val from: Seq[Option[Double]], private val to: Seq[Option[Double]])
-    extends QuerySpace {
+case class QuerySpaceFromTo(from: Seq[Option[Double]], to: Seq[Option[Double]]) extends QuerySpace {
 
   private def intersects(f: Double, t: Double, cube: CubeId, coordinate: Int): Boolean = {
     val cf = cube.from.coordinates(coordinate)
@@ -62,6 +73,26 @@ class QuerySpaceFromTo(private val from: Seq[Option[Double]], private val to: Se
       case ((Some(f), None), i) => intersects(f, 1.0, cube, i)
       case ((None, None), _) => true
     }
+  }
+
+  override def contains(other: QuerySpace): Boolean = {
+    other match {
+      case q : QuerySpaceFromTo =>
+        q.from.zip(from).forall {
+          case (Some(otherFrom), Some(f)) => otherFrom >= f
+          case (Some(otherFrom), None) => otherFrom == 0.0
+          case (None, Some(f)) => f == 0.0
+          case _ => true
+        } && q.to.zip(to).forall {
+          case (Some(otherTo), Some(t)) => otherTo <= t
+          case (Some(otherTo), None) => otherTo == 1.0
+          case (None, Some(t)) => t == 1.0
+          case _ => true
+        }
+      case _: AllSpace => false
+      case _: EmptySpace => true
+    }
+
   }
 
 }
