@@ -5,7 +5,7 @@ import io.qbeast.spark.delta.OTreeIndex
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.FileSourceScanExec
-import org.apache.spark.sql.functions.{avg, col, rand, when}
+import org.apache.spark.sql.functions.{avg, col, rand, regexp_replace, when}
 
 class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
@@ -260,6 +260,43 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
         checkLogicalFilterPushdown(Seq(filter), query)
         checkFileFiltering(query)
         assertSmallDatasetEquality(query, originalQuery, orderedComparison = false)
+
+      }
+  }
+
+  it should "pushdown regex expressions on strings" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      {
+        val data = loadTestData(spark)
+        val columnName = "brand_mod"
+        val modifiedData =
+          data.withColumn(columnName, regexp_replace(col("brand"), "versace", "prefix_versace"))
+
+        // Index data with the new column
+        writeTestData(modifiedData, Seq(columnName), 10000, tmpDir)
+
+        val df = spark.read.format("qbeast").load(tmpDir)
+
+        val regexExpression = "prefix_(.+)"
+        val filter =
+          s"(regexp_extract($columnName, '$regexExpression', 1) = 'versace')"
+        val query = df.filter(filter)
+        val originalQuery = modifiedData.filter(filter)
+        val originalQueryWithoutRegex = data.filter("brand = 'versace'")
+
+        // OR filters are not split, so we need to match them entirely
+        checkLogicalFilterPushdown(Seq(filter), query)
+        checkFileFiltering(query)
+        assertSmallDatasetEquality(
+          query,
+          originalQuery,
+          orderedComparison = false,
+          ignoreNullable = true)
+        assertSmallDatasetEquality(
+          query.drop(columnName),
+          originalQueryWithoutRegex,
+          orderedComparison = false,
+          ignoreNullable = true)
 
       }
   }
