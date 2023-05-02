@@ -32,17 +32,14 @@ class DisjunctiveQuerySpecTest extends QbeastIntegrationTestSpec with QueryTestS
     val expression = expr(s"3 <= id OR id > 10").expr
     val querySpecs = new QuerySpecBuilder(Seq(expression)).build(revision)
 
+    // Size of the specs should be one since id > 10 is contained in the expression id >= 3
+    querySpecs.size shouldBe 1
+
     val tFrom = revision.transformations.head.transform(3)
-    val firstQuerySpec = querySpecs.head.querySpace
+    val querySpace = querySpecs.head.querySpace
 
-    firstQuerySpec invokePrivate privateFrom() shouldBe Seq(Some(tFrom))
-    firstQuerySpec invokePrivate privateTo() shouldBe Seq(None)
-
-    val tFrom2 = revision.transformations.head.transform(10)
-    val secondQuerySpec = querySpecs(1).querySpace
-
-    secondQuerySpec invokePrivate privateFrom() shouldBe Seq(Some(tFrom2))
-    secondQuerySpec invokePrivate privateTo() shouldBe Seq(None)
+    querySpace invokePrivate privateFrom() shouldBe Seq(Some(tFrom))
+    querySpace invokePrivate privateTo() shouldBe Seq(None)
   })
 
   it should "process complex predicates" in withSpark(spark => {

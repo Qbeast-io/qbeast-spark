@@ -18,8 +18,8 @@ import org.scalatest.matchers.should.Matchers
 
 trait QueryTestSpec extends AnyFlatSpec with Matchers with PrivateMethodTester {
 
-  val privateFrom: PrivateMethod[QuerySpaceFromTo] = PrivateMethod[QuerySpaceFromTo]('from)
-  val privateTo: PrivateMethod[QuerySpaceFromTo] = PrivateMethod[QuerySpaceFromTo]('to)
+  lazy val privateFrom: PrivateMethod[QuerySpaceFromTo] = PrivateMethod[QuerySpaceFromTo]('from)
+  lazy val privateTo: PrivateMethod[QuerySpaceFromTo] = PrivateMethod[QuerySpaceFromTo]('to)
 
   def createDF(size: Int, spark: SparkSession): Dataset[T2] = {
     import spark.implicits._

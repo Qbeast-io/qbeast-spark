@@ -5,7 +5,6 @@ package io.qbeast.spark.index.query
 
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.analysis.Resolver
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.util.TypeUtils
 import org.apache.spark.sql.execution.InSubqueryExec
@@ -13,10 +12,11 @@ import org.apache.spark.unsafe.types.UTF8String
 
 private[query] trait QueryFiltersUtils {
 
-  lazy val spark: SparkSession = SparkSession.active
-  lazy val nameEquality: Resolver = spark.sessionState.analyzer.resolver
-
-  def hasQbeastColumnReference(expr: Expression, indexedColumns: Seq[String]): Boolean = {
+  def hasQbeastColumnReference(
+      expr: Expression,
+      indexedColumns: Seq[String],
+      spark: SparkSession): Boolean = {
+    val nameEquality = spark.sessionState.analyzer.resolver
     expr.references.forall { r =>
       indexedColumns.exists(nameEquality(r.name, _))
     }
@@ -49,7 +49,8 @@ private[query] trait QueryFiltersUtils {
     }
   }
 
-  def hasColumnReference(expr: Expression, columnName: String): Boolean = {
+  def hasColumnReference(expr: Expression, columnName: String, spark: SparkSession): Boolean = {
+    val nameEquality = spark.sessionState.analyzer.resolver
     expr.references.forall(r => nameEquality(r.name, columnName))
   }
 
@@ -73,7 +74,7 @@ private[query] trait QueryFiltersUtils {
 
   }
 
-  def transformPredicates(expression: Expression): Seq[Expression] = {
+  def transformInPredicates(expression: Expression): Seq[Expression] = {
     expression match {
       case in @ In(a, values) if in.inSetConvertible =>
         inToDataFilter(a, values.map(_.asInstanceOf[Literal].value))
@@ -86,18 +87,6 @@ private[query] trait QueryFiltersUtils {
       case in: InSubqueryExec =>
         // At this point the subquery has been materialized so it is safe to call get on the Option.
         inToDataFilter(in.child, in.values().get.toSeq)
-
-      // Move the literal in the left to the right of the operator
-      // to parse them easily in QuerySpecBuilder
-      case LessThan(l: Literal, column) => GreaterThanOrEqual(column, l) :: Nil
-
-      case LessThanOrEqual(l: Literal, column) => GreaterThan(column, l) :: Nil
-
-      case EqualTo(l: Literal, column) => EqualTo(column, l) :: Nil
-
-      case GreaterThan(l: Literal, column) => LessThanOrEqual(column, l) :: Nil
-
-      case GreaterThanOrEqual(l: Literal, column) => LessThan(column, l) :: Nil
 
       // If the Filter involves any other predicates, return without pre-processing
       case other => other :: Nil

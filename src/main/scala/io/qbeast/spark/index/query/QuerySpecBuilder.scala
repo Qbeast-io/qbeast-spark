@@ -4,6 +4,7 @@
 package io.qbeast.spark.index.query
 
 import io.qbeast.core.model._
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{
   EqualTo,
   Expression,
@@ -26,6 +27,8 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
     with StagingUtils
     with QueryFiltersUtils {
 
+  private lazy val spark: SparkSession = SparkSession.active
+
   /**
    * Extracts the data filters from the query that can be used by qbeast
    *
@@ -36,12 +39,14 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
   def extractQbeastFilters(dataFilters: Seq[Expression], revision: Revision): QbeastFilters = {
     val indexedColumns = revision.columnTransformers.map(_.columnName)
     val conjunctiveSplit =
-      dataFilters.filter(!SubqueryExpression.hasSubquery(_)).flatMap(splitConjunctivePredicates)
+      dataFilters
+        .filter(!SubqueryExpression.hasSubquery(_))
+        .flatMap(splitConjunctivePredicates)
 
     val weightFilters = conjunctiveSplit.filter(isQbeastWeightExpression)
     val queryFilters = conjunctiveSplit
-      .filter(hasQbeastColumnReference(_, indexedColumns))
-      .flatMap(transformPredicates)
+      .filter(hasQbeastColumnReference(_, indexedColumns, spark))
+      .flatMap(transformInPredicates)
 
     QbeastFilters(weightFilters, queryFilters)
   }
@@ -64,7 +69,7 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
     val (from, to) =
       indexedColumns.map { columnName =>
         // Get the filters related to the column
-        val columnFilters = rangePredicate.filter(hasColumnReference(_, columnName))
+        val columnFilters = rangePredicate.filter(hasColumnReference(_, columnName, spark))
 
         // Get the coordinates of the column in the filters,
         // if not found, use the overall coordinates
@@ -72,7 +77,10 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
           .collectFirst {
             case GreaterThan(_, Literal(value, _)) => sparkTypeToCoreType(value)
             case GreaterThanOrEqual(_, Literal(value, _)) => sparkTypeToCoreType(value)
+            case LessThan(Literal(value, _), _) => sparkTypeToCoreType(value)
+            case LessThanOrEqual(Literal(value, _), _) => sparkTypeToCoreType(value)
             case EqualTo(_, Literal(value, _)) => sparkTypeToCoreType(value)
+            case EqualTo(Literal(value, _), _) => sparkTypeToCoreType(value)
             case IsNull(_) => null
           }
 
@@ -80,7 +88,10 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
           .collectFirst {
             case LessThan(_, Literal(value, _)) => sparkTypeToCoreType(value)
             case LessThanOrEqual(_, Literal(value, _)) => sparkTypeToCoreType(value)
+            case GreaterThan(Literal(value, _), _) => sparkTypeToCoreType(value)
+            case GreaterThanOrEqual(Literal(value, _), _) => sparkTypeToCoreType(value)
             case EqualTo(_, Literal(value, _)) => sparkTypeToCoreType(value)
+            case EqualTo(Literal(value, _), _) => sparkTypeToCoreType(value)
             case IsNull(_) => null
           }
 
@@ -163,6 +174,7 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
       })
 
       nonOverlappingQuerySpecs
+
     }
   }
 
