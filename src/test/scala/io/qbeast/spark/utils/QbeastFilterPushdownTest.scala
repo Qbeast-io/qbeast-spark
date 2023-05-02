@@ -13,6 +13,8 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
   private val filter_user_lessThan = "(user_id < 546280860)"
   private val filter_product_lessThan = "(product_id >= 11522682)"
   private val filter_product_greaterThanOrEq = "(product_id < 50500010)"
+  private val filter_user_equal = "(user_id = 536764969)"
+  private val filter_product_equal = "(product_id = 11522682)"
 
   private def checkFileFiltering(query: DataFrame): Unit = {
     val leaves =
@@ -205,12 +207,14 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
         val df = spark.read.format("qbeast").load(tmpDir)
 
-        val filter = s"($filter_user_lessThan OR $filter_product_greaterThanOrEq)"
+        val filter = s"($filter_user_equal OR $filter_product_equal)"
         val query = df.filter(filter)
+        val originalQuery = data.filter(filter)
 
         // OR filters are not split, so we need to match them entirely
         checkLogicalFilterPushdown(Seq(filter), query)
         checkFileFiltering(query)
+        assertSmallDatasetEquality(query, originalQuery, orderedComparison = false)
 
       }
   }
@@ -228,10 +232,13 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
           s"(($filter_user_lessThan AND $filter_user_greaterThanOrEq) " +
             s"OR ($filter_product_greaterThanOrEq AND $filter_product_lessThan))"
         val query = df.filter(filter)
+        val originalQuery = data.filter(filter)
 
         // OR filters are not split, so we need to match them entirely
         checkLogicalFilterPushdown(Seq(filter), query)
         checkFileFiltering(query)
+        assertSmallDatasetEquality(query, originalQuery, orderedComparison = false)
+
       }
   }
 
@@ -247,11 +254,13 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
         val filter =
           s"(user_id IN (555304906, 514439763))"
         val query = df.filter(filter)
+        val originalQuery = data.filter(filter)
 
         // OR filters are not split, so we need to match them entirely
         checkLogicalFilterPushdown(Seq(filter), query)
-        query.count() shouldBe data.filter(filter).count()
         checkFileFiltering(query)
+        assertSmallDatasetEquality(query, originalQuery, orderedComparison = false)
+
       }
   }
 }

@@ -5,6 +5,7 @@ package io.qbeast.spark.index.query
 
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.analysis.Resolver
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.util.TypeUtils
 import org.apache.spark.sql.execution.InSubqueryExec
@@ -12,11 +13,10 @@ import org.apache.spark.unsafe.types.UTF8String
 
 private[query] trait QueryFiltersUtils {
 
-  def hasQbeastColumnReference(
-      expr: Expression,
-      indexedColumns: Seq[String],
-      spark: SparkSession): Boolean = {
-    val nameEquality = spark.sessionState.analyzer.resolver
+  lazy val spark: SparkSession = SparkSession.active
+  lazy val nameEquality: Resolver = spark.sessionState.analyzer.resolver
+
+  def hasQbeastColumnReference(expr: Expression, indexedColumns: Seq[String]): Boolean = {
     expr.references.forall { r =>
       indexedColumns.exists(nameEquality(r.name, _))
     }
@@ -49,8 +49,7 @@ private[query] trait QueryFiltersUtils {
     }
   }
 
-  def hasColumnReference(expr: Expression, columnName: String, spark: SparkSession): Boolean = {
-    val nameEquality = spark.sessionState.analyzer.resolver
+  def hasColumnReference(expr: Expression, columnName: String): Boolean = {
     expr.references.forall(r => nameEquality(r.name, columnName))
   }
 

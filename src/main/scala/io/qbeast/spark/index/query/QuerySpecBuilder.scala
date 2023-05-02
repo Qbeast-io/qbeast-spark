@@ -4,7 +4,6 @@
 package io.qbeast.spark.index.query
 
 import io.qbeast.core.model._
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{
   EqualTo,
   Expression,
@@ -27,8 +26,6 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
     with StagingUtils
     with QueryFiltersUtils {
 
-  private lazy val spark: SparkSession = SparkSession.active
-
   /**
    * Extracts the data filters from the query that can be used by qbeast
    *
@@ -45,7 +42,7 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
 
     val weightFilters = conjunctiveSplit.filter(isQbeastWeightExpression)
     val queryFilters = conjunctiveSplit
-      .filter(hasQbeastColumnReference(_, indexedColumns, spark))
+      .filter(hasQbeastColumnReference(_, indexedColumns))
       .flatMap(transformInPredicates)
 
     QbeastFilters(weightFilters, queryFilters)
@@ -69,7 +66,7 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
     val (from, to) =
       indexedColumns.map { columnName =>
         // Get the filters related to the column
-        val columnFilters = rangePredicate.filter(hasColumnReference(_, columnName, spark))
+        val columnFilters = rangePredicate.filter(hasColumnReference(_, columnName))
 
         // Get the coordinates of the column in the filters,
         // if not found, use the overall coordinates
