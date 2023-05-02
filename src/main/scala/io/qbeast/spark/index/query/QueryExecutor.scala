@@ -23,7 +23,7 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
 
     qbeastSnapshot.loadAllRevisions.flatMap { revision =>
       val querySpecs = querySpecBuilder.build(revision)
-      querySpecs.par.flatMap { querySpec =>
+      querySpecs.flatMap { querySpec =>
         (querySpec.isSampling, querySpec.querySpace) match {
           case (_, _: QuerySpaceFromTo) | (true, _: AllSpace) =>
             val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
