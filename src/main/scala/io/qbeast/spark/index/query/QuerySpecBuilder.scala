@@ -38,12 +38,12 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
     val conjunctiveSplit =
       dataFilters
         .filter(!SubqueryExpression.hasSubquery(_))
-        .flatMap(splitConjunctivePredicates)
+        .flatMap(splitConjunctiveExpressions)
 
     val weightFilters = conjunctiveSplit.filter(isQbeastWeightExpression)
     val queryFilters = conjunctiveSplit
       .filter(hasQbeastColumnReference(_, indexedColumns))
-      .flatMap(transformInPredicates)
+      .flatMap(transformInExpressions)
 
     QbeastFilters(weightFilters, queryFilters)
   }
@@ -143,7 +143,7 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
       // First split disjunctive predicates
       // To generate a QuerySpec for each space
       val (disjunctivePredicates, conjunctivePredicates) =
-        qbeastFilters.queryFilters.partition(isDisjunctivePredicate)
+        qbeastFilters.queryFilters.partition(isDisjunctiveExpression)
 
       // Process the conjunctive predicates, if any
       val processedPredicates =
@@ -152,15 +152,16 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
 
       // Process each disjunctive predicate as a different QuerySpec
       val processedDisjunctivePredicates = disjunctivePredicates
-        .flatMap(splitDisjunctivePredicates)
+        .flatMap(splitDisjunctiveExpressions)
         .map(f => {
-          QuerySpec(weightRange, extractQuerySpace(splitConjunctivePredicates(f), revision))
+          QuerySpec(weightRange, extractQuerySpace(splitConjunctiveExpressions(f), revision))
         })
 
       // Add both sets of predicates to the final query
       val querySpecs = processedDisjunctivePredicates ++ processedPredicates
 
       // Discard overlapping query specs to avoid retrieving the same set of results
+      // TODO this might be done while processing the predicates
       var nonOverlappingQuerySpecs = Seq.empty[QuerySpec]
       querySpecs.foreach(querySpec => {
         val space = querySpec.querySpace

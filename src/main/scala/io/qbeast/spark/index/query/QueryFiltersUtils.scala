@@ -16,11 +16,33 @@ private[query] trait QueryFiltersUtils {
   lazy val spark: SparkSession = SparkSession.active
   lazy val nameEquality: Resolver = spark.sessionState.analyzer.resolver
 
+  /**
+   * Checks if an expression references to a certain column
+   * @param expr the Expression
+   * @param columnName the name of the column
+   * @return
+   */
+  def hasColumnReference(expr: Expression, columnName: String): Boolean = {
+    expr.references.forall(r => nameEquality(r.name, columnName))
+  }
+
+  /**
+   * Checks if an expression references to any of the Qbeast Indexed Columns
+   * @param expr the Expression
+   * @param indexedColumns the current indexed columns
+   * @return
+   */
   def hasQbeastColumnReference(expr: Expression, indexedColumns: Seq[String]): Boolean = {
     expr.references.forall { r =>
       indexedColumns.exists(nameEquality(r.name, _))
     }
   }
+
+  /**
+   * Checks if an Expression is a Qbeast Weight filter
+   * @param expression the Expression
+   * @return
+   */
 
   def isQbeastWeightExpression(expression: Expression): Boolean = {
     expression match {
@@ -29,29 +51,50 @@ private[query] trait QueryFiltersUtils {
     }
   }
 
-  def isDisjunctivePredicate(condition: Expression): Boolean = {
+  /**
+   * Checks if an Expression is Disjunctive (OR)
+   * @param condition the expression
+   * @return
+   */
+  def isDisjunctiveExpression(condition: Expression): Boolean = {
     condition.isInstanceOf[Or]
   }
 
-  def splitDisjunctivePredicates(condition: Expression): Seq[Expression] = {
+  /**
+   * Recursively split Disjunctive operators (AND) in an expression
+   *
+   * @param condition the expression to evaluate
+   * @return
+   */
+
+  def splitDisjunctiveExpressions(condition: Expression): Seq[Expression] = {
     condition match {
       case Or(cond1, cond2) =>
-        splitDisjunctivePredicates(cond1) ++ splitDisjunctivePredicates(cond2)
+        splitDisjunctiveExpressions(cond1) ++ splitDisjunctiveExpressions(cond2)
       case other => other :: Nil
     }
   }
 
-  def splitConjunctivePredicates(condition: Expression): Seq[Expression] = {
+  /**
+   * Recursively split Conjunctive operators (OR) in an expression
+   *
+   * @param condition the expression to evaluate
+   * @return
+   */
+
+  def splitConjunctiveExpressions(condition: Expression): Seq[Expression] = {
     condition match {
       case And(cond1, cond2) =>
-        splitConjunctivePredicates(cond1) ++ splitConjunctivePredicates(cond2)
+        splitConjunctiveExpressions(cond1) ++ splitConjunctiveExpressions(cond2)
       case other => other :: Nil
     }
   }
 
-  def hasColumnReference(expr: Expression, columnName: String): Boolean = {
-    expr.references.forall(r => nameEquality(r.name, columnName))
-  }
+  /**
+   * Convert an Spark String type to a Scala core type
+   * @param value the value to convert
+   * @return
+   */
 
   def sparkTypeToCoreType(value: Any): Any = {
     value match {
@@ -63,7 +106,7 @@ private[query] trait QueryFiltersUtils {
   // Based on Delta DataSkippingReader
   // Since we already know this filter are eligible for skipping
   // we directly output the RangePredicate
-  def inToDataFilter(column: Expression, values: Seq[Any]): Seq[Expression] = {
+  private def inToRangeExpressions(column: Expression, values: Seq[Any]): Seq[Expression] = {
 
     val dataType = column.dataType
     lazy val ordering = TypeUtils.getInterpretedOrdering(dataType)
@@ -73,19 +116,30 @@ private[query] trait QueryFiltersUtils {
 
   }
 
-  def transformInPredicates(expression: Expression): Seq[Expression] = {
+  /**
+   * Transform IN expression to a Range(>=, <=)
+   *
+   * Based on Delta DataSkippingReader
+   * We match cases in which an IN predicate is called
+   * and transform them to a range predicate (>=, <=)
+   *
+   * @param expression the expression to transform
+   * @return the sequence of expressions corresponding to the range
+   */
+
+  def transformInExpressions(expression: Expression): Seq[Expression] = {
     expression match {
       case in @ In(a, values) if in.inSetConvertible =>
-        inToDataFilter(a, values.map(_.asInstanceOf[Literal].value))
+        inToRangeExpressions(a, values.map(_.asInstanceOf[Literal].value))
 
       // The optimizer automatically converts all but the shortest eligible IN-lists to InSet.
       case InSet(a, values) =>
-        inToDataFilter(a, values.toSeq)
+        inToRangeExpressions(a, values.toSeq)
 
       // Treat IN(... subquery ...) as a normal IN-list, since the subquery already ran before now.
       case in: InSubqueryExec =>
         // At this point the subquery has been materialized so it is safe to call get on the Option.
-        inToDataFilter(in.child, in.values().get.toSeq)
+        inToRangeExpressions(in.child, in.values().get.toSeq)
 
       // If the Filter involves any other predicates, return without pre-processing
       case other => other :: Nil
