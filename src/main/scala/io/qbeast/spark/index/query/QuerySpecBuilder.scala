@@ -190,7 +190,7 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
       })
 
       nonOverlappingQuerySpecs
-+
+      +
     }
   }
 
