@@ -75,7 +75,7 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
     // The predicates should not be empty
     assert(rangeExpressions.nonEmpty)
 
-    val indexedColumns = revision.columnTransformers
+    val indexedColumns = revision.columnTransformers.map(_.columnName)
 
     val (from, to) =
       indexedColumns.map { columnName =>
@@ -190,7 +190,7 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
       })
 
       nonOverlappingQuerySpecs
-
++
     }
   }
 
