@@ -55,7 +55,8 @@ case class EmptySpace() extends QuerySpace {
  * @param from inclusive starting range
  * @param to   exclusive ending query range
  */
-case class QuerySpaceFromTo(from: Seq[Option[Double]], to: Seq[Option[Double]]) extends QuerySpace {
+case class QuerySpaceFromTo(from: Seq[Option[Double]], to: Seq[Option[Double]])
+    extends QuerySpace {
 
   private def intersects(f: Double, t: Double, cube: CubeId, coordinate: Int): Boolean = {
     val cf = cube.from.coordinates(coordinate)
@@ -77,7 +78,7 @@ case class QuerySpaceFromTo(from: Seq[Option[Double]], to: Seq[Option[Double]]) 
 
   override def contains(other: QuerySpace): Boolean = {
     other match {
-      case q : QuerySpaceFromTo =>
+      case q: QuerySpaceFromTo =>
         q.from.zip(from).forall {
           case (Some(otherFrom), Some(f)) => otherFrom >= f
           case (Some(otherFrom), None) => otherFrom == 0.0
@@ -118,11 +119,22 @@ object QuerySpace {
     var isPointStringSearch = false
     var (isOverlappingSpace, isAllSpace) = (true, true)
 
+    // TODO This implementation may cause problems when a query
+    //  with (>=, <=) on HashTransformation is issued
+    //  without transforming the values first
     from.indices.foreach { i =>
       val (isOverlappingDim, isAllDim) = (from(i), to(i), transformations(i)) match {
-        case (Some(f), Some(t), _: HashTransformation) if f == t =>
-          isPointStringSearch = true
-          (true, true)
+        case (
+              Some(f),
+              Some(t),
+              _: HashTransformation
+            ) => // Accept Range Filters for HashTransformation only if they have min and max values
+          if (f == t) {
+            isPointStringSearch = true
+            (true, true)
+          } else {
+            (f <= t && f <= 1d && t >= 0d, f <= t && f <= 0d && t >= 1d)
+          }
         case (_, _, _: HashTransformation) | (None, None, _) =>
           (true, true)
         case (Some(f), Some(t), _) =>
@@ -138,7 +150,7 @@ object QuerySpace {
     }
 
     if (isAllSpace && !isPointStringSearch) AllSpace()
-    else if (isPointStringSearch || isOverlappingSpace) new QuerySpaceFromTo(from, to)
+    else if (isPointStringSearch || isOverlappingSpace) QuerySpaceFromTo(from, to)
     else EmptySpace()
   }
 

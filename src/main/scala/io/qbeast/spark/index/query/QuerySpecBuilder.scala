@@ -34,39 +34,53 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
    * @return sequence of filters involving qbeast format
    */
   def extractQbeastFilters(dataFilters: Seq[Expression], revision: Revision): QbeastFilters = {
+    // Get the indexed column names
     val indexedColumns = revision.columnTransformers.map(_.columnName)
+
+    // Split the conjunctive (AND) predicates, if any
+    // We could Recieve data filters like
+    // qbeast_hash(col1) >= 183483983773 AND col1 > 10 AND col1 < 40
+    // This should be split in Seq((qbeast_hash), (col1 > 10), (col < 40))
+
     val conjunctiveSplit =
       dataFilters
         .filter(!SubqueryExpression.hasSubquery(_))
         .flatMap(splitConjunctiveExpressions)
 
+    // Extract the weight filter from conjunctiveSplit
     val weightFilters = conjunctiveSplit.filter(isQbeastWeightExpression)
-    val queryFilters = conjunctiveSplit
-      .filter(hasQbeastColumnReference(_, indexedColumns))
-      .flatMap(transformInExpressions)
+
+    // Transform the remaining filters into Range Predicates (>=, <=)
+    val transformedFilters = conjunctiveSplit.flatMap(transformInExpressions)
+
+    // And filter those that involve any Qbeast Indexed Column
+    val queryFilters = transformedFilters.filter(hasQbeastColumnReference(_, indexedColumns))
 
     QbeastFilters(weightFilters, queryFilters)
   }
 
   /**
    * Extracts the sequence of query spaces
-   * That we should union after
-   * @param rangePredicate the predicates passed by the spark engine
-   * @param revision the characteristics of the index
+   * That should be unioned after
+   *
+   * This RangeExpressions evaluate from >, >= to <, <= any indexed column
+   *
+   * @param rangeExpressions the expressions passed by the spark engine
+   * @param revision the revision of the index
    * @return
    */
 
-  def extractQuerySpace(rangePredicate: Seq[Expression], revision: Revision): QuerySpace = {
+  def extractQuerySpace(rangeExpressions: Seq[Expression], revision: Revision): QuerySpace = {
 
-    // Data Filters should not be empty
-    assert(rangePredicate.nonEmpty)
+    // The predicates should not be empty
+    assert(rangeExpressions.nonEmpty)
 
-    val indexedColumns = revision.columnTransformers.map(_.columnName)
+    val indexedColumns = revision.columnTransformers
 
     val (from, to) =
       indexedColumns.map { columnName =>
         // Get the filters related to the column
-        val columnFilters = rangePredicate.filter(hasColumnReference(_, columnName))
+        val columnFilters = rangeExpressions.filter(hasColumnReference(_, columnName))
 
         // Get the coordinates of the column in the filters,
         // if not found, use the overall coordinates
@@ -131,7 +145,11 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
 
   def build(revision: Revision): Seq[QuerySpec] = {
 
+    // Extract a QbeastFilters object from the sparkFilters and the particular revision
+    // QbeastFilters contains the queryFilters and the weightFilters
     val qbeastFilters = extractQbeastFilters(sparkFilters, revision)
+    // Extract the weight range associated to the Sample
+    // If no sample if present, weightRange would be (Int.MinValue, Int.MaxValue)
     val weightRange = extractWeightRange(qbeastFilters.weightFilters)
 
     if (isStaging(revision)) {

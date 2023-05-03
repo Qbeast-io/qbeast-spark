@@ -264,6 +264,28 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
       }
   }
 
+  it should "pushdown filters with IN predicate with string" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      {
+        val data = loadTestData(spark)
+
+        writeTestData(data, Seq("brand"), 10000, tmpDir)
+
+        val df = spark.read.format("qbeast").load(tmpDir)
+
+        val filter =
+          s"(brand IN ('versace', 'bioderma'))"
+        val query = df.filter(filter)
+        val originalQuery = data.filter(filter)
+
+        // OR filters are not split, so we need to match them entirely
+        checkLogicalFilterPushdown(Seq(filter), query)
+        checkFileFiltering(query)
+        assertSmallDatasetEquality(query, originalQuery, orderedComparison = false)
+
+      }
+  }
+
   it should "pushdown regex expressions on strings" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
       {

@@ -9,7 +9,10 @@ import org.apache.spark.sql.catalyst.analysis.Resolver
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.util.TypeUtils
 import org.apache.spark.sql.execution.InSubqueryExec
+import org.apache.spark.sql.types.StringType
 import org.apache.spark.unsafe.types.UTF8String
+
+import scala.util.hashing.MurmurHash3
 
 private[query] trait QueryFiltersUtils {
 
@@ -103,16 +106,48 @@ private[query] trait QueryFiltersUtils {
     }
   }
 
-  // Based on Delta DataSkippingReader
-  // Since we already know this filter are eligible for skipping
-  // we directly output the RangePredicate
-  private def inToRangeExpressions(column: Expression, values: Seq[Any]): Seq[Expression] = {
+  /**
+   * Transform an expression
+   * Based on Delta DataSkippingReader
+   * Since we already know this filter are eligible for skipping
+   * we directly output the RangePredicate
+   *
+   * @param column
+   * @param values
+   * @return
+   */
+  def inToRangeExpressions(column: Expression, values: Seq[Any]): Seq[Expression] = {
 
     val dataType = column.dataType
-    lazy val ordering = TypeUtils.getInterpretedOrdering(dataType)
-    val min = Literal(values.min(ordering), dataType)
-    val max = Literal(values.max(ordering), dataType)
-    Seq(LessThanOrEqual(column, max), GreaterThanOrEqual(column, min))
+
+    // If the type is String
+    // We need to apply first a Hash to understand what are the minimum and maximum
+    // that we need to search with Qbeast
+    if (dataType.isInstanceOf[StringType]) {
+      // Hash the values to match the search with Qbeast
+      val valuesHashed =
+        values.map(v => (v, MurmurHash3.bytesHash(v.asInstanceOf[UTF8String].getBytes)))
+
+      // Create ordering for new values
+      val ordering = new Ordering[(Any, Int)] {
+
+        /**
+         * Compare (Any, Int) by using Int comparison
+         */
+        override def compare(x: (Any, Int), y: (Any, Int)): Int =
+          Ordering[Int].compare(x._2, y._2)
+      }
+
+      val min = Literal(valuesHashed.min(ordering)._1, dataType)
+      val max = Literal(valuesHashed.max(ordering)._1, dataType)
+      Seq(LessThanOrEqual(column, max), GreaterThanOrEqual(column, min))
+
+    } else { // Otherwise we use the implicit ordering
+      lazy val ordering = TypeUtils.getInterpretedOrdering(dataType)
+      val min = Literal(values.min(ordering), dataType)
+      val max = Literal(values.max(ordering), dataType)
+      Seq(LessThanOrEqual(column, max), GreaterThanOrEqual(column, min))
+    }
 
   }
 
