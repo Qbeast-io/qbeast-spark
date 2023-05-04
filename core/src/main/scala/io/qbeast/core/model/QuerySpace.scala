@@ -11,9 +11,9 @@ import io.qbeast.core.transform.{HashTransformation, Transformation}
 trait QuerySpace {
 
   /**
-   * Checks if other query space is contained in the current
+   * Checks if this QuerySpace contains other QuerySpace
    * @param other the other query space
-   * @return true if they overlap
+   * @return true if this QuerySpace contains the other QuerySpace
    */
 
   def contains(other: QuerySpace): Boolean
@@ -44,7 +44,9 @@ case class EmptySpace() extends QuerySpace {
 
   override def intersectsWith(cube: CubeId): Boolean = false
 
-  override def contains(other: QuerySpace): Boolean = false
+  // The only case in which EmptySpace contains other QuerySpace
+  // is when other QuerySpace is an EmptySpace
+  override def contains(other: QuerySpace): Boolean = other.isInstanceOf[EmptySpace]
 }
 
 /**
