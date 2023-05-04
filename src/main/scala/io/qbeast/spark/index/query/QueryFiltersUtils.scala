@@ -106,6 +106,22 @@ private[query] trait QueryFiltersUtils {
     }
   }
 
+  def isStringRangeExpression(expression: Expression): Boolean = {
+    val value = expression match {
+      case GreaterThan(_, l: Literal) => l
+      case GreaterThanOrEqual(_, l: Literal) => l
+      case LessThan(l: Literal, _) => l
+      case LessThanOrEqual(l: Literal, _) => l
+      case LessThan(_, l: Literal) => l
+      case LessThanOrEqual(_, l: Literal) => l
+      case GreaterThan(l: Literal, _) => l
+      case GreaterThanOrEqual(l: Literal, _) => l
+      case _ => return false
+    }
+
+    value.dataType.isInstanceOf[StringType]
+  }
+
   /**
    * Transform an expression
    * Based on Delta DataSkippingReader

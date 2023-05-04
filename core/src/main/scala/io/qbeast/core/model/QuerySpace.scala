@@ -124,21 +124,13 @@ object QuerySpace {
     //  without transforming the values first
     from.indices.foreach { i =>
       val (isOverlappingDim, isAllDim) = (from(i), to(i), transformations(i)) match {
-        case (
-              Some(f),
-              Some(t),
-              _: HashTransformation
-            ) => // Accept Range Filters for HashTransformation only if they have min and max values
-          if (f == t) {
-            isPointStringSearch = true
-            (true, true)
-          } else {
-            (f <= t && f <= 1d && t >= 0d, f <= t && f <= 0d && t >= 1d)
-          }
-        case (_, _, _: HashTransformation) | (None, None, _) =>
+        case (Some(f), Some(t), _: HashTransformation) if (f == t) =>
+          isPointStringSearch = true
           (true, true)
         case (Some(f), Some(t), _) =>
           (f <= t && f <= 1d && t >= 0d, f <= t && f <= 0d && t >= 1d)
+        case (_, _, _: HashTransformation) | (None, None, _) =>
+          (true, true)
         case (None, Some(t), _) =>
           (t >= 0d, t >= 1d)
         case (Some(f), None, _) =>

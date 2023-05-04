@@ -50,10 +50,12 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
     // Extract the weight filter from conjunctiveSplit
     val weightFilters = conjunctiveSplit.filter(isQbeastWeightExpression)
 
-    // Transform the remaining filters into Range Predicates (>=, <=)
-    val transformedFilters = conjunctiveSplit.flatMap(transformInExpressions)
+    // Discard string range predicates and
+    // Transform the remaining IN filters into Range Predicates (>=, <=)
+    val transformedFilters =
+      conjunctiveSplit.filterNot(isStringRangeExpression).flatMap(transformInExpressions)
 
-    // And filter those that involve any Qbeast Indexed Column
+    // Filter those that involve any Qbeast Indexed Column
     val queryFilters = transformedFilters.filter(hasQbeastColumnReference(_, indexedColumns))
 
     QbeastFilters(weightFilters, queryFilters)
