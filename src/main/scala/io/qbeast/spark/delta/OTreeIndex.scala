@@ -14,7 +14,6 @@ import org.apache.spark.sql.delta.files.TahoeLogFileIndex
 import org.apache.spark.sql.execution.datasources.{FileIndex, PartitionDirectory}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.execution.SQLExecution
 
 import java.net.URI
 
@@ -83,17 +82,17 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
     }.toArray
     val stagingStats = stagingFiles
     val fileStats = qbeastFileStats ++ stagingStats
-    val sc = index.spark.sparkContext
-    val execId = sc.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
-    val pfStr = partitionFilters.map(f => f.toString).mkString(" ")
-    logInfo(s"OTreeIndex partition filters (exec id ${execId}): ${pfStr}")
-    val dfStr = dataFilters.map(f => f.toString).mkString(" ")
-    logInfo(s"OTreeIndex data filters (exec id ${execId}): ${dfStr}")
-    val allFilesCount = snapshot.allFiles.count
-    val nFiltered = allFilesCount - fileStats.length
-    val filteredPct = ((nFiltered * 1.0) / allFilesCount) * 100.0
-    val filteredMsg = f"${nFiltered} of ${allFilesCount} (${filteredPct}%.2f%%)"
-    logInfo(s"Qbeast filtered files (exec id ${execId}): ${filteredMsg}")
+//    val sc = index.spark.sparkContext
+//    val execId = sc.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
+//    val pfStr = partitionFilters.map(f => f.toString).mkString(" ")
+//    logInfo(s"OTreeIndex partition filters (exec id ${execId}): ${pfStr}")
+//    val dfStr = dataFilters.map(f => f.toString).mkString(" ")
+//    logInfo(s"OTreeIndex data filters (exec id ${execId}): ${dfStr}")
+//    val allFilesCount = snapshot.allFiles.count
+//    val nFiltered = allFilesCount - fileStats.length
+//    val filteredPct = ((nFiltered * 1.0) / allFilesCount) * 100.0
+//    val filteredMsg = f"${nFiltered} of ${allFilesCount} (${filteredPct}%.2f%%)"
+//    logInfo(s"Qbeast filtered files (exec id ${execId}): ${filteredMsg}")
     Seq(PartitionDirectory(new GenericInternalRow(Array.empty[Any]), fileStats))
   }
 
