@@ -26,6 +26,7 @@ object QbeastMetadataSQL {
   val qblock: Column =
     struct(
       col("path"),
+      TagColumns.cube.as("cube"),
       col("size"),
       col("modificationTime"),
       weight(TagColumns.minWeight).as("minWeight"),
