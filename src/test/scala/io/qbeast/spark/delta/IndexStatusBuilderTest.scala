@@ -24,8 +24,8 @@ class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {
 
       indexStatus.revision.revisionID shouldBe 1
       indexStatus.cubesStatuses.foreach(_._2.files.size shouldBe 1)
-      indexStatus.cubesStatuses.foreach { case (cubeId: CubeId, cubeStatus: CubeStatus) =>
-        cubeStatus.files.foreach(block => block.cubeId shouldBe cubeId.string)
+      indexStatus.cubesStatuses.foreach { case (cube: CubeId, cubeStatus: CubeStatus) =>
+        cubeStatus.files.foreach(block => block.cube shouldBe cube.string)
       }
       indexStatus.replicatedSet shouldBe Set.empty
       indexStatus.announcedSet shouldBe Set.empty

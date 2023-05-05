@@ -15,7 +15,7 @@ package io.qbeast.core.model
 
 case class QbeastBlock(
     path: String,
-    cubeId: String,
+    cube: String,
     revision: Long,
     minWeight: Weight,
     maxWeight: Weight,
@@ -30,7 +30,7 @@ case class QbeastBlock(
 object QbeastBlock {
 
   private val metadataKeys =
-    Set("minWeight", "maxWeight", "state", "revision", "elementCount", "cubeId")
+    Set("minWeight", "maxWeight", "state", "revision", "elementCount", "cube")
 
   private def checkBlockMetadata(blockMetadata: Map[String, String]): Unit = {
     metadataKeys.foreach(key =>
@@ -56,7 +56,7 @@ object QbeastBlock {
 
     QbeastBlock(
       path,
-      blockMetadata("cubeId"),
+      blockMetadata("cube"),
       blockMetadata("revision").toLong,
       Weight(blockMetadata("minWeight").toInt),
       Weight(blockMetadata("maxWeight").toInt),
