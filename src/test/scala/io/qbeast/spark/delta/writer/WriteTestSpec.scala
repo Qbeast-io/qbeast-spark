@@ -72,6 +72,7 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
             // Create a QbeastBlock under the revision
             QbeastBlock(
               UUID.randomUUID().toString,
+              cubeId.string,
               rev.revisionID,
               Weight.MinValue,
               maxWeight,

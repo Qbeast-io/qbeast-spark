@@ -56,6 +56,7 @@ private[delta] class IndexStatusBuilder(
       .map(addFile =>
         QbeastBlock(
           addFile.path,
+          "",
           revision.revisionID,
           Weight.MinValue,
           maxWeight,
