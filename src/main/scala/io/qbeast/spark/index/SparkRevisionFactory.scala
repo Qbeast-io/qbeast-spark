@@ -6,7 +6,12 @@ package io.qbeast.spark.index
 import io.qbeast.core.model.{QDataType, QTableID, Revision, RevisionFactory, RevisionID}
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.utils.SparkToQTypesUtils
-import io.qbeast.core.transform.{EmptyTransformation, Transformation, Transformer}
+import io.qbeast.core.transform.{
+  EmptyTransformation,
+  LengthHashTransformer,
+  Transformation,
+  Transformer
+}
 import org.apache.spark.sql.types.StructType
 
 import scala.util.matching.Regex
@@ -50,7 +55,12 @@ object SparkRevisionFactory extends RevisionFactory[StructType] {
           builder.sizeHint(transformers.size)
 
           transformers.foreach(transformer => {
-            if (columnStats.schema.exists(_.name.contains(transformer.columnName))) {
+            // Length Transformer does not need a specific length to operate,
+            // since the default can be set as the length encoding
+            val isLengthTransformer = transformer.isInstanceOf[LengthHashTransformer]
+            val existsColumnStats =
+              columnStats.schema.exists(_.name.contains(transformer.columnName))
+            if (isLengthTransformer || existsColumnStats) {
               // Create transformation with provided boundaries
               builder += transformer.makeTransformation(columnName =>
                 columnStats.getAs[Object](columnName))

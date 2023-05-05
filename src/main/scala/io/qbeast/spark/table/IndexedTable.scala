@@ -200,7 +200,8 @@ private[table] class IndexedTableImpl(
         if (isStaging(latestRevision)) {
           IndexStatus(revisionBuilder.createNewRevision(tableID, data.schema, updatedParameters))
         } else {
-          if (checkRevisionParameters(QbeastOptions(updatedParameters), latestRevision)) {
+          val qbeastOptions = QbeastOptions(updatedParameters)
+          if (checkRevisionParameters(qbeastOptions, latestRevision)) {
             snapshot.loadIndexStatus(latestRevision.revisionID)
           } else {
             // If the new parameters generate a new revision, we need to create another one

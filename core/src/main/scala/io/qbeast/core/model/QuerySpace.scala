@@ -121,18 +121,18 @@ object QuerySpace {
     var isPointStringSearch = false
     var (isOverlappingSpace, isAllSpace) = (true, true)
 
-    // TODO This implementation may cause problems when a query
-    //  with (>=, <=) on HashTransformation is issued
-    //  without transforming the values first
+    // For the HashTransformation, we can only filter range predicates when from == to
+    // For LinearTransformation and LengthHashTransformation,
+    // it is safe to filter range predicates
     from.indices.foreach { i =>
       val (isOverlappingDim, isAllDim) = (from(i), to(i), transformations(i)) match {
         case (Some(f), Some(t), _: HashTransformation) if (f == t) =>
           isPointStringSearch = true
           (true, true)
-        case (Some(f), Some(t), _) =>
-          (f <= t && f <= 1d && t >= 0d, f <= t && f <= 0d && t >= 1d)
         case (_, _, _: HashTransformation) | (None, None, _) =>
           (true, true)
+        case (Some(f), Some(t), _) =>
+          (f <= t && f <= 1d && t >= 0d, f <= t && f <= 0d && t >= 1d)
         case (None, Some(t), _) =>
           (t >= 0d, t >= 1d)
         case (Some(f), None, _) =>

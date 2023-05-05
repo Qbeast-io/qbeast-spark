@@ -6,7 +6,6 @@ import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.functions.{avg, col, rand, regexp_replace, when}
-import org.scalatest.exceptions.TestFailedException
 
 class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
@@ -106,7 +105,7 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
   it should
     "return a valid filtering of the original dataset " +
-    "for all string columns" in withSparkAndTmpDir { (spark, tmpDir) =>
+    "for equality predicates on String columns" in withSparkAndTmpDir { (spark, tmpDir) =>
       {
         val data = loadTestData(spark).na.drop()
 
@@ -129,25 +128,27 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
   it should
     "return a valid filtering of the original dataset " +
-    "for range string columns without using Qbeast" in withSparkAndTmpDir { (spark, tmpDir) =>
-      {
-        val data = loadTestData(spark).na.drop()
+    "for range string columns when using length_hashing" in withSparkAndTmpDir {
+      (spark, tmpDir) =>
+        {
+          val data = loadTestData(spark).na.drop()
 
-        writeTestData(data, Seq("brand", "product_id"), 10000, tmpDir)
+          data.write
+            .format("qbeast")
+            .option("columnsToIndex", "brand:length_hashing")
+            .option("cubeSize", 10000)
+            .save(tmpDir)
 
-        val df = spark.read.format("qbeast").load(tmpDir)
-        val filter_brand = "(`brand` > 'versace')"
+          val df = spark.read.format("qbeast").load(tmpDir)
+          val filter_brand = "(`brand` > 'versace')"
 
-        val filters = Seq(filter_user_lessThan, filter_user_greaterThanOrEq, filter_brand)
-        val filter = filters.mkString(" and ")
-        val qbeastQuery = df.filter(filter)
-        val normalQuery = data.filter(filter)
+          val qbeastQuery = df.filter(filter_brand)
+          val normalQuery = data.filter(filter_brand)
 
-        // The file filtering should not be applied in this particular case
-        an[TestFailedException] shouldBe thrownBy(checkFileFiltering(qbeastQuery))
-        assertLargeDatasetEquality(qbeastQuery, normalQuery, orderedComparison = false)
+          checkFileFiltering(qbeastQuery)
+          assertLargeDatasetEquality(qbeastQuery, normalQuery, orderedComparison = false)
 
-      }
+        }
     }
 
   it should
@@ -288,12 +289,12 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
       }
   }
 
-  it should "pushdown filters with IN predicate with string" in withQbeastContextSparkAndTmpDir {
-    (spark, tmpDir) =>
+  it should "pushdown filters with IN predicate with length_hashing index" in
+    withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
       {
         val data = loadTestData(spark)
 
-        writeTestData(data, Seq("brand"), 10000, tmpDir)
+        writeTestData(data, Seq("brand:length_hashing"), 10000, tmpDir)
 
         val df = spark.read.format("qbeast").load(tmpDir)
 
@@ -308,7 +309,7 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
         assertSmallDatasetEquality(query, originalQuery, orderedComparison = false)
 
       }
-  }
+    }
 
   it should "pushdown regex expressions on strings" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>

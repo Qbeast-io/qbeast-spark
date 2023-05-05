@@ -3,16 +3,14 @@
  */
 package io.qbeast.spark.index.query
 
+import io.qbeast.core.transform.{HashTransformer, Transformer}
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.analysis.Resolver
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.util.TypeUtils
 import org.apache.spark.sql.execution.InSubqueryExec
-import org.apache.spark.sql.types.StringType
 import org.apache.spark.unsafe.types.UTF8String
-
-import scala.util.hashing.MurmurHash3
 
 private[query] trait QueryFiltersUtils {
 
@@ -106,64 +104,70 @@ private[query] trait QueryFiltersUtils {
     }
   }
 
-  def isStringRangeExpression(expression: Expression): Boolean = {
-    val value = expression match {
-      case GreaterThan(_, l: Literal) => l
-      case GreaterThanOrEqual(_, l: Literal) => l
-      case LessThan(l: Literal, _) => l
-      case LessThanOrEqual(l: Literal, _) => l
-      case LessThan(_, l: Literal) => l
-      case LessThanOrEqual(_, l: Literal) => l
-      case GreaterThan(l: Literal, _) => l
-      case GreaterThanOrEqual(l: Literal, _) => l
-      case _ => return false
+  /**
+   * Check if a column is eligible to filter by range
+   * @param transformation the column transformation
+   * @return true if is eligible
+   */
+  def isEligibleColumn(transformer: Transformer): Boolean = {
+    transformer match {
+      case _: HashTransformer => false
+      case _ => true
     }
-
-    value.dataType.isInstanceOf[StringType]
   }
 
   /**
-   * Transform an expression
+   * Transform an IN expression into Range Expressions (GreaterThanOrEqual, LessThanOrEqual)
    * Based on Delta DataSkippingReader
-   * Since we already know this filter are eligible for skipping
-   * we directly output the RangePredicate
    *
-   * @param column
-   * @param values
+   * WARNING: expression that references columns with HashTransformation
+   * would not be converted to a Range Expression
+   * This is because HashTransformation does not have the properties
+   * to order lexicographic strings
+   *
+   * @param column the column involved in the IN predicate
+   * @param columnTransformation the transformation of the particular column
+   * @param values the values in the set of IN predicates
    * @return
    */
-  def inToRangeExpressions(column: Expression, values: Seq[Any]): Seq[Expression] = {
+  def inToRangeExpressions(
+      column: Expression,
+      columnTransformer: Transformer,
+      values: Seq[Any]): Seq[Expression] = {
 
-    val dataType = column.dataType
-
-    // If the type is String
-    // We need to apply first a Hash to understand what are the minimum and maximum
-    // that we need to search with Qbeast
-    if (dataType.isInstanceOf[StringType]) {
-      // Hash the values to match the search with Qbeast
-      val valuesHashed =
-        values.map(v => (v, MurmurHash3.bytesHash(v.asInstanceOf[UTF8String].getBytes)))
-
-      // Create ordering for new values
-      val ordering = new Ordering[(Any, Int)] {
-
-        /**
-         * Compare (Any, Int) by using Int comparison
-         */
-        override def compare(x: (Any, Int), y: (Any, Int)): Int =
-          Ordering[Int].compare(x._2, y._2)
-      }
-
-      val min = Literal(valuesHashed.min(ordering)._1, dataType)
-      val max = Literal(valuesHashed.max(ordering)._1, dataType)
-      Seq(LessThanOrEqual(column, max), GreaterThanOrEqual(column, min))
-
-    } else { // Otherwise we use the implicit ordering
+    if (isEligibleColumn(columnTransformer)) {
+      val dataType = column.dataType
       lazy val ordering = TypeUtils.getInterpretedOrdering(dataType)
       val min = Literal(values.min(ordering), dataType)
       val max = Literal(values.max(ordering), dataType)
       Seq(LessThanOrEqual(column, max), GreaterThanOrEqual(column, min))
-    }
+    } else Seq.empty
+
+//    columnTransformation match {
+//      case l: LengthHashTransformation =>
+//        val valuesHashed = values.map(v => (v, l.transform(v.asInstanceOf[UTF8String].toString)))
+//
+//        // Create ordering for new values
+//        val ordering = new Ordering[(Any, Double)] {
+//
+//          /**
+//           * Compare (Any, Double) by using Double comparison
+//           */
+//          override def compare(x: (Any, Double), y: (Any, Double)): Int =
+//            Ordering[Double].compare(x._2, y._2)
+//        }
+//
+//        val min = Literal(valuesHashed.min(ordering)._1, dataType)
+//        val max = Literal(valuesHashed.max(ordering)._1, dataType)
+//        Seq(LessThanOrEqual(column, max), GreaterThanOrEqual(column, min))
+//
+//      case _: HashTransformation => // do nothing
+//        Seq.empty
+//      case _ =>
+//        val min = Literal(values.min(ordering), dataType)
+//        val max = Literal(values.max(ordering), dataType)
+//        Seq(LessThanOrEqual(column, max), GreaterThanOrEqual(column, min))
+//    }
 
   }
 
@@ -178,19 +182,21 @@ private[query] trait QueryFiltersUtils {
    * @return the sequence of expressions corresponding to the range
    */
 
-  def transformInExpressions(expression: Expression): Seq[Expression] = {
+  def transformInExpressions(
+      expression: Expression,
+      columnTransformer: Transformer): Seq[Expression] = {
     expression match {
       case in @ In(a, values) if in.inSetConvertible =>
-        inToRangeExpressions(a, values.map(_.asInstanceOf[Literal].value))
+        inToRangeExpressions(a, columnTransformer, values.map(_.asInstanceOf[Literal].value))
 
       // The optimizer automatically converts all but the shortest eligible IN-lists to InSet.
       case InSet(a, values) =>
-        inToRangeExpressions(a, values.toSeq)
+        inToRangeExpressions(a, columnTransformer, values.toSeq)
 
       // Treat IN(... subquery ...) as a normal IN-list, since the subquery already ran before now.
       case in: InSubqueryExec =>
         // At this point the subquery has been materialized so it is safe to call get on the Option.
-        inToRangeExpressions(in.child, in.values().get.toSeq)
+        inToRangeExpressions(in.child, columnTransformer, in.values().get.toSeq)
 
       // If the Filter involves any other predicates, return without pre-processing
       case other => other :: Nil

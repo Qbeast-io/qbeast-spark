@@ -4,7 +4,13 @@ import io.qbeast.TestClasses.T3
 import io.qbeast.core.model._
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.core.transform.{HashTransformer, LinearTransformation, LinearTransformer}
+import io.qbeast.core.transform.{
+  HashTransformer,
+  LengthHashTransformation,
+  LengthHashTransformer,
+  LinearTransformation,
+  LinearTransformer
+}
 
 class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
 
@@ -140,7 +146,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
         LinearTransformer("b", DoubleDataType))
       revision.transformations.size shouldBe 2
 
-      val a_transformation = revision.transformations(0)
+      val a_transformation = revision.transformations.head
       a_transformation should not be null
       a_transformation shouldBe a[LinearTransformation]
       a_transformation.asInstanceOf[LinearTransformation].minNumber shouldBe 0
@@ -177,4 +183,36 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
     revision.transformations shouldBe Vector.empty
 
   })
+
+  it should "create correct revision with LengthHashTransformation and Stats" in withSpark(
+    spark => {
+      import spark.implicits._
+      val schema = 0.to(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).toDF().schema
+      val qid = QTableID("t")
+      val revision =
+        SparkRevisionFactory.createNewRevision(
+          qid,
+          schema,
+          Map(
+            QbeastOptions.COLUMNS_TO_INDEX -> "a:length_hashing,b:length_hashing",
+            QbeastOptions.STATS ->
+              """{ "a_length": 10 }""".stripMargin,
+            QbeastOptions.CUBE_SIZE -> "10"))
+
+      revision.tableID shouldBe qid
+      revision.revisionID shouldBe 1
+      revision.desiredCubeSize shouldBe 10
+      revision.columnTransformers shouldBe Vector(
+        LengthHashTransformer("a", IntegerDataType),
+        LengthHashTransformer("b", DoubleDataType))
+      revision.transformations.size shouldBe 2
+      revision.transformations.foreach(t => t shouldBe a[LengthHashTransformation])
+      val firstTransformation = revision.transformations.head
+      val secondTransformation = revision.transformations(1)
+      // We should pick the provided length in the stats
+      firstTransformation.asInstanceOf[LengthHashTransformation].encodingLength shouldBe 10
+      // If no length is provided, we set the default lengthEncoding to 11
+      secondTransformation.asInstanceOf[LengthHashTransformation].encodingLength shouldBe 11
+
+    })
 }

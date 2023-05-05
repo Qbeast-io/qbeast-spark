@@ -41,7 +41,6 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
     // We could Recieve data filters like
     // qbeast_hash(col1) >= 183483983773 AND col1 > 10 AND col1 < 40
     // This should be split in Seq((qbeast_hash), (col1 > 10), (col < 40))
-
     val conjunctiveSplit =
       dataFilters
         .filter(!SubqueryExpression.hasSubquery(_))
@@ -50,10 +49,8 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
     // Extract the weight filter from conjunctiveSplit
     val weightFilters = conjunctiveSplit.filter(isQbeastWeightExpression)
 
-    // Discard string range predicates and
     // Transform the remaining IN filters into Range Predicates (>=, <=)
-    val transformedFilters =
-      conjunctiveSplit.filterNot(isStringRangeExpression).flatMap(transformInExpressions)
+    val transformedFilters = conjunctiveSplit // .flatMap(transformInExpressions)
 
     // Filter those that involve any Qbeast Indexed Column
     val queryFilters = transformedFilters.filter(hasQbeastColumnReference(_, indexedColumns))
@@ -77,12 +74,17 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
     // The predicates should not be empty
     assert(rangeExpressions.nonEmpty)
 
-    val indexedColumns = revision.columnTransformers.map(_.columnName)
+    val transformations = revision.transformations
+    val indexedColumns = revision.columnTransformers
 
     val (from, to) =
-      indexedColumns.map { columnName =>
+      indexedColumns.map { columnTransformer =>
+        val columnName = columnTransformer.columnName
         // Get the filters related to the column
-        val columnFilters = rangeExpressions.filter(hasColumnReference(_, columnName))
+        // And transform any IN expression
+        val columnFilters = rangeExpressions
+          .filter(hasColumnReference(_, columnName))
+          .flatMap(transformInExpressions(_, columnTransformer))
 
         // Get the coordinates of the column in the filters,
         // if not found, use the overall coordinates
@@ -111,8 +113,7 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
         (columnFrom, columnTo)
       }.unzip
 
-    QuerySpace(from, to, revision.transformations)
-
+    QuerySpace(from, to, transformations)
   }
 
   /**
