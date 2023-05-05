@@ -7,12 +7,14 @@ class QbeastBlockTest extends AnyFlatSpec with Matchers {
   "QbeastBlock" should "find all the keys in the map" in {
     val blockMetadata: Map[String, String] = Map(
       "minWeight" -> "19217",
+      "cube" -> "",
       "maxWeight" -> "11111111",
       "state" -> "FlOODED",
       "revision" -> "1",
       "elementCount" -> "777")
 
     val qbeastBlock = QbeastBlock("path", blockMetadata, 0L, 0L)
+    qbeastBlock.cube shouldBe ""
     qbeastBlock.minWeight shouldBe Weight(19217)
     qbeastBlock.maxWeight shouldBe Weight(11111111)
     qbeastBlock.state shouldBe "FlOODED"
@@ -28,6 +30,7 @@ class QbeastBlockTest extends AnyFlatSpec with Matchers {
   it should "throw error if the types are different" in {
     val blockMetadata: Map[String, String] = Map(
       "minWeight" -> "19217",
+      "cube" -> "",
       "maxWeight" -> "11111111",
       "state" -> "FlOODED",
       "revision" -> "bad_type",
