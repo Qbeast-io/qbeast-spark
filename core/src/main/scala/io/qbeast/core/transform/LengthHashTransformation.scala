@@ -14,7 +14,9 @@ case class LengthHashTransformation(nullValue: Any = Random.nextInt(), encodingL
       case a: Array[Byte] => a.mkString
     }
 
-    val newString = string.padTo(encodingLength, 'a')
+    val newString =
+      if (string.length < encodingLength) string.padTo(encodingLength, 'a')
+      else string.take(encodingLength)
     val hash = MurmurHash3.bytesHash(newString.getBytes)
     (hash & 0x7fffffff).toDouble / Int.MaxValue
   }
