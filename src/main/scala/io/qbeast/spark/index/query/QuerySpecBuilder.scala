@@ -53,7 +53,7 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
     // Discard string range predicates and
     // Transform the remaining IN filters into Range Predicates (>=, <=)
     val transformedFilters =
-      conjunctiveSplit.filterNot(isStringRangeExpression).flatMap(transformInExpressions)
+      conjunctiveSplit.flatMap(transformInExpressions)
 
     // Filter those that involve any Qbeast Indexed Column
     val queryFilters = transformedFilters.filter(hasQbeastColumnReference(_, indexedColumns))

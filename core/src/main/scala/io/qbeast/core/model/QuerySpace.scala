@@ -57,7 +57,7 @@ case class EmptySpace() extends QuerySpace {
  * @param from inclusive starting range
  * @param to   exclusive ending query range
  */
-case class QuerySpaceFromTo(from: Seq[Option[Double]], to: Seq[Option[Double]])
+class QuerySpaceFromTo(private val from: Seq[Option[Double]], private val to: Seq[Option[Double]])
     extends QuerySpace {
 
   private def intersects(f: Double, t: Double, cube: CubeId, coordinate: Int): Boolean = {
@@ -121,18 +121,15 @@ object QuerySpace {
     var isPointStringSearch = false
     var (isOverlappingSpace, isAllSpace) = (true, true)
 
-    // TODO This implementation may cause problems when a query
-    //  with (>=, <=) on HashTransformation is issued
-    //  without transforming the values first
     from.indices.foreach { i =>
       val (isOverlappingDim, isAllDim) = (from(i), to(i), transformations(i)) match {
-        case (Some(f), Some(t), _: HashTransformation) if (f == t) =>
+        case (Some(f), Some(t), _: HashTransformation) if f == t =>
           isPointStringSearch = true
+          (true, true)
+        case (_, _, _: HashTransformation) | (None, None, _) =>
           (true, true)
         case (Some(f), Some(t), _) =>
           (f <= t && f <= 1d && t >= 0d, f <= t && f <= 0d && t >= 1d)
-        case (_, _, _: HashTransformation) | (None, None, _) =>
-          (true, true)
         case (None, Some(t), _) =>
           (t >= 0d, t >= 1d)
         case (Some(f), None, _) =>
@@ -144,7 +141,7 @@ object QuerySpace {
     }
 
     if (isAllSpace && !isPointStringSearch) AllSpace()
-    else if (isPointStringSearch || isOverlappingSpace) QuerySpaceFromTo(from, to)
+    else if (isPointStringSearch || isOverlappingSpace) new QuerySpaceFromTo(from, to)
     else EmptySpace()
   }
 
