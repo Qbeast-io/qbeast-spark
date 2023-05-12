@@ -45,7 +45,7 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
 
   protected def matchingBlocks(
       partitionFilters: Seq[Expression],
-      dataFilters: Seq[Expression]): Seq[QbeastBlock] = {
+      dataFilters: Seq[Expression]): Iterable[QbeastBlock] = {
 
     val querySpecBuilder = new QuerySpecBuilder(dataFilters ++ partitionFilters)
     val queryExecutor = new QueryExecutor(querySpecBuilder, qbeastSnapshot)

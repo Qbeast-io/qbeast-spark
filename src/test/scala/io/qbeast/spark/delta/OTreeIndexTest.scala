@@ -16,7 +16,7 @@ class OTreeIndexTest extends QbeastIntegrationTestSpec {
     // Testing protected method
     override def matchingBlocks(
         partitionFilters: Seq[Expression],
-        dataFilters: Seq[Expression]): Seq[QbeastBlock] =
+        dataFilters: Seq[Expression]): Iterable[QbeastBlock] =
       super.matchingBlocks(partitionFilters, dataFilters)
 
   }

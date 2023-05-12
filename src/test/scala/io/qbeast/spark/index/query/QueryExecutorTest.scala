@@ -1,39 +1,13 @@
 package io.qbeast.spark.index.query
 
-import io.qbeast.TestClasses.T2
 import io.qbeast.core.model.{CubeId, QbeastBlock, Weight, WeightRange}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
-import org.apache.spark.sql.catalyst.expressions.{
-  And,
-  Expression,
-  GreaterThanOrEqual,
-  LessThan,
-  Literal
-}
+
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.{col, expr}
-import org.apache.spark.sql.{Column, SparkSession}
 
-class QueryExecutorTest extends QbeastIntegrationTestSpec {
-
-  private def createDF(size: Int, spark: SparkSession) = {
-    import spark.implicits._
-
-    0.to(size)
-      .map(i => T2(i, i.toDouble))
-      .toDF()
-      .as[T2]
-
-  }
-
-  private def weightFilters(weightRange: WeightRange): Expression = {
-    val qbeast_hash = new QbeastMurmur3Hash(Seq(new Column("a").expr, new Column("c").expr))
-    val lessThan = LessThan(qbeast_hash, Literal(weightRange.to.value))
-    val greaterThanOrEqual = GreaterThanOrEqual(qbeast_hash, Literal(weightRange.from.value))
-    And(lessThan, greaterThanOrEqual)
-  }
+class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
 
   behavior of "QueryExecutor"
 
@@ -193,7 +167,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec {
       indexStatus.copy(cubesStatuses = indexStatus.cubesStatuses - cubeToRemove)
 
     val querySpecBuilder = new QuerySpecBuilder(Seq.empty)
-    val querySpec = querySpecBuilder.build(revision)
+    val querySpec = querySpecBuilder.build(revision).head
     val queryExecutor = new QueryExecutor(querySpecBuilder, qbeastSnapshot)
     val matchFiles = queryExecutor
       .executeRevision(querySpec, faultyIndexStatus)
