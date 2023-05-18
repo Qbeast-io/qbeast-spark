@@ -7,6 +7,8 @@ import org.apache.spark.sql.catalyst.expressions.LeafExpression
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.types.{DataType, BooleanType}
 import org.apache.spark.sql.catalyst.expressions.codegen.CodegenFallback
+import io.qbeast.core.model.WeightRange
+import io.qbeast.core.model.Weight
 
 /**
  * Qbeast sample expression is used to emulate sample push down for queries
@@ -33,4 +35,7 @@ case class QbeastSample(lowerBound: Double, upperBound: Double)
   override def prettyName: String = "qbeast_sample"
 
   override def toString(): String = s"$prettyName($lowerBound, $upperBound)"
+
+  def toWeightRange(): WeightRange = WeightRange(Weight(lowerBound), Weight(upperBound))
+
 }
