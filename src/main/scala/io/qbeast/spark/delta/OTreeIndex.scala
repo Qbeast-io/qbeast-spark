@@ -9,7 +9,6 @@ import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{Expression, GenericInternalRow}
 import org.apache.spark.sql.delta.{DeltaLog, Snapshot}
-import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.files.TahoeLogFileIndex
 import org.apache.spark.sql.execution.datasources.{FileIndex, PartitionDirectory}
 import org.apache.spark.sql.types.StructType
@@ -57,15 +56,16 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
    * @return
    */
   private def stagingFiles: Seq[FileStatus] = {
-    qbeastSnapshot.loadStagingBlocks().collect().map { a: AddFile =>
-      new FileStatus(
-        /* length */ a.size,
-        /* isDir */ false,
-        /* blockReplication */ 0,
-        /* blockSize */ 1,
-        /* modificationTime */ a.modificationTime,
-        absolutePath(a.path))
-    }
+//    qbeastSnapshot.loadStagingBlocks().collect().map { a: AddFile =>
+//      new FileStatus(
+//        /* length */ a.size,
+//        /* isDir */ false,
+//        /* blockReplication */ 0,
+//        /* blockSize */ 1,
+//        /* modificationTime */ a.modificationTime,
+//        absolutePath(a.path))
+//    }
+    Nil
   }
 
   override def listFiles(
