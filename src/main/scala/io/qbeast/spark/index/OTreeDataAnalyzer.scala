@@ -208,19 +208,20 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       levelCubes(level)
         .filterNot(cd => skipCube(cd._1, cubeNormalizedWeights, isReplication))
         .foreach { case (cube, domain) =>
+          val parentWeight = cube.parent match {
+            case None => 0d
+            case Some(parent) =>
+              if (isReplication && !cubeNormalizedWeights.contains(parent)) {
+                indexStatus.cubesStatuses(parent).normalizedWeight
+              } else cubeNormalizedWeights(parent)
+          }
+
+          val treeSize = domain * (1d - parentWeight).max(1d)
+
           val normalizedWeight =
-            if (domain <= desiredCubeSize && !isReplication) {
-              NormalizedWeight(desiredCubeSize, domain.toLong)
-            } else {
-              val parentWeight = cube.parent match {
-                case None => 0d
-                case Some(parent) =>
-                  if (isReplication && !cubeNormalizedWeights.contains(parent)) {
-                    indexStatus.cubesStatuses(parent).normalizedWeight
-                  } else cubeNormalizedWeights(parent)
-              }
-              parentWeight + (desiredCubeSize / domain)
-            }
+            if (treeSize <= desiredCubeSize && !isReplication) {
+              NormalizedWeight(desiredCubeSize, treeSize.toLong)
+            } else parentWeight + (desiredCubeSize / domain)
 
           cubeNormalizedWeights += (cube -> normalizedWeight)
         }
