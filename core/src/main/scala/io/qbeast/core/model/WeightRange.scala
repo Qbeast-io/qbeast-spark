@@ -15,14 +15,3 @@ case class WeightRange(from: Weight, to: Weight) {
    */
   def isEmpty = from >= to
 }
-
-/**
- * WeightRange companion object.
- */
-object WeightRange {
-
-  /**
-   * The range containing all the possible weights.
-   */
-  val All: WeightRange = WeightRange(Weight.MinValue, Weight.MaxValue)
-}
