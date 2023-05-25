@@ -24,7 +24,8 @@ case class QbeastSample(lowerBound: Double, upperBound: Double)
     with CodegenFallback
     with Serializable {
 
-  override def foldable: Boolean = true
+  // foldable must be false, otherwise the filter will be removed from the plan
+  override def foldable: Boolean = false
 
   override def nullable: Boolean = false
 

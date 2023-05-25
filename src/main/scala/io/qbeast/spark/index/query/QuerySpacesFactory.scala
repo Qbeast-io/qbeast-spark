@@ -3,29 +3,30 @@
  */
 package io.qbeast.spark.index.query
 
-import io.qbeast.core.model.{AllSpace, QuerySpace, Revision}
+import io.qbeast.core.model.AllSpace
+import io.qbeast.core.model.QuerySpace
+import io.qbeast.core.model.Revision
 import io.qbeast.spark.internal.expressions.QbeastSample
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.analysis.Resolver
-import org.apache.spark.sql.catalyst.expressions.{
-  Or,
-  Expression,
-  And,
-  SubqueryExpression,
-  LessThan,
-  AttributeReference,
-  Literal,
-  LessThanOrEqual,
-  GreaterThanOrEqual,
-  GreaterThan,
-  EqualTo,
-  IsNull,
-  In,
-  InSet
-}
+import org.apache.spark.sql.catalyst.expressions.And
+import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.catalyst.expressions.EqualTo
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.GreaterThan
+import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual
+import org.apache.spark.sql.catalyst.expressions.In
+import org.apache.spark.sql.catalyst.expressions.InSet
+import org.apache.spark.sql.catalyst.expressions.IsNull
+import org.apache.spark.sql.catalyst.expressions.LessThan
+import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual
+import org.apache.spark.sql.catalyst.expressions.Literal
+import org.apache.spark.sql.catalyst.expressions.Or
+import org.apache.spark.sql.catalyst.expressions.SubqueryExpression
 import org.apache.spark.sql.catalyst.util.TypeUtils
 import org.apache.spark.sql.execution.InSubqueryExec
-import org.apache.spark.sql.types.{NumericType, StringType}
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.types.NumericType
+import org.apache.spark.sql.types.StringType
 import org.apache.spark.unsafe.types.UTF8String
 
 /**
@@ -37,6 +38,14 @@ private[query] class QuerySpacesFactory(spark: SparkSession, filters: Seq[Expres
   private lazy val cnf: Seq[Seq[Seq[Expression]]] = normalizeFilters(filters)
   private lazy val resolver: Resolver = spark.sessionState.analyzer.resolver
 
+  /**
+   * Creates query spaces for a given revision. The returned query spaces are
+   * organized as intersection of unions, i.e. the outer Seq models the
+   * intersection of unions modeled by the inner Seq.
+   *
+   * @param revision the revision to create the query spaces for
+   * @return intersection of unions of QuerySpace instances
+   */
   def newQuerySpaces(revision: Revision): Seq[Seq[QuerySpace]] = {
     cnf.map(newUnion(revision))
   }

@@ -3,19 +3,20 @@
  */
 package io.qbeast.spark.internal.sources
 
+import io.qbeast.context.QbeastContext
+import io.qbeast.spark.spark.delta.EmptyFileIndex
+import io.qbeast.spark.spark.delta.OTreeFileIndex
+import io.qbeast.spark.spark.delta.QbeastFileFormat
+import io.qbeast.spark.table.IndexedTable
+import org.apache.hadoop.fs.Path
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.sources.InsertableRelation
-import org.apache.spark.sql.SQLContext
-import org.apache.spark.sql.types.{StructField, StructType}
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.SparkSession
-import io.qbeast.spark.delta.{EmptyIndex, OTreeIndex}
-import org.apache.spark.sql.execution.datasources.HadoopFsRelation
-import io.qbeast.spark.table.IndexedTable
-import io.qbeast.context.QbeastContext
-import org.apache.hadoop.fs.Path
-import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
 
 /**
  * Companion object for QbeastBaseRelation
@@ -45,11 +46,11 @@ object QbeastBaseRelation {
       // This could happen if we CREATE/REPLACE TABLE without inserting data
       // In this case, we use the options variable
       new HadoopFsRelation(
-        EmptyIndex,
+        EmptyFileIndex,
         partitionSchema = StructType(Seq.empty[StructField]),
         dataSchema = schema,
         bucketSpec = None,
-        new ParquetFileFormat(),
+        new QbeastFileFormat(),
         options)(spark) with InsertableRelation {
         def insert(data: DataFrame, overwrite: Boolean): Unit = {
           table.save(data, options, append = !overwrite)
@@ -62,18 +63,13 @@ object QbeastBaseRelation {
       val cubeSize = revision.desiredCubeSize
       val parameters =
         Map[String, String]("columnsToIndex" -> columnsToIndex, "cubeSize" -> cubeSize.toString())
-
       val path = new Path(tableID.id)
-      val fileIndex = OTreeIndex(spark, path)
-      val bucketSpec: Option[BucketSpec] = None
-      val file = new ParquetFileFormat()
-
       new HadoopFsRelation(
-        fileIndex,
+        OTreeFileIndex(spark, path),
         partitionSchema = StructType(Seq.empty[StructField]),
         dataSchema = schema,
-        bucketSpec = bucketSpec,
-        file,
+        bucketSpec = None,
+        new QbeastFileFormat(),
         parameters)(spark) with InsertableRelation {
         def insert(data: DataFrame, overwrite: Boolean): Unit = {
           table.save(data, parameters, append = !overwrite)

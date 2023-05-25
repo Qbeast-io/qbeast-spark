@@ -3,26 +3,25 @@
  */
 package io.qbeast.spark.index.query
 
-import io.qbeast.core.model.{
-  AllSpace,
-  CubeStatus,
-  EmptySpace,
-  IndexStatus,
-  QbeastBlock,
-  QuerySpace,
-  QuerySpaceFromTo,
-  Revision,
-  StagingUtils,
-  Weight,
-  WeightRange
-}
+import io.qbeast.core.model.AllSpace
+import io.qbeast.core.model.CubeStatus
+import io.qbeast.core.model.EmptySpace
+import io.qbeast.core.model.IndexStatus
+import io.qbeast.core.model.QbeastBlock
+import io.qbeast.core.model.QuerySpace
+import io.qbeast.core.model.QuerySpaceFromTo
+import io.qbeast.core.model.Revision
+import io.qbeast.core.model.StagingUtils
+import io.qbeast.core.model.Weight
+import io.qbeast.core.model.WeightRange
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.expressions.QbeastSample
 import io.qbeast.spark.utils.State
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.delta.actions.AddFile
+
 import scala.collection.mutable
-import org.apache.spark.sql.SparkSession
 
 /**
  * Query to retrive data from the Qbeast table. Query is a one-time object
@@ -49,7 +48,6 @@ class Query(spark: SparkSession, snapshot: DeltaQbeastSnapshot, filters: Seq[Exp
    * data to read from a single table file
    */
   def execute(): Seq[ResultPart] = {
-    parts.clear()
     if (range.isDefined && range.get.isEmpty) {
       return Seq.empty
     }
@@ -66,7 +64,7 @@ class Query(spark: SparkSession, snapshot: DeltaQbeastSnapshot, filters: Seq[Exp
   }
 
   private def queryStagingArea(): Unit = {
-    snapshot.loadStagingBlocks().foreach(queryStagingBlock(_))
+    snapshot.loadStagingBlocks().collect().foreach(queryStagingBlock)
   }
 
   private def queryStagingBlock(block: AddFile): Unit = {
