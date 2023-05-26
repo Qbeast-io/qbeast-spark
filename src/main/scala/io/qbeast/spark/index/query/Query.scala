@@ -128,18 +128,27 @@ class Query(spark: SparkSession, snapshot: DeltaQbeastSnapshot, filters: Seq[Exp
             // By default include all cube files
             var fileIterator = files.iterator
             if (range.isDefined) {
-              if (range.get.to > maxWeight) {
-                // Cube does not have enough data
+              // A sample is requested
+              val WeightRange(from, to) = range.get
+              if (maxWeight < to) {
+                // Cube does not have enough data for the requested sample
+                // Include files depending on the cube state and then proccess
+                // the child cubes
                 if (index.replicatedSet.contains(cubeId)) {
-                  // Replicated cube should be skipped
+                  // The cube data is replicated, skip the cube files
                   fileIterator = Iterator.empty
                 } else if (index.announcedSet.contains(cubeId)) {
-                  // Filter out the files which are announced for replication
+                  // Exclude the announced files
                   fileIterator = fileIterator.filter(_.state != State.ANNOUNCED)
                 }
+                // Exclude files where all the data is out of weight range
+                fileIterator = fileIterator.filter(_.maxWeight < from)
+                // Process the child cubes
+                cubeId.children.filter(space.intersectsWith(_)).foreach(stack.push)
               }
-              // Files should have data with weight within the specifed range
-              fileIterator = fileIterator.filter(_.maxWeight > range.get.from)
+            } else {
+              // Full dataset query is requested, process the child cubes
+              cubeId.children.filter(space.intersectsWith(_)).foreach(stack.push)
             }
             fileIterator
               .filter(file => pathFilter(file.path))
