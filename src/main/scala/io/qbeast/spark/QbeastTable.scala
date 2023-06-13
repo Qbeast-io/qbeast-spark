@@ -4,18 +4,17 @@
 package io.qbeast.spark
 
 import io.qbeast.context.QbeastContext
-import io.qbeast.core.model.{QTableID, RevisionID, StagingUtils}
+import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.RevisionID
+import io.qbeast.core.model.StagingUtils
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.internal.commands.{
-  AnalyzeTableCommand,
-  CompactTableCommand,
-  OptimizeTableCommand
-}
 import io.qbeast.spark.table._
+import io.qbeast.spark.utils.CubeSizeMetrics
+import io.qbeast.spark.utils.IndexMetrics
 import io.qbeast.spark.utils.MathOps.depthOnBalance
-import io.qbeast.spark.utils.{CubeSizeMetrics, IndexMetrics}
+import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.{AnalysisExceptionFactory, SparkSession}
 
 /**
  * Class for interacting with QbeastTable at a user level
@@ -95,8 +94,7 @@ class QbeastTable private (
   def optimize(revisionID: RevisionID): Unit = {
     if (!isStaging(revisionID)) {
       checkRevisionAvailable(revisionID)
-      OptimizeTableCommand(revisionID, indexedTable)
-        .run(sparkSession)
+      indexedTable.optimize(revisionID)
     }
   }
 
@@ -114,18 +112,12 @@ class QbeastTable private (
    * @return the sequence of cubes to optimize in string representation
    */
   def analyze(revisionID: RevisionID): Seq[String] = {
-    if (isStaging(revisionID)) Seq.empty
-    else {
-      checkRevisionAvailable(revisionID)
-      AnalyzeTableCommand(revisionID, indexedTable)
-        .run(sparkSession)
-        .map(_.getString(0))
-    }
+    checkRevisionAvailable(revisionID)
+    if (isStaging(revisionID)) Seq.empty else indexedTable.analyze(revisionID)
   }
 
   def analyze(): Seq[String] = {
-    if (isStaging(latestRevisionAvailableID)) Seq.empty
-    else analyze(latestRevisionAvailableID)
+    analyze(latestRevisionAvailableID)
   }
 
   /**
@@ -135,9 +127,7 @@ class QbeastTable private (
    */
   def compact(revisionID: RevisionID): Unit = {
     checkRevisionAvailable(revisionID)
-    CompactTableCommand(revisionID, indexedTable)
-      .run(sparkSession)
-      .map(_.getString(0))
+    indexedTable.compact(revisionID)
   }
 
   def compact(): Unit = {
@@ -160,7 +150,7 @@ class QbeastTable private (
   }
 
   def indexedColumns(): Seq[String] = {
-    latestRevisionAvailable.columnTransformers.map(_.columnName)
+    indexedColumns(latestRevisionAvailableID)
   }
 
   /**
