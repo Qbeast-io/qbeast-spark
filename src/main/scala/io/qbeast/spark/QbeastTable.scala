@@ -82,7 +82,7 @@ class QbeastTable private (
       fileLimit: Option[Int] = None,
       overflowLimit: Option[Double] = None,
       cubesToReplicate: Seq[String] = Seq.empty): Unit = {
-    throw new UnsupportedOperationException("Not implemented yet")
+    indexedTable.optimize(revisionID, fileLimit, overflowLimit, cubesToReplicate)
   }
 
   /**
