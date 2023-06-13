@@ -16,7 +16,6 @@ import io.qbeast.spark.utils.MathOps.depthOnBalance
 import io.qbeast.spark.utils.{CubeSizeMetrics, IndexMetrics}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{AnalysisExceptionFactory, SparkSession}
-import io.qbeast.core.model.CubeId
 
 /**
  * Class for interacting with QbeastTable at a user level
@@ -83,7 +82,7 @@ class QbeastTable private (
       revisionID: Option[RevisionID] = None,
       fileLimit: Option[Int] = None,
       overflowLimit: Option[Double] = None,
-      cubesToReplicate: Seq[CubeId] = Seq.empty): Unit = {
+      cubesToReplicate: Seq[String] = Seq.empty): Unit = {
     throw new UnsupportedOperationException("Not implemented yet")
   }
 
