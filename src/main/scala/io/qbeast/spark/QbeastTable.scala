@@ -16,6 +16,7 @@ import io.qbeast.spark.utils.MathOps.depthOnBalance
 import io.qbeast.spark.utils.{CubeSizeMetrics, IndexMetrics}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{AnalysisExceptionFactory, SparkSession}
+import io.qbeast.core.model.CubeId
 
 /**
  * Class for interacting with QbeastTable at a user level
@@ -48,6 +49,42 @@ class QbeastTable private (
         s"Revision $revisionID does not exists. " +
           s"The latest revision available is $latestRevisionAvailableID")
     }
+  }
+
+  /**
+   * Optimizes the index by compacting and replicating the data which belong
+   * to some index revision. Compaction reduces the number of cube files, and
+   * replication makes the cube data available from the child cubes as well.
+   * Both techniques allow to make the queries more efficient.
+   *
+   * The revision identifier specifies the index revision to optimize, if not
+   * provided then the latest revision is used. In case of the staging area only
+   * compaction is applied.
+   *
+   * The file limit defines how many files a cube should have to be included
+   * into the compaction process.
+   *
+   * The overflow is the ratio (cubeSize - preferredCubeSize) /
+   * preferredCubeSize, e.g. overflow 0.2 means that the cube has 1.2 times more
+   * elements than the preferred cube size. Overflow limit defines the cubes
+   * with too many elements and which need optimization.
+   *
+   * Those cubes which need replication should be specified explicitly. For such
+   * cubes compaction is performed even if they meet neither file nor overflow
+   * limit criteria.
+   *
+   * @param revisionID the revision identifier, if None then the lastest
+   * revision is used
+   * @param fileLimit: the file limit
+   * @param overflowLimit the overflow limit
+   * @param cubesToReplicate the identifiers of the cubes to replicate
+   */
+  def optimize(
+      revisionID: Option[RevisionID] = None,
+      fileLimit: Option[Int] = None,
+      overflowLimit: Option[Double] = None,
+      cubesToReplicate: Seq[CubeId] = Seq.empty): Unit = {
+    throw new UnsupportedOperationException("Not implemented yet")
   }
 
   /**
