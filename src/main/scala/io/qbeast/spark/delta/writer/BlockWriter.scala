@@ -93,7 +93,7 @@ case class BlockWriter(
         case BlockContext(blockStats, _, _, _) if blockStats.elementCount == 0 =>
           Iterator.empty // Do nothing, this  is a empty partition
         case BlockContext(
-              BlockStats(cube, maxWeight, minWeight, state, rowCount),
+              stats @ BlockStats(cube, maxWeight, minWeight, state, rowCount),
               writer,
               path,
               blockStatsTracker) =>
@@ -102,6 +102,7 @@ case class BlockWriter(
             TagUtils.minWeight -> minWeight.value.toString,
             TagUtils.maxWeight -> maxWeight.value.toString,
             TagUtils.state -> state,
+            TagUtils.replicated -> stats.replicated.toString,
             TagUtils.revision -> revision.revisionID.toString,
             TagUtils.elementCount -> rowCount.toString)
 

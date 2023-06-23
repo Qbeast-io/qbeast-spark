@@ -4,6 +4,7 @@
 package io.qbeast.spark.delta.writer
 
 import io.qbeast.core.model.Weight
+import io.qbeast.spark.utils.State
 
 /**
  * Stats of a data block.
@@ -22,6 +23,11 @@ case class BlockStats protected (
     elementCount: Long) {
 
   /**
+   * Returns whether he block is replicated.
+   */
+  def replicated: Boolean = state != State.FLOODED
+
+  /**
    * Update the BlockStats by computing minWeight = min(this.minWeight, minWeight).
    * This also updates the elementCount of the BlocksStats
    * @param minWeight the Weight to compare with the current one
@@ -33,7 +39,7 @@ case class BlockStats protected (
   }
 
   override def toString: String =
-    s"BlocksStats($cube,$maxWeight,$minWeight,$state,$elementCount)"
+    s"BlocksStats($cube,$maxWeight,$minWeight,$state,$replicated,$elementCount)"
 
 }
 

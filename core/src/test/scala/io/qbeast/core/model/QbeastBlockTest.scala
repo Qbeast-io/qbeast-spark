@@ -10,6 +10,7 @@ class QbeastBlockTest extends AnyFlatSpec with Matchers {
       "cube" -> "",
       "maxWeight" -> "11111111",
       "state" -> "FlOODED",
+      "replicated" -> "false",
       "revision" -> "1",
       "elementCount" -> "777")
 
@@ -33,6 +34,7 @@ class QbeastBlockTest extends AnyFlatSpec with Matchers {
       "cube" -> "",
       "maxWeight" -> "11111111",
       "state" -> "FlOODED",
+      "replicated" -> "false",
       "revision" -> "bad_type",
       "elementCount" -> "777")
 

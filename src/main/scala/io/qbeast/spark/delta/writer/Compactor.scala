@@ -57,6 +57,7 @@ case class Compactor(
     })
 
     val state = tableChanges.cubeState(cubeId).getOrElse(State.FLOODED)
+    val replicated = state != State.FLOODED
     val revision = tableChanges.updatedRevision
 
     // Update the tags of the block with the information of the cubeBlocks
@@ -68,6 +69,7 @@ case class Compactor(
           TagUtils.minWeight -> minWeight.value.toString,
           TagUtils.maxWeight -> maxWeight.value.toString,
           TagUtils.state -> state,
+          TagUtils.replicated -> replicated.toString,
           TagUtils.revision -> revision.revisionID.toString,
           TagUtils.elementCount -> elementCount.toString)
       }

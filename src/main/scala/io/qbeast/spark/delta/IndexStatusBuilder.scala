@@ -61,6 +61,7 @@ private[delta] class IndexStatusBuilder(
           Weight.MinValue,
           maxWeight,
           FLOODED,
+          false,
           0,
           addFile.size,
           addFile.modificationTime))
