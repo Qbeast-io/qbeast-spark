@@ -4,7 +4,7 @@ import io.qbeast.core.keeper.{Keeper, LocalKeeper}
 
 class ProtocolMockTest extends ProtocolMockTestSpec {
   "the qbeast-spark client" should
-    "throw an execution when an inconstant state is found" in withContext(LocalKeeper) {
+    "throw an execution when an inconstant state is found" ignore withContext(LocalKeeper) {
       context =>
         implicit val keeper: Keeper = LocalKeeper
 

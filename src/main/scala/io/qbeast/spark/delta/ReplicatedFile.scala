@@ -12,7 +12,9 @@ import org.apache.spark.sql.delta.actions.AddFile
 object ReplicatedFile {
 
   def apply(addFile: AddFile): AddFile = {
-    val newTags = addFile.tags.updated(TagUtils.state, State.REPLICATED)
+    val newTags = addFile.tags
+      .updated(TagUtils.state, State.REPLICATED)
+      .updated(TagUtils.replicated, true.toString())
     addFile.copy(tags = newTags, modificationTime = System.currentTimeMillis())
   }
 

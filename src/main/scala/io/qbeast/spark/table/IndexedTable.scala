@@ -5,16 +5,20 @@ package io.qbeast.spark.table
 
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model._
-import io.qbeast.spark.delta.{CubeDataLoader, StagingDataManager, StagingResolution}
+import io.qbeast.spark.delta.CubeDataLoader
+import io.qbeast.spark.delta.StagingDataManager
+import io.qbeast.spark.delta.StagingResolution
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.spark.internal.QbeastOptions.{COLUMNS_TO_INDEX, CUBE_SIZE}
+import io.qbeast.spark.internal.QbeastOptions.COLUMNS_TO_INDEX
+import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
+import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame}
 
 import java.util.ConcurrentModificationException
 
@@ -137,6 +141,7 @@ private[table] class IndexedTableImpl(
     private val revisionBuilder: RevisionFactory[StructType])
     extends IndexedTable
     with StagingUtils {
+
   private var snapshotCache: Option[QbeastSnapshot] = None
 
   override def exists: Boolean = !snapshot.isInitial
@@ -347,8 +352,7 @@ private[table] class IndexedTableImpl(
           QbeastColumns.cubeToReplicateColumnName)
       val (qbeastData, tableChanges) =
         indexManager.optimize(dataToReplicate, indexStatus)
-      val fileActions =
-        dataWriter.write(tableID, schema, qbeastData, tableChanges)
+      val fileActions = dataWriter.write(tableID, schema, qbeastData, tableChanges)
       (tableChanges, fileActions)
     }
 

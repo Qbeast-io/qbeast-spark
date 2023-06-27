@@ -23,7 +23,7 @@ case class BlockStats protected (
     elementCount: Long) {
 
   /**
-   * Returns whether he block is replicated.
+   * Returns whether the block is replicated.
    */
   def replicated: Boolean = state != State.FLOODED
 
