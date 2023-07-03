@@ -38,7 +38,7 @@ object SparkDeltaDataWriter
 
     val sparkSession = qbeastData.sparkSession
 
-    val job = Job.getInstance()
+    val job = Job.getInstance(sparkSession.sparkContext.hadoopConfiguration)
     val factory = new ParquetFileFormat().prepareWrite(sparkSession, job, Map.empty, schema)
     val serConf = new SerializableConfiguration(job.getConfiguration)
     val statsTrackers = StatsTracker.getStatsTrackers()
