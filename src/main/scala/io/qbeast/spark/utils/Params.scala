@@ -21,7 +21,6 @@ object TagColumns {
   final val cube = col("tags.cube")
   final val minWeight = col("tags.minWeight")
   final val maxWeight = col("tags.maxWeight")
-  final val state = col("tags.state")
   final val replicated = col("tags.replicated")
   final val revision = col("tags.revision")
   final val elementCount = col("tags.elementCount")
@@ -31,7 +30,6 @@ object TagUtils {
   final val cube = "cube"
   final val minWeight = "minWeight"
   final val maxWeight = "maxWeight"
-  final val state = "state"
   final val replicated = "replicated"
   final val revision = "revision"
   final val elementCount = "elementCount"

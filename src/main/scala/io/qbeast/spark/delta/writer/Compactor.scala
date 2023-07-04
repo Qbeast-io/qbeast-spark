@@ -68,7 +68,6 @@ case class Compactor(
           TagUtils.cube -> cubeId.string,
           TagUtils.minWeight -> minWeight.value.toString,
           TagUtils.maxWeight -> maxWeight.value.toString,
-          TagUtils.state -> state,
           TagUtils.replicated -> replicated.toString,
           TagUtils.revision -> revision.revisionID.toString,
           TagUtils.elementCount -> elementCount.toString)

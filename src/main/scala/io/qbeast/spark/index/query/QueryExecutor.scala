@@ -5,7 +5,6 @@ package io.qbeast.spark.index.query
 
 import io.qbeast.IISeq
 import io.qbeast.core.model._
-import io.qbeast.spark.utils.State
 
 import scala.collection.mutable
 
@@ -32,7 +31,7 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
           case (false, _: AllSpace) =>
             val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
             indexStatus.cubesStatuses.values.flatMap { status =>
-              status.files.filter(_.state == State.FLOODED)
+              status.files.filterNot(_.replicated)
             }
           case _ => Seq.empty[QbeastBlock]
         }

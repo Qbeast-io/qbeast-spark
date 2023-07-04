@@ -4,7 +4,6 @@
 package io.qbeast.spark.delta.writer
 
 import io.qbeast.core.model.Weight
-import io.qbeast.spark.utils.State
 
 /**
  * Stats of a data block.
@@ -12,20 +11,15 @@ import io.qbeast.spark.utils.State
  * @param cube the cube
  * @param maxWeight the maximum weight
  * @param minWeight the minimum weight
- * @param state the cube state
+ * @param replicated the cube is replicated
  * @param elementCount the number of rows
  */
 case class BlockStats protected (
     cube: String,
     maxWeight: Weight,
     minWeight: Weight,
-    state: String,
+    replicated: Boolean,
     elementCount: Long) {
-
-  /**
-   * Returns whether the block is replicated.
-   */
-  def replicated: Boolean = state != State.FLOODED
 
   /**
    * Update the BlockStats by computing minWeight = min(this.minWeight, minWeight).
@@ -39,7 +33,7 @@ case class BlockStats protected (
   }
 
   override def toString: String =
-    s"BlocksStats($cube,$maxWeight,$minWeight,$state,$replicated,$elementCount)"
+    s"BlocksStats($cube,$maxWeight,$minWeight,$replicated,$elementCount)"
 
 }
 
@@ -51,11 +45,11 @@ object BlockStats {
   /**
    * Use this constructor to build the first BlockStat
    * @param cube the block's cubeId
-   * @param state the status of the block
+   * @param replicated the block is replicated
    * @param maxWeight the maxWeight of the block
    * @return a new empty instance of BlockStats
    */
-  def apply(cube: String, state: String, maxWeight: Weight): BlockStats =
-    BlockStats(cube, maxWeight, minWeight = Weight.MaxValue, state, 0)
+  def apply(cube: String, replicated: Boolean, maxWeight: Weight): BlockStats =
+    BlockStats(cube, maxWeight, minWeight = Weight.MaxValue, replicated, 0)
 
 }
