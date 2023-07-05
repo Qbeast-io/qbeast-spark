@@ -9,8 +9,7 @@ class QbeastBlockTest extends AnyFlatSpec with Matchers {
       "minWeight" -> "19217",
       "cube" -> "",
       "maxWeight" -> "11111111",
-      "state" -> "FlOODED",
-      "replicated" -> "false",
+      "replicated" -> "true",
       "revision" -> "1",
       "elementCount" -> "777")
 
@@ -18,7 +17,7 @@ class QbeastBlockTest extends AnyFlatSpec with Matchers {
     qbeastBlock.cube shouldBe ""
     qbeastBlock.minWeight shouldBe Weight(19217)
     qbeastBlock.maxWeight shouldBe Weight(11111111)
-    qbeastBlock.state shouldBe "FlOODED"
+    qbeastBlock.replicated shouldBe true
     qbeastBlock.revision shouldBe 1
     qbeastBlock.elementCount shouldBe 777
   }
@@ -33,7 +32,6 @@ class QbeastBlockTest extends AnyFlatSpec with Matchers {
       "minWeight" -> "19217",
       "cube" -> "",
       "maxWeight" -> "11111111",
-      "state" -> "FlOODED",
       "replicated" -> "false",
       "revision" -> "bad_type",
       "elementCount" -> "777")
