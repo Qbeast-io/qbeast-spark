@@ -262,25 +262,18 @@ private[table] class IndexedTableImpl(
       while (tries > 0) {
         val announcedSet = write.announcedCubes.map(indexStatus.revision.createCubeId)
         val updatedStatus = indexStatus.addAnnouncements(announcedSet)
-        val replicatedSet = updatedStatus.replicatedSet
-        val revisionID = updatedStatus.revision.revisionID
         try {
           doWrite(data, updatedStatus, append)
           tries = 0
         } catch {
-          case cme: ConcurrentModificationException
-              if metadataManager.hasConflicts(
-                tableID,
-                revisionID,
-                replicatedSet,
-                announcedSet) || tries == 0 =>
-            // Nothing to do, the conflict is unsolvable
-            throw cme
-          case _: ConcurrentModificationException =>
-            // Trying one more time if the conflict is solvable
+          case e: ConcurrentModificationException =>
+            if (tries == 0) {
+              // All attemps to write the lof failed
+              throw e
+            }
+            // Try once again
             tries -= 1
         }
-
       }
     }
     clearCaches()

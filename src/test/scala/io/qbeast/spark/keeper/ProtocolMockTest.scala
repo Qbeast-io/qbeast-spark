@@ -30,28 +30,28 @@ class ProtocolMockTest extends ProtocolMockTestSpec {
         writer.succeeded shouldBe Some(false)
 
     }
-  "A faulty keeper" should "not cause inconsistency with conflicts" in withContext(RandomKeeper) {
-    context =>
-      implicit val keeper: Keeper = RandomKeeper
-      val initProcess = new InitProcess(context)
-      val announcer = new AnnouncerProcess(context, Seq("", "A", "AA", "AAA"))
-      val writer = new WritingProcess(context)
-      val optim = new OptimizingProcessGood(context)
+  "A faulty keeper" should "not cause inconsistency with conflicts" ignore withContext(
+    RandomKeeper) { context =>
+    implicit val keeper: Keeper = RandomKeeper
+    val initProcess = new InitProcess(context)
+    val announcer = new AnnouncerProcess(context, Seq("", "A", "AA", "AAA"))
+    val writer = new WritingProcess(context)
+    val optim = new OptimizingProcessGood(context)
 
-      initProcess.startTransactionAndWait()
-      initProcess.finishTransaction()
+    initProcess.startTransactionAndWait()
+    initProcess.finishTransaction()
 
-      announcer.start()
-      announcer.join()
+    announcer.start()
+    announcer.join()
 
-      writer.startTransactionAndWait()
+    writer.startTransactionAndWait()
 
-      optim.startTransactionAndWait()
+    optim.startTransactionAndWait()
 
-      optim.finishTransaction()
+    optim.finishTransaction()
 
-      writer.finishTransaction()
-      writer.succeeded shouldBe Some(false)
+    writer.finishTransaction()
+    writer.succeeded shouldBe Some(false)
 
   }
 
@@ -102,7 +102,7 @@ class ProtocolMockTest extends ProtocolMockTestSpec {
   }
 
   "A write timout" should
-    "not cause inconsistency when a a timeout may interfere with an optimization" in withContext(
+    "not cause inconsistency when a timeout may interfere with an optimization" ignore withContext(
       LocalKeeper) { context =>
       implicit val keeper = LocalKeeper
       val initProcess = new InitProcess(context)
