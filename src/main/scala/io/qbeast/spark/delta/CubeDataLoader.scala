@@ -63,7 +63,8 @@ case class CubeDataLoader(tableID: QTableID) {
     val cubeBlocks = snapshot.allFiles
       .where(
         TagColumns.revision === lit(revision.revisionID.toString) &&
-          TagColumns.cube === lit(cube.string))
+          TagColumns.cube === lit(cube.string) &&
+          TagColumns.replicated === lit(false.toString()))
       .collect()
 
     val fileNames = cubeBlocks.map(f => new Path(tableID.id, f.path).toString)
