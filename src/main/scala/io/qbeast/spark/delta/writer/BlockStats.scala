@@ -11,7 +11,7 @@ import io.qbeast.core.model.Weight
  * @param cube the cube
  * @param maxWeight the maximum weight
  * @param minWeight the minimum weight
- * @param replicated the cube is replicated
+ * @param replicated the cube block is replicated
  * @param elementCount the number of rows
  */
 case class BlockStats protected (
