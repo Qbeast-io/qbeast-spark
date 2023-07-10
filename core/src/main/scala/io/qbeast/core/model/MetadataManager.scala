@@ -59,22 +59,6 @@ trait MetadataManager[DataSchema, FileDescriptor] {
   def updateTable(tableID: QTableID, tableChanges: TableChanges): Unit
 
   /**
-   * This function checks if there's a conflict. A conflict happens if there
-   * are new cubes that have been optimized but they were not announced.
-   *
-   * @param tableID the table ID
-   * @param revisionID the revision ID
-   * @param knownAnnounced the cubes we know they were announced when the write operation started.
-   * @param oldReplicatedSet the old replicated set
-   * @return true if there is a conflict, false otherwise
-   */
-  def hasConflicts(
-      tableID: QTableID,
-      revisionID: RevisionID,
-      knownAnnounced: Set[CubeId],
-      oldReplicatedSet: ReplicatedSet): Boolean
-
-  /**
    * Checks if there's an existing log directory for the table
    * @param tableID the table ID
    * @return

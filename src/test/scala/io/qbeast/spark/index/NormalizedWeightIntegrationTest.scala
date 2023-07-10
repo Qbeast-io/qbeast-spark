@@ -39,7 +39,7 @@ class NormalizedWeightIntegrationTest extends QbeastIntegrationTestSpec {
         val files = deltaLog.snapshot.allFiles
         files.count() shouldBe 1
         files.map(_.tags(TagUtils.maxWeight).toInt).collect()(0) shouldBe <=(Int.MaxValue)
-        files.map(_.tags(TagUtils.state)).collect()(0) shouldBe "FLOODED"
+        files.map(_.tags(TagUtils.replicated)).collect()(0) shouldBe false.toString
 
     }
 

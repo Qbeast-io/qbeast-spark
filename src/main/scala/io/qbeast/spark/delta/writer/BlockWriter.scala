@@ -64,8 +64,9 @@ case class BlockWriter(
         // we save those newly added leaves with the max weight possible
 
         val state = tableChanges.cubeState(cubeId).getOrElse(State.FLOODED)
+        val replicated = state != State.FLOODED
         val maxWeight = tableChanges.cubeWeights(cubeId).getOrElse(Weight.MaxValue)
-        val blockCtx = blocks.getOrElse(cubeId, buildWriter(cubeId, state, maxWeight))
+        val blockCtx = blocks.getOrElse(cubeId, buildWriter(cubeId, replicated, maxWeight))
 
         // The row with only the original columns
         val cleanRow = Seq.newBuilder[Any]
@@ -93,7 +94,7 @@ case class BlockWriter(
         case BlockContext(blockStats, _, _, _) if blockStats.elementCount == 0 =>
           Iterator.empty // Do nothing, this  is a empty partition
         case BlockContext(
-              BlockStats(cube, maxWeight, minWeight, state, rowCount),
+              stats @ BlockStats(cube, maxWeight, minWeight, state, rowCount),
               writer,
               path,
               blockStatsTracker) =>
@@ -101,7 +102,7 @@ case class BlockWriter(
             TagUtils.cube -> cube,
             TagUtils.minWeight -> minWeight.value.toString,
             TagUtils.maxWeight -> maxWeight.value.toString,
-            TagUtils.state -> state,
+            TagUtils.replicated -> stats.replicated.toString,
             TagUtils.revision -> revision.revisionID.toString,
             TagUtils.elementCount -> rowCount.toString)
 
@@ -135,10 +136,13 @@ case class BlockWriter(
   /*
    * Creates the context to write a new cube in a new file and collect stats
    * @param cubeId a cube identifier
-   * @param state the status of cube
+   * @param replicated the file is replicated
    * @return
    */
-  private def buildWriter(cubeId: CubeId, state: String, maxWeight: Weight): BlockContext = {
+  private def buildWriter(
+      cubeId: CubeId,
+      replicated: Boolean,
+      maxWeight: Weight): BlockContext = {
     val blockStatsTracker = statsTrackers.map(_.newTaskInstance())
     val writtenPath = new Path(dataPath, s"${UUID.randomUUID()}.parquet")
     val writer: OutputWriter = factory.newInstance(
@@ -149,7 +153,7 @@ case class BlockWriter(
         new TaskAttemptID("", 0, TaskType.REDUCE, 0, 0)))
     blockStatsTracker.foreach(_.newFile(writtenPath.toString)) // Update stats trackers
     BlockContext(
-      BlockStats(cubeId.string, state, maxWeight),
+      BlockStats(cubeId.string, replicated, maxWeight),
       writer,
       writtenPath,
       blockStatsTracker)
