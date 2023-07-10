@@ -142,10 +142,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
           val deltaLog = DeltaLog.forTable(spark, tmpDir)
           val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
           val builder =
-            new IndexStatusBuilder(
-              qbeastSnapshot,
-              qbeastSnapshot.loadLatestIndexStatus.revision,
-              Set.empty)
+            new IndexStatusBuilder(qbeastSnapshot, qbeastSnapshot.loadLatestIndexStatus.revision)
           val revisionState = builder.buildCubesStatuses
 
           val overflowed = qbeastSnapshot.loadLatestIndexStatus.overflowedSet

@@ -5,7 +5,6 @@ package io.qbeast.spark.index.query
 
 import io.qbeast.IISeq
 import io.qbeast.core.model._
-import io.qbeast.spark.utils.State
 
 import scala.collection.mutable
 
@@ -32,7 +31,7 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
           case (false, _: AllSpace) =>
             val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
             indexStatus.cubesStatuses.values.flatMap { status =>
-              status.files.filter(_.state == State.FLOODED)
+              status.files.filterNot(_.replicated)
             }
           case _ => Seq.empty[QbeastBlock]
         }
@@ -64,24 +63,12 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
               // All files are retrieved and no more cubes from the branch will be visited.
               files
             } else {
-              // Otherwise,
-              // 1. if the currentCube is REPLICATED, we skip the cube
-              // 2. if the state is ANNOUNCED, ignore the After Announcement elements
-              // 3. if FLOODED, retrieve all files from the cube
-              val isReplicated = indexStatus.replicatedSet.contains(cube)
-              val isAnnounced = indexStatus.announcedSet.contains(cube)
-              val cubeFiles =
-                if (isReplicated) {
-                  Vector.empty
-                } else if (isAnnounced) {
-                  files.filterNot(_.state == State.ANNOUNCED)
-                } else {
-                  files
-                }
+              // cube does not have enough data, read non replicated files and
+              // proceed to the child cubes
               val nextLevel = cube.children
                 .filter(querySpec.querySpace.intersectsWith)
               stack.pushAll(nextLevel)
-              cubeFiles
+              files.filterNot(_.replicated)
             }
 
             outputFiles ++= unfilteredFiles.filter(file =>

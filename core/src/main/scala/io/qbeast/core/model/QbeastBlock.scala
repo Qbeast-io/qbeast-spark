@@ -2,24 +2,24 @@ package io.qbeast.core.model
 
 /**
  * Container class for Qbeast file's metadata
- * @param path
- * @param cube
- * @param revision
- * @param minWeight
- * @param maxWeight
- * @param state
- * @param elementCount
- * @param size
- * @param modificationTime
+ *
+ * @param path the file path
+ * @param cube the cube identifier
+ * @param revision the revision identifier
+ * @param minWeight the minimum weight of element
+ * @param maxWeight the maximum weight of element
+ * @param replicated the file is replicated
+ * @param elementCount the number of elements
+ * @param size the size in bytes
+ * @param modificationTime the modification timestamp
  */
-
 case class QbeastBlock(
     path: String,
     cube: String,
     revision: Long,
     minWeight: Weight,
     maxWeight: Weight,
-    state: String,
+    replicated: Boolean,
     elementCount: Long,
     size: Long,
     modificationTime: Long)
@@ -30,7 +30,7 @@ case class QbeastBlock(
 object QbeastBlock {
 
   private val metadataKeys =
-    Set("minWeight", "maxWeight", "state", "revision", "elementCount", "cube")
+    Set("minWeight", "maxWeight", "replicated", "revision", "elementCount", "cube")
 
   private def checkBlockMetadata(blockMetadata: Map[String, String]): Unit = {
     metadataKeys.foreach(key =>
@@ -60,7 +60,7 @@ object QbeastBlock {
       blockMetadata("revision").toLong,
       Weight(blockMetadata("minWeight").toInt),
       Weight(blockMetadata("maxWeight").toInt),
-      blockMetadata("state"),
+      blockMetadata("replicated").toBoolean,
       blockMetadata("elementCount").toLong,
       size,
       modificationTime)
