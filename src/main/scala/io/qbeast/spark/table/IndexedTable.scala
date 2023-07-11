@@ -21,6 +21,7 @@ import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
 
 import java.util.ConcurrentModificationException
+import io.qbeast.SerializedCubeID
 
 /**
  * Indexed table represents the tabular data storage
@@ -68,44 +69,11 @@ trait IndexedTable {
   def analyze(revisionID: RevisionID): Seq[String]
 
   /**
-   * Optimizes the index by compacting and replicating the data which belong
-   * to some index revision. Compaction reduces the number of cube files, and
-   * replication makes the cube data available from the child cubes as well.
-   * Both techniques allow to make the queries more efficient.
+   * Replicates the announced cubes for given revision
    *
-   * The revision identifier specifies the index revision to optimize, if not
-   * provided then the latest revision is used. In case of the staging area only
-   * compaction is applied.
-   *
-   * The file limit defines how many files a cube should have to be included
-   * into the compaction process.
-   *
-   * The overflow is the ratio (cubeSize - preferredCubeSize) /
-   * preferredCubeSize, e.g. overflow 0.2 means that the cube has 1.2 times more
-   * elements than the preferred cube size. Overflow limit defines the cubes
-   * with too many elements and which need optimization.
-   *
-   * Those cubes which need replication should be specified explicitly. For such
-   * cubes compaction is performed even if they meet neither file nor overflow
-   * limit criteria.
-   *
-   * @param revisionID the revision identifier, if None then the lastest
-   * revision is used
-   * @param fileLimit: the file limit
-   * @param overflowLimit the overflow limit
-   * @param cubesToReplicate the identifiers of the cubes to replicate
+   * @param revisionID the revision identifier
    */
-  def optimize(
-      revisionID: Option[RevisionID] = None,
-      fileLimit: Option[Int] = None,
-      overflowLimit: Option[Double] = None,
-      cubesToReplicate: Seq[String] = Seq.empty): Unit
-
-  /**
-   * Optimizes the given table for a given revision
-   * @param revisionID the identifier of revision to optimize
-   */
-  def optimize(revisionID: RevisionID): Unit
+  def replicate(revisionID: RevisionID): Unit
 
   /**
    * Compacts the small files for a given table
@@ -338,15 +306,7 @@ private[table] class IndexedTableImpl(
 
   }
 
-  override def optimize(
-      revisionID: Option[RevisionID],
-      fileLimit: Option[Int],
-      overflowLimit: Option[Double],
-      cubesToReplicate: Seq[String]): Unit = {
-    throw new UnsupportedOperationException("Not implemented yet")
-  }
-
-  override def optimize(revisionID: RevisionID): Unit = {
+  override def replicate(revisionID: RevisionID): Unit = {
 
     // begin keeper transaction
     val bo = keeper.beginOptimization(tableID, revisionID)
@@ -357,24 +317,23 @@ private[table] class IndexedTableImpl(
     val cubesToReplicate = indexStatus.cubesToOptimize
     val schema = metadataManager.loadCurrentSchema(tableID)
 
-    if (cubesToReplicate.nonEmpty) {
+    val replicatedCubes: Set[SerializedCubeID] = if (cubesToReplicate.nonEmpty) {
       try {
-        // Try to commit transaction
-        doOptimize(schema, indexStatus, cubesToReplicate)
+        // Replicate the cubes in transaction
+        doReplicate(schema, indexStatus, cubesToReplicate)
+        cubesToReplicate.map(_.string)
       } catch {
-        case _: ConcurrentModificationException => bo.end(Set())
-      } finally {
-        // end keeper transaction
-        bo.end(cubesToReplicate.map(_.string))
+        case _: ConcurrentModificationException => Set()
       }
     } else {
-      bo.end(Set())
+      Set()
     }
+    bo.end(replicatedCubes)
 
     clearCaches()
   }
 
-  private def doOptimize(
+  private def doReplicate(
       schema: StructType,
       indexStatus: IndexStatus,
       cubesToOptimize: Set[CubeId]): Unit = {

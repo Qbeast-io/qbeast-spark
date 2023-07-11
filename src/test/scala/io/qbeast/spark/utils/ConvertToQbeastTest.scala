@@ -12,6 +12,8 @@ import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.scalatest.PrivateMethodTester
+import io.qbeast.context.QbeastContext
+import io.qbeast.core.model.QTableID
 
 class ConvertToQbeastTest
     extends QbeastIntegrationTestSpec
@@ -192,9 +194,11 @@ class ConvertToQbeastTest
     withSparkAndTmpDir((spark, tmpDir) => {
       convertFromFormat(spark, "parquet", tmpDir)
 
+      val snapshot = getQbeastSnapshot(spark, tmpDir)
+      val revisionId = snapshot.loadLatestRevision.revisionID
       // Analyze the staging revision
-      val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-      qbeastTable.analyze()
+      val table = QbeastContext.indexedTableFactory.getIndexedTable(QTableID(tmpDir))
+      table.analyze(revisionId)
 
       // Preserve empty ANNOUNCED set
       val qs = getQbeastSnapshot(spark, tmpDir)
@@ -208,7 +212,6 @@ class ConvertToQbeastTest
 
       // Analyze and optimize
       val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-      qbeastTable.analyze()
       qbeastTable.optimize()
 
       // Compare DataFrames
@@ -226,9 +229,11 @@ class ConvertToQbeastTest
         val fileFormat = "delta"
         convertFromFormat(spark, fileFormat, tmpDir)
 
+        val snapshot = getQbeastSnapshot(spark, tmpDir)
+        val revisionId = snapshot.loadLatestRevision.revisionID
         // Perform compaction
-        val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-        qbeastTable.compact()
+        val table = QbeastContext.indexedTableFactory.getIndexedTable(QTableID(tmpDir))
+        table.compact(revisionId)
 
         // Compare DataFrames
         val sourceDf = spark.read.format(fileFormat).load(tmpDir)

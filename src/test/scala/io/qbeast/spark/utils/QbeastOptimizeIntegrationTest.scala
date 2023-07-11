@@ -3,13 +3,14 @@ package io.qbeast.spark.utils
 import io.qbeast.core.model.CubeId
 import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
 import org.apache.spark.sql.SparkSession
+import io.qbeast.context.QbeastContext
+import io.qbeast.core.model.QTableID
 
 class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
 
   def optimize(spark: SparkSession, tmpDir: String, times: Int): Unit = {
     val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-    (0 until times).foreach(_ => { qbeastTable.analyze(); qbeastTable.optimize() })
-
+    (0 until times).foreach(_ => qbeastTable.optimize())
   }
 
   "the Qbeast data source" should
@@ -66,9 +67,8 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
         // Overwrite table
         writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
 
-        val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-
-        qbeastTable.analyze() shouldBe Seq(CubeId.root(2).string)
+        val indexedTable = QbeastContext.indexedTableFactory.getIndexedTable(QTableID(tmpDir))
+        indexedTable.analyze(1) shouldBe Seq(CubeId.root(2).string)
 
       }
   }

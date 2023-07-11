@@ -79,10 +79,7 @@ class QbeastSamplingTest extends QbeastIntegrationTestSpec {
 
   def optimize(spark: SparkSession, tmpDir: String, times: Int): Unit = {
     val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-    (0 until times).foreach(_ => {
-      qbeastTable.analyze(); qbeastTable.optimize()
-    })
-
+    (0 until times).foreach(_ => qbeastTable.optimize())
   }
 
   "An optimized index" should "sample correctly" in withQbeastContextSparkAndTmpDir {

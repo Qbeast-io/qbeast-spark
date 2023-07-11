@@ -18,7 +18,7 @@ case class OptimizeTableCommand(revisionID: RevisionID, indexedTable: IndexedTab
     extends LeafRunnableCommand {
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
-    indexedTable.optimize(revisionID)
+    indexedTable.replicate(revisionID)
     Seq.empty[Row]
   }
 

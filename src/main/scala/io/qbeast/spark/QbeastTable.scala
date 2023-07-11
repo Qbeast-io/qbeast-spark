@@ -50,95 +50,35 @@ class QbeastTable private (
   }
 
   /**
-   * Optimizes the index by compacting and replicating the data which belong
-   * to some index revision. Compaction reduces the number of cube files, and
-   * replication makes the cube data available from the child cubes as well.
-   * Both techniques allow to make the queries more efficient.
+   * Optimizes a given revision of the index. Optimization includes data
+   * cobe data replication cube file compaction. If the revision is staging then
+   * no operation.
    *
-   * The revision identifier specifies the index revision to optimize, if not
-   * provided then the latest revision is used. In case of the staging area only
-   * compaction is applied.
-   *
-   * The file limit defines how many files a cube should have to be included
-   * into the compaction process.
-   *
-   * The overflow is the ratio (cubeSize - preferredCubeSize) /
-   * preferredCubeSize, e.g. overflow 0.2 means that the cube has 1.2 times more
-   * elements than the preferred cube size. Overflow limit defines the cubes
-   * with too many elements and which need optimization.
-   *
-   * Those cubes which need replication should be specified explicitly. For such
-   * cubes compaction is performed even if they meet neither file nor overflow
-   * limit criteria.
-   *
-   * @param revisionID the revision identifier, if None then the lastest
-   * revision is used
-   * @param fileLimit: the file limit
-   * @param overflowLimit the overflow limit
-   * @param cubesToReplicate the identifiers of the cubes to replicate
-   */
-  def optimize(
-      revisionID: Option[RevisionID] = None,
-      fileLimit: Option[Int] = None,
-      overflowLimit: Option[Double] = None,
-      cubesToReplicate: Seq[String] = Seq.empty): Unit = {
-    indexedTable.optimize(revisionID, fileLimit, overflowLimit, cubesToReplicate)
-  }
-
-  /**
-   * The optimize operation should read the data of those cubes announced
-   * and replicate it in their children
-   * @param revisionID the identifier of the revision to optimize.
-   *                          If doesn't exist or none is specified, would be the last available
+   * @param revisionID the revision identifier
+   * @throws AnalysisException if the specified revision does not exist
    */
   def optimize(revisionID: RevisionID): Unit = {
+    checkRevisionAvailable(revisionID)
     if (!isStaging(revisionID)) {
-      checkRevisionAvailable(revisionID)
-      indexedTable.optimize(revisionID)
+      indexedTable.analyze(revisionID)
+      indexedTable.replicate(revisionID)
     }
-  }
-
-  def optimize(): Unit = {
-    if (!isStaging(latestRevisionAvailableID)) {
-      optimize(latestRevisionAvailableID)
-    }
-  }
-
-  /**
-   * The analyze operation should analyze the index structure
-   * and find the cubes that need optimization
-   * @param revisionID the identifier of the revision to optimize.
-   *                        If doesn't exist or none is specified, would be the last available
-   * @return the sequence of cubes to optimize in string representation
-   */
-  def analyze(revisionID: RevisionID): Seq[String] = {
-    checkRevisionAvailable(revisionID)
-    if (isStaging(revisionID)) Seq.empty else indexedTable.analyze(revisionID)
-  }
-
-  def analyze(): Seq[String] = {
-    analyze(latestRevisionAvailableID)
-  }
-
-  /**
-   * The compact operation should compact the small files in the table
-   * @param revisionID the identifier of the revision to optimize.
-   *                        If doesn't exist or none is specified, would be the last available
-   */
-  def compact(revisionID: RevisionID): Unit = {
-    checkRevisionAvailable(revisionID)
     indexedTable.compact(revisionID)
   }
 
-  def compact(): Unit = {
-    compact(latestRevisionAvailableID)
+  /**
+   * Optimizes the latest non-staging revision of the index if any.
+   */
+  def optimize(): Unit = {
+    optimize(latestRevisionAvailableID)
   }
 
   /**
-   * Outputs the indexed columns of the table
-   * @param revisionID the identifier of the revision.
-   *                          If doesn't exist or none is specified, would be the last available
-   * @return
+   * Returns the indexed columns for a given revision of the table.
+   *
+   * @param revisionID the revision identifier
+   * @return the indexed column names
+   * @throws AnalysisException if the specified revision does not exist
    */
 
   def indexedColumns(revisionID: RevisionID): Seq[String] = {
@@ -149,15 +89,20 @@ class QbeastTable private (
       .map(_.columnName)
   }
 
+  /**
+   * Returns the indexed columns for the latest revision of the table.
+   *
+   * @return the indexed column names
+   */
   def indexedColumns(): Seq[String] = {
     indexedColumns(latestRevisionAvailableID)
   }
 
   /**
-   * Outputs the cubeSize of the table
-   * @param revisionID the identifier of the revision.
-   *                          If doesn't exist or none is specified, would be the last available
-   * @return
+   * Returns the preferred cube size for a given revision of the table.
+   * @param revisionID the revision identifier
+   * @return the preferred cube size
+   * @throws AnalysisException if the revision does not exist
    */
   def cubeSize(revisionID: RevisionID): Int = {
     checkRevisionAvailable(revisionID)
@@ -165,29 +110,36 @@ class QbeastTable private (
 
   }
 
+  /**
+   * Returns the prefrred cube size for the latest table revision.
+   */
   def cubeSize(): Int =
     latestRevisionAvailable.desiredCubeSize
 
   /**
-   * Outputs all the revision identifiers available for the table
-   * @return
+   * Returns the revision identifiers.
+   *
+   * @return the revision identifiers
    */
   def revisionsIDs(): Seq[RevisionID] = {
     qbeastSnapshot.loadAllRevisions.map(_.revisionID)
   }
 
   /**
-   * Outputs the identifier of the latest revision available
-   * @return
+   * Returns the latest revision identifier.
+   *
+   * @return the latest revision identifier
    */
   def latestRevisionID(): RevisionID = {
     latestRevisionAvailableID
   }
 
   /**
-   * Gather an overview of the index for a given revision
-   * @param revisionID optional RevisionID
-   * @return
+   * Returns the index metrics for a given index revision. If the revision
+   * identifier is None, then the latest revision is used.
+   *
+   * @param revisionID optional revision identifier
+   * @return the index metrics
    */
   def getIndexMetrics(revisionID: Option[RevisionID] = None): IndexMetrics = {
     val indexStatus = revisionID match {
@@ -231,8 +183,15 @@ class QbeastTable private (
 
 object QbeastTable {
 
-  def forPath(sparkSession: SparkSession, path: String): QbeastTable = {
-    new QbeastTable(sparkSession, new QTableID(path), QbeastContext.indexedTableFactory)
+  /**
+   * Creates a new QbeastTable instance for given Spark session and path.
+   *
+   * @param spark the spark session
+   * @param path the path
+   * @return a new instance
+   */
+  def forPath(spark: SparkSession, path: String): QbeastTable = {
+    new QbeastTable(spark, new QTableID(path), QbeastContext.indexedTableFactory)
   }
 
 }

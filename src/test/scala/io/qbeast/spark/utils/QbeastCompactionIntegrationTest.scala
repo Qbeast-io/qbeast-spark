@@ -2,10 +2,14 @@ package io.qbeast.spark.utils
 
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.delta.{DeltaQbeastSnapshot, SparkDeltaMetadataManager}
-import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
+import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.{AnalysisException, DataFrame}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.SparkSession
+import io.qbeast.spark.table.IndexedTable
+import io.qbeast.context.QbeastContext
+import io.qbeast.core.model.RevisionID
 
 class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
 
@@ -36,8 +40,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
           val indexed = spark.read.format("qbeast").load(tmpDir)
           val originalNumOfFiles = indexed.select(input_file_name()).distinct().count()
 
-          val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-          qbeastTable.compact()
+          compactLatestRevision(spark, tmpDir)
 
           val finalNumOfFiles = indexed.select(input_file_name()).distinct().count()
           finalNumOfFiles shouldBe <(originalNumOfFiles)
@@ -74,8 +77,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
           deltaLog.snapshot.allFiles.filter("tags.cube == ''").count()
 
         // Compact the tables
-        val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-        qbeastTable.compact()
+        compactLatestRevision(spark, tmpDir)
 
         // Check if number of files are less than the original
         val finalNumOfFilesRoot =
@@ -100,8 +102,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
           deltaLog.snapshot.allFiles.filter("tags.cube == ''").count()
 
         // Compact the table
-        val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-        qbeastTable.compact()
+        compactLatestRevision(spark, tmpDir)
 
         val finalNumOfFilesRoot =
           deltaLog.update().allFiles.filter("tags.cube == ''").count()
@@ -124,8 +125,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
     val originalIndexStatus = DeltaQbeastSnapshot(deltaLog.snapshot).loadLatestIndexStatus
 
     // Compact the table
-    val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-    qbeastTable.compact()
+    compactLatestRevision(spark, tmpDir)
 
     val newIndexStatus = DeltaQbeastSnapshot(deltaLog.update()).loadLatestIndexStatus
 
@@ -166,8 +166,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
       allFiles.filter("tags.revision == 2").count()
 
     // Compact the table
-    val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-    qbeastTable.compact()
+    compactLatestRevision(spark, tmpDir)
 
     // Count files compacted for each revision
     val newAllFiles = DeltaLog.forTable(spark, tmpDir).snapshot.allFiles
@@ -207,8 +206,8 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
       allFiles.filter("tags.revision == 2").count()
 
     // Compact the table
-    val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-    qbeastTable.compact(1)
+    val table = getIndexedTable(spark, tmpDir)
+    table.compact(1)
 
     // Count files compacted for each revision
     val newAllFiles = DeltaLog.forTable(spark, tmpDir).snapshot.allFiles
@@ -230,8 +229,24 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
     writeTestDataInBatches(data, tmpDir, 4)
 
     // Try to compact the table with non-existing revision ID
-    val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-    a[AnalysisException] shouldBe thrownBy(qbeastTable.compact(3))
+    val table = getIndexedTable(spark, tmpDir)
+    a[AnalysisException] shouldBe thrownBy(table.compact(3))
 
   })
+
+  private def compactLatestRevision(spark: SparkSession, path: String): Unit = {
+    val revisionId = getLatestRevisionId(spark, path)
+    val table = getIndexedTable(spark, path)
+    table.compact(revisionId)
+  }
+
+  private def getLatestRevisionId(spark: SparkSession, path: String): RevisionID = {
+    val snapshot = DeltaQbeastSnapshot(DeltaLog.forTable(spark, path).snapshot)
+    snapshot.loadLatestRevision.revisionID
+  }
+
+  private def getIndexedTable(spark: SparkSession, path: String): IndexedTable = {
+    QbeastContext.indexedTableFactory.getIndexedTable(QTableID(path))
+  }
+
 }
