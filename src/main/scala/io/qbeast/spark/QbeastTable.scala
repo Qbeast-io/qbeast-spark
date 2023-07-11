@@ -55,7 +55,8 @@ class QbeastTable private (
    * no operation.
    *
    * @param revisionID the revision identifier
-   * @throws AnalysisException if the specified revision does not exist
+   * @throws [[org.apache.spark.sql.AnalysisException]] if the specified
+   * revision does not exist
    */
   def optimize(revisionID: RevisionID): Unit = {
     checkRevisionAvailable(revisionID)
@@ -78,7 +79,8 @@ class QbeastTable private (
    *
    * @param revisionID the revision identifier
    * @return the indexed column names
-   * @throws AnalysisException if the specified revision does not exist
+   * @throws [[org.apache.spark.sql.AnalysisException]] if the specified
+   * revision does not exist
    */
 
   def indexedColumns(revisionID: RevisionID): Seq[String] = {
@@ -100,9 +102,11 @@ class QbeastTable private (
 
   /**
    * Returns the preferred cube size for a given revision of the table.
+   *
    * @param revisionID the revision identifier
    * @return the preferred cube size
-   * @throws AnalysisException if the revision does not exist
+   * @throws [[org.apache.spark.sql.AnalysisException]] if the specified
+   * revision does not exist
    */
   def cubeSize(revisionID: RevisionID): Int = {
     checkRevisionAvailable(revisionID)
