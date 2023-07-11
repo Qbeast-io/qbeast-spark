@@ -10,6 +10,7 @@ object Dependencies {
 
   val sparkCore = "org.apache.spark" %% "spark-core" % sparkVersion
   val sparkSql = "org.apache.spark" %% "spark-sql" % sparkVersion
+  val sparkCatalyst = "org.apache.spark" %% "spark-catalyst" % sparkVersion
   val hadoopClient = "org.apache.hadoop" % "hadoop-client" % hadoopVersion
   val deltaCore = "io.delta" %% "delta-core" % deltaVersion
   val sparkFastTests = "com.github.mrpowers" %% "spark-fast-tests" % "1.0.0"

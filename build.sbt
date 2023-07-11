@@ -18,6 +18,7 @@ lazy val qbeastSpark = (project in file("."))
     libraryDependencies ++= Seq(
       sparkCore % Provided,
       sparkSql % Provided,
+      sparkCatalyst % Provided,
       hadoopClient % Provided,
       deltaCore % Provided,
       amazonAws % Test,
@@ -160,6 +161,9 @@ Test / compile := (Test / compile).dependsOn(Test / scalafmtCheck).value
 // Scalastyle settings
 Compile / compile := (Compile / compile).dependsOn((Compile / scalastyle).toTask("")).value
 Test / compile := (Test / compile).dependsOn((Test / scalastyle).toTask("")).value
+
+// Suppress no link warning during Scaladoc generation
+scalacOptions in (Compile, doc) ++= Seq("-no-link-warnings")
 
 // Header settings
 headerLicense := Some(HeaderLicense.Custom("Copyright 2021 Qbeast Analytics, S.L."))

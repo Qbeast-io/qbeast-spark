@@ -15,6 +15,7 @@ import io.qbeast.spark.utils.MathOps.depthOnBalance
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.AnalysisException
 
 /**
  * Class for interacting with QbeastTable at a user level
@@ -55,9 +56,9 @@ class QbeastTable private (
    * no operation.
    *
    * @param revisionID the revision identifier
-   * @throws [[org.apache.spark.sql.AnalysisException]] if the specified
-   * revision does not exist
+   * @throws AnalysisException if the specified revision does not exist
    */
+  @throws(classOf[AnalysisException])
   def optimize(revisionID: RevisionID): Unit = {
     checkRevisionAvailable(revisionID)
     if (!isStaging(revisionID)) {
@@ -79,10 +80,9 @@ class QbeastTable private (
    *
    * @param revisionID the revision identifier
    * @return the indexed column names
-   * @throws [[org.apache.spark.sql.AnalysisException]] if the specified
-   * revision does not exist
+   * @throws AnalysisException if the specified revision does not exist
    */
-
+  @throws(classOf[AnalysisException])
   def indexedColumns(revisionID: RevisionID): Seq[String] = {
     checkRevisionAvailable(revisionID)
     qbeastSnapshot
@@ -105,9 +105,9 @@ class QbeastTable private (
    *
    * @param revisionID the revision identifier
    * @return the preferred cube size
-   * @throws [[org.apache.spark.sql.AnalysisException]] if the specified
-   * revision does not exist
+   * @throws AnalysisException if the specified revision does not exist
    */
+  @throws(classOf[AnalysisException])
   def cubeSize(revisionID: RevisionID): Int = {
     checkRevisionAvailable(revisionID)
     qbeastSnapshot.loadRevision(revisionID).desiredCubeSize
