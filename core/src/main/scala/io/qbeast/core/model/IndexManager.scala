@@ -9,7 +9,8 @@ import io.qbeast.IISeq
 trait IndexManager[DATA] {
 
   /**
-   * Indexes the data
+   * Indexes given data.
+   *
    * @param data the data to index
    * @param indexStatus the current index status
    * @return the changes of the index and reorganization of data
@@ -17,17 +18,19 @@ trait IndexManager[DATA] {
   def index(data: DATA, indexStatus: IndexStatus): (DATA, TableChanges)
 
   /**
-   * Optimizes the index
-   * @param data the data of the index
+   * Replicates given index data.
+   *
+   * @param data the data to replicate
    * @param indexStatus the current index status
    * @return the changes on the index and reorganization of data
    */
-  def optimize(data: DATA, indexStatus: IndexStatus): (DATA, TableChanges)
+  def replicate(data: DATA, indexStatus: IndexStatus): (DATA, TableChanges)
 
   /**
-   * Analyzes the current index status
+   * Analyzes the index status and returns the cubes which needs replication
+   *
    * @param indexStatus the current index status
-   * @return the sequence of cubes that should be optimized for improving performance
+   * @return the cubes that should be replicated for improving performance
    */
   def analyze(indexStatus: IndexStatus): IISeq[CubeId]
 

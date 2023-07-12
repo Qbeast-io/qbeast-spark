@@ -218,7 +218,7 @@ case class IndexStatus(
     copy(announcedSet = announcedSet ++ newAnnouncedSet)
   }
 
-  def cubesToOptimize: Set[CubeId] = announcedSet.diff(replicatedSet)
+  def cubesToReplicate: Set[CubeId] = announcedSet.diff(replicatedSet)
 
   /**
    * the set of cubes that has surpass their capacity

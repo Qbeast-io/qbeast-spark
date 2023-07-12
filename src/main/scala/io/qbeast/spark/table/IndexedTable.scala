@@ -314,7 +314,7 @@ private[table] class IndexedTableImpl(
     val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
     val cubesToOptimize = bo.cubesToOptimize.map(currentIndexStatus.revision.createCubeId)
     val indexStatus = currentIndexStatus.addAnnouncements(cubesToOptimize)
-    val cubesToReplicate = indexStatus.cubesToOptimize
+    val cubesToReplicate = indexStatus.cubesToReplicate
     val schema = metadataManager.loadCurrentSchema(tableID)
 
     val replicatedCubes: Set[SerializedCubeID] = if (cubesToReplicate.nonEmpty) {
@@ -336,16 +336,16 @@ private[table] class IndexedTableImpl(
   private def doReplicate(
       schema: StructType,
       indexStatus: IndexStatus,
-      cubesToOptimize: Set[CubeId]): Unit = {
+      cubesToReplicate: Set[CubeId]): Unit = {
 
     metadataManager.updateWithTransaction(tableID, schema, append = true) {
       val dataToReplicate =
         CubeDataLoader(tableID).loadSetWithCubeColumn(
-          cubesToOptimize,
+          cubesToReplicate,
           indexStatus.revision,
           QbeastColumns.cubeToReplicateColumnName)
       val (qbeastData, tableChanges) =
-        indexManager.optimize(dataToReplicate, indexStatus)
+        indexManager.replicate(dataToReplicate, indexStatus)
       val fileActions = dataWriter.write(tableID, schema, qbeastData, tableChanges)
       (tableChanges, fileActions)
     }
