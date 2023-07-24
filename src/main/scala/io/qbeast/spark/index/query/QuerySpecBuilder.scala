@@ -88,23 +88,23 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
         // if not found, use the overall coordinates
         val columnFrom = columnFilters
           .collectFirst {
-            case GreaterThan(_, Literal(value, _)) => sparkTypeToCoreType(value)
-            case GreaterThanOrEqual(_, Literal(value, _)) => sparkTypeToCoreType(value)
-            case LessThan(Literal(value, _), _) => sparkTypeToCoreType(value)
-            case LessThanOrEqual(Literal(value, _), _) => sparkTypeToCoreType(value)
-            case EqualTo(_, Literal(value, _)) => sparkTypeToCoreType(value)
-            case EqualTo(Literal(value, _), _) => sparkTypeToCoreType(value)
+            case GreaterThan(_, l: Literal) => sparkTypeToCoreType(l)
+            case GreaterThanOrEqual(_, l: Literal) => sparkTypeToCoreType(l)
+            case LessThan(l: Literal, _) => sparkTypeToCoreType(l)
+            case LessThanOrEqual(l: Literal, _) => sparkTypeToCoreType(l)
+            case EqualTo(_, l: Literal) => sparkTypeToCoreType(l)
+            case EqualTo(l: Literal, _) => sparkTypeToCoreType(l)
             case IsNull(_) => null
           }
 
         val columnTo = columnFilters
           .collectFirst {
-            case LessThan(_, Literal(value, _)) => sparkTypeToCoreType(value)
-            case LessThanOrEqual(_, Literal(value, _)) => sparkTypeToCoreType(value)
-            case GreaterThan(Literal(value, _), _) => sparkTypeToCoreType(value)
-            case GreaterThanOrEqual(Literal(value, _), _) => sparkTypeToCoreType(value)
-            case EqualTo(_, Literal(value, _)) => sparkTypeToCoreType(value)
-            case EqualTo(Literal(value, _), _) => sparkTypeToCoreType(value)
+            case LessThan(_, l: Literal) => sparkTypeToCoreType(l)
+            case LessThanOrEqual(_, l: Literal) => sparkTypeToCoreType(l)
+            case GreaterThan(l: Literal, _) => sparkTypeToCoreType(l)
+            case GreaterThanOrEqual(l: Literal, _) => sparkTypeToCoreType(l)
+            case EqualTo(_, l: Literal) => sparkTypeToCoreType(l)
+            case EqualTo(l: Literal, _) => sparkTypeToCoreType(l)
             case IsNull(_) => null
           }
 

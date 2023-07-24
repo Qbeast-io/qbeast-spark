@@ -9,6 +9,7 @@ import org.apache.spark.sql.catalyst.analysis.Resolver
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.util.TypeUtils
 import org.apache.spark.sql.execution.InSubqueryExec
+import org.apache.spark.sql.types.{TimestampType}
 import org.apache.spark.unsafe.types.UTF8String
 
 private[query] trait QueryFiltersUtils {
@@ -91,15 +92,17 @@ private[query] trait QueryFiltersUtils {
   }
 
   /**
-   * Convert an Spark String type to a Scala core type
-   * @param value the value to convert
+   * Convert an Literal value from Spark to a Qbeast/Scala core type
+   * @param l the Literal to convert
    * @return
    */
 
-  def sparkTypeToCoreType(value: Any): Any = {
-    value match {
-      case s: UTF8String => s.toString
-      case _ => value
+  def sparkTypeToCoreType(l: Literal): Any = {
+
+    (l.value, l.dataType) match {
+      case (l: Long, _: TimestampType) => l / 1000L
+      case (s: UTF8String, _) => s.toString
+      case _ => l.value
     }
   }
 

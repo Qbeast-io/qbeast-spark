@@ -1,7 +1,7 @@
 package io.qbeast.spark.index
 
 import io.qbeast.TestClasses._
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.{QbeastIntegrationTestSpec}
 import org.apache.spark.sql.functions.{to_date, to_timestamp}
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -250,6 +250,31 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
         orderedComparison = false)
 
     })
+
+  it should "filter correctly timestamp" in withSparkAndTmpDir((spark, tmpDir) => {
+    import spark.implicits._
+    val df =
+      Seq(
+        "2017-01-03 12:02:00",
+        "2017-01-02 12:02:00",
+        "2017-01-02 12:02:00",
+        "2017-01-02 12:02:00",
+        "2017-01-01 12:02:00",
+        "2017-01-01 12:02:00")
+        .toDF("date")
+        .withColumn("my_date", to_timestamp($"date"))
+
+    df.write.format("qbeast").option("columnsToIndex", "my_date").save(tmpDir)
+
+    val indexed = spark.read.format("qbeast").load(tmpDir)
+
+    indexed.filter("my_date == '2017-01-02 12:02:00'").count() shouldBe 3
+
+    indexed.filter("my_date > '2017-01-02 12:02:00'").count() shouldBe 1
+
+    indexed.filter("my_date < '2017-01-02 12:02:00'").count() shouldBe 2
+
+  })
 
   it should "index tables with multiple rows of a unique Date" in withSparkAndTmpDir(
     (spark, tmpDir) => {
