@@ -79,13 +79,16 @@ class TimeSeriesQueryTest extends QbeastIntegrationTestSpec with QueryTestSpec {
           "2017-01-01 12:02:00",
           "2017-01-01 12:02:00")
           .toDF("date")
-          .withColumn("my_date", unix_timestamp($"date"))
+          .withColumn("date", unix_timestamp($"date"))
 
-      df.write.format("qbeast").option("columnsToIndex", "my_date").save(tmpDir)
+      df.write.format("qbeast").option("columnsToIndex", "date").save(tmpDir)
 
       val indexed = spark.read.format("qbeast").load(tmpDir)
+      val valueToFilter = df.first().getLong(0)
 
-      indexed.filter("my_date == 1483441320").count() shouldBe 1
+      indexed.filter(s"date == $valueToFilter").count() shouldBe df
+        .filter(s"date == $valueToFilter")
+        .count()
 
     })
 }
