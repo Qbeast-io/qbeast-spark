@@ -27,7 +27,11 @@ case class LinearTransformer(columnName: String, dataType: QDataType) extends Tr
       case d: java.lang.Long if dataType.name == "IntegerDataType" => d.intValue()
       case d: java.math.BigDecimal => d.doubleValue()
       case d: Timestamp => d.getTime()
-      case d: Date => d.getTime()
+      case d: Date =>
+        // scalastyle:off
+        println("date indexing")
+        println(d.getTime)
+        d.getTime()
       case other => other
     }
   }
