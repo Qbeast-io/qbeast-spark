@@ -7,9 +7,14 @@ import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.analysis.Resolver
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.util.DateTimeUtils.{daysToMicros, getZoneId}
 import org.apache.spark.sql.catalyst.util.TypeUtils
 import org.apache.spark.sql.execution.InSubqueryExec
+import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types.{DateType, TimestampType}
 import org.apache.spark.unsafe.types.UTF8String
+
+import java.util.concurrent.TimeUnit
 
 private[query] trait QueryFiltersUtils {
 
@@ -91,15 +96,25 @@ private[query] trait QueryFiltersUtils {
   }
 
   /**
-   * Convert an Spark String type to a Scala core type
-   * @param value the value to convert
+   * Convert a Literal value from Spark to a Qbeast/Scala core type
+   * @param l the Literal to convert
    * @return
    */
 
-  def sparkTypeToCoreType(value: Any): Any = {
-    value match {
-      case s: UTF8String => s.toString
-      case _ => value
+  def sparkTypeToCoreType(l: Literal): Any = {
+
+    (l.value, l.dataType) match {
+      case (int: Integer, _: DateType) =>
+        // convert DateType to Milliseconds
+        lazy val zoneId = getZoneId(SQLConf.get.sessionLocalTimeZone)
+        val dateInMicros = daysToMicros(int, zoneId)
+        val dateInMillis = TimeUnit.MICROSECONDS.toMillis(dateInMicros)
+        dateInMillis
+      case (long: Long, _: TimestampType) =>
+        // convert Timestamp from Microseconds to Milliseconds
+        TimeUnit.MICROSECONDS.toMillis(long)
+      case (s: UTF8String, _) => s.toString
+      case _ => l.value
     }
   }
 
