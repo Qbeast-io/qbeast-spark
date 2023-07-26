@@ -96,7 +96,7 @@ private[query] trait QueryFiltersUtils {
   }
 
   /**
-   * Convert an Literal value from Spark to a Qbeast/Scala core type
+   * Convert a Literal value from Spark to a Qbeast/Scala core type
    * @param l the Literal to convert
    * @return
    */
@@ -108,11 +108,11 @@ private[query] trait QueryFiltersUtils {
         // convert DateType to Milliseconds
         lazy val zoneId = getZoneId(SQLConf.get.sessionLocalTimeZone)
         val dateInMicros = daysToMicros(int, zoneId)
-        val dateInMillis = TimeUnit.MILLISECONDS.convert(dateInMicros, TimeUnit.MICROSECONDS)
+        val dateInMillis = TimeUnit.MICROSECONDS.toMillis(dateInMicros)
         dateInMillis
       case (long: Long, _: TimestampType) =>
         // convert Timestamp from Microseconds to Milliseconds
-        TimeUnit.MILLISECONDS.convert(long, TimeUnit.MICROSECONDS)
+        TimeUnit.MICROSECONDS.toMillis(long)
       case (s: UTF8String, _) => s.toString
       case _ => l.value
     }
