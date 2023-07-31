@@ -5,6 +5,9 @@ import io.qbeast.core.model._
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.core.transform.{HashTransformer, LinearTransformation, LinearTransformer}
+import io.qbeast.spark.delta.DeltaQbeastSnapshot
+import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.functions.to_timestamp
 
 class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
 
@@ -113,6 +116,74 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
     transformation shouldBe a[LinearTransformation]
     transformation.asInstanceOf[LinearTransformation].minNumber shouldBe 0
     transformation.asInstanceOf[LinearTransformation].maxNumber shouldBe 10
+
+  })
+
+  // TODO THIS TWO TEST SHOULD WORK
+
+  it should "append with new columnStats" in withSparkAndTmpDir((spark, tmpDir) => {
+    import spark.implicits._
+    val df = 0.to(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).toDF()
+    val columnStats = """{ "a_min": 0, "a_max": 20 }"""
+
+    df.write
+      .format("qbeast")
+      .option("columnsToIndex", "a")
+      .option("columnStats", columnStats)
+      .save(tmpDir)
+
+    val appendDf = 10.to(20).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).toDF()
+    val appendColumnStats = """{ "a_min": 5, "a_max": 40 }"""
+    appendDf.write
+      .mode("append")
+      .format("qbeast")
+      .option("columnsToIndex", "a")
+      .option("columnStats", appendColumnStats)
+      .save(tmpDir)
+
+    val qbeastSnapshot = DeltaQbeastSnapshot(DeltaLog.forTable(spark, tmpDir).snapshot)
+    val latestRevision = qbeastSnapshot.loadLatestRevision
+    val transformation = latestRevision.transformations.head
+
+    transformation should not be null
+    transformation shouldBe a[LinearTransformation]
+    transformation.asInstanceOf[LinearTransformation].minNumber shouldBe 0
+    transformation.asInstanceOf[LinearTransformation].maxNumber shouldBe 40
+
+  })
+
+  it should "createNewRevision with min max timestamp" in withSpark(spark => {
+    import spark.implicits._
+    val data = Seq(
+      "2017-01-03 12:02:00",
+      "2017-01-02 12:02:00",
+      "2017-01-02 12:02:00",
+      "2017-01-02 12:02:00",
+      "2017-01-01 12:02:00",
+      "2017-01-01 12:02:00")
+    val df = data
+      .toDF("date")
+      .withColumn("date", to_timestamp($"date"))
+    val schema = df.schema
+
+    val minTimestamp = df.selectExpr("min(date)").first().getTimestamp(0)
+    val maxTimestamp = df.selectExpr("max(date)").first().getTimestamp(0)
+    val columnStats = s"""{ "date_min": $minTimestamp, "date_max": $maxTimestamp }"""
+
+    // scalastyle:off
+    println(columnStats)
+    val qid = QTableID("t")
+    val revision =
+      SparkRevisionFactory.createNewRevision(
+        qid,
+        schema,
+        Map(QbeastOptions.COLUMNS_TO_INDEX -> "date", QbeastOptions.STATS -> columnStats))
+
+    val transformation = revision.transformations.head
+    transformation should not be null
+    transformation shouldBe a[LinearTransformation]
+    transformation.asInstanceOf[LinearTransformation].minNumber shouldBe minTimestamp
+    transformation.asInstanceOf[LinearTransformation].maxNumber shouldBe maxTimestamp
 
   })
 
