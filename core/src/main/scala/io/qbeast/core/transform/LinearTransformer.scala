@@ -6,6 +6,7 @@ package io.qbeast.core.transform
 import io.qbeast.core.model.{OrderedDataType, QDataType}
 
 import java.sql.{Date, Timestamp}
+import java.time.Instant
 
 object LinearTransformer extends TransformerType {
   override def transformerSimpleName: String = "linear"
@@ -26,8 +27,9 @@ case class LinearTransformer(columnName: String, dataType: QDataType) extends Tr
       // Very special case in which we load the transformation information from JSON options
       case d: java.lang.Long if dataType.name == "IntegerDataType" => d.intValue()
       case d: java.math.BigDecimal => d.doubleValue()
-      case d: Timestamp => d.getTime()
-      case d: Date => d.getTime()
+      case d: Timestamp => d.getTime
+      case d: Date => d.getTime
+      case d: Instant => Timestamp.from(d).getTime
       case other => other
     }
   }
