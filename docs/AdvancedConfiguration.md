@@ -102,9 +102,9 @@ In a `JSON` string, you can pass the **minimum and maximum values of the columns
 
 ## Indexing Timestamps with ColumnStats
 
-For indexing `Timestamps` or `Dates` with `columnStats` (min and maximum ranges), notice that **the values need to be formatted in a proper way** (followinhg `"yyyy-MM-dd HH:mm:ss.SSSSSS'Z'"` pattern) for Qbeast to be able to parse it. 
+For indexing `Timestamps` or `Dates` with `columnStats` (min and maximum ranges), notice that **the values need to be formatted in a proper way** (following `"yyyy-MM-dd HH:mm:ss.SSSSSS'Z'"` pattern) for Qbeast to be able to parse it. 
 
-Here's a snipped that would help you to codify the dates:
+Here's a snippet that would help you to codify the dates:
 
 ```scala
 val minTimestamp = df.selectExpr("min(date)").first().getTimestamp(0)
