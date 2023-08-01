@@ -9,6 +9,8 @@ import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.to_timestamp
 
+import java.text.SimpleDateFormat
+
 class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
 
   behavior of "SparkRevisionFactory"
@@ -152,6 +154,8 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
 
   })
 
+  // TODO THIS TWO TEST SHOULD WORK
+
   it should "createNewRevision with min max timestamp" in withSpark(spark => {
     import spark.implicits._
     val data = Seq(
@@ -168,10 +172,11 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
 
     val minTimestamp = df.selectExpr("min(date)").first().getTimestamp(0)
     val maxTimestamp = df.selectExpr("max(date)").first().getTimestamp(0)
-    val columnStats = s"""{ "date_min": $minTimestamp, "date_max": $maxTimestamp }"""
+    val formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSS'Z'")
+    val columnStats =
+      s"""{ "date_min":"${formatter.format(minTimestamp)}",
+         |"date_max":"${formatter.format(maxTimestamp)}" }""".stripMargin
 
-    // scalastyle:off
-    println(columnStats)
     val qid = QTableID("t")
     val revision =
       SparkRevisionFactory.createNewRevision(
@@ -182,8 +187,8 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
     val transformation = revision.transformations.head
     transformation should not be null
     transformation shouldBe a[LinearTransformation]
-    transformation.asInstanceOf[LinearTransformation].minNumber shouldBe minTimestamp
-    transformation.asInstanceOf[LinearTransformation].maxNumber shouldBe maxTimestamp
+    transformation.asInstanceOf[LinearTransformation].minNumber shouldBe minTimestamp.getTime
+    transformation.asInstanceOf[LinearTransformation].maxNumber shouldBe maxTimestamp.getTime
 
   })
 
@@ -211,7 +216,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
         LinearTransformer("b", DoubleDataType))
       revision.transformations.size shouldBe 2
 
-      val a_transformation = revision.transformations(0)
+      val a_transformation = revision.transformations.head
       a_transformation should not be null
       a_transformation shouldBe a[LinearTransformation]
       a_transformation.asInstanceOf[LinearTransformation].minNumber shouldBe 0

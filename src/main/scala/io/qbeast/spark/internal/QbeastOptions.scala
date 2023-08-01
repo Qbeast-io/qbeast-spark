@@ -67,7 +67,15 @@ object QbeastOptions {
     options.get(STATS) match {
       case Some(value) =>
         import spark.implicits._
-        Some(spark.read.json(Seq(value).toDS))
+        val ds = Seq(value).toDS()
+        val df = spark.read
+          .option("inferTimestamp", "true")
+          .option("timestampFormat", "yyyy-MM-dd HH:mm:ss.SSSSSS'Z'")
+          .json(ds)
+        // scalastyle:off
+        println("value " + value)
+        println("schema " + df.schema)
+        Some(df)
       case None => None
     }
   }
