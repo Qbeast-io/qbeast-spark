@@ -4,7 +4,7 @@
 package io.qbeast.spark.table
 
 import io.qbeast.core.keeper.Keeper
-import io.qbeast.core.model.{IndexStatus, _}
+import io.qbeast.core.model._
 import io.qbeast.spark.delta.CubeDataLoader
 import io.qbeast.spark.delta.StagingDataManager
 import io.qbeast.spark.delta.StagingResolution
