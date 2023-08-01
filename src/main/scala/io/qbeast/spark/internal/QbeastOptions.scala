@@ -72,9 +72,6 @@ object QbeastOptions {
           .option("inferTimestamp", "true")
           .option("timestampFormat", "yyyy-MM-dd HH:mm:ss.SSSSSS'Z'")
           .json(ds)
-        // scalastyle:off
-        println("value " + value)
-        println("schema " + df.schema)
         Some(df)
       case None => None
     }

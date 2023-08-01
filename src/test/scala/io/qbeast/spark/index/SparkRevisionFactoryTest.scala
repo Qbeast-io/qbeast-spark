@@ -121,8 +121,6 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
 
   })
 
-  // TODO THIS TWO TEST SHOULD WORK
-
   it should "append with new columnStats" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
     val df = 0.to(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).toDF()
@@ -153,8 +151,6 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
     transformation.asInstanceOf[LinearTransformation].maxNumber shouldBe 40
 
   })
-
-  // TODO THIS TWO TEST SHOULD WORK
 
   it should "createNewRevision with min max timestamp" in withSpark(spark => {
     import spark.implicits._
