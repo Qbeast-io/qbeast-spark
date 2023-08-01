@@ -100,6 +100,21 @@ In a `JSON` string, you can pass the **minimum and maximum values of the columns
 }
 ```
 
+## Indexing Timestamps with ColumnStats
+
+For indexing `Timestamps` or `Dates` with `columnStats` (min and maximum ranges), notice that **the values need to be formatted in a proper way** (followinhg `"yyyy-MM-dd HH:mm:ss.SSSSSS'Z'"` pattern) for Qbeast to be able to parse it. 
+
+Here's a snipped that would help you to codify the dates:
+
+```scala
+val minTimestamp = df.selectExpr("min(date)").first().getTimestamp(0)
+val maxTimestamp = df.selectExpr("max(date)").first().getTimestamp(0)
+val formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSS'Z'")
+val columnStats =
+  s"""{ "date_min":"${formatter.format(minTimestamp)}",
+     |"date_max":"${formatter.format(maxTimestamp)}" }""".stripMargin
+```
+
 ## DefaultCubeSize
 
 If you don't specify the cubeSize at DataFrame level, the default value is used. This is set to 5M, so if you want to change it
