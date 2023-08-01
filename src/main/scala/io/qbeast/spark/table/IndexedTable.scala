@@ -201,7 +201,7 @@ private[table] class IndexedTableImpl(
     val indexStatus =
       if (exists && append) {
         // If the table exists and we are appending new data
-        // 1. Load existing Revision
+        // 1. Load existing IndexStatus
         val latestRevision = snapshot.loadLatestRevision
         val updatedParameters = addRequiredParams(latestRevision, parameters)
         if (isStaging(latestRevision)) { // If the existing Revision is Staging
@@ -211,8 +211,8 @@ private[table] class IndexedTableImpl(
             // If the new parameters generate a new revision, we need to create another one
             val newPotentialRevision = revisionBuilder
               .createNewRevision(tableID, data.schema, updatedParameters)
-
-            // Merge new revision with old Revision transformations
+            val newRevisionCubeSize = newPotentialRevision.desiredCubeSize
+            // Merge new Revision Transformations with old Revision Transformations
             val newRevisionTransformations =
               latestRevision.transformations.zip(newPotentialRevision.transformations).map {
                 case (oldTransformation, newTransformation)
@@ -221,13 +221,18 @@ private[table] class IndexedTableImpl(
                 case _ => None
               }
 
+            // Create a RevisionChange
             val revisionChanges = RevisionChange(
               supersededRevision = latestRevision,
               timestamp = System.currentTimeMillis(),
+              desiredCubeSizeChange = Some(newRevisionCubeSize),
               transformationsChanges = newRevisionTransformations)
 
+            // Output the New Revision into the IndexStatus
             IndexStatus(revisionChanges.createNewRevision)
           } else {
+            // If the new parameters does not create a different revision,
+            // load the latest IndexStatus
             snapshot.loadIndexStatus(latestRevision.revisionID)
           }
         }
