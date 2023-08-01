@@ -146,11 +146,11 @@ private[table] class IndexedTableImpl(
 
   override def exists: Boolean = !snapshot.isInitial
 
-  private def checkRevisionParameters(
-      qbeastOptions: QbeastOptions,
-      latestRevision: Revision): Boolean = {
+  private def isNewRevision(qbeastOptions: QbeastOptions, latestRevision: Revision): Boolean = {
     // TODO feature: columnsToIndex may change between revisions
     checkColumnsToMatchSchema(latestRevision)
+    // Checks if the desiredCubeSize is different from the existing one
+    val isNewCubeSize = latestRevision.desiredCubeSize != qbeastOptions.cubeSize
     // Checks if the user-provided column boundaries would trigger the creation of
     // a new revision.
     val isNewSpace = qbeastOptions.stats match {
@@ -170,7 +170,7 @@ private[table] class IndexedTableImpl(
           })
     }
 
-    latestRevision.desiredCubeSize == qbeastOptions.cubeSize && !isNewSpace
+    isNewCubeSize || isNewSpace
 
   }
 
@@ -200,19 +200,40 @@ private[table] class IndexedTableImpl(
       append: Boolean): BaseRelation = {
     val indexStatus =
       if (exists && append) {
+        // If the table exists and we are appending new data
+        // 1. Load existing IndexStatus
         val latestRevision = snapshot.loadLatestRevision
         val updatedParameters = addRequiredParams(latestRevision, parameters)
-        if (isStaging(latestRevision)) {
+        if (isStaging(latestRevision)) { // If the existing Revision is Staging
           IndexStatus(revisionBuilder.createNewRevision(tableID, data.schema, updatedParameters))
         } else {
-          if (checkRevisionParameters(QbeastOptions(updatedParameters), latestRevision)) {
-            snapshot.loadIndexStatus(latestRevision.revisionID)
-          } else {
+          if (isNewRevision(QbeastOptions(updatedParameters), latestRevision)) {
             // If the new parameters generate a new revision, we need to create another one
-            val oldRevisionID = latestRevision.revisionID
-            val newRevision = revisionBuilder
-              .createNextRevision(tableID, data.schema, updatedParameters, oldRevisionID)
-            IndexStatus(newRevision)
+            val newPotentialRevision = revisionBuilder
+              .createNewRevision(tableID, data.schema, updatedParameters)
+            val newRevisionCubeSize = newPotentialRevision.desiredCubeSize
+            // Merge new Revision Transformations with old Revision Transformations
+            val newRevisionTransformations =
+              latestRevision.transformations.zip(newPotentialRevision.transformations).map {
+                case (oldTransformation, newTransformation)
+                    if oldTransformation.isSupersededBy(newTransformation) =>
+                  Some(oldTransformation.merge(newTransformation))
+                case _ => None
+              }
+
+            // Create a RevisionChange
+            val revisionChanges = RevisionChange(
+              supersededRevision = latestRevision,
+              timestamp = System.currentTimeMillis(),
+              desiredCubeSizeChange = Some(newRevisionCubeSize),
+              transformationsChanges = newRevisionTransformations)
+
+            // Output the New Revision into the IndexStatus
+            IndexStatus(revisionChanges.createNewRevision)
+          } else {
+            // If the new parameters does not create a different revision,
+            // load the latest IndexStatus
+            snapshot.loadIndexStatus(latestRevision.revisionID)
           }
         }
       } else {
