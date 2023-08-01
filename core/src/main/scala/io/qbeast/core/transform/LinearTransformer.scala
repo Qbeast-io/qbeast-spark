@@ -29,7 +29,7 @@ case class LinearTransformer(columnName: String, dataType: QDataType) extends Tr
       case d: java.math.BigDecimal => d.doubleValue()
       case d: Timestamp => d.getTime
       case d: Date => d.getTime
-      case d: Instant => Timestamp.from(d).getTime
+      case d: Instant => d.toEpochMilli
       case other => other
     }
   }
