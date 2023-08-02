@@ -15,7 +15,6 @@ import org.apache.spark.sql.catalyst.analysis.{
 }
 import org.apache.spark.sql.{SparkCatalogUtils, SparkSession}
 import org.apache.spark.sql.connector.catalog._
-import org.apache.spark.sql.connector.catalog.functions.UnboundFunction
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.delta.catalog.DeltaCatalog
 import org.apache.spark.sql.types.StructType
@@ -30,7 +29,7 @@ import scala.collection.JavaConverters._
  * QbeastCatalog uses a session catalog of type T
  * to delegate high-level operations
  */
-class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatalog]
+class QbeastCatalog[T <: TableCatalog with SupportsNamespaces]
     extends CatalogExtension
     with SupportsNamespaces
     with StagingTableCatalog {
@@ -234,8 +233,8 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
   override def alterNamespace(namespace: Array[String], changes: NamespaceChange*): Unit =
     getSessionCatalog().alterNamespace(namespace, changes.head)
 
-  override def dropNamespace(namespace: Array[String], cascade: Boolean): Boolean =
-    getSessionCatalog().dropNamespace(namespace, cascade)
+  override def dropNamespace(namespace: Array[String]): Boolean =
+    getSessionCatalog().dropNamespace(namespace)
 
   override def initialize(name: String, options: CaseInsensitiveStringMap): Unit = {
     // Initialize the catalog with the corresponding name
@@ -254,11 +253,5 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
       this.deltaCatalog.setDelegateCatalog(delegate)
     } else throw new IllegalArgumentException("Invalid session catalog: " + delegate)
   }
-
-  override def listFunctions(namespace: Array[String]): Array[Identifier] =
-    getSessionCatalog().listFunctions(namespace)
-
-  override def loadFunction(ident: Identifier): UnboundFunction =
-    getSessionCatalog().loadFunction(ident)
 
 }

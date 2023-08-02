@@ -11,7 +11,7 @@ import io.qbeast.spark.delta.SparkDeltaMetadataManager
 import io.qbeast.spark.delta.writer.{SparkDeltaDataWriter}
 import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionFactory}
 import io.qbeast.spark.table.IndexedTableFactoryImpl
-import org.apache.log4j.{Level}
+import org.apache.log4j.{Level, Logger}
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -32,6 +32,8 @@ import java.nio.file.Files
  * }}}
  */
 trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetComparer {
+  // This reduce the verbosity of Spark
+  Logger.getLogger("org.apache").setLevel(Level.WARN)
 
   // Spark Configuration
   // Including Session Extensions and Catalog
@@ -78,7 +80,6 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
       .appName("QbeastDataSource")
       .config(sparkConf)
       .getOrCreate()
-    spark.sparkContext.setLogLevel(Level.WARN.toString)
     try {
       testCode(spark)
     } finally {
