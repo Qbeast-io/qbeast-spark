@@ -1,7 +1,7 @@
 import Dependencies._
 import xerial.sbt.Sonatype._
 
-val mainVersion = "0.3.3"
+val mainVersion = "0.3.5"
 
 lazy val qbeastCore = (project in file("core"))
   .settings(
@@ -26,7 +26,7 @@ lazy val qbeastSpark = (project in file("."))
     Test / parallelExecution := false,
     assembly / test := {},
     assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false),
-    publish / skip := true)
+    publish / skip := false)
   .settings(noWarningInConsole)
 
 qbeastSpark / Compile / doc / scalacOptions ++= Seq(
