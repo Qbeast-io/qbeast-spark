@@ -4,7 +4,9 @@
 package io.qbeast.core.transform
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import java.sql.{Timestamp, Date}
+
+import java.sql.{Date, Timestamp}
+import java.time.Instant
 
 /**
  * Double value transformation.
@@ -56,6 +58,7 @@ case class IdentityToZeroTransformation(identityValue: Any) extends Transformati
     case v: Number if v == identityValue => 0.0
     case v: Timestamp if v == identityValue => 0.0
     case v: Date if v == identityValue => 0.0
+    case v: Instant if v == identityValue => 0.0
 
   }
 

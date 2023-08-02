@@ -11,18 +11,19 @@ import com.fasterxml.jackson.databind.node.{DoubleNode, IntNode, NumericNode, Te
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import com.fasterxml.jackson.databind.{DeserializationContext, SerializerProvider}
 import io.qbeast.core.model.{
+  DateDataType,
   DecimalDataType,
   DoubleDataType,
   FloatDataType,
   IntegerDataType,
   LongDataType,
   OrderedDataType,
-  TimestampDataType,
-  DateDataType
+  TimestampDataType
 }
 
 import java.math.BigDecimal
-import java.sql.{Timestamp, Date}
+import java.sql.{Date, Timestamp}
+import java.time.Instant
 import scala.util.Random
 import scala.util.hashing.MurmurHash3
 
@@ -62,6 +63,7 @@ case class LinearTransformation(
       case v: Float => (v - mn) * scale
       case v: Timestamp => (v.getTime - mn) * scale
       case v: Date => (v.getTime - mn) * scale
+      case v: Instant => (v.toEpochMilli - mn) * scale
     }
   }
 
