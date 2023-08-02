@@ -26,7 +26,7 @@ lazy val qbeastSpark = (project in file("."))
     Test / parallelExecution := false,
     assembly / test := {},
     assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false),
-    publish / skip := false)
+    publish / skip := true)
   .settings(noWarningInConsole)
 
 qbeastSpark / Compile / doc / scalacOptions ++= Seq(
