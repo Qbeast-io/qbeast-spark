@@ -11,14 +11,14 @@ import io.qbeast.core.model.Weight
  * @param cube the cube
  * @param maxWeight the maximum weight
  * @param minWeight the minimum weight
- * @param replicated the cube block is replicated
+ * @param state the cube state
  * @param elementCount the number of rows
  */
 case class BlockStats protected (
     cube: String,
     maxWeight: Weight,
     minWeight: Weight,
-    replicated: Boolean,
+    state: String,
     elementCount: Long) {
 
   /**
@@ -33,7 +33,7 @@ case class BlockStats protected (
   }
 
   override def toString: String =
-    s"BlocksStats($cube,$maxWeight,$minWeight,$replicated,$elementCount)"
+    s"BlocksStats($cube,$maxWeight,$minWeight,$state,$elementCount)"
 
 }
 
@@ -45,11 +45,11 @@ object BlockStats {
   /**
    * Use this constructor to build the first BlockStat
    * @param cube the block's cubeId
-   * @param replicated the block is replicated
+   * @param state the status of the block
    * @param maxWeight the maxWeight of the block
    * @return a new empty instance of BlockStats
    */
-  def apply(cube: String, replicated: Boolean, maxWeight: Weight): BlockStats =
-    BlockStats(cube, maxWeight, minWeight = Weight.MaxValue, replicated, 0)
+  def apply(cube: String, state: String, maxWeight: Weight): BlockStats =
+    BlockStats(cube, maxWeight, minWeight = Weight.MaxValue, state, 0)
 
 }

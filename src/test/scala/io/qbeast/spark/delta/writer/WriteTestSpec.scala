@@ -76,7 +76,7 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
               rev.revisionID,
               Weight.MinValue,
               maxWeight,
-              false,
+              "FLOODED",
               i * 10,
               i * 1000L,
               System.currentTimeMillis())

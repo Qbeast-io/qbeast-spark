@@ -21,7 +21,7 @@ object TagColumns {
   final val cube = col("tags.cube")
   final val minWeight = col("tags.minWeight")
   final val maxWeight = col("tags.maxWeight")
-  final val replicated = col("tags.replicated")
+  final val state = col("tags.state")
   final val revision = col("tags.revision")
   final val elementCount = col("tags.elementCount")
 }
@@ -30,12 +30,13 @@ object TagUtils {
   final val cube = "cube"
   final val minWeight = "minWeight"
   final val maxWeight = "maxWeight"
-  final val replicated = "replicated"
+  final val state = "state"
   final val revision = "revision"
   final val elementCount = "elementCount"
 }
 
 object MetadataConfig {
   final val revision = "qbeast.revision"
+  final val replicatedSet = "qbeast.replicatedSet"
   final val lastRevisionID = "qbeast.lastRevisionID"
 }

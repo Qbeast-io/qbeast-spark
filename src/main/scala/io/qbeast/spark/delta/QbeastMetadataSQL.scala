@@ -30,8 +30,9 @@ object QbeastMetadataSQL {
       col("size"),
       col("modificationTime"),
       weight(TagColumns.minWeight).as("minWeight"),
-      weight(TagColumns.maxWeight).as("maxWeight"),
-      TagColumns.replicated.cast("boolean").as("replicated"),
+      weight(TagColumns.maxWeight)
+        .as("maxWeight"),
+      TagColumns.state,
       TagColumns.revision.cast("bigint").as("revision"),
       TagColumns.elementCount.cast("bigint").as("elementCount"))
 
