@@ -18,9 +18,9 @@
 
 **Qbeast Spark** is an extension for [**Data Lakehouses**](http://cidrdb.org/cidr2021/papers/cidr2021_paper17.pdf) that enables **multi-dimensional filtering** and **sampling** directly on the storage
 
-[![apache-spark](https://img.shields.io/badge/apache--spark-3.2.x-blue)](https://spark.apache.org/releases/spark-release-3-2-2.html) 
+[![apache-spark](https://img.shields.io/badge/apache--spark-3.3.x-blue)](https://spark.apache.org/releases/spark-release-3-2-2.html) 
 [![apache-hadoop](https://img.shields.io/badge/apache--hadoop-3.3.x-blue)](https://hadoop.apache.org/release/3.3.1.html)
-[![delta-core](https://img.shields.io/badge/delta--core-1.2.0-blue)](https://github.com/delta-io/delta/releases/tag/v1.2.0)
+[![delta-core](https://img.shields.io/badge/delta--core-2.1.0-blue)](https://github.com/delta-io/delta/releases/tag/v1.2.0)
 [![codecov](https://codecov.io/gh/Qbeast-io/qbeast-spark/branch/main/graph/badge.svg?token=8WO7HGZ4MW)](https://codecov.io/gh/Qbeast-io/qbeast-spark)
 
 </div>
@@ -67,11 +67,11 @@ Download **Spark 3.1.1 with Hadoop 3.2**, unzip it, and create the `SPARK_HOME` 
 >:information_source: **Note**: You can use Hadoop 2.7 if desired, but you could have some troubles with different cloud providers' storage, read more about it [here](docs/CloudStorages.md).
 
 ```bash
-wget https://www.apache.org/dyn/closer.lua/spark/spark-3.3.2/spark-3.3.2-bin-hadoop3.tgz
+wget https://archive.apache.org/dist/spark/spark-3.3.0/spark-3.3.0-bin-hadoop3.tgz
 
-tar xzvf spark-3.3.2-bin-hadoop3.tgz
+tar -xzvf spark-3.3.0-bin-hadoop3.tgz
 
-export SPARK_HOME=$PWD/spark-3.3.2-bin-hadoop3
+export SPARK_HOME=$PWD/spark-3.3.0-bin-hadoop3
  ```
 ### 1. Launch a spark-shell
 
@@ -79,9 +79,9 @@ export SPARK_HOME=$PWD/spark-3.3.2-bin-hadoop3
 
 ```bash
 $SPARK_HOME/bin/spark-shell \
+--packages io.qbeast:qbeast-spark_2.12:0.4.0,io.delta:delta-core_2.12:2.1.0 \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
---conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog \
---packages io.qbeast:qbeast-spark_2.12:0.3.2,io.delta:delta-core_2.12:1.2.0
+--conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
 ```
 
 ### 2. Indexing a dataset
@@ -164,12 +164,12 @@ Go to [QbeastTable documentation](./docs/QbeastTable.md) for more detailed infor
 Use [Python index visualizer](./utils/visualizer/README.md) for your indexed table to visually examine index structure and gather sampling metrics.
 
 # Dependencies and Version Compatibility
-| Version              | Spark | Hadoop | Delta Lake |
-|----------------------|:-----:|:------:|:----------:|
-| 0.1.0                | 3.0.0 | 3.2.0  |   0.8.0    |
-| 0.2.0                | 3.1.x | 3.2.0  |   1.0.0    |
-| 0.3.x                | 3.2.x | 3.3.x  |   1.2.x    |
-| 0.4.x (coming soon!) | 3.3.x | 3.3.x  |   2.1.x    |
+| Version | Spark | Hadoop | Delta Lake |
+|---------|:-----:|:------:|:----------:|
+| 0.1.0   | 3.0.0 | 3.2.0  |   0.8.0    |
+| 0.2.0   | 3.1.x | 3.2.0  |   1.0.0    |
+| 0.3.x   | 3.2.x | 3.3.x  |   1.2.x    |
+| 0.4.x   | 3.3.x | 3.3.x  |   2.1.x    |
 
 Check [here](https://docs.delta.io/latest/releases.html) for **Delta Lake** and **Apache Spark** version compatibility.  
 
