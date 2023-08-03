@@ -130,6 +130,7 @@ class WritingProcess(context: ProtoTestContext)(implicit keeper: Keeper) extends
       // Here new data is written
       val writer = writeData(rev)
       while (tries > 0) {
+        val knownAnnounced = winfo.announcedCubes.map(rev.createCubeId)
         deltaLog.withNewTransaction { txn =>
           enteredTransaction()
           val (changes, newFiles) = writer
@@ -140,11 +141,15 @@ class WritingProcess(context: ProtoTestContext)(implicit keeper: Keeper) extends
             tries = 0
             succeeded = Some(true)
           } catch {
-            case e: ConcurrentModificationException =>
-              if (tries == 0) {
-                succeeded = Some(false)
-                throw e
-              }
+            case cme: ConcurrentModificationException
+                if SparkDeltaMetadataManager.hasConflicts(
+                  tableID,
+                  rev.revisionID,
+                  knownAnnounced,
+                  Set.empty) || tries == 0 =>
+              succeeded = Some(false)
+              throw cme
+            case _: ConcurrentModificationException =>
               tries -= 1
           }
         }

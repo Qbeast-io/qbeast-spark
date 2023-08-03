@@ -45,6 +45,24 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
   }
 
   /**
+   * Constructs replicated set for each revision
+   *
+   * @return a map of revision identifier and replicated set
+   */
+  private val replicatedSetsMap: Map[RevisionID, ReplicatedSet] = {
+    val listReplicatedSets = metadataMap.filterKeys(_.startsWith(MetadataConfig.replicatedSet))
+
+    listReplicatedSets.map { case (key: String, json: String) =>
+      val revisionID = key.split('.').last.toLong
+      val revision = getRevision(revisionID)
+      val replicatedSet = mapper
+        .readValue[Set[String]](json, classOf[Set[String]])
+        .map(revision.createCubeId)
+      (revisionID, replicatedSet)
+    }
+  }
+
+  /**
    * Returns last available revision identifier
    *
    * @return revision identifier
@@ -63,6 +81,16 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
       .getOrElse(
         revisionID,
         throw AnalysisExceptionFactory.create(s"No space revision available with $revisionID"))
+  }
+
+  /**
+   * Returns the replicated set for a revision identifier if exists
+   * @param revisionID the revision identifier
+   * @return the replicated set
+   */
+  private def getReplicatedSet(revisionID: RevisionID): ReplicatedSet = {
+    replicatedSetsMap
+      .getOrElse(revisionID, Set.empty)
   }
 
   /**
@@ -92,7 +120,8 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
    */
   override def loadIndexStatus(revisionID: RevisionID): IndexStatus = {
     val revision = getRevision(revisionID)
-    new IndexStatusBuilder(this, revision).build()
+    val replicatedSet = getReplicatedSet(revisionID)
+    new IndexStatusBuilder(this, revision, replicatedSet).build()
   }
 
   /**

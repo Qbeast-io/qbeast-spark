@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.spark.utils.TagUtils
+import io.qbeast.spark.utils.{State, TagUtils}
 import org.apache.spark.sql.delta.actions.AddFile
 
 /**
@@ -12,8 +12,7 @@ import org.apache.spark.sql.delta.actions.AddFile
 object ReplicatedFile {
 
   def apply(addFile: AddFile): AddFile = {
-    val newTags = addFile.tags
-      .updated(TagUtils.replicated, true.toString())
+    val newTags = addFile.tags.updated(TagUtils.state, State.REPLICATED)
     addFile.copy(tags = newTags, modificationTime = System.currentTimeMillis())
   }
 
