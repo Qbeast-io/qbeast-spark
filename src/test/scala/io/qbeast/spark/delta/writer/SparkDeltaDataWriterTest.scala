@@ -50,7 +50,7 @@ class SparkDeltaDataWriterTest extends QbeastIntegrationTestSpec {
       val groupedFiles = groupedCubeFiles.map(_._2)
 
       groupedFiles.foreach(blocks => {
-        val size = blocks.map(_.size).sum
+        val size = blocks.map(_.file.size).sum
         size shouldBe >=(MIN_COMPACTION_FILE_SIZE_IN_BYTES)
         size shouldBe <=(MAX_COMPACTION_FILE_SIZE_IN_BYTES)
       })

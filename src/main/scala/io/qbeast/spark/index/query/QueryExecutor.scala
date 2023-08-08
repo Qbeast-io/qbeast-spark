@@ -19,7 +19,7 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
    * Executes the query on each revision according to their QuerySpec
    * @return the final sequence of blocks that match the query
    */
-  def execute(): Iterable[QbeastBlock] = {
+  def execute(): Iterable[Block] = {
 
     qbeastSnapshot.loadAllRevisions.flatMap { revision =>
       val querySpecs = querySpecBuilder.build(revision)
@@ -34,7 +34,7 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
             indexStatus.cubesStatuses.values.flatMap { status =>
               status.files.filter(_.state == State.FLOODED)
             }
-          case _ => Seq.empty[QbeastBlock]
+          case _ => Seq.empty[Block]
         }
       }
     }.toSet
@@ -42,9 +42,9 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
 
   private[query] def executeRevision(
       querySpec: QuerySpec,
-      indexStatus: IndexStatus): IISeq[QbeastBlock] = {
+      indexStatus: IndexStatus): IISeq[Block] = {
 
-    val outputFiles = Vector.newBuilder[QbeastBlock]
+    val outputFiles = Vector.newBuilder[Block]
     val stack = mutable.Stack(indexStatus.revision.createCubeIdRoot())
     while (stack.nonEmpty) {
       val currentCube = stack.pop()

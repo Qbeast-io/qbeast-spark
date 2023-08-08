@@ -146,7 +146,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
               qbeastSnapshot,
               qbeastSnapshot.loadLatestIndexStatus.revision,
               Set.empty)
-          val revisionState = builder.buildCubesStatuses
+          val revisionState = builder.indexCubeStatuses
 
           val overflowed = qbeastSnapshot.loadLatestIndexStatus.overflowedSet
 

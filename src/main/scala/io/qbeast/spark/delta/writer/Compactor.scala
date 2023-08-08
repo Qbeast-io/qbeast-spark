@@ -4,7 +4,7 @@
 package io.qbeast.spark.delta.writer
 
 import io.qbeast.IISeq
-import io.qbeast.core.model.{CubeId, QTableID, QbeastBlock, StagingUtils, TableChanges, Weight}
+import io.qbeast.core.model.{CubeId, QTableID, Block, StagingUtils, TableChanges, Weight}
 import io.qbeast.spark.utils.{State, TagUtils}
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapred.{JobConf, TaskAttemptContextImpl, TaskAttemptID}
@@ -34,7 +34,7 @@ case class Compactor(
     serConf: SerializableConfiguration,
     schema: StructType,
     cubeId: CubeId,
-    cubeBlocks: IISeq[QbeastBlock],
+    cubeBlocks: IISeq[Block],
     tableChanges: TableChanges)
     extends Serializable
     with StagingUtils {
@@ -53,7 +53,7 @@ case class Compactor(
       // maxWeight it's computed as the minimum of the maxWeights
       if (b.maxWeight < maxWeight) maxWeight = b.maxWeight
       elementCount = elementCount + b.elementCount
-      RemoveFile(b.path, Some(System.currentTimeMillis()))
+      RemoveFile(b.file.path, Some(System.currentTimeMillis()))
     })
 
     val state = tableChanges.cubeState(cubeId).getOrElse(State.FLOODED)

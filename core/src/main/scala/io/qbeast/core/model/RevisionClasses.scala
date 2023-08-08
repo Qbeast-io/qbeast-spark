@@ -7,6 +7,7 @@ import io.qbeast.IISeq
 import io.qbeast.core.transform.{Transformation, Transformer}
 
 import scala.collection.immutable.SortedMap
+import scala.collection.immutable
 
 object QTableID {
 
@@ -244,8 +245,36 @@ case class CubeStatus(
     cubeId: CubeId,
     maxWeight: Weight,
     normalizedWeight: NormalizedWeight,
-    files: IISeq[QbeastBlock])
+    files: IISeq[Block])
     extends Serializable
+
+/**
+ * Builder for creating the CubeStatus instances.
+ */
+class CubeStatusBuilder(cubeId: CubeId, desiredCubeSize: Int) {
+  var maxWeight = Weight.MaxValue
+  var elementCount: Long = 0
+  val blocks = immutable.Seq.newBuilder[Block]
+
+  /**
+   * Add a given block to the cube status being created.
+   */
+  def addBlock(block: Block): Unit = {
+    maxWeight = Weight.min(maxWeight, block.maxWeight)
+    elementCount += block.elementCount
+    blocks += block
+  }
+
+  def result(): CubeStatus = {
+    val normalizedWeight = if (maxWeight < Weight.MaxValue) {
+      maxWeight.fraction
+    } else {
+      NormalizedWeight(desiredCubeSize, elementCount)
+    }
+    CubeStatus(cubeId, maxWeight, normalizedWeight, blocks.result())
+  }
+
+}
 
 /**
  * Companion object for the IndexStatus

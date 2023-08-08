@@ -1,7 +1,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.TestClasses.T2
-import io.qbeast.core.model.QbeastBlock
+import io.qbeast.core.model.Block
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.SparkSession
@@ -16,7 +16,7 @@ class OTreeIndexTest extends QbeastIntegrationTestSpec {
     // Testing protected method
     override def matchingBlocks(
         partitionFilters: Seq[Expression],
-        dataFilters: Seq[Expression]): Iterable[QbeastBlock] =
+        dataFilters: Seq[Expression]): Iterable[Block] =
       super.matchingBlocks(partitionFilters, dataFilters)
 
   }
@@ -51,7 +51,7 @@ class OTreeIndexTest extends QbeastIntegrationTestSpec {
 
     val allFiles = deltaLog.snapshot.allFiles.collect().map(_.path)
 
-    val matchFiles = oTreeIndex.matchingBlocks(Seq.empty, Seq.empty).map(_.path)
+    val matchFiles = oTreeIndex.matchingBlocks(Seq.empty, Seq.empty).map(_.file.path)
 
     val diff = (allFiles.toSet -- matchFiles.toSet)
 
@@ -100,7 +100,10 @@ class OTreeIndexTest extends QbeastIntegrationTestSpec {
       val oTreeIndex = new OTreeIndexTest(tahoeFileIndex)
       val allFiles = deltaLog.snapshot.allFiles.collect().map(_.path)
 
-      oTreeIndex.matchingBlocks(Seq.empty, Seq.empty).map(_.path).toSet shouldBe allFiles.toSet
+      oTreeIndex
+        .matchingBlocks(Seq.empty, Seq.empty)
+        .map(_.file.path)
+        .toSet shouldBe allFiles.toSet
     })
 
   it should "sizeInBytes" in withSparkAndTmpDir((spark, tmpdir) => {

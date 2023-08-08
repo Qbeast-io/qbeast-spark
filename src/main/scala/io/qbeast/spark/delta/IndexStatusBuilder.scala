@@ -4,14 +4,13 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model._
-import io.qbeast.spark.delta.QbeastMetadataSQL._
-import io.qbeast.spark.utils.State.FLOODED
-import io.qbeast.spark.utils.TagColumns
 import org.apache.spark.sql.delta.actions.AddFile
-import org.apache.spark.sql.functions.{col, collect_list, lit, min, sum}
-import org.apache.spark.sql.{Dataset, SparkSession}
+import org.apache.spark.sql.Dataset
 
 import scala.collection.immutable.SortedMap
+import scala.collection.mutable
+import io.qbeast.spark.utils.TagUtils
+import io.qbeast.spark.utils.State
 
 /**
  * Builds the index status from a given snapshot and revision
@@ -39,7 +38,7 @@ private[delta] class IndexStatusBuilder(
   def build(): IndexStatus = {
     val cubeStatus =
       if (isStaging(revision)) stagingCubeStatuses
-      else buildCubesStatuses
+      else indexCubeStatuses
 
     IndexStatus(
       revision = revision,
@@ -50,54 +49,58 @@ private[delta] class IndexStatusBuilder(
 
   def stagingCubeStatuses: SortedMap[CubeId, CubeStatus] = {
     val root = revision.createCubeIdRoot()
+    val dimensionCount = revision.transformations.length
     val maxWeight = Weight.MaxValue
     val blocks = revisionFiles
       .collect()
-      .map(addFile =>
-        QbeastBlock(
-          addFile.path,
-          "",
-          revision.revisionID,
-          Weight.MinValue,
-          maxWeight,
-          FLOODED,
-          0,
-          addFile.size,
-          addFile.modificationTime))
+      .iterator
+      .map(IndexStatusBuilder.addFileToIndexFile(dimensionCount))
+      .flatMap(_.blocks)
       .toIndexedSeq
-
     SortedMap(root -> CubeStatus(root, maxWeight, maxWeight.fraction, blocks))
   }
 
   /**
    * Returns the index state for the given space revision
-   * @return Dataset containing cube information
+   * @return Dataset containing cube informatio
    */
-  def buildCubesStatuses: SortedMap[CubeId, CubeStatus] = {
-
-    val spark = SparkSession.active
-    val builder = SortedMap.newBuilder[CubeId, CubeStatus]
-
-    val rev = revision
-
-    import spark.implicits._
-    val ndims: Int = rev.transformations.size
+  def indexCubeStatuses: SortedMap[CubeId, CubeStatus] = {
+    val builders = mutable.Map.empty[CubeId, CubeStatusBuilder]
+    val dimensionCount = revision.transformations.length
+    val desiredCubeSize = revision.desiredCubeSize
     revisionFiles
-      .groupBy(TagColumns.cube)
-      .agg(
-        min(weight(TagColumns.maxWeight)).as("maxWeight"),
-        sum(TagColumns.elementCount).as("elementCount"),
-        collect_list(qblock).as("files"))
-      .select(
-        createCube(col("cube"), lit(ndims)).as("cubeId"),
-        col("maxWeight"),
-        normalizeWeight(col("maxWeight"), col("elementCount"), lit(rev.desiredCubeSize)).as(
-          "normalizedWeight"),
-        col("files"))
-      .as[CubeStatus]
       .collect()
-      .foreach(row => builder += row.cubeId -> row)
-    builder.result()
+      .iterator
+      .map(IndexStatusBuilder.addFileToIndexFile(dimensionCount))
+      .flatMap(_.blocks)
+      .foreach { block =>
+        val builder = builders.getOrElseUpdate(
+          block.cubeId,
+          new CubeStatusBuilder(block.cubeId, desiredCubeSize))
+        builder.addBlock(block)
+      }
+    val statuses = SortedMap.newBuilder[CubeId, CubeStatus]
+    builders.foreach { case (cubeId, builder) => statuses += cubeId -> builder.result() }
+    statuses.result()
+  }
+
+}
+
+private object IndexStatusBuilder {
+
+  private def addFileToIndexFile(dimensionCount: Int)(addFile: AddFile): IndexFile = {
+    val file = File(addFile.path, addFile.size, addFile.modificationTime)
+    val revisionId = addFile.getTag(TagUtils.revision).map(_.toLong).getOrElse(0L)
+    val to = addFile.getTag(TagUtils.elementCount).map(_.toLong).getOrElse(0L)
+    val range = Range(0, to)
+    val cubeId = CubeId(dimensionCount, addFile.getTag(TagUtils.cube).getOrElse(""))
+    val state = addFile.getTag(TagUtils.state).getOrElse(State.FLOODED)
+    val minWeight =
+      addFile.getTag(TagUtils.minWeight).map(_.toInt).map(Weight.apply).getOrElse(Weight.MinValue)
+    val maxWeight =
+      addFile.getTag(TagUtils.maxWeight).map(_.toInt).map(Weight.apply).getOrElse(Weight.MaxValue)
+    val block = Block(file, range, cubeId, state, minWeight, maxWeight)
+    IndexFile(file, revisionId, Seq(block))
   }
 
 }

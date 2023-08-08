@@ -69,17 +69,14 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
         val files = 1
           .to(4)
           .map(i => {
-            // Create a QbeastBlock under the revision
-            QbeastBlock(
-              UUID.randomUUID().toString,
-              cubeId.string,
-              rev.revisionID,
-              Weight.MinValue,
-              maxWeight,
+            // Create a Block under the revision
+            Block(
+              File(UUID.randomUUID().toString, i * 1000L, System.currentTimeMillis()),
+              Range(0, i * 10),
+              cubeId,
               "FLOODED",
-              i * 10,
-              i * 1000L,
-              System.currentTimeMillis())
+              Weight.MinValue,
+              maxWeight)
           })
         (cubeId, CubeStatus(cubeId, maxWeight, normalizedWeight, files))
     }
@@ -108,7 +105,7 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
       cubeStatus.files.foreach { i =>
         // Write data in parquetFile
         val dataCube = indexed.where(s"$cubeColumnName == '${cubeId.string}'")
-        dataCube.coalesce(1).write.format("parquet").save(tmpDir + "/" + i.path)
+        dataCube.coalesce(1).write.format("parquet").save(tmpDir + "/" + i.file.path)
       }
 
     }
