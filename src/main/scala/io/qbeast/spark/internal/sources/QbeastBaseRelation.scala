@@ -14,8 +14,6 @@ import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import io.qbeast.spark.table.IndexedTable
 import io.qbeast.context.QbeastContext
 import org.apache.hadoop.fs.Path
-import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 
 /**
  * Companion object for QbeastBaseRelation
@@ -49,7 +47,7 @@ object QbeastBaseRelation {
         partitionSchema = StructType(Seq.empty[StructField]),
         dataSchema = schema,
         bucketSpec = None,
-        new ParquetFileFormat(),
+        new QbeastFileFormat(),
         options)(spark) with InsertableRelation {
         def insert(data: DataFrame, overwrite: Boolean): Unit = {
           table.save(data, options, append = !overwrite)
@@ -65,15 +63,13 @@ object QbeastBaseRelation {
 
       val path = new Path(tableID.id)
       val fileIndex = OTreeIndex(spark, path)
-      val bucketSpec: Option[BucketSpec] = None
-      val file = new ParquetFileFormat()
 
       new HadoopFsRelation(
         fileIndex,
         partitionSchema = StructType(Seq.empty[StructField]),
         dataSchema = schema,
-        bucketSpec = bucketSpec,
-        file,
+        bucketSpec = None,
+        new QbeastFileFormat(),
         parameters)(spark) with InsertableRelation {
         def insert(data: DataFrame, overwrite: Boolean): Unit = {
           table.save(data, parameters, append = !overwrite)

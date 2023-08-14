@@ -1,23 +1,23 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.TestClasses.T2
-import io.qbeast.core.model.Block
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.delta.files.TahoeLogFileIndex
+import io.qbeast.core.model.QueryFile
 
 class OTreeIndexTest extends QbeastIntegrationTestSpec {
 
   class OTreeIndexTest(tahoe: TahoeLogFileIndex) extends OTreeIndex(index = tahoe) {
 
     // Testing protected method
-    override def matchingBlocks(
+    override def matchingFiles(
         partitionFilters: Seq[Expression],
-        dataFilters: Seq[Expression]): Iterable[Block] =
-      super.matchingBlocks(partitionFilters, dataFilters)
+        dataFilters: Seq[Expression]): Iterable[QueryFile] =
+      super.matchingFiles(partitionFilters, dataFilters)
 
   }
 
@@ -51,7 +51,7 @@ class OTreeIndexTest extends QbeastIntegrationTestSpec {
 
     val allFiles = deltaLog.snapshot.allFiles.collect().map(_.path)
 
-    val matchFiles = oTreeIndex.matchingBlocks(Seq.empty, Seq.empty).map(_.file.path)
+    val matchFiles = oTreeIndex.matchingFiles(Seq.empty, Seq.empty).map(_.file.path)
 
     val diff = (allFiles.toSet -- matchFiles.toSet)
 
@@ -101,7 +101,7 @@ class OTreeIndexTest extends QbeastIntegrationTestSpec {
       val allFiles = deltaLog.snapshot.allFiles.collect().map(_.path)
 
       oTreeIndex
-        .matchingBlocks(Seq.empty, Seq.empty)
+        .matchingFiles(Seq.empty, Seq.empty)
         .map(_.file.path)
         .toSet shouldBe allFiles.toSet
     })

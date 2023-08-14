@@ -100,7 +100,15 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
         "The sample should be more or less 10%"
       import spark.implicits._
 
-      val files = query.select(input_file_name()).distinct().as[String].collect()
+      val files = query
+        .select(input_file_name())
+        .distinct()
+        .as[String]
+        .map { path =>
+          val index = path.lastIndexOf('#')
+          if (index >= 0) path.substring(0, index) else path
+        }
+        .collect()
 
       val numberOfFilesQuery = files.length.toLong
       numberOfFilesQuery should be < totalNumberOfFiles withClue

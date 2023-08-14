@@ -3,7 +3,6 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.Block
 import io.qbeast.spark.index.query.{QueryExecutor, QuerySpecBuilder}
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.spark.sql.SparkSession
@@ -17,6 +16,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.SQLExecution
 
 import java.net.URI
+import io.qbeast.core.model.QueryFile
 
 /**
  * FileIndex to prune files
@@ -43,9 +43,9 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
     }
   }
 
-  protected def matchingBlocks(
+  protected def matchingFiles(
       partitionFilters: Seq[Expression],
-      dataFilters: Seq[Expression]): Iterable[Block] = {
+      dataFilters: Seq[Expression]): Iterable[QueryFile] = {
 
     val querySpecBuilder = new QuerySpecBuilder(dataFilters ++ partitionFilters)
     val queryExecutor = new QueryExecutor(querySpecBuilder, qbeastSnapshot)
@@ -58,30 +58,25 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
    * @return
    */
   private def stagingFiles: Seq[FileStatus] = {
-    qbeastSnapshot.loadStagingBlocks().collect().map { a: AddFile =>
-      new FileStatus(
-        /* length */ a.size,
-        /* isDir */ false,
-        /* blockReplication */ 0,
-        /* blockSize */ 1,
-        /* modificationTime */ a.modificationTime,
-        absolutePath(a.path))
-    }
+    qbeastSnapshot.loadStagingBlocks().collect().map(addFileToFileStatus)
+  }
+
+  private def addFileToFileStatus(file: AddFile): FileStatus = {
+    new FileStatus(
+      file.size, // length
+      false, // isDir
+      0, // blockReplication
+      1, // blockSize
+      file.modificationTime, // modificationTime
+      absolutePath(file.path) // path
+    )
   }
 
   override def listFiles(
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
-    val qbeastFileStats = matchingBlocks(partitionFilters, dataFilters).map { block =>
-      val file = block.file
-      new FileStatus(
-        /* length */ file.size,
-        /* isDir */ false,
-        /* blockReplication */ 0,
-        /* blockSize */ 1,
-        /* modificationTime */ file.modificationTime,
-        absolutePath(file.path))
-    }.toArray
+    val qbeastFileStats =
+      matchingFiles(partitionFilters, dataFilters).map(queryFileToFileStatus).toArray
     val stagingStats = stagingFiles
     val fileStats = qbeastFileStats ++ stagingStats
     val sc = index.spark.sparkContext
@@ -96,6 +91,30 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
     val filteredMsg = f"${nFiltered} of ${allFilesCount} (${filteredPct}%.2f%%)"
     logInfo(s"Qbeast filtered files (exec id ${execId}): ${filteredMsg}")
     Seq(PartitionDirectory(new GenericInternalRow(Array.empty[Any]), fileStats))
+  }
+
+  private def queryFileToFileStatus(queryFile: QueryFile): FileStatus = {
+    val file = queryFile.file
+    val path = StringBuilder.newBuilder
+    path ++= file.path
+    if (queryFile.ranges.nonEmpty) {
+      path += '#'
+      for (range <- queryFile.ranges) {
+        path ++= range.from.toString()
+        path += '-'
+        path ++= range.to.toString()
+        path += ','
+      }
+      path.deleteCharAt(path.length - 1)
+    }
+    new FileStatus(
+      file.size, // length
+      false, // isDir
+      0, // blockReplication
+      1, // blockSize
+      file.modificationTime, // modificationTime
+      absolutePath(path.result()) // path
+    )
   }
 
   override def inputFiles: Array[String] = {

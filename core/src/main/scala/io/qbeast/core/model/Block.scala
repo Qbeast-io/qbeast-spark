@@ -16,7 +16,7 @@ package io.qbeast.core.model
  */
 final case class Block(
     file: File,
-    range: Range,
+    range: RowRange,
     cubeId: CubeId,
     state: String,
     minWeight: Weight,

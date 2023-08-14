@@ -72,7 +72,7 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
             // Create a Block under the revision
             Block(
               File(UUID.randomUUID().toString, i * 1000L, System.currentTimeMillis()),
-              Range(0, i * 10),
+              RowRange(0, i * 10),
               cubeId,
               "FLOODED",
               Weight.MinValue,

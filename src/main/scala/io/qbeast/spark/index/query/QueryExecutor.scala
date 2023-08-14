@@ -19,25 +19,31 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
    * Executes the query on each revision according to their QuerySpec
    * @return the final sequence of blocks that match the query
    */
-  def execute(): Iterable[Block] = {
-
-    qbeastSnapshot.loadAllRevisions.flatMap { revision =>
-      val querySpecs = querySpecBuilder.build(revision)
-      querySpecs.flatMap { querySpec =>
-        (querySpec.isSampling, querySpec.querySpace) match {
-          case (_, _: QuerySpaceFromTo) | (true, _: AllSpace) =>
-            val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
-            val matchingBlocks = executeRevision(querySpec, indexStatus)
-            matchingBlocks
-          case (false, _: AllSpace) =>
-            val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
-            indexStatus.cubesStatuses.values.flatMap { status =>
-              status.files.filter(_.state == State.FLOODED)
-            }
-          case _ => Seq.empty[Block]
+  def execute(): Iterable[QueryFile] = {
+    val builders = mutable.Map.empty[String, QueryFileBuilder]
+    qbeastSnapshot.loadAllRevisions
+      .flatMap { revision =>
+        val querySpecs = querySpecBuilder.build(revision)
+        querySpecs.flatMap { querySpec =>
+          (querySpec.isSampling, querySpec.querySpace) match {
+            case (_, _: QuerySpaceFromTo) | (true, _: AllSpace) =>
+              val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
+              val matchingBlocks = executeRevision(querySpec, indexStatus)
+              matchingBlocks
+            case (false, _: AllSpace) =>
+              val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
+              indexStatus.cubesStatuses.values.flatMap { status =>
+                status.files.filter(_.state == State.FLOODED)
+              }
+            case _ => Seq.empty[Block]
+          }
         }
       }
-    }.toSet
+      .foreach { block =>
+        val builder = builders.getOrElseUpdate(block.file.path, new QueryFileBuilder(block.file))
+        builder.addBlock(block)
+      }
+    builders.values.map(_.result()).toSeq
   }
 
   private[query] def executeRevision(

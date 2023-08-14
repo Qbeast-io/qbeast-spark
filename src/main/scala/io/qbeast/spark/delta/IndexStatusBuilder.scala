@@ -92,7 +92,7 @@ private object IndexStatusBuilder {
     val file = File(addFile.path, addFile.size, addFile.modificationTime)
     val revisionId = addFile.getTag(TagUtils.revision).map(_.toLong).getOrElse(0L)
     val to = addFile.getTag(TagUtils.elementCount).map(_.toLong).getOrElse(0L)
-    val range = Range(0, to)
+    val range = RowRange(0, to)
     val cubeId = CubeId(dimensionCount, addFile.getTag(TagUtils.cube).getOrElse(""))
     val state = addFile.getTag(TagUtils.state).getOrElse(State.FLOODED)
     val minWeight =
