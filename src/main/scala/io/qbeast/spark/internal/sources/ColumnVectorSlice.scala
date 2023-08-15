@@ -45,7 +45,7 @@ private[sources] class ColumnVectorSlice(target: ColumnVector, from: Int, to: In
 
   override def getArray(rowId: Int): ColumnarArray = target.getArray(targetRowId(rowId))
 
-  override def getMap(ordinal: Int): ColumnarMap = target.getMap(targetRowId(ordinal))
+  override def getMap(ordinal: Int): ColumnarMap = target.getMap(ordinal)
 
   override def getDecimal(rowId: Int, precision: Int, scale: Int): Decimal =
     target.getDecimal(targetRowId(rowId), precision, scale)
@@ -54,7 +54,7 @@ private[sources] class ColumnVectorSlice(target: ColumnVector, from: Int, to: In
 
   override def getBinary(rowId: Int): Array[Byte] = target.getBinary(targetRowId(rowId))
 
-  override def getChild(ordinal: Int): ColumnVector = target.getChild(targetRowId(ordinal))
+  override def getChild(ordinal: Int): ColumnVector = target.getChild(ordinal)
 
   private def targetRowId(rowId: Int): Int = from + rowId
 }

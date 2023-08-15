@@ -17,6 +17,7 @@ import org.apache.spark.sql.execution.SQLExecution
 
 import java.net.URI
 import io.qbeast.core.model.QueryFile
+import io.qbeast.spark.internal.sources.PathRangesCodec
 
 /**
  * FileIndex to prune files
@@ -95,25 +96,14 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
 
   private def queryFileToFileStatus(queryFile: QueryFile): FileStatus = {
     val file = queryFile.file
-    val path = StringBuilder.newBuilder
-    path ++= file.path
-    if (queryFile.ranges.nonEmpty) {
-      path += '#'
-      for (range <- queryFile.ranges) {
-        path ++= range.from.toString()
-        path += '-'
-        path ++= range.to.toString()
-        path += ','
-      }
-      path.deleteCharAt(path.length - 1)
-    }
+    val path = PathRangesCodec.encode(queryFile.file.path, queryFile.ranges)
     new FileStatus(
       file.size, // length
       false, // isDir
       0, // blockReplication
       1, // blockSize
       file.modificationTime, // modificationTime
-      absolutePath(path.result()) // path
+      absolutePath(path) // path
     )
   }
 

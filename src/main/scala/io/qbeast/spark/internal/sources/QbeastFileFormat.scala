@@ -36,7 +36,8 @@ private[sources] class QbeastFileFormat extends ParquetFileFormat {
       options,
       hadoopConf)
     fileWithRanges: PartitionedFile => {
-      val (file, ranges) = QbeastFileFormat.extractRanges(fileWithRanges)
+      val (path, ranges) = PathRangesCodec.decode(fileWithRanges.filePath)
+      val file = fileWithRanges.copy(filePath = path)
       val rows = reader(file)
       QbeastFileFormat.applyRanges(rows, ranges)
     }
@@ -53,25 +54,6 @@ private[sources] class QbeastFileFormat extends ParquetFileFormat {
  * QbeastFileFormat companion object.
  */
 object QbeastFileFormat {
-
-  private def extractRanges(fileWithRanges: PartitionedFile): (PartitionedFile, Seq[RowRange]) = {
-    val path = fileWithRanges.filePath
-    val indexOfSharp = path.lastIndexOf('#')
-    if (indexOfSharp > 0) {
-      val file = fileWithRanges.copy(filePath = path.substring(0, indexOfSharp))
-      val ranges = Seq.newBuilder[RowRange]
-      path.substring(indexOfSharp + 1).split(',').foreach { expression =>
-        val indexOfDash = expression.indexOf('-')
-        if (indexOfDash > 0) {
-          val from = expression.substring(0, indexOfDash).toLong
-          val to = expression.substring(indexOfDash + 1).toLong
-          ranges += RowRange(from, to)
-        }
-      }
-      return (file, ranges.result())
-    }
-    (fileWithRanges, Seq.empty)
-  }
 
   private def applyRanges(
       rows: Iterator[InternalRow],
