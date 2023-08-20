@@ -9,8 +9,6 @@ import org.apache.spark.sql.Dataset
 
 import scala.collection.immutable.SortedMap
 import scala.collection.mutable
-import io.qbeast.spark.utils.TagUtils
-import io.qbeast.spark.utils.State
 
 /**
  * Builds the index status from a given snapshot and revision
@@ -54,7 +52,7 @@ private[delta] class IndexStatusBuilder(
     val blocks = revisionFiles
       .collect()
       .iterator
-      .map(IndexStatusBuilder.addFileToIndexFile(dimensionCount))
+      .map(IndexFiles.fromAddFile(dimensionCount))
       .flatMap(_.blocks)
       .toIndexedSeq
     SortedMap(root -> CubeStatus(root, maxWeight, maxWeight.fraction, blocks))
@@ -71,7 +69,7 @@ private[delta] class IndexStatusBuilder(
     revisionFiles
       .collect()
       .iterator
-      .map(IndexStatusBuilder.addFileToIndexFile(dimensionCount))
+      .map(IndexFiles.fromAddFile(dimensionCount))
       .flatMap(_.blocks)
       .foreach { block =>
         val builder = builders.getOrElseUpdate(
@@ -82,25 +80,6 @@ private[delta] class IndexStatusBuilder(
     val statuses = SortedMap.newBuilder[CubeId, CubeStatus]
     builders.foreach { case (cubeId, builder) => statuses += cubeId -> builder.result() }
     statuses.result()
-  }
-
-}
-
-private object IndexStatusBuilder {
-
-  private def addFileToIndexFile(dimensionCount: Int)(addFile: AddFile): IndexFile = {
-    val file = File(addFile.path, addFile.size, addFile.modificationTime)
-    val revisionId = addFile.getTag(TagUtils.revision).map(_.toLong).getOrElse(0L)
-    val to = addFile.getTag(TagUtils.elementCount).map(_.toLong).getOrElse(0L)
-    val range = RowRange(0, to)
-    val cubeId = CubeId(dimensionCount, addFile.getTag(TagUtils.cube).getOrElse(""))
-    val state = addFile.getTag(TagUtils.state).getOrElse(State.FLOODED)
-    val minWeight =
-      addFile.getTag(TagUtils.minWeight).map(_.toInt).map(Weight.apply).getOrElse(Weight.MinValue)
-    val maxWeight =
-      addFile.getTag(TagUtils.maxWeight).map(_.toInt).map(Weight.apply).getOrElse(Weight.MaxValue)
-    val block = Block(file, range, cubeId, state, minWeight, maxWeight)
-    IndexFile(file, revisionId, Seq(block))
   }
 
 }

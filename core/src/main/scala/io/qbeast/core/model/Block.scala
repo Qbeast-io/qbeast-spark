@@ -7,8 +7,8 @@ package io.qbeast.core.model
  * Block represents the index data stored as a continous media in a index file.
  * It also provides the necessary metadada to maintain the index structure.
  *
- * @param file the index file
- * @param range the range of the index file that stores the data
+ * @param file the physical file storing the block data
+ * @param range the range of rows in the file that stores the data
  * @param cubeId the cube identifier
  * @param state the block state
  * @param minWeight the minimum weight of the block element

@@ -5,6 +5,7 @@ package io.qbeast.spark.delta.writer
 
 import io.qbeast.IISeq
 import io.qbeast.core.model._
+import io.qbeast.spark.delta.IndexFiles
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.index.QbeastColumns.cubeColumnName
 import org.apache.hadoop.fs.Path
@@ -23,8 +24,8 @@ import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.SerializableConfiguration
 
-import java.net.URI
 import scala.collection.parallel.immutable.ParVector
+import java.net.URI
 
 /**
  * Spark implementation of the DataWriter interface.
@@ -53,26 +54,26 @@ object SparkDeltaDataWriter
     val cleanedData = qbeastData.selectExpr(dataColumns: _*)
     val fileStatsTrackers = getDeltaOptionalTrackers(cleanedData, sparkSession, tableID)
 
-    val blockWriter = BlockWriter(
-      dataPath = tableID.id,
+    val blockWriter = new IndexFileWriter(
+      tablePath = tableID.id,
       schema = schema,
-      schemaIndex = qbeastData.schema,
-      factory = factory,
-      serConf = serConf,
-      statsTrackers = statsTrackers ++ fileStatsTrackers,
+      extendedSchema = qbeastData.schema,
       qbeastColumns = qbeastColumns,
-      tableChanges = tableChanges)
+      tableChanges = tableChanges,
+      writerFactory = factory,
+      statsTrackers = statsTrackers ++ fileStatsTrackers,
+      configuration = serConf)
 
     val finalActionsAndStats = qbeastData
       .repartition(col(cubeColumnName))
       .queryExecution
       .executedPlan
       .execute
-      .mapPartitions(blockWriter.writeRow)
+      .mapPartitions(rows => Iterator(blockWriter.write(rows)))
       .collect()
       .toIndexedSeq
 
-    val fileActions = finalActionsAndStats.map(_._1)
+    val fileActions = finalActionsAndStats.map(_._1).map(IndexFiles.toAddFile)
     val stats = finalActionsAndStats.map(_._2)
 
     // Process BasicWriteJobStatsTrackers
