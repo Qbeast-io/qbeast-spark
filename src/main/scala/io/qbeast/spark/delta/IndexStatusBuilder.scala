@@ -12,6 +12,7 @@ import scala.collection.mutable
 
 /**
  * Builds the index status from a given snapshot and revision
+ *
  * @param qbeastSnapshot the QbeastSnapshot
  * @param revision the revision
  * @param announcedSet the announced set available for the revision
@@ -60,7 +61,8 @@ private[delta] class IndexStatusBuilder(
 
   /**
    * Returns the index state for the given space revision
-   * @return Dataset containing cube informatio
+   *
+   * @return Dataset containing cube information
    */
   def indexCubeStatuses: SortedMap[CubeId, CubeStatus] = {
     val builders = mutable.Map.empty[CubeId, CubeStatusBuilder]
