@@ -15,9 +15,9 @@ Inside the project folder, launch a spark-shell with the required **dependencies
 
 ```bash
 $SPARK_HOME/bin/spark-shell \
+--packages io.qbeast:qbeast-spark_2.12:0.4.0,io.delta:delta-core_2.12:2.1.0 \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
---conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog \
---packages io.qbeast:qbeast-spark_2.12:0.3.2,io.delta:delta-core_2.12:1.2.0
+--conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
 ```
 As an **_extra configuration_**, you can also change two global parameters of the index:
 
