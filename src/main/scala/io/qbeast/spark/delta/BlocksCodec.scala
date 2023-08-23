@@ -38,7 +38,7 @@ private[delta] object BlocksCodec {
       generator.writeStringField("cubeId", block.cubeId.string)
       generator.writeStringField("state", block.state)
       generator.writeNumberField("minWeight", block.minWeight.value)
-      generator.writeNumberField("max", block.maxWeight.value)
+      generator.writeNumberField("maxWeight", block.maxWeight.value)
       generator.writeEndObject()
     }
     generator.writeEndArray()

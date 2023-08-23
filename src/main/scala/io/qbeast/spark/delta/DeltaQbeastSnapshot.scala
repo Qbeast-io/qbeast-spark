@@ -173,7 +173,7 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
    */
   def loadRevisionBlocks(revisionID: RevisionID): Dataset[AddFile] = {
     if (isStaging(revisionID)) loadStagingBlocks()
-    else snapshot.allFiles.where(TagColumns.revision === lit(revisionID.toString))
+    else snapshot.allFiles.where(TagColumns.revisionId === lit(revisionID.toString))
   }
 
   /**

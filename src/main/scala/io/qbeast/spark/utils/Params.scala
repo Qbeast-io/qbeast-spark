@@ -23,6 +23,7 @@ object TagColumns {
   final val maxWeight = col("tags.maxWeight")
   final val state = col("tags.state")
   final val revision = col("tags.revision")
+  final val revisionId = col("tags.revisionId")
   final val elementCount = col("tags.elementCount")
 }
 
