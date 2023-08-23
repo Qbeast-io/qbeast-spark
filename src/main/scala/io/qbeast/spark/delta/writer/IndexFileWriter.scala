@@ -43,18 +43,18 @@ class IndexFileWriter(
     configuration: SerializableConfiguration)
     extends Serializable {
 
-  private val path = new Path(tablePath, s"${UUID.randomUUID()}.parquet")
-
   /**
    * Writes given rows into an index file.
    *
    * @param extendedRows the rows to write that contain Qbeast-specific fields
    * @return the written index file and the task stats
    */
-  def write(extendedRows: Iterator[InternalRow]): (IndexFile, TaskStats) = {
-    val writer = newOutputWriter()
-    val fileBuilder = newIndexFileBuilder()
-    val statsBuilder = newTaskStatsBuilder()
+  def write(extendedRows: Iterator[InternalRow]): Iterator[(IndexFile, TaskStats)] = {
+    val path = new Path(tablePath, s"${UUID.randomUUID()}.parquet")
+    val writer = newOutputWriter(path)
+    val fileBuilder = newIndexFileBuilder(path)
+    val statsBuilder = newTaskStatsBuilder(path)
+    statsBuilder.fileOpened()
     extendedRows.foreach { extendedRow =>
       val row = excludeQbeastColumns(extendedRow)
       writer.write(row)
@@ -64,21 +64,21 @@ class IndexFileWriter(
     writer.close()
     fileBuilder.fileWritten()
     statsBuilder.fileWritten()
-    (fileBuilder.result(), statsBuilder.result())
+    Iterator((fileBuilder.result(), statsBuilder.result()))
   }
 
-  private def newOutputWriter(): OutputWriter = {
+  private def newOutputWriter(path: Path): OutputWriter = {
     val conf = new JobConf(configuration.value)
     val taskId = new TaskAttemptID("", 0, TaskType.REDUCE, 0, 0)
     val context = new TaskAttemptContextImpl(conf, taskId)
     writerFactory.newInstance(path.toString(), schema, context)
   }
 
-  private def newIndexFileBuilder(): IndexFileBuilder = {
+  private def newIndexFileBuilder(path: Path): IndexFileBuilder = {
     new IndexFileBuilder(path, tableChanges, qbeastColumns, configuration)
   }
 
-  private def newTaskStatsBuilder(): TaskStatsBuilder = {
+  private def newTaskStatsBuilder(path: Path): TaskStatsBuilder = {
     new TaskStatsBuilder(path.toString(), statsTrackers.map(_.newTaskInstance()))
   }
 

@@ -69,7 +69,7 @@ private[writer] class IndexFileBuilder(
    */
   def result(): IndexFile = {
     require(file.isDefined)
-    IndexFile(file.get, revision.revisionID, blockBuilders.map(_.result()).toSeq)
+    IndexFile(file.get, revision.revisionID, blockBuilders.map(_.result()).toArray)
   }
 
   private def getCubeIdBytes(extendedRow: InternalRow): Array[Byte] = {

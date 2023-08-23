@@ -15,6 +15,16 @@ import org.apache.spark.sql.execution.datasources.WriteTaskStatsTracker
 private[writer] class TaskStatsBuilder(path: String, trackers: Seq[WriteTaskStatsTracker]) {
 
   /**
+   * Updates the stats after the file is opened.
+   *
+   * @return this instance
+   */
+  def fileOpened(): TaskStatsBuilder = {
+    trackers.foreach(_.newFile(path))
+    this
+  }
+
+  /**
    * Updates the stats after a given row is written.
    *
    * @return this instance
@@ -25,7 +35,7 @@ private[writer] class TaskStatsBuilder(path: String, trackers: Seq[WriteTaskStat
   }
 
   /**
-   * Updates the stats after the file is written
+   * Updates the stats after the file is written.
    *
    * @return this instance
    */

@@ -11,7 +11,7 @@ package io.qbeast.core.model
  * @param revisionId the revision identifier
  * @param blocks the index blocks
  */
-final case class IndexFile(file: File, revisionId: Long, blocks: Seq[Block]) {
+final case class IndexFile(file: File, revisionId: Long, blocks: Array[Block]) extends Serializable {
   require(file != null)
   require(revisionId >= 0)
   require(blocks.nonEmpty)

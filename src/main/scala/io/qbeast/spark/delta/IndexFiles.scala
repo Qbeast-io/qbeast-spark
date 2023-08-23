@@ -45,12 +45,12 @@ private[delta] object IndexFiles {
     .collect { case Success(revisionId) => revisionId }
     .getOrElse(0)
 
-  private def getBlocks(file: File, dimensionCount: Int, addFile: AddFile): Seq[Block] = {
+  private def getBlocks(file: File, dimensionCount: Int, addFile: AddFile): Array[Block] = {
     addFile
       .getTag("blocks")
       .map(tag => BlocksCodec.decode(file, dimensionCount, tag))
       .getOrElse(
-        Seq(
+        Array(
           Block(
             file,
             RowRange(0, Long.MaxValue),

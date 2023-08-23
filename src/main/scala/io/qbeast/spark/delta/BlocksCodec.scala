@@ -27,7 +27,7 @@ private[delta] object BlocksCodec {
    * @param blocks the blocks to encode
    * @return the encoded blocks
    */
-  def encode(blocks: Seq[Block]): String = {
+  def encode(blocks: Array[Block]): String = {
     val writer = new StringWriter()
     val generator = jsonFactory.createGenerator(writer)
     generator.writeStartArray()
@@ -55,7 +55,7 @@ private[delta] object BlocksCodec {
    * @param input the input to decode
    * @return the decoded blocks
    */
-  def decode(file: File, dimensionCount: Int, input: String): Seq[Block] = {
+  def decode(file: File, dimensionCount: Int, input: String): Array[Block] = {
     val parser = jsonFactory.createParser(input)
     parser.nextToken()
     if (!parser.hasToken(JsonToken.START_ARRAY)) {
@@ -64,8 +64,8 @@ private[delta] object BlocksCodec {
     parseBlocks(file, dimensionCount, parser)
   }
 
-  private def parseBlocks(file: File, dimensionCount: Int, parser: JsonParser): Seq[Block] = {
-    val blocks = Seq.newBuilder[Block]
+  private def parseBlocks(file: File, dimensionCount: Int, parser: JsonParser): Array[Block] = {
+    val blocks = Array.newBuilder[Block]
     parser.nextToken()
     while (parser.hasToken(JsonToken.START_OBJECT)) {
       blocks += parseBlock(file, dimensionCount, parser)

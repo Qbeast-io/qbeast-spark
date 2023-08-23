@@ -69,7 +69,7 @@ object SparkDeltaDataWriter
       .queryExecution
       .executedPlan
       .execute
-      .mapPartitions(rows => Iterator(blockWriter.write(rows)))
+      .mapPartitions(blockWriter.write)
       .collect()
       .toIndexedSeq
 

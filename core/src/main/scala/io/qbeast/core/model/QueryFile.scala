@@ -10,4 +10,4 @@ package io.qbeast.core.model
  * @param file the file to read the results from
  * @param ranges the rages of elements to be read from the file
  */
-final case class QueryFile(file: File, ranges: Seq[RowRange]) {}
+final case class QueryFile(file: File, ranges: Seq[RowRange]) extends Serializable {}
