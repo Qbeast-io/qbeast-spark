@@ -104,7 +104,7 @@ private[delta] case class DeltaMetadataWriter(
 
     val cubeStrings = deltaReplicatedSet.map(_.string)
     val cubeBlocks =
-      deltaLog.snapshot.allFiles
+      deltaLog.unsafeVolatileSnapshot.allFiles
         .where(TagColumns.revision === lit(revision.revisionID.toString) &&
           TagColumns.cube.isInCollection(cubeStrings))
         .collect()
@@ -145,7 +145,7 @@ private[delta] case class DeltaMetadataWriter(
       } else if (mode == SaveMode.Ignore) {
         return Nil
       } else if (mode == SaveMode.Overwrite) {
-        deltaLog.assertRemovable()
+        DeltaLog.assertRemovable(txn.snapshot)
       }
     }
     val rearrangeOnly = options.rearrangeOnly

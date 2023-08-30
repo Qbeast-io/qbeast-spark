@@ -82,7 +82,7 @@ class QbeastSparkCorrectnessTest extends QbeastIntegrationTestSpec {
         writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.unsafeVolatileSnapshot)
 
         // Include the staging revision
         qbeastSnapshot.loadAllRevisions.size shouldBe 2
@@ -254,7 +254,8 @@ class QbeastSparkCorrectnessTest extends QbeastIntegrationTestSpec {
         .option("columnsToIndex", "a,b")
         .save(tmpDir)
 
-      val stats = DeltaLog.forTable(spark, tmpDir).snapshot.allFiles.collect().map(_.stats)
+      val stats =
+        DeltaLog.forTable(spark, tmpDir).unsafeVolatileSnapshot.allFiles.collect().map(_.stats)
       stats.length shouldBe >(0)
       stats.head shouldBe "{\"numRecords\":3,\"minValues\":{\"a\":\"A\",\"b\":1}," +
         "\"maxValues\":{\"a\":\"C\",\"b\":3}," +

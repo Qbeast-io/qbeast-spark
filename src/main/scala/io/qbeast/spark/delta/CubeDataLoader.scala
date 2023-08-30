@@ -18,7 +18,7 @@ case class CubeDataLoader(tableID: QTableID) {
 
   private val spark = SparkSession.active
 
-  private val snapshot = DeltaLog.forTable(SparkSession.active, tableID.id).snapshot
+  private val snapshot = DeltaLog.forTable(SparkSession.active, tableID.id).unsafeVolatileSnapshot
 
   /**
    * Loads the data from a set of cubes in a specific revision

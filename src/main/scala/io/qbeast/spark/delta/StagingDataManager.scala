@@ -17,7 +17,8 @@ import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 private[spark] class StagingDataManager(tableID: QTableID) extends DeltaStagingUtils {
   private val spark = SparkSession.active
 
-  protected override val snapshot: Snapshot = DeltaLog.forTable(spark, tableID.id).snapshot
+  protected override val snapshot: Snapshot =
+    DeltaLog.forTable(spark, tableID.id).unsafeVolatileSnapshot
 
   private def stagingRemoveFiles: Seq[RemoveFile] = {
     import spark.implicits._

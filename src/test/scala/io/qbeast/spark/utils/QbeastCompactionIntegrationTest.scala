@@ -71,7 +71,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
         val originalNumOfFilesRoot =
-          deltaLog.snapshot.allFiles.filter("tags.cube == ''").count()
+          deltaLog.unsafeVolatileSnapshot.allFiles.filter("tags.cube == ''").count()
 
         // Compact the tables
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
@@ -97,7 +97,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
         val originalNumOfFilesRoot =
-          deltaLog.snapshot.allFiles.filter("tags.cube == ''").count()
+          deltaLog.unsafeVolatileSnapshot.allFiles.filter("tags.cube == ''").count()
 
         // Compact the table
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
@@ -121,7 +121,8 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
 
     // Load the index status before manipulating the files
     val deltaLog = DeltaLog.forTable(spark, tmpDir)
-    val originalIndexStatus = DeltaQbeastSnapshot(deltaLog.snapshot).loadLatestIndexStatus
+    val originalIndexStatus =
+      DeltaQbeastSnapshot(deltaLog.unsafeVolatileSnapshot).loadLatestIndexStatus
 
     // Compact the table
     val qbeastTable = QbeastTable.forPath(spark, tmpDir)
@@ -159,7 +160,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
     SparkDeltaMetadataManager.loadSnapshot(tableId).loadAllRevisions.size shouldBe 3
 
     // Count files written for each revision
-    val allFiles = DeltaLog.forTable(spark, tmpDir).snapshot.allFiles
+    val allFiles = DeltaLog.forTable(spark, tmpDir).unsafeVolatileSnapshot.allFiles
     val originalFilesRevisionOne =
       allFiles.filter("tags.revision == 1").count()
     val originalFilesRevisionTwo =
@@ -170,7 +171,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
     qbeastTable.compact()
 
     // Count files compacted for each revision
-    val newAllFiles = DeltaLog.forTable(spark, tmpDir).snapshot.allFiles
+    val newAllFiles = DeltaLog.forTable(spark, tmpDir).unsafeVolatileSnapshot.allFiles
     val newFilesRevisionOne = newAllFiles.filter("tags.revision == 1").count()
     val newFilesRevisionTwo = newAllFiles.filter("tags.revision == 2").count()
 
@@ -200,7 +201,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
     SparkDeltaMetadataManager.loadSnapshot(tableId).loadAllRevisions.size shouldBe 3
 
     // Count files written for each revision
-    val allFiles = DeltaLog.forTable(spark, tmpDir).snapshot.allFiles
+    val allFiles = DeltaLog.forTable(spark, tmpDir).unsafeVolatileSnapshot.allFiles
     val originalFilesRevisionOne =
       allFiles.filter("tags.revision == 1").count()
     val originalFilesRevisionTwo =
@@ -211,7 +212,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
     qbeastTable.compact(1)
 
     // Count files compacted for each revision
-    val newAllFiles = DeltaLog.forTable(spark, tmpDir).snapshot.allFiles
+    val newAllFiles = DeltaLog.forTable(spark, tmpDir).unsafeVolatileSnapshot.allFiles
     val newFilesRevisionOne = newAllFiles.filter("tags.revision == 1").count()
     val newFilesRevisionTwo = newAllFiles.filter("tags.revision == 2").count()
 

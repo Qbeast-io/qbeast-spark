@@ -34,7 +34,7 @@ class QbeastTable private (
   private def deltaLog: DeltaLog = DeltaLog.forTable(sparkSession, tableID.id)
 
   private def qbeastSnapshot: DeltaQbeastSnapshot =
-    delta.DeltaQbeastSnapshot(deltaLog.snapshot)
+    delta.DeltaQbeastSnapshot(deltaLog.unsafeVolatileSnapshot)
 
   private def indexedTable: IndexedTable = indexedTableFactory.getIndexedTable(tableID)
 

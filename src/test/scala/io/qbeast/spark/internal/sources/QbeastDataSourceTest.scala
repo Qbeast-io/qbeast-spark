@@ -5,6 +5,7 @@ package io.qbeast.spark.internal.sources
 
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.table.{IndexedTable, IndexedTableFactory}
+import org.apache.spark.sql.connector.catalog.SparkCatalogV2Util
 import org.apache.spark.sql.connector.catalog.TableCapability._
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.sources.BaseRelation
@@ -65,10 +66,11 @@ class QbeastDataSourceTest extends FixtureAnyFlatSpec with MockitoSugar with Mat
 
   it should "return correct table" in { f =>
     val schema = StructType(Seq())
+    val columns = SparkCatalogV2Util.structTypeToV2Columns(schema)
     val partitioning = Array.empty[Transform]
     val properties = Map("path" -> path).asJava
     val table = f.dataSource.getTable(schema, partitioning, properties)
-    table.schema() shouldBe schema
+    table.columns() shouldBe columns
     table.capabilities() shouldBe Set(
       ACCEPT_ANY_SCHEMA,
       BATCH_READ,

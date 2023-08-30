@@ -17,13 +17,13 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     writeTestData(source.toDF(), Seq("a", "c"), 8000, tmpdir)
 
     val deltaLog = DeltaLog.forTable(spark, tmpdir)
-    val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+    val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.unsafeVolatileSnapshot)
     val filters = Seq.empty
 
     val querySpec = new QuerySpecBuilder(filters)
     val queryExecutor = new QueryExecutor(querySpec, qbeastSnapshot)
 
-    val allDeltaFiles = deltaLog.snapshot.allFiles.collect()
+    val allDeltaFiles = deltaLog.unsafeVolatileSnapshot.allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
     val matchFiles = queryExecutor.execute().map(_.path)
@@ -42,13 +42,13 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     writeTestData(source.toDF(), Seq("a", "c"), 8000, tmpdir)
 
     val deltaLog = DeltaLog.forTable(spark, tmpdir)
-    val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+    val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.unsafeVolatileSnapshot)
 
     val filters = Seq(weightFilters(WeightRange(Weight.MinValue, Weight(0.001))))
     val querySpec = new QuerySpecBuilder(filters)
     val queryExecutor = new QueryExecutor(querySpec, qbeastSnapshot)
 
-    val allDeltaFiles = deltaLog.snapshot.allFiles.collect()
+    val allDeltaFiles = deltaLog.unsafeVolatileSnapshot.allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
     val matchFiles = queryExecutor.execute().map(_.path)
@@ -64,13 +64,13 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     writeTestData(source.toDF(), Seq("a", "c"), 8000, tmpdir)
 
     val deltaLog = DeltaLog.forTable(spark, tmpdir)
-    val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+    val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.unsafeVolatileSnapshot)
 
     val filters = Seq(expr("a >= 2 and a < 10").expr)
     val querySpec = new QuerySpecBuilder(filters)
     val queryExecutor = new QueryExecutor(querySpec, qbeastSnapshot)
 
-    val allDeltaFiles = deltaLog.snapshot.allFiles.collect()
+    val allDeltaFiles = deltaLog.unsafeVolatileSnapshot.allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
     val matchFiles = queryExecutor.execute().map(_.path)
@@ -93,7 +93,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     writeTestData(differentRevision, Seq("a", "c"), 10000, tmpdir, "append")
 
     val deltaLog = DeltaLog.forTable(spark, tmpdir)
-    val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+    val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.unsafeVolatileSnapshot)
 
     // Including the staging revision
     qbeastSnapshot.loadAllRevisions.size shouldBe 3
@@ -103,7 +103,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val querySpec = new QuerySpecBuilder(filters)
     val queryExecutor = new QueryExecutor(querySpec, qbeastSnapshot)
 
-    val allDeltaFiles = deltaLog.snapshot.allFiles.collect()
+    val allDeltaFiles = deltaLog.unsafeVolatileSnapshot.allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
     val matchFiles = queryExecutor.execute().map(_.path)
@@ -122,7 +122,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
       writeTestData(df, Seq("a", "c"), 10000, tmpDir)
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+      val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.unsafeVolatileSnapshot)
 
       val weightRange = WeightRange(Weight(3), Weight(5))
       val expressionFilters = weightFilters(weightRange)
@@ -130,7 +130,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
 
       val queryExecutor = new QueryExecutor(querySpecBuilder, qbeastSnapshot)
 
-      val allDeltaFiles = deltaLog.snapshot.allFiles.collect()
+      val allDeltaFiles = deltaLog.unsafeVolatileSnapshot.allFiles.collect()
       val allFiles = allDeltaFiles.map(_.path)
 
       val matchFiles = queryExecutor.execute().map(_.path)
@@ -154,7 +154,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
 
     val deltaLog = DeltaLog.forTable(spark, tmpdir)
 
-    val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+    val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.unsafeVolatileSnapshot)
     val revision = qbeastSnapshot.loadLatestRevision
     val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
 
@@ -173,7 +173,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
       .executeRevision(querySpec, faultyIndexStatus)
       .map(_.path)
 
-    val allFiles = deltaLog.snapshot.allFiles.collect().map(_.path)
+    val allFiles = deltaLog.unsafeVolatileSnapshot.allFiles.collect().map(_.path)
 
     val diff = allFiles.toSet -- matchFiles.toSet
     diff.size shouldBe 1

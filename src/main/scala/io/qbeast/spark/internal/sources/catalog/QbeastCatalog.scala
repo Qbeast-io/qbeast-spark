@@ -98,6 +98,13 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
 
   override def createTable(
       ident: Identifier,
+      columns: Array[Column],
+      partitions: Array[Transform],
+      properties: util.Map[String, String]): Table =
+    createTable(ident, SparkCatalogV2Util.v2ColumnsToStructType(columns), partitions, properties)
+
+  override def createTable(
+      ident: Identifier,
       schema: StructType,
       partitions: Array[Transform],
       properties: util.Map[String, String]): Table = {
@@ -120,7 +127,7 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
     } else {
       getSessionCatalog(properties.asScala.toMap).createTable(
         ident,
-        schema,
+        SparkCatalogV2Util.structTypeToV2Columns(schema),
         partitions,
         properties)
     }
@@ -154,7 +161,11 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
       }
       DefaultStagedTable(
         ident,
-        sessionCatalog.createTable(ident, schema, partitions, properties),
+        sessionCatalog.createTable(
+          ident,
+          SparkCatalogV2Util.structTypeToV2Columns(schema),
+          partitions,
+          properties),
         this)
     }
   }
@@ -179,10 +190,24 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
       }
       DefaultStagedTable(
         ident,
-        sessionCatalog.createTable(ident, schema, partitions, properties),
+        sessionCatalog.createTable(
+          ident,
+          SparkCatalogV2Util.structTypeToV2Columns(schema),
+          partitions,
+          properties),
         this)
 
     }
+  }
+
+  override def stageCreate(
+      ident: Identifier,
+      columns: Array[Column],
+      partitions: Array[Transform],
+      properties: util.Map[String, String]): StagedTable = {
+
+    stageCreate(ident, SparkCatalogV2Util.v2ColumnsToStructType(columns), partitions, properties)
+
   }
 
   override def stageCreate(
@@ -202,7 +227,11 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
       DefaultStagedTable(
         ident,
         getSessionCatalog(properties.asScala.toMap)
-          .createTable(ident, schema, partitions, properties),
+          .createTable(
+            ident,
+            SparkCatalogV2Util.structTypeToV2Columns(schema),
+            partitions,
+            properties),
         this)
     }
   }

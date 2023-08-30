@@ -6,6 +6,7 @@ import io.qbeast.spark.internal.sources.v2.QbeastStagedTableImpl
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.connector.catalog.Identifier
 import org.apache.spark.sql.connector.catalog.TableCapability.V1_BATCH_WRITE
+import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.write.V1Write
 
 import scala.collection.JavaConverters._
@@ -18,8 +19,8 @@ class QbeastStagedTableTest extends QbeastIntegrationTestSpec with CatalogTestSu
       qbeastCatalog
         .stageCreate(
           Identifier.of(Array("default"), "students"),
-          schema,
-          Array.empty,
+          columns,
+          Array.empty[Transform],
           Map("provider" -> "qbeast", "columnsToIndex" -> "id").asJava) shouldBe a[
         QbeastStagedTableImpl]
 
@@ -31,8 +32,8 @@ class QbeastStagedTableTest extends QbeastIntegrationTestSpec with CatalogTestSu
         qbeastCatalog
           .stageCreate(
             Identifier.of(Array("default"), "students"),
-            schema,
-            Array.empty,
+            columns,
+            Array.empty[Transform],
             Map("provider" -> "qbeast", "columnsToIndex" -> "id").asJava)
           .asInstanceOf[QbeastStagedTableImpl]
 
@@ -45,8 +46,8 @@ class QbeastStagedTableTest extends QbeastIntegrationTestSpec with CatalogTestSu
       qbeastCatalog
         .stageCreate(
           Identifier.of(Array("default"), "students"),
-          schema,
-          Array.empty,
+          columns,
+          Array.empty[Transform],
           Map("provider" -> "qbeast", "columnsToIndex" -> "id").asJava)
         .asInstanceOf[QbeastStagedTableImpl]
 
@@ -59,8 +60,8 @@ class QbeastStagedTableTest extends QbeastIntegrationTestSpec with CatalogTestSu
       qbeastCatalog
         .stageCreate(
           Identifier.of(Array("default"), "students"),
-          schema,
-          Array.empty,
+          columns,
+          Array.empty[Transform],
           Map("provider" -> "qbeast", "columnsToIndex" -> "id").asJava)
         .asInstanceOf[QbeastStagedTableImpl]
 
@@ -75,8 +76,8 @@ class QbeastStagedTableTest extends QbeastIntegrationTestSpec with CatalogTestSu
         qbeastCatalog
           .stageCreate(
             Identifier.of(Array("default"), "students"),
-            schema,
-            Array.empty,
+            columns,
+            Array.empty[Transform],
             Map("provider" -> "qbeast", "columnsToIndex" -> "id").asJava)
           .asInstanceOf[QbeastStagedTableImpl]
 
@@ -95,8 +96,8 @@ class QbeastStagedTableTest extends QbeastIntegrationTestSpec with CatalogTestSu
       qbeastCatalog
         .stageCreate(
           Identifier.of(Array("default"), "students"),
-          schema,
-          Array.empty,
+          columns,
+          Array.empty[Transform],
           Map("provider" -> "qbeast", "columnsToIndex" -> "id").asJava)
         .asInstanceOf[QbeastStagedTableImpl]
 

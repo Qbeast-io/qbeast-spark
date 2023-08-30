@@ -40,7 +40,7 @@ class CubeWeightsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
             .save(tmpDir)
 
           val deltaLog = DeltaLog.forTable(spark, tmpDir)
-          val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
+          val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.unsafeVolatileSnapshot)
           val commitLogWeightMap = qbeastSnapshot.loadLatestIndexStatus.cubesStatuses
 
           // commitLogWeightMap shouldBe weightMap
@@ -62,7 +62,7 @@ class CubeWeightsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
       .save(tmpDir)
 
     val deltaLog = DeltaLog.forTable(spark, tmpDir)
-    val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
+    val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.unsafeVolatileSnapshot)
     val cubeWeights = qbeastSnapshot.loadLatestIndexStatus.cubesStatuses
 
     cubeWeights.values.foreach { case CubeStatus(_, weight, _, _) =>
