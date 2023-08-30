@@ -59,7 +59,7 @@ object QbeastBaseRelation {
       val columnsToIndex = revision.columnTransformers.map(row => row.columnName).mkString(",")
       val cubeSize = revision.desiredCubeSize
       val parameters =
-        Map[String, String]("columnsToIndex" -> columnsToIndex, "cubeSize" -> cubeSize.toString())
+        Map[String, String]("columnsToIndex" -> columnsToIndex, "cubeSize" -> cubeSize.toString)
 
       val path = new Path(tableID.id)
       val fileIndex = OTreeIndex(spark, path)

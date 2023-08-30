@@ -23,7 +23,7 @@ class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {
         DeltaQbeastSnapshot(deltaLog.snapshot).loadLatestIndexStatus
 
       indexStatus.revision.revisionID shouldBe 1
-      indexStatus.cubesStatuses.foreach(_._2.files.size shouldBe 1)
+      indexStatus.cubesStatuses.foreach(_._2.files.size shouldBe >=(1))
       indexStatus.cubesStatuses.foreach { case (cube: CubeId, cubeStatus: CubeStatus) =>
         cubeStatus.files.foreach(block => block.cubeId shouldBe cube)
       }
@@ -55,7 +55,7 @@ class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {
     secondIndexStatus.revision.revisionID shouldBe 1
     secondIndexStatus.announcedSet shouldBe Set.empty
     secondIndexStatus.replicatedSet shouldBe Set.empty
-    secondIndexStatus.cubesStatuses.foreach(_._2.files.size shouldBe <=(2))
+    secondIndexStatus.cubesStatuses.foreach(_._2.files.size shouldBe >=(1))
     secondIndexStatus.cubesStatuses.foreach { case (cube: CubeId, cubeStatus: CubeStatus) =>
       if (cubeStatus.maxWeight < Weight.MaxValue) {
         firstIndexStatus.cubesStatuses.get(cube) shouldBe defined

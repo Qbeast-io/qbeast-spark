@@ -13,7 +13,7 @@ class IndexFileTest extends AnyFlatSpec with Matchers {
     val file = File("path", 1, 2)
     val cubeId = CubeId.root(1)
     val state = "FLOODED"
-    val blocks = Seq(
+    val blocks = Array(
       Block(file, RowRange(3, 4), cubeId, state, Weight(5), Weight(6)),
       Block(file, RowRange(7, 8), cubeId, state, Weight(9), Weight(10)),
       Block(file, RowRange(11, 12), cubeId, state, Weight(13), Weight(14)),

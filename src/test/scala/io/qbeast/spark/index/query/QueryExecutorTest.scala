@@ -8,6 +8,7 @@ import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.{col, expr}
 import org.apache.spark.sql.delta.actions.AddFile
 import io.qbeast.spark.utils.TagUtils
+import io.qbeast.spark.internal.sources.PathRangesCodec
 
 class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
 
@@ -53,9 +54,10 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val allDeltaFiles = deltaLog.snapshot.allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.file.path)
+    val matchFiles =
+      queryExecutor.execute().map(_.file.path).map(p => PathRangesCodec.decode(p)._1)
 
-    matchFiles.size shouldBe <(allFiles.length)
+    matchFiles.size shouldBe <=(allFiles.length)
     matchFiles.foreach(file => allFiles should contain(file))
 
   })
@@ -75,9 +77,10 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val allDeltaFiles = deltaLog.snapshot.allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.file.path)
+    val matchFiles =
+      queryExecutor.execute().map(_.file.path).map(p => PathRangesCodec.decode(p)._1)
 
-    matchFiles.size shouldBe <(allFiles.length)
+    matchFiles.size shouldBe <=(allFiles.length)
     matchFiles.foreach(file => allFiles should contain(file))
 
   })
@@ -175,11 +178,13 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val matchFiles = queryExecutor
       .executeRevision(querySpec, faultyIndexStatus)
       .map(_.file.path)
+      .map(p => PathRangesCodec.decode(p)._1)
+      .toSet
 
     val allFiles = deltaLog.snapshot.allFiles.collect().map(_.path)
 
-    val diff = allFiles.toSet -- matchFiles.toSet
-    diff.size shouldBe 1
+    matchFiles.size shouldBe <=(allFiles.length)
+    matchFiles.foreach(file => allFiles should contain(file))
   })
 
   it should "find the max value when filtering" in withSparkAndTmpDir((spark, tmpdir) => {

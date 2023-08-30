@@ -11,8 +11,22 @@ package io.qbeast.core.model
  * @param revisionId the revision identifier
  * @param blocks the index blocks
  */
-final case class IndexFile(file: File, revisionId: Long, blocks: Array[Block]) extends Serializable {
+final case class IndexFile(file: File, revisionId: Long, blocks: Array[Block])
+    extends Serializable {
   require(file != null)
   require(revisionId >= 0)
   require(blocks.nonEmpty)
+
+  override def equals(other: Any): Boolean = other match {
+    case IndexFile(file, revisionId, blocks) =>
+      this.file == file && revisionId == revisionId && this.blocks.length == blocks.length && (0 until this.blocks.length)
+        .forall(i => this.blocks(i) == blocks(i))
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    val hash = 31 * file.hashCode() + revisionId.hashCode()
+    blocks.foldLeft(hash)((hash, block) => 31 * hash + block.hashCode())
+  }
+
 }
