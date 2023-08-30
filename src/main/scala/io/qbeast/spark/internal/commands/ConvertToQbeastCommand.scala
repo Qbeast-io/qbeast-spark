@@ -54,7 +54,7 @@ case class ConvertToQbeastCommand(
     val (fileFormat, tableId) = resolveTableFormat(spark)
 
     val deltaLog = DeltaLog.forTable(spark, tableId.table)
-    val unsafeVolatileSnapshot = deltaLog.unsafeVolatileSnapshot
+    val unsafeVolatileSnapshot = deltaLog.update()
     val qbeastSnapshot = DeltaQbeastSnapshot(unsafeVolatileSnapshot)
     val isQbeast = qbeastSnapshot.loadAllRevisions.nonEmpty
 
@@ -79,7 +79,7 @@ case class ConvertToQbeastCommand(
 
       // Convert delta to qbeast through metadata modification
       val tableID = QTableID(tableId.table)
-      val schema = deltaLog.unsafeVolatileSnapshot.schema
+      val schema = deltaLog.update().schema
 
       SparkDeltaMetadataManager.updateMetadataWithTransaction(tableID, schema) {
         val convRevision = stagingRevision(tableID, cubeSize, columnsToIndex)

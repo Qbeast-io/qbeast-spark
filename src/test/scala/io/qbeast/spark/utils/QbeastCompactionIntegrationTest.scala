@@ -71,7 +71,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
         val originalNumOfFilesRoot =
-          deltaLog.unsafeVolatileSnapshot.allFiles.filter("tags.cube == ''").count()
+          deltaLog.update().allFiles.filter("tags.cube == ''").count()
 
         // Compact the tables
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
@@ -97,7 +97,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
         val originalNumOfFilesRoot =
-          deltaLog.unsafeVolatileSnapshot.allFiles.filter("tags.cube == ''").count()
+          deltaLog.update().allFiles.filter("tags.cube == ''").count()
 
         // Compact the table
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
@@ -122,7 +122,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
     // Load the index status before manipulating the files
     val deltaLog = DeltaLog.forTable(spark, tmpDir)
     val originalIndexStatus =
-      DeltaQbeastSnapshot(deltaLog.unsafeVolatileSnapshot).loadLatestIndexStatus
+      DeltaQbeastSnapshot(deltaLog.update()).loadLatestIndexStatus
 
     // Compact the table
     val qbeastTable = QbeastTable.forPath(spark, tmpDir)

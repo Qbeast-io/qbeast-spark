@@ -45,17 +45,11 @@ class OTreeIndexTest extends QbeastIntegrationTestSpec {
 
     val deltaLog = DeltaLog.forTable(spark, tmpdir)
     val tahoeFileIndex = {
-      TahoeLogFileIndex(
-        spark,
-        deltaLog,
-        deltaLog.dataPath,
-        deltaLog.unsafeVolatileSnapshot,
-        Seq.empty,
-        false)
+      TahoeLogFileIndex(spark, deltaLog, deltaLog.dataPath, deltaLog.update(), Seq.empty, false)
     }
     val oTreeIndex = new OTreeIndexTest(tahoeFileIndex)
 
-    val allFiles = deltaLog.unsafeVolatileSnapshot.allFiles.collect().map(_.path)
+    val allFiles = deltaLog.update().allFiles.collect().map(_.path)
 
     val matchFiles = oTreeIndex.matchingBlocks(Seq.empty, Seq.empty).map(_.path)
 
@@ -79,17 +73,13 @@ class OTreeIndexTest extends QbeastIntegrationTestSpec {
 
     val deltaLog = DeltaLog.forTable(spark, tmpdir)
     val tahoeFileIndex = {
-      TahoeLogFileIndex(
-        spark,
-        deltaLog,
-        deltaLog.dataPath,
-        deltaLog.unsafeVolatileSnapshot,
-        Seq.empty,
-        false)
+      TahoeLogFileIndex(spark, deltaLog, deltaLog.dataPath, deltaLog.update(), Seq.empty, false)
     }
     val oTreeIndex = new OTreeIndexTest(tahoeFileIndex)
 
-    oTreeIndex.inputFiles shouldBe deltaLog.unsafeVolatileSnapshot.allFiles
+    oTreeIndex.inputFiles shouldBe deltaLog
+      .update()
+      .allFiles
       .collect()
       .map(file => new Path(deltaLog.dataPath, file.path).toString)
   })
@@ -107,16 +97,10 @@ class OTreeIndexTest extends QbeastIntegrationTestSpec {
 
       val deltaLog = DeltaLog.forTable(spark, tmpdir)
       val tahoeFileIndex = {
-        TahoeLogFileIndex(
-          spark,
-          deltaLog,
-          deltaLog.dataPath,
-          deltaLog.unsafeVolatileSnapshot,
-          Seq.empty,
-          false)
+        TahoeLogFileIndex(spark, deltaLog, deltaLog.dataPath, deltaLog.update(), Seq.empty, false)
       }
       val oTreeIndex = new OTreeIndexTest(tahoeFileIndex)
-      val allFiles = deltaLog.unsafeVolatileSnapshot.allFiles.collect().map(_.path)
+      val allFiles = deltaLog.update().allFiles.collect().map(_.path)
 
       oTreeIndex.matchingBlocks(Seq.empty, Seq.empty).map(_.path).toSet shouldBe allFiles.toSet
     })
@@ -133,17 +117,11 @@ class OTreeIndexTest extends QbeastIntegrationTestSpec {
 
     val deltaLog = DeltaLog.forTable(spark, tmpdir)
     val tahoeFileIndex = {
-      TahoeLogFileIndex(
-        spark,
-        deltaLog,
-        deltaLog.dataPath,
-        deltaLog.unsafeVolatileSnapshot,
-        Seq.empty,
-        false)
+      TahoeLogFileIndex(spark, deltaLog, deltaLog.dataPath, deltaLog.update(), Seq.empty, false)
     }
     val oTreeIndex = new OTreeIndexTest(tahoeFileIndex)
 
-    val sizeInBytes = deltaLog.unsafeVolatileSnapshot.allFiles.collect().map(_.size).sum
+    val sizeInBytes = deltaLog.update().allFiles.collect().map(_.size).sum
     oTreeIndex.sizeInBytes shouldBe sizeInBytes
   })
 

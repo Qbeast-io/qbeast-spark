@@ -20,7 +20,7 @@ class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
       val indexStatus =
-        DeltaQbeastSnapshot(deltaLog.unsafeVolatileSnapshot).loadLatestIndexStatus
+        DeltaQbeastSnapshot(deltaLog.update()).loadLatestIndexStatus
 
       indexStatus.revision.revisionID shouldBe 1
       indexStatus.cubesStatuses.foreach(_._2.files.size shouldBe 1)
@@ -44,7 +44,7 @@ class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {
       .save(tmpDir)
     val deltaLog = DeltaLog.forTable(spark, tmpDir)
     val firstIndexStatus =
-      DeltaQbeastSnapshot(deltaLog.unsafeVolatileSnapshot).loadLatestIndexStatus
+      DeltaQbeastSnapshot(deltaLog.update()).loadLatestIndexStatus
     data.write
       .format("qbeast")
       .mode("append")

@@ -127,7 +127,7 @@ class IndexTest
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.unsafeVolatileSnapshot)
+        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
 
         val offset = 0.5
         val appendData = df
@@ -190,7 +190,7 @@ class IndexTest
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
 
-        deltaLog.unsafeVolatileSnapshot.allFiles.collect() foreach (f =>
+        deltaLog.update().allFiles.collect() foreach (f =>
           {
             val cubeId = CubeId(2, f.tags("cube"))
             cubeId.parent match {

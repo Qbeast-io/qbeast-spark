@@ -104,7 +104,9 @@ private[delta] case class DeltaMetadataWriter(
 
     val cubeStrings = deltaReplicatedSet.map(_.string)
     val cubeBlocks =
-      deltaLog.unsafeVolatileSnapshot.allFiles
+      deltaLog
+        .update()
+        .allFiles
         .where(TagColumns.revision === lit(revision.revisionID.toString) &&
           TagColumns.cube.isInCollection(cubeStrings))
         .collect()

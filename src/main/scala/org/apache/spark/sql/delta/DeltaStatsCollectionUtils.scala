@@ -28,7 +28,7 @@ trait DeltaStatsCollectionUtils {
       val deltaLog = DeltaLog.forTable(sparkSession, tableID.id)
       val metadata = deltaLog.unsafeVolatileMetadata
       val outputPath = deltaLog.dataPath
-      val deltaProtocol = deltaLog.unsafeVolatileSnapshot.protocol
+      val deltaProtocol = deltaLog.update().protocol
 
       val indexedCols = DeltaConfigs.DATA_SKIPPING_NUM_INDEXED_COLS.fromMetaData(metadata)
 

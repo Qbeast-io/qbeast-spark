@@ -51,7 +51,7 @@ class ConvertToQbeastTest
 
   def getQbeastSnapshot(spark: SparkSession, dir: String): DeltaQbeastSnapshot = {
     val deltaLog = DeltaLog.forTable(spark, dir)
-    DeltaQbeastSnapshot(deltaLog.unsafeVolatileSnapshot)
+    DeltaQbeastSnapshot(deltaLog.update())
   }
 
   behavior of "ConvertToQbeastCommand"

@@ -87,7 +87,7 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
       val qbeast_df = spark.read.format("qbeast").load(qbeast_table_path)
 
       val deltaLog = DeltaLog.forTable(spark, qbeast_table_path)
-      val totalNumberOfFiles = deltaLog.unsafeVolatileSnapshot.allFiles.count()
+      val totalNumberOfFiles = deltaLog.update().allFiles.count()
 
       totalNumberOfFiles should be > 1L withClue
         "Total number of files in pushdown notebook changes to " + totalNumberOfFiles

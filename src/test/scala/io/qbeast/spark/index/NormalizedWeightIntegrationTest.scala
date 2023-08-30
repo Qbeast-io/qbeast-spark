@@ -36,7 +36,7 @@ class NormalizedWeightIntegrationTest extends QbeastIntegrationTestSpec {
         spark.read.format("qbeast").load(tmpDir).count() shouldBe cubeSize
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val files = deltaLog.unsafeVolatileSnapshot.allFiles
+        val files = deltaLog.update().allFiles
         files.count() shouldBe 1
         files.map(_.tags(TagUtils.maxWeight).toInt).collect()(0) shouldBe <=(Int.MaxValue)
         files.map(_.tags(TagUtils.state)).collect()(0) shouldBe "FLOODED"
@@ -57,7 +57,7 @@ class NormalizedWeightIntegrationTest extends QbeastIntegrationTestSpec {
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.unsafeVolatileSnapshot)
+        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
         val cubeNormalizedWeights =
           qbeastSnapshot.loadLatestIndexStatus.cubeNormalizedWeights
 
