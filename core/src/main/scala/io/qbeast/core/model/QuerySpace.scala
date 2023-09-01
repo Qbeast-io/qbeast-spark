@@ -3,7 +3,7 @@
  */
 package io.qbeast.core.model
 
-import io.qbeast.core.transform.{HashTransformation, Transformation}
+import io.qbeast.core.transform.{HashTransformation, LearnedStringTransformation, Transformation}
 
 /**
  * Query space defines the domain area requested by the query.
@@ -126,7 +126,11 @@ object QuerySpace {
         case (Some(f), Some(t), _: HashTransformation) if f == t =>
           isPointStringSearch = true
           (true, true)
-        case (_, _, _: HashTransformation) | (None, None, _) =>
+        case (Some(f), Some(t), _: LearnedStringTransformation) if f == t =>
+          isPointStringSearch = true
+          (true, true)
+        case (_, _, _: HashTransformation) | (_, _, _: LearnedStringTransformation) |
+            (None, None, _) =>
           (true, true)
         case (Some(f), Some(t), _) =>
           (f <= t && f <= 1d && t >= 0d, f <= t && f <= 0d && t >= 1d)
