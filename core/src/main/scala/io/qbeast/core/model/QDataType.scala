@@ -92,12 +92,6 @@ object TimestampDataType extends OrderedDataType {
 
 }
 
-object TimestampNTZType extends OrderedDataType {
-  override def name: String = "TimestampNTZType"
-  override val ordering: Numeric[Any] = implicitly[Numeric[Long]].asInstanceOf[Numeric[Any]]
-
-}
-
 object DateDataType extends OrderedDataType {
   override def name: String = "DateDataType"
   override val ordering: Numeric[Any] = implicitly[Numeric[Long]].asInstanceOf[Numeric[Any]]
