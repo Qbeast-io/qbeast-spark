@@ -189,19 +189,19 @@ class IndexTest
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
+        val snapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
+        val statuses = snapshot.loadIndexStatus(rev.revisionID).cubesStatuses
 
-        deltaLog.snapshot.allFiles.collect() foreach (f =>
-          {
-            val cubeId = CubeId(2, f.tags("cube"))
-            cubeId.parent match {
-              case None => // cube is root
-              case Some(parent) =>
-                val minWeight = Weight(f.tags("minWeight").toInt)
-                val parentMaxWeight = tc.cubeWeights(parent).get
-
-                minWeight should be >= parentMaxWeight
+        statuses.values.foreach { status =>
+          val cubeId = status.cubeId
+          if (cubeId.parent.isDefined) {
+            val parentCubeId = cubeId.parent.get
+            val parentMaxWeight = tc.cubeWeights(parentCubeId).get
+            status.files.foreach { block =>
+              block.minWeight.value shouldBe >=(parentMaxWeight.value)
             }
-          }: Unit)
+          }
+        }
       }
     }
 

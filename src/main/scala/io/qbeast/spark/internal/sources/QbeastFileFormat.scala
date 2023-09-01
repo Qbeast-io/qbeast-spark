@@ -17,7 +17,7 @@ import org.apache.spark.sql.internal.SQLConf
 /**
  * FileFormat implementation based on the ParquetFileFormat.
  */
-private[sources] class QbeastFileFormat extends ParquetFileFormat {
+class QbeastFileFormat extends ParquetFileFormat {
 
   override def buildReaderWithPartitionValues(
       sparkSession: SparkSession,

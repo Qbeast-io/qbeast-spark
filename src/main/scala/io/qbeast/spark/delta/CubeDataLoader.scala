@@ -4,21 +4,22 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model.{CubeId, QTableID, Revision}
-import io.qbeast.spark.utils.{State, TagColumns}
-import org.apache.hadoop.fs.Path
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.execution.datasources.HadoopFsRelation
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.StructField
+import io.qbeast.spark.internal.sources.QbeastFileFormat
+import io.qbeast.context.QbeastContext
+import org.apache.hadoop.fs.Path
 
 /**
  * Loads cube data from a specific table
  * @param tableID the table identifier
  */
 case class CubeDataLoader(tableID: QTableID) {
-
   private val spark = SparkSession.active
-
-  private val snapshot = DeltaLog.forTable(SparkSession.active, tableID.id).snapshot
+  private val metadataManager = QbeastContext.metadataManager
 
   /**
    * Loads the data from a set of cubes in a specific revision
@@ -53,25 +54,23 @@ case class CubeDataLoader(tableID: QTableID) {
 
   /**
    * Loads the data from a single cube in a specific revision
-   * @param cube the cube to load
+   *
+   * @param cubeId the cube identifier
    * @param revision the revision to load
    * @return the dataframe without extra information
    */
-
-  def loadCubeData(cube: CubeId, revision: Revision): DataFrame = {
-
-    val cubeBlocks = snapshot.allFiles
-      .where(
-        TagColumns.revision === lit(revision.revisionID.toString) &&
-          TagColumns.cube === lit(cube.string) &&
-          TagColumns.state != lit(State.ANNOUNCED))
-      .collect()
-
-    val fileNames = cubeBlocks.map(f => new Path(tableID.id, f.path).toString)
-    spark.read
-      .format("parquet")
-      .load(fileNames: _*)
-
+  def loadCubeData(cubeId: CubeId, revision: Revision): DataFrame = {
+    val path = new Path(tableID.id)
+    val snapshot = metadataManager.loadSnapshot(tableID).asInstanceOf[DeltaQbeastSnapshot]
+    val index = CubeIndex(spark, path, snapshot, revision.revisionID, cubeId)
+    val partitionSchema = StructType(Seq.empty[StructField])
+    val dataSchema = metadataManager.loadCurrentSchema(tableID)
+    val bucketSpec = None
+    val fileFormat = new QbeastFileFormat()
+    val options = Map.empty[String, String]
+    val relation =
+      HadoopFsRelation(index, partitionSchema, dataSchema, bucketSpec, fileFormat, options)(spark)
+    spark.baseRelationToDataFrame(relation)
   }
 
 }
