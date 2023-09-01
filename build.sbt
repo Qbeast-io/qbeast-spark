@@ -7,7 +7,7 @@ lazy val qbeastCore = (project in file("core"))
   .settings(
     name := "qbeast-core",
     version := mainVersion,
-    libraryDependencies ++= Seq(apacheCommons % Test))
+    libraryDependencies ++= Seq("ml.dmlc" %% "xgboost4j" % "1.7.5", apacheCommons % Test))
 
 // Projects
 lazy val qbeastSpark = (project in file("."))

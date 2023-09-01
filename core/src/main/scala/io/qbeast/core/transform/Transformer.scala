@@ -14,7 +14,9 @@ import java.util.Locale
 object Transformer {
 
   private val transformersRegistry: Map[String, TransformerType] =
-    Seq(LinearTransformer, HashTransformer).map(a => (a.transformerSimpleName, a)).toMap
+    Seq(LinearTransformer, HashTransformer, LearnedStringTransformer)
+      .map(a => (a.transformerSimpleName, a))
+      .toMap
 
   /**
    * Returns the transformer for the given column and type of transformer
@@ -47,7 +49,7 @@ object Transformer {
   def getDefaultTransformerForType(dataType: QDataType): TransformerType = transformersRegistry {
     dataType match {
       case _: OrderedDataType => LinearTransformer.transformerSimpleName
-      case StringDataType => HashTransformer.transformerSimpleName
+      case StringDataType => LearnedStringTransformer.transformerSimpleName
       case _ => throw new RuntimeException(s"There's not default transformer for $dataType")
     }
 

@@ -59,6 +59,7 @@ case class IdentityToZeroTransformation(identityValue: Any) extends Transformati
     case v: Timestamp if v == identityValue => 0.0
     case v: Date if v == identityValue => 0.0
     case v: Instant if v == identityValue => 0.0
+    case v: String if v == identityValue => 0.0
 
   }
 
