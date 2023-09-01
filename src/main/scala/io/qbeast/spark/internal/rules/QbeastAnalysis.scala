@@ -4,8 +4,8 @@
 package io.qbeast.spark.internal.rules
 
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.{SparkSession}
+import org.apache.spark.sql.catalyst.plans.logical.{AppendData, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
@@ -14,7 +14,7 @@ import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
  * Analyzes and resolves the Spark Plan before Optimization
  * @param spark the SparkSession
  */
-class QbeastAnalysis(spark: SparkSession) extends Rule[LogicalPlan] {
+class QbeastAnalysis(spark: SparkSession) extends Rule[LogicalPlan] with QbeastAnalysisUtils {
 
   /**
    * Returns the V1Relation from a V2Relation
@@ -31,11 +31,63 @@ class QbeastAnalysis(spark: SparkSession) extends Rule[LogicalPlan] {
 
   }
 
+  // private val deltaAnalysis = new DeltaAnalysis(spark)
+
   override def apply(plan: LogicalPlan): LogicalPlan = plan transformDown {
     // This rule is a hack to return a V1 relation for reading
     // Because we didn't implemented SupportsRead on QbeastTableImpl yet
     case v2Relation @ DataSourceV2Relation(t: QbeastTableImpl, _, _, _, _) =>
       toV1Relation(v2Relation, t)
+
+    /**
+     * Appending data by Ordinal (no schema provided)
+     * INSERT INTO tbl VALUES(...)
+     */
+    case appendData @ AppendQbeastTable(relation, table)
+        if !appendData.isByName && needSchemaAdjustment(
+          table.name(),
+          appendData.query,
+          relation.schema) =>
+      val projection =
+        resolveQueryColumnsByOrdinal(appendData.query, relation.output, table.name())
+      if (projection != appendData.query) {
+        appendData.copy(query = projection)
+      } else {
+        appendData
+      }
+
+    /**
+     * Appending data by Name
+     * INSERT INTO tbl(col1, col2, col3) VALUES (...)
+     */
+
+    case appendDataByName @ AppendQbeastTable(relation, table)
+        if appendDataByName.isByName && relation.origin.sqlText.nonEmpty && needSchemaAdjustment(
+          table.name(),
+          appendDataByName.query,
+          relation.schema) =>
+      val projection = resolveQueryColumnsByName(appendDataByName.query, relation.output, table)
+      if (projection != appendDataByName.query) {
+        appendDataByName.copy(query = projection)
+      } else {
+        appendDataByName
+      }
+  }
+
+}
+
+object AppendQbeastTable {
+
+  def unapply(a: AppendData): Option[(DataSourceV2Relation, QbeastTableImpl)] = {
+    if (a.query.resolved) {
+      a.table match {
+        case r: DataSourceV2Relation if r.table.isInstanceOf[QbeastTableImpl] =>
+          Some((r, r.table.asInstanceOf[QbeastTableImpl]))
+        case _ => None
+      }
+    } else {
+      None
+    }
   }
 
 }
