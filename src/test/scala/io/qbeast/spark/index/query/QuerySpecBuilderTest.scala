@@ -1,8 +1,14 @@
 package io.qbeast.spark.index.query
 
 import io.qbeast.core.model._
-import io.qbeast.core.transform.{HashTransformation, LinearTransformation, Transformer}
+import io.qbeast.core.transform.{
+  HashTransformation,
+  LearnedStringTransformation,
+  LinearTransformation,
+  Transformer
+}
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.functions.expr
 
 class QuerySpecBuilderTest extends QbeastIntegrationTestSpec with QueryTestSpec {
@@ -83,6 +89,30 @@ class QuerySpecBuilderTest extends QbeastIntegrationTestSpec with QueryTestSpec 
     val rangeSpace = new QuerySpecBuilder(Seq(rangeExpression)).build(revision).head.querySpace
     rangeSpace shouldBe a[AllSpace]
   })
+
+  it should "extract proper query space when a string column is indexed with " +
+    "LearnedStringTransformation" in withSpark(spark => {
+      val columnTransformers = Transformer("learned", "name", StringDataType) :: Nil
+      val (from, to) = ("a", "z")
+      val transformations = LearnedStringTransformation(from, to) :: Nil
+
+      val revision = Revision(
+        1,
+        System.currentTimeMillis(),
+        QTableID("test"),
+        100,
+        columnTransformers,
+        transformations)
+
+      val getQuerySpace =
+        (expr: Expression) => new QuerySpecBuilder(expr :: Nil).build(revision).head.querySpace
+
+      val equalToExpression = expr(s"name == '$from'").expr
+      val rangeExpression = expr(s"name >= 'b' and name < 'y'").expr
+
+      getQuerySpace(equalToExpression) shouldBe a[QuerySpaceFromTo]
+      getQuerySpace(rangeExpression) shouldBe a[AllSpace]
+    })
 
   it should "extract all query range when expressions is empty" in withSpark(spark => {
     val revision = createRevision()

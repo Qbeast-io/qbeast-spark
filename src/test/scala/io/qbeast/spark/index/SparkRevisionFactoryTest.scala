@@ -2,9 +2,14 @@ package io.qbeast.spark.index
 
 import io.qbeast.TestClasses.T3
 import io.qbeast.core.model._
+import io.qbeast.core.transform.{
+  HashTransformer,
+  LearnedStringTransformer,
+  LinearTransformation,
+  LinearTransformer
+}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.core.transform.{HashTransformer, LinearTransformation, LinearTransformer}
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.to_timestamp
@@ -79,7 +84,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
     revision.columnTransformers shouldBe Vector(
       LinearTransformer("a", IntegerDataType),
       LinearTransformer("b", DoubleDataType),
-      HashTransformer("c", StringDataType),
+      LearnedStringTransformer("c", StringDataType),
       LinearTransformer("d", FloatDataType))
     revision.transformations shouldBe Vector.empty
 
@@ -88,7 +93,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
         qid,
         schema,
         Map(
-          QbeastOptions.COLUMNS_TO_INDEX -> "a:linear,b:linear,c:hashing,d:linear",
+          QbeastOptions.COLUMNS_TO_INDEX -> "a:linear,b:linear,c:learned,d:linear",
           QbeastOptions.CUBE_SIZE -> "10"))
 
     revisionExplicit.copy(timestamp = 0) shouldBe revision.copy(timestamp = 0)

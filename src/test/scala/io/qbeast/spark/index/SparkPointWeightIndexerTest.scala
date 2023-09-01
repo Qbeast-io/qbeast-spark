@@ -7,7 +7,11 @@ import io.qbeast.TestClasses.T1
 import io.qbeast.core.model.{BroadcastedTableChanges, _}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.core.transform.{HashTransformation, LinearTransformation}
+import io.qbeast.core.transform.{
+  HashTransformation,
+  LearnedStringTransformation,
+  LinearTransformation
+}
 import org.apache.spark.SparkException
 import org.apache.spark.sql.functions.{col, udf}
 
@@ -58,7 +62,7 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
         columnTransformersChanges = Nil,
         transformationsChanges = Vector(
           Some(LinearTransformation(0, 10, IntegerDataType)),
-          Some(HashTransformation()),
+          Some(LearnedStringTransformation("a", "z")),
           Some(LinearTransformation(0.0, 10.0, DoubleDataType))))
     val tc = BroadcastedTableChanges(Some(revisionChange), indexStatus, Map.empty)
 

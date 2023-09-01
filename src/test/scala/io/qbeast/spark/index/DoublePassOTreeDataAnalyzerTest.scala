@@ -3,7 +3,7 @@ package io.qbeast.spark.index
 import io.qbeast.IISeq
 import io.qbeast.TestClasses._
 import io.qbeast.core.model._
-import io.qbeast.core.transform.{HashTransformation, LinearTransformation, Transformer}
+import io.qbeast.core.transform.{LearnedStringTransformation, LinearTransformation, Transformer}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer._
 import io.qbeast.spark.index.QbeastColumns.weightColumnName
@@ -35,11 +35,15 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
   private def checkDecreasingBranchDomain(
       cube: CubeId,
       domainMap: Map[CubeId, Double],
-      parentDomain: Double): Boolean = {
+      parentDomain: Double,
+      desiredCubeSize: Int): Boolean = {
     val cubeDomain = domainMap(cube)
-    cubeDomain < parentDomain && cube.children
-      .filter(domainMap.contains)
-      .forall(c => checkDecreasingBranchDomain(c, domainMap, cubeDomain))
+    if (parentDomain <= desiredCubeSize) true
+    else {
+      cubeDomain < parentDomain && cube.children
+        .filter(domainMap.contains)
+        .forall(c => checkDecreasingBranchDomain(c, domainMap, cubeDomain, desiredCubeSize))
+    }
   }
 
   it should "calculateRevisionChanges correctly on single column" in withSpark { spark =>
@@ -60,10 +64,10 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
     val columnTransformer = revision.columnTransformers.head
     columnTransformer.columnName shouldBe "c"
-    columnTransformer.spec shouldBe s"c:hashing"
+    columnTransformer.spec shouldBe s"c:learned"
 
     val transformation = revision.transformations.head
-    transformation mustBe a[HashTransformation]
+    transformation mustBe a[LearnedStringTransformation]
 
   }
 
@@ -88,7 +92,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
     revision.columnTransformers.length shouldBe columnsToIndex.length
     revision.transformations.length shouldBe columnsToIndex.length
-    revision.transformations.foreach(t => t shouldBe a[HashTransformation])
+    revision.transformations.foreach(t => t shouldBe a[LearnedStringTransformation])
   }
 
   it should "calculateRevisionChanges correctly on different types" in withSpark { spark =>
@@ -123,7 +127,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
     zero should matchPattern { case LinearTransformation(0, 10000, _, IntegerDataType) => }
     one should matchPattern { case LinearTransformation(0.0, 10000.0, _, DoubleDataType) => }
-    two should matchPattern { case HashTransformation(_) => }
+    two should matchPattern { case LearnedStringTransformation("0", "9999") => }
     three should matchPattern { case LinearTransformation(0.0f, 10000.0f, _, FloatDataType) => }
 
   }
@@ -168,7 +172,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
     zero should matchPattern { case LinearTransformation(0, 20000, _, IntegerDataType) => }
     one should matchPattern { case LinearTransformation(0.0, 20000.0, _, DoubleDataType) => }
-    two should matchPattern { case HashTransformation(_) => }
+    two should matchPattern { case LearnedStringTransformation("0", "9999") => }
     three should matchPattern { case LinearTransformation(0.0f, 20000.0f, _, FloatDataType) =>
     }
 
@@ -252,11 +256,12 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val globalCubeDomains =
       estimateGlobalCubeDomains(partitionCubeDomains, revision).collect().toMap
 
-    // Cube domains should monotonically decrease
+    // Cube domains should monotonically decrease for all cubes with domain >= desiredCubeSize
     checkDecreasingBranchDomain(
       revision.createCubeIdRoot(),
       globalCubeDomains,
-      10002d) shouldBe true
+      10002d,
+      1000) shouldBe true
 
     // Root should be present in all partitions, its global domain should be the elementCount
     globalCubeDomains(revision.createCubeIdRoot()).toLong shouldBe elementCount
