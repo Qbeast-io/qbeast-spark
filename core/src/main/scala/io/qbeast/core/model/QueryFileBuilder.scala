@@ -3,6 +3,8 @@
  */
 package io.qbeast.core.model
 
+import scala.collection.mutable
+
 /**
  * Builder for creating QueryFile instances.
  *
@@ -11,7 +13,7 @@ package io.qbeast.core.model
 class QueryFileBuilder(file: File) {
   require(file != null)
 
-  private val ranges = Seq.newBuilder[RowRange]
+  private val ranges = mutable.Set[RowRange]()
 
   /**
    * Ads a given range.
@@ -39,7 +41,7 @@ class QueryFileBuilder(file: File) {
    * Creates the QueryFile instance.
    */
   def result(): QueryFile = {
-    QueryFile(file, ranges.result())
+    QueryFile(file, ranges.toSeq)
   }
 
 }

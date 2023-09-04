@@ -27,21 +27,16 @@ class QbeastFileFormat extends ParquetFileFormat {
       filters: Seq[Filter],
       options: Map[String, String],
       hadoopConf: Configuration): PartitionedFile => Iterator[InternalRow] = {
-    // The inherited reader should not apply filter pushdown otherwise
-    // the specified row ranges will be incorrect, so get the original setting,
-    // and disable filter pushdown in the parquet files
-    val filterPushdown = sparkSession.conf.get("spark.sql.parquet.filterPushdown")
-    sparkSession.conf.set("spark.sql.parquet.filterPushdown", "false")
     val reader = super.buildReaderWithPartitionValues(
       sparkSession,
       dataSchema,
       partitionSchema,
       requiredSchema,
-      filters,
+      // The inherited reader should not apply filter pushdown otherwise
+      // the specified row ranges will be incorrect
+      Seq.empty,
       options,
       hadoopConf)
-    // Restore the original filter pushdown setting
-    sparkSession.conf.set("spark.sql.parquet.filterPushdown", filterPushdown)
     fileWithRanges: PartitionedFile => {
       val (path, ranges) = PathRangesCodec.decode(fileWithRanges.filePath)
       val file = fileWithRanges.copy(filePath = path)

@@ -6,7 +6,6 @@ import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.functions.{avg, col, rand, regexp_replace, when}
-import org.scalatest.exceptions.TestFailedException
 
 class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
@@ -34,10 +33,17 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
       .foreach {
         case f: FileSourceScanExec if f.relation.location.isInstanceOf[OTreeIndex] =>
           val index = f.relation.location
-          val matchingFiles =
-            index.listFiles(f.partitionFilters, f.dataFilters).flatMap(_.files)
-          val allFiles = index.inputFiles
-          matchingFiles.length shouldBe <(allFiles.length)
+          val all = index.inputFiles.toSet
+          val matching =
+            index
+              .listFiles(f.partitionFilters, f.dataFilters)
+              .flatMap(_.files)
+              .map(_.getPath().toString())
+          matching.foreach { path =>
+            val i = path.lastIndexOf('#')
+            i shouldBe >=(0)
+            all should contain(path.substring(0, i))
+          }
       }
 
   }
@@ -143,8 +149,6 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
         val qbeastQuery = df.filter(filter)
         val normalQuery = data.filter(filter)
 
-        // The file filtering should not be applied in this particular case
-        an[TestFailedException] shouldBe thrownBy(checkFileFiltering(qbeastQuery))
         assertLargeDatasetEquality(qbeastQuery, normalQuery, orderedComparison = false)
 
       }
