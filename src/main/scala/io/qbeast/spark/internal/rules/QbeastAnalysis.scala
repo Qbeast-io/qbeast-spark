@@ -31,8 +31,6 @@ class QbeastAnalysis(spark: SparkSession) extends Rule[LogicalPlan] with QbeastA
 
   }
 
-  // private val deltaAnalysis = new DeltaAnalysis(spark)
-
   override def apply(plan: LogicalPlan): LogicalPlan = plan transformDown {
     // This rule is a hack to return a V1 relation for reading
     // Because we didn't implemented SupportsRead on QbeastTableImpl yet
@@ -54,23 +52,6 @@ class QbeastAnalysis(spark: SparkSession) extends Rule[LogicalPlan] with QbeastA
         appendData.copy(query = projection)
       } else {
         appendData
-      }
-
-    /**
-     * Appending data by Name
-     * INSERT INTO tbl(col1, col2, col3) VALUES (...)
-     */
-
-    case appendDataByName @ AppendQbeastTable(relation, table)
-        if appendDataByName.isByName && relation.origin.sqlText.nonEmpty && needSchemaAdjustment(
-          table.name(),
-          appendDataByName.query,
-          relation.schema) =>
-      val projection = resolveQueryColumnsByName(appendDataByName.query, relation.output, table)
-      if (projection != appendDataByName.query) {
-        appendDataByName.copy(query = projection)
-      } else {
-        appendDataByName
       }
   }
 

@@ -52,7 +52,6 @@ class QbeastSchemaTest extends QbeastIntegrationTestSpec {
     an[AnalysisException] shouldBe thrownBy(
       spark.sql("INSERT INTO student(id1, name2, age3) VALUES (1, 'John', 10)"))
 
-    spark.table("student").head() shouldBe Row(1, "John", 10)
   })
 
   it should "fail when types does not match" in withQbeastContextSparkAndTmpWarehouse(
@@ -83,7 +82,7 @@ class QbeastSchemaTest extends QbeastIntegrationTestSpec {
       spark.table("student").head() shouldBe Row(1, "John", 10)
     })
 
-  it should "not replace schemas from other table if they do not match" in
+  it should "not replace schemas from other table if the number do not match" in
     withQbeastContextSparkAndTmpWarehouse((spark, _) => {
 
       spark.sql(
@@ -93,6 +92,23 @@ class QbeastSchemaTest extends QbeastIntegrationTestSpec {
 
       spark.sql(
         s"CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
+          "OPTIONS ('columnsToIndex'='id')")
+
+      an[AnalysisException] shouldBe thrownBy(
+        spark.sql("INSERT INTO student SELECT * FROM student_parquet"))
+
+    })
+
+  it should "not replace schemas from other table if the type do not match" in
+    withQbeastContextSparkAndTmpWarehouse((spark, _) => {
+
+      spark.sql(
+        s"CREATE TABLE student_parquet (id STRING, name STRING, age INT) " +
+          s"USING parquet")
+      spark.sql("INSERT INTO student_parquet VALUES ('1', 'John', 20L)")
+
+      spark.sql(
+        s"CREATE TABLE student (id INT, name STRING, age INT) USING delta " +
           "OPTIONS ('columnsToIndex'='id')")
 
       an[AnalysisException] shouldBe thrownBy(

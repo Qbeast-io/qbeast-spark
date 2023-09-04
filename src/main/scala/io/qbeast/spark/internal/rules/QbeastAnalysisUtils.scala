@@ -1,7 +1,6 @@
 package io.qbeast.spark.internal.rules
 
-import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
-import org.apache.spark.sql.{AnalysisExceptionFactory, SchemaUtils, SparkSession}
+import org.apache.spark.sql.{AnalysisExceptionFactory, SchemaUtils}
 import org.apache.spark.sql.catalyst.expressions.{
   Alias,
   AnsiCast,
@@ -18,14 +17,10 @@ import org.apache.spark.sql.catalyst.expressions.{
   UpCast
 }
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Project}
-import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
-import org.apache.spark.sql.delta.{ColumnWithDefaultExprUtils, DeltaErrors, DeltaLog}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{ArrayType, DataType, IntegerType, StructField, StructType}
 
 trait QbeastAnalysisUtils {
-
-  private lazy val session = SparkSession.active
 
   /**
    * Checks if the schema of the Table corresponds to the schema of the Query
@@ -54,60 +49,6 @@ trait QbeastAnalysisUtils {
     !SchemaUtils.isReadCompatible(
       SchemaUtils.schemaAsNullable(schema),
       existingSchemaOutput.toStructType)
-  }
-
-  def insertIntoByNameMissingColumn(
-      query: LogicalPlan,
-      targetAttrs: Seq[Attribute],
-      qbeastTable: QbeastTableImpl): Unit = {
-
-    val deltaLog = DeltaLog.forTable(session, qbeastTable.v1Table.location.toString)
-    val deltaLogProtocol = deltaLog.update().protocol
-    if (query.output.length < targetAttrs.length) {
-      // Some columns are not specified. We don't allow schema evolution in INSERT INTO BY NAME, so
-      // we need to ensure the missing columns must be generated columns.
-      val userSpecifiedNames = if (session.sessionState.conf.caseSensitiveAnalysis) {
-        query.output.map(a => (a.name, a)).toMap
-      } else {
-        CaseInsensitiveMap(query.output.map(a => (a.name, a)).toMap)
-      }
-      val tableSchema = qbeastTable.schema()
-      if (tableSchema.length != targetAttrs.length) {
-        // The target attributes may contain the metadata columns by design. Throwing an exception
-        // here in case target attributes may have the metadata columns for Delta in future.
-        throw DeltaErrors.schemaNotConsistentWithTarget(s"$tableSchema", s"$targetAttrs")
-      }
-      qbeastTable.schema().foreach { col =>
-        if (!userSpecifiedNames.contains(col.name) &&
-          !ColumnWithDefaultExprUtils.columnHasDefaultExpr(deltaLogProtocol, col)) {
-          throw DeltaErrors.missingColumnsInInsertInto(col.name)
-        }
-      }
-    }
-  }
-
-  protected def resolveQueryColumnsByName(
-      query: LogicalPlan,
-      targetAttrs: Seq[Attribute],
-      qbeastTable: QbeastTableImpl): LogicalPlan = {
-    insertIntoByNameMissingColumn(query, targetAttrs, qbeastTable)
-    // Spark will resolve columns to make sure specified columns are in the table schema and don't
-    // have duplicates. This is just a sanity check.
-    assert(
-      query.output.length <= targetAttrs.length,
-      s"Too many specified columns ${query.output.map(_.name).mkString(", ")}. " +
-        s"Table columns: ${targetAttrs.map(_.name).mkString(", ")}")
-
-    val project = query.output.map { attr =>
-      val targetAttr = targetAttrs
-        .find(t => session.sessionState.conf.resolver(t.name, attr.name))
-        .getOrElse {
-          // This is a sanity check. Spark should have done the check.
-          throw AnalysisExceptionFactory.create("Missing column")
-        }
-      addCastToColumn(attr, targetAttr, qbeastTable.name())
-    }
-    Project(project, query)
   }
 
   protected def resolveQueryColumnsByOrdinal(
@@ -148,11 +89,10 @@ trait QbeastAnalysisUtils {
       source: StructType,
       target: StructType): NamedExpression = {
     if (source.length < target.length) {
-      throw DeltaErrors.notEnoughColumnsInInsert(
-        tableName,
-        source.length,
-        target.length,
-        Some(parent.qualifiedName))
+
+      throw AnalysisExceptionFactory.create(
+        s"Not enough columns in INSERT INTO $tableName. " +
+          s"Found ${source.length} columns and need ${target.length}")
     }
     val fields = source.zipWithIndex.map {
       case (StructField(name, nested: StructType, _, metadata), i) if i < target.length =>
@@ -165,7 +105,8 @@ trait QbeastAnalysisUtils {
           case o =>
             val field = parent.qualifiedName + "." + name
             val targetName = parent.qualifiedName + "." + target(i).name
-            throw DeltaErrors.cannotInsertIntoColumn(tableName, field, targetName, o.simpleString)
+            throw AnalysisExceptionFactory.create(
+              s"Cannot insert into column $field in table $tableName. Use $targetName instead")
         }
       case (other, i) if i < target.length =>
         val targetAttr = target(i)
