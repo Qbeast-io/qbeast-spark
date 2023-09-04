@@ -4,23 +4,19 @@ import org.apache.spark.sql.{AnalysisExceptionFactory, SchemaUtils}
 import org.apache.spark.sql.catalyst.expressions.{
   Alias,
   AnsiCast,
-  ArrayTransform,
   Attribute,
   Cast,
   CreateStruct,
   Expression,
-  GetArrayItem,
   GetStructField,
-  LambdaFunction,
   NamedExpression,
-  NamedLambdaVariable,
   UpCast
 }
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Project}
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{ArrayType, DataType, IntegerType, StructField, StructType}
+import org.apache.spark.sql.types.{DataType, StructField, StructType}
 
-trait QbeastAnalysisUtils {
+private[rules] object QbeastAnalysisUtils {
 
   /**
    * Checks if the schema of the Table corresponds to the schema of the Query
@@ -31,10 +27,7 @@ trait QbeastAnalysisUtils {
    * @param schema
    * @return
    */
-  protected def needSchemaAdjustment(
-      tableName: String,
-      query: LogicalPlan,
-      schema: StructType): Boolean = {
+  def needSchemaAdjustment(tableName: String, query: LogicalPlan, schema: StructType): Boolean = {
     val output = query.output
     if (output.length < schema.length) {
       throw AnalysisExceptionFactory.create(
@@ -51,7 +44,16 @@ trait QbeastAnalysisUtils {
       existingSchemaOutput.toStructType)
   }
 
-  protected def resolveQueryColumnsByOrdinal(
+  /**
+   * From DeltaAnalysis code in spark/src/main/scala/org/apache/spark/sql/delta/DeltaAnalysis.scala
+   * Performs the schema adjustment by adding UpCasts (which are safe)
+   * and Aliases so that we can check if the schema of the insert query matches our table
+   * @param query the input query for the insert
+   * @param targetAttrs the target attributes
+   * @param tblName the name of the table
+   * @return
+   */
+  def resolveQueryColumnsByOrdinal(
       query: LogicalPlan,
       targetAttrs: Seq[Attribute],
       tblName: String): LogicalPlan = {
@@ -69,7 +71,12 @@ trait QbeastAnalysisUtils {
 
   type CastFunction = (Expression, DataType) => Expression
 
-  protected def getCastFunction: CastFunction = {
+  /**
+   * From DeltaAnalysis code in spark/src/main/scala/org/apache/spark/sql/delta/DeltaAnalysis.scala
+   * Get cast operation for the level of strictness in the schema a user asked for
+   * @return
+   */
+  def getCastFunction: CastFunction = {
     val conf = SQLConf.get
     val timeZone = conf.sessionLocalTimeZone
     conf.storeAssignmentPolicy match {
@@ -83,6 +90,16 @@ trait QbeastAnalysisUtils {
     }
   }
 
+  /**
+   * From DeltaAnalysis code in spark/src/main/scala/org/apache/spark/sql/delta/DeltaAnalysis.scala
+   * Recursively casts structs in case it contains null types.
+   * TODO: Support other complex types like MapType and ArrayType
+   * @param tableName the name of the table
+   * @param parent the parent expression to cast
+   * @param source the source schema
+   * @param target the target schema
+   * @return The casted expression
+   */
   def addCastsToStructs(
       tableName: String,
       parent: NamedExpression,
@@ -126,23 +143,15 @@ trait QbeastAnalysisUtils {
       Option(parent.metadata))
   }
 
-  private def addCastsToArrayStructs(
-      tableName: String,
-      parent: NamedExpression,
-      source: StructType,
-      target: StructType,
-      sourceNullable: Boolean): Expression = {
-    val structConverter: (Expression, Expression) => Expression = (_, i) =>
-      addCastsToStructs(tableName, Alias(GetArrayItem(parent, i), i.toString)(), source, target)
-    val transformLambdaFunc = {
-      val elementVar = NamedLambdaVariable("elementVar", source, sourceNullable)
-      val indexVar = NamedLambdaVariable("indexVar", IntegerType, false)
-      LambdaFunction(structConverter(elementVar, indexVar), Seq(elementVar, indexVar))
-    }
-    ArrayTransform(parent, transformLambdaFunc)
-  }
-
-  protected def addCastToColumn(
+  /**
+   * From DeltaAnalysis code in spark/src/main/scala/org/apache/spark/sql/delta/DeltaAnalysis.scala
+   * Adds cast to input/query column from the target table
+   * @param attr the column to cast in Attribute form
+   * @param targetAttr the target column of the table
+   * @param tblName the name of the table
+   * @return
+   */
+  def addCastToColumn(
       attr: Attribute,
       targetAttr: Attribute,
       tblName: String): NamedExpression = {
@@ -151,9 +160,6 @@ trait QbeastAnalysisUtils {
         attr
       case (s: StructType, t: StructType) if s != t =>
         addCastsToStructs(tblName, attr, s, t)
-      case (ArrayType(s: StructType, sNull: Boolean), ArrayType(t: StructType, tNull: Boolean))
-          if s != t && sNull == tNull =>
-        addCastsToArrayStructs(tblName, attr, s, t, sNull)
       case _ =>
         getCastFunction(attr, targetAttr.dataType)
     }

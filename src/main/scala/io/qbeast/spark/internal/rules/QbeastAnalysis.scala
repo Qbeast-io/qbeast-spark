@@ -4,7 +4,8 @@
 package io.qbeast.spark.internal.rules
 
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
-import org.apache.spark.sql.{SparkSession}
+import io.qbeast.spark.internal.rules.QbeastAnalysisUtils._
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.plans.logical.{AppendData, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.LogicalRelation
@@ -14,7 +15,7 @@ import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
  * Analyzes and resolves the Spark Plan before Optimization
  * @param spark the SparkSession
  */
-class QbeastAnalysis(spark: SparkSession) extends Rule[LogicalPlan] with QbeastAnalysisUtils {
+class QbeastAnalysis(spark: SparkSession) extends Rule[LogicalPlan] {
 
   /**
    * Returns the V1Relation from a V2Relation
@@ -37,10 +38,7 @@ class QbeastAnalysis(spark: SparkSession) extends Rule[LogicalPlan] with QbeastA
     case v2Relation @ DataSourceV2Relation(t: QbeastTableImpl, _, _, _, _) =>
       toV1Relation(v2Relation, t)
 
-    /**
-     * Appending data by Ordinal (no schema provided)
-     * INSERT INTO tbl VALUES(...)
-     */
+    // Appending data by Ordinal (no schema provided) INSERT INTO tbl VALUES(...)
     case appendData @ AppendQbeastTable(relation, table)
         if !appendData.isByName && needSchemaAdjustment(
           table.name(),
@@ -57,6 +55,9 @@ class QbeastAnalysis(spark: SparkSession) extends Rule[LogicalPlan] with QbeastA
 
 }
 
+/**
+ * Object for detecting AppendData into QbeastTable pattern
+ */
 object AppendQbeastTable {
 
   def unapply(a: AppendData): Option[(DataSourceV2Relation, QbeastTableImpl)] = {
