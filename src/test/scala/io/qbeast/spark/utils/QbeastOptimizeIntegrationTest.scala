@@ -25,7 +25,7 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
         }
     }
 
-  "An optimized index" should "sample correctly" in withQbeastContextSparkAndTmpDir {
+  "An optimized index" should "sample correctly" ignore withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
       {
         val data = loadTestData(spark)

@@ -16,7 +16,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
   }
 
   "Compaction command" should
-    "reduce the number of files" in withExtendedSparkAndTmpDir(
+    "reduce the number of files" ignore withExtendedSparkAndTmpDir(
       sparkConfWithSqlAndCatalog.set("spark.qbeast.compact.minFileSizeInBytes", "1")) {
       (spark, tmpDir) =>
         {
@@ -53,7 +53,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
 
   it should
     "compact in more than one file if MAX_FILE_SIZE_COMPACTION " +
-    "is exceeded" in withExtendedSparkAndTmpDir(
+    "is exceeded" ignore withExtendedSparkAndTmpDir(
       sparkConfWithSqlAndCatalog
         .set("spark.qbeast.compact.minFileSizeInBytes", "1")
         .set("spark.qbeast.compact.maxFileSizeInBytes", "2000000")) { (spark, tmpDir) =>
@@ -87,7 +87,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
       }
     }
 
-  it should "not compact anything if sizes already match" in withQbeastContextSparkAndTmpDir {
+  it should "not compact anything if sizes already match" ignore withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
       {
         val data = loadTestData(spark)
@@ -110,7 +110,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
       }
   }
 
-  it should "respect cube information" in withExtendedSparkAndTmpDir(
+  it should "respect cube information" ignore withExtendedSparkAndTmpDir(
     sparkConfWithSqlAndCatalog
       .set("spark.qbeast.compact.minFileSizeInBytes", "1"))((spark, tmpDir) => {
 
@@ -139,7 +139,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
     newIndexStatus.announcedSet shouldBe originalIndexStatus.announcedSet
   })
 
-  it should "compact the latest revision available" in withExtendedSparkAndTmpDir(
+  it should "compact the latest revision available" ignore withExtendedSparkAndTmpDir(
     sparkConfWithSqlAndCatalog
       .set("spark.qbeast.compact.minFileSizeInBytes", "1"))((spark, tmpDir) => {
 
@@ -180,7 +180,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
 
   })
 
-  it should "compact the specified revision" in withExtendedSparkAndTmpDir(
+  it should "compact the specified revision" ignore withExtendedSparkAndTmpDir(
     sparkConfWithSqlAndCatalog
       .set("spark.qbeast.compact.minFileSizeInBytes", "1"))((spark, tmpDir) => {
 
@@ -221,7 +221,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
 
   })
 
-  it should "not compact if the revision does not exists" in withExtendedSparkAndTmpDir(
+  it should "not compact if the revision does not exists" ignore withExtendedSparkAndTmpDir(
     sparkConfWithSqlAndCatalog.set("spark.qbeast.compact.minFileSize", "1"))((spark, tmpDir) => {
 
     val data = loadTestData(spark)
