@@ -49,7 +49,7 @@ class IndexFileWriter(
    * @param extendedRows the rows to write that contain Qbeast-specific fields
    * @return the written index file and the task stats
    */
-  def write(extendedRows: Iterator[InternalRow]): Iterator[(IndexFile, TaskStats)] = {
+  def write(extendedRows: Iterator[InternalRow]): (IndexFile, TaskStats) = {
     val path = new Path(tablePath, s"${UUID.randomUUID()}.parquet")
     val writer = newOutputWriter(path)
     val fileBuilder = newIndexFileBuilder(path)
@@ -64,7 +64,7 @@ class IndexFileWriter(
     writer.close()
     fileBuilder.fileWritten()
     statsBuilder.fileWritten()
-    Iterator((fileBuilder.result(), statsBuilder.result()))
+    (fileBuilder.result(), statsBuilder.result())
   }
 
   private def newOutputWriter(path: Path): OutputWriter = {

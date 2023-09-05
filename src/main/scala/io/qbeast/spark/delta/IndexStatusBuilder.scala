@@ -29,6 +29,11 @@ private[delta] class IndexStatusBuilder(
     // this must be external to the lambda, to avoid SerializationErrors
     qbeastSnapshot.loadRevisionBlocks(revision.revisionID).collect()
 
+  /**
+   * Builds a new IndexStatus instance.
+   *
+   * @return a new IndexStatus instance
+   */
   def build(): IndexStatus = {
     val cubeStatus =
       if (isStaging(revision)) stagingCubeStatuses
@@ -41,7 +46,7 @@ private[delta] class IndexStatusBuilder(
       cubesStatuses = cubeStatus)
   }
 
-  def stagingCubeStatuses: SortedMap[CubeId, CubeStatus] = {
+  private def stagingCubeStatuses: SortedMap[CubeId, CubeStatus] = {
     val root = revision.createCubeIdRoot()
     val dimensionCount = revision.transformations.length
     val maxWeight = Weight.MaxValue
@@ -57,7 +62,7 @@ private[delta] class IndexStatusBuilder(
    *
    * @return Dataset containing cube information
    */
-  def indexCubeStatuses: SortedMap[CubeId, CubeStatus] = {
+  private[delta] def indexCubeStatuses: SortedMap[CubeId, CubeStatus] = {
     val builders = mutable.Map.empty[CubeId, CubeStatusBuilder]
     val dimensionCount = revision.transformations.length
     val desiredCubeSize = revision.desiredCubeSize

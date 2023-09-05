@@ -7,7 +7,6 @@ import io.qbeast.IISeq
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.IndexFiles
 import io.qbeast.spark.index.QbeastColumns
-import io.qbeast.spark.index.QbeastColumns.cubeColumnName
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.qbeast.config.{
@@ -20,7 +19,6 @@ import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.delta.stats.DeltaFileStatistics
 import org.apache.spark.sql.execution.datasources.{BasicWriteTaskStats, WriteTaskStats}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
-import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.SerializableConfiguration
 
@@ -33,6 +31,8 @@ import java.net.URI
 object SparkDeltaDataWriter
     extends DataWriter[DataFrame, StructType, FileAction]
     with DeltaStatsCollectionUtils {
+
+  private val strategy: WriteStrategy = LegacyWriteStrategy
 
   override def write(
       tableID: QTableID,
@@ -54,7 +54,7 @@ object SparkDeltaDataWriter
     val cleanedData = qbeastData.selectExpr(dataColumns: _*)
     val fileStatsTrackers = getDeltaOptionalTrackers(cleanedData, sparkSession, tableID)
 
-    val blockWriter = new IndexFileWriter(
+    val writer = new IndexFileWriter(
       tablePath = tableID.id,
       schema = schema,
       extendedSchema = qbeastData.schema,
@@ -64,17 +64,9 @@ object SparkDeltaDataWriter
       statsTrackers = statsTrackers ++ fileStatsTrackers,
       configuration = serConf)
 
-    val finalActionsAndStats = qbeastData
-      .repartition(col(cubeColumnName))
-      .queryExecution
-      .executedPlan
-      .execute
-      .mapPartitions(blockWriter.write)
-      .collect()
-      .toIndexedSeq
-
-    val fileActions = finalActionsAndStats.map(_._1).map(IndexFiles.toAddFile)
-    val stats = finalActionsAndStats.map(_._2)
+    val indexFilesAndStats = strategy.write(qbeastData, writer.write)
+    val fileActions = indexFilesAndStats.map(_._1).map(IndexFiles.toAddFile)
+    val stats = indexFilesAndStats.map(_._2)
 
     // Process BasicWriteJobStatsTrackers
     var fileWriteTaskStats = Seq.empty[WriteTaskStats]
