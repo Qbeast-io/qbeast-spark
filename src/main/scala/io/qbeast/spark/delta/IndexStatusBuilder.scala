@@ -5,7 +5,6 @@ package io.qbeast.spark.delta
 
 import io.qbeast.core.model._
 import org.apache.spark.sql.delta.actions.AddFile
-import org.apache.spark.sql.Dataset
 
 import scala.collection.immutable.SortedMap
 import scala.collection.mutable
@@ -26,13 +25,9 @@ private[delta] class IndexStatusBuilder(
     extends Serializable
     with StagingUtils {
 
-  /**
-   * Dataset of files belonging to the specific revision
-   * @return the dataset of AddFile actions
-   */
-  def revisionFiles: Dataset[AddFile] =
+  private lazy val revisionFiles: Array[AddFile] =
     // this must be external to the lambda, to avoid SerializationErrors
-    qbeastSnapshot.loadRevisionBlocks(revision.revisionID)
+    qbeastSnapshot.loadRevisionBlocks(revision.revisionID).collect()
 
   def build(): IndexStatus = {
     val cubeStatus =
@@ -50,9 +45,7 @@ private[delta] class IndexStatusBuilder(
     val root = revision.createCubeIdRoot()
     val dimensionCount = revision.transformations.length
     val maxWeight = Weight.MaxValue
-    val blocks = revisionFiles
-      .collect()
-      .iterator
+    val blocks = revisionFiles.iterator
       .map(IndexFiles.fromAddFile(dimensionCount))
       .flatMap(_.blocks)
       .toIndexedSeq
@@ -68,9 +61,7 @@ private[delta] class IndexStatusBuilder(
     val builders = mutable.Map.empty[CubeId, CubeStatusBuilder]
     val dimensionCount = revision.transformations.length
     val desiredCubeSize = revision.desiredCubeSize
-    revisionFiles
-      .collect()
-      .iterator
+    revisionFiles.iterator
       .map(IndexFiles.fromAddFile(dimensionCount))
       .flatMap(_.blocks)
       .foreach { block =>
