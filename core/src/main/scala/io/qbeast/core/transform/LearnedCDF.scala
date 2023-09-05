@@ -11,14 +11,29 @@ object DefaultLearnedCDF {
   val maxEncodingLength: Int = 30
   val paddingValue: Float = -1f
 
-  def apply(): LearnedCDF =
-    new LearnedBoostingCDF(treeLimit, modelPath, maxEncodingLength, paddingValue)
+  def apply(): LearnedCDF = {
+    val modelStream = getClass.getResourceAsStream(modelPath)
+    val booster = XGBoost.loadModel(modelStream)
+    new LearnedBoostingCDF(treeLimit, booster, maxEncodingLength, paddingValue)
+  }
 
 }
 
 trait LearnedCDF {
-  val modelPath: String
+
+  /**
+   * The ML model used as a CDF for a given String column.
+   */
+  val model: Any
+
+  /**
+   * The size of the encoding vector for input Strings.
+   */
   val maxEncodingLength: Int
+
+  /**
+   * Pad value for Strings shorter than maxEncodingLength.
+   */
   val paddingValue: Float
 
   /**
@@ -33,25 +48,25 @@ trait LearnedCDF {
   def encodeString(str: String): Array[Float]
 }
 
+/**
+ * Trained XGBOOST model as a Cumulative Distribution Function for string column indexing
+ * @param treeLimit best iteration
+ * @param model XGBRegressor
+ * @param maxEncodingLength input string encoding length
+ * @param paddingValue pad value for shorter strings
+ */
 class LearnedBoostingCDF(
     treeLimit: Int,
-    val modelPath: String,
+    val model: Booster,
     val maxEncodingLength: Int,
     val paddingValue: Float)
     extends Serializable
     with LearnedCDF {
 
-  private val booster: Booster = loadModel()
-
-  private def loadModel(): Booster = {
-    val modelStream = getClass.getResourceAsStream(modelPath)
-    XGBoost.loadModel(modelStream)
-  }
-
   def predict(str: String, minValue: Float, maxValue: Float): Double = {
     val dMatrix =
       new DMatrix(encodeString(str), 1, maxEncodingLength, paddingValue)
-    val pred = booster.predict(data = dMatrix, treeLimit = treeLimit).head.head
+    val pred = model.predict(data = dMatrix, treeLimit = treeLimit).head.head
 
     pred.max(minValue).min(maxValue)
   }
