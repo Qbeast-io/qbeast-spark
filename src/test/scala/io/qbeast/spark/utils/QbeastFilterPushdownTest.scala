@@ -292,14 +292,14 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
       }
   }
 
-  it should "pushdown regex expressions on strings" in withQbeastContextSparkAndTmpDir {
+  it should "NOT pushdown regex expressions on strings" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
       {
         val data = loadTestData(spark)
         val columnName = "brand_mod"
         val modifiedData =
           data
-            .withColumn(columnName, regexp_replace(col("brand"), "versace", "prefix_versace"))
+            .withColumn(columnName, regexp_replace(col("brand"), "kipardo", "prefix_kipardo"))
 
         // Index data with the new column
         writeTestData(modifiedData, Seq(columnName), 10000, tmpDir)
@@ -308,14 +308,27 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
         val regexExpression = "prefix_(.+)"
         val filter =
-          s"(regexp_extract($columnName, '$regexExpression', 1) = 'versace')"
+          s"(regexp_extract($columnName, '$regexExpression', 1) = 'kipardo')"
         val query = df.filter(filter)
         val originalQuery = modifiedData.filter(filter)
-        val originalQueryWithoutRegex = data.filter("brand = 'versace'")
+        val originalQueryWithoutRegex = data.filter("brand = 'kipardo'")
 
         // OR filters are not split, so we need to match them entirely
         checkLogicalFilterPushdown(Seq(filter), query)
-        checkFileFiltering(query)
+
+        // Check if the files returned from the query are equal as the files existing in the folder
+        query.queryExecution.executedPlan
+          .collectLeaves()
+          .filter(_.isInstanceOf[FileSourceScanExec])
+          .foreach {
+            case f: FileSourceScanExec if f.relation.location.isInstanceOf[OTreeIndex] =>
+              val index = f.relation.location
+              val matchingFiles =
+                index.listFiles(f.partitionFilters, f.dataFilters).flatMap(_.files)
+              val allFiles = index.inputFiles
+              matchingFiles.length shouldBe allFiles.length
+          }
+
         assertSmallDatasetEquality(
           query,
           originalQuery,
