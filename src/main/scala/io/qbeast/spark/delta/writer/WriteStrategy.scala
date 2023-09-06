@@ -5,30 +5,23 @@ package io.qbeast.spark.delta.writer
 
 import io.qbeast.core.model.IndexFile
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.catalyst.InternalRow
 import io.qbeast.IISeq
 
 /**
- * Write strategy is responsible for grouping the rows of a given indexed
- * DataFrame and for writing them with the provided index file writer.
+ * Write strategy writes a given indexed data frame, i.e. a data frame where
+ * every row has an assigned weight and target cube.
  */
 private[writer] trait WriteStrategy {
 
   /**
-   * Writes given indexed data, i.e. data where each row is assigned the target
-   * cube which is stored in the dedicated column. It uses a given write
-   * function to write individual index files. The write function must be
-   * serializable.
+   * Writes a given indexed data using the specified writer factory and returns
+   * the writte index files with the corresponding task stats.
    *
-   * The strategy is responsible for deciding how many files to write and how to
-   * distribute the rows between them.
-   *
-   * @param data the index data to write
-   * @param write the index data to write
-   * @return the written index files and stats
+   * @param data the indexed data to write
+   * @param writerFactory the writer factory to create writers for writing the
+   * index files
+   * @return the written index files and the corresponding task stats
    */
-  def write(
-      data: DataFrame,
-      write: Iterator[InternalRow] => (IndexFile, TaskStats)): IISeq[(IndexFile, TaskStats)]
+  def write(data: DataFrame, writerFactory: IndexFileWriterFactory): IISeq[(IndexFile, TaskStats)]
 
 }

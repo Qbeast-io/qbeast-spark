@@ -32,8 +32,6 @@ object SparkDeltaDataWriter
     extends DataWriter[DataFrame, StructType, FileAction]
     with DeltaStatsCollectionUtils {
 
-  private val strategy: WriteStrategy = LegacyWriteStrategy
-
   override def write(
       tableID: QTableID,
       schema: StructType,
@@ -54,7 +52,7 @@ object SparkDeltaDataWriter
     val cleanedData = qbeastData.selectExpr(dataColumns: _*)
     val fileStatsTrackers = getDeltaOptionalTrackers(cleanedData, sparkSession, tableID)
 
-    val writer = new IndexFileWriter(
+    val writerFactory = new IndexFileWriterFactory(
       tablePath = tableID.id,
       schema = schema,
       extendedSchema = qbeastData.schema,
@@ -64,7 +62,9 @@ object SparkDeltaDataWriter
       statsTrackers = statsTrackers ++ fileStatsTrackers,
       configuration = serConf)
 
-    val indexFilesAndStats = strategy.write(qbeastData, writer.write)
+    val strategy = new LegacyWriteStrategy(tableChanges.updatedRevision, qbeastColumns)
+
+    val indexFilesAndStats = strategy.write(qbeastData, writerFactory)
     val fileActions = indexFilesAndStats.map(_._1).map(IndexFiles.toAddFile)
     val stats = indexFilesAndStats.map(_._2)
 
