@@ -79,7 +79,7 @@ private[writer] class IndexFileBuilder(
   private def newBlockBuilder(cubeIdBytes: Array[Byte]): BlockBuilder = {
     val cubeId = revision.createCubeId(cubeIdBytes)
     val state = changes.cubeState(cubeId).getOrElse(State.FLOODED)
-    val maxWeight = changes.cubeWeights(cubeId).getOrElse(Weight.MaxValue)
+    val maxWeight = changes.cubeWeight(cubeId).getOrElse(Weight.MaxValue)
     new BlockBuilder(cubeId, position, state, maxWeight, qbeastColumns)
   }
 

@@ -45,7 +45,7 @@ class CubeWeightsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
 
           // commitLogWeightMap shouldBe weightMap
           commitLogWeightMap.keys.foreach(cubeId => {
-            tc.cubeWeights(cubeId) should be('defined)
+            tc.cubeWeight(cubeId) should be('defined)
           })
         }
 

@@ -196,7 +196,7 @@ class IndexTest
           val cubeId = status.cubeId
           if (cubeId.parent.isDefined) {
             val parentCubeId = cubeId.parent.get
-            val parentMaxWeight = tc.cubeWeights(parentCubeId).get
+            val parentMaxWeight = tc.cubeWeight(parentCubeId).get
             status.files.foreach { block =>
               block.minWeight.value shouldBe >=(parentMaxWeight.value)
             }
