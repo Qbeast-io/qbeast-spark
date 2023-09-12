@@ -61,7 +61,7 @@ object BroadcastedTableChanges {
       announcedOrReplicatedSet = announcedSet ++ replicatedSet,
       cubeStates = SparkSession.active.sparkContext.broadcast(cubeStates.toMap),
       cubeWeights = SparkSession.active.sparkContext.broadcast(cubeWeights),
-      cubeDomains = SparkSession.active.sparkContext.broadcast(deltaCubeDomains))
+      cubeDomainsBroadcast = SparkSession.active.sparkContext.broadcast(deltaCubeDomains))
   }
 
 }
@@ -74,12 +74,12 @@ case class BroadcastedTableChanges(
     announcedOrReplicatedSet: Set[CubeId],
     cubeStates: Broadcast[Map[CubeId, String]],
     cubeWeights: Broadcast[Map[CubeId, Weight]],
-    cubeDomains: Broadcast[Map[CubeId, Double]])
+    cubeDomainsBroadcast: Broadcast[Map[CubeId, Double]])
     extends TableChanges {
 
   override def cubeWeight(cubeId: CubeId): Option[Weight] = cubeWeights.value.get(cubeId)
 
   override def cubeState(cubeId: CubeId): Option[String] = cubeStates.value.get(cubeId)
 
-  override def cubeDomain(cubeId: CubeId): Option[Double] = cubeDomains.value.get(cubeId)
+  override def cubeDomains: Map[CubeId, Double] = cubeDomainsBroadcast.value
 }

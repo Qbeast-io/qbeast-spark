@@ -62,7 +62,8 @@ object SparkDeltaDataWriter
       statsTrackers = statsTrackers ++ fileStatsTrackers,
       configuration = serConf)
 
-    val strategy = new LegacyWriteStrategy(tableChanges.updatedRevision, qbeastColumns)
+    // val strategy = new LegacyWriteStrategy(tableChanges.updatedRevision, qbeastColumns)
+    val strategy = new RollupWriteStrategy(qbeastColumns, tableChanges)
 
     val indexFilesAndStats = strategy.write(qbeastData, writerFactory)
     val fileActions = indexFilesAndStats.map(_._1).map(IndexFiles.toAddFile)
