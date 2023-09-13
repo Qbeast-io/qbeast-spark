@@ -5,7 +5,7 @@ package io.qbeast.spark.index
 
 import io.qbeast.IISeq
 import io.qbeast.core.model._
-import io.qbeast.core.transform.Transformer
+import io.qbeast.core.transform.{LearnedStringTransformer, Transformer}
 import io.qbeast.spark.index.QbeastColumns.{cubeToReplicateColumnName, weightColumnName}
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
 import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
@@ -100,6 +100,43 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         qbeastHash(revision.columnTransformers.map(name => df(name.columnName)): _*))
     }
 
+  private[index] def vectorizedCubeWeightsUpdate(
+      rows: Iterator[Row],
+      cubeWeightsBuilder: CubeWeightsBuilder,
+      revision: Revision,
+      weightIndex: Int,
+      partitionSize: Int,
+      isReplication: Boolean): Iterator[CubeDomain] = {
+    val rowWeightsBuilder = Seq.newBuilder[Weight]
+    rowWeightsBuilder.sizeHint(partitionSize)
+    val bytesBuilder = Seq.newBuilder[Array[Byte]]
+    bytesBuilder.sizeHint(if (isReplication) partitionSize else 0)
+
+    val coords = rows.toSeq
+      .map { row =>
+        rowWeightsBuilder += Weight(row.getAs[Int](weightIndex))
+        if (isReplication) bytesBuilder += row.getAs[Array[Byte]](cubeToReplicateColumnName)
+        row.toSeq
+      }
+      .transpose // Indexed columns obtained via transposing Row values
+      .zip(revision.transformations)
+      .map { case (column, t) => t.transformColumn(column) }
+      .transpose // Row coordinates within the current domain
+
+    val rowWeights = rowWeightsBuilder.result()
+    val bytes = bytesBuilder.result()
+    coords.indices
+      .foreach { i =>
+        val (point, weight) = (Point(coords(i): _*), rowWeights(i))
+        if (isReplication) {
+          val parentCubeOpt: Option[CubeId] = Some(revision.createCubeId(bytes(i)))
+          cubeWeightsBuilder.update(point, weight, parentCubeOpt)
+        } else cubeWeightsBuilder.update(point, weight)
+      }
+
+    cubeWeightsBuilder.result().iterator
+  }
+
   /**
    * Extract data summaries by indexing each partition
    */
@@ -124,6 +161,10 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
       val selected = weightedDataFrame.select(cols.map(col): _*)
       val weightIndex = selected.schema.fieldIndex(weightColumnName)
+      val vectorize = revision.columnTransformers.exists {
+        case _: LearnedStringTransformer => true
+        case _ => false
+      }
 
       selected
         .mapPartitions(rows => {
@@ -133,18 +174,27 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
               numPartitions = numPartitions,
               numElements = numElements,
               bufferCapacity = bufferCapacity)
-          rows.foreach { row =>
-            val point = RowUtils.rowValuesToPoint(row, revision)
-            val weight = Weight(row.getAs[Int](weightIndex))
-            if (isReplication) {
-              val parentBytes = row.getAs[Array[Byte]](cubeToReplicateColumnName)
-              val parent = Some(revision.createCubeId(parentBytes))
-              weights.update(point, weight, parent)
-            } else weights.update(point, weight)
+          if (vectorize) {
+            vectorizedCubeWeightsUpdate(
+              rows,
+              weights,
+              revision,
+              weightIndex,
+              (numElements / numPartitions).toInt,
+              isReplication)
+          } else {
+            rows.foreach { row =>
+              val point = RowUtils.rowValuesToPoint(row, revision)
+              val weight = Weight(row.getAs[Int](weightIndex))
+              if (isReplication) {
+                val parentBytes = row.getAs[Array[Byte]](cubeToReplicateColumnName)
+                val parent = Some(revision.createCubeId(parentBytes))
+                weights.update(point, weight, parent)
+              } else weights.update(point, weight)
+            }
+            weights.result().iterator
           }
-          weights.result().iterator
         })
-
     }
 
   /**

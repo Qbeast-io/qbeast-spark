@@ -25,6 +25,8 @@ trait Transformation extends Serializable {
    */
   def transform(value: Any): Double
 
+  def transformColumn(column: Seq[Any]): Seq[Double] = column.map(transform)
+
   /**
    * This method should determine if the new data will cause the creation of a new revision.
    *

@@ -11,7 +11,7 @@ object DefaultLearnedCDF {
   val maxEncodingLength: Int = 30
   val paddingValue: Float = -1f
 
-  def apply(): LearnedCDF = {
+  def apply(): LearnedBoostingCDF = {
     val modelStream = getClass.getResourceAsStream(modelPath)
     val booster = XGBoost.loadModel(modelStream)
     new LearnedBoostingCDF(treeLimit, booster, maxEncodingLength, paddingValue)
@@ -36,11 +36,13 @@ trait LearnedCDF {
    */
   val paddingValue: Float
 
+  def predict(strings: Seq[String], minValue: Double, maxValue: Double): Array[Double]
+
   /**
    * Predict input string percentile rank, the output is clipped within the range of
    * minValue and maxValue, both included.
    */
-  def predict(str: String, minValue: Float, maxValue: Float): Double
+  def predict(str: String, minValue: Double, maxValue: Double): Double
 
   /**
    * Encode input string into a sequence of floats.
@@ -63,12 +65,21 @@ class LearnedBoostingCDF(
     extends Serializable
     with LearnedCDF {
 
-  def predict(str: String, minValue: Float, maxValue: Float): Double = {
+  def predict(strings: Seq[String], minValue: Double, maxValue: Double): Array[Double] = {
+    val inputSeq = strings.flatMap(encodeString).toArray
+    val dMatrix = new DMatrix(inputSeq, strings.size, maxEncodingLength, paddingValue)
+    model
+      .predict(data = dMatrix, treeLimit = treeLimit)
+      .flatten
+      .map(_.toDouble.max(minValue).min(maxValue))
+  }
+
+  def predict(str: String, minValue: Double, maxValue: Double): Double = {
     val dMatrix =
       new DMatrix(encodeString(str), 1, maxEncodingLength, paddingValue)
     val pred = model.predict(data = dMatrix, treeLimit = treeLimit).head.head
 
-    pred.max(minValue).min(maxValue)
+    pred.toDouble.max(minValue).min(maxValue)
   }
 
   def encodeString(str: String): Array[Float] = {

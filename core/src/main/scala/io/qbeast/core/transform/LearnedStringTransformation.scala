@@ -15,7 +15,7 @@ import com.fasterxml.jackson.databind.{DeserializationContext, SerializerProvide
 @JsonDeserialize(using = classOf[LearnedStringTransformationDeserializer])
 case class LearnedStringTransformation(minString: String, maxString: String)
     extends Transformation {
-  private val stringCDF: LearnedCDF = DefaultLearnedCDF()
+  private val stringCDF: LearnedBoostingCDF = DefaultLearnedCDF()
   private val (mn, mx) = computeNumericBoundaries()
   private val scale: Double = 1.0 / (mx - mn)
   // The used model may not have enough resolution to distinguish mn and mx,
@@ -29,6 +29,24 @@ case class LearnedStringTransformation(minString: String, maxString: String)
     else (mn, mx)
   }
 
+  private def transformInputType(value: Any): String = value match {
+    case null => "null"
+    case s: String => s
+    case a => a.toString
+  }
+
+  private def scaleTransformation(value: Double): Double = {
+    (value - mn) * scale
+  }
+
+  override def transformColumn(column: Seq[Any]): Seq[Double] = {
+    if (isIdentityMapping) Seq.fill(column.size)(mn)
+    else {
+      val strSeq = column.map(transformInputType)
+      stringCDF.predict(strSeq, mn, mx).map(scaleTransformation)
+    }
+  }
+
   /**
    * Converts a real number to a normalized value.
    *
@@ -38,15 +56,13 @@ case class LearnedStringTransformation(minString: String, maxString: String)
   override def transform(value: Any): Double = {
     if (isIdentityMapping) mn
     else {
-      val v: String = value match {
-        case null => "null"
-        case s: String => s
-        case a => a.toString
-      }
-
+      val v: String = transformInputType(value)
       if (v <= minString) 0.0
       else if (v >= maxString) 1.0
-      else (stringCDF.predict(v, mn.toFloat, mx.toFloat) - mn) * scale
+      else {
+        val t = stringCDF.predict(v, mn, mx)
+        scaleTransformation(t)
+      }
     }
   }
 
