@@ -7,6 +7,7 @@ import io.qbeast.IISeq
 import io.qbeast.core.model._
 import io.qbeast.core.transform.{LearnedStringTransformer, Transformer}
 import io.qbeast.spark.index.QbeastColumns.{cubeToReplicateColumnName, weightColumnName}
+import io.qbeast.spark.index.transformations.Vectorizer
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
 import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
 import org.apache.spark.sql.functions._
@@ -100,42 +101,15 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         qbeastHash(revision.columnTransformers.map(name => df(name.columnName)): _*))
     }
 
-  private[index] def vectorizedCubeWeightsUpdate(
-      rows: Iterator[Row],
-      cubeWeightsBuilder: CubeWeightsBuilder,
-      revision: Revision,
-      weightIndex: Int,
-      partitionSize: Int,
-      isReplication: Boolean): Iterator[CubeDomain] = {
-    val rowWeightsBuilder = Seq.newBuilder[Weight]
-    rowWeightsBuilder.sizeHint(partitionSize)
-    val bytesBuilder = Seq.newBuilder[Array[Byte]]
-    bytesBuilder.sizeHint(if (isReplication) partitionSize else 0)
-
-    val coords = rows.toSeq
-      .map { row =>
-        rowWeightsBuilder += Weight(row.getAs[Int](weightIndex))
-        if (isReplication) bytesBuilder += row.getAs[Array[Byte]](cubeToReplicateColumnName)
-        row.toSeq
-      }
-      .transpose // Indexed columns obtained via transposing Row values
-      .zip(revision.transformations)
-      .map { case (column, t) => t.transformColumn(column) }
-      .transpose // Row coordinates within the current domain
-
-    val rowWeights = rowWeightsBuilder.result()
-    val bytes = bytesBuilder.result()
-    coords.indices
-      .foreach { i =>
-        val (point, weight) = (Point(coords(i): _*), rowWeights(i))
-        if (isReplication) {
-          val parentCubeOpt: Option[CubeId] = Some(revision.createCubeId(bytes(i)))
-          cubeWeightsBuilder.update(point, weight, parentCubeOpt)
-        } else cubeWeightsBuilder.update(point, weight)
-      }
-
-    cubeWeightsBuilder.result().iterator
-  }
+//  def time[T](msg: String)(f: => T): T = {
+//    val start = System.nanoTime()
+//    val result = f
+//    val timeTaken = NANOSECONDS.toMillis(System.nanoTime() - start) / 1000d
+//    // scalastyle:off println
+//    println(s"$msg, Time taken: $timeTaken s")
+//    // scalastyle:on println
+//    result
+//  }
 
   /**
    * Extract data summaries by indexing each partition
@@ -168,20 +142,26 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
       selected
         .mapPartitions(rows => {
-          val weights =
-            new CubeWeightsBuilder(
-              indexStatus = indexStatus,
-              numPartitions = numPartitions,
-              numElements = numElements,
-              bufferCapacity = bufferCapacity)
+          val cubeWeightsBuilder = new CubeWeightsBuilder(
+            indexStatus = indexStatus,
+            numPartitions = numPartitions,
+            numElements = numElements,
+            bufferCapacity = bufferCapacity)
+
           if (vectorize) {
-            vectorizedCubeWeightsUpdate(
-              rows,
-              weights,
-              revision,
-              weightIndex,
-              (numElements / numPartitions).toInt,
-              isReplication)
+            val vectorizer =
+              new Vectorizer(revision, isReplication, weightIndex, bufferCapacity.toInt)
+            rows.foreach { row =>
+              vectorizer.update(row)
+              if (vectorizer.isFull) {
+                vectorizer.result().foreach { case (point, weight, parentOpt) =>
+                  cubeWeightsBuilder.update(point, weight, parentOpt)
+                }
+              }
+            }
+            vectorizer.result().foreach { case (point, weight, parentOpt) =>
+              cubeWeightsBuilder.update(point, weight, parentOpt)
+            }
           } else {
             rows.foreach { row =>
               val point = RowUtils.rowValuesToPoint(row, revision)
@@ -189,11 +169,12 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
               if (isReplication) {
                 val parentBytes = row.getAs[Array[Byte]](cubeToReplicateColumnName)
                 val parent = Some(revision.createCubeId(parentBytes))
-                weights.update(point, weight, parent)
-              } else weights.update(point, weight)
+                cubeWeightsBuilder.update(point, weight, parent)
+              } else cubeWeightsBuilder.update(point, weight)
             }
-            weights.result().iterator
+
           }
+          cubeWeightsBuilder.result().iterator
         })
     }
 

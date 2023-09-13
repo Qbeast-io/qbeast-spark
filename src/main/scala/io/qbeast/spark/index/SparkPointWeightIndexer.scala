@@ -3,9 +3,11 @@
  */
 package io.qbeast.spark.index
 
+import breeze.linalg.DenseMatrix
 import io.qbeast.core.model.{Point, PointWeightIndexer, TableChanges, Weight}
 import io.qbeast.core.transform.LearnedStringTransformer
 import io.qbeast.spark.index.QbeastColumns._
+import io.qbeast.spark.index.transformations.VectorTransformation
 import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.BinaryType
@@ -45,32 +47,38 @@ private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication:
   def vectorizedIndexing(
       rows: Iterator[Row],
       weightIndex: Int,
-      targetIndices: Seq[Int]): Iterator[Row] = {
+      columnIndices: Seq[Int]): Iterator[Row] = {
     val (rowsForPoints, originalRows) = rows.duplicate
     val rowWeightsBuilder = Seq.newBuilder[Weight]
     val bytesBuilder = Seq.newBuilder[Array[Byte]]
 
-    val coords = rowsForPoints.toSeq
-      .map { row =>
+    val rowSequence = rowsForPoints.toSeq
+    val columnSize = rowSequence.size
+    val vectorTransformations = revision.transformations.zip(columnIndices).map { case (t, i) =>
+      VectorTransformation(t, i, columnSize)
+    }
+
+    rowSequence.zipWithIndex
+      .foreach { case (row, i) =>
         rowWeightsBuilder += Weight(row.getAs[Int](weightIndex))
         if (isReplication) bytesBuilder += row.getAs[Array[Byte]](cubeToReplicateColumnName)
-        targetIndices.map(i => row(i))
+        vectorTransformations.foreach(t => t.updateVector(i, row(t.columnPosition)))
       }
-      .transpose
-      .zip(revision.transformations)
-      .map { case (column, t) => t.transformColumn(column) }
-      .transpose
 
+    val colsAsCoords = DenseMatrix(
+      vectorTransformations.map(t => t.vectorTransform(columnSize)): _*)
     val rowWeights = rowWeightsBuilder.result()
     val bytes = bytesBuilder.result()
 
     originalRows.zipWithIndex.flatMap { case (row, i) =>
-      val (point, weight) = (Point(coords(i): _*), rowWeights(i))
-      val parent = if (isReplication) Some(revision.createCubeId(bytes(i))) else None
+      val coords = colsAsCoords(::, i).toScalaVector
+      val (point, weight) = (Point(coords: _*), rowWeights(i))
+      val parentOpt = if (isReplication) Some(revision.createCubeId(bytes(i))) else None
       pointIndexer
-        .findTargetCubeIds(point, weight, parent)
+        .findTargetCubeIds(point, weight, parentOpt)
         .map(c => Row(row.toSeq :+ c.bytes: _*))
     }
+
   }
 
   def buildIndex: DataFrame => DataFrame = (weightedDataFrame: DataFrame) => {
