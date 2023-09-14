@@ -6,7 +6,6 @@ package io.qbeast.spark.delta
 import io.qbeast.core.model.{QTableID, RevisionID, TableChanges}
 import io.qbeast.spark.delta.writer.StatsTracker.registerStatsTrackers
 import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
-// import io.qbeast.spark.utils.TagColumns
 import org.apache.spark.sql.delta.actions._
 import org.apache.spark.sql.delta.commands.DeltaCommand
 import org.apache.spark.sql.delta.{DeltaLog, DeltaOperations, DeltaOptions, OptimisticTransaction}
@@ -14,7 +13,6 @@ import org.apache.spark.sql.execution.datasources.{
   BasicWriteJobStatsTracker,
   WriteJobStatsTracker
 }
-// import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{AnalysisExceptionFactory, SaveMode, SparkSession}
 import org.apache.spark.util.SerializableConfiguration
@@ -97,25 +95,6 @@ private[delta] case class DeltaMetadataWriter(
       txn.commit(Seq.empty, op)
     }
   }
-
-  // private def updateReplicatedFiles(tableChanges: TableChanges): Seq[Action] = {
-  //
-  //  val revision = tableChanges.updatedRevision
-  //  val deltaReplicatedSet = tableChanges.deltaReplicatedSet
-  //
-  //  val cubeStrings = deltaReplicatedSet.map(_.string)
-  //  val cubeBlocks =
-  //    deltaLog.snapshot.allFiles
-  //      .where(TagColumns.revision === lit(revision.revisionID.toString) &&
-  //        TagColumns.cube.isInCollection(cubeStrings))
-  //      .collect()
-  //
-  //  val newReplicatedFiles = cubeBlocks.map(ReplicatedFile(_))
-  //  val deleteFiles = cubeBlocks.map(_.remove)
-  //
-  //  deleteFiles ++ newReplicatedFiles
-  //
-  // }
 
   private def updateReplicatedBlocks(tableChanges: TableChanges): Seq[Action] = {
     val revision = tableChanges.updatedRevision
