@@ -6,7 +6,7 @@ package io.qbeast.spark.delta
 import io.qbeast.core.model.{QTableID, RevisionID, TableChanges}
 import io.qbeast.spark.delta.writer.StatsTracker.registerStatsTrackers
 import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
-import io.qbeast.spark.utils.TagColumns
+// import io.qbeast.spark.utils.TagColumns
 import org.apache.spark.sql.delta.actions._
 import org.apache.spark.sql.delta.commands.DeltaCommand
 import org.apache.spark.sql.delta.{DeltaLog, DeltaOperations, DeltaOptions, OptimisticTransaction}
@@ -14,12 +14,13 @@ import org.apache.spark.sql.execution.datasources.{
   BasicWriteJobStatsTracker,
   WriteJobStatsTracker
 }
-import org.apache.spark.sql.functions.lit
+// import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{AnalysisExceptionFactory, SaveMode, SparkSession}
 import org.apache.spark.util.SerializableConfiguration
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.JavaConverters._
 
 /**
  * DeltaMetadataWriter is in charge of writing data to a table
@@ -97,23 +98,39 @@ private[delta] case class DeltaMetadataWriter(
     }
   }
 
-  private def updateReplicatedFiles(tableChanges: TableChanges): Seq[Action] = {
+  // private def updateReplicatedFiles(tableChanges: TableChanges): Seq[Action] = {
+  //
+  //  val revision = tableChanges.updatedRevision
+  //  val deltaReplicatedSet = tableChanges.deltaReplicatedSet
+  //
+  //  val cubeStrings = deltaReplicatedSet.map(_.string)
+  //  val cubeBlocks =
+  //    deltaLog.snapshot.allFiles
+  //      .where(TagColumns.revision === lit(revision.revisionID.toString) &&
+  //        TagColumns.cube.isInCollection(cubeStrings))
+  //      .collect()
+  //
+  //  val newReplicatedFiles = cubeBlocks.map(ReplicatedFile(_))
+  //  val deleteFiles = cubeBlocks.map(_.remove)
+  //
+  //  deleteFiles ++ newReplicatedFiles
+  //
+  // }
 
+  private def updateReplicatedBlocks(tableChanges: TableChanges): Seq[Action] = {
     val revision = tableChanges.updatedRevision
-    val deltaReplicatedSet = tableChanges.deltaReplicatedSet
-
-    val cubeStrings = deltaReplicatedSet.map(_.string)
-    val cubeBlocks =
-      deltaLog.snapshot.allFiles
-        .where(TagColumns.revision === lit(revision.revisionID.toString) &&
-          TagColumns.cube.isInCollection(cubeStrings))
-        .collect()
-
-    val newReplicatedFiles = cubeBlocks.map(ReplicatedFile(_))
-    val deleteFiles = cubeBlocks.map(_.remove)
-
-    deleteFiles ++ newReplicatedFiles
-
+    val revisionId = revision.revisionID
+    val dimensionCount = revision.transformations.length
+    val replicatedCubeIds = tableChanges.deltaReplicatedSet
+    deltaLog.snapshot.allFiles
+      .toLocalIterator()
+      .asScala
+      .map(IndexFiles.fromAddFile(dimensionCount))
+      .filter(_.belongsToRevision(revisionId))
+      .filter(_.hasBlocksFromCubes(replicatedCubeIds))
+      .map(_.setBlocksReplicated(replicatedCubeIds))
+      .map(IndexFiles.toAddFile)
+      .toSeq
   }
 
   private def updateTransactionVersion(
@@ -188,7 +205,7 @@ private[delta] case class DeltaMetadataWriter(
       val revisionID = tableChanges.updatedRevision.revisionID
       val transactionRecord =
         updateTransactionVersion(txn, revisionID)
-      val replicatedFiles = updateReplicatedFiles(tableChanges)
+      val replicatedFiles = updateReplicatedBlocks(tableChanges)
       allFileActions ++ replicatedFiles ++ Seq(transactionRecord)
     } else allFileActions
 

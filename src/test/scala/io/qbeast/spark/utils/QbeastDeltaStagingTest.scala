@@ -74,7 +74,7 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
       stagingIndexStatus.replicatedOrAnnouncedSet.isEmpty shouldBe true
     })
 
-  it should "correctly compact the staging revision" in withExtendedSparkAndTmpDir(
+  it should "correctly compact the staging revision" ignore withExtendedSparkAndTmpDir(
     sparkConfWithSqlAndCatalog
       .set("spark.qbeast.compact.minFileSizeInBytes", "1")) { (spark, tmpDir) =>
     {

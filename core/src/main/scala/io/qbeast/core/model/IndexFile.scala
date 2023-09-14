@@ -11,11 +11,48 @@ package io.qbeast.core.model
  * @param revisionId the revision identifier
  * @param blocks the index blocks
  */
-final case class IndexFile(file: File, revisionId: Long, blocks: Array[Block])
+final case class IndexFile(file: File, revisionId: RevisionID, blocks: Array[Block])
     extends Serializable {
   require(file != null)
   require(revisionId >= 0)
   require(blocks.nonEmpty)
+
+  /**
+   * Returns whether the index file belongs to the specified revision.
+   *
+   * @param revisionId the revision identifier
+   * @return the file belongs to the revision
+   */
+  def belongsToRevision(revisionId: RevisionID): Boolean = this.revisionId == revisionId
+
+  /**
+   * Returns whether the file contains blocks which belong to the specified
+   * cubes.
+   *
+   * @param cubeIds the cube identifiers
+   * @param the file contains blocks from the specified cubes
+   * @return the file contains blocks of the specified cubes
+   */
+  def hasBlocksFromCubes(cubeIds: Set[CubeId]): Boolean =
+    blocks.exists(block => cubeIds.contains(block.cubeId))
+
+  /**
+   * Sets the state to replicated for the blocks, which belong to the specified
+   * cubes.
+   *
+   * @param cubeIds the cube identifiers
+   * @return a new instance with the requested blocks set to replicated
+   */
+  def setBlocksReplicated(cubeIds: Set[CubeId]): IndexFile = {
+    val blocks = this.blocks.map { block =>
+      if (cubeIds.contains(block.cubeId)) {
+        block.copy(state = "REPLICATED")
+      } else {
+        block
+      }
+    }
+    copy(blocks = blocks)
+  }
 
   override def equals(other: Any): Boolean = other match {
     case IndexFile(file, revisionId, blocks) =>

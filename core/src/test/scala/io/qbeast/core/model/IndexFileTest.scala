@@ -34,4 +34,57 @@ class IndexFileTest extends AnyFlatSpec with Matchers {
     indexFile shouldBe indexFile2
   }
 
+  it should "know its revision" in {
+    val file = File("path", 1, 2)
+    val cubeId = CubeId.root(1)
+    val state = "FLOODED"
+    val blocks = Array(Block(file, RowRange(3, 4), cubeId, state, Weight(5), Weight(6)))
+    val indexFile = IndexFile(file, 23, blocks)
+    indexFile.belongsToRevision(23) shouldBe true
+    indexFile.belongsToRevision(24) shouldBe false
+  }
+
+  it should "know cubes of its blocks" in {
+    val file = File("path", 1, 2)
+    val rootCubeId = CubeId.root(1)
+    val childCubeId = rootCubeId.firstChild
+    val state = "FLOODED"
+    val blocks = Array(
+      Block(file, RowRange(3, 4), rootCubeId, state, Weight(5), Weight(6)),
+      Block(file, RowRange(7, 8), rootCubeId, state, Weight(9), Weight(10)),
+      Block(file, RowRange(11, 12), childCubeId, state, Weight(13), Weight(14)),
+      Block(file, RowRange(15, 16), childCubeId, state, Weight(17), Weight(18)),
+      Block(file, RowRange(19, 20), childCubeId, state, Weight(21), Weight(22)))
+
+    val indexFile = IndexFile(file, 23, blocks)
+
+    indexFile.hasBlocksFromCubes(Set(rootCubeId)) shouldBe true
+    indexFile.hasBlocksFromCubes(Set(childCubeId)) shouldBe true
+    indexFile.hasBlocksFromCubes(Set(childCubeId.firstChild)) shouldBe false
+  }
+
+  it should "set replicated blocks correctly" in {
+    val file = File("path", 1, 2)
+    val rootCubeId = CubeId.root(1)
+    val childCubeId = rootCubeId.firstChild
+    val state = "FLOODED"
+    val blocks = Array(
+      Block(file, RowRange(3, 4), rootCubeId, state, Weight(5), Weight(6)),
+      Block(file, RowRange(7, 8), rootCubeId, state, Weight(9), Weight(10)),
+      Block(file, RowRange(11, 12), childCubeId, state, Weight(13), Weight(14)),
+      Block(file, RowRange(15, 16), childCubeId, state, Weight(17), Weight(18)),
+      Block(file, RowRange(19, 20), childCubeId, state, Weight(21), Weight(22)))
+
+    var indexFile = IndexFile(file, 23, blocks)
+
+    indexFile = indexFile.setBlocksReplicated(Set(rootCubeId))
+
+    indexFile.blocks.foreach { block =>
+      if (block.cubeId == rootCubeId) {
+        block.state shouldBe "REPLICATED"
+      } else {
+        block.state shouldBe "FLOODED"
+      }
+    }
+  }
 }

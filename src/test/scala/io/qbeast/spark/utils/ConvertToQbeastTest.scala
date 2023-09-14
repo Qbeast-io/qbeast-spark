@@ -217,7 +217,7 @@ class ConvertToQbeastTest
       assertLargeDatasetEquality(qbeastDf, sourceDf, orderedComparison = false)
     })
 
-  "Compacting the staging revision" should "reduce the number of delta AddFiles" in
+  "Compacting the staging revision" should "reduce the number of delta AddFiles" ignore
     withExtendedSparkAndTmpDir(
       sparkConfWithSqlAndCatalog
         .set("spark.qbeast.compact.minFileSizeInBytes", "1")

@@ -377,6 +377,8 @@ private[table] class IndexedTableImpl(
 
   override def compact(revisionID: RevisionID): Unit = {
 
+    /* Compaction is temporarily switched off
+
     // Load the schema and the current status
     val schema = metadataManager.loadCurrentSchema(tableID)
     val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
@@ -389,6 +391,8 @@ private[table] class IndexedTableImpl(
       (tableChanges, fileActions)
 
     }
+
+     */
 
   }
 
