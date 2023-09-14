@@ -101,16 +101,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         qbeastHash(revision.columnTransformers.map(name => df(name.columnName)): _*))
     }
 
-//  def time[T](msg: String)(f: => T): T = {
-//    val start = System.nanoTime()
-//    val result = f
-//    val timeTaken = NANOSECONDS.toMillis(System.nanoTime() - start) / 1000d
-//    // scalastyle:off println
-//    println(s"$msg, Time taken: $timeTaken s")
-//    // scalastyle:on println
-//    result
-//  }
-
   /**
    * Extract data summaries by indexing each partition
    */
@@ -147,21 +137,15 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
             numPartitions = numPartitions,
             numElements = numElements,
             bufferCapacity = bufferCapacity)
-
           if (vectorize) {
             val vectorizer =
-              new Vectorizer(revision, isReplication, weightIndex, bufferCapacity.toInt)
-            rows.foreach { row =>
-              vectorizer.update(row)
-              if (vectorizer.isFull) {
-                vectorizer.result().foreach { case (point, weight, parentOpt) =>
-                  cubeWeightsBuilder.update(point, weight, parentOpt)
-                }
-              }
-            }
-            vectorizer.result().foreach { case (point, weight, parentOpt) =>
-              cubeWeightsBuilder.update(point, weight, parentOpt)
-            }
+              new Vectorizer(
+                revision,
+                isReplication,
+                weightIndex,
+                indexColumns.indices,
+                bufferCapacity.toInt)
+            vectorizer.getPartitionCubeMetadata(rows, cubeWeightsBuilder)
           } else {
             rows.foreach { row =>
               val point = RowUtils.rowValuesToPoint(row, revision)
@@ -172,9 +156,8 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
                 cubeWeightsBuilder.update(point, weight, parent)
               } else cubeWeightsBuilder.update(point, weight)
             }
-
+            cubeWeightsBuilder.result().iterator
           }
-          cubeWeightsBuilder.result().iterator
         })
     }
 

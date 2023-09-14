@@ -4,20 +4,34 @@
 package io.qbeast.spark.index.transformations
 
 import breeze.linalg.DenseMatrix
-import io.qbeast.core.model.{CubeId, Point, Revision, Weight}
+import io.qbeast.core.model.{
+  CubeDomain,
+  CubeId,
+  CubeWeightsBuilder,
+  Point,
+  PointWeightIndexer,
+  Revision,
+  Weight
+}
 import io.qbeast.spark.index.QbeastColumns.cubeToReplicateColumnName
 import org.apache.spark.sql.Row
 
+import java.util.concurrent.TimeUnit.NANOSECONDS
 import scala.collection.mutable
 
 class Vectorizer(
     revision: Revision,
     isReplication: Boolean,
     weightIndex: Int,
+    columnIndices: Seq[Int],
     bufferCapacity: Int) {
 
-  val vectorTransformations: Seq[VectorTransformation] = revision.transformations.zipWithIndex
-    .map { case (t, i) => VectorTransformation(t, i, bufferCapacity) }
+  private val vectorTransformations: Seq[VectorTransformation] =
+    revision.transformations
+      .zip(columnIndices)
+      .map { case (t, i) =>
+        VectorTransformation(t, i, bufferCapacity)
+      }
 
   private val rowWeightsBuilder: mutable.Builder[Weight, Seq[Weight]] = Seq.newBuilder[Weight]
   rowWeightsBuilder.sizeHint(bufferCapacity)
@@ -45,12 +59,9 @@ class Vectorizer(
   }
 
   private def getPoints: Seq[Point] = {
-    val colsAsCoords = DenseMatrix(
-      vectorTransformations.map(t => t.vectorTransform(rowCount)): _*)
-    (0 until rowCount).map { i =>
-      val coords = colsAsCoords(::, i).toScalaVector
-      Point(coords: _*)
-    }
+    val transformedColumns = vectorTransformations.map(t => t.vectorTransform(rowCount))
+    val colsAsCoords = DenseMatrix(transformedColumns: _*)
+    (0 until rowCount).map { i => Point(colsAsCoords(::, i).toScalaVector: _*) }
   }
 
   private def reset(): Unit = {
@@ -60,16 +71,66 @@ class Vectorizer(
     rowCount = 0
   }
 
+  def vectorizedIndexing(
+      rows: Iterator[Row],
+      pointWeightIndexer: PointWeightIndexer): Iterator[Row] = {
+    val (rowsForPoints, originalRows) = rows.duplicate
+    val newRowsBuilder = Seq.newBuilder[Row]
+
+    rowsForPoints.foreach { row =>
+      update(row)
+      if (isFull) {
+        val newRows = result()
+          .map { case (point, weight, parentOpt) =>
+            pointWeightIndexer.findTargetCubeIds(point, weight, parentOpt)
+          }
+          .toIterator
+          .zip(originalRows)
+          .flatMap { case (cubes, row) =>
+            cubes.map(c => Row(row.toSeq :+ c.bytes: _*))
+          }
+
+        newRowsBuilder ++= newRows
+      }
+    }
+    val newRows = result()
+      .map { case (point, weight, parentOpt) =>
+        pointWeightIndexer.findTargetCubeIds(point, weight, parentOpt)
+      }
+      .toIterator
+      .zip(originalRows)
+      .flatMap { case (cubes, row) =>
+        cubes.map(c => Row(row.toSeq :+ c.bytes: _*))
+      }
+
+    newRowsBuilder ++= newRows
+    newRowsBuilder.result().toIterator
+  }
+
+  def getPartitionCubeMetadata(
+      rows: Iterator[Row],
+      cubeWeightsBuilder: CubeWeightsBuilder): Iterator[CubeDomain] = {
+    rows.foreach { row =>
+      update(row)
+      if (isFull) {
+        result().foreach { case (point, weight, parentOpt) =>
+          cubeWeightsBuilder.update(point, weight, parentOpt)
+        }
+      }
+    }
+    result().foreach { case (point, weight, parentOpt) =>
+      cubeWeightsBuilder.update(point, weight, parentOpt)
+    }
+    cubeWeightsBuilder.result().toIterator
+  }
+
   def result(): Seq[(Point, Weight, Option[CubeId])] = {
     if (rowCount == 0) Nil
     else {
       val points = getPoints
       val rowWeights = getWeights
       val parentCubeOpts = getCubeBytes
-
-      val results = (0 until rowCount).map { i =>
-        (points(i), rowWeights(i), parentCubeOpts(i))
-      }
+      val results = (points, rowWeights, parentCubeOpts).zipped.toSeq
 
       reset()
       results
