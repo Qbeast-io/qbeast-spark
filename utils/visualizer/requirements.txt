@@ -5,7 +5,7 @@ dash-core-components==2.0.0
 dash-cytoscape==0.3.0
 dash-html-components==2.0.0
 dash-table==5.0.0
-Flask==2.1.2
+Flask==2.2.5
 Flask-Compress==1.12
 importlib-metadata==4.11.4
 itsdangerous==2.1.2
