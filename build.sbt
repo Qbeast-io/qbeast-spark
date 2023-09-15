@@ -104,7 +104,8 @@ ThisBuild / publishTo := {
 }
 
 // Sonatype settings
-ThisBuild / publishMavenStyle := true
+//ThisBuild / publishMavenStyle := true
+ThisBuild / coverageEnabled := true
 ThisBuild / sonatypeProfileName := "io.qbeast"
 ThisBuild / sonatypeProjectHosting := Some(
   GitHubHosting(user = "Qbeast-io", repository = "qbeast-spark", email = "info@qbeast.io"))

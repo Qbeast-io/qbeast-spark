@@ -5,7 +5,7 @@ dash-core-components==2.0.0
 dash-cytoscape==0.3.0
 dash-html-components==2.0.0
 dash-table==5.0.0
-Flask==2.1.2
+Flask==2.2.5
 Flask-Compress==1.12
 importlib-metadata==4.11.4
 itsdangerous==2.1.2
@@ -13,9 +13,9 @@ Jinja2==3.1.2
 MarkupSafe==2.1.1
 plotly==5.8.1
 tenacity==8.0.1
-Werkzeug==2.1.2
+Werkzeug==2.2.3
 zipp==3.8.0
 
-setuptools~=62.6.0
+setuptools==65.5.1
 qviz~=0.0.1
 pyarrow~=11.0.0
