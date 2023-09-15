@@ -63,7 +63,7 @@ private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication:
             revision,
             isReplication,
             weightIndex,
-            columnIndices,
+            columnIndices.toIndexedSeq,
             bufferCapacity.toInt)
         vectorizer.vectorizedIndexing(rows, pointIndexer)
       }
