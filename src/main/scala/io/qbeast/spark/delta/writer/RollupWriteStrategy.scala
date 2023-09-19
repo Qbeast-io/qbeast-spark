@@ -3,16 +3,17 @@
  */
 package io.qbeast.spark.delta.writer
 
-import io.qbeast.core.model.IndexFile
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.functions.col
 import io.qbeast.IISeq
-import io.qbeast.spark.index.QbeastColumns
-import org.apache.spark.sql.catalyst.InternalRow
-import scala.collection.mutable
 import io.qbeast.core.model.CubeId
+import io.qbeast.core.model.IndexFile
 import io.qbeast.core.model.TableChanges
 import io.qbeast.core.model.Weight
+import io.qbeast.spark.index.QbeastColumns
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.functions.col
+
+import scala.collection.mutable
 
 /**
  * Implementation of WriteStrategy that groups the records to write by "rolling"
@@ -47,8 +48,17 @@ private[writer] class RollupWriteStrategy(
     val writers: mutable.Map[CubeId, IndexFileWriter] = mutable.Map.empty
     rows.foreach { row =>
       val cubeId = getCubeId(row)
-      val targetCubeId = targetCubeIds.getOrElse(cubeId, cubeId)
-      val writer = writers.getOrElseUpdate(targetCubeId, writerFactory.newWriter())
+      var targetCubeId = targetCubeIds.get(cubeId)
+      var parentCubeId = cubeId.parent
+      while (targetCubeId.isEmpty) {
+        parentCubeId match {
+          case Some(value) =>
+            targetCubeId = targetCubeIds.get(value)
+            parentCubeId = value.parent
+          case None => targetCubeId = Some(cubeId)
+        }
+      }
+      val writer = writers.getOrElseUpdate(targetCubeId.get, writerFactory.newWriter())
       writer.write(row)
     }
     writers.values.iterator.map(_.close())
