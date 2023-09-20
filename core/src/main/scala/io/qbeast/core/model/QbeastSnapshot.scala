@@ -31,6 +31,28 @@ trait QbeastSnapshot {
   def loadIndexStatus(revisionID: RevisionID): IndexStatus
 
   /**
+   * Loads the index files from the latest revision.
+   *
+   * @return the indexfiles from the latests revision
+   */
+  def loadLatestIndexFiles: IISeq[IndexFile]
+
+  /**
+   * Loads the index files from the specified revision
+   *
+   * @param revisionId the revision identifier to load the files from
+   * @return the index files from the specified revision
+   */
+  def loadIndexFiles(revisionId: RevisionID): IISeq[IndexFile]
+
+  /**
+   * Loads the index files from all the revisions.
+   *
+   * @return the index files from all the revisions
+   */
+  def loadAllIndexFiles: IISeq[IndexFile]
+
+  /**
    * Obtains all Revisions
    * @return an immutable Seq of Revision
    */

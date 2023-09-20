@@ -33,6 +33,7 @@ object TagUtils {
   final val maxWeight = "maxWeight"
   final val state = "state"
   final val revision = "revision"
+  final val revisionId = "revisionId"
   final val elementCount = "elementCount"
 }
 

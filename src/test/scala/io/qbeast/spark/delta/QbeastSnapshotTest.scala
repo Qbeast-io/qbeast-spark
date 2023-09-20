@@ -9,7 +9,9 @@ import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{AnalysisException, Dataset, SparkSession}
+import org.apache.spark.sql.functions.lit
 import org.scalatest.AppendedClues.convertToClueful
+import io.qbeast.spark.utils.TagColumns
 
 class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
 
@@ -46,6 +48,58 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
         qbeastSnapshot.loadIndexStatus(latestRevisionID) shouldBe indexStatus
       }
     }
+
+  it should "load all index files correctly" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      val df = createDF(1000)
+      val names = List("age", "val2")
+      val cubeSize = 10
+      df.write
+        .format("qbeast")
+        .mode("overwrite")
+        .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> cubeSize.toString))
+        .save(tmpDir)
+
+      val deltaLog = DeltaLog.forTable(spark, tmpDir)
+      val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+      qbeastSnapshot.loadAllIndexFiles.size shouldBe deltaLog.snapshot.allFiles.count()
+  }
+
+  it should "load index files from revision correctly" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      val df = createDF(1000)
+      val names = List("age", "val2")
+      val cubeSize = 10
+      df.write
+        .format("qbeast")
+        .mode("overwrite")
+        .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> cubeSize.toString))
+        .save(tmpDir)
+
+      val deltaLog = DeltaLog.forTable(spark, tmpDir)
+      val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+      qbeastSnapshot.loadIndexFiles(1).size shouldBe deltaLog.snapshot.allFiles
+        .where(TagColumns.revisionId === lit("1"))
+        .count()
+  }
+
+  it should "load latest index files correctly" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      val df = createDF(1000)
+      val names = List("age", "val2")
+      val cubeSize = 10
+      df.write
+        .format("qbeast")
+        .mode("overwrite")
+        .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> cubeSize.toString))
+        .save(tmpDir)
+
+      val deltaLog = DeltaLog.forTable(spark, tmpDir)
+      val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+      qbeastSnapshot.loadLatestIndexFiles.size shouldBe deltaLog.snapshot.allFiles
+        .where(TagColumns.revisionId === lit("1"))
+        .count()
+  }
 
   it should "load last revision correctly" in
     withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>

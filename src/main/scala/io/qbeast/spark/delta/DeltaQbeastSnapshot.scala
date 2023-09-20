@@ -10,6 +10,9 @@ import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.{AnalysisExceptionFactory, Dataset}
+import io.qbeast.spark.utils.TagUtils
+
+import scala.collection.JavaConverters._
 
 /**
  * Qbeast Snapshot that provides information about the current index state.
@@ -28,6 +31,23 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
   override def isInitial: Boolean = snapshot.version == -1
 
   private val metadataMap: Map[String, String] = snapshot.metadata.configuration
+
+  private lazy val allIndexFiles: IISeq[IndexFile] = {
+    snapshot.allFiles
+      .toLocalIterator()
+      .asScala
+      .flatMap { addFile =>
+        addFile
+          .getTag(TagUtils.revisionId)
+          .map(_.toLong)
+          .filterNot(isStaging)
+          .flatMap(revisionsMap.get)
+          .map(_.transformations.length)
+          .map(IndexFiles.fromAddFile)
+          .map(_.apply(addFile))
+      }
+      .toIndexedSeq
+  }
 
   /**
    * Constructs revision dictionary
@@ -123,6 +143,13 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
     val replicatedSet = getReplicatedSet(revisionID)
     new IndexStatusBuilder(this, revision, replicatedSet).build()
   }
+
+  override def loadLatestIndexFiles: IISeq[IndexFile] = loadIndexFiles(lastRevisionID)
+
+  override def loadIndexFiles(revisionId: RevisionID): IISeq[IndexFile] =
+    loadAllIndexFiles.filter(_.revisionId == revisionId)
+
+  override def loadAllIndexFiles: IISeq[IndexFile] = allIndexFiles
 
   /**
    * Obtain all Revisions for a given QTableID
