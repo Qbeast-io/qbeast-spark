@@ -54,6 +54,11 @@ final case class IndexFile(file: File, revisionId: RevisionID, blocks: Array[Blo
     copy(blocks = blocks)
   }
 
+  /**
+   * The number of elemnts in the file.
+   */
+  lazy val elementCount: Long = blocks.map(_.elementCount).sum
+
   override def equals(other: Any): Boolean = other match {
     case IndexFile(file, revisionId, blocks) =>
       this.file == file && revisionId == revisionId && this.blocks.length == blocks.length && (0 until this.blocks.length)

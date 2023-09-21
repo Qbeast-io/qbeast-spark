@@ -14,6 +14,7 @@ import org.apache.spark.sql.delta.actions.AddFile
 
 import scala.util.Success
 import scala.util.Try
+import org.apache.spark.sql.delta.actions.RemoveFile
 
 /**
  * Utility object for working with IndexFile instances. This object provides
@@ -79,6 +80,22 @@ private[delta] object IndexFiles {
       dataChange = true,
       stats = "",
       tags = tags)
+  }
+
+  /**
+   * Converts a given index file into a RemoveFile instane.
+   *
+   * @param the index file
+   * @return the RemoveFile instance
+   */
+  def toRemoveFile(indexFile: IndexFile): RemoveFile = {
+    val file = indexFile.file
+    new RemoveFile(
+      path = file.path,
+      deletionTimestamp = Some(System.currentTimeMillis()),
+      dataChange = false,
+      partitionValues = Map.empty,
+      size = Some(file.size))
   }
 
 }
