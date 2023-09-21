@@ -3,23 +3,29 @@
  */
 package io.qbeast.spark.internal.rules
 
+import org.apache.spark.sql.catalyst.analysis.TableOutputResolver
 import org.apache.spark.sql.{AnalysisExceptionFactory, SchemaUtils}
 import org.apache.spark.sql.catalyst.expressions.{
   Alias,
-  AnsiCast,
+  ArrayTransform,
   Attribute,
   Cast,
   CreateStruct,
   Expression,
+  GetArrayItem,
   GetStructField,
+  LambdaFunction,
   NamedExpression,
+  NamedLambdaVariable,
   UpCast
 }
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Project}
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{DataType, StructField, StructType}
+import org.apache.spark.sql.types.{ArrayType, DataType, IntegerType, StructField, StructType}
 
 private[rules] object QbeastAnalysisUtils {
+
+  private lazy val conf = SQLConf.get
 
   /**
    * Checks if the schema of the Table corresponds to the schema of the Query
@@ -72,7 +78,7 @@ private[rules] object QbeastAnalysisUtils {
     Project(project, query)
   }
 
-  type CastFunction = (Expression, DataType) => Expression
+  type CastFunction = (Expression, DataType, String) => Expression
 
   /**
    * From DeltaAnalysis code in spark/src/main/scala/org/apache/spark/sql/delta/DeltaAnalysis.scala
@@ -80,16 +86,19 @@ private[rules] object QbeastAnalysisUtils {
    * @return
    */
   def getCastFunction: CastFunction = {
-    val conf = SQLConf.get
     val timeZone = conf.sessionLocalTimeZone
     conf.storeAssignmentPolicy match {
       case SQLConf.StoreAssignmentPolicy.LEGACY =>
-        Cast(_, _, Option(timeZone), ansiEnabled = false)
+        (input: Expression, dt: DataType, _) =>
+          Cast(input, dt, Option(timeZone), ansiEnabled = false)
       case SQLConf.StoreAssignmentPolicy.ANSI =>
-        (input: Expression, dt: DataType) => {
-          AnsiCast(input, dt, Option(timeZone))
+        (input: Expression, dt: DataType, name: String) => {
+          val cast = Cast(input, dt, Option(timeZone), ansiEnabled = true)
+          cast.setTagValue(Cast.BY_TABLE_INSERTION, ())
+          TableOutputResolver.checkCastOverflowInTableInsert(cast, name)
         }
-      case SQLConf.StoreAssignmentPolicy.STRICT => UpCast(_, _)
+      case SQLConf.StoreAssignmentPolicy.STRICT =>
+        (input: Expression, dt: DataType, _) => UpCast(input, dt)
     }
   }
 
@@ -131,7 +140,10 @@ private[rules] object QbeastAnalysisUtils {
       case (other, i) if i < target.length =>
         val targetAttr = target(i)
         Alias(
-          getCastFunction(GetStructField(parent, i, Option(other.name)), targetAttr.dataType),
+          getCastFunction(
+            GetStructField(parent, i, Option(other.name)),
+            targetAttr.dataType,
+            targetAttr.name),
           targetAttr.name)(explicitMetadata = Option(targetAttr.metadata))
 
       case (other, i) =>
@@ -144,6 +156,34 @@ private[rules] object QbeastAnalysisUtils {
       parent.exprId,
       parent.qualifier,
       Option(parent.metadata))
+  }
+
+  /**
+   * From DeltaAnalysis code in spark/src/main/scala/org/apache/spark/sql/delta/DeltaAnalysis.scala
+   *
+   * Recursively add casts to Array[Struct]
+   * @param tableName the name of the table
+   * @param parent the parent expression
+   * @param source the source Struct
+   * @param target the final target Struct
+   * @param sourceNullable if source is nullable
+   * @return
+   */
+
+  private def addCastsToArrayStructs(
+      tableName: String,
+      parent: NamedExpression,
+      source: StructType,
+      target: StructType,
+      sourceNullable: Boolean): Expression = {
+    val structConverter: (Expression, Expression) => Expression = (_, i) =>
+      addCastsToStructs(tableName, Alias(GetArrayItem(parent, i), i.toString)(), source, target)
+    val transformLambdaFunc = {
+      val elementVar = NamedLambdaVariable("elementVar", source, sourceNullable)
+      val indexVar = NamedLambdaVariable("indexVar", IntegerType, false)
+      LambdaFunction(structConverter(elementVar, indexVar), Seq(elementVar, indexVar))
+    }
+    ArrayTransform(parent, transformLambdaFunc)
   }
 
   /**
@@ -163,8 +203,11 @@ private[rules] object QbeastAnalysisUtils {
         attr
       case (s: StructType, t: StructType) if s != t =>
         addCastsToStructs(tblName, attr, s, t)
+      case (ArrayType(s: StructType, sNull: Boolean), ArrayType(t: StructType, tNull: Boolean))
+          if s != t && sNull == tNull =>
+        addCastsToArrayStructs(tblName, attr, s, t, sNull)
       case _ =>
-        getCastFunction(attr, targetAttr.dataType)
+        getCastFunction(attr, targetAttr.dataType, targetAttr.name)
     }
     Alias(expr, targetAttr.name)(explicitMetadata = Option(targetAttr.metadata))
   }
