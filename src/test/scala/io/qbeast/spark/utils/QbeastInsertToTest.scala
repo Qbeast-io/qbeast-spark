@@ -1,6 +1,7 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.functions.col
 
 class QbeastInsertToTest extends QbeastIntegrationTestSpec {
@@ -186,6 +187,19 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
           ignoreNullable = true)
       }
   }
+
+  it should "insert into table with no schema" in
+    withQbeastContextSparkAndTmpWarehouse((spark, tmpWarehouse) => {
+
+      spark.sql(
+        s"CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
+          "OPTIONS ('columnsToIndex'='id')")
+
+      spark.sql("INSERT INTO student VALUES (1, 'John', 10)")
+
+      spark.table("student").count() shouldBe 1
+      spark.table("student").head() shouldBe Row(1, "John", 10)
+    })
 
   it should "support INSERT OVERWRITE using a VALUE clause" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>

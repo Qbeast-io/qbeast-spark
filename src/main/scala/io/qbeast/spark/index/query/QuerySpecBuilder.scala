@@ -5,6 +5,7 @@ package io.qbeast.spark.index.query
 
 import io.qbeast.core.model._
 import org.apache.spark.sql.catalyst.expressions.{
+  Attribute,
   EqualTo,
   Expression,
   GreaterThan,
@@ -56,7 +57,8 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
       conjunctiveSplit.flatMap(transformInExpressions)
 
     // Filter those that involve any Qbeast Indexed Column
-    val queryFilters = transformedFilters.filter(hasQbeastColumnReference(_, indexedColumns))
+    val queryFilters = transformedFilters
+      .filter(hasQbeastColumnReference(_, indexedColumns))
 
     QbeastFilters(weightFilters, queryFilters)
   }
@@ -88,24 +90,24 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
         // if not found, use the overall coordinates
         val columnFrom = columnFilters
           .collectFirst {
-            case GreaterThan(_, l: Literal) => sparkTypeToCoreType(l)
-            case GreaterThanOrEqual(_, l: Literal) => sparkTypeToCoreType(l)
-            case LessThan(l: Literal, _) => sparkTypeToCoreType(l)
-            case LessThanOrEqual(l: Literal, _) => sparkTypeToCoreType(l)
-            case EqualTo(_, l: Literal) => sparkTypeToCoreType(l)
-            case EqualTo(l: Literal, _) => sparkTypeToCoreType(l)
-            case IsNull(_) => null
+            case GreaterThan(_: Attribute, l: Literal) => sparkTypeToCoreType(l)
+            case GreaterThanOrEqual(_: Attribute, l: Literal) => sparkTypeToCoreType(l)
+            case LessThan(l: Literal, _: Attribute) => sparkTypeToCoreType(l)
+            case LessThanOrEqual(l: Literal, _: Attribute) => sparkTypeToCoreType(l)
+            case EqualTo(_: Attribute, l: Literal) => sparkTypeToCoreType(l)
+            case EqualTo(l: Literal, _: Attribute) => sparkTypeToCoreType(l)
+            case IsNull(_: Attribute) => null
           }
 
         val columnTo = columnFilters
           .collectFirst {
-            case LessThan(_, l: Literal) => sparkTypeToCoreType(l)
-            case LessThanOrEqual(_, l: Literal) => sparkTypeToCoreType(l)
-            case GreaterThan(l: Literal, _) => sparkTypeToCoreType(l)
-            case GreaterThanOrEqual(l: Literal, _) => sparkTypeToCoreType(l)
-            case EqualTo(_, l: Literal) => sparkTypeToCoreType(l)
-            case EqualTo(l: Literal, _) => sparkTypeToCoreType(l)
-            case IsNull(_) => null
+            case LessThan(_: Attribute, l: Literal) => sparkTypeToCoreType(l)
+            case LessThanOrEqual(_: Attribute, l: Literal) => sparkTypeToCoreType(l)
+            case GreaterThan(l: Literal, _: Attribute) => sparkTypeToCoreType(l)
+            case GreaterThanOrEqual(l: Literal, _: Attribute) => sparkTypeToCoreType(l)
+            case EqualTo(_: Attribute, l: Literal) => sparkTypeToCoreType(l)
+            case EqualTo(l: Literal, _: Attribute) => sparkTypeToCoreType(l)
+            case IsNull(_: Attribute) => null
           }
 
         (columnFrom, columnTo)

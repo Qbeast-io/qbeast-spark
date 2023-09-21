@@ -4,8 +4,9 @@
 package io.qbeast.spark.internal.rules
 
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
+import io.qbeast.spark.internal.rules.QbeastAnalysisUtils._
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.plans.logical.{AppendData, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
@@ -36,6 +37,39 @@ class QbeastAnalysis(spark: SparkSession) extends Rule[LogicalPlan] {
     // Because we didn't implemented SupportsRead on QbeastTableImpl yet
     case v2Relation @ DataSourceV2Relation(t: QbeastTableImpl, _, _, _, _) =>
       toV1Relation(v2Relation, t)
+
+    // Appending data by Ordinal (no schema provided) INSERT INTO tbl VALUES(...)
+    case appendData @ AppendQbeastTable(relation, table)
+        if !appendData.isByName && needSchemaAdjustment(
+          table.name(),
+          appendData.query,
+          relation.schema) =>
+      val projection =
+        resolveQueryColumnsByOrdinal(appendData.query, relation.output, table.name())
+      if (projection != appendData.query) {
+        appendData.copy(query = projection)
+      } else {
+        appendData
+      }
+  }
+
+}
+
+/**
+ * Object for detecting AppendData into QbeastTable pattern
+ */
+object AppendQbeastTable {
+
+  def unapply(a: AppendData): Option[(DataSourceV2Relation, QbeastTableImpl)] = {
+    if (a.query.resolved) {
+      a.table match {
+        case r: DataSourceV2Relation if r.table.isInstanceOf[QbeastTableImpl] =>
+          Some((r, r.table.asInstanceOf[QbeastTableImpl]))
+        case _ => None
+      }
+    } else {
+      None
+    }
   }
 
 }
