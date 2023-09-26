@@ -76,7 +76,7 @@ private[sources] class QbeastStagedTableImpl(
     // the writing of the dataFrame (if any)
     QbeastCatalogUtils.createQbeastTable(
       ident,
-      schema,
+      schema(),
       partitions,
       props,
       writeOptions,

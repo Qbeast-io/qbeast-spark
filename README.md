@@ -18,9 +18,9 @@
 
 **Qbeast Spark** is an extension for [**Data Lakehouses**](http://cidrdb.org/cidr2021/papers/cidr2021_paper17.pdf) that enables **multi-dimensional filtering** and **sampling** directly on the storage
 
-[![apache-spark](https://img.shields.io/badge/apache--spark-3.3.x-blue)](https://spark.apache.org/releases/spark-release-3-2-2.html) 
+[![apache-spark](https://img.shields.io/badge/apache--spark-3.4.x-blue)](https://spark.apache.org/releases/spark-release-3-4-1.html) 
 [![apache-hadoop](https://img.shields.io/badge/apache--hadoop-3.3.x-blue)](https://hadoop.apache.org/release/3.3.1.html)
-[![delta-core](https://img.shields.io/badge/delta--core-2.1.0-blue)](https://github.com/delta-io/delta/releases/tag/v1.2.0)
+[![delta-core](https://img.shields.io/badge/delta--core-2.4.0-blue)](https://github.com/delta-io/delta/releases/tag/v2.4.0)
 [![codecov](https://codecov.io/gh/Qbeast-io/qbeast-spark/branch/main/graph/badge.svg?token=8WO7HGZ4MW)](https://codecov.io/gh/Qbeast-io/qbeast-spark)
 
 </div>
@@ -170,6 +170,7 @@ Use [Python index visualizer](./utils/visualizer/README.md) for your indexed tab
 | 0.2.0   | 3.1.x | 3.2.0  |   1.0.0    |
 | 0.3.x   | 3.2.x | 3.3.x  |   1.2.x    |
 | 0.4.x   | 3.3.x | 3.3.x  |   2.1.x    |
+| 0.5.x   | 3.4.x | 3.3.x  |   2.4.x    |
 
 Check [here](https://docs.delta.io/latest/releases.html) for **Delta Lake** and **Apache Spark** version compatibility.  
 

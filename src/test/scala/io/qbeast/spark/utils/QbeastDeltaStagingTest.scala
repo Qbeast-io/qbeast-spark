@@ -44,7 +44,7 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
       assertLargeDatasetEquality(qbeastDf, deltaDf)
 
       // Should have the staging revision and the first revision
-      val snapshot = DeltaLog.forTable(spark, tmpDir).snapshot
+      val snapshot = DeltaLog.forTable(spark, tmpDir).unsafeVolatileSnapshot
       val qs = DeltaQbeastSnapshot(snapshot)
       qs.loadAllRevisions.size shouldBe 2
       qs.existsRevision(stagingID)
@@ -67,7 +67,7 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
       assertLargeDatasetEquality(qbeastDf, deltaDf)
 
       // Should preserve standing staging revision behavior
-      val snapshot = DeltaLog.forTable(spark, tmpDir).snapshot
+      val snapshot = DeltaLog.forTable(spark, tmpDir).unsafeVolatileSnapshot
       val qbeastSnapshot = DeltaQbeastSnapshot(snapshot)
       val stagingIndexStatus = qbeastSnapshot.loadIndexStatus(stagingID)
       stagingIndexStatus.cubesStatuses.size shouldBe 1
@@ -82,7 +82,7 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
 
       // Number of delta files before compaction
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val qsBefore = DeltaQbeastSnapshot(deltaLog.snapshot)
+      val qsBefore = DeltaQbeastSnapshot(deltaLog.update())
       val numFilesBefore = qsBefore.loadIndexStatus(stagingID).cubesStatuses.head._2.files.size
 
       // Perform compaction

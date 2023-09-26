@@ -36,7 +36,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
         val indexStatus = qbeastSnapshot.loadLatestIndexStatus
         val revision = indexStatus.revision
 
@@ -62,7 +62,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
         val columnTransformers = SparkRevisionFactory
           .createNewRevision(QTableID(tmpDir), df.schema, options)
           .columnTransformers
@@ -92,7 +92,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
         val timestamp = System.currentTimeMillis()
         qbeastSnapshot.loadRevisionAt(timestamp) shouldBe qbeastSnapshot.loadLatestRevision
 
@@ -117,7 +117,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
         an[AnalysisException] shouldBe thrownBy(
           qbeastSnapshot.loadRevisionAt(invalidRevisionTimestamp))
 
@@ -140,7 +140,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
             .save(tmpDir)
 
           val deltaLog = DeltaLog.forTable(spark, tmpDir)
-          val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+          val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
           val builder =
             new IndexStatusBuilder(
               qbeastSnapshot,

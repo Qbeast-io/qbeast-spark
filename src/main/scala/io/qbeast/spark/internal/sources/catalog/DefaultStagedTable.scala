@@ -5,7 +5,9 @@ package io.qbeast.spark.internal.sources.catalog
 
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.connector.catalog.{
+  Column,
   Identifier,
+  SparkCatalogV2Util,
   StagedTable,
   SupportsWrite,
   Table,
@@ -44,7 +46,9 @@ private[catalog] case class DefaultStagedTable(
 
   override def name(): String = ident.name()
 
-  override def schema(): StructType = table.schema()
+  override def schema(): StructType = SparkCatalogV2Util.v2ColumnsToStructType(columns())
+
+  override def columns(): Array[Column] = table.columns()
 
   override def partitioning(): Array[Transform] = table.partitioning()
 

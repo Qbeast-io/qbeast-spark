@@ -12,7 +12,7 @@ import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.CannotReplaceMissingTableException
 import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.plans.logical.TableSpec
-import org.apache.spark.sql.connector.catalog.{Identifier, Table}
+import org.apache.spark.sql.connector.catalog.{Identifier, SparkCatalogV2Util, Table}
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.datasources.DataSource
@@ -101,7 +101,8 @@ object QbeastCatalogUtils {
     if (table.schema.isEmpty) {
       if (table.tableType == CatalogTableType.EXTERNAL) {
         if (fs.exists(path) && fs.listStatus(path).nonEmpty) {
-          val existingSchema = DeltaLog.forTable(spark, path.toString).snapshot.metadata.schema
+          val existingSchema =
+            DeltaLog.forTable(spark, path.toString).unsafeVolatileSnapshot.metadata.schema
           table.copy(schema = existingSchema)
         } else {
           throw AnalysisExceptionFactory
@@ -117,7 +118,8 @@ object QbeastCatalogUtils {
       }
     } else {
       if (isTablePopulated) {
-        val existingSchema = DeltaLog.forTable(spark, path.toString).snapshot.metadata.schema
+        val existingSchema =
+          DeltaLog.forTable(spark, path.toString).unsafeVolatileSnapshot.metadata.schema
         if (existingSchema != table.schema) {
           throw AnalysisExceptionFactory
             .create(
@@ -284,7 +286,8 @@ object QbeastCatalogUtils {
   def loadQbeastTable(table: Table, tableFactory: IndexedTableFactory): Table = {
 
     val prop = table.properties()
-    val schema = table.schema()
+    val columns = table.columns()
+    val schema = SparkCatalogV2Util.v2ColumnsToStructType(columns)
 
     table match {
       case V1TableQbeast(t) =>

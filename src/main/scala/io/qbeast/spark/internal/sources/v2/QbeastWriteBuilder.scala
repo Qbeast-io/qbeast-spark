@@ -62,6 +62,8 @@ class QbeastWriteBuilder(
           // Passing the options in the query plan plus the properties
           // because columnsToIndex needs to be included in the contract
           val writeOptions = info.options().toMap ++ properties
+          // scalastyle:off
+          println("data schema " + data.schema)
           indexedTable.save(data, writeOptions, append)
 
           // TODO: Push this to Apache Spark
