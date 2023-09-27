@@ -5,10 +5,15 @@ package io.qbeast.spark.index
 
 import io.qbeast.IISeq
 import io.qbeast.core.model._
-import io.qbeast.core.transform.Transformer
+import io.qbeast.core.transform.{
+  StringHistogramTransformation,
+  StringHistogramTransformer,
+  Transformer
+}
 import io.qbeast.spark.index.QbeastColumns.{cubeToReplicateColumnName, weightColumnName}
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
-import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
+import org.apache.spark.qbeast.config.{CUBE_WEIGHTS_BUFFER_CAPACITY, MAX_STRING_BIN_COUNT}
+import org.apache.spark.sql.delta.skipping.MultiDimClusteringFunctions
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 
@@ -52,6 +57,26 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     data.selectExpr(columnsExpr ++ Seq("count(1) AS count"): _*).first()
   }
 
+  private[index] def getStringHistogram(
+      columnName: String,
+      numBins: Int,
+      data: DataFrame): Array[String] = {
+    // TODO: Should we be able to process multiple columns at the same time?
+    val colBinStart = s"_${columnName}_bin_start"
+    val stringPartitionColumn =
+      MultiDimClusteringFunctions.range_partition_id(col(columnName), numBins)
+
+    data
+      .select(columnName)
+      .distinct()
+      .groupBy(stringPartitionColumn)
+      .agg(min(columnName).alias(colBinStart))
+      .select(colBinStart)
+      .orderBy(colBinStart)
+      .collect()
+      .map(_.getAs[String](0))
+  }
+
   /**
    * Given a Row with Statistics, outputs the RevisionChange
    * @param row the row with statistics
@@ -60,14 +85,23 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
    */
   private[index] def calculateRevisionChanges(
       row: Row,
+      data: DataFrame,
       revision: Revision): Option[RevisionChange] = {
-    // TODO: When all indexing columns are provided with a boundary, a new revision is
-    //  created directly. If the actual data boundaries are not contained by those
+    // TODO: When all indexing columns are provided with a boundary, a new revision
+    //  is created directly. If the actual data boundaries are not contained by those
     //  values, the RevisionID would then increase again by 1, leaving a discontinued
     //  sequence of RevisionIDs in the metadata.
 
     val newTransformation =
-      revision.columnTransformers.map(_.makeTransformation(colName => row.getAs[Object](colName)))
+      revision.columnTransformers.map {
+        case t: StringHistogramTransformer =>
+          // TODO: We are always collecting histogram information, which might be nothing
+          //  more than a waste of resource and time
+          val stringHist = getStringHistogram(t.columnName, MAX_STRING_BIN_COUNT, data)
+          if (stringHist.isEmpty) throw new RuntimeException("Empty string histogram")
+          else StringHistogramTransformation(stringHist)
+        case t => t.makeTransformation(colName => row.getAs[Object](colName))
+      }
 
     val transformationDelta = if (revision.transformations.isEmpty) {
       newTransformation.map(a => Some(a))
@@ -247,7 +281,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
     val spaceChanges =
       if (isReplication) None
-      else calculateRevisionChanges(dataFrameStats, indexStatus.revision)
+      else calculateRevisionChanges(dataFrameStats, dataFrame, indexStatus.revision)
 
     // The revision to use
     val revision = spaceChanges match {
