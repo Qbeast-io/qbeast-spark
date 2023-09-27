@@ -10,8 +10,8 @@ import com.fasterxml.jackson.databind.{DeserializationContext, SerializerProvide
 
 import scala.collection.Searching._
 
-@JsonSerialize(using = classOf[LinearTransformationSerializer])
-@JsonDeserialize(using = classOf[LinearTransformationDeserializer])
+@JsonSerialize(using = classOf[StringHistogramTransformationSerializer])
+@JsonDeserialize(using = classOf[StringHistogramTransformationDeserializer])
 case class StringHistogramTransformation(stringHist: Array[String]) extends Transformation {
 
   /**
@@ -34,12 +34,10 @@ case class StringHistogramTransformation(stringHist: Array[String]) extends Tran
   }
 
   private def linearMapping(pos: Int): Double = {
+    // TODO, linearly mapping string position within its corresponding bin
     if (pos == 0) 0d
     else if (pos == stringHist.length) 1d
-    else {
-      // TODO, linearly mapping string position within its corresponding bin
-      pos.toDouble / stringHist.length
-    }
+    else pos.toDouble / stringHist.length
   }
 
   /**
@@ -48,13 +46,10 @@ case class StringHistogramTransformation(stringHist: Array[String]) extends Tran
    * @param newTransformation the new transformation created with statistics over the new data
    * @return true if the domain of the newTransformation is not fully contained in this one.
    */
-  override def isSupersededBy(newTransformation: Transformation): Boolean =
-    newTransformation match {
-      case t: StringHistogramTransformation =>
-        // TODO: When do we need to change the histogram?
-        t.stringHist.head < stringHist.head || t.stringHist.last > stringHist.last
-      case _ => false
-    }
+  override def isSupersededBy(newTransformation: Transformation): Boolean = {
+    // TODO: When do we need to change the histogram?
+    false
+  }
 
   /**
    * Merges two transformations. The domain of the resulting transformation is the union of this
@@ -62,16 +57,9 @@ case class StringHistogramTransformation(stringHist: Array[String]) extends Tran
    * @param other Transformation
    * @return a new Transformation that contains both this and other.
    */
-  override def merge(other: Transformation): Transformation = other match {
-    case t: StringHistogramTransformation =>
-      // TODO: How do we merge two histograms?
-      val newMin =
-        if (stringHist.head <= t.stringHist.head) stringHist.head else t.stringHist.head
-      val newMax =
-        if (stringHist.last >= t.stringHist.last) stringHist.last else t.stringHist.last
-      val newHist = newMin +: stringHist.slice(1, stringHist.length - 1) :+ newMax
-      StringHistogramTransformation(newHist)
-    case _ => this
+  override def merge(other: Transformation): Transformation = {
+    // TODO: How do we merge two histograms?
+    this
   }
 
 }
@@ -89,7 +77,8 @@ class StringHistogramTransformationSerializer
     typeSer.getPropertyName
     gen.writeStringField(typeSer.getPropertyName, typeSer.getTypeIdResolver.idFromValue(value))
 
-    gen.writeStartArray("stringHist")
+    gen.writeFieldName("stringHist")
+    gen.writeStartArray()
     value.stringHist.foreach(gen.writeString)
     gen.writeEndArray()
 
