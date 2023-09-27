@@ -11,7 +11,9 @@ import io.qbeast.core.model.Weight
 import io.qbeast.spark.index.QbeastColumns
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.udf
 
 import scala.collection.mutable
 
@@ -22,54 +24,87 @@ import scala.collection.mutable
  * @param qbeastColumns the Qbeast-specisific columns
  * @param tableChanges the table changes
  */
-private[writer] class RollupWriteStrategy(
-    qbeastColumns: QbeastColumns,
-    tableChanges: TableChanges)
+private[writer] class RollupWriteStrategy(tableChanges: TableChanges)
     extends WriteStrategy
     with Serializable {
 
   override def write(
       data: DataFrame,
       writerFactory: IndexFileWriterFactory): IISeq[(IndexFile, TaskStats)] = {
-    data
-      .repartition(col(QbeastColumns.cubeColumnName))
+    val dataWithRollup = data
+      .withColumn(
+        QbeastColumns.cubeToRollupColumnName,
+        getRollupCubeIdUDF(computeRollupCubeIds)(col(QbeastColumns.cubeColumnName)))
+    val qbeastColumns = QbeastColumns(dataWithRollup.schema)
+    dataWithRollup
+      .repartition(col(QbeastColumns.cubeToRollupColumnName))
       .queryExecution
       .executedPlan
       .execute()
-      .mapPartitions(writeRows(writerFactory, targetCubeIds))
+      .mapPartitions(writeRows(writerFactory, qbeastColumns))
       .collect()
       .toIndexedSeq
   }
 
-  private def writeRows(
-      writerFactory: IndexFileWriterFactory,
-      targetCubeIds: Map[CubeId, CubeId])(
+  private def writeRows(writerFactory: IndexFileWriterFactory, qbeastColumns: QbeastColumns)(
       rows: Iterator[InternalRow]): Iterator[(IndexFile, TaskStats)] = {
     val writers: mutable.Map[CubeId, IndexFileWriter] = mutable.Map.empty
+    val buffers: mutable.Map[CubeId, mutable.Buffer[InternalRow]] = mutable.Map.empty
+    val limit = tableChanges.updatedRevision.desiredCubeSize / 2
     rows.foreach { row =>
-      val cubeId = getCubeId(row)
-      var targetCubeId = targetCubeIds.get(cubeId)
-      var parentCubeId = cubeId.parent
-      while (targetCubeId.isEmpty) {
-        parentCubeId match {
-          case Some(value) =>
-            targetCubeId = targetCubeIds.get(value)
-            parentCubeId = value.parent
-          case None => targetCubeId = Some(cubeId)
-        }
+      val cubeId = getCubeId(qbeastColumns, row)
+      val buffer = buffers.getOrElseUpdate(cubeId, mutable.Buffer.empty)
+      buffer += row.copy()
+      if (buffer.size >= limit) {
+        flushBuffer(writerFactory, qbeastColumns, writers, buffer)
       }
-      val writer = writers.getOrElseUpdate(targetCubeId.get, writerFactory.newWriter())
-      writer.write(row)
+    }
+    buffers.values.foreach { buffer =>
+      flushBuffer(writerFactory, qbeastColumns, writers, buffer)
     }
     writers.values.iterator.map(_.close())
   }
 
-  private def getCubeId(row: InternalRow): CubeId = {
+  private def getCubeId(qbeastColumns: QbeastColumns, row: InternalRow): CubeId = {
     val bytes = row.getBinary(qbeastColumns.cubeColumnIndex)
     tableChanges.updatedRevision.createCubeId(bytes)
   }
 
-  private def targetCubeIds: Map[CubeId, CubeId] = {
+  private def flushBuffer(
+      writerFactory: IndexFileWriterFactory,
+      qbeastColumns: QbeastColumns,
+      writers: mutable.Map[CubeId, IndexFileWriter],
+      buffer: mutable.Buffer[InternalRow]): Unit = {
+    buffer.foreach { row =>
+      val cubeId = getRollupCubeId(qbeastColumns, row)
+      val writer = writers.getOrElseUpdate(cubeId, writerFactory.newWriter(qbeastColumns))
+      writer.write(row)
+    }
+    buffer.clear()
+  }
+
+  private def getRollupCubeIdUDF(rollupCubeIds: Map[CubeId, CubeId]): UserDefinedFunction =
+    udf((cubeIdBytes: Array[Byte]) => {
+      val cubeId = tableChanges.updatedRevision.createCubeId(cubeIdBytes)
+      var rollupCubeId = rollupCubeIds.get(cubeId)
+      var parentCubeId = cubeId.parent
+      while (rollupCubeId.isEmpty) {
+        parentCubeId match {
+          case Some(value) =>
+            rollupCubeId = rollupCubeIds.get(value)
+            parentCubeId = value.parent
+          case None => rollupCubeId = Some(cubeId)
+        }
+      }
+      rollupCubeId.get.bytes
+    })
+
+  private def getRollupCubeId(qbeastColumns: QbeastColumns, row: InternalRow): CubeId = {
+    val bytes = row.getBinary(qbeastColumns.cubeToRollupColumnIndex)
+    tableChanges.updatedRevision.createCubeId(bytes)
+  }
+
+  private def computeRollupCubeIds: Map[CubeId, CubeId] = {
     val minRowsPerFile = tableChanges.updatedRevision.desiredCubeSize.toDouble
     val queue = new mutable.PriorityQueue()(CubeIdOrdering)
     val rollups = mutable.Map.empty[CubeId, Rollup]

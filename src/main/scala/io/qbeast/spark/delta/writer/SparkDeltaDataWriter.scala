@@ -45,9 +45,6 @@ object SparkDeltaDataWriter
     val serConf = new SerializableConfiguration(job.getConfiguration)
     val statsTrackers = StatsTracker.getStatsTrackers()
 
-    // Get Stats Trackers for each file
-    val qbeastColumns = QbeastColumns(qbeastData)
-
     val dataColumns = qbeastData.schema.map(_.name).filterNot(QbeastColumns.contains)
     val cleanedData = qbeastData.selectExpr(dataColumns: _*)
     val fileStatsTrackers = getDeltaOptionalTrackers(cleanedData, sparkSession, tableID)
@@ -56,14 +53,13 @@ object SparkDeltaDataWriter
       tablePath = tableID.id,
       schema = schema,
       extendedSchema = qbeastData.schema,
-      qbeastColumns = qbeastColumns,
       tableChanges = tableChanges,
       writerFactory = factory,
       statsTrackers = statsTrackers ++ fileStatsTrackers,
       configuration = serConf)
 
     // val strategy = new LegacyWriteStrategy(tableChanges.updatedRevision, qbeastColumns)
-    val strategy = new RollupWriteStrategy(qbeastColumns, tableChanges)
+    val strategy = new RollupWriteStrategy(tableChanges)
 
     val indexFilesAndStats = strategy.write(qbeastData, writerFactory)
     val fileActions = indexFilesAndStats.map(_._1).map(IndexFiles.toAddFile)

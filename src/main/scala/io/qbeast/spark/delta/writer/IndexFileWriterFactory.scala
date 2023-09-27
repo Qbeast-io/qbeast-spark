@@ -35,7 +35,6 @@ private[writer] class IndexFileWriterFactory(
     tablePath: String,
     schema: StructType,
     extendedSchema: StructType,
-    qbeastColumns: QbeastColumns,
     tableChanges: TableChanges,
     writerFactory: OutputWriterFactory,
     statsTrackers: Seq[WriteJobStatsTracker],
@@ -47,12 +46,12 @@ private[writer] class IndexFileWriterFactory(
    *
    * @return a new writer
    */
-  def newWriter(): IndexFileWriter = {
+  def newWriter(qbeastColumns: QbeastColumns): IndexFileWriter = {
     val path = new Path(tablePath, s"${UUID.randomUUID()}.parquet")
     val writer = newOutputWriter(path)
-    val fileBuilder = newIndexFileBuilder(path)
+    val fileBuilder = newIndexFileBuilder(path, qbeastColumns)
     val statsBuilder = newTaskStatsBuilder(path)
-    new IndexFileWriter(writer, fileBuilder, statsBuilder, excludeQbeastColumns)
+    new IndexFileWriter(writer, fileBuilder, statsBuilder, excludeQbeastColumns(qbeastColumns))
   }
 
   private def newOutputWriter(path: Path): OutputWriter = {
@@ -62,7 +61,7 @@ private[writer] class IndexFileWriterFactory(
     writerFactory.newInstance(path.toString(), schema, context)
   }
 
-  private def newIndexFileBuilder(path: Path): IndexFileBuilder = {
+  private def newIndexFileBuilder(path: Path, qbeastColumns: QbeastColumns): IndexFileBuilder = {
     new IndexFileBuilder(path, tableChanges, qbeastColumns, configuration)
   }
 
@@ -70,7 +69,8 @@ private[writer] class IndexFileWriterFactory(
     new TaskStatsBuilder(path.toString(), statsTrackers.map(_.newTaskInstance()))
   }
 
-  private def excludeQbeastColumns(extendedRow: InternalRow): InternalRow = {
+  private def excludeQbeastColumns(qbeastColumns: QbeastColumns)(
+      extendedRow: InternalRow): InternalRow = {
     val values = (0 until extendedRow.numFields)
       .filterNot(qbeastColumns.contains)
       .map(i => extendedRow.get(i, extendedSchema(i).dataType))
