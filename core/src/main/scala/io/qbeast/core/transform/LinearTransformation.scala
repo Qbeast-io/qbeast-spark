@@ -69,8 +69,9 @@ case class LinearTransformation(
 
   /**
    * Merges two transformations. The domain of the resulting transformation is the union of this
-   * and the other transformation. The range of the resulting transformation is the intersection of
-   * this and the other transformation, which can be a LinearTransformation or IdentityTransformation
+   * and the other transformation. The range of the resulting transformation
+   * is the intersection of this and the other transformation,
+   * which can be a LinearTransformation or IdentityTransformation
    * @param other
    * @return a new Transformation that contains both this and other.
    */

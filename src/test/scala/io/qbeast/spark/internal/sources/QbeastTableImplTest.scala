@@ -7,6 +7,7 @@ import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.connector.catalog.Identifier
 import org.apache.spark.sql.connector.catalog.TableCapability._
+import org.apache.spark.sql.connector.expressions.Transform
 
 import scala.collection.JavaConverters._
 
@@ -78,7 +79,7 @@ class QbeastTableImplTest extends QbeastIntegrationTestSpec with CatalogTestSuit
       val identifier = Identifier.of(defaultNamespace, "students")
       val tableIdentifier = TableIdentifier(identifier.name(), identifier.namespace().headOption)
       val properties = Map.empty[String, String]
-      qbeastCatalog.createTable(identifier, schema, Array.empty, properties.asJava)
+      qbeastCatalog.createTable(identifier, columns, Array.empty[Transform], properties.asJava)
 
       val qbeastTableImpl = new QbeastTableImpl(
         tableIdentifier,

@@ -128,7 +128,8 @@ object OTreeIndex {
 
   def apply(spark: SparkSession, path: Path): OTreeIndex = {
     val deltaLog = DeltaLog.forTable(spark, path)
-    val tahoe = TahoeLogFileIndex(spark, deltaLog, path, deltaLog.snapshot, Seq.empty, false)
+    val unsafeVolatileSnapshot = deltaLog.update()
+    val tahoe = TahoeLogFileIndex(spark, deltaLog, path, unsafeVolatileSnapshot, Seq.empty, false)
     OTreeIndex(tahoe)
   }
 

@@ -10,8 +10,10 @@ import org.apache.spark.sql.connector.catalog.{
   CatalogPlugin,
   Identifier,
   NamespaceChange,
+  SparkCatalogV2Util,
   TableChange
 }
+import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
@@ -26,8 +28,8 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
 
     qbeastCatalog.createTable(
       tableIdentifier,
-      schema,
-      Array.empty,
+      columns,
+      Array.empty[Transform],
       Map.empty[String, String].asJava)
 
     qbeastCatalog.listTables(defaultNamespace) shouldBe Array(tableIdentifier)
@@ -40,19 +42,20 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
 
     qbeastCatalog.createTable(
       tableIdentifier,
-      schema,
-      Array.empty,
+      columns,
+      Array.empty[Transform],
       Map.empty[String, String].asJava)
 
     val newSchema = schema.add(StructField("newCol", IntegerType, false))
+    val newColumns = SparkCatalogV2Util.structTypeToV2Columns(newSchema)
     qbeastCatalog.stageReplace(
       tableIdentifier,
       newSchema,
-      Array.empty,
+      Array.empty[Transform],
       Map.empty[String, String].asJava)
 
     qbeastCatalog.listTables(defaultNamespace) shouldBe Array(tableIdentifier)
-    qbeastCatalog.loadTable(tableIdentifier).schema() shouldBe newSchema
+    qbeastCatalog.loadTable(tableIdentifier).columns() shouldBe newColumns
 
   })
 
@@ -64,20 +67,22 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
     qbeastCatalog.stageCreateOrReplace(
       tableIdentifier,
       schema,
-      Array.empty,
+      Array.empty[Transform],
       Map.empty[String, String].asJava)
 
     qbeastCatalog.listTables(defaultNamespace) shouldBe Array(tableIdentifier)
 
     val newSchema = schema.add(StructField("newCol", IntegerType, false))
+    val newColumns = SparkCatalogV2Util.structTypeToV2Columns(newSchema)
+
     qbeastCatalog.stageCreateOrReplace(
       tableIdentifier,
       newSchema,
-      Array.empty,
+      Array.empty[Transform],
       Map.empty[String, String].asJava)
 
     qbeastCatalog.listTables(defaultNamespace) shouldBe Array(tableIdentifier)
-    qbeastCatalog.loadTable(tableIdentifier).schema() shouldBe newSchema
+    qbeastCatalog.loadTable(tableIdentifier).columns() shouldBe newColumns
   })
 
   it should "list tables" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
@@ -90,8 +95,8 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
     val tableIdentifier = Identifier.of(defaultNamespace, "student")
     qbeastCatalog.createTable(
       tableIdentifier,
-      schema,
-      Array.empty,
+      columns,
+      Array.empty[Transform],
       Map.empty[String, String].asJava)
 
     // Alter table with new information
@@ -100,9 +105,10 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
       TableChange.addColumn(Array("x"), IntegerType, false))
 
     val modifiedSchema = StructType(schema.fields ++ Seq(StructField("x", IntegerType, false)))
+    val modifiedColumns = SparkCatalogV2Util.structTypeToV2Columns(modifiedSchema)
     qbeastCatalog
       .loadTable(Identifier.of(defaultNamespace, "student"))
-      .schema() shouldBe modifiedSchema
+      .columns() shouldBe modifiedColumns
   })
 
   it should "drop table" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
@@ -110,8 +116,8 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
     val tableIdentifier = Identifier.of(defaultNamespace, "student")
     qbeastCatalog.createTable(
       tableIdentifier,
-      schema,
-      Array.empty,
+      columns,
+      Array.empty[Transform],
       Map.empty[String, String].asJava)
     qbeastCatalog.listTables(defaultNamespace) shouldBe Array(tableIdentifier)
 
@@ -126,8 +132,8 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
     val tableIdentifier = Identifier.of(defaultNamespace, "student")
     qbeastCatalog.createTable(
       tableIdentifier,
-      schema,
-      Array.empty,
+      columns,
+      Array.empty[Transform],
       Map.empty[String, String].asJava)
     qbeastCatalog.listTables(defaultNamespace) shouldBe Array(tableIdentifier)
 
@@ -231,8 +237,8 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
 
       val stagedTable = qbeastCatalog.stageCreate(
         tableIdentifierPath,
-        schema,
-        Array.empty,
+        columns,
+        Array.empty[Transform],
         Map("provider" -> "qbeast", "columnsToIndex" -> "id").asJava)
 
       stagedTable shouldBe an[QbeastStagedTableImpl]

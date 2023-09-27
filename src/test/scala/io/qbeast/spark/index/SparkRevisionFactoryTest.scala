@@ -141,7 +141,8 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
       .option("columnStats", appendColumnStats)
       .save(tmpDir)
 
-    val qbeastSnapshot = DeltaQbeastSnapshot(DeltaLog.forTable(spark, tmpDir).snapshot)
+    val qbeastSnapshot =
+      DeltaQbeastSnapshot(DeltaLog.forTable(spark, tmpDir).unsafeVolatileSnapshot)
     val latestRevision = qbeastSnapshot.loadLatestRevision
     val transformation = latestRevision.transformations.head
 

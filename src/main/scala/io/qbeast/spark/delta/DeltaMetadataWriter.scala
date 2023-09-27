@@ -101,7 +101,7 @@ private[delta] case class DeltaMetadataWriter(
     val revisionId = revision.revisionID
     val dimensionCount = revision.transformations.length
     val replicatedCubeIds = tableChanges.deltaReplicatedSet
-    deltaLog.snapshot.allFiles
+    deltaLog.unsafeVolatileSnapshot.allFiles
       .toLocalIterator()
       .asScala
       .map(IndexFiles.fromAddFile(dimensionCount))
@@ -141,7 +141,7 @@ private[delta] case class DeltaMetadataWriter(
       } else if (mode == SaveMode.Ignore) {
         return Nil
       } else if (mode == SaveMode.Overwrite) {
-        deltaLog.assertRemovable()
+        DeltaLog.assertRemovable(txn.snapshot)
       }
     }
     val rearrangeOnly = options.rearrangeOnly

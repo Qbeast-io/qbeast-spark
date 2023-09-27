@@ -13,6 +13,7 @@ import org.apache.spark.sql.types.StructType
 import io.qbeast.core.model.RowRange
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.paths.SparkPath
 
 /**
  * FileFormat implementation based on the ParquetFileFormat.
@@ -38,8 +39,8 @@ class QbeastFileFormat extends ParquetFileFormat {
       options,
       hadoopConf)
     fileWithRanges: PartitionedFile => {
-      val (path, ranges) = PathRangesCodec.decode(fileWithRanges.filePath)
-      val file = fileWithRanges.copy(filePath = path)
+      val (path, ranges) = PathRangesCodec.decode(fileWithRanges.urlEncodedPath)
+      val file = fileWithRanges.copy(filePath = SparkPath.fromUrlString(path))
       val rows = reader(file)
       QbeastFileFormat.applyRanges(rows, ranges)
     }

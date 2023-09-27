@@ -3,7 +3,9 @@ package io.qbeast.spark.internal.sources.catalog
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.AnalysisException
-import org.apache.spark.sql.connector.catalog.{Identifier}
+import org.apache.spark.sql.connector.catalog.Identifier
+import org.apache.spark.sql.connector.expressions.Transform
+
 import scala.collection.JavaConverters._
 
 class DefaultStagedTableTest extends QbeastIntegrationTestSpec with CatalogTestSuite {
@@ -15,20 +17,20 @@ class DefaultStagedTableTest extends QbeastIntegrationTestSpec with CatalogTestS
 
       qbeastCatalog.stageCreate(
         tableIdentifier,
-        schema,
-        Array.empty,
+        columns,
+        Array.empty[Transform],
         Map.empty[String, String].asJava) shouldBe a[DefaultStagedTable]
 
       qbeastCatalog.stageReplace(
         tableIdentifier,
-        schema,
-        Array.empty,
+        columns,
+        Array.empty[Transform],
         Map.empty[String, String].asJava) shouldBe a[DefaultStagedTable]
 
       qbeastCatalog.stageCreateOrReplace(
         tableIdentifier,
-        schema,
-        Array.empty,
+        columns,
+        Array.empty[Transform],
         Map.empty[String, String].asJava) shouldBe a[DefaultStagedTable]
     })
 
@@ -36,7 +38,11 @@ class DefaultStagedTableTest extends QbeastIntegrationTestSpec with CatalogTestS
     val tableIdentifier = Identifier.of(Array("default"), "students")
     val catalog = sessionCatalog(spark)
     val underlyingTable =
-      catalog.createTable(tableIdentifier, schema, Array.empty, Map.empty[String, String].asJava)
+      catalog.createTable(
+        tableIdentifier,
+        columns,
+        Array.empty[Transform],
+        Map.empty[String, String].asJava)
 
     val defaultStagedTable = DefaultStagedTable
       .apply(tableIdentifier, underlyingTable, catalog)
@@ -48,7 +54,11 @@ class DefaultStagedTableTest extends QbeastIntegrationTestSpec with CatalogTestS
     val tableIdentifier = Identifier.of(Array("default"), "students")
     val catalog = sessionCatalog(spark)
     val underlyingTable =
-      catalog.createTable(tableIdentifier, schema, Array.empty, Map.empty[String, String].asJava)
+      catalog.createTable(
+        tableIdentifier,
+        columns,
+        Array.empty[Transform],
+        Map.empty[String, String].asJava)
 
     val defaultStagedTable = DefaultStagedTable
       .apply(tableIdentifier, underlyingTable, catalog)
@@ -60,7 +70,11 @@ class DefaultStagedTableTest extends QbeastIntegrationTestSpec with CatalogTestS
     val tableIdentifier = Identifier.of(Array("default"), "students")
     val catalog = sessionCatalog(spark)
     val underlyingTable =
-      catalog.createTable(tableIdentifier, schema, Array.empty, Map.empty[String, String].asJava)
+      catalog.createTable(
+        tableIdentifier,
+        columns,
+        Array.empty[Transform],
+        Map.empty[String, String].asJava)
 
     val defaultStagedTable = DefaultStagedTable
       .apply(tableIdentifier, underlyingTable, catalog)
@@ -72,19 +86,28 @@ class DefaultStagedTableTest extends QbeastIntegrationTestSpec with CatalogTestS
     val tableIdentifier = Identifier.of(Array("default"), "students")
     val catalog = sessionCatalog(spark)
     val underlyingTable =
-      catalog.createTable(tableIdentifier, schema, Array.empty, Map.empty[String, String].asJava)
+      catalog.createTable(
+        tableIdentifier,
+        columns,
+        Array.empty[Transform],
+        Map.empty[String, String].asJava)
 
     val defaultStagedTable = DefaultStagedTable
       .apply(tableIdentifier, underlyingTable, catalog)
 
     defaultStagedTable.schema() shouldBe schema
+    defaultStagedTable.columns() shouldBe columns
   })
 
   it should "output name" in withQbeastContextSparkAndTmpWarehouse((spark, tmpWarehouse) => {
     val tableIdentifier = Identifier.of(Array("default"), "students")
     val catalog = sessionCatalog(spark)
     val underlyingTable =
-      catalog.createTable(tableIdentifier, schema, Array.empty, Map.empty[String, String].asJava)
+      catalog.createTable(
+        tableIdentifier,
+        columns,
+        Array.empty[Transform],
+        Map.empty[String, String].asJava)
 
     val defaultStagedTable = DefaultStagedTable
       .apply(tableIdentifier, underlyingTable, catalog)
@@ -98,8 +121,8 @@ class DefaultStagedTableTest extends QbeastIntegrationTestSpec with CatalogTestS
       val catalog = sessionCatalog(spark)
       val underlyingTable = catalog.createTable(
         tableIdentifier,
-        schema,
-        Array.empty,
+        columns,
+        Array.empty[Transform],
         Map.empty[String, String].asJava)
 
       val defaultStagedTable = DefaultStagedTable
@@ -115,8 +138,8 @@ class DefaultStagedTableTest extends QbeastIntegrationTestSpec with CatalogTestS
       val catalog = sessionCatalog(spark)
       val underlyingTable = catalog.createTable(
         tableIdentifier,
-        schema,
-        Array.empty,
+        columns,
+        Array.empty[Transform],
         Map.empty[String, String].asJava)
 
       val defaultStagedTable = DefaultStagedTable
@@ -133,8 +156,8 @@ class DefaultStagedTableTest extends QbeastIntegrationTestSpec with CatalogTestS
       val catalog = sessionCatalog(spark)
       val underlyingTable = catalog.createTable(
         tableIdentifier,
-        schema,
-        Array.empty,
+        columns,
+        Array.empty[Transform],
         Map.empty[String, String].asJava)
 
       val defaultStagedTable = DefaultStagedTable
@@ -158,8 +181,8 @@ class DefaultStagedTableTest extends QbeastIntegrationTestSpec with CatalogTestS
       val catalog = sessionCatalog(spark)
       val underlyingTable = catalog.createTable(
         tableIdentifier,
-        schema,
-        Array.empty,
+        columns,
+        Array.empty[Transform],
         Map("provider" -> "delta").asJava)
 
       val defaultStagedTable = DefaultStagedTable

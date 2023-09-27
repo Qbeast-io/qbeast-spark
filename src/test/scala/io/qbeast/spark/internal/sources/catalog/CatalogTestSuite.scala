@@ -5,6 +5,7 @@ import io.qbeast.context.QbeastContext
 import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.spark.sql.{DataFrame, SparkCatalogUtils, SparkSession}
 import org.apache.spark.sql.connector.catalog.{
+  SparkCatalogV2Util,
   StagingTableCatalog,
   SupportsNamespaces,
   TableCatalog
@@ -29,6 +30,8 @@ trait CatalogTestSuite {
       StructField("id", IntegerType, true),
       StructField("name", StringType, true),
       StructField("age", IntegerType, true)))
+
+  val columns = SparkCatalogV2Util.structTypeToV2Columns(schema)
 
   val defaultNamespace: Array[String] = Array("default")
 

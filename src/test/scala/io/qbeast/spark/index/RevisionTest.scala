@@ -30,7 +30,7 @@ class RevisionTest
       .option("columnsToIndex", columnsToIndex)
       .save(directory)
     val deltaLog = DeltaLog.forTable(spark, directory)
-    val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.snapshot)
+    val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
     val lastRevision = qbeastSnapshot.loadLatestRevision
     val dfqbeast = spark.read.format("qbeast").load(directory)
     dfqbeast.createTempView("dfqbeast")

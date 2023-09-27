@@ -109,7 +109,8 @@ object CubeIndex {
       revisionId: RevisionID,
       cubeId: CubeId): CubeIndex = {
     val deltaLog = DeltaLog.forTable(spark, path)
-    val target = TahoeLogFileIndex(spark, deltaLog, path, deltaLog.snapshot, Seq.empty, false)
+    val target =
+      TahoeLogFileIndex(spark, deltaLog, path, deltaLog.unsafeVolatileSnapshot, Seq.empty, false)
     new CubeIndex(target, snapshot, revisionId, cubeId)
   }
 

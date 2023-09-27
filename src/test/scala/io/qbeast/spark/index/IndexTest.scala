@@ -127,7 +127,7 @@ class IndexTest
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
+        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
 
         val offset = 0.5
         val appendData = df
@@ -189,7 +189,7 @@ class IndexTest
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val snapshot = delta.DeltaQbeastSnapshot(deltaLog.snapshot)
+        val snapshot = delta.DeltaQbeastSnapshot(deltaLog.unsafeVolatileSnapshot)
         val statuses = snapshot.loadIndexStatus(rev.revisionID).cubesStatuses
 
         statuses.values.foreach { status =>

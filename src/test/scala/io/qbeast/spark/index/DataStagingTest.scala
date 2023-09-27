@@ -21,7 +21,7 @@ class DataStagingTest
 
   def getQbeastSnapshot(spark: SparkSession, dir: String): DeltaQbeastSnapshot = {
     val deltaLog = DeltaLog.forTable(spark, dir)
-    DeltaQbeastSnapshot(deltaLog.snapshot)
+    DeltaQbeastSnapshot(deltaLog.update())
   }
 
   private val getCurrentStagingSize: PrivateMethod[Long] =
