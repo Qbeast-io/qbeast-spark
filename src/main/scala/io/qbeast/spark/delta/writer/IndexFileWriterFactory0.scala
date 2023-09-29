@@ -31,7 +31,7 @@ import java.util.UUID
  * @param statsTrackers the stats trackers
  * @param configuration the configuration to create the job
  */
-private[writer] class IndexFileWriterFactory(
+private[writer] class IndexFileWriterFactory0(
     tablePath: String,
     schema: StructType,
     extendedSchema: StructType,
@@ -46,12 +46,12 @@ private[writer] class IndexFileWriterFactory(
    *
    * @return a new writer
    */
-  def newWriter(qbeastColumns: QbeastColumns): IndexFileWriter = {
+  def newWriter(qbeastColumns: QbeastColumns): IndexFileWriter0 = {
     val path = new Path(tablePath, s"${UUID.randomUUID()}.parquet")
     val writer = newOutputWriter(path)
     val fileBuilder = newIndexFileBuilder(path, qbeastColumns)
     val statsBuilder = newTaskStatsBuilder(path)
-    new IndexFileWriter(writer, fileBuilder, statsBuilder, excludeQbeastColumns(qbeastColumns))
+    new IndexFileWriter0(writer, fileBuilder, statsBuilder, excludeQbeastColumns(qbeastColumns))
   }
 
   private def newOutputWriter(path: Path): OutputWriter = {
@@ -61,8 +61,8 @@ private[writer] class IndexFileWriterFactory(
     writerFactory.newInstance(path.toString(), schema, context)
   }
 
-  private def newIndexFileBuilder(path: Path, qbeastColumns: QbeastColumns): IndexFileBuilder = {
-    new IndexFileBuilder(path, tableChanges, qbeastColumns, configuration)
+  private def newIndexFileBuilder(path: Path, qbeastColumns: QbeastColumns): IndexFileBuilder0 = {
+    new IndexFileBuilder0(path, tableChanges, qbeastColumns, configuration)
   }
 
   private def newTaskStatsBuilder(path: Path): TaskStatsBuilder = {

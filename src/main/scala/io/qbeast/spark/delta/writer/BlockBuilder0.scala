@@ -20,7 +20,7 @@ import io.qbeast.spark.index.QbeastColumns
  * @param maxWeight the maximum element weight in the block
  * @param qbeastColumns the Qbeast-specific columns
  */
-private[writer] class BlockBuilder(
+private[writer] class BlockBuilder0(
     val cubeId: CubeId,
     from: Long,
     state: String,
@@ -38,7 +38,7 @@ private[writer] class BlockBuilder(
    * @param exrendedRow the extended row with Qbeast-specific fields.
    * @return return this instance
    */
-  def rowWritten(extendedRow: InternalRow): BlockBuilder = {
+  def rowWritten(extendedRow: InternalRow): BlockBuilder0 = {
     val weight = getWeight(extendedRow)
     minWeight = Weight.min(minWeight, weight)
     to += 1
@@ -51,7 +51,7 @@ private[writer] class BlockBuilder(
    * @param file the written index file
    * @return return this instance
    */
-  def fileWritten(file: File): BlockBuilder = {
+  def fileWritten(file: File): BlockBuilder0 = {
     this.file = Some(file)
     this
   }

@@ -20,14 +20,14 @@ import io.qbeast.spark.index.QbeastColumns
  *
  * @path the path of the index file being written
  */
-private[writer] class IndexFileBuilder(
+private[writer] class IndexFileBuilder0(
     path: Path,
     changes: TableChanges,
     qbeastColumns: QbeastColumns,
     configuration: SerializableConfiguration) {
 
   private var file: Option[File] = None
-  private val blockBuilders = Queue.empty[BlockBuilder]
+  private val blockBuilders = Queue.empty[BlockBuilder0]
   private var cubeIdBytes: Option[Array[Byte]] = None
   private var position: Long = 0
 
@@ -38,7 +38,7 @@ private[writer] class IndexFileBuilder(
    * fields
    * @return this instance
    */
-  def rowWritten(extendedRow: InternalRow): IndexFileBuilder = {
+  def rowWritten(extendedRow: InternalRow): IndexFileBuilder0 = {
     val cubeIdBytes = getCubeIdBytes(extendedRow)
     if (this.cubeIdBytes.isEmpty || !this.cubeIdBytes.get.sameElements(cubeIdBytes)) {
       this.cubeIdBytes = Some(cubeIdBytes)
@@ -54,7 +54,7 @@ private[writer] class IndexFileBuilder(
    *
    * @return this instance
    */
-  def fileWritten(): IndexFileBuilder = {
+  def fileWritten(): IndexFileBuilder0 = {
     val status = path.getFileSystem(configuration.value).getFileStatus(path)
     val file = File(path.getName(), status.getLen(), status.getModificationTime())
     this.file = Some(file)
@@ -76,11 +76,11 @@ private[writer] class IndexFileBuilder(
     extendedRow.getBinary(qbeastColumns.cubeColumnIndex)
   }
 
-  private def newBlockBuilder(cubeIdBytes: Array[Byte]): BlockBuilder = {
+  private def newBlockBuilder(cubeIdBytes: Array[Byte]): BlockBuilder0 = {
     val cubeId = revision.createCubeId(cubeIdBytes)
     val state = changes.cubeState(cubeId).getOrElse(State.FLOODED)
     val maxWeight = changes.cubeWeight(cubeId).getOrElse(Weight.MaxValue)
-    new BlockBuilder(cubeId, position, state, maxWeight, qbeastColumns)
+    new BlockBuilder0(cubeId, position, state, maxWeight, qbeastColumns)
   }
 
   private def revision: Revision = changes.updatedRevision

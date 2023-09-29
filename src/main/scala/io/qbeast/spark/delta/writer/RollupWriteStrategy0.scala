@@ -24,13 +24,13 @@ import scala.collection.mutable
  * @param qbeastColumns the Qbeast-specisific columns
  * @param tableChanges the table changes
  */
-private[writer] class RollupWriteStrategy(tableChanges: TableChanges)
-    extends WriteStrategy
+private[writer] class RollupWriteStrategy0(tableChanges: TableChanges)
+    extends WriteStrategy0
     with Serializable {
 
   override def write(
       data: DataFrame,
-      writerFactory: IndexFileWriterFactory): IISeq[(IndexFile, TaskStats)] = {
+      writerFactory: IndexFileWriterFactory0): IISeq[(IndexFile, TaskStats)] = {
     val dataWithRollup = data
       .withColumn(
         QbeastColumns.cubeToRollupColumnName,
@@ -46,9 +46,9 @@ private[writer] class RollupWriteStrategy(tableChanges: TableChanges)
       .toIndexedSeq
   }
 
-  private def writeRows(writerFactory: IndexFileWriterFactory, qbeastColumns: QbeastColumns)(
+  private def writeRows(writerFactory: IndexFileWriterFactory0, qbeastColumns: QbeastColumns)(
       rows: Iterator[InternalRow]): Iterator[(IndexFile, TaskStats)] = {
-    val writers: mutable.Map[CubeId, IndexFileWriter] = mutable.Map.empty
+    val writers: mutable.Map[CubeId, IndexFileWriter0] = mutable.Map.empty
     val buffers: mutable.Map[CubeId, mutable.Buffer[InternalRow]] = mutable.Map.empty
     val limit = tableChanges.updatedRevision.desiredCubeSize / 2
     rows.foreach { row =>
@@ -71,9 +71,9 @@ private[writer] class RollupWriteStrategy(tableChanges: TableChanges)
   }
 
   private def flushBuffer(
-      writerFactory: IndexFileWriterFactory,
+      writerFactory: IndexFileWriterFactory0,
       qbeastColumns: QbeastColumns,
-      writers: mutable.Map[CubeId, IndexFileWriter],
+      writers: mutable.Map[CubeId, IndexFileWriter0],
       buffer: mutable.Buffer[InternalRow]): Unit = {
     buffer.foreach { row =>
       val cubeId = getRollupCubeId(qbeastColumns, row)

@@ -16,9 +16,9 @@ import org.apache.spark.sql.execution.datasources.OutputWriter
  * @param excludeQbeastColumns the function to exclude the Qbeast-specific
  * columns
  */
-private[writer] class IndexFileWriter(
+private[writer] class IndexFileWriter0(
     writer: OutputWriter,
-    fileBuilder: IndexFileBuilder,
+    fileBuilder: IndexFileBuilder0,
     statsBuilder: TaskStatsBuilder,
     excludeQbeastColumns: InternalRow => InternalRow) {
 

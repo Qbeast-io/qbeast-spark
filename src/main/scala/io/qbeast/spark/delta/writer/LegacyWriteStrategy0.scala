@@ -16,13 +16,13 @@ import io.qbeast.core.model.Revision
 /**
  * Legacy write startegy which writes every cube to a separate file.
  */
-private[writer] class LegacyWriteStrategy(revision: Revision)
-    extends WriteStrategy
+private[writer] class LegacyWriteStrategy0(revision: Revision)
+    extends WriteStrategy0
     with Serializable {
 
   override def write(
       data: DataFrame,
-      writerFactory: IndexFileWriterFactory): IISeq[(IndexFile, TaskStats)] = {
+      writerFactory: IndexFileWriterFactory0): IISeq[(IndexFile, TaskStats)] = {
     val qbeastColumns = QbeastColumns(data)
     data
       .repartition(col(QbeastColumns.cubeColumnName))
@@ -34,9 +34,9 @@ private[writer] class LegacyWriteStrategy(revision: Revision)
       .toIndexedSeq
   }
 
-  private def writeRows(writerFactory: IndexFileWriterFactory, qbeastColumns: QbeastColumns)(
+  private def writeRows(writerFactory: IndexFileWriterFactory0, qbeastColumns: QbeastColumns)(
       rows: Iterator[InternalRow]): Iterator[(IndexFile, TaskStats)] = {
-    val writers: mutable.Map[CubeId, IndexFileWriter] = mutable.Map.empty
+    val writers: mutable.Map[CubeId, IndexFileWriter0] = mutable.Map.empty
     rows.foreach { row =>
       val cubeId = getCubeId(qbeastColumns, row)
       val writer = writers.getOrElseUpdate(cubeId, writerFactory.newWriter(qbeastColumns))

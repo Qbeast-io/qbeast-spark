@@ -11,7 +11,7 @@ import io.qbeast.IISeq
  * Write strategy writes a given indexed data frame, i.e. a data frame where
  * every row has an assigned weight and target cube.
  */
-private[writer] trait WriteStrategy {
+private[writer] trait WriteStrategy0 {
 
   /**
    * Writes a given indexed data using the specified writer factory and returns
@@ -22,6 +22,8 @@ private[writer] trait WriteStrategy {
    * index files
    * @return the written index files and the corresponding task stats
    */
-  def write(data: DataFrame, writerFactory: IndexFileWriterFactory): IISeq[(IndexFile, TaskStats)]
+  def write(
+      data: DataFrame,
+      writerFactory: IndexFileWriterFactory0): IISeq[(IndexFile, TaskStats)]
 
 }
