@@ -49,7 +49,7 @@ object Transformer {
   def getDefaultTransformerForType(dataType: QDataType): TransformerType = transformersRegistry {
     dataType match {
       case _: OrderedDataType => LinearTransformer.transformerSimpleName
-      case StringDataType => StringHistogramTransformer.transformerSimpleName
+      case StringDataType => HashTransformer.transformerSimpleName
       case _ => throw new RuntimeException(s"There's not default transformer for $dataType")
     }
 

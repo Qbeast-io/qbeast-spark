@@ -12,8 +12,8 @@ import io.qbeast.core.transform.{
 }
 import io.qbeast.spark.index.QbeastColumns.{cubeToReplicateColumnName, weightColumnName}
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
-import org.apache.spark.qbeast.config.{CUBE_WEIGHTS_BUFFER_CAPACITY, MAX_STRING_BIN_COUNT}
-import org.apache.spark.sql.delta.skipping.MultiDimClusteringFunctions
+import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
+
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 
@@ -57,26 +57,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     data.selectExpr(columnsExpr ++ Seq("count(1) AS count"): _*).first()
   }
 
-  private[index] def getStringHistogram(
-      columnName: String,
-      numBins: Int,
-      data: DataFrame): Array[String] = {
-    // TODO: Should we be able to process multiple columns at the same time?
-    val colBinStart = s"_${columnName}_bin_start"
-    val stringPartitionColumn =
-      MultiDimClusteringFunctions.range_partition_id(col(columnName), numBins)
-
-    data
-      .select(columnName)
-      .distinct()
-      .groupBy(stringPartitionColumn)
-      .agg(min(columnName).alias(colBinStart))
-      .select(colBinStart)
-      .orderBy(colBinStart)
-      .collect()
-      .map(_.getAs[String](0))
-  }
-
   /**
    * Given a Row with Statistics, outputs the RevisionChange
    * @param row the row with statistics
@@ -85,7 +65,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
    */
   private[index] def calculateRevisionChanges(
       row: Row,
-      data: DataFrame,
       revision: Revision): Option[RevisionChange] = {
     // TODO: When all indexing columns are provided with a boundary, a new revision
     //  is created directly. If the actual data boundaries are not contained by those
@@ -94,12 +73,9 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
     val newTransformation =
       revision.columnTransformers.map {
-        case t: StringHistogramTransformer =>
-          // TODO: We are always collecting histogram information, which might be nothing
-          //  more than a waste of resource and time
-          val stringHist = getStringHistogram(t.columnName, MAX_STRING_BIN_COUNT, data)
-          if (stringHist.isEmpty) throw new RuntimeException("Empty string histogram")
-          else StringHistogramTransformation(stringHist)
+        // StringHistogramTransformations are at the moment only updated by
+        // user-provided String histograms in the form of sorted Arrays
+        case _: StringHistogramTransformer => StringHistogramTransformation(Array.empty[String])
         case t => t.makeTransformation(colName => row.getAs[Object](colName))
       }
 
@@ -281,7 +257,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
     val spaceChanges =
       if (isReplication) None
-      else calculateRevisionChanges(dataFrameStats, dataFrame, indexStatus.revision)
+      else calculateRevisionChanges(dataFrameStats, indexStatus.revision)
 
     // The revision to use
     val revision = spaceChanges match {

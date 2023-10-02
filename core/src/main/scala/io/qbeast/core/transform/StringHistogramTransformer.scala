@@ -9,6 +9,7 @@ object StringHistogramTransformer extends TransformerType {
 
 case class StringHistogramTransformer(columnName: String, dataType: QDataType)
     extends Transformer {
+  private val colHist = s"${columnName}_hist"
 
   override protected def transformerType: TransformerType = StringHistogramTransformer
 
@@ -26,9 +27,11 @@ case class StringHistogramTransformer(columnName: String, dataType: QDataType)
    * @return the transformation
    */
   override def makeTransformation(row: String => Any): Transformation = {
-    // TODO: To make a new Transformation, we are probably going to need the string histogram
-    //  which requires access to a lot more information than just a single row.
-    StringHistogramTransformation(Array.empty[String])
+    val hist = row(colHist) match {
+      case h: Seq[_] => h.map(_.toString).toArray
+      case _ => Array.empty[String]
+    }
+    StringHistogramTransformation(hist)
   }
 
 }

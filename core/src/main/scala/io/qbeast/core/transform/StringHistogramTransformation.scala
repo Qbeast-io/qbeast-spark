@@ -29,15 +29,8 @@ case class StringHistogramTransformation(stringHist: Array[String]) extends Tran
 
     stringHist.search(v) match {
       case Found(foundIndex) => foundIndex.toDouble / stringHist.length
-      case InsertionPoint(insertionPoint) => linearMapping(insertionPoint)
+      case InsertionPoint(insertionPoint) => insertionPoint.toDouble / stringHist.length
     }
-  }
-
-  private def linearMapping(pos: Int): Double = {
-    // TODO, linearly mapping string position within its corresponding bin
-    if (pos == 0) 0d
-    else if (pos == stringHist.length) 1d
-    else pos.toDouble / stringHist.length
   }
 
   /**
@@ -46,10 +39,12 @@ case class StringHistogramTransformation(stringHist: Array[String]) extends Tran
    * @param newTransformation the new transformation created with statistics over the new data
    * @return true if the domain of the newTransformation is not fully contained in this one.
    */
-  override def isSupersededBy(newTransformation: Transformation): Boolean = {
-    // TODO: When do we need to change the histogram?
-    false
-  }
+  override def isSupersededBy(newTransformation: Transformation): Boolean =
+    newTransformation match {
+      case _ @StringHistogramTransformation(hist) =>
+        hist.nonEmpty && !stringHist.sameElements(hist)
+      case _ => false
+    }
 
   /**
    * Merges two transformations. The domain of the resulting transformation is the union of this
@@ -57,9 +52,9 @@ case class StringHistogramTransformation(stringHist: Array[String]) extends Tran
    * @param other Transformation
    * @return a new Transformation that contains both this and other.
    */
-  override def merge(other: Transformation): Transformation = {
-    // TODO: How do we merge two histograms?
-    this
+  override def merge(other: Transformation): Transformation = other match {
+    case _ @StringHistogramTransformation(hist) if hist.nonEmpty => other
+    case _ => this
   }
 
 }
@@ -91,7 +86,8 @@ class StringHistogramTransformationSerializer
       provider: SerializerProvider): Unit = {
     gen.writeStartObject()
 
-    gen.writeStartArray("stringHist")
+    gen.writeFieldName("stringHist")
+    gen.writeStartArray()
     value.stringHist.foreach(gen.writeString)
     gen.writeEndArray()
 

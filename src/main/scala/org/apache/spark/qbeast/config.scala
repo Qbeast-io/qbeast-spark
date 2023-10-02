@@ -44,12 +44,6 @@ package object config {
       .longConf
       .createOptional
 
-  private[config] val maxStringBinCount: ConfigEntry[Int] =
-    ConfigBuilder("spark.qbeast.index.maxStringBinCount")
-      .version("0.2.0")
-      .intConf
-      .createWithDefault(50)
-
   def DEFAULT_NUMBER_OF_RETRIES: Int = QbeastContext.config
     .get(defaultNumberOfRetries)
 
@@ -67,5 +61,4 @@ package object config {
 
   def STAGING_SIZE_IN_BYTES: Option[Long] = QbeastContext.config.get(stagingSizeInBytes)
 
-  def MAX_STRING_BIN_COUNT: Int = QbeastContext.config.get(maxStringBinCount)
 }
