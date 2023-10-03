@@ -21,66 +21,64 @@ import scala.collection.mutable
  * Implementation of WriteStrategy that groups the records to write by "rolling"
  * them up along the index tree.
  *
- * @param qbeastColumns the Qbeast-specisific columns
+ * @param writerFactory the writer factory
  * @param tableChanges the table changes
  */
-private[writer] class RollupWriteStrategy0(tableChanges: TableChanges)
-    extends WriteStrategy0
+private[writer] class RollupWriteStrategy(
+    writerFactory: IndexFileWriterFactory,
+    tableChanges: TableChanges)
+    extends WriteStrategy
     with Serializable {
 
-  override def write(
-      data: DataFrame,
-      writerFactory: IndexFileWriterFactory0): IISeq[(IndexFile, TaskStats)] = {
-    val dataWithRollup = data
-      .withColumn(
-        QbeastColumns.cubeToRollupColumnName,
-        getRollupCubeIdUDF(computeRollupCubeIds)(col(QbeastColumns.cubeColumnName)))
-    val qbeastColumns = QbeastColumns(dataWithRollup.schema)
+  private type WriteRows = Iterator[InternalRow] => Iterator[(IndexFile, TaskStats)]
+  private type Extract = InternalRow => (InternalRow, CubeId, Weight, CubeId)
+
+  override def write(data: DataFrame): IISeq[(IndexFile, TaskStats)] = {
+    val dataWithRollup = addRollup(data)
+    val writeRows = getWriteRows(dataWithRollup)
     dataWithRollup
       .repartition(col(QbeastColumns.cubeToRollupColumnName))
       .queryExecution
       .executedPlan
       .execute()
-      .mapPartitions(writeRows(writerFactory, qbeastColumns))
+      .mapPartitions(writeRows)
       .collect()
       .toIndexedSeq
   }
 
-  private def writeRows(writerFactory: IndexFileWriterFactory0, qbeastColumns: QbeastColumns)(
-      rows: Iterator[InternalRow]): Iterator[(IndexFile, TaskStats)] = {
-    val writers: mutable.Map[CubeId, IndexFileWriter0] = mutable.Map.empty
-    val buffers: mutable.Map[CubeId, mutable.Buffer[InternalRow]] = mutable.Map.empty
-    val limit = tableChanges.updatedRevision.desiredCubeSize / 2
-    rows.foreach { row =>
-      val cubeId = getCubeId(qbeastColumns, row)
-      val buffer = buffers.getOrElseUpdate(cubeId, mutable.Buffer.empty)
-      buffer += row.copy()
-      if (buffer.size >= limit) {
-        flushBuffer(writerFactory, qbeastColumns, writers, buffer)
+  private def addRollup(data: DataFrame): DataFrame = data.withColumn(
+    QbeastColumns.cubeToRollupColumnName,
+    getRollupCubeIdUDF(computeRollupCubeIds)(col(QbeastColumns.cubeColumnName)))
+
+  private def getWriteRows(data: DataFrame): WriteRows = {
+    val extract = getExtract(data)
+    rows => {
+      val writers = mutable.Map.empty[CubeId, IndexFileWriter]
+      rows.foreach { indexedRow =>
+        val (row, cubeId, weight, rollupCubeId) = extract(indexedRow)
+        val writer = writers.getOrElseUpdate(rollupCubeId, writerFactory.createIndexFileWriter())
+        writer.write(row, cubeId, weight)
       }
+      writers.values.iterator.map(_.close())
     }
-    buffers.values.foreach { buffer =>
-      flushBuffer(writerFactory, qbeastColumns, writers, buffer)
-    }
-    writers.values.iterator.map(_.close())
   }
 
-  private def getCubeId(qbeastColumns: QbeastColumns, row: InternalRow): CubeId = {
-    val bytes = row.getBinary(qbeastColumns.cubeColumnIndex)
-    tableChanges.updatedRevision.createCubeId(bytes)
-  }
-
-  private def flushBuffer(
-      writerFactory: IndexFileWriterFactory0,
-      qbeastColumns: QbeastColumns,
-      writers: mutable.Map[CubeId, IndexFileWriter0],
-      buffer: mutable.Buffer[InternalRow]): Unit = {
-    buffer.foreach { row =>
-      val cubeId = getRollupCubeId(qbeastColumns, row)
-      val writer = writers.getOrElseUpdate(cubeId, writerFactory.newWriter(qbeastColumns))
-      writer.write(row)
+  private def getExtract(data: DataFrame): Extract = {
+    val schema = data.schema
+    val qbeastColumns = QbeastColumns(data)
+    val extractors = (0 until schema.fields.length)
+      .filterNot(qbeastColumns.contains)
+      .map { i => row: InternalRow => row.get(i, schema(i).dataType) }
+      .toSeq
+    indexedRow => {
+      val row = InternalRow.fromSeq(extractors.map(_.apply(indexedRow))).copy()
+      val cubeIdBytes = indexedRow.getBinary(qbeastColumns.cubeColumnIndex)
+      val cubeId = tableChanges.updatedRevision.createCubeId(cubeIdBytes)
+      val weight = Weight(indexedRow.getInt(qbeastColumns.weightColumnIndex))
+      val rollupCubeIdBytes = indexedRow.getBinary(qbeastColumns.cubeToRollupColumnIndex)
+      val rollupCubeId = tableChanges.updatedRevision.createCubeId(rollupCubeIdBytes)
+      (row, cubeId, weight, rollupCubeId)
     }
-    buffer.clear()
   }
 
   private def getRollupCubeIdUDF(rollupCubeIds: Map[CubeId, CubeId]): UserDefinedFunction =
@@ -98,11 +96,6 @@ private[writer] class RollupWriteStrategy0(tableChanges: TableChanges)
       }
       rollupCubeId.get.bytes
     })
-
-  private def getRollupCubeId(qbeastColumns: QbeastColumns, row: InternalRow): CubeId = {
-    val bytes = row.getBinary(qbeastColumns.cubeToRollupColumnIndex)
-    tableChanges.updatedRevision.createCubeId(bytes)
-  }
 
   private def computeRollupCubeIds: Map[CubeId, CubeId] = {
     val minRowsPerFile = tableChanges.updatedRevision.desiredCubeSize.toDouble
@@ -153,22 +146,22 @@ private[writer] class RollupWriteStrategy0(tableChanges: TableChanges)
     tableChanges.cubeWeight(cubeId).getOrElse(Weight.MaxValue)
   }
 
-}
-
-private object CubeIdOrdering extends Ordering[CubeId] {
-  // Cube identifiers are compared by depth in reversed order.
-  override def compare(x: CubeId, y: CubeId): Int = y.depth - x.depth
-}
-
-private class Rollup(var cubeIds: Seq[CubeId], var size: Double) {
-
-  def append(other: Rollup): Unit = {
-    cubeIds ++= other.cubeIds
-    size += other.size
+  private object CubeIdOrdering extends Ordering[CubeId] {
+    // Cube identifiers are compared by depth in reversed order.
+    override def compare(x: CubeId, y: CubeId): Int = y.depth - x.depth
   }
 
-}
+  private class Rollup(var cubeIds: Seq[CubeId], var size: Double) {
 
-private object Rollup {
-  def apply(cubeId: CubeId, size: Double): Rollup = new Rollup(Seq(cubeId), size)
+    def append(other: Rollup): Unit = {
+      cubeIds ++= other.cubeIds
+      size += other.size
+    }
+
+  }
+
+  private object Rollup extends Serializable {
+    def apply(cubeId: CubeId, size: Double): Rollup = new Rollup(Seq(cubeId), size)
+  }
+
 }
