@@ -98,41 +98,15 @@ private[writer] class RollupWriteStrategy(
     })
 
   private def computeRollupCubeIds: Map[CubeId, CubeId] = {
-    val minRowsPerFile = tableChanges.updatedRevision.desiredCubeSize.toDouble
-    val queue = new mutable.PriorityQueue()(CubeIdOrdering)
-    val rollups = mutable.Map.empty[CubeId, Rollup]
+    val limit = tableChanges.updatedRevision.desiredCubeSize.toDouble
+    val rollup = new Rollup(limit)
     tableChanges.cubeDomains.foreach { case (cubeId, domain) =>
-      queue += cubeId
       val minWeight = getMinWeight(cubeId).fraction
       val maxWeight = getMaxWeight(cubeId).fraction
       val size = (maxWeight - minWeight) * domain
-      rollups += cubeId -> Rollup(cubeId, size)
+      rollup.populate(cubeId, size)
     }
-
-    while (queue.nonEmpty) {
-      val cubeId = queue.dequeue()
-      val rollup = rollups(cubeId)
-      if (rollup.size < minRowsPerFile) {
-        cubeId.parent match {
-          case Some(parentCubeId) =>
-            val parentRollup = rollups.get(parentCubeId) match {
-              case Some(value) => value
-              case None =>
-                queue += parentCubeId
-                val value = Rollup(parentCubeId, 0)
-                rollups += parentCubeId -> value
-                value
-            }
-            parentRollup.append(rollup)
-            rollups -= cubeId
-          case None => ()
-        }
-      }
-    }
-
-    rollups.flatMap { case (cubeId, rollup) =>
-      rollup.cubeIds.map((_, cubeId))
-    }.toMap
+    rollup.compute()
   }
 
   private def getMinWeight(cubeId: CubeId): Weight = {
@@ -144,24 +118,6 @@ private[writer] class RollupWriteStrategy(
 
   private def getMaxWeight(cubeId: CubeId): Weight = {
     tableChanges.cubeWeight(cubeId).getOrElse(Weight.MaxValue)
-  }
-
-  private object CubeIdOrdering extends Ordering[CubeId] {
-    // Cube identifiers are compared by depth in reversed order.
-    override def compare(x: CubeId, y: CubeId): Int = y.depth - x.depth
-  }
-
-  private class Rollup(var cubeIds: Seq[CubeId], var size: Double) {
-
-    def append(other: Rollup): Unit = {
-      cubeIds ++= other.cubeIds
-      size += other.size
-    }
-
-  }
-
-  private object Rollup extends Serializable {
-    def apply(cubeId: CubeId, size: Double): Rollup = new Rollup(Seq(cubeId), size)
   }
 
 }
