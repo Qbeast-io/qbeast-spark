@@ -56,6 +56,7 @@ class DisjunctiveQuerySpecTest extends QbeastIntegrationTestSpec with QueryTestS
       System.currentTimeMillis(),
       QTableID("test"),
       100,
+      100,
       columnTransformers,
       transformations)
 

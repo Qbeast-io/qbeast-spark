@@ -53,16 +53,28 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
       data: DataFrame,
       columnsToIndex: Seq[String],
       cubeSize: Int,
+      fileSize: Long,
       tmpDir: String,
-      mode: String = "overwrite"): Unit = {
+      mode: String): Unit = {
 
     data.write
       .mode(mode)
       .format("qbeast")
       .options(
-        Map("columnsToIndex" -> columnsToIndex.mkString(","), "cubeSize" -> cubeSize.toString))
+        Map(
+          "columnsToIndex" -> columnsToIndex.mkString(","),
+          "cubeSize" -> cubeSize.toString,
+          "fileSize" -> fileSize.toString))
       .save(tmpDir)
   }
+
+  def writeTestData(
+      data: DataFrame,
+      columnsToIndex: Seq[String],
+      cubeSize: Int,
+      tmpDir: String,
+      mode: String = "overwrite"): Unit =
+    writeTestData(data, columnsToIndex, cubeSize, cubeSize, tmpDir, mode)
 
   /**
    * This function is used to create a spark session with the given configuration.

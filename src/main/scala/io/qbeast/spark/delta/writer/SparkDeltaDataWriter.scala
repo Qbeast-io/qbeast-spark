@@ -200,4 +200,22 @@ object SparkDeltaDataWriter
 
   }
 
+  override def compact(
+      tableId: QTableID,
+      schema: StructType,
+      revisionId: RevisionID,
+      indexFiles: IISeq[IndexFile],
+      desiredFileSize: Long): IISeq[FileAction] = {
+    val sparkSession = SparkSession.active
+    val job = Job.getInstance(sparkSession.sparkContext.hadoopConfiguration)
+    val writerFactory = new ParquetFileFormat().prepareWrite(sparkSession, job, Map.empty, schema)
+    val config = new SerializableConfiguration(job.getConfiguration)
+    val generatorFactory =
+      new IndexFileGeneratorFactory(tableId, schema, revisionId, writerFactory, config)
+
+    val strategy = new RollupCompactStrategy(tableId, generatorFactory, desiredFileSize)
+    val (createdFiles, filesToRemove) = strategy.compact(indexFiles)
+    createdFiles.map(IndexFiles.toAddFile) ++ filesToRemove.map(IndexFiles.toRemoveFile)
+  }
+
 }

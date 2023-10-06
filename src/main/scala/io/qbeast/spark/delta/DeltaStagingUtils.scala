@@ -4,10 +4,12 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model.StagingUtils
+import io.qbeast.spark.utils.TagColumns
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.delta.actions.AddFile
-import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.{Column, Dataset}
+import org.apache.spark.sql.functions.lit
 
 private[spark] trait DeltaStagingUtils extends StagingUtils {
   protected def snapshot: Snapshot
@@ -17,7 +19,8 @@ private[spark] trait DeltaStagingUtils extends StagingUtils {
   /**
    * Condition for Staging AddFiles in the form of Spark sql Column
    */
-  private val isStagingFile: Column = col("tags").isNull
+  private val isStagingFile: Column =
+    TagColumns.revisionId.isNull or (TagColumns.revisionId === lit(stagingID.toString()))
 
   /**
    * Extract current staging files from the snapshot

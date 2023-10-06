@@ -37,11 +37,12 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
       .toLocalIterator()
       .asScala
       .flatMap { addFile =>
-        addFile
+        val revisionId = addFile
           .getTag(TagUtils.revisionId)
           .map(_.toLong)
-          .filterNot(isStaging)
-          .flatMap(revisionsMap.get)
+          .getOrElse(0L)
+        revisionsMap
+          .get(revisionId)
           .map(_.transformations.length)
           .map(IndexFiles.fromAddFile)
           .map(_.apply(addFile))

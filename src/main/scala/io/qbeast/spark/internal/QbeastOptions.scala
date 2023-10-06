@@ -6,14 +6,21 @@ package io.qbeast.spark.internal
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.index.ColumnsToIndex
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
+import org.apache.spark.qbeast.config.DEFAULT_FILE_SIZE
 import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, SparkSession}
 
 /**
  * Container for Qbeast options.
  * @param columnsToIndex value of columnsToIndex option
  * @param cubeSize value of cubeSize option
+ * @param fileSize value of fileSize option
+ * @param stats value of stats option
  */
-case class QbeastOptions(columnsToIndex: Seq[String], cubeSize: Int, stats: Option[DataFrame])
+case class QbeastOptions(
+    columnsToIndex: Seq[String],
+    cubeSize: Int,
+    fileSize: Long,
+    stats: Option[DataFrame])
 
 /**
  * Options available when trying to write in qbeast format
@@ -22,6 +29,7 @@ case class QbeastOptions(columnsToIndex: Seq[String], cubeSize: Int, stats: Opti
 object QbeastOptions {
   val COLUMNS_TO_INDEX = "columnsToIndex"
   val CUBE_SIZE = "cubeSize"
+  val FILE_SIZE = "fileSize"
   val PATH = "path"
   val STATS = "columnStats"
 
@@ -50,6 +58,13 @@ object QbeastOptions {
     options.get(CUBE_SIZE) match {
       case Some(value) => value.toInt
       case None => DEFAULT_CUBE_SIZE
+    }
+  }
+
+  private def getDesiredFileSize(options: Map[String, String]): Long = {
+    options.get(FILE_SIZE) match {
+      case Some(value) => value.toLong
+      case None => DEFAULT_FILE_SIZE
     }
   }
 
@@ -85,8 +100,9 @@ object QbeastOptions {
   def apply(options: Map[String, String]): QbeastOptions = {
     val columnsToIndex = getColumnsToIndex(options)
     val desiredCubeSize = getDesiredCubeSize(options)
+    val desiredFileSize = getDesiredFileSize(options)
     val stats = getStats(options)
-    QbeastOptions(columnsToIndex, desiredCubeSize, stats)
+    QbeastOptions(columnsToIndex, desiredCubeSize, desiredFileSize, stats)
   }
 
   def loadTableIDFromParameters(parameters: Map[String, String]): QTableID = {

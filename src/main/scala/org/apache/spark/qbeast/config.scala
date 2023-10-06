@@ -14,6 +14,12 @@ package object config {
       .intConf
       .createWithDefault(5000000)
 
+  private[config] val defaultFileSize: ConfigEntry[Long] =
+    ConfigBuilder("spark.qbeast.index.defaultFileSize")
+      .version("0.2.0")
+      .longConf
+      .createWithDefault(5000000L)
+
   private[config] val cubeWeightsBufferCapacity: ConfigEntry[Long] =
     ConfigBuilder("spark.qbeast.index.cubeWeightsBufferCapacity")
       .version("0.2.0")
@@ -49,6 +55,9 @@ package object config {
 
   def DEFAULT_CUBE_SIZE: Int = QbeastContext.config
     .get(defaultCubeSize)
+
+  def DEFAULT_FILE_SIZE: Long = QbeastContext.config
+    .get(defaultFileSize)
 
   def CUBE_WEIGHTS_BUFFER_CAPACITY: Long = QbeastContext.config
     .get(cubeWeightsBufferCapacity)

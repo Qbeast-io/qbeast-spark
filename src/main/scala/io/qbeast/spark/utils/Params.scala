@@ -34,6 +34,7 @@ object TagUtils {
   final val state = "state"
   final val revision = "revision"
   final val revisionId = "revisionId"
+  final val blocks = "blocks"
   final val elementCount = "elementCount"
 }
 

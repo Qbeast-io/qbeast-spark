@@ -377,22 +377,19 @@ private[table] class IndexedTableImpl(
 
   override def compact(revisionID: RevisionID): Unit = {
 
-    /* Compaction is temporarily switched off
-
     // Load the schema and the current status
     val schema = metadataManager.loadCurrentSchema(tableID)
-    val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
+    val desiredFileSize = snapshot.loadRevision(revisionID).desiredFileSize
+    val files = snapshot.loadIndexFiles(revisionID)
+    val indexStatus = snapshot.loadIndexStatus(revisionID)
 
     metadataManager.updateWithTransaction(tableID, schema, append = true) {
       // There's no affected table changes on compaction, so we send an empty object
-      val tableChanges = BroadcastedTableChanges(None, currentIndexStatus, Map.empty, Map.empty)
-      val fileActions =
-        dataWriter.compact(tableID, schema, currentIndexStatus, tableChanges)
+      val tableChanges = BroadcastedTableChanges(None, indexStatus, Map.empty, Map.empty)
+      val fileActions = dataWriter.compact(tableID, schema, revisionID, files, desiredFileSize)
       (tableChanges, fileActions)
 
     }
-
-     */
 
   }
 

@@ -45,28 +45,34 @@ object Revision {
 
   /**
    * Create a new first revision for a table
+   *
    * @param tableID the table identifier
    * @param desiredCubeSize the desired cube size
+   * @param desiredFileSize the desired file size
    * @param columnTransformers the column transformers
    * @return the new Revision, without any data insights
    */
   def firstRevision(
       tableID: QTableID,
       desiredCubeSize: Int,
+      desiredFileSize: Long,
       columnTransformers: IISeq[Transformer]): Revision = {
     Revision(
       0,
       System.currentTimeMillis(),
       tableID,
       desiredCubeSize,
+      desiredFileSize,
       columnTransformers,
       Vector.empty)
   }
 
   /**
    * Create a new first revision for a table with pre-loaded transformations
+   *
    * @param tableID the table identifier
    * @param desiredCubeSize the desired cube size
+   * @param desiredFileSize the desired file size
    * @param columnTransformers the column transformers
    * @param columnTransformations the column transformations
    * @return the new revision, with the specified transformations
@@ -75,6 +81,7 @@ object Revision {
   def firstRevision(
       tableID: QTableID,
       desiredCubeSize: Int,
+      desiredFileSize: Long,
       columnTransformers: IISeq[Transformer],
       columnTransformations: IISeq[Transformation]): Revision = {
     Revision(
@@ -82,6 +89,7 @@ object Revision {
       System.currentTimeMillis(),
       tableID,
       desiredCubeSize,
+      desiredFileSize,
       columnTransformers,
       columnTransformations)
   }
@@ -90,6 +98,7 @@ object Revision {
 
 /**
  * A revision of a QTable.
+ *
  * @param revisionID the identifier of the revision
  * @param timestamp the timestamp
  * @param tableID the table identifier
@@ -102,6 +111,7 @@ final case class Revision(
     timestamp: Long,
     tableID: QTableID,
     desiredCubeSize: Int,
+    desiredFileSize: Long,
     @JsonSerialize(
       as = classOf[IISeq[Transformer]],
       typing = Typing.STATIC) columnTransformers: IISeq[Transformer],
@@ -123,6 +133,7 @@ final case class Revision(
 
   /**
    * Creates a new CubeId in this revision
+   *
    * @param bytes the byte representation of the CubeId
    * @return a valid CubeID
    */
@@ -130,6 +141,7 @@ final case class Revision(
 
   /**
    * Creates a new CubeId in this revision
+   *
    * @param value the string representation of the CubeId
    * @return a valid CubeID
    */
@@ -138,7 +150,8 @@ final case class Revision(
   def createCubeIdRoot(): CubeId = CubeId.root(columnTransformers.size)
 
   /**
-   * returns the normalized values
+   * Returns the normalized values
+   *
    * @param values row values for the indexing columns
    * @return the normalized values
    */
@@ -158,6 +171,7 @@ final case class Revision(
 
 /**
  * Container for the set of changes to a revision
+ *
  * @param timestamp the timestamp
  * @param supersededRevision the superseded revision
  * @param desiredCubeSizeChange the desired cube size option change
@@ -168,20 +182,30 @@ case class RevisionChange(
     timestamp: Long,
     supersededRevision: Revision,
     desiredCubeSizeChange: Option[Int] = None,
+    desiredFileSizeChange: Option[Long] = None,
     columnTransformersChanges: IISeq[Option[Transformer]] = Vector.empty,
     transformationsChanges: IISeq[Option[Transformation]] = Vector.empty) {
 
   /**
    * Creates a new revision based on the current revision and the changes
+   *
    * @return
    */
   def createNewRevision: Revision = supersededRevision match {
-    case Revision(revisionID, _, tableID, desiredCubeSize, columnTransformers, transformations) =>
+    case Revision(
+          revisionID,
+          _,
+          tableID,
+          desiredCubeSize,
+          desiredFileSize,
+          columnTransformers,
+          transformations) =>
       Revision(
         revisionID + 1,
         timestamp,
         tableID,
         desiredCubeSizeChange.getOrElse(desiredCubeSize),
+        desiredFileSizeChange.getOrElse(desiredFileSize),
         mergeChanges(columnTransformers, columnTransformersChanges),
         mergeChanges(transformations, transformationsChanges))
   }
@@ -202,6 +226,7 @@ case class RevisionChange(
 
 /**
  * Container for the current status of the index
+ *
  * @param revision the revision
  * @param replicatedSet the set of cubes in a replicated state
  * @param announcedSet the set of cubes in an announced state
@@ -222,7 +247,8 @@ case class IndexStatus(
   def cubesToOptimize: Set[CubeId] = announcedSet.diff(replicatedSet)
 
   /**
-   * the set of cubes that has surpass their capacity
+   * Returns the set of cubes that has surpass their capacity
+   *
    * @return
    */
   def overflowedSet: Set[CubeId] =
@@ -237,6 +263,7 @@ case class IndexStatus(
 
 /**
  * Container for the status information of a cube
+ *
  * @param maxWeight the max weight of the cube
  * @param normalizedWeight the normalized weight of the cube
  * @param files the files belonging to the cube

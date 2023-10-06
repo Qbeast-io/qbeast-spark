@@ -10,11 +10,12 @@ import io.qbeast.core.model.IndexFile
 import io.qbeast.core.model.RowRange
 import io.qbeast.core.model.Weight
 import io.qbeast.spark.utils.State
+import io.qbeast.spark.utils.TagUtils
 import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.actions.RemoveFile
 
 import scala.util.Success
 import scala.util.Try
-import org.apache.spark.sql.delta.actions.RemoveFile
 
 /**
  * Utility object for working with IndexFile instances. This object provides
@@ -41,24 +42,26 @@ private[delta] object IndexFiles {
     File(addFile.path, addFile.size, addFile.modificationTime)
 
   private def getRevisionId(addFile: AddFile): Long = addFile
-    .getTag("revisionId")
+    .getTag(TagUtils.revisionId)
     .map(s => Try(s.toLong))
     .collect { case Success(revisionId) => revisionId }
     .getOrElse(0)
 
   private def getBlocks(file: File, dimensionCount: Int, addFile: AddFile): Array[Block] = {
-    addFile
-      .getTag("blocks")
-      .map(tag => BlocksCodec.decode(file, dimensionCount, tag))
-      .getOrElse(
+    addFile.getTag(TagUtils.blocks) match {
+      case Some(tag) => BlocksCodec.decode(file, dimensionCount, tag)
+      case None =>
+        // a staging area file treated as a single block from the root cube
+        val to = addFile.numLogicalRecords.getOrElse(Long.MaxValue)
         Array(
           Block(
             file,
-            RowRange(0, Long.MaxValue),
+            RowRange(0, to),
             CubeId.root(dimensionCount),
             State.FLOODED,
             Weight.MinValue,
-            Weight.MaxValue)))
+            Weight.MaxValue))
+    }
   }
 
   /**
@@ -70,8 +73,8 @@ private[delta] object IndexFiles {
   def toAddFile(indexFile: IndexFile): AddFile = {
     val file = indexFile.file
     val tags = Map(
-      "revisionId" -> indexFile.revisionId.toString(),
-      "blocks" -> BlocksCodec.encode(indexFile.blocks))
+      TagUtils.revisionId -> indexFile.revisionId.toString(),
+      TagUtils.blocks -> BlocksCodec.encode(indexFile.blocks))
     new AddFile(
       path = file.path,
       partitionValues = Map.empty,

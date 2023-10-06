@@ -30,6 +30,7 @@ object SparkRevisionFactory extends RevisionFactory[StructType] {
     val qbeastOptions = QbeastOptions(options)
     val columnSpecs = qbeastOptions.columnsToIndex
     val desiredCubeSize = qbeastOptions.cubeSize
+    val desiredFileSize = qbeastOptions.fileSize
 
     val transformers = columnSpecs.map {
       case SpecExtractor(columnName, transformerType) =>
@@ -41,7 +42,8 @@ object SparkRevisionFactory extends RevisionFactory[StructType] {
     }.toVector
 
     qbeastOptions.stats match {
-      case None => Revision.firstRevision(qtableID, desiredCubeSize, transformers)
+      case None =>
+        Revision.firstRevision(qtableID, desiredCubeSize, desiredFileSize, transformers)
       case Some(stats) =>
         val columnStats = stats.first()
         var shouldCreateNewSpace = true
@@ -64,7 +66,12 @@ object SparkRevisionFactory extends RevisionFactory[StructType] {
         }
 
         val firstRevision =
-          Revision.firstRevision(qtableID, desiredCubeSize, transformers, transformations)
+          Revision.firstRevision(
+            qtableID,
+            desiredCubeSize,
+            desiredFileSize,
+            transformers,
+            transformations)
 
         // When all indexing columns have been provided with a boundary, update the RevisionID
         // to 1 to avoid using the StagingRevisionID(0). It is possible for this RevisionID to

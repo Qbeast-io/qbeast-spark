@@ -217,11 +217,8 @@ class ConvertToQbeastTest
       assertLargeDatasetEquality(qbeastDf, sourceDf, orderedComparison = false)
     })
 
-  "Compacting the staging revision" should "reduce the number of delta AddFiles" ignore
-    withExtendedSparkAndTmpDir(
-      sparkConfWithSqlAndCatalog
-        .set("spark.qbeast.compact.minFileSizeInBytes", "1")
-        .set("spark.qbeast.compact.maxFileSizeInBytes", "2000000")) { (spark, tmpDir) =>
+  "Compacting the staging revision" should "reduce the number of delta AddFiles" in
+    withSparkAndTmpDir { (spark, tmpDir) =>
       {
         val fileFormat = "delta"
         convertFromFormat(spark, fileFormat, tmpDir)
@@ -237,10 +234,9 @@ class ConvertToQbeastTest
 
         // Standard staging revision behavior
         val qs = getQbeastSnapshot(spark, tmpDir)
-        val stagingCs = qs.loadLatestIndexStatus.cubesStatuses
+        val stagingFiles = qs.loadLatestIndexFiles
 
-        stagingCs.size shouldBe 1
-        stagingCs.head._2.files.size shouldBe <(numSparkPartitions)
+        stagingFiles.size shouldBe 1
       }
     }
 }

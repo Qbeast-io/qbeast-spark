@@ -38,4 +38,22 @@ trait DataWriter[DATA, DataSchema, FileDescriptor] {
       indexStatus: IndexStatus,
       tableChanges: TableChanges): IISeq[FileDescriptor]
 
+  /**
+   * Compacts the files of the specified index revision.
+   *
+   * @param tableId the table identifier
+   * @param schema the table schema
+   * @param revisionId the index revision
+   * @param indexFiles the index files to compact
+   * @param limit the desired minimum number of elements in a single index file
+   * after compaction
+   * @return the sequence of files written and deleted
+   */
+  def compact(
+      tableId: QTableID,
+      schema: DataSchema,
+      revisionId: RevisionID,
+      indexFiles: IISeq[IndexFile],
+      limit: Long): IISeq[FileDescriptor]
+
 }

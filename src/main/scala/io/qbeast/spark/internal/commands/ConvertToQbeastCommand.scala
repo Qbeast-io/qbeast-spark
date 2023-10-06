@@ -14,6 +14,7 @@ import io.qbeast.spark.utils.QbeastExceptionMessages.{
 import org.apache.http.annotation.Experimental
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
+import org.apache.spark.qbeast.config.DEFAULT_FILE_SIZE
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
@@ -32,12 +33,15 @@ import java.util.Locale
  *                       e.g. Seq("col1", "col2")
  * @param cubeSize INT, the desired cube size for the index
  *                 e.g. 5000
+ * @param fileSize INT, the desired file size for the index
+ *                 e.g. 5000
  */
 @Experimental
 case class ConvertToQbeastCommand(
     identifier: String,
     columnsToIndex: Seq[String],
-    cubeSize: Int = DEFAULT_CUBE_SIZE)
+    cubeSize: Int = DEFAULT_CUBE_SIZE,
+    fileSize: Long = DEFAULT_FILE_SIZE)
     extends LeafRunnableCommand
     with Logging
     with StagingUtils {
@@ -82,7 +86,7 @@ case class ConvertToQbeastCommand(
       val schema = deltaLog.update().schema
 
       SparkDeltaMetadataManager.updateMetadataWithTransaction(tableID, schema) {
-        val convRevision = stagingRevision(tableID, cubeSize, columnsToIndex)
+        val convRevision = stagingRevision(tableID, cubeSize, fileSize, columnsToIndex)
         val revisionID = convRevision.revisionID
 
         // Add staging revision to Revision Map, set it as the latestRevision

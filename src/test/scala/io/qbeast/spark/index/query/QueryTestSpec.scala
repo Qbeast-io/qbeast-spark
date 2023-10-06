@@ -48,6 +48,7 @@ trait QueryTestSpec extends AnyFlatSpec with Matchers with PrivateMethodTester {
       System.currentTimeMillis(),
       QTableID("test"),
       100,
+      100,
       columnTransformers,
       transformations)
   }

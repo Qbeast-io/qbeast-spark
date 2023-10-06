@@ -69,6 +69,7 @@ class QuerySpecBuilderTest extends QbeastIntegrationTestSpec with QueryTestSpec 
       System.currentTimeMillis(),
       QTableID("test"),
       100,
+      100,
       columnTransformers,
       transformations)
 

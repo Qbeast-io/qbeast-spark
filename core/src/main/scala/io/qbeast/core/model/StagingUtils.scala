@@ -32,6 +32,7 @@ trait StagingUtils {
   protected def stagingRevision(
       tableID: QTableID,
       desiredCubeSize: Int,
+      desiredFileSize: Long,
       columnsToIndex: Seq[String]): Revision = {
     val emptyTransformers = columnsToIndex.map(s => EmptyTransformer(s)).toIndexedSeq
     val emptyTransformations = emptyTransformers.map(_.makeTransformation(r => r))
@@ -41,6 +42,7 @@ trait StagingUtils {
       System.currentTimeMillis(),
       tableID,
       desiredCubeSize,
+      desiredFileSize,
       emptyTransformers,
       emptyTransformations)
   }

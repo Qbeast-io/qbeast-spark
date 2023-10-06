@@ -95,6 +95,7 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
           stagingRevision(
             newRevision.tableID,
             newRevision.desiredCubeSize,
+            newRevision.desiredFileSize,
             newRevision.columnTransformers.map(_.columnName))
             .copy(timestamp = newRevision.timestamp - 1)
 

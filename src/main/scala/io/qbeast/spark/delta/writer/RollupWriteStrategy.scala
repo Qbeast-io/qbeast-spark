@@ -98,8 +98,8 @@ private[writer] class RollupWriteStrategy(
     })
 
   private def computeRollupCubeIds: Map[CubeId, CubeId] = {
-    val limit = tableChanges.updatedRevision.desiredCubeSize.toDouble
-    val rollup = new Rollup(limit)
+    val desiredFileSize = tableChanges.updatedRevision.desiredFileSize.toDouble
+    val rollup = new Rollup(desiredFileSize)
     tableChanges.cubeDomains.foreach { case (cubeId, domain) =>
       val minWeight = getMinWeight(cubeId).fraction
       val maxWeight = getMaxWeight(cubeId).fraction
