@@ -19,7 +19,7 @@ class CubeWeightsBuilderTest extends AnyFlatSpec with Matchers with PrivateMetho
 
   private val rev =
     Revision
-      .firstRevision(QTableID("test"), dcs, transformers, transformations)
+      .firstRevision(QTableID("test"), dcs, dcs, transformers, transformations)
       .copy(revisionID = 1)
 
   private val emptyIndexStatus = IndexStatus.empty(rev)

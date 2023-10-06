@@ -23,7 +23,7 @@ class PointWeightIndexerTest extends AnyFlatSpec with Matchers {
     val deltaReplicatedSet: Set[CubeId] = Set.empty
 
     val updatedRevision: Revision =
-      Revision(-1L, System.currentTimeMillis(), QTableID(""), 0, Vector.empty, Vector.empty)
+      Revision(-1L, System.currentTimeMillis(), QTableID(""), 0, 0, Vector.empty, Vector.empty)
 
     val replicatedSet: Set[CubeId] = Set.empty
     val announcedSet: Set[CubeId] = Set.empty

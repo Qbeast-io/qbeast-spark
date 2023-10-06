@@ -135,10 +135,12 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
         12L,
         QTableID("test"),
         100,
+        100,
         Vector(Transformer("linear", "test1", DoubleDataType)),
         List(LinearTransformation(0.0, 10.0, 5.0, DoubleDataType)))
     val json =
       """{"revisionID":12,"timestamp":12,"tableID":"test","desiredCubeSize":100,""" +
+        """"desiredFileSize":100,""" +
         """"columnTransformers":[{"className":"io.qbeast.core.transform.LinearTransformer",""" +
         """"columnName":"test1","dataType":"DoubleDataType"}],"transformations":""" +
         """[{"className":"io.qbeast.core.transform.LinearTransformation","minNumber":0.0,""" +
@@ -154,10 +156,12 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
         12L,
         QTableID("test"),
         100,
+        100,
         Vector(Transformer("linear", "test1", LongDataType)),
         List(LinearTransformation(0L, 100L, 5L, LongDataType)))
     val json =
       """{"revisionID":12,"timestamp":12,"tableID":"test","desiredCubeSize":100,""" +
+        """"desiredFileSize":100,""" +
         """"columnTransformers":[{"className":"io.qbeast.core.transform.LinearTransformer",""" +
         """"columnName":"test1","dataType":"LongDataType"}],"transformations":""" +
         """[{"className":"io.qbeast.core.transform.LinearTransformation","minNumber":0,""" +
@@ -173,10 +177,12 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
         12L,
         QTableID("test"),
         100,
+        100,
         List(Transformer("hashing", "test1", StringDataType)),
         List(HashTransformation("null")))
     val json =
       """{"revisionID":12,"timestamp":12,"tableID":"test","desiredCubeSize":100,""" +
+        """"desiredFileSize":100,""" +
         """"columnTransformers":[{"className":"io.qbeast.core.transform.HashTransformer",""" +
         """"columnName":"test1","dataType":"StringDataType"}],"transformations":""" +
         """[{"className":"io.qbeast.core.transform.HashTransformation","nullValue":"null"}]}"""
