@@ -146,6 +146,8 @@ private[table] class IndexedTableImpl(
     checkColumnsToMatchSchema(latestRevision)
     // Checks if the desiredCubeSize is different from the existing one
     val isNewCubeSize = latestRevision.desiredCubeSize != qbeastOptions.cubeSize
+    // Checks if the desiredFileSize is different from the existing one
+    val isNewFileSize = latestRevision.desiredFileSize != qbeastOptions.fileSize
     // Checks if the user-provided column boundaries would trigger the creation of
     // a new revision.
     val isNewSpace = qbeastOptions.stats match {
@@ -165,7 +167,7 @@ private[table] class IndexedTableImpl(
           })
     }
 
-    isNewCubeSize || isNewSpace
+    isNewCubeSize || isNewFileSize || isNewSpace
 
   }
 
