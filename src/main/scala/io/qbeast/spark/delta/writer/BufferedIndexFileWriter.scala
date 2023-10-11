@@ -39,9 +39,11 @@ private[writer] class BufferedIndexFileWriter(target: IndexFileWriter, limit: In
   }
 
   private def flush(cubeId: CubeId, buffer: Buffer[(InternalRow, Weight)]): Unit = {
-    buffer.foreach { case (row, weight) =>
-      target.write(row, cubeId, weight)
-    }
+    buffer
+      .sortBy { case (_, weight) => weight.value }
+      .foreach { case (row, weight) =>
+        target.write(row, cubeId, weight)
+      }
   }
 
 }
