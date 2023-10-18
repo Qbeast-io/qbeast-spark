@@ -72,6 +72,13 @@ trait IndexedTable {
   def optimize(revisionID: RevisionID): Unit
 
   /**
+   * Optimizes the table according to a given specification.
+   *
+   * @param spec the operation specification
+   */
+  def optimize(spec: OptimizeSpec): Unit
+
+  /**
    * Compacts the small files for a given table
    */
   @deprecated("Moved to a different service", "0.5")
@@ -141,6 +148,7 @@ private[table] class IndexedTableImpl(
     private val revisionBuilder: RevisionFactory[StructType])
     extends IndexedTable
     with StagingUtils {
+
   private var snapshotCache: Option[QbeastSnapshot] = None
 
   override def exists: Boolean = !snapshot.isInitial
@@ -379,6 +387,44 @@ private[table] class IndexedTableImpl(
       (tableChanges, fileActions)
     }
 
+  }
+
+  override def optimize(spec: OptimizeSpec): Unit = {
+    optimizeFiles(spec.files)
+    optimizeCubes(spec.cubes)
+  }
+
+  private def optimizeFiles(files: FilesToOptimize): Unit = {
+    // Load the schema and the current status
+    val schema = metadataManager.loadCurrentSchema(tableID)
+    // Make the file filter
+    val filter: IndexFile => Boolean = files match {
+      case FilesToOptimize.All => _ => true
+      case FilesToOptimize.None => _ => false
+      case FilesToOptimize.Some(fs) =>
+        val paths = fs.toSet
+        file => paths.contains(file.file.path)
+    }
+    // For each revision do optimization
+    snapshot.loadAllRevisions.foreach { revision =>
+      val revisionID = revision.revisionID
+      val desiredFileSize = revision.desiredFileSize
+      val indexFiles = snapshot.loadIndexFiles(revisionID).filter(filter)
+      if (indexFiles.nonEmpty) {
+        val indexStatus = snapshot.loadIndexStatus(revisionID)
+        metadataManager.updateWithTransaction(tableID, schema, append = true) {
+          // There's no affected table changes on compaction, so we send an empty object
+          val tableChanges = BroadcastedTableChanges(None, indexStatus, Map.empty, Map.empty)
+          val fileActions =
+            dataWriter.compact(tableID, schema, revisionID, indexFiles, desiredFileSize)
+          (tableChanges, fileActions)
+        }
+      }
+    }
+  }
+
+  private def optimizeCubes(cubes: CubesToOptimize): Unit = {
+    // TODO: implement cube optimization
   }
 
   override def compact(revisionID: RevisionID): Unit = {

@@ -32,15 +32,11 @@ private[writer] class RollupCompactStrategy(
   private val spark = SparkSession.active
 
   override def compact(indexFiles: IISeq[IndexFile]): (IISeq[IndexFile], IISeq[IndexFile]) = {
-    val smallIndexFiles = getSmallIndexFiles(indexFiles)
-    val rollupCubeIds = computeRollupCubeIds(smallIndexFiles)
+    val rollupCubeIds = computeRollupCubeIds(indexFiles)
     val generators = mutable.Map.empty[CubeId, IndexFileGenerator]
-    smallIndexFiles.foreach(copyIndexFileBlocks(rollupCubeIds, generators))
-    (generators.values.map(_.close()).toIndexedSeq, smallIndexFiles)
+    indexFiles.foreach(copyIndexFileBlocks(rollupCubeIds, generators))
+    (generators.values.map(_.close()).toIndexedSeq, indexFiles)
   }
-
-  private def getSmallIndexFiles(indexFiles: IISeq[IndexFile]): IISeq[IndexFile] =
-    indexFiles.filter(_.elementCount < desiredFileSize)
 
   private def computeRollupCubeIds(indexFiles: IISeq[IndexFile]): Map[CubeId, CubeId] = {
     val rollup = new Rollup(desiredFileSize)

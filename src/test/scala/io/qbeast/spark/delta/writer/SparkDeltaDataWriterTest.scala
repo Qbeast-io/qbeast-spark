@@ -47,20 +47,16 @@ class SparkDeltaDataWriterTest extends QbeastIntegrationTestSpec {
 
     val files = DeltaQbeastSnapshot(
       DeltaLog.forTable(spark, tmpDir).unsafeVolatileSnapshot).loadLatestIndexFiles
-    val smallFilePaths =
-      files
-        .filter(_.elementCount < 1000)
-        .map(_.file.path)
-        .toSet
+    val filePaths = files.map(_.file.path).toSet
 
     val actions = SparkDeltaDataWriter.compact(QTableID(tmpDir), data.schema, 1, files, 1000)
     actions
       .filter(_.isInstanceOf[AddFile])
       .map(_.path)
-      .foreach(smallFilePaths shouldNot contain(_))
+      .foreach(filePaths shouldNot contain(_))
     actions
       .filter(_.isInstanceOf[RemoveFile])
       .map(_.path)
-      .foreach(smallFilePaths should contain(_))
+      .foreach(filePaths should contain(_))
   }
 }
