@@ -7,6 +7,7 @@ import org.apache.spark.sql.{AnalysisException, DataFrame}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions._
 
+@deprecated("Should be a different test", "0.5")
 class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
 
   private def writeTestDataInBatches(

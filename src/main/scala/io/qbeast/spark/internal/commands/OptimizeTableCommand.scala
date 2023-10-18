@@ -14,6 +14,7 @@ import org.apache.spark.sql.{Row, SparkSession}
  * @param revisionID the identifier of revision to optimize
  * @param indexedTable indexed table to optimize
  */
+@deprecated("Moved to a different service", "0.5")
 case class OptimizeTableCommand(revisionID: RevisionID, indexedTable: IndexedTable)
     extends LeafRunnableCommand {
 

@@ -4,6 +4,7 @@ import io.qbeast.core.model.CubeId
 import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
 import org.apache.spark.sql.SparkSession
 
+@deprecated("Should be a different test", "0.5")
 class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
 
   def optimize(spark: SparkSession, tmpDir: String, times: Int): Unit = {

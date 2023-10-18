@@ -8,6 +8,7 @@ import io.qbeast.spark.table.IndexedTable
 import org.apache.spark.sql.execution.command.{LeafRunnableCommand}
 import org.apache.spark.sql.{Row, SparkSession}
 
+@deprecated("Moved to a different service", "0.5")
 case class CompactTableCommand(revisionID: RevisionID, indexedTable: IndexedTable)
     extends LeafRunnableCommand {
 

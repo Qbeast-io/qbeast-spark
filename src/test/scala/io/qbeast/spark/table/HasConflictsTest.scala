@@ -4,6 +4,7 @@ import io.qbeast.core.model.{CubeId, QTableID}
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
 import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
 
+@deprecated("Should be a different test", "0.5")
 class HasConflictsTest extends QbeastIntegrationTestSpec {
 
   /**

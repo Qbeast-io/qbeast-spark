@@ -1,9 +1,9 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.spark.delta.OTreeIndex
-import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
+import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.execution.FileSourceScanExec
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.DataFrame
 
 class QbeastSamplingTest extends QbeastIntegrationTestSpec {
 
@@ -76,14 +76,6 @@ class QbeastSamplingTest extends QbeastIntegrationTestSpec {
         checkFileFiltering(query)
       }
     }
-
-  def optimize(spark: SparkSession, tmpDir: String, times: Int): Unit = {
-    val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-    (0 until times).foreach(_ => {
-      qbeastTable.analyze(); qbeastTable.optimize()
-    })
-
-  }
 
   "An optimized index" should "sample correctly" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>

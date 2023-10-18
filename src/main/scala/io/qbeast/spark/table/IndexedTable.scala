@@ -61,18 +61,22 @@ trait IndexedTable {
    * @param revisionID the identifier of revision to analyze
    * @return the cubes to analyze
    */
+  @deprecated("Moved to a different service", "0.5")
   def analyze(revisionID: RevisionID): Seq[String]
 
   /**
    * Optimizes the given table for a given revision
    * @param revisionID the identifier of revision to optimize
    */
+  @deprecated("Moved to a different service", "0.5")
   def optimize(revisionID: RevisionID): Unit
 
   /**
    * Compacts the small files for a given table
    */
+  @deprecated("Moved to a different service", "0.5")
   def compact(revisionID: RevisionID): Unit
+
 }
 
 /**

@@ -56,6 +56,7 @@ class QbeastTable private (
    * @param revisionID the identifier of the revision to optimize.
    *                          If doesn't exist or none is specified, would be the last available
    */
+  @deprecated("Moved to a different service", "0.5")
   def optimize(revisionID: RevisionID): Unit = {
     if (!isStaging(revisionID)) {
       checkRevisionAvailable(revisionID)
@@ -64,6 +65,7 @@ class QbeastTable private (
     }
   }
 
+  @deprecated("Moved to a different service", "0.5")
   def optimize(): Unit = {
     if (!isStaging(latestRevisionAvailableID)) {
       optimize(latestRevisionAvailableID)
@@ -77,6 +79,7 @@ class QbeastTable private (
    *                        If doesn't exist or none is specified, would be the last available
    * @return the sequence of cubes to optimize in string representation
    */
+  @deprecated("Moved to a different service", "0.5")
   def analyze(revisionID: RevisionID): Seq[String] = {
     if (isStaging(revisionID)) Seq.empty
     else {
@@ -87,6 +90,7 @@ class QbeastTable private (
     }
   }
 
+  @deprecated("Moved to a different service", "0.5")
   def analyze(): Seq[String] = {
     if (isStaging(latestRevisionAvailableID)) Seq.empty
     else analyze(latestRevisionAvailableID)
@@ -97,6 +101,7 @@ class QbeastTable private (
    * @param revisionID the identifier of the revision to optimize.
    *                        If doesn't exist or none is specified, would be the last available
    */
+  @deprecated("Moved to a different service", "0.5")
   def compact(revisionID: RevisionID): Unit = {
     checkRevisionAvailable(revisionID)
     CompactTableCommand(revisionID, indexedTable)
@@ -104,6 +109,7 @@ class QbeastTable private (
       .map(_.getString(0))
   }
 
+  @deprecated("Moved to a different service", "0.5")
   def compact(): Unit = {
     compact(latestRevisionAvailableID)
   }

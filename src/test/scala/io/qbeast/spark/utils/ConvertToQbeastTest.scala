@@ -8,7 +8,7 @@ import io.qbeast.spark.utils.QbeastExceptionMessages.{
   partitionedTableExceptionMsg,
   unsupportedFormatExceptionMsg
 }
-import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
+import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.scalatest.PrivateMethodTester
@@ -188,55 +188,4 @@ class ConvertToQbeastTest
       isStaging(rev) shouldBe false
     })
 
-  "Analyzing the staging revision" should "not change the ANNOUNCED set" in
-    withSparkAndTmpDir((spark, tmpDir) => {
-      convertFromFormat(spark, "parquet", tmpDir)
-
-      // Analyze the staging revision
-      val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-      qbeastTable.analyze()
-
-      // Preserve empty ANNOUNCED set
-      val qs = getQbeastSnapshot(spark, tmpDir)
-      qs.loadLatestIndexStatus.announcedSet.isEmpty shouldBe true
-    })
-
-  "Optimizing the staging revision" should "not replicate any data" in
-    withSparkAndTmpDir((spark, tmpDir) => {
-      val fileFormat = "parquet"
-      convertFromFormat(spark, fileFormat, tmpDir)
-
-      // Analyze and optimize
-      val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-      qbeastTable.analyze()
-      qbeastTable.optimize()
-
-      // Compare DataFrames
-      val sourceDf = spark.read.format(fileFormat).load(tmpDir)
-      val qbeastDf = spark.read.format("qbeast").load(tmpDir)
-      assertLargeDatasetEquality(qbeastDf, sourceDf, orderedComparison = false)
-    })
-
-  "Compacting the staging revision" should "reduce the number of delta AddFiles" in
-    withSparkAndTmpDir { (spark, tmpDir) =>
-      {
-        val fileFormat = "delta"
-        convertFromFormat(spark, fileFormat, tmpDir)
-
-        // Perform compaction
-        val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-        qbeastTable.compact()
-
-        // Compare DataFrames
-        val sourceDf = spark.read.format(fileFormat).load(tmpDir)
-        val qbeastDf = spark.read.format("qbeast").load(tmpDir)
-        assertLargeDatasetEquality(qbeastDf, sourceDf, orderedComparison = false)
-
-        // Standard staging revision behavior
-        val qs = getQbeastSnapshot(spark, tmpDir)
-        val stagingFiles = qs.loadLatestIndexFiles
-
-        stagingFiles.size shouldBe 1
-      }
-    }
 }

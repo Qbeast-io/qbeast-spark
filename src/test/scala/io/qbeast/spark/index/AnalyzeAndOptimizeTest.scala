@@ -12,6 +12,7 @@ import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+@deprecated("Functions under test moved to a different service", "0.5")
 class AnalyzeAndOptimizeTest
     extends AnyFlatSpec
     with Matchers
