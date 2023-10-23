@@ -5,11 +5,7 @@ package io.qbeast.spark.index
 
 import io.qbeast.IISeq
 import io.qbeast.core.model._
-import io.qbeast.core.transform.{
-  StringHistogramTransformation,
-  StringHistogramTransformer,
-  Transformer
-}
+import io.qbeast.core.transform.Transformer
 import io.qbeast.spark.index.QbeastColumns.{cubeToReplicateColumnName, weightColumnName}
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
 import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
@@ -72,12 +68,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     //  sequence of RevisionIDs in the metadata.
 
     val newTransformation =
-      revision.columnTransformers.map {
-        // StringHistogramTransformations are at the moment only updated by
-        // user-provided String histograms in the form of sorted Arrays
-        case _: StringHistogramTransformer => StringHistogramTransformation(Array.empty[String])
-        case t => t.makeTransformation(colName => row.getAs[Object](colName))
-      }
+      revision.columnTransformers.map(_.makeTransformation(colName => row.getAs[Object](colName)))
 
     val transformationDelta = if (revision.transformations.isEmpty) {
       newTransformation.map(a => Some(a))

@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.jsontype.TypeSerializer
 import com.fasterxml.jackson.databind.node.ArrayNode
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import com.fasterxml.jackson.databind.{DeserializationContext, SerializerProvider}
+import io.qbeast.core.transform.StringHistogramTransformer.defaultHist
 
 import scala.collection.Searching._
 
@@ -43,9 +44,10 @@ case class StringHistogramTransformation(stringHist: Array[String]) extends Tran
    */
   override def isSupersededBy(newTransformation: Transformation): Boolean =
     newTransformation match {
-      case _ @StringHistogramTransformation(hist) =>
-        // Any new non empty string histogram will supersede the current transformation
-        hist.nonEmpty && !stringHist.sameElements(hist)
+      case nt @ StringHistogramTransformation(hist) =>
+        if (hist.isEmpty) false
+        else if (stringHist.isEmpty) true
+        else !nt.isDefault
       case _: HashTransformation => true
     }
 
@@ -56,10 +58,14 @@ case class StringHistogramTransformation(stringHist: Array[String]) extends Tran
    * @return a new Transformation that contains both this and other.
    */
   override def merge(other: Transformation): Transformation = other match {
-    case _ @StringHistogramTransformation(hist) if hist.nonEmpty => other
-    case _: HashTransformation => other
+    case _: StringHistogramTransformation | _: HashTransformation => other
     case _ => this
   }
+
+  /**
+   * Determines whether the default String histogram is used
+   */
+  def isDefault: Boolean = stringHist.sameElements(defaultHist)
 
 }
 

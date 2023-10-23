@@ -1,10 +1,15 @@
 package io.qbeast.core.transform
 
 import io.qbeast.core.model.QDataType
+import io.qbeast.core.transform.StringHistogramTransformer.{defaultHist, defaultHistStr}
 
 object StringHistogramTransformer extends TransformerType {
   override def transformerSimpleName: String = "string_hist"
 
+  // "a" to "z"
+  val defaultHist: Array[String] = (97 to 122).map(_.toChar.toString).toArray
+
+  private val defaultHistStr: String = defaultHist.mkString("Array('", "', '", "')")
 }
 
 case class StringHistogramTransformer(columnName: String, dataType: QDataType)
@@ -18,7 +23,9 @@ case class StringHistogramTransformer(columnName: String, dataType: QDataType)
    *
    * @return
    */
-  override def stats: ColumnStats = NoColumnStats
+  override def stats: ColumnStats = ColumnStats(
+    statsNames = colHist :: Nil,
+    statsSqlPredicates = s"$defaultHistStr AS $colHist" :: Nil)
 
   /**
    * Returns the Transformation given a row representation of the values
@@ -29,8 +36,9 @@ case class StringHistogramTransformer(columnName: String, dataType: QDataType)
   override def makeTransformation(row: String => Any): Transformation = {
     val hist = row(colHist) match {
       case h: Seq[_] => h.map(_.toString).toArray
-      case _ => Array.empty[String]
+      case _ => defaultHist
     }
+
     StringHistogramTransformation(hist)
   }
 
