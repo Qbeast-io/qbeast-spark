@@ -27,10 +27,12 @@ case class StringHistogramTransformation(stringHist: Array[String]) extends Tran
       case _ => value.toString
     }
 
-    stringHist.search(v) match {
-      case Found(foundIndex) => foundIndex.toDouble / stringHist.length
-      case InsertionPoint(insertionPoint) => insertionPoint.toDouble / stringHist.length
-    }
+    if (stringHist.length > 1) {
+      stringHist.search(v) match {
+        case Found(foundIndex) => foundIndex.toDouble / (stringHist.length - 1)
+        case InsertionPoint(insertionPoint) => insertionPoint.toDouble / stringHist.length
+      }
+    } else 0d
   }
 
   /**
@@ -42,8 +44,9 @@ case class StringHistogramTransformation(stringHist: Array[String]) extends Tran
   override def isSupersededBy(newTransformation: Transformation): Boolean =
     newTransformation match {
       case _ @StringHistogramTransformation(hist) =>
+        // Any new non empty string histogram will supersede the current transformation
         hist.nonEmpty && !stringHist.sameElements(hist)
-      case _ => false
+      case _: HashTransformation => true
     }
 
   /**
@@ -54,6 +57,7 @@ case class StringHistogramTransformation(stringHist: Array[String]) extends Tran
    */
   override def merge(other: Transformation): Transformation = other match {
     case _ @StringHistogramTransformation(hist) if hist.nonEmpty => other
+    case _: HashTransformation => other
     case _ => this
   }
 
