@@ -7,7 +7,7 @@ object StringHistogramTransformer extends TransformerType {
   override def transformerSimpleName: String = "string_hist"
 
   // "a" to "z"
-  val defaultHist: Array[String] = (97 to 122).map(_.toChar.toString).toArray
+  val defaultHist: IndexedSeq[String] = (97 to 122).map(_.toChar.toString)
 
   private val defaultHistStr: String = defaultHist.mkString("Array('", "', '", "')")
 }
@@ -35,7 +35,7 @@ case class StringHistogramTransformer(columnName: String, dataType: QDataType)
    */
   override def makeTransformation(row: String => Any): Transformation = {
     val hist = row(colHist) match {
-      case h: Seq[_] => h.map(_.toString).toArray
+      case h: Seq[_] => h.map(_.toString).toIndexedSeq
       case _ => defaultHist
     }
 

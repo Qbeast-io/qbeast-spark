@@ -13,7 +13,7 @@ import scala.collection.Searching._
 
 @JsonSerialize(using = classOf[StringHistogramTransformationSerializer])
 @JsonDeserialize(using = classOf[StringHistogramTransformationDeserializer])
-case class StringHistogramTransformation(stringHist: Array[String]) extends Transformation {
+case class StringHistogramTransformation(stringHist: IndexedSeq[String]) extends Transformation {
 
   /**
    * Converts a real number to a normalized value.
@@ -28,12 +28,13 @@ case class StringHistogramTransformation(stringHist: Array[String]) extends Tran
       case _ => value.toString
     }
 
-    if (stringHist.length > 1) {
-      stringHist.search(v) match {
-        case Found(foundIndex) => foundIndex.toDouble / (stringHist.length - 1)
-        case InsertionPoint(insertionPoint) => insertionPoint.toDouble / stringHist.length
-      }
-    } else 0d
+    stringHist.search(v) match {
+      case Found(foundIndex) => foundIndex.toDouble / (stringHist.length - 1)
+      case InsertionPoint(insertionPoint) =>
+        if (insertionPoint == 0) 0d
+        else if (insertionPoint == stringHist.length + 1) 1d
+        else (insertionPoint - 1).toDouble / (stringHist.length - 1)
+    }
   }
 
   /**
@@ -47,7 +48,9 @@ case class StringHistogramTransformation(stringHist: Array[String]) extends Tran
       case nt @ StringHistogramTransformation(hist) =>
         if (hist.isEmpty) false
         else if (stringHist.isEmpty) true
-        else !nt.isDefault
+        else if (isDefault) !nt.isDefault
+        else if (nt.isDefault) false
+        else !(stringHist == hist)
       case _: HashTransformation => true
     }
 
@@ -65,7 +68,7 @@ case class StringHistogramTransformation(stringHist: Array[String]) extends Tran
   /**
    * Determines whether the default String histogram is used
    */
-  def isDefault: Boolean = stringHist.sameElements(defaultHist)
+  def isDefault: Boolean = stringHist == defaultHist
 
 }
 
@@ -113,7 +116,7 @@ class StringHistogramTransformationDeserializer
   override def deserialize(
       p: JsonParser,
       ctxt: DeserializationContext): StringHistogramTransformation = {
-    val stringHistBuilder = Array.newBuilder[String]
+    val stringHistBuilder = IndexedSeq.newBuilder[String]
 
     val root: TreeNode = p.getCodec.readTree(p)
     root.get("stringHist") match {
