@@ -117,15 +117,14 @@ val columnStats =
 
 ## String indexing via Histograms
 
-The default String column transformation (HashTransformation) has limited range query supports since the lexicographic ordering of the String values are not preserved.
+The default **String** column transformation (`HashTransformation`) has limited range query supports since the lexicographic ordering of the String values are not preserved.
 
-This can be addressed by introducing a custom String histogram in the form of sorted `Seq[String]`, and can lead to several improvements including:
+This can be addressed by introducing a custom **String** histogram in the form of sorted `Seq[String]`, and can lead to several improvements including:
 1. more efficient file-pruning because of its reduced file-level column min/max
 2. support for range queries on String columns
 3. improved overall query speed
 
-The following code snippet demonstrates the extraction of a string histogram from the source data.
-This is only necessary for the first write, if not otherwise made explicit, all subsequent appends will reuse the same histogram.
+The following code snippet demonstrates the extraction of a **String** histogram from the source data:
 ```scala
  import org.apache.spark.sql.delta.skipping.MultiDimClusteringFunctions
  import org.apache.spark.sql.DataFrame
@@ -161,10 +160,11 @@ val statsStr = s"""{"brand_hist":$brandStats}"""
   .option("columnStats", statsStr)
   .save(targetPath))
 ```
+This is only necessary for the first write, if not otherwise made explicit, all subsequent appends will reuse the same histogram.
+Any new custom histogram provided during `appends` forces the creation of a new `Revision`.
 
-A default string histogram("a" t0 "z") will be used if the use of histogram is stated(`stringColName:string_hist`) with no histogram in `columnStats`.
-
-Any new custom histogram provided during appends forces the creation of a new `Revision`.
+A default **String** histogram("a" t0 "z") will be used if the use of histogram is stated(`stringColName:string_hist`) with no histogram in `columnStats`.
+The default histogram can not supersede an existing `StringHashTransformation`.
 
 ## DefaultCubeSize
 
