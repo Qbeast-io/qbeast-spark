@@ -27,7 +27,15 @@ case class HashTransformation(nullValue: Any = Random.nextInt()) extends Transfo
    * @param newTransformation the new transformation created with statistics over the new data
    *  @return true if the domain of the newTransformation is not fully contained in this one.
    */
-  override def isSupersededBy(newTransformation: Transformation): Boolean = false
+  override def isSupersededBy(newTransformation: Transformation): Boolean =
+    newTransformation match {
+      case _ @StringHistogramTransformation(hist) => hist.nonEmpty
+      case _ => false
+    }
 
-  override def merge(other: Transformation): Transformation = this
+  override def merge(other: Transformation): Transformation = other match {
+    case _ @StringHistogramTransformation(hist) if hist.nonEmpty => other
+    case _ => this
+  }
+
 }
