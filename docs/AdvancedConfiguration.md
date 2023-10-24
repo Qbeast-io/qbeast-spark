@@ -115,6 +115,57 @@ val columnStats =
      |"date_max":"${formatter.format(maxTimestamp)}" }""".stripMargin
 ```
 
+## String indexing via Histograms
+
+The default String column transformation (HashTransformation) has limited range query supports since the lexicographic ordering of the String values are not preserved.
+
+This can be addressed by introducing a custom String histogram in the form of sorted `Seq[String]`, and can lead to several improvements including:
+1. more efficient file-pruning because of its reduced file-level column min/max
+2. support for range queries on String columns
+3. improved overall query speed
+
+The following code snippet demonstrates the extraction of a string histogram from the source data.
+This is only necessary for the first write, if not otherwise made explicit, all subsequent appends will reuse the same histogram.
+```scala
+ import org.apache.spark.sql.delta.skipping.MultiDimClusteringFunctions
+ import org.apache.spark.sql.DataFrame
+ import org.apache.spark.sql.functions.{col, min}
+
+ def getStringHistogramStr(columnName: String, numBins: Int, df: DataFrame): String = {
+   val binStarts = "__bin_starts"
+   val stringPartitionColumn =
+     MultiDimClusteringFunctions.range_partition_id(col(columnName), numBins)
+   df
+     .select(columnName)
+     .distinct()
+     .groupBy(stringPartitionColumn)
+     .agg(min(columnName).alias(binStarts))
+     .select(binStarts)
+     .orderBy(binStarts)
+     .collect()
+     .map { r =>
+       val s = r.getAs[String](0)
+       s"'$s'"
+     }
+     .mkString("[", ",", "]")
+ }
+
+val brandStats = getStringHistogramStr("brand", 50, df)
+val statsStr = s"""{"brand_hist":$brandStats}"""
+
+(df
+  .write
+  .mode("overwrite")
+  .format("qbeast")
+  .option("columnsToIndex", "brand:string_hist")
+  .option("columnStats", statsStr)
+  .save(targetPath))
+```
+
+A default string histogram("a" t0 "z") will be used if the use of histogram is stated(`stringColName:string_hist`) with no histogram in `columnStats`.
+
+Any new custom histogram provided during appends forces the creation of a new `Revision`.
+
 ## DefaultCubeSize
 
 If you don't specify the cubeSize at DataFrame level, the default value is used. This is set to 5M, so if you want to change it
