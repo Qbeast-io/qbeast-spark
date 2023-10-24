@@ -1,5 +1,6 @@
 package io.qbeast.core.transform
 
+import io.qbeast.core.transform.StringHistogramTransformer.defaultHist
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -25,6 +26,14 @@ class HashTransformationTest extends AnyFlatSpec with Matchers {
     val nullValue = ht.nullValue.asInstanceOf[Int]
     nullValue should be >= Int.MinValue
     nullValue should be < Int.MaxValue
+  }
+
+  it should "supersede StringHistogramTransformation" in {
+    val ht = HashTransformation()
+    val sht = StringHistogramTransformation(defaultHist)
+
+    ht.isSupersededBy(sht) shouldBe true
+    sht.isSupersededBy(ht) shouldBe true
   }
 
   "The murmur" should "uniformly distributed with Strings" in {

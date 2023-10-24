@@ -1,6 +1,7 @@
 package io.qbeast.core.transform
 
 import io.qbeast.core.model.DoubleDataType
+import io.qbeast.core.transform.StringHistogramTransformer.defaultHist
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -19,17 +20,21 @@ class EmptyTransformationTest extends AnyFlatSpec with Matchers {
     val et = EmptyTransformation()
     val ht = HashTransformation()
     val lt = LinearTransformation(1d, 1.1, DoubleDataType)
+    val sht = StringHistogramTransformation(defaultHist)
 
     et.isSupersededBy(ht) shouldBe true
     et.isSupersededBy(lt) shouldBe true
+    et.isSupersededBy(sht) shouldBe true
   }
 
   it should "return the other Transformation when merging" in {
     val et = EmptyTransformation()
     val ht = HashTransformation()
     val lt = LinearTransformation(1d, 1.1, DoubleDataType)
+    val sht = StringHistogramTransformation(defaultHist)
 
     et.merge(ht) shouldBe ht
     et.merge(lt) shouldBe lt
+    et.merge(sht) shouldBe sht
   }
 }
