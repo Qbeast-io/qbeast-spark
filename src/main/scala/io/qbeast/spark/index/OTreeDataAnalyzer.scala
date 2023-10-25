@@ -247,7 +247,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     }
 
     val spaceChanges =
-      if (isReplication) None
+      if (isReplication) None // IF is replication
       else calculateRevisionChanges(dataFrameStats, indexStatus.revision)
 
     // The revision to use
