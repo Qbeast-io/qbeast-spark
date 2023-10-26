@@ -155,38 +155,37 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
 
   it should "createNewRevision with columnStats " +
     "even on APPEND mode" in withSparkAndTmpDir((spark, tmpDir) => {
-    import spark.implicits._
-    val df = 0.to(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).toDF()
-    val columnStats = """{ "a_min": 0, "a_max": 20 }"""
+      import spark.implicits._
+      val df = 0.to(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).toDF()
+      val columnStats = """{ "a_min": 0, "a_max": 20 }"""
 
-    // On append mode, it already expects a RevisionChange,
-    // but in this case the change is defined by the user
-    // instead of triggered by the data
+      // On append mode, it already expects a RevisionChange,
+      // but in this case the change is defined by the user
+      // instead of triggered by the data
 
-    // TODO: very special case
-    // TODO: a cleaner solution would be to change the API for IndexManager
-    //  and allow to send a set of options
-    //  with user-specific configurations to Index
+      // TODO: very special case
+      // TODO: a cleaner solution would be to change the API for IndexManager
+      //  and allow to send a set of options
+      //  with user-specific configurations to Index
 
-    df.write
-      .mode("append")
-      .format("qbeast")
-      .option("columnsToIndex", "a")
-      .option("columnStats", columnStats)
-      .save(tmpDir)
+      df.write
+        .mode("append")
+        .format("qbeast")
+        .option("columnsToIndex", "a")
+        .option("columnStats", columnStats)
+        .save(tmpDir)
 
-    val qbeastSnapshot =
-      DeltaQbeastSnapshot(DeltaLog.forTable(spark, tmpDir).update())
-    val latestRevision = qbeastSnapshot.loadLatestRevision
-    val transformation = latestRevision.transformations.head
+      val qbeastSnapshot =
+        DeltaQbeastSnapshot(DeltaLog.forTable(spark, tmpDir).update())
+      val latestRevision = qbeastSnapshot.loadLatestRevision
+      val transformation = latestRevision.transformations.head
 
-    transformation should not be null
-    transformation shouldBe a[LinearTransformation]
-    transformation.asInstanceOf[LinearTransformation].minNumber shouldBe 0
-    transformation.asInstanceOf[LinearTransformation].maxNumber shouldBe 20
+      transformation should not be null
+      transformation shouldBe a[LinearTransformation]
+      transformation.asInstanceOf[LinearTransformation].minNumber shouldBe 0
+      transformation.asInstanceOf[LinearTransformation].maxNumber shouldBe 20
 
-  })
-
+    })
 
   it should "createNewRevision with min max timestamp" in withSpark(spark => {
     import spark.implicits._
