@@ -1,31 +1,23 @@
 package io.qbeast.core.transform
 
 import io.qbeast.core.model.QDataType
-import io.qbeast.core.transform.StringHistogramTransformer.{defaultHist, defaultHistStr}
-
-object StringHistogramTransformer extends TransformerType {
-  override def transformerSimpleName: String = "string_hist"
-
-  // "a" to "z"
-  val defaultHist: IndexedSeq[String] = (97 to 122).map(_.toChar.toString)
-
-  private val defaultHistStr: String = defaultHist.mkString("Array('", "', '", "')")
-}
+import io.qbeast.core.transform.HistogramTransformer.defaultStringHistogram
 
 case class StringHistogramTransformer(columnName: String, dataType: QDataType)
-    extends Transformer {
-  private val colHist = s"${columnName}_hist"
-
-  override protected def transformerType: TransformerType = StringHistogramTransformer
+    extends HistogramTransformer {
+  private val columnHistogram = s"${columnName}_histogram"
 
   /**
    * Returns the stats
    *
    * @return
    */
-  override def stats: ColumnStats = ColumnStats(
-    statsNames = colHist :: Nil,
-    statsSqlPredicates = s"$defaultHistStr AS $colHist" :: Nil)
+  override def stats: ColumnStats = {
+    val defaultHistString = defaultStringHistogram.mkString("Array('", "', '", "')")
+    ColumnStats(
+      statsNames = columnHistogram :: Nil,
+      statsSqlPredicates = s"$defaultHistString AS $columnHistogram" :: Nil)
+  }
 
   /**
    * Returns the Transformation given a row representation of the values
@@ -34,9 +26,9 @@ case class StringHistogramTransformer(columnName: String, dataType: QDataType)
    * @return the transformation
    */
   override def makeTransformation(row: String => Any): Transformation = {
-    val hist = row(colHist) match {
+    val hist = row(columnHistogram) match {
       case h: Seq[_] => h.map(_.toString).toIndexedSeq
-      case _ => defaultHist
+      case _ => defaultStringHistogram
     }
 
     StringHistogramTransformation(hist)

@@ -7,13 +7,20 @@ import com.fasterxml.jackson.databind.jsontype.TypeSerializer
 import com.fasterxml.jackson.databind.node.ArrayNode
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import com.fasterxml.jackson.databind.{DeserializationContext, SerializerProvider}
-import io.qbeast.core.transform.StringHistogramTransformer.defaultHist
+import io.qbeast.core.model.{QDataType, StringDataType}
+import io.qbeast.core.transform.HistogramTransformer.defaultStringHistogram
 
 import scala.collection.Searching._
 
 @JsonSerialize(using = classOf[StringHistogramTransformationSerializer])
 @JsonDeserialize(using = classOf[StringHistogramTransformationDeserializer])
-case class StringHistogramTransformation(stringHist: IndexedSeq[String]) extends Transformation {
+case class StringHistogramTransformation(histogram: IndexedSeq[String])
+    extends HistogramTransformation {
+  require(histogram.length > 1, s"Histogram length has to be > 1: ${histogram.length}")
+
+  override val dataType: QDataType = StringDataType
+
+  override def isDefault: Boolean = histogram == defaultStringHistogram
 
   /**
    * Converts a real number to a normalized value.
@@ -28,12 +35,12 @@ case class StringHistogramTransformation(stringHist: IndexedSeq[String]) extends
       case _ => value.toString
     }
 
-    stringHist.search(v) match {
-      case Found(foundIndex) => foundIndex.toDouble / (stringHist.length - 1)
+    histogram.search(v) match {
+      case Found(foundIndex) => foundIndex.toDouble / (histogram.length - 1)
       case InsertionPoint(insertionPoint) =>
         if (insertionPoint == 0) 0d
-        else if (insertionPoint == stringHist.length + 1) 1d
-        else (insertionPoint - 1).toDouble / (stringHist.length - 1)
+        else if (insertionPoint == histogram.length + 1) 1d
+        else (insertionPoint - 1).toDouble / (histogram.length - 1)
     }
   }
 
@@ -46,12 +53,10 @@ case class StringHistogramTransformation(stringHist: IndexedSeq[String]) extends
   override def isSupersededBy(newTransformation: Transformation): Boolean =
     newTransformation match {
       case nt @ StringHistogramTransformation(hist) =>
-        if (hist.isEmpty) false
-        else if (stringHist.isEmpty) true
-        else if (isDefault) !nt.isDefault
+        if (isDefault) !nt.isDefault
         else if (nt.isDefault) false
-        else !(stringHist == hist)
-      case _: HashTransformation => true
+        else !(histogram == hist)
+      case _ => false
     }
 
   /**
@@ -61,14 +66,9 @@ case class StringHistogramTransformation(stringHist: IndexedSeq[String]) extends
    * @return a new Transformation that contains both this and other.
    */
   override def merge(other: Transformation): Transformation = other match {
-    case _: StringHistogramTransformation | _: HashTransformation => other
+    case _: StringHistogramTransformation => other
     case _ => this
   }
-
-  /**
-   * Determines whether the default String histogram is used
-   */
-  def isDefault: Boolean = stringHist == defaultHist
 
 }
 
@@ -85,9 +85,9 @@ class StringHistogramTransformationSerializer
     typeSer.getPropertyName
     gen.writeStringField(typeSer.getPropertyName, typeSer.getTypeIdResolver.idFromValue(value))
 
-    gen.writeFieldName("stringHist")
+    gen.writeFieldName("histogram")
     gen.writeStartArray()
-    value.stringHist.foreach(gen.writeString)
+    value.histogram.foreach(gen.writeString)
     gen.writeEndArray()
 
     gen.writeEndObject()
@@ -99,9 +99,9 @@ class StringHistogramTransformationSerializer
       provider: SerializerProvider): Unit = {
     gen.writeStartObject()
 
-    gen.writeFieldName("stringHist")
+    gen.writeFieldName("histogram")
     gen.writeStartArray()
-    value.stringHist.foreach(gen.writeString)
+    value.histogram.foreach(gen.writeString)
     gen.writeEndArray()
 
     gen.writeEndObject()
@@ -116,15 +116,15 @@ class StringHistogramTransformationDeserializer
   override def deserialize(
       p: JsonParser,
       ctxt: DeserializationContext): StringHistogramTransformation = {
-    val stringHistBuilder = IndexedSeq.newBuilder[String]
+    val histogramBuilder = IndexedSeq.newBuilder[String]
 
-    val root: TreeNode = p.getCodec.readTree(p)
-    root.get("stringHist") match {
+    val tree: TreeNode = p.getCodec.readTree(p)
+    tree.get("histogram") match {
       case an: ArrayNode =>
-        (0 until an.size()).foreach(i => stringHistBuilder += an.get(i).asText())
+        (0 until an.size()).foreach(i => histogramBuilder += an.get(i).asText())
     }
 
-    StringHistogramTransformation(stringHistBuilder.result())
+    StringHistogramTransformation(histogramBuilder.result())
   }
 
 }

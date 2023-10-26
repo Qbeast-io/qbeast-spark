@@ -23,7 +23,7 @@ class TransformerTest extends AnyFlatSpec with Matchers {
     Transformer(columnName, dataType).spec shouldBe "a:linear"
     Transformer("linear", columnName, dataType).spec shouldBe "a:linear"
     Transformer("hashing", columnName, dataType).spec shouldBe "a:hashing"
-    Transformer("string_hist", columnName, dataType).spec shouldBe "a:string_hist"
+    Transformer("histogram", columnName, dataType).spec shouldBe "a:histogram"
     an[NoSuchElementException] should be thrownBy Transformer(
       "another",
       columnName,
@@ -82,14 +82,15 @@ class TransformerTest extends AnyFlatSpec with Matchers {
   it should "makeTransformation with String histograms" in {
     val columnName = "s"
     val dataType = StringDataType
-    val transformer = Transformer("string_hist", columnName, dataType)
+    val transformer = Transformer("histogram", columnName, dataType)
     transformer shouldBe a[StringHistogramTransformer]
 
     val hist = Seq("str_1", "str_2", "str_3", "str_4", "str_5", "str_6")
-    val transformation = Map(s"${columnName}_hist" -> hist)
+    val transformation = Map(s"${columnName}_histogram" -> hist)
     transformer.makeTransformation(transformation) match {
-      case _ @StringHistogramTransformation(stringHist) =>
-        stringHist == hist shouldBe true
+      case _ @StringHistogramTransformation(histogram) =>
+        histogram == hist shouldBe true
+      case _ => fail("should always be StringHistogramTransformation")
     }
 
   }

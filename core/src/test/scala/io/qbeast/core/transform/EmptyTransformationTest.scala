@@ -1,7 +1,7 @@
 package io.qbeast.core.transform
 
 import io.qbeast.core.model.DoubleDataType
-import io.qbeast.core.transform.StringHistogramTransformer.defaultHist
+import io.qbeast.core.transform.HistogramTransformer.defaultStringHistogram
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -20,7 +20,7 @@ class EmptyTransformationTest extends AnyFlatSpec with Matchers {
     val et = EmptyTransformation()
     val ht = HashTransformation()
     val lt = LinearTransformation(1d, 1.1, DoubleDataType)
-    val sht = StringHistogramTransformation(defaultHist)
+    val sht = StringHistogramTransformation(defaultStringHistogram)
 
     et.isSupersededBy(ht) shouldBe true
     et.isSupersededBy(lt) shouldBe true
@@ -31,7 +31,7 @@ class EmptyTransformationTest extends AnyFlatSpec with Matchers {
     val et = EmptyTransformation()
     val ht = HashTransformation()
     val lt = LinearTransformation(1d, 1.1, DoubleDataType)
-    val sht = StringHistogramTransformation(defaultHist)
+    val sht = StringHistogramTransformation(defaultStringHistogram)
 
     et.merge(ht) shouldBe ht
     et.merge(lt) shouldBe lt

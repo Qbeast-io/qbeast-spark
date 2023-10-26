@@ -150,13 +150,13 @@ The following code snippet demonstrates the extraction of a **String** histogram
  }
 
 val brandStats = getStringHistogramStr("brand", 50, df)
-val statsStr = s"""{"brand_hist":$brandStats}"""
+val statsStr = s"""{"brand_histogram":$brandStats}"""
 
 (df
   .write
   .mode("overwrite")
   .format("qbeast")
-  .option("columnsToIndex", "brand:string_hist")
+  .option("columnsToIndex", "brand:histogram")
   .option("columnStats", statsStr)
   .save(targetPath))
 ```

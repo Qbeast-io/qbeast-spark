@@ -1,6 +1,6 @@
 package io.qbeast.core.transform
 
-import io.qbeast.core.transform.StringHistogramTransformer.defaultHist
+import io.qbeast.core.transform.HistogramTransformer.defaultStringHistogram
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -10,9 +10,9 @@ class StringHistogramTransformationTest extends AnyFlatSpec with Matchers {
 
   "A StringHistogramTransformation" should "map values to [0d, 1d]" in {
     val attempts = 10
-    val sht = StringHistogramTransformation(defaultHist)
-    val minAsciiEnc = 32
-    val maxAsciiEnc = 126
+    val sht = StringHistogramTransformation(defaultStringHistogram)
+    val minAsciiEnc = 32 // SPACE
+    val maxAsciiEnc = 126 // ~
     (1 to attempts).foreach { _ =>
       val inputStr = (1 to 5)
         .map { _ =>
@@ -28,7 +28,7 @@ class StringHistogramTransformationTest extends AnyFlatSpec with Matchers {
   }
 
   it should "properly handle null" in {
-    val sht = StringHistogramTransformation(defaultHist)
+    val sht = StringHistogramTransformation(defaultStringHistogram)
     val v = sht.transform(null)
     v should be <= 1d
     v should be >= 0d
@@ -53,23 +53,25 @@ class StringHistogramTransformationTest extends AnyFlatSpec with Matchers {
   }
 
   it should "supersede correctly" in {
-    val emptyT = StringHistogramTransformation(Array.empty[String])
-    val defaultT = StringHistogramTransformation(defaultHist)
+    val defaultT = StringHistogramTransformation(defaultStringHistogram)
     val customT_1 =
       StringHistogramTransformation(Array("brand_A", "brand_B", "brand_C"))
     val customT_2 =
       StringHistogramTransformation(Array("brand_A", "brand_B", "brand_D"))
 
     defaultT.isSupersededBy(customT_1) shouldBe true
-    defaultT.isSupersededBy(emptyT) shouldBe false
     defaultT.isSupersededBy(defaultT) shouldBe false
 
     customT_1.isSupersededBy(defaultT) shouldBe false
-    customT_1.isSupersededBy(emptyT) shouldBe false
     customT_1.isSupersededBy(customT_1) shouldBe false
     customT_1.isSupersededBy(customT_2) shouldBe true
+  }
 
-    emptyT.isSupersededBy(defaultT) shouldBe true
-    emptyT.isSupersededBy(customT_1) shouldBe true
+  it should "have histograms with length > 1" in {
+    an[IllegalArgumentException] should be thrownBy
+      StringHistogramTransformation(Array.empty[String])
+
+    an[IllegalArgumentException] should be thrownBy
+      StringHistogramTransformation(Array("a"))
   }
 }

@@ -431,13 +431,13 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
       val df = loadTestData(spark)
 
       val colHistStr = getStringHistogramStr(colName, 50, df)
-      val statsStr = s"""{"${colName}_hist":$colHistStr}"""
+      val statsStr = s"""{"${colName}_histogram":$colHistStr}"""
 
       df.write
         .mode("overwrite")
         .format("qbeast")
         .option("cubeSize", "30000")
-        .option("columnsToIndex", s"$colName:string_hist")
+        .option("columnsToIndex", s"$colName:histogram")
         .option("columnStats", statsStr)
         .save(histPath)
       val histDist = computeColumnEncodingDist(spark, histPath, colName)
