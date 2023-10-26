@@ -23,7 +23,9 @@ class TransformerTest extends AnyFlatSpec with Matchers {
     Transformer(columnName, dataType).spec shouldBe "a:linear"
     Transformer("linear", columnName, dataType).spec shouldBe "a:linear"
     Transformer("hashing", columnName, dataType).spec shouldBe "a:hashing"
-    Transformer("histogram", columnName, dataType).spec shouldBe "a:histogram"
+
+    an[Exception] should be thrownBy Transformer("histogram", columnName, dataType).spec
+
     an[NoSuchElementException] should be thrownBy Transformer(
       "another",
       columnName,
