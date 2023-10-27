@@ -76,6 +76,7 @@ object IndexFiles {
    *
    * @param indexPath the path to the root of the index
    * @param indexFile the IndexFile instance
+   * @return a FileStatus instance
    */
   def toFileStatus(indexPath: Path)(indexFile: IndexFile): FileStatus = {
     var path = new Path(new URI(indexFile.path))
