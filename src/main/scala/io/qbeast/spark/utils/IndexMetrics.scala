@@ -90,7 +90,7 @@ object CubeSizeMetrics {
   def apply(cubeStatuses: Map[CubeId, CubeStatus], desiredCubeSize: Int): CubeSizeMetrics = {
     if (cubeStatuses.isEmpty) CubeSizeMetrics(-1, -1, -1, -1, -1, 0, -1, -1, "")
     else {
-      val cubeSizes = cubeStatuses.values.map(_.files.map(_.elementCount).sum).toSeq.sorted
+      val cubeSizes = cubeStatuses.values.map(_.blocks.map(_.elementCount).sum).toSeq.sorted
       val cubeCount = cubeStatuses.size.toDouble
 
       val l1_dev = l1Deviation(cubeSizes, desiredCubeSize)
@@ -105,7 +105,7 @@ object CubeSizeMetrics {
           .map { case (level, m) =>
             val cnt = m.size
             val avgWeight = m.values.map(_.normalizedWeight).sum / cnt
-            val levelCubeSizes = m.values.toSeq.map(_.files.map(_.elementCount).sum)
+            val levelCubeSizes = m.values.toSeq.map(_.blocks.map(_.elementCount).sum)
             val avgCubeSize = levelCubeSizes.sum / cnt
             Seq(
               level.toString,

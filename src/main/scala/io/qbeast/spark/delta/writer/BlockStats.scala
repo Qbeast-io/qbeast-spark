@@ -4,6 +4,7 @@
 package io.qbeast.spark.delta.writer
 
 import io.qbeast.core.model.Weight
+import io.qbeast.core.model.CubeId
 
 /**
  * Stats of a data block.
@@ -15,7 +16,7 @@ import io.qbeast.core.model.Weight
  * @param elementCount the number of rows
  */
 case class BlockStats protected (
-    cube: String,
+    cube: CubeId,
     maxWeight: Weight,
     minWeight: Weight,
     state: String,
@@ -49,7 +50,7 @@ object BlockStats {
    * @param maxWeight the maxWeight of the block
    * @return a new empty instance of BlockStats
    */
-  def apply(cube: String, state: String, maxWeight: Weight): BlockStats =
+  def apply(cube: CubeId, state: String, maxWeight: Weight): BlockStats =
     BlockStats(cube, maxWeight, minWeight = Weight.MaxValue, state, 0)
 
 }

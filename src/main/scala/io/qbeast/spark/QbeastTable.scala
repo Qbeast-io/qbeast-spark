@@ -174,7 +174,7 @@ class QbeastTable private (
 
     val cubeCount = cubeStatuses.size
     val depth = if (cubeCount == 0) -1 else cubeStatuses.map(_._1.depth).max + 1
-    val elementCount = cubeStatuses.flatMap(_._2.files.map(_.elementCount)).sum
+    val elementCount = cubeStatuses.flatMap(_._2.blocks.map(_.elementCount)).sum
 
     val indexingColumns = revision.columnTransformers.map(_.columnName)
     val dimensionCount = indexingColumns.size

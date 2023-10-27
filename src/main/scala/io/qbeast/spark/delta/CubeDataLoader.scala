@@ -4,11 +4,12 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model.{CubeId, QTableID, Revision}
-import io.qbeast.spark.utils.{State, TagColumns}
+import io.qbeast.spark.utils.TagColumns
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.functions.lit
+import scala.collection.JavaConverters._
 
 /**
  * Loads cube data from a specific table
@@ -59,19 +60,16 @@ case class CubeDataLoader(tableID: QTableID) {
    */
 
   def loadCubeData(cube: CubeId, revision: Revision): DataFrame = {
-
-    val cubeBlocks = snapshot.allFiles
-      .where(
-        TagColumns.revision === lit(revision.revisionID.toString) &&
-          TagColumns.cube === lit(cube.string) &&
-          TagColumns.state != lit(State.ANNOUNCED))
-      .collect()
-
-    val fileNames = cubeBlocks.map(f => new Path(tableID.id, f.path).toString)
-    spark.read
-      .format("parquet")
-      .load(fileNames: _*)
-
+    val dimensionCount = revision.transformations.size
+    val paths = snapshot.allFiles
+      .where(TagColumns.revision === lit(revision.revisionID.toString))
+      .toLocalIterator()
+      .asScala
+      .map(IndexFiles.fromAddFile(dimensionCount))
+      .filter(_.hasCubeData(cube))
+      .map(file => new Path(tableID.id, file.path).toString)
+      .toSeq
+    spark.read.parquet(paths: _*)
   }
 
 }

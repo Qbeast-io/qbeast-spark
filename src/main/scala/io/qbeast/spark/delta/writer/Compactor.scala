@@ -4,18 +4,30 @@
 package io.qbeast.spark.delta.writer
 
 import io.qbeast.IISeq
-import io.qbeast.core.model.{CubeId, QTableID, QbeastBlock, StagingUtils, TableChanges, Weight}
-import io.qbeast.spark.utils.{State, TagUtils}
+import io.qbeast.core.model.Block
+import io.qbeast.core.model.CubeId
+import io.qbeast.core.model.IndexFileBuilder
+import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.StagingUtils
+import io.qbeast.core.model.TableChanges
+import io.qbeast.core.model.Weight
+import io.qbeast.spark.delta.IndexFiles
+import io.qbeast.spark.utils.State
 import org.apache.hadoop.fs.Path
-import org.apache.hadoop.mapred.{JobConf, TaskAttemptContextImpl, TaskAttemptID}
+import org.apache.hadoop.mapred.JobConf
+import org.apache.hadoop.mapred.TaskAttemptContextImpl
+import org.apache.hadoop.mapred.TaskAttemptID
 import org.apache.hadoop.mapreduce.TaskType
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.delta.actions.{AddFile, FileAction, RemoveFile}
-import org.apache.spark.sql.execution.datasources.{OutputWriter, OutputWriterFactory}
+import org.apache.spark.sql.delta.actions.FileAction
+import org.apache.spark.sql.delta.actions.RemoveFile
+import org.apache.spark.sql.execution.datasources.OutputWriter
+import org.apache.spark.sql.execution.datasources.OutputWriterFactory
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.SerializableConfiguration
 
 import java.util.UUID
+import org.apache.spark.sql.delta.actions.AddFile
 
 /**
  * Compacts the information from a set of CubeBlocks into a single block
@@ -34,7 +46,7 @@ case class Compactor(
     serConf: SerializableConfiguration,
     schema: StructType,
     cubeId: CubeId,
-    cubeBlocks: IISeq[QbeastBlock],
+    cubeBlocks: IISeq[Block],
     tableChanges: TableChanges)
     extends Serializable
     with StagingUtils {
@@ -52,25 +64,12 @@ case class Compactor(
       if (b.minWeight < minWeight) minWeight = b.minWeight
       // maxWeight it's computed as the minimum of the maxWeights
       if (b.maxWeight < maxWeight) maxWeight = b.maxWeight
-      elementCount = elementCount + b.elementCount
-      RemoveFile(b.path, Some(System.currentTimeMillis()))
+      elementCount += b.elementCount
+      RemoveFile(b.file.path, Some(System.currentTimeMillis()))
     })
 
     val state = tableChanges.cubeState(cubeId).getOrElse(State.FLOODED)
     val revision = tableChanges.updatedRevision
-
-    // Update the tags of the block with the information of the cubeBlocks
-    val tags: Map[String, String] =
-      if (isStaging(revision)) null
-      else {
-        Map(
-          TagUtils.cube -> cubeId.string,
-          TagUtils.minWeight -> minWeight.value.toString,
-          TagUtils.maxWeight -> maxWeight.value.toString,
-          TagUtils.state -> state,
-          TagUtils.revision -> revision.revisionID.toString,
-          TagUtils.elementCount -> elementCount.toString)
-      }
 
     val writtenPath = new Path(tableID.id, s"${UUID.randomUUID()}.parquet")
     val writer: OutputWriter = factory.newInstance(
@@ -81,7 +80,6 @@ case class Compactor(
         new TaskAttemptID("", 0, TaskType.REDUCE, 0, 0)))
 
     // Write data
-
     try {
       it.foreach(writer.write)
     } finally {
@@ -93,18 +91,32 @@ case class Compactor(
       .getFileSystem(serConf.value)
       .getFileStatus(writtenPath)
 
-    val addFile = AddFile(
-      path = writtenPath.getName,
-      partitionValues = Map(),
-      size = fileStatus.getLen,
-      modificationTime = fileStatus.getModificationTime,
-      dataChange = false,
-      stats = "",
-      tags = tags)
-
+    val addFile = if (isStaging(tableChanges.updatedRevision)) {
+      AddFile(
+        path = writtenPath.getName,
+        partitionValues = Map.empty[String, String],
+        size = fileStatus.getLen(),
+        modificationTime = fileStatus.getModificationTime(),
+        dataChange = false)
+    } else {
+      val file = new IndexFileBuilder()
+        .setPath(writtenPath.getName())
+        .setSize(fileStatus.getLen())
+        .setModificationTime(fileStatus.getModificationTime())
+        .setRevisionId(revision.revisionID)
+        .beginBlock()
+        .setCubeId(cubeId)
+        .setMinWeight(minWeight)
+        .setMaxWeight(maxWeight)
+        .setElemenCount(elementCount)
+        .setReplicated(state == State.ANNOUNCED || state == State.REPLICATED)
+        .endBlock()
+        .result()
+      IndexFiles.toAddFile(false)(file)
+    }
     // Add the file to the commit log and remove the old ones
     // Better to check all the metadata associated
-    (Seq(addFile) ++ removedBlocks).toIterator
+    (Seq(addFile) ++ removedBlocks).iterator
   }
 
 }

@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.QbeastBlock
+import io.qbeast.core.model.Block
 import io.qbeast.spark.index.query.{QueryExecutor, QuerySpecBuilder}
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.spark.sql.SparkSession
@@ -45,7 +45,7 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
 
   protected def matchingBlocks(
       partitionFilters: Seq[Expression],
-      dataFilters: Seq[Expression]): Iterable[QbeastBlock] = {
+      dataFilters: Seq[Expression]): Iterable[Block] = {
 
     val querySpecBuilder = new QuerySpecBuilder(dataFilters ++ partitionFilters)
     val queryExecutor = new QueryExecutor(querySpecBuilder, qbeastSnapshot)
@@ -72,15 +72,13 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
   override def listFiles(
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
-    val qbeastFileStats = matchingBlocks(partitionFilters, dataFilters).map { qbeastBlock =>
-      new FileStatus(
-        /* length */ qbeastBlock.size,
-        /* isDir */ false,
-        /* blockReplication */ 0,
-        /* blockSize */ 1,
-        /* modificationTime */ qbeastBlock.modificationTime,
-        absolutePath(qbeastBlock.path))
-    }.toArray
+    val qbeastFileStats = matchingBlocks(partitionFilters, dataFilters)
+      .map(block => (block.file))
+      .map(file => (file.path, file))
+      .toMap
+      .values
+      .map(IndexFiles.toFileStatus(index.path))
+      .toArray
     val stagingStats = stagingFiles
     val fileStats = qbeastFileStats ++ stagingStats
     val sc = index.spark.sparkContext

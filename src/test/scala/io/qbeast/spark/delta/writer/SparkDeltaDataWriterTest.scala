@@ -44,13 +44,13 @@ class SparkDeltaDataWriterTest extends QbeastIntegrationTestSpec {
       val writeTestSpec = WriteTestSpec(10, spark, tmpDir)
       writeTestSpec.writeData()
 
-      val cubeFiles = writeTestSpec.cubeStatuses.mapValues(_.files).toIndexedSeq
+      val cubeFiles = writeTestSpec.cubeStatuses.mapValues(_.blocks).toIndexedSeq
       val groupedCubeFiles = SparkDeltaDataWriter.groupFilesToCompact(cubeFiles)
 
       val groupedFiles = groupedCubeFiles.map(_._2)
 
       groupedFiles.foreach(blocks => {
-        val size = blocks.map(_.size).sum
+        val size = blocks.map(_.file.size).sum
         size shouldBe >=(MIN_COMPACTION_FILE_SIZE_IN_BYTES)
         size shouldBe <=(MAX_COMPACTION_FILE_SIZE_IN_BYTES)
       })
@@ -62,7 +62,7 @@ class SparkDeltaDataWriterTest extends QbeastIntegrationTestSpec {
       val writeTestSpec = WriteTestSpec(10, spark, tmpDir)
       writeTestSpec.writeData()
 
-      val cubeFiles = writeTestSpec.cubeStatuses.mapValues(_.files).toIndexedSeq
+      val cubeFiles = writeTestSpec.cubeStatuses.mapValues(_.blocks).toIndexedSeq
       val groupedCubeFiles = SparkDeltaDataWriter.groupFilesToCompact(cubeFiles)
       val groupedCubeFilesCount =
         groupedCubeFiles.map(g => (g._1.string, g._2.map(_.elementCount).sum)).toMap

@@ -4,9 +4,9 @@
 package io.qbeast.spark.delta.writer
 
 import io.qbeast.core.model.CubeId
+import io.qbeast.spark.delta.IndexFiles
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.index.QbeastColumns._
-import io.qbeast.spark.utils.TagUtils
 import org.apache.spark.sql.functions.col
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -44,15 +44,17 @@ class BlockWriterTest extends AnyFlatSpec with Matchers with QbeastIntegrationTe
       .mapPartitions(writer.writeRow)
       .collect()
 
-    val cubes = writeTestSpec.indexed
+    val expectedCubes = writeTestSpec.indexed
       .select(cubeColumnName)
       .collect()
-      .map { row =>
-        CubeId(1, row.getAs[Array[Byte]](0)).string
-      }
+      .map { row => CubeId(1, row.getAs[Array[Byte]](0)).string }
       .toSet
 
-    files.map(_._1.tags(TagUtils.cube)).forall(cube => cubes.contains(cube)) shouldBe true
+    val actualCubes =
+      files.map(_._1).map(IndexFiles.fromAddFile(1)).flatMap(_.blocks).map(_.cubeId.string).toSet
+
+    actualCubes.size shouldBe expectedCubes.size
+    actualCubes.foreach(c => expectedCubes should (contain(c)))
   }
 
   it should "work with empty partitions" in withSparkAndTmpDir { (spark, tmpDir) =>

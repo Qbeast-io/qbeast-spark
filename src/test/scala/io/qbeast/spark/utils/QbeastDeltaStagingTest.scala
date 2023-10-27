@@ -83,7 +83,7 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
       // Number of delta files before compaction
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
       val qsBefore = DeltaQbeastSnapshot(deltaLog.update())
-      val numFilesBefore = qsBefore.loadIndexStatus(stagingID).cubesStatuses.head._2.files.size
+      val numFilesBefore = qsBefore.loadIndexStatus(stagingID).cubesStatuses.head._2.blocks.size
 
       // Perform compaction
       val table = QbeastTable.forPath(spark, tmpDir)
@@ -91,7 +91,7 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
 
       // Number of delta files after compaction
       val qsAfter = DeltaQbeastSnapshot(deltaLog.update())
-      val numFilesAfter = qsAfter.loadIndexStatus(stagingID).cubesStatuses.head._2.files.size
+      val numFilesAfter = qsAfter.loadIndexStatus(stagingID).cubesStatuses.head._2.blocks.size
 
       numFilesAfter shouldBe <(numFilesBefore)
 

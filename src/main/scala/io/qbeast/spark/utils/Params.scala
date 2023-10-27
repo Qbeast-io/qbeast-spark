@@ -33,6 +33,7 @@ object TagUtils {
   final val state = "state"
   final val revision = "revision"
   final val elementCount = "elementCount"
+  final val blocks = "blocks"
 }
 
 object MetadataConfig {

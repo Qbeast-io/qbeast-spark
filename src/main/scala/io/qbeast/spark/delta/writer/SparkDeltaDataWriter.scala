@@ -110,22 +110,22 @@ object SparkDeltaDataWriter
    * @return
    */
   def groupFilesToCompact(
-      cubeStatuses: IISeq[(CubeId, IISeq[QbeastBlock])]): IISeq[(CubeId, IISeq[QbeastBlock])] = {
+      cubeStatuses: IISeq[(CubeId, IISeq[Block])]): IISeq[(CubeId, IISeq[Block])] = {
 
     // Check what cubes are suitable for compaction
     val cubesToCompact = cubeStatuses
       .map { case (cubeId, cubeBlocks) =>
-        (cubeId, cubeBlocks.filter(_.size >= MIN_COMPACTION_FILE_SIZE_IN_BYTES))
+        (cubeId, cubeBlocks.filter(_.file.size >= MIN_COMPACTION_FILE_SIZE_IN_BYTES))
       }
       .filter(_._2.nonEmpty)
 
     cubesToCompact.flatMap { case (cube, blocks) =>
-      val groups = Seq.newBuilder[Seq[QbeastBlock]]
-      val group = Seq.newBuilder[QbeastBlock]
+      val groups = Seq.newBuilder[Seq[Block]]
+      val group = Seq.newBuilder[Block]
       var count = 0L
 
       blocks.foreach(b => {
-        if (b.size + count > MAX_COMPACTION_FILE_SIZE_IN_BYTES) {
+        if (b.file.size + count > MAX_COMPACTION_FILE_SIZE_IN_BYTES) {
           // If we reach the MAX_FILE_SIZE_COMPACTION limit
           // we output a group of files for that cube
           groups += group.result()
@@ -137,7 +137,7 @@ object SparkDeltaDataWriter
         // Add the block to the group
         // Sum the size of the block
         group += b
-        count += b.size
+        count += b.file.size
       })
       groups += group.result() // Add the last group
       groups.result().map(b => (cube, b.toIndexedSeq))
@@ -164,7 +164,7 @@ object SparkDeltaDataWriter
 
     val sparkSession = SparkSession.active
 
-    val cubesToCompact = indexStatus.cubesStatuses.mapValues(_.files).toIndexedSeq
+    val cubesToCompact = indexStatus.cubesStatuses.mapValues(_.blocks).toIndexedSeq
     val cubesToCompactGrouped = groupFilesToCompact(cubesToCompact)
 
     val parallelJobCollection = new ParVector(cubesToCompactGrouped.toVector)
@@ -180,7 +180,7 @@ object SparkDeltaDataWriter
           Seq.empty
         } else { // Otherwise
           // Get the file names for the cubeId
-          val fileNames = cubeBlocks.map(f => new Path(tableID.id, f.path).toString)
+          val fileNames = cubeBlocks.map(f => new Path(tableID.id, f.file.path).toString)
           val compactor =
             Compactor(
               tableID = tableID,

@@ -6,6 +6,7 @@ import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
 import org.apache.spark.sql.{AnalysisException, DataFrame}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.SparkSession
 
 class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
 
@@ -69,17 +70,14 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
         // Write four batches
         writeTestDataInBatches(batch, tmpDir, 4)
 
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val originalNumOfFilesRoot =
-          deltaLog.update().allFiles.filter("tags.cube == ''").count()
+        val originalNumOfFilesRoot = getRootCubeFileCount(spark, tmpDir)
 
         // Compact the tables
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
         qbeastTable.compact()
 
         // Check if number of files are less than the original
-        val finalNumOfFilesRoot =
-          deltaLog.update().allFiles.filter("tags.cube == ''").count()
+        val finalNumOfFilesRoot = getRootCubeFileCount(spark, tmpDir)
 
         finalNumOfFilesRoot shouldBe >(1L)
         finalNumOfFilesRoot shouldBe <(originalNumOfFilesRoot)
@@ -95,16 +93,13 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
         // Write four batches
         writeTestDataInBatches(data, tmpDir, 2)
 
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val originalNumOfFilesRoot =
-          deltaLog.update().allFiles.filter("tags.cube == ''").count()
+        val originalNumOfFilesRoot = getRootCubeFileCount(spark, tmpDir)
 
         // Compact the table
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
         qbeastTable.compact()
 
-        val finalNumOfFilesRoot =
-          deltaLog.update().allFiles.filter("tags.cube == ''").count()
+        val finalNumOfFilesRoot = getRootCubeFileCount(spark, tmpDir)
 
         finalNumOfFilesRoot shouldBe originalNumOfFilesRoot
       }
@@ -235,4 +230,14 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
     a[AnalysisException] shouldBe thrownBy(qbeastTable.compact(3))
 
   })
+
+  private def getRootCubeFileCount(spark: SparkSession, directory: String): Long = {
+    val deltaLog = DeltaLog.forTable(spark, directory)
+    val snapshot = DeltaQbeastSnapshot(deltaLog.unsafeVolatileSnapshot)
+    val revision = snapshot.loadLatestRevision
+    val cubes = snapshot.loadIndexStatus(revision.revisionID).cubesStatuses
+    val status = cubes(revision.createCubeIdRoot())
+    status.blocks.map(_.file.path).toSet.size
+  }
+
 }
