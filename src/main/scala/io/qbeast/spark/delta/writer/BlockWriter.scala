@@ -64,7 +64,7 @@ case class BlockWriter(
         // we save those newly added leaves with the max weight possible
 
         val state = tableChanges.cubeState(cubeId).getOrElse(State.FLOODED)
-        val maxWeight = tableChanges.cubeWeights(cubeId).getOrElse(Weight.MaxValue)
+        val maxWeight = tableChanges.cubeWeight(cubeId).getOrElse(Weight.MaxValue)
         val blockCtx = blocks.getOrElse(cubeId, buildWriter(cubeId, state, maxWeight))
 
         // The row with only the original columns

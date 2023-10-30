@@ -105,7 +105,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
    */
   private[index] def computePartitionCubeDomains(
       numElements: Long,
-      revision: Revision,
       indexStatus: IndexStatus,
       isReplication: Boolean): DataFrame => Dataset[CubeDomain] =
     (weightedDataFrame: DataFrame) => {
@@ -116,6 +115,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         if (isReplication) Seq(weightColumnName, cubeToReplicateColumnName)
         else Seq(weightColumnName)
 
+      val revision = indexStatus.revision
       val cols = revision.columnTransformers.map(_.columnName) ++ indexColumns
 
       // Estimate the desiredSize of the cube at partition level
@@ -127,46 +127,120 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
       selected
         .mapPartitions(rows => {
-          val weights =
-            new CubeWeightsBuilder(
-              indexStatus = indexStatus,
-              numPartitions = numPartitions,
-              numElements = numElements,
-              bufferCapacity = bufferCapacity)
+          val domains = CubeDomainsBuilder(
+            indexStatus = indexStatus,
+            numPartitions = numPartitions,
+            numElements = numElements,
+            bufferCapacity = bufferCapacity)
           rows.foreach { row =>
             val point = RowUtils.rowValuesToPoint(row, revision)
             val weight = Weight(row.getAs[Int](weightIndex))
             if (isReplication) {
               val parentBytes = row.getAs[Array[Byte]](cubeToReplicateColumnName)
               val parent = Some(revision.createCubeId(parentBytes))
-              weights.update(point, weight, parent)
-            } else weights.update(point, weight)
+              domains.update(point, weight, parent)
+            } else domains.update(point, weight)
           }
-          weights.result().iterator
+          domains.result().iterator
         })
 
     }
 
   /**
-   * Aggregate partition cube domains to obtain global domains
-   * @param partitionCubeDomains cubeBytes-domain pairs from all partitions
-   * @param revision current index revision
-   * @return A Map of domain value for all unique CubeIds
+   * Aggregate partition cube domains to obtain global cube domains for the current write.
+   * @param indexStatus Updated IndexStatus
    */
-  private[index] def estimateGlobalCubeDomains(
-      partitionCubeDomains: Dataset[CubeDomain],
-      revision: Revision): Dataset[(CubeId, Double)] = {
-    val spark = SparkSession.active
-    import spark.implicits._
+  private[index] def computeGlobalCubeDomains(
+      indexStatus: IndexStatus): Dataset[CubeDomain] => Dataset[(CubeId, Double)] =
+    partitionCubeDomains => {
+      val spark = SparkSession.active
+      import spark.implicits._
 
-    partitionCubeDomains
-      .groupBy("cubeBytes")
-      .agg(sum("domain"))
-      .map { row =>
-        val bytes = row.getAs[Array[Byte]](0)
-        val domain = row.getAs[Double](1)
-        (revision.createCubeId(bytes), domain)
+      val revision = indexStatus.revision
+      partitionCubeDomains
+        .groupBy("cubeBytes")
+        .agg(sum("domain"))
+        .map { row =>
+          val bytes = row.getAs[Array[Byte]](0)
+          val domain = row.getAs[Double](1)
+          (revision.createCubeId(bytes), domain)
+        }
+    }
+
+  /**
+   * Compute domain value for each cube from the existing index.
+   * The domain of a given cube is computed as a fraction of its parent domain proportional
+   * to the ratio between its own tree size and its parent subtree size.
+   * @param cubesStatuses CubeStatus for all existing cubes
+   * @return
+   */
+  private[index] def computeExistingCubeDomains(
+      cubesStatuses: Map[CubeId, CubeStatus]): Map[CubeId, Double] = {
+    // TODO: Change the way the existing cube domains are computed:
+    // 1. Compute element count for the entire table
+    // 2. Root elementCount = totalElementCount * root.maxNormalizedWeight
+    // 3. For each subsequent cube, its domain can be defined as the fraction
+    // of its parent domain - f * parentDomain, where f is computed from the
+    // maxNormalizedWeight relations among sibling cubes, as of exactly how,
+    // I need to think about it more. But, if this works, we can compute the
+    // existing cube domains much more efficiently, and solve the problem of
+    // not knowing how to address the replicated data.
+    var treeSizes = cubesStatuses.map { case (cube, cs) =>
+      // TODO: How to ignore elements from replicated ancestors?
+      val elementCount = cs.files.map(_.elementCount).sum
+      cube -> elementCount.toDouble
+    }
+
+    val levelCubes = treeSizes.keys.groupBy(_.depth)
+    val (minLevel, maxLevel) = (levelCubes.keys.min, levelCubes.keys.max)
+
+    // cube sizes -> tree sizes
+    (maxLevel until minLevel by -1) foreach { level =>
+      levelCubes(level).foreach { cube =>
+        val treeSize = treeSizes.getOrElse(cube, 0d)
+        cube.parent match {
+          case Some(parent) =>
+            val parentTreeSize = treeSizes.getOrElse(parent, 0d) + treeSize
+            treeSizes += parent -> parentTreeSize
+          case _ => ()
+        }
       }
+    }
+
+    // tree sizes -> cube domain
+    var cubeDomains = Map.empty[CubeId, Double]
+    (minLevel to maxLevel) foreach { level =>
+      levelCubes(level).groupBy(_.parent).foreach {
+        case (None, topCubes) =>
+          topCubes.foreach(c => cubeDomains += (c -> treeSizes.getOrElse(c, 0d)))
+        case (Some(parent), children) =>
+          val parentDomain = cubeDomains.getOrElse(parent, 0d)
+          val childTreeSizes = children.map(c => (c, treeSizes.getOrElse(c, 0d)))
+          val subtreeSize = childTreeSizes.map(_._2).sum
+          childTreeSizes.foreach { case (c, ts) =>
+            val f = ts / subtreeSize
+            val domain = f * parentDomain
+            cubeDomains += (c -> domain)
+          }
+      }
+    }
+    cubeDomains
+  }
+
+  /**
+   * Merge the global cube domains from the current write with the existing cube domains.
+   */
+  private[index] def mergeCubeDomains(
+      globalCubeDomains: Map[CubeId, Double],
+      indexStatus: IndexStatus): Map[CubeId, Double] = indexStatus.cubesStatuses match {
+    case cubeStatuses if cubeStatuses.isEmpty => globalCubeDomains
+    case cubeStatuses =>
+      val existingCubeDomains = computeExistingCubeDomains(cubeStatuses)
+      (cubeStatuses.keys ++ globalCubeDomains.keys).toSet.map { cubeId: CubeId =>
+        val existingDomain = existingCubeDomains.getOrElse(cubeId, 0d)
+        val newDomain = globalCubeDomains.getOrElse(cubeId, 0d)
+        cubeId -> (existingDomain + newDomain)
+      }.toMap
   }
 
   /**
@@ -187,21 +261,20 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
   /**
    * Populate global NormalizedWeights in a top-down fashion using cube domains:
-   * Wc = Wpc + desiredCubeSize / domain. When domain smaller than or equal to
-   * desiredCubeSize, we force the cube to be a leaf.
-   * @param globalDomain cube domain from the entire dataset
-   * @param indexStatus existing Cube NormalizedWeights
+   * Wc = Wpc + desiredCubeSize / domain. When treeSize <= desiredCubeSize, we force a leaf.
+   * @param mergedCubeDomains merged cube domain
+   * @param indexStatus existing index metadata
    * @param isReplication whether the current process is a replication process
    * @return
    */
   private[index] def estimateCubeWeights(
-      globalDomain: Seq[(CubeId, Double)],
+      mergedCubeDomains: Seq[(CubeId, Double)],
       indexStatus: IndexStatus,
       isReplication: Boolean): Map[CubeId, NormalizedWeight] = {
     var cubeNormalizedWeights = Map.empty[CubeId, NormalizedWeight]
     val desiredCubeSize = indexStatus.revision.desiredCubeSize
 
-    val levelCubes = globalDomain.groupBy(_._1.depth)
+    val levelCubes = mergedCubeDomains.groupBy(_._1.depth)
     val (minLevel, maxLevel) = (levelCubes.keys.min, levelCubes.keys.max)
 
     (minLevel to maxLevel).foreach { level =>
@@ -220,8 +293,8 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
           val normalizedWeight =
             if (treeSize <= desiredCubeSize && !isReplication) {
-              NormalizedWeight(desiredCubeSize, treeSize.toLong)
-            } else parentWeight + (desiredCubeSize / domain)
+              parentWeight + NormalizedWeight(desiredCubeSize, treeSize.toLong)
+            } else parentWeight + NormalizedWeight(desiredCubeSize, domain.toLong)
 
           cubeNormalizedWeights += (cube -> normalizedWeight)
         }
@@ -249,35 +322,41 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       if (isReplication) None
       else calculateRevisionChanges(dataFrameStats, indexStatus.revision)
 
-    // The revision to use
-    val revision = spaceChanges match {
-      case Some(revisionChange) =>
-        revisionChange.createNewRevision
-      case None => indexStatus.revision
+    // The IndexStatus to use
+    val updatedIndexStatus = spaceChanges match {
+      case None => indexStatus
+      case Some(revisionChange) => IndexStatus(revisionChange.createNewRevision)
     }
 
-    // First, add a random weight column
-    val weightedDataFrame = dataFrame.transform(addRandomWeight(revision))
+    // Add a random weight column
+    val weightedDataFrame = dataFrame.transform(addRandomWeight(updatedIndexStatus.revision))
 
-    // Second, compute partition-level cube domains
+    // Compute partition-level cube domains
     val partitionCubeDomains: Dataset[CubeDomain] =
       weightedDataFrame
-        .transform(computePartitionCubeDomains(numElements, revision, indexStatus, isReplication))
+        .transform(computePartitionCubeDomains(numElements, updatedIndexStatus, isReplication))
 
-    // Estimate global domain
-    val globalDomain: Seq[(CubeId, Double)] =
-      estimateGlobalCubeDomains(partitionCubeDomains, revision).collect()
+    // Compute global cube domains for the current write
+    val globalCubeDomains: Map[CubeId, Double] =
+      partitionCubeDomains
+        .transform(computeGlobalCubeDomains(updatedIndexStatus))
+        .collect()
+        .toMap
+
+    // Merge globalCubeDomain with the existing cube domains
+    val mergedCubeDomains: Map[CubeId, Double] = mergeCubeDomains(globalCubeDomains, indexStatus)
 
     // Populate NormalizedWeight level-wise from top to bottom
     val estimatedCubeWeights: Map[CubeId, NormalizedWeight] =
-      estimateCubeWeights(globalDomain, indexStatus, isReplication)
+      estimateCubeWeights(mergedCubeDomains.toSeq, indexStatus, isReplication)
 
     // Gather the new changes
     val tableChanges = BroadcastedTableChanges(
       spaceChanges,
       indexStatus,
       estimatedCubeWeights,
-      if (isReplication) indexStatus.cubesToOptimize
+      globalCubeDomains,
+      if (isReplication) updatedIndexStatus.cubesToOptimize
       else Set.empty[CubeId])
 
     (weightedDataFrame, tableChanges)
