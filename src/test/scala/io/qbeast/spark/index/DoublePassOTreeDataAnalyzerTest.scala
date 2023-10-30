@@ -210,8 +210,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
     val cubeCount =
       weightedDataFrame
-        .transform(
-          computePartitionCubeDomains(1000, revision, indexStatus, isReplication = false))
+        .transform(computePartitionCubeDomains(1000, indexStatus, isReplication = false))
         .groupBy("cubeBytes")
         .count()
         .map { row =>
@@ -246,8 +245,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
     val partitionCubeDomains =
       weightedDataFrame
-        .transform(
-          computePartitionCubeDomains(elementCount, revision, indexStatus, isReplication = false))
+        .transform(computePartitionCubeDomains(elementCount, indexStatus, isReplication = false))
 
     val globalCubeDomains =
       estimateGlobalCubeDomains(partitionCubeDomains, revision).collect().toMap
