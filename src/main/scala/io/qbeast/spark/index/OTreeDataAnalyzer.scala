@@ -105,6 +105,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
    */
   private[index] def computePartitionCubeDomains(
       numElements: Long,
+      revision: Revision,
       indexStatus: IndexStatus,
       isReplication: Boolean): DataFrame => Dataset[CubeDomain] =
     (weightedDataFrame: DataFrame) => {
@@ -115,7 +116,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
         if (isReplication) Seq(weightColumnName, cubeToReplicateColumnName)
         else Seq(weightColumnName)
 
-      val revision = indexStatus.revision
       val cols = revision.columnTransformers.map(_.columnName) ++ indexColumns
 
       // Estimate the desiredSize of the cube at partition level
@@ -151,12 +151,11 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
    * @param indexStatus Updated IndexStatus
    */
   private[index] def computeGlobalCubeDomains(
-      indexStatus: IndexStatus): Dataset[CubeDomain] => Dataset[(CubeId, Double)] =
+      revision: Revision): Dataset[CubeDomain] => Dataset[(CubeId, Double)] =
     partitionCubeDomains => {
       val spark = SparkSession.active
       import spark.implicits._
 
-      val revision = indexStatus.revision
       partitionCubeDomains
         .groupBy("cubeBytes")
         .agg(sum("domain"))
@@ -181,10 +180,10 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     // 2. Root elementCount = totalElementCount * root.maxNormalizedWeight
     // 3. For each subsequent cube, its domain can be defined as the fraction
     // of its parent domain - f * parentDomain, where f is computed from the
-    // maxNormalizedWeight relations among sibling cubes, as of exactly how,
-    // I need to think about it more. But, if this works, we can compute the
-    // existing cube domains much more efficiently, and solve the problem of
-    // not knowing how to address the replicated data.
+    // maxNormalizedWeight relations among sibling cubes.
+    // In this way, we can compute the existing cube domains much more
+    // efficiently, and solve the problem of not knowing how to address the
+    // replicated data.
     var treeSizes = cubesStatuses.map { case (cube, cs) =>
       // TODO: How to ignore elements from replicated ancestors?
       val elementCount = cs.files.map(_.elementCount).sum
@@ -322,24 +321,25 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       if (isReplication) None
       else calculateRevisionChanges(dataFrameStats, indexStatus.revision)
 
-    // The IndexStatus to use
-    val updatedIndexStatus = spaceChanges match {
-      case None => indexStatus
-      case Some(revisionChange) => IndexStatus(revisionChange.createNewRevision)
+    // The revision to use
+    val newRevision = spaceChanges match {
+      case None => indexStatus.revision
+      case Some(revisionChange) => revisionChange.createNewRevision
     }
 
     // Add a random weight column
-    val weightedDataFrame = dataFrame.transform(addRandomWeight(updatedIndexStatus.revision))
+    val weightedDataFrame = dataFrame.transform(addRandomWeight(newRevision))
 
     // Compute partition-level cube domains
     val partitionCubeDomains: Dataset[CubeDomain] =
       weightedDataFrame
-        .transform(computePartitionCubeDomains(numElements, updatedIndexStatus, isReplication))
+        .transform(
+          computePartitionCubeDomains(numElements, newRevision, indexStatus, isReplication))
 
     // Compute global cube domains for the current write
     val globalCubeDomains: Map[CubeId, Double] =
       partitionCubeDomains
-        .transform(computeGlobalCubeDomains(updatedIndexStatus))
+        .transform(computeGlobalCubeDomains(newRevision))
         .collect()
         .toMap
 
@@ -356,7 +356,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       indexStatus,
       estimatedCubeWeights,
       globalCubeDomains,
-      if (isReplication) updatedIndexStatus.cubesToOptimize
+      if (isReplication) indexStatus.cubesToOptimize
       else Set.empty[CubeId])
 
     (weightedDataFrame, tableChanges)
