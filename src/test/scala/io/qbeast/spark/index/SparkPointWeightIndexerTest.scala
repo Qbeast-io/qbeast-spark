@@ -27,7 +27,7 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
       Map(QbeastOptions.COLUMNS_TO_INDEX -> "a,b,c"))
 
     val indexStatus = IndexStatus(rev)
-    val tableChanges = BroadcastedTableChanges(None, indexStatus, Map.empty)
+    val tableChanges = BroadcastedTableChanges(None, indexStatus, Map.empty, Map.empty)
     val r = udf(() => {
       Random.nextInt
     })
@@ -60,7 +60,7 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
           Some(LinearTransformation(0, 10, IntegerDataType)),
           Some(HashTransformation()),
           Some(LinearTransformation(0.0, 10.0, DoubleDataType))))
-    val tc = BroadcastedTableChanges(Some(revisionChange), indexStatus, Map.empty)
+    val tc = BroadcastedTableChanges(Some(revisionChange), indexStatus, Map.empty, Map.empty)
 
     val r = udf(() => {
       Random.nextInt
@@ -94,7 +94,7 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
           Some(HashTransformation()),
           Some(HashTransformation()),
           Some(HashTransformation())))
-    val tc = BroadcastedTableChanges(Some(revisionChange), indexStatus, Map.empty)
+    val tc = BroadcastedTableChanges(Some(revisionChange), indexStatus, Map.empty, Map.empty)
 
     val r = udf(() => {
       Random.nextInt
