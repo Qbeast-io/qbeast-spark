@@ -199,7 +199,7 @@ class IndexTest
           block.cubeId.parent match {
             case None => // cube is root
             case Some(parent) =>
-              val parentMaxWeight = tc.cubeWeights(parent).get
+              val parentMaxWeight = tc.cubeWeight(parent).get
               block.minWeight should be >= parentMaxWeight
           }
         }

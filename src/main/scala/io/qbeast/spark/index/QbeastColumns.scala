@@ -36,12 +36,18 @@ object QbeastColumns {
    */
   val cubeToReplicateColumnName = "_qbeastCubeToReplicate"
 
+  /**
+   * Cube to rollup column name.
+   */
+  val cubeToRollupColumnName = "_qbeastCubeToRollup"
+
   val columnNames = Set(
     weightColumnName,
     cubeColumnName,
     stateColumnName,
     revisionColumnName,
-    cubeToReplicateColumnName)
+    cubeToReplicateColumnName,
+    cubeToRollupColumnName)
 
   /**
    * Creates an instance for a given data frame.
@@ -64,7 +70,8 @@ object QbeastColumns {
       cubeColumnIndex = columnIndexes.getOrElse(cubeColumnName, -1),
       stateColumnIndex = columnIndexes.getOrElse(stateColumnName, -1),
       revisionColumnIndex = columnIndexes.getOrElse(revisionColumnName, -1),
-      cubeToReplicateColumnIndex = columnIndexes.getOrElse(cubeToReplicateColumnName, -1))
+      cubeToReplicateColumnIndex = columnIndexes.getOrElse(cubeToReplicateColumnName, -1),
+      cubeToRollupColumnIndex = columnIndexes.getOrElse(cubeToRollupColumnName, -1))
   }
 
   /**
@@ -101,13 +108,17 @@ object QbeastColumns {
  * @param cubeToReplicateColumnIndex the cube to replicate
  *                                   column index or -1 if
  *                                   it is missing
+ * @param cubeToRollupColumnIndex the cube to rollup
+ *                                   column index or -1 if
+ *                                   it is missing
  */
 case class QbeastColumns(
     weightColumnIndex: Int,
     cubeColumnIndex: Int,
     stateColumnIndex: Int,
     revisionColumnIndex: Int,
-    cubeToReplicateColumnIndex: Int) {
+    cubeToReplicateColumnIndex: Int,
+    cubeToRollupColumnIndex: Int) {
 
   /**
    * Returns whether a given column is one of the Qbeast columns.
@@ -120,7 +131,8 @@ case class QbeastColumns(
     columnIndex == cubeColumnIndex ||
     columnIndex == stateColumnIndex ||
     columnIndex == revisionColumnIndex ||
-    columnIndex == cubeToReplicateColumnIndex
+    columnIndex == cubeToReplicateColumnIndex ||
+    columnIndex == cubeToRollupColumnIndex
   }
 
   /**
@@ -158,4 +170,10 @@ case class QbeastColumns(
    */
   def hasCubeToReplicateColumn: Boolean = cubeToReplicateColumnIndex >= 0
 
+  /**
+   * Returns whether the cube to rollup column exists.
+   *
+   * @return the cube to rollup column exists
+   */
+  def hasCubeToRollupColumn: Boolean = cubeToRollupColumnIndex >= 0
 }

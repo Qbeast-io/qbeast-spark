@@ -261,6 +261,7 @@ trait TableChanges {
   val updatedRevision: Revision
   val deltaReplicatedSet: Set[CubeId]
   val announcedOrReplicatedSet: Set[CubeId]
+  def cubeDomains: Map[CubeId, Double]
   def cubeState(cubeId: CubeId): Option[String]
-  def cubeWeights(cubeId: CubeId): Option[Weight]
+  def cubeWeight(cubeId: CubeId): Option[Weight]
 }
