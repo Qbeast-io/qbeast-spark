@@ -17,17 +17,17 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers with PrivateMethodTes
     val newCube = l1Cubes.next()
 
     val wcFactory = new WeightAndCountFactory(Map(root -> 0.8, c1 -> 1.0), 300)
-    val root_ = wcFactory.createWeightAndCount(root)
+    val root_ = wcFactory.create(root)
     root_ shouldBe an[InnerCubeWeightAndCount]
     root_.weight shouldBe Weight(0.8)
     root_.count shouldBe 0
 
-    val c1_ = wcFactory.createWeightAndCount(c1)
+    val c1_ = wcFactory.create(c1)
     c1_ shouldBe an[LeafCubeWeightAndCount]
     c1_.weight shouldBe MaxValue
     c1_.count shouldBe 300 - 1
 
-    val newCube_ = wcFactory.createWeightAndCount(newCube)
+    val newCube_ = wcFactory.create(newCube)
     newCube_ shouldBe an[WeightAndCount]
     newCube_.weight shouldBe MaxValue
     newCube_.count shouldBe 0

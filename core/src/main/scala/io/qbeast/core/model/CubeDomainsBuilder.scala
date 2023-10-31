@@ -27,6 +27,27 @@ object CubeDomainsBuilder {
     Math.max(minGroupCubeSize, groupCubeSize.toInt)
   }
 
+  /**
+   * Compute cube NormalizedWeights to properly reflect leaf cube elementCounts.
+   */
+  private def computeNormalizedWeights(
+      desiredCubeSize: Int,
+      groupCubeSize: Int,
+      cubeStatuses: Map[CubeId, CubeStatus]): Map[CubeId, NormalizedWeight] = {
+    val isLeaf = (cubeId: CubeId) => !cubeId.children.exists(cubeStatuses.contains)
+    val multiplier = groupCubeSize / desiredCubeSize.toDouble
+
+    cubeStatuses.map {
+      case (cubeId, status) if isLeaf(cubeId) =>
+        // TODO: Remove replicated data from cubeSize
+        val cubeSize = status.files.map(_.elementCount).sum
+        val groupSize = (cubeSize * multiplier).toLong.max(1L)
+        val nw = NormalizedWeight(groupCubeSize, groupSize).max(1.0)
+        cubeId -> nw
+      case (cubeId, status) => cubeId -> status.normalizedWeight
+    }
+  }
+
   def apply(
       indexStatus: IndexStatus,
       numPartitions: Int,
@@ -38,13 +59,16 @@ object CubeDomainsBuilder {
       numPartitions,
       numElements,
       bufferCapacity)
+    val factory = new WeightAndCountFactory(
+      computeNormalizedWeights(desiredCubeSize, groupCubeSize, indexStatus.cubesStatuses),
+      groupCubeSize)
 
     new CubeDomainsBuilder(
       desiredCubeSize,
       groupCubeSize,
       bufferCapacity,
-      indexStatus.replicatedOrAnnouncedSet,
-      indexStatus.cubesStatuses)
+      factory,
+      indexStatus.replicatedOrAnnouncedSet)
   }
 
 }
@@ -60,16 +84,13 @@ class CubeDomainsBuilder protected (
     private val desiredCubeSize: Int,
     private val groupCubeSize: Int,
     private val bufferCapacity: Long,
-    private val replicatedOrAnnouncedSet: Set[CubeId] = Set.empty,
-    private val existingCubeStatuses: Map[CubeId, CubeStatus] = Map.empty)
+    private val weightAndCountFactory: WeightAndCountFactory,
+    private val replicatedOrAnnouncedSet: Set[CubeId] = Set.empty)
     extends Serializable {
 
   private val byWeight = Ordering.by[PointWeightAndParent, Weight](_.weight).reverse
   private val queue = new mutable.PriorityQueue[PointWeightAndParent]()(byWeight)
   private var resultBuffer = Seq.empty[CubeDomain]
-
-  private val weightAndCountFactory =
-    WeightAndCountFactory(desiredCubeSize, groupCubeSize, existingCubeStatuses)
 
   /**
    * Updates the builder with given point with weight.
@@ -118,7 +139,7 @@ class CubeDomainsBuilder protected (
       while (continue && containers.hasNext) {
         val cubeId = containers.next()
         val weightAndCount =
-          weights.getOrElseUpdate(cubeId, weightAndCountFactory.createWeightAndCount(cubeId))
+          weights.getOrElseUpdate(cubeId, weightAndCountFactory.create(cubeId))
         if (weightAndCount.shouldInclude(weight, groupCubeSize)) {
           weightAndCount.update(weight)
           continue = replicatedOrAnnouncedSet.contains(cubeId)
@@ -181,30 +202,6 @@ class CubeDomainsBuilder protected (
 
 }
 
-private object WeightAndCountFactory {
-
-  def apply(
-      desiredCubeSize: Int,
-      groupCubeSize: Int,
-      cubeStatuses: Map[CubeId, CubeStatus]): WeightAndCountFactory = {
-    val isLeaf = (cubeId: CubeId) => !cubeId.children.exists(cubeStatuses.contains)
-    val multiplier = groupCubeSize / desiredCubeSize.toDouble
-
-    val cubeNormalizedWeights = cubeStatuses.map {
-      case (cubeId, status) if isLeaf(cubeId) =>
-        // TODO: Remove replicated data from cubeSize
-        val cubeSize = status.files.map(_.elementCount).sum
-        val groupSize = (cubeSize * multiplier).toLong.max(1L)
-        val nw = NormalizedWeight(groupCubeSize, groupSize).max(1.0)
-        cubeId -> nw
-      case (cubeId, status) => cubeId -> status.normalizedWeight
-    }
-
-    new WeightAndCountFactory(cubeNormalizedWeights, groupCubeSize)
-  }
-
-}
-
 /**
  * Factory for WeightAndCount. The creation of which depends on whether the associated
  * CubeId is present in the existing index, if it's a inner or leaf cube.
@@ -216,7 +213,7 @@ private class WeightAndCountFactory(
     existingNormalizedWeights: Map[CubeId, NormalizedWeight],
     groupCubeSize: Int) {
 
-  def createWeightAndCount(cubeId: CubeId): WeightAndCount =
+  def create(cubeId: CubeId): WeightAndCount =
     existingNormalizedWeights.get(cubeId) match {
       case Some(nw: NormalizedWeight) if nw < 1.0 =>
         new InnerCubeWeightAndCount(Weight(nw))
