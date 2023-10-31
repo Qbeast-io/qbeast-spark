@@ -13,6 +13,7 @@ private[model] object WeightAndCountFactory {
 
     val cubeNormalizedWeights = cubeStatuses.map {
       case (cubeId, status) if isLeaf(cubeId) =>
+        // TODO: Remove replicated data from cubeSize
         val cubeSize = status.files.map(_.elementCount).sum
         val groupSize = (cubeSize * multiplier).toLong.max(1L)
         val nw = NormalizedWeight(groupCubeSize, groupSize).max(1.0)

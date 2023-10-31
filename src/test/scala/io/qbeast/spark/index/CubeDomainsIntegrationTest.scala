@@ -8,7 +8,7 @@ import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.delta.DeltaLog
 import org.scalatest.PrivateMethodTester
 
-class CubeWeightsIntegrationTest extends QbeastIntegrationTestSpec with PrivateMethodTester {
+class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateMethodTester {
 
   def createDF(size: Int): Dataset[Client3] = {
     val spark = SparkSession.active

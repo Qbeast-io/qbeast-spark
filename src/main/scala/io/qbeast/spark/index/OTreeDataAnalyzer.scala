@@ -175,17 +175,8 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
    */
   private[index] def computeExistingCubeDomains(
       cubesStatuses: Map[CubeId, CubeStatus]): Map[CubeId, Double] = {
-    // TODO: Change the way the existing cube domains are computed:
-    // 1. Compute element count for the entire table
-    // 2. Root elementCount = totalElementCount * root.maxNormalizedWeight
-    // 3. For each subsequent cube, its domain can be defined as the fraction
-    // of its parent domain - f * parentDomain, where f is computed from the
-    // maxNormalizedWeight relations among sibling cubes.
-    // In this way, we can compute the existing cube domains much more
-    // efficiently, and solve the problem of not knowing how to address the
-    // replicated data.
     var treeSizes = cubesStatuses.map { case (cube, cs) =>
-      // TODO: How to ignore elements from replicated ancestors?
+      // TODO: Remove replicated data from cubeSize
       val elementCount = cs.files.map(_.elementCount).sum
       cube -> elementCount.toDouble
     }
