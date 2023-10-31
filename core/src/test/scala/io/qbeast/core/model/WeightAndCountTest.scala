@@ -36,6 +36,7 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers with PrivateMethodTes
   "A new WeightAndCount" should "include, update, and convert correctly (when full)" in {
     val newWc = new WeightAndCount(MaxValue, 0)
     val groupCubeSize = 5
+    val desiredCubeSize = groupCubeSize * 2
     val baseWeight = 0.54
 
     // Weights from Weight(0.55) to Weight(0.64)
@@ -43,7 +44,7 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers with PrivateMethodTes
       val w = Weight(baseWeight + (i.toDouble / 100))
       if (newWc.shouldInclude(w, groupCubeSize)) newWc.update(w)
     }
-    val wts = newWc.toWeightAndTreeSize(groupCubeSize)
+    val wts = newWc.toWeightAndTreeSize(groupCubeSize, desiredCubeSize)
 
     // With the groupCubeSize being 5, it should only accept the first 5 records
     newWc.count shouldBe 5
@@ -58,6 +59,7 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers with PrivateMethodTes
   it should "include, update, and convert correctly (when NOT full)" in {
     val newWc = new WeightAndCount(MaxValue, 0)
     val groupCubeSize = 15
+    val desiredCubeSize = groupCubeSize * 2
     val baseWeight = 0.54
 
     // Weights from Weight(0.55) to Weight(0.64)
@@ -65,7 +67,7 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers with PrivateMethodTes
       val w = Weight(baseWeight + (i.toDouble / 100))
       if (newWc.shouldInclude(w, groupCubeSize)) newWc.update(w)
     }
-    val wts = newWc.toWeightAndTreeSize(groupCubeSize)
+    val wts = newWc.toWeightAndTreeSize(groupCubeSize, desiredCubeSize)
 
     // With the groupCubeSize being 15, it should accept all 10 records
     newWc.count shouldBe 10
@@ -74,7 +76,7 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers with PrivateMethodTes
 
     // A full new WeightAndCount should have the proper Weight and NormalizedWeight
     newWc.weight shouldBe Weight(0.64)
-    wts.weight shouldBe NormalizedWeight(groupCubeSize, 10)
+    wts.weight shouldBe NormalizedWeight(desiredCubeSize, 10)
 
   }
 
@@ -82,6 +84,7 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers with PrivateMethodTes
     val existingWeight = Weight(0.6)
     val innerWc = new InnerCubeWeightAndCount(existingWeight)
     val groupCubeSize = 15
+    val desiredCubeSize = groupCubeSize * 2
     val baseWeight = 0.54
 
     // Weights from Weight(0.55) to Weight(0.64)
@@ -90,7 +93,7 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers with PrivateMethodTes
       if (innerWc.shouldInclude(w, groupCubeSize)) innerWc.update(w)
     }
 
-    val wts = innerWc.toWeightAndTreeSize(groupCubeSize)
+    val wts = innerWc.toWeightAndTreeSize(groupCubeSize, desiredCubeSize)
     // It should accept only the first 5 elements that have w < 0.6
     innerWc.count shouldBe 5
     innerWc.cubeSize shouldBe 5
@@ -104,6 +107,7 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers with PrivateMethodTes
   "LeafCubeWeightAndCount" should "include, update, and convert correctly (when full)" in {
     val leafWc = new LeafCubeWeightAndCount(5)
     val groupCubeSize = 10
+    val desiredCubeSize = groupCubeSize * 2
     val baseWeight = 0.54
 
     // Weights from Weight(0.55) to Weight(0.64)
@@ -111,7 +115,7 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers with PrivateMethodTes
       val w = Weight(baseWeight + (i.toDouble / 100))
       if (leafWc.shouldInclude(w, groupCubeSize)) leafWc.update(w)
     }
-    val wts = leafWc.toWeightAndTreeSize(groupCubeSize)
+    val wts = leafWc.toWeightAndTreeSize(groupCubeSize, desiredCubeSize)
 
     // With the groupCubeSize being 10, it should only accept the first
     // groupCubeSize - start = 5 records
@@ -128,6 +132,7 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers with PrivateMethodTes
   it should "include, update, and convert correctly (when NOT full)" in {
     val leafWc = new LeafCubeWeightAndCount(5)
     val groupCubeSize = 15
+    val desiredCubeSize = groupCubeSize * 2
     val baseWeight = 0.54
 
     // Weights from Weight(0.55) to Weight(0.64)
@@ -135,7 +140,7 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers with PrivateMethodTes
       val w = Weight(baseWeight + (i.toDouble / 100))
       if (leafWc.shouldInclude(w, groupCubeSize)) leafWc.update(w)
     }
-    val wts = leafWc.toWeightAndTreeSize(groupCubeSize)
+    val wts = leafWc.toWeightAndTreeSize(groupCubeSize, desiredCubeSize)
 
     // With the groupCubeSize being 15, it has the space for 10 records so
     // it should accept all 5
@@ -144,7 +149,7 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers with PrivateMethodTes
     wts.treeSize shouldBe 5
 
     // A full LeafCubeWeightAndCount should have the proper NormalizedWeight
-    wts.weight shouldBe NormalizedWeight(groupCubeSize, 5)
+    wts.weight shouldBe NormalizedWeight(desiredCubeSize, 5)
   }
 
 }

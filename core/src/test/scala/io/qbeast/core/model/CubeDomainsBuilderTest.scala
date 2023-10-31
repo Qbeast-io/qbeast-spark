@@ -93,7 +93,7 @@ class CubeDomainsBuilderTest extends AnyFlatSpec with Matchers with PrivateMetho
   }
 
   it should "respect bufferCapacity" in {
-    val builder = CubeDomainsBuilder(emptyIndexStatus, 10, 1000, 100000)
+    val builder = CubeDomainsBuilder(emptyIndexStatus, 10, 10000, 800)
     (1 to 1000).foreach(_ => builder.update(point, Weight(Random.nextInt())))
 
     val result = builder.result()
