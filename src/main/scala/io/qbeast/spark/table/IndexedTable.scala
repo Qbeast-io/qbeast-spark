@@ -5,8 +5,7 @@ package io.qbeast.spark.table
 
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model._
-import io.qbeast.spark.delta.{CubeDataLoader, StagingDataManager, StagingResolution}
-import io.qbeast.spark.index.QbeastColumns
+import io.qbeast.spark.delta.{StagingDataManager, StagingResolution}
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.QbeastOptions.{COLUMNS_TO_INDEX, CUBE_SIZE}
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
@@ -68,6 +67,14 @@ trait IndexedTable {
    * @param revisionID the identifier of revision to optimize
    */
   def optimize(revisionID: RevisionID): Unit
+
+  /**
+   * Optimizes the table by optimizing the data stored in the specified index
+   * files.
+   *
+   * @param files the index files to optimize
+   */
+  def optimize(files: Seq[String]): Unit
 
   /**
    * Compacts the small files for a given table
@@ -329,68 +336,30 @@ private[table] class IndexedTableImpl(
   }
 
   override def optimize(revisionID: RevisionID): Unit = {
+    val files = snapshot.loadIndexFiles(revisionID).map(_.path).toSeq
+    optimize(files)
+  }
 
-    // begin keeper transaction
-    val bo = keeper.beginOptimization(tableID, revisionID)
-
-    val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
-    val cubesToOptimize = bo.cubesToOptimize.map(currentIndexStatus.revision.createCubeId)
-    val indexStatus = currentIndexStatus.addAnnouncements(cubesToOptimize)
-    val cubesToReplicate = indexStatus.cubesToOptimize
+  override def optimize(files: Seq[String]): Unit = {
+    val paths = files.toSeq
     val schema = metadataManager.loadCurrentSchema(tableID)
-
-    if (cubesToReplicate.nonEmpty) {
-      try {
-        // Try to commit transaction
-        doOptimize(schema, indexStatus, cubesToReplicate)
-      } catch {
-        case _: ConcurrentModificationException => bo.end(Set())
-      } finally {
-        // end keeper transaction
-        bo.end(cubesToReplicate.map(_.string))
+    snapshot.loadAllRevisions.foreach { revision =>
+      val indexFiles = snapshot
+        .loadIndexFiles(revision.revisionID)
+        .filter(file => paths.contains(file.path))
+        .toIndexedSeq
+      if (indexFiles.nonEmpty) {
+        val indexStatus = snapshot.loadIndexStatus(revision.revisionID)
+        metadataManager.updateWithTransaction(tableID, schema, append = true) {
+          val tableChanges = BroadcastedTableChanges(None, indexStatus, Map.empty, Map.empty)
+          val fileActions =
+            dataWriter.compact(tableID, schema, revision, indexStatus, indexFiles)
+          (tableChanges, fileActions)
+        }
       }
-    } else {
-      bo.end(Set())
     }
-
-    clearCaches()
   }
 
-  private def doOptimize(
-      schema: StructType,
-      indexStatus: IndexStatus,
-      cubesToOptimize: Set[CubeId]): Unit = {
-
-    metadataManager.updateWithTransaction(tableID, schema, append = true) {
-      val dataToReplicate =
-        CubeDataLoader(tableID).loadSetWithCubeColumn(
-          cubesToOptimize,
-          indexStatus.revision,
-          QbeastColumns.cubeToReplicateColumnName)
-      val (qbeastData, tableChanges) =
-        indexManager.optimize(dataToReplicate, indexStatus)
-      val fileActions =
-        dataWriter.write(tableID, schema, qbeastData, tableChanges)
-      (tableChanges, fileActions)
-    }
-
-  }
-
-  override def compact(revisionID: RevisionID): Unit = {
-
-    // Load the schema and the current status
-    val schema = metadataManager.loadCurrentSchema(tableID)
-    val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
-
-    metadataManager.updateWithTransaction(tableID, schema, append = true) {
-      // There's no affected table changes on compaction, so we send an empty object
-      val tableChanges = BroadcastedTableChanges(None, currentIndexStatus, Map.empty, Map.empty)
-      val fileActions =
-        dataWriter.compact(tableID, schema, currentIndexStatus, tableChanges)
-      (tableChanges, fileActions)
-
-    }
-
-  }
+  override def compact(revisionID: RevisionID): Unit = optimize(revisionID)
 
 }

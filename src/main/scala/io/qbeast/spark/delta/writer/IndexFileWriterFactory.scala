@@ -4,7 +4,6 @@
 package io.qbeast.spark.delta.writer
 
 import io.qbeast.core.model.QTableID
-import io.qbeast.core.model.TableChanges
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapred.JobConf
 import org.apache.hadoop.mapred.TaskAttemptContextImpl
@@ -16,13 +15,14 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.SerializableConfiguration
 
 import java.util.UUID
+import io.qbeast.core.model.RevisionID
 
 /**
  * Factory for creating IndexFileWriter instances.
  *
  * @param tableId the table identifier
  * @param schema the table schema
- * @param tableChanges the table changes
+ * @param revisionId the index revision identifier
  * @param outputFactory the output factory
  * @param trackers the stats trackers
  * @param config the Hadoop configuration in serializable form
@@ -30,7 +30,7 @@ import java.util.UUID
 private[writer] class IndexFileWriterFactory(
     tableId: QTableID,
     schema: StructType,
-    tableChanges: TableChanges,
+    revisionId: RevisionID,
     outputFactory: OutputWriterFactory,
     trackers: Seq[WriteJobStatsTracker],
     config: SerializableConfiguration)
@@ -48,7 +48,7 @@ private[writer] class IndexFileWriterFactory(
     val context = new TaskAttemptContextImpl(jobConfig, taskId)
     val output = outputFactory.newInstance(path, schema, context)
     val taskTrackers = trackers.map(_.newTaskInstance())
-    new IndexFileWriter(tableChanges, output, taskTrackers, config.value)
+    new IndexFileWriter(revisionId, output, taskTrackers, config.value)
   }
 
 }

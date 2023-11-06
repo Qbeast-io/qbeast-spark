@@ -8,7 +8,7 @@ import io.qbeast.core.keeper.{Keeper, LocalKeeper}
 import io.qbeast.context.{QbeastContext, QbeastContextImpl}
 import io.qbeast.core.model.IndexManager
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
-import io.qbeast.spark.delta.writer.{SparkDeltaDataWriter}
+import io.qbeast.spark.delta.writer.{RollupDataWriter}
 import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionFactory}
 import io.qbeast.spark.table.IndexedTableFactoryImpl
 import org.apache.log4j.{Level}
@@ -137,7 +137,7 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
         keeper,
         SparkOTreeManager,
         SparkDeltaMetadataManager,
-        SparkDeltaDataWriter,
+        RollupDataWriter,
         SparkRevisionFactory)
       val context = new QbeastContextImpl(spark.sparkContext.getConf, keeper, indexedTableFactory)
       try {

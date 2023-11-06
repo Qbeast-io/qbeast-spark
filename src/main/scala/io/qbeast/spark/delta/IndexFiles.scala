@@ -20,6 +20,7 @@ import io.qbeast.core.model.Weight
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.fs.Path
 import java.net.URI
+import org.apache.spark.sql.delta.actions.RemoveFile
 
 /**
  * Utility object for working with index files.
@@ -70,6 +71,21 @@ object IndexFiles {
       dataChange = dataChange,
       tags = tags)
   }
+
+  /**
+   * Converts a given IndexFile instance to a RemoveFile instance.
+   *
+   * @param dataChange file removal implies data change
+   * @param indexFile the IndexFile instance
+   * @param a RemoveFile instance
+   */
+  def toRemoveFile(dataChange: Boolean = false)(indexFile: IndexFile): RemoveFile =
+    RemoveFile(
+      path = indexFile.path,
+      deletionTimestamp = Some(System.currentTimeMillis()),
+      dataChange = dataChange,
+      partitionValues = Map.empty[String, String],
+      size = Some(indexFile.size))
 
   /**
    * Converts IndexFile instance to FileStatus instance.

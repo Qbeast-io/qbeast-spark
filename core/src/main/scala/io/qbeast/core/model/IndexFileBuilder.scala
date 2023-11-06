@@ -95,7 +95,7 @@ object IndexFileBuilder {
   final class BlockBuilder private[IndexFileBuilder] (owner: IndexFileBuilder) {
     private var cubeId: Option[CubeId] = None
     private var minWeight: Option[Weight] = None
-    private var maxWeight: Weight = Weight.MaxValue
+    private var maxWeight: Option[Weight] = None
     private var elementCount: Long = 0L
     private var replicated: Boolean = false
 
@@ -143,7 +143,7 @@ object IndexFileBuilder {
      * @return this instance
      */
     def setMaxWeight(maxWeight: Weight): BlockBuilder = {
-      this.maxWeight = maxWeight
+      this.maxWeight = Some(maxWeight)
       this
     }
 
@@ -185,7 +185,7 @@ object IndexFileBuilder {
         None,
         cubeId.get,
         minWeight.getOrElse(Weight.MinValue),
-        maxWeight,
+        maxWeight.getOrElse(Weight.MaxValue),
         elementCount,
         replicated))
 

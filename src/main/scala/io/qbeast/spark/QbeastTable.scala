@@ -71,6 +71,14 @@ class QbeastTable private (
   }
 
   /**
+   * Optimizes the data stored in the index files specified by paths relative to
+   * the table directory.
+   *
+   * @param files the index files to optimize
+   */
+  def optimize(files: Seq[String]): Unit = indexedTable.optimize(files)
+
+  /**
    * The analyze operation should analyze the index structure
    * and find the cubes that need optimization
    * @param revisionID the identifier of the revision to optimize.

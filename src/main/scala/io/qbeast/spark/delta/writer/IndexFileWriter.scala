@@ -14,19 +14,23 @@ import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
 import scala.collection.mutable
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.conf.Configuration
-import io.qbeast.core.model.TableChanges
+import io.qbeast.core.model.RevisionID
 
 /**
  * Writer for writing index files.
+ *
+ * @param revisionId the revision identifier
+ * @param output the output writer
+ * @param trackers the task stats trackers
+ * @param config the Hadoop configuration
  */
 private[writer] class IndexFileWriter(
-    tableChanges: TableChanges,
+    revisionId: RevisionID,
     output: OutputWriter,
     trackers: Seq[WriteTaskStatsTracker],
     config: Configuration) {
 
-  private val file: IndexFileBuilder =
-    new IndexFileBuilder().setRevisionId(tableChanges.updatedRevision.revisionID)
+  private val file: IndexFileBuilder = new IndexFileBuilder().setRevisionId(revisionId)
 
   private val blocks: mutable.Map[CubeId, BlockBuilder] = mutable.Map.empty
 
@@ -36,13 +40,16 @@ private[writer] class IndexFileWriter(
    * Writes a given row, that should not have Qbeast specific columns.
    *
    * @param row the row to write
-   * @param cubeId the cube identifier
    * @param weight the weight
+   * @param cubeId the cube identifier
+   * @param cubeMaxWeight the maximum cube weight
    */
-  def write(row: InternalRow, cubeId: CubeId, weigth: Weight): Unit = {
+  def write(row: InternalRow, weight: Weight, cubeId: CubeId, cubeMaxWeight: Weight): Unit = {
     output.write(row)
-    val block = blocks.getOrElseUpdate(cubeId, file.beginBlock().setCubeId(cubeId))
-    block.incrementElemenCount().updateMinWeight(weigth)
+    val block = blocks.getOrElseUpdate(
+      cubeId,
+      file.beginBlock().setCubeId(cubeId).setMaxWeight(cubeMaxWeight))
+    block.incrementElemenCount().updateMinWeight(weight)
     trackers.foreach(_.newRow(output.path(), row))
   }
 

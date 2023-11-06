@@ -10,6 +10,7 @@ import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.{AnalysisExceptionFactory, Dataset}
+import scala.collection.JavaConverters._
 
 /**
  * Qbeast Snapshot that provides information about the current index state.
@@ -122,6 +123,19 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
     val revision = getRevision(revisionID)
     val replicatedSet = getReplicatedSet(revisionID)
     new IndexStatusBuilder(this, revision, replicatedSet).build()
+  }
+
+  override def loadLatestIndexFiles: IISeq[IndexFile] = loadIndexFiles(lastRevisionID)
+
+  override def loadIndexFiles(revisionId: RevisionID): IISeq[IndexFile] = {
+    val revision = loadRevision(revisionId)
+    val dimensionCount = revision.transformations.size
+    val addFiles = if (isStaging(revision)) {
+      loadStagingBlocks()
+    } else {
+      loadRevisionBlocks(revisionId)
+    }
+    addFiles.toLocalIterator().asScala.map(IndexFiles.fromAddFile(dimensionCount)).toIndexedSeq
   }
 
   /**
