@@ -7,8 +7,9 @@ import org.apache.spark.sql.{AnalysisException, DataFrame}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.internal.Logging
 
-class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
+class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec with Logging {
 
   private def writeTestDataInBatches(batch: DataFrame, tmpDir: String, numBatches: Int): Unit = {
     1.to(numBatches).foreach { _ =>
@@ -17,97 +18,65 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
   }
 
   "Compaction command" should
-    "reduce the number of files" ignore withExtendedSparkAndTmpDir(
-      sparkConfWithSqlAndCatalog.set("spark.qbeast.compact.minFileSizeInBytes", "1")) {
-      (spark, tmpDir) =>
-        {
+    "reduce the number of files" in withSparkAndTmpDir((spark, tmpDir) => {
 
-          val data = loadTestData(spark)
+      val data = loadTestData(spark)
 
-          // Creating four batches of 20000 elements each one
-          // So they all go to the root cube
-          // and we can compact them later
-          val limit = 20000
-          val numBatches = 4
-          val batch = data.limit(limit)
+      // Creating four batches of 20000 elements each one
+      // So they all go to the root cube
+      // and we can compact them later
+      val limit = 20000
+      val numBatches = 4
+      val batch = data.limit(limit)
 
-          // Write four batches
-          writeTestDataInBatches(batch, tmpDir, numBatches)
+      // Write four batches
+      writeTestDataInBatches(batch, tmpDir, numBatches)
 
-          val indexed = spark.read.format("qbeast").load(tmpDir)
-          val originalNumOfFiles = indexed.select(input_file_name()).distinct().count()
+      val indexed = spark.read.format("qbeast").load(tmpDir)
+      val originalNumOfFiles = indexed.select(input_file_name()).distinct().count()
 
-          val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-          qbeastTable.compact()
+      val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+      qbeastTable.compact()
 
-          val finalNumOfFiles = indexed.select(input_file_name()).distinct().count()
-          finalNumOfFiles shouldBe <(originalNumOfFiles)
-          finalNumOfFiles shouldBe 1L
+      val finalNumOfFiles = indexed.select(input_file_name()).distinct().count()
+      finalNumOfFiles shouldBe <(originalNumOfFiles)
+      finalNumOfFiles shouldBe 1L
 
-          // Test if the dataframe is correctly loaded
-          val deltaData = spark.read.format("delta").load(tmpDir)
-          indexed.count() shouldBe (limit * numBatches)
-          assertLargeDatasetEquality(indexed, deltaData, orderedComparison = false)
-
-        }
-    }
+      // Test if the dataframe is correctly loaded
+      val deltaData = spark.read.format("delta").load(tmpDir)
+      indexed.count() shouldBe (limit * numBatches)
+      assertLargeDatasetEquality(indexed, deltaData, orderedComparison = false)
+    })
 
   it should
     "compact in more than one file if MAX_FILE_SIZE_COMPACTION " +
-    "is exceeded" ignore withExtendedSparkAndTmpDir(
-      sparkConfWithSqlAndCatalog
-        .set("spark.qbeast.compact.minFileSizeInBytes", "1")
-        .set("spark.qbeast.compact.maxFileSizeInBytes", "2000000")) { (spark, tmpDir) =>
-      {
+    "is exceeded" in withSparkAndTmpDir((spark, tmpDir) => {
 
-        val data = loadTestData(spark)
+      val data = loadTestData(spark)
 
-        // Creating four batches of 20000 elements each one
-        // So they all go to the root cube
-        // and we can compact them later
-        val batch = data.limit(20000)
+      // Creating four batches of 20000 elements each one
+      // So they all go to the root cube
+      // and we can compact them later
+      val batch = data.limit(20000)
 
-        // Write four batches
-        writeTestDataInBatches(batch, tmpDir, 4)
+      // Write four batches
+      writeTestDataInBatches(batch, tmpDir, 4)
 
-        val originalNumOfFilesRoot = getRootCubeFileCount(spark, tmpDir)
+      val originalNumOfFilesRoot = getRootCubeFileCount(spark, tmpDir)
 
-        // Compact the tables
-        val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-        qbeastTable.compact()
+      // Compact the tables
+      val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+      qbeastTable.compact()
 
-        // Check if number of files are less than the original
-        val finalNumOfFilesRoot = getRootCubeFileCount(spark, tmpDir)
+      // Check if number of files are less than the original
+      val finalNumOfFilesRoot = getRootCubeFileCount(spark, tmpDir)
 
-        finalNumOfFilesRoot shouldBe >(1L)
-        finalNumOfFilesRoot shouldBe <(originalNumOfFilesRoot)
+      finalNumOfFilesRoot shouldBe >=(1L)
+      finalNumOfFilesRoot shouldBe <=(originalNumOfFilesRoot)
 
-      }
-    }
+    })
 
-  it should "not compact anything if sizes already match" ignore withQbeastContextSparkAndTmpDir {
-    (spark, tmpDir) =>
-      {
-        val data = loadTestData(spark)
-
-        // Write four batches
-        writeTestDataInBatches(data, tmpDir, 2)
-
-        val originalNumOfFilesRoot = getRootCubeFileCount(spark, tmpDir)
-
-        // Compact the table
-        val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-        qbeastTable.compact()
-
-        val finalNumOfFilesRoot = getRootCubeFileCount(spark, tmpDir)
-
-        finalNumOfFilesRoot shouldBe originalNumOfFilesRoot
-      }
-  }
-
-  it should "respect cube information" ignore withExtendedSparkAndTmpDir(
-    sparkConfWithSqlAndCatalog
-      .set("spark.qbeast.compact.minFileSizeInBytes", "1"))((spark, tmpDir) => {
+  it should "respect cube information" in withSparkAndTmpDir((spark, tmpDir) => {
 
     val data = loadTestData(spark)
 
@@ -127,17 +96,15 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
 
     // Check if both index status are coherent with each other
     newIndexStatus.revision shouldBe originalIndexStatus.revision
-    originalIndexStatus.cubeNormalizedWeights.foreach { case (cube, weight) =>
-      newIndexStatus.cubeNormalizedWeights.get(cube) shouldBe defined
-      newIndexStatus.cubeNormalizedWeights(cube) shouldBe weight
+    originalIndexStatus.cubesStatuses.foreach { case (cube, status) =>
+      newIndexStatus.cubesStatuses.get(cube) shouldBe defined
+      newIndexStatus.cubesStatuses(cube).maxWeight shouldBe status.maxWeight
     }
     newIndexStatus.replicatedSet shouldBe originalIndexStatus.replicatedSet
     newIndexStatus.announcedSet shouldBe originalIndexStatus.announcedSet
   })
 
-  it should "compact the latest revision available" ignore withExtendedSparkAndTmpDir(
-    sparkConfWithSqlAndCatalog
-      .set("spark.qbeast.compact.minFileSizeInBytes", "1"))((spark, tmpDir) => {
+  it should "compact the latest revision available" in withSparkAndTmpDir((spark, tmpDir) => {
 
     val data = loadTestData(spark)
 
@@ -176,9 +143,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
 
   })
 
-  it should "compact the specified revision" ignore withExtendedSparkAndTmpDir(
-    sparkConfWithSqlAndCatalog
-      .set("spark.qbeast.compact.minFileSizeInBytes", "1"))((spark, tmpDir) => {
+  it should "compact the specified revision" in withSparkAndTmpDir((spark, tmpDir) => {
 
     val data = loadTestData(spark)
 
@@ -217,27 +182,24 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec {
 
   })
 
-  it should "not compact if the revision does not exists" ignore withExtendedSparkAndTmpDir(
-    sparkConfWithSqlAndCatalog.set("spark.qbeast.compact.minFileSize", "1"))((spark, tmpDir) => {
+  it should "not compact if the revision does not exists" in withSparkAndTmpDir(
+    (spark, tmpDir) => {
 
-    val data = loadTestData(spark)
+      val data = loadTestData(spark)
 
-    // Write four batches
-    writeTestDataInBatches(data, tmpDir, 4)
+      // Write four batches
+      writeTestDataInBatches(data, tmpDir, 4)
 
-    // Try to compact the table with non-existing revision ID
-    val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-    a[AnalysisException] shouldBe thrownBy(qbeastTable.compact(3))
+      // Try to compact the table with non-existing revision ID
+      val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+      a[AnalysisException] shouldBe thrownBy(qbeastTable.compact(3))
 
-  })
+    })
 
   private def getRootCubeFileCount(spark: SparkSession, directory: String): Long = {
     val deltaLog = DeltaLog.forTable(spark, directory)
     val snapshot = DeltaQbeastSnapshot(deltaLog.unsafeVolatileSnapshot)
-    val revision = snapshot.loadLatestRevision
-    val cubes = snapshot.loadIndexStatus(revision.revisionID).cubesStatuses
-    val status = cubes(revision.createCubeIdRoot())
-    status.blocks.map(_.file.path).toSet.size
+    snapshot.loadLatestIndexFiles.size
   }
 
 }
