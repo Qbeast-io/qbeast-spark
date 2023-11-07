@@ -156,7 +156,7 @@ case class BlockWriter(
       extends Serializable {
 
     def update(minWeight: Weight): Unit =
-      builder.updateMinWeight(minWeight).incrementElemenCount()
+      builder.updateMinWeight(minWeight).incrementElementCount()
 
   }
 

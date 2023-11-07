@@ -153,7 +153,7 @@ object IndexFileBuilder {
      * @param elemenCount the elemenCount to set
      * @return this instance
      */
-    def setElemenCount(elementCount: Long): BlockBuilder = {
+    def setElementCount(elementCount: Long): BlockBuilder = {
       this.elementCount = elementCount
       this
     }
@@ -163,7 +163,7 @@ object IndexFileBuilder {
      *
      * @return this instance
      */
-    def incrementElemenCount(): BlockBuilder = setElemenCount(elementCount + 1)
+    def incrementElementCount(): BlockBuilder = setElementCount(elementCount + 1)
 
     /**
      * Sets replicated flag

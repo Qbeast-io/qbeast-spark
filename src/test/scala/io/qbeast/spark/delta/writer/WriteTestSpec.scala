@@ -77,7 +77,7 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
               .beginBlock()
               .setCubeId(cubeId)
               .setMaxWeight(maxWeight)
-              .setElemenCount(i * 10L)
+              .setElementCount(i * 10L)
               .setReplicated(false)
               .endBlock()
               .result()

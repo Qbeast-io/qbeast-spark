@@ -108,7 +108,7 @@ case class Compactor(
         .setCubeId(cubeId)
         .setMinWeight(minWeight)
         .setMaxWeight(maxWeight)
-        .setElemenCount(elementCount)
+        .setElementCount(elementCount)
         .setReplicated(state == State.ANNOUNCED || state == State.REPLICATED)
         .endBlock()
         .result()

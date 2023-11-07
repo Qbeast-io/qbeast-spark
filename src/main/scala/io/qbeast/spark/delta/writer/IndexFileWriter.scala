@@ -49,7 +49,7 @@ private[writer] class IndexFileWriter(
     val block = blocks.getOrElseUpdate(
       cubeId,
       file.beginBlock().setCubeId(cubeId).setMaxWeight(cubeMaxWeight))
-    block.incrementElemenCount().updateMinWeight(weight)
+    block.incrementElementCount().updateMinWeight(weight)
     trackers.foreach(_.newRow(output.path(), row))
   }
 

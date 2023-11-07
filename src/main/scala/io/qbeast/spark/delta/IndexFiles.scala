@@ -153,7 +153,7 @@ object IndexFiles {
         case "cubeId" => builder.setCubeId(CubeId(dimensionCount, parser.getValueAsString()))
         case "minWeight" => builder.setMinWeight(Weight(parser.getValueAsInt()))
         case "maxWeight" => builder.setMaxWeight(Weight(parser.getValueAsInt()))
-        case "elementCount" => builder.setElemenCount(parser.getValueAsLong())
+        case "elementCount" => builder.setElementCount(parser.getValueAsLong())
         case "replicated" => builder.setReplicated(parser.getValueAsBoolean())
         case name => throw new JsonParseException(parser, s"Unexpected field '${name}'")
       }
