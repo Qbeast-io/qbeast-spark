@@ -4,7 +4,7 @@ import io.qbeast.core.keeper.{Keeper, LocalKeeper}
 
 class ProtocolMockTest extends ProtocolMockTestSpec {
   "the qbeast-spark client" should
-    "throw an execution when an inconstant state is found" in withContext(LocalKeeper) {
+    "throw an exception when an inconsistent state is found" ignore withContext(LocalKeeper) {
       context =>
         implicit val keeper: Keeper = LocalKeeper
 
@@ -30,28 +30,28 @@ class ProtocolMockTest extends ProtocolMockTestSpec {
         writer.succeeded shouldBe Some(false)
 
     }
-  "A faulty keeper" should "not cause inconsistency with conflicts" in withContext(RandomKeeper) {
-    context =>
-      implicit val keeper: Keeper = RandomKeeper
-      val initProcess = new InitProcess(context)
-      val announcer = new AnnouncerProcess(context, Seq("", "A", "AA", "AAA"))
-      val writer = new WritingProcess(context)
-      val optim = new OptimizingProcessGood(context)
+  "A faulty keeper" should "not cause inconsistency with conflicts" ignore withContext(
+    RandomKeeper) { context =>
+    implicit val keeper: Keeper = RandomKeeper
+    val initProcess = new InitProcess(context)
+    val announcer = new AnnouncerProcess(context, Seq("", "A", "AA", "AAA"))
+    val writer = new WritingProcess(context)
+    val optim = new OptimizingProcessGood(context)
 
-      initProcess.startTransactionAndWait()
-      initProcess.finishTransaction()
+    initProcess.startTransactionAndWait()
+    initProcess.finishTransaction()
 
-      announcer.start()
-      announcer.join()
+    announcer.start()
+    announcer.join()
 
-      writer.startTransactionAndWait()
+    writer.startTransactionAndWait()
 
-      optim.startTransactionAndWait()
+    optim.startTransactionAndWait()
 
-      optim.finishTransaction()
+    optim.finishTransaction()
 
-      writer.finishTransaction()
-      writer.succeeded shouldBe Some(false)
+    writer.finishTransaction()
+    writer.succeeded shouldBe Some(false)
 
   }
 

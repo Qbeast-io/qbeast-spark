@@ -21,7 +21,6 @@ import scala.collection.JavaConverters._
 private[delta] class IndexStatusBuilder(
     qbeastSnapshot: DeltaQbeastSnapshot,
     revision: Revision,
-    replicatedSet: ReplicatedSet,
     announcedSet: Set[CubeId] = Set.empty)
     extends Serializable
     with StagingUtils {
@@ -38,6 +37,9 @@ private[delta] class IndexStatusBuilder(
     val cubeStatus =
       if (isStaging(revision)) stagingCubeStatuses
       else indexCubeStatuses
+
+    val replicatedSet =
+      cubeStatus.valuesIterator.filter(_.replicated).map(_.cubeId).toSet
 
     IndexStatus(
       revision = revision,

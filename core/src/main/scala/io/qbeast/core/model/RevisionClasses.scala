@@ -246,7 +246,12 @@ case class CubeStatus(
     maxWeight: Weight,
     normalizedWeight: NormalizedWeight,
     blocks: IISeq[Block])
-    extends Serializable
+    extends Serializable {
+  /**
+   * The cube is fully replicated, i.e. all its blovks are replicated.
+   */
+  lazy val replicated = blocks.forall(_.replicated)
+}
 
 /**
  * Companion object for the IndexStatus

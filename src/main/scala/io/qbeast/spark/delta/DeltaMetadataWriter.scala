@@ -151,13 +151,7 @@ private[delta] case class DeltaMetadataWriter(
     // The Metadata can be updated only once in a single transaction
     // If a new space revision or a new replicated set is detected,
     // we update everything in the same operation
-    updateQbeastMetadata(
-      txn,
-      schema,
-      isOverwriteOperation,
-      isOptimizeOperation,
-      rearrangeOnly,
-      tableChanges)
+    updateQbeastMetadata(txn, schema, isOverwriteOperation, rearrangeOnly, tableChanges)
 
     if (txn.readVersion < 0) {
       // Initialize the log path
