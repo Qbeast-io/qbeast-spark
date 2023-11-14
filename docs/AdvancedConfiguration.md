@@ -137,6 +137,7 @@ The following code snippet demonstrates the extraction of a **String** histogram
    df
      .select(columnName)
      .distinct()
+     .na.drop()
      .groupBy(stringPartitionColumn)
      .agg(min(columnName).alias(binStarts))
      .select(binStarts)
