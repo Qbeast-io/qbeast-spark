@@ -44,6 +44,7 @@ final class Block private[model] (
         && cubeId == other.cubeId
         && minWeight == other.minWeight
         && maxWeight == other.maxWeight
+        && elementCount == other.elementCount
         && replicated == other.replicated
     )
     case _ => false

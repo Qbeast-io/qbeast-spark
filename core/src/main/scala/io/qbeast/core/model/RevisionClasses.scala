@@ -247,6 +247,7 @@ case class CubeStatus(
     normalizedWeight: NormalizedWeight,
     blocks: IISeq[Block])
     extends Serializable {
+
   /**
    * The cube is fully replicated, i.e. all its blovks are replicated.
    */
