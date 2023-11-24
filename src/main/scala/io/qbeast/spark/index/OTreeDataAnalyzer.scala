@@ -9,6 +9,7 @@ import io.qbeast.core.transform.Transformer
 import io.qbeast.spark.index.QbeastColumns.{cubeToReplicateColumnName, weightColumnName}
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
 import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
+
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 
@@ -246,7 +247,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     }
 
     val spaceChanges =
-      if (isReplication) None
+      if (isReplication) None // IF is replication
       else calculateRevisionChanges(dataFrameStats, indexStatus.revision)
 
     // The revision to use
