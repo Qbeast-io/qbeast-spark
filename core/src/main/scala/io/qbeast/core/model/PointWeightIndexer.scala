@@ -27,7 +27,7 @@ class PointWeightIndexer(val tableChanges: TableChanges) extends Serializable {
     var continue = true
     while (continue && containers.hasNext) {
       val cubeId = containers.next()
-      tableChanges.cubeWeights(cubeId) match {
+      tableChanges.cubeWeight(cubeId) match {
         case Some(cubeWeight) if weight <= cubeWeight =>
           builder += cubeId
           continue = tableChanges.announcedOrReplicatedSet.contains(cubeId)

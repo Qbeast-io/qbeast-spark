@@ -5,7 +5,6 @@ package io.qbeast.spark.index.query
 
 import io.qbeast.IISeq
 import io.qbeast.core.model._
-import io.qbeast.spark.utils.State
 
 import scala.collection.mutable
 
@@ -19,7 +18,7 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
    * Executes the query on each revision according to their QuerySpec
    * @return the final sequence of blocks that match the query
    */
-  def execute(): Iterable[QbeastBlock] = {
+  def execute(): Iterable[Block] = {
 
     qbeastSnapshot.loadAllRevisions.flatMap { revision =>
       val querySpecs = querySpecBuilder.build(revision)
@@ -32,9 +31,9 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
           case (false, _: AllSpace) =>
             val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
             indexStatus.cubesStatuses.values.flatMap { status =>
-              status.files.filter(_.state == State.FLOODED)
+              status.blocks.filterNot(_.replicated)
             }
-          case _ => Seq.empty[QbeastBlock]
+          case _ => Seq.empty[Block]
         }
       }
     }.toSet
@@ -42,9 +41,9 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
 
   private[query] def executeRevision(
       querySpec: QuerySpec,
-      indexStatus: IndexStatus): IISeq[QbeastBlock] = {
+      indexStatus: IndexStatus): IISeq[Block] = {
 
-    val outputFiles = Vector.newBuilder[QbeastBlock]
+    val outputBlocks = Vector.newBuilder[Block]
     val stack = mutable.Stack(indexStatus.revision.createCubeIdRoot())
     while (stack.nonEmpty) {
       val currentCube = stack.pop()
@@ -57,12 +56,12 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
       // 4. empty, the currentCube is the right-most cube in the tree and it is not in cubesStatuses
       if (cubeIter.hasNext) { // cases 1 to 3
         cubeIter.next() match {
-          case (cube, CubeStatus(_, maxWeight, _, files)) if cube == currentCube => // Case 1
-            val unfilteredFiles = if (querySpec.weightRange.to < maxWeight) {
+          case (cube, CubeStatus(_, maxWeight, _, blocks)) if cube == currentCube => // Case 1
+            val unfilteredBlocks = if (querySpec.weightRange.to < maxWeight) {
               // cube maxWeight is larger than the sample fraction, weightRange.to,
               // it means that currentCube is the last cube to visit from the current branch.
-              // All files are retrieved and no more cubes from the branch will be visited.
-              files
+              // All blocks are retrieved and no more cubes from the branch will be visited.
+              blocks
             } else {
               // Otherwise,
               // 1. if the currentCube is REPLICATED, we skip the cube
@@ -74,9 +73,9 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
                 if (isReplicated) {
                   Vector.empty
                 } else if (isAnnounced) {
-                  files.filterNot(_.state == State.ANNOUNCED)
+                  blocks.filterNot(_.replicated)
                 } else {
-                  files
+                  blocks
                 }
               val nextLevel = cube.children
                 .filter(querySpec.querySpace.intersectsWith)
@@ -84,8 +83,8 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
               cubeFiles
             }
 
-            outputFiles ++= unfilteredFiles.filter(file =>
-              file.maxWeight > querySpec.weightRange.from)
+            outputBlocks ++= unfilteredBlocks.filter(block =>
+              block.maxWeight > querySpec.weightRange.from)
 
           case (cube, _) if currentCube.isAncestorOf(cube) => // Case 2
             // c is a child cube of currentCube. Aside from c, we also need to
@@ -98,7 +97,7 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
         }
       }
     }
-    outputFiles.result()
+    outputBlocks.result()
   }
 
 }

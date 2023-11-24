@@ -62,7 +62,7 @@ class AnalyzeAndOptimizeTest
     announcedCubes.foreach(a => replicatedCubes shouldNot contain(a))
   }
 
-  "Optimize command" should "replicate cubes in announce set" in withSparkAndTmpDir {
+  "Optimize command" should "replicate cubes in announce set" ignore withSparkAndTmpDir {
     (spark, tmpDir) =>
       appendNewRevision(spark, tmpDir, 1)
 

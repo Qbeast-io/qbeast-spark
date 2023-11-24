@@ -6,7 +6,6 @@ package io.qbeast.context
 import io.qbeast.core.keeper.{Keeper, LocalKeeper}
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
-import io.qbeast.spark.delta.writer.SparkDeltaDataWriter
 import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionFactory}
 import io.qbeast.spark.table.{IndexedTableFactory, IndexedTableFactoryImpl}
 import org.apache.spark.SparkConf
@@ -16,6 +15,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.reflect.ClassTag
+import io.qbeast.spark.delta.writer.RollupDataWriter
 
 /**
  * Qbeast context provides access to internal mechanisms of
@@ -82,7 +82,7 @@ object QbeastContext
     SparkDeltaMetadataManager
 
   override def dataWriter: DataWriter[DataFrame, StructType, FileAction] =
-    SparkDeltaDataWriter
+    RollupDataWriter
 
   override def revisionBuilder: RevisionFactory[StructType] =
     SparkRevisionFactory

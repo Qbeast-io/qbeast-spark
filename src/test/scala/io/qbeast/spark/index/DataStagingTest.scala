@@ -73,7 +73,7 @@ class DataStagingTest
         .loadIndexStatus(1)
         .cubesStatuses
         .values
-        .flatMap(_.files.map(_.elementCount))
+        .flatMap(_.blocks.map(_.elementCount))
         .sum
 
       stagingDataManager invokePrivate getCurrentStagingSize() shouldBe 0L
@@ -114,7 +114,7 @@ class DataStagingTest
         .loadIndexStatus(1)
         .cubesStatuses
         .values
-        .flatMap(_.files.map(_.elementCount))
+        .flatMap(_.blocks.map(_.elementCount))
         .sum
 
       stagingDataManager invokePrivate getCurrentStagingSize() shouldBe 0L

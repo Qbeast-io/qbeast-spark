@@ -236,16 +236,23 @@ case class IndexStatus(
 
 /**
  * Container for the status information of a cube
+ *
  * @param maxWeight the max weight of the cube
  * @param normalizedWeight the normalized weight of the cube
- * @param files the files belonging to the cube
+ * @param blocks the blocks belonging to the cube
  */
 case class CubeStatus(
     cubeId: CubeId,
     maxWeight: Weight,
     normalizedWeight: NormalizedWeight,
-    files: IISeq[QbeastBlock])
-    extends Serializable
+    blocks: IISeq[Block])
+    extends Serializable {
+
+  /**
+   * The cube is fully replicated, i.e. all its blovks are replicated.
+   */
+  lazy val replicated = blocks.forall(_.replicated)
+}
 
 /**
  * Companion object for the IndexStatus
@@ -260,6 +267,7 @@ trait TableChanges {
   val updatedRevision: Revision
   val deltaReplicatedSet: Set[CubeId]
   val announcedOrReplicatedSet: Set[CubeId]
+  def cubeDomains: Map[CubeId, Double]
   def cubeState(cubeId: CubeId): Option[String]
-  def cubeWeights(cubeId: CubeId): Option[Weight]
+  def cubeWeight(cubeId: CubeId): Option[Weight]
 }

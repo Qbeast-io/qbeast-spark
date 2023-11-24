@@ -98,24 +98,18 @@ private[delta] case class DeltaMetadataWriter(
   }
 
   private def updateReplicatedFiles(tableChanges: TableChanges): Seq[Action] = {
-
     val revision = tableChanges.updatedRevision
+    val dimensionCount = revision.transformations.length
     val deltaReplicatedSet = tableChanges.deltaReplicatedSet
-
-    val cubeStrings = deltaReplicatedSet.map(_.string)
-    val cubeBlocks =
-      deltaLog
-        .update()
-        .allFiles
-        .where(TagColumns.revision === lit(revision.revisionID.toString) &&
-          TagColumns.cube.isInCollection(cubeStrings))
-        .collect()
-
-    val newReplicatedFiles = cubeBlocks.map(ReplicatedFile(_))
-    val deleteFiles = cubeBlocks.map(_.remove)
-
-    deleteFiles ++ newReplicatedFiles
-
+    deltaLog
+      .update()
+      .allFiles
+      .where(TagColumns.revision === lit(revision.revisionID.toString))
+      .collect()
+      .map(IndexFiles.fromAddFile(dimensionCount))
+      .flatMap(_.tryReplicateBlocks(deltaReplicatedSet))
+      .map(IndexFiles.toAddFile(false))
+      .toSeq
   }
 
   private def updateTransactionVersion(
@@ -157,13 +151,7 @@ private[delta] case class DeltaMetadataWriter(
     // The Metadata can be updated only once in a single transaction
     // If a new space revision or a new replicated set is detected,
     // we update everything in the same operation
-    updateQbeastMetadata(
-      txn,
-      schema,
-      isOverwriteOperation,
-      isOptimizeOperation,
-      rearrangeOnly,
-      tableChanges)
+    updateQbeastMetadata(txn, schema, isOverwriteOperation, rearrangeOnly, tableChanges)
 
     if (txn.readVersion < 0) {
       // Initialize the log path

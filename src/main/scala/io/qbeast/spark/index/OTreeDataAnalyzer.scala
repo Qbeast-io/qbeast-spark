@@ -278,6 +278,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       spaceChanges,
       indexStatus,
       estimatedCubeWeights,
+      globalDomain.toMap,
       if (isReplication) indexStatus.cubesToOptimize
       else Set.empty[CubeId])
 

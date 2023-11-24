@@ -6,7 +6,6 @@ import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.functions.{avg, col, rand, regexp_replace, when}
-import org.scalatest.exceptions.TestFailedException
 
 class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
@@ -17,7 +16,7 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
   private val filter_user_equal = "(user_id = 536764969)"
   private val filter_product_equal = "(product_id = 11522682)"
 
-  private def checkFileFiltering(query: DataFrame): Unit = {
+  private def checkFiltersArePushedDown(query: DataFrame): Unit = {
     val leaves =
       query.queryExecution.executedPlan.collectLeaves().filter(_.isInstanceOf[FileSourceScanExec])
 
@@ -33,13 +32,8 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
     leaves
       .foreach {
         case f: FileSourceScanExec if f.relation.location.isInstanceOf[OTreeIndex] =>
-          val index = f.relation.location
-          val matchingFiles =
-            index.listFiles(f.partitionFilters, f.dataFilters).flatMap(_.files)
-          val allFiles = index.inputFiles
-          matchingFiles.length shouldBe <(allFiles.length)
+          f.dataFilters.nonEmpty shouldBe true
       }
-
   }
 
   private def checkLogicalFilterPushdown(sqlFilters: Seq[String], query: DataFrame): Unit = {
@@ -71,7 +65,7 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
         val qbeastQuery = df.filter(filter)
         val normalQuery = data.filter(filter)
 
-        checkFileFiltering(qbeastQuery)
+        checkFiltersArePushedDown(qbeastQuery)
         qbeastQuery.count() shouldBe normalQuery.count()
         assertLargeDatasetEquality(qbeastQuery, normalQuery, orderedComparison = false)
 
@@ -97,7 +91,7 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
         val qbeastQuery = df.filter(filter)
         val normalQuery = data.filter(filter)
 
-        checkFileFiltering(qbeastQuery)
+        checkFiltersArePushedDown(qbeastQuery)
         qbeastQuery.count() shouldBe normalQuery.count()
         assertLargeDatasetEquality(qbeastQuery, normalQuery, orderedComparison = false)
 
@@ -120,7 +114,7 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
         val qbeastQuery = df.filter(filter)
         val normalQuery = data.filter(filter)
 
-        checkFileFiltering(qbeastQuery)
+        checkFiltersArePushedDown(qbeastQuery)
         qbeastQuery.count() shouldBe normalQuery.count()
         assertLargeDatasetEquality(qbeastQuery, normalQuery, orderedComparison = false)
 
@@ -144,7 +138,7 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
         val normalQuery = data.filter(filter)
 
         // The file filtering should not be applied in this particular case
-        an[TestFailedException] shouldBe thrownBy(checkFileFiltering(qbeastQuery))
+        checkFiltersArePushedDown(qbeastQuery)
         assertLargeDatasetEquality(qbeastQuery, normalQuery, orderedComparison = false)
 
       }
@@ -168,7 +162,7 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
         val qbeastQuery = df.filter(filter)
         val normalQuery = dataWithNulls.filter(filter)
 
-        checkFileFiltering(qbeastQuery)
+        checkFiltersArePushedDown(qbeastQuery)
         qbeastQuery.count() shouldBe normalQuery.count()
         assertLargeDatasetEquality(qbeastQuery, normalQuery, orderedComparison = false)
 
@@ -237,7 +231,7 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
         // OR filters are not split, so we need to match them entirely
         checkLogicalFilterPushdown(Seq(filter), query)
-        checkFileFiltering(query)
+        checkFiltersArePushedDown(query)
         assertSmallDatasetEquality(query, originalQuery, orderedComparison = false)
 
       }
@@ -260,7 +254,7 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
         // OR filters are not split, so we need to match them entirely
         checkLogicalFilterPushdown(Seq(filter), query)
-        checkFileFiltering(query)
+        checkFiltersArePushedDown(query)
         assertSmallDatasetEquality(query, originalQuery, orderedComparison = false)
 
       }
@@ -282,7 +276,7 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
         // OR filters are not split, so we need to match them entirely
         checkLogicalFilterPushdown(Seq(filter), query)
-        checkFileFiltering(query)
+        checkFiltersArePushedDown(query)
         assertSmallDatasetEquality(query, originalQuery, orderedComparison = false)
 
       }

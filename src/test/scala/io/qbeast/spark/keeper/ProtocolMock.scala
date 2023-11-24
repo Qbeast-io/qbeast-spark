@@ -54,7 +54,11 @@ trait ConcurrentActor {
 
   def writeData(rev: Revision): (TableChanges, Seq[FileAction]) = {
     val tableChanges =
-      BroadcastedTableChanges(None, IndexStatus(rev), deltaNormalizedCubeWeights = Map.empty)
+      BroadcastedTableChanges(
+        None,
+        IndexStatus(rev),
+        deltaNormalizedCubeWeights = Map.empty,
+        Map.empty)
     (tableChanges, Seq.empty)
   }
 
@@ -66,6 +70,7 @@ trait ConcurrentActor {
         None,
         IndexStatus(rev),
         deltaNormalizedCubeWeights = Map.empty,
+        Map.empty,
         deltaReplicatedSet = cubesToOptimize)
     (tableChanges, Seq.empty)
   }
