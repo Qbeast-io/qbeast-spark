@@ -89,10 +89,10 @@ $SPARK_HOME/bin/spark-shell \
 **Read** the **CSV** source file placed inside the project.
 
 ```scala
-val csv_df = spark.read.format("csv")
-  .option("header", "true")
-  .option("inferSchema", "true")
-  .load("./src/test/resources/ecommerce100K_2019_Oct.csv")
+val csv_df = spark.read.format("csv").
+  option("header", "true").
+  option("inferSchema", "true").
+  load("./src/test/resources/ecommerce100K_2019_Oct.csv")
 ```
 
 Indexing the dataset by writing it into the **qbeast** format, specifying the columns to index.
@@ -100,11 +100,11 @@ Indexing the dataset by writing it into the **qbeast** format, specifying the co
 ```scala
 val tmp_dir = "/tmp/qbeast-spark"
 
-csv_df.write
-	.mode("overwrite")
-	.format("qbeast")
-	.option("columnsToIndex", "user_id,product_id")
-	.save(tmp_dir)
+csv_df.write.
+  mode("overwrite").
+  format("qbeast").
+  option("columnsToIndex", "user_id,product_id").
+  save(tmp_dir)
 ```
 
 #### SQL Syntax.
@@ -130,10 +130,10 @@ Load the newly indexed dataset.
 
 ```scala
 val qbeast_df =
-   spark
-     .read
-     .format("qbeast")
-     .load(tmp_dir)
+  spark.
+    read.
+    format("qbeast").
+    load(tmp_dir)
 ```
 
 ### 4. Examine the Query plan for sampling
@@ -153,9 +153,9 @@ import io.qbeast.spark.QbeastTable
 
 val qbeast_table = QbeastTable.forPath(spark, tmp_dir) 
 
-qbeastTable.getIndexMetrics()
+qbeast_table.getIndexMetrics()
 
-qbeastTable.analyze()
+qbeast_table.analyze()
 ```
 
 Go to [QbeastTable documentation](./docs/QbeastTable.md) for more detailed information.
