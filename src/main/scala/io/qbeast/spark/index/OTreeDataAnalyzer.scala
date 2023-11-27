@@ -148,7 +148,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
   /**
    * Aggregate partition cube domains to obtain global cube domains for the current write.
-   * @param indexStatus Updated IndexStatus
    */
   private[index] def computeGlobalCubeDomains(
       revision: Revision): Dataset[CubeDomain] => Dataset[(CubeId, Double)] =
@@ -176,8 +175,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
   private[index] def computeExistingCubeDomains(
       cubesStatuses: Map[CubeId, CubeStatus]): Map[CubeId, Double] = {
     var treeSizes = cubesStatuses.map { case (cube, cs) =>
-      // TODO: Remove replicated data from cubeSize
-      val elementCount = cs.files.map(_.elementCount).sum
+      val elementCount = cs.blocks.map(_.elementCount).sum
       cube -> elementCount.toDouble
     }
 

@@ -76,6 +76,5 @@ case class BroadcastedTableChanges(
 
   override def cubeState(cubeId: CubeId): Option[String] = cubeStatesBroadcast.value.get(cubeId)
 
-  override def cubeDomain(cubeId: CubeId): Option[Double] = cubeDomainsBroadcast.value.get(cubeId)
-
+  override def cubeDomains: Map[CubeId, Double] = cubeDomainsBroadcast.value
 }

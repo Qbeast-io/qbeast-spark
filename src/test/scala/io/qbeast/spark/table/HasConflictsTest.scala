@@ -12,7 +12,7 @@ class HasConflictsTest extends QbeastIntegrationTestSpec {
    */
 
   "Has conflict method" should
-    "be true on replicated conflicts" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
+    "be true on replicated conflicts" ignore withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
       {
 
         val data = loadTestData(spark)

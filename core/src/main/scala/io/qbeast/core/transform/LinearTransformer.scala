@@ -49,7 +49,7 @@ case class LinearTransformer(columnName: String, dataType: QDataType) extends Tr
     } else if (minAux == maxAux) {
       // If both values are equal we return an IdentityTransformation
       IdentityToZeroTransformation(minAux)
-    } else { // otherwhise we pick the min and max
+    } else { // otherwise we pick the min and max
       val min = getValue(minAux)
       val max = getValue(maxAux)
       dataType match {

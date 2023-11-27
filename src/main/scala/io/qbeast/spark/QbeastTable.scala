@@ -71,6 +71,14 @@ class QbeastTable private (
   }
 
   /**
+   * Optimizes the data stored in the index files specified by paths relative to
+   * the table directory.
+   *
+   * @param files the index files to optimize
+   */
+  def optimize(files: Seq[String]): Unit = indexedTable.optimize(files)
+
+  /**
    * The analyze operation should analyze the index structure
    * and find the cubes that need optimization
    * @param revisionID the identifier of the revision to optimize.
@@ -174,7 +182,7 @@ class QbeastTable private (
 
     val cubeCount = cubeStatuses.size
     val depth = if (cubeCount == 0) -1 else cubeStatuses.map(_._1.depth).max + 1
-    val elementCount = cubeStatuses.flatMap(_._2.files.map(_.elementCount)).sum
+    val elementCount = cubeStatuses.flatMap(_._2.blocks.map(_.elementCount)).sum
 
     val indexingColumns = revision.columnTransformers.map(_.columnName)
     val dimensionCount = indexingColumns.size

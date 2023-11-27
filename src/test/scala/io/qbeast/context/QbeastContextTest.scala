@@ -6,7 +6,7 @@ package io.qbeast.context
 import io.qbeast.core.keeper.{Keeper, LocalKeeper}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
-import io.qbeast.spark.delta.writer.{SparkDeltaDataWriter}
+import io.qbeast.spark.delta.writer.{RollupDataWriter}
 import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionFactory}
 import io.qbeast.spark.table.IndexedTableFactoryImpl
 import org.apache.spark.sql.SparkSession
@@ -21,7 +21,7 @@ class QbeastContextTest extends AnyFlatSpec with Matchers with QbeastIntegration
       keeper,
       SparkOTreeManager,
       SparkDeltaMetadataManager,
-      SparkDeltaDataWriter,
+      RollupDataWriter,
       SparkRevisionFactory)
     val unmanaged = new QbeastContextImpl(
       config = SparkSession.active.sparkContext.getConf,
@@ -41,7 +41,7 @@ class QbeastContextTest extends AnyFlatSpec with Matchers with QbeastIntegration
       keeper,
       SparkOTreeManager,
       SparkDeltaMetadataManager,
-      SparkDeltaDataWriter,
+      RollupDataWriter,
       SparkRevisionFactory)
     val unmanaged = new QbeastContextImpl(
       config = SparkSession.active.sparkContext.getConf,

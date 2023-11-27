@@ -28,6 +28,10 @@ class CubeIdTest extends AnyFlatSpec with Matchers {
     val id7 =
       CubeId(2, "wQwwwQwwQwwQwwwwwQwQwwwQQwwwwQQwQwwwQwwQwwQwwwwwQwwQQQQQQQQQQQQQ")
     id6 == id7 shouldBe true
+    val id8 =
+      CubeId(1, 4, Array(9L)).parent.get.parent.get.parent.get
+    val id9 = CubeId(1, 1, Array(1L))
+    id8 == id9 shouldBe true
   }
 
   it should "implement hashCode correctly" in {
@@ -151,6 +155,13 @@ class CubeIdTest extends AnyFlatSpec with Matchers {
     id2.nextSibling shouldBe Some(id3)
     id3.nextSibling shouldBe Some(id4)
     id4.nextSibling shouldBe None
+  }
+
+  it should "implement children iterator throwing NoSuchElementException after last child" in {
+    val children = CubeId.root(1).children
+    children.next() shouldBe CubeId.root(1).firstChild
+    children.next() shouldBe CubeId.root(1).firstChild.nextSibling.get
+    assertThrows[NoSuchElementException](children.next())
   }
 
   it should "return a correct container with specified depth" in {

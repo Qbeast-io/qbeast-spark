@@ -189,19 +189,21 @@ class IndexTest
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
+        val blocks = deltaLog
+          .update()
+          .allFiles
+          .collect()
+          .map(delta.IndexFiles.fromAddFile(2))
+          .flatMap(_.blocks)
 
-        deltaLog.update().allFiles.collect() foreach (f =>
-          {
-            val cubeId = CubeId(2, f.tags("cube"))
-            cubeId.parent match {
-              case None => // cube is root
-              case Some(parent) =>
-                val minWeight = Weight(f.tags("minWeight").toInt)
-                val parentMaxWeight = tc.cubeWeight(parent).get
-
-                minWeight should be >= parentMaxWeight
-            }
-          }: Unit)
+        blocks.foreach { block =>
+          block.cubeId.parent match {
+            case None => // cube is root
+            case Some(parent) =>
+              val parentMaxWeight = tc.cubeWeight(parent).get
+              block.minWeight should be >= parentMaxWeight
+          }
+        }
       }
     }
 
