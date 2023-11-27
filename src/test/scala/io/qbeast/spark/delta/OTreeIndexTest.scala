@@ -3,11 +3,13 @@ package io.qbeast.spark.delta
 import io.qbeast.TestClasses.T2
 import io.qbeast.core.model.Block
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.delta.files.TahoeLogFileIndex
+import org.apache.spark.sql.functions.expr
 
 class OTreeIndexTest extends QbeastIntegrationTestSpec {
 
@@ -127,5 +129,28 @@ class OTreeIndexTest extends QbeastIntegrationTestSpec {
     val sizeInBytes = deltaLog.update().allFiles.collect().map(_.size).sum
     oTreeIndex.sizeInBytes shouldBe sizeInBytes
   })
+
+  it should "filter files with underlying data skipping" in withSparkAndTmpDir(
+    (spark, tmpdir) => {
+
+      import spark.implicits._
+      val source = Seq(1, 2, 3, 4).toDF("id")
+
+      source.write
+        .format("delta")
+        .save(tmpdir)
+
+      ConvertToQbeastCommand.apply(tmpdir, Seq("id"), 1000)
+
+      val deltaLog = DeltaLog.forTable(spark, tmpdir)
+      val tahoeFileIndex =
+        TahoeLogFileIndex(spark, deltaLog, deltaLog.dataPath, deltaLog.update(), Seq.empty, false)
+      val oTreeIndex = new OTreeIndexTest(tahoeFileIndex)
+
+      val allFiles = oTreeIndex.listFiles(Seq.empty, Seq.empty)
+      val filteredFiles = oTreeIndex.listFiles(Seq.empty, Seq(expr("id == 1").expr))
+
+      allFiles.size shouldBe <(filteredFiles.size)
+    })
 
 }
