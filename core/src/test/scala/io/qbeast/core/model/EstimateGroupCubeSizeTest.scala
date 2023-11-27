@@ -16,7 +16,7 @@ class EstimateGroupCubeSizeTest
     "numElements < desiredCubeSize and numElements < cubeWeightsBufferCapacity" should {
       "create the correct number of groups" in {
         val estimateGroupCubeSize = PrivateMethod[Double]('estimateGroupCubeSize)
-        CubeWeightsBuilder invokePrivate estimateGroupCubeSize(
+        CubeDomainsBuilder invokePrivate estimateGroupCubeSize(
           1000000,
           1,
           10000L,
@@ -32,7 +32,7 @@ class EstimateGroupCubeSizeTest
 
         for ((nP, gS) <- numPartitions zip groupCubeSizes) {
 
-          CubeWeightsBuilder invokePrivate estimateGroupCubeSize(
+          CubeDomainsBuilder invokePrivate estimateGroupCubeSize(
             1000000,
             nP,
             1000000L,
@@ -44,7 +44,7 @@ class EstimateGroupCubeSizeTest
     "numElements > desiredCubeSize and numElements > cubeWeightsBufferCapacity" should {
       "create the correct number of groups" in {
         val estimateGroupCubeSize = PrivateMethod[Double]('estimateGroupCubeSize)
-        CubeWeightsBuilder invokePrivate estimateGroupCubeSize(
+        CubeDomainsBuilder invokePrivate estimateGroupCubeSize(
           1000000,
           15,
           2000000L,

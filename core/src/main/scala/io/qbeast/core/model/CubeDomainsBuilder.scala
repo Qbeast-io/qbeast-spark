@@ -1,11 +1,9 @@
 package io.qbeast.core.model
 
-import io.qbeast.core.model.CubeWeightsBuilder.estimateGroupCubeSize
 import io.qbeast.core.model.Weight.MaxValue
-
 import scala.collection.mutable
 
-object CubeWeightsBuilder {
+object CubeDomainsBuilder {
   val minGroupCubeSize = 30
 
   /**
@@ -19,7 +17,7 @@ object CubeWeightsBuilder {
    * @param bufferCapacity buffer capacity; number of elements that fit in memory
    * @return the estimated groupCubeSize as a Double.
    */
-  private[CubeWeightsBuilder] def estimateGroupCubeSize(
+  private def estimateGroupCubeSize(
       desiredCubeSize: Int,
       numPartitions: Int,
       numElements: Long,
@@ -29,37 +27,65 @@ object CubeWeightsBuilder {
     Math.max(minGroupCubeSize, groupCubeSize.toInt)
   }
 
-}
+  /**
+   * Compute cube NormalizedWeights to properly reflect leaf cube elementCounts.
+   */
+  private def computeNormalizedWeights(
+      desiredCubeSize: Int,
+      groupCubeSize: Int,
+      cubeStatuses: Map[CubeId, CubeStatus]): Map[CubeId, NormalizedWeight] = {
+    val isLeaf = (cubeId: CubeId) => !cubeId.children.exists(cubeStatuses.contains)
+    val multiplier = groupCubeSize / desiredCubeSize.toDouble
 
-/**
- * Builder for creating cube weights.
- *
- * @param desiredCubeSize           the desired cube size
- * @param groupCubeSize                 the number of elements for each group
- * @param bufferCapacity the buffer capacity to store the cube weights in memory
- * @param replicatedOrAnnouncedSet the announced or replicated cubes' identifiers
- */
-class CubeWeightsBuilder protected (
-    private val desiredCubeSize: Int,
-    private val groupCubeSize: Int,
-    private val bufferCapacity: Long,
-    private val replicatedOrAnnouncedSet: Set[CubeId] = Set.empty)
-    extends Serializable {
+    cubeStatuses.map {
+      case (cubeId, status) if isLeaf(cubeId) =>
+        val cubeSize = status.blocks.map(_.elementCount).sum
+        val groupSize = (cubeSize * multiplier).toLong.max(1L)
+        val nw = NormalizedWeight(groupCubeSize, groupSize).max(1.0)
+        cubeId -> nw
+      case (cubeId, status) => cubeId -> status.normalizedWeight
+    }
+  }
 
-  def this(
+  def apply(
       indexStatus: IndexStatus,
       numPartitions: Int,
       numElements: Long,
-      bufferCapacity: Long) =
-    this(
+      bufferCapacity: Long): CubeDomainsBuilder = {
+    val desiredCubeSize = indexStatus.revision.desiredCubeSize
+    val groupCubeSize = estimateGroupCubeSize(
       indexStatus.revision.desiredCubeSize,
-      estimateGroupCubeSize(
-        indexStatus.revision.desiredCubeSize,
-        numPartitions,
-        numElements,
-        bufferCapacity),
+      numPartitions,
+      numElements,
+      bufferCapacity)
+    val factory = new WeightAndCountFactory(
+      computeNormalizedWeights(desiredCubeSize, groupCubeSize, indexStatus.cubesStatuses),
+      groupCubeSize)
+
+    new CubeDomainsBuilder(
+      desiredCubeSize,
+      groupCubeSize,
       bufferCapacity,
+      factory,
       indexStatus.replicatedOrAnnouncedSet)
+  }
+
+}
+
+/**
+ * Builder for creating cube domains.
+ * @param groupCubeSize  the number of elements for each group
+ * @param bufferCapacity the buffer capacity to store the cube weights in memory
+ * @param replicatedOrAnnouncedSet the announced or replicated cubes' identifiers
+ * @param existingNormalizedWeights the cube NormalizedWeights for the existing index
+ */
+class CubeDomainsBuilder protected (
+    private val desiredCubeSize: Int,
+    private val groupCubeSize: Int,
+    private val bufferCapacity: Long,
+    private val weightAndCountFactory: WeightAndCountFactory,
+    private val replicatedOrAnnouncedSet: Set[CubeId] = Set.empty)
+    extends Serializable {
 
   private val byWeight = Ordering.by[PointWeightAndParent, Weight](_.weight).reverse
   private val queue = new mutable.PriorityQueue[PointWeightAndParent]()(byWeight)
@@ -74,7 +100,7 @@ class CubeWeightsBuilder protected (
    *               the container cube if available
    * @return this instance
    */
-  def update(point: Point, weight: Weight, parent: Option[CubeId] = None): CubeWeightsBuilder = {
+  def update(point: Point, weight: Weight, parent: Option[CubeId] = None): CubeDomainsBuilder = {
     queue.enqueue(PointWeightAndParent(point, weight, parent))
     if (queue.size >= bufferCapacity) {
       resultBuffer ++= resultInternal()
@@ -111,12 +137,10 @@ class CubeWeightsBuilder protected (
       var continue = true
       while (continue && containers.hasNext) {
         val cubeId = containers.next()
-        val weightAndCount = weights.getOrElseUpdate(cubeId, new WeightAndCount(MaxValue, 0))
-        if (weightAndCount.count < groupCubeSize) {
-          weightAndCount.count += 1
-          if (weightAndCount.count == groupCubeSize) {
-            weightAndCount.weight = weight
-          }
+        val weightAndCount =
+          weights.getOrElseUpdate(cubeId, weightAndCountFactory.create(cubeId))
+        if (weightAndCount.shouldInclude(weight, groupCubeSize)) {
+          weightAndCount.update(weight)
           continue = replicatedOrAnnouncedSet.contains(cubeId)
         }
       }
@@ -125,11 +149,7 @@ class CubeWeightsBuilder protected (
     // Convert cube Weight and size into a Map[CubeId, (NormalizedWeight, Double)] from which
     // the cube domains are computed.
     weights.map { case (cubeId, weightAndCount) =>
-      val nw =
-        if (weightAndCount.count == groupCubeSize) NormalizedWeight(weightAndCount.weight)
-        else NormalizedWeight(desiredCubeSize, weightAndCount.count)
-
-      cubeId -> new WeightAndTreeSize(nw, weightAndCount.count)
+      cubeId -> weightAndCount.toWeightAndTreeSize(groupCubeSize, desiredCubeSize)
     }.toMap
 
   }
@@ -140,7 +160,7 @@ class CubeWeightsBuilder protected (
    * and compute cube domain using treeSize / (1d - parentWeight).
    * @param weightsAndTreeSizes NormalizedWeight and size for each cube. Cube size is constantly
    *                            updated to reach tree size before it's used to compute cube domain
-   * @return Map of cube bytes and domain
+   * @return Sequence of cube bytes and domain
    */
   private def computeCubeDomains(
       weightsAndTreeSizes: Map[CubeId, WeightAndTreeSize]): Seq[CubeDomain] = {
@@ -182,12 +202,108 @@ class CubeWeightsBuilder protected (
 }
 
 /**
- * Weight and count.
+ * Factory for WeightAndCount. The creation of which depends on whether the associated
+ * CubeId is present in the existing index, if it's a inner or leaf cube.
  *
- * @param weight the weight
- * @param count  the count
+ * @param existingNormalizedWeights Cube Weight of the existing index
+ * @param groupCubeSize partition-level cube size for indexing
  */
-private class WeightAndCount(var weight: Weight, var count: Int)
+private class WeightAndCountFactory(
+    existingNormalizedWeights: Map[CubeId, NormalizedWeight],
+    groupCubeSize: Int) {
+
+  def create(cubeId: CubeId): WeightAndCount =
+    existingNormalizedWeights.get(cubeId) match {
+      case Some(nw: NormalizedWeight) if nw < 1.0 =>
+        new InnerCubeWeightAndCount(Weight(nw))
+      case Some(nw: NormalizedWeight) =>
+        val existingLeafSize = ((groupCubeSize - 1) / nw).toInt
+        new LeafCubeWeightAndCount(existingLeafSize)
+      case None => new WeightAndCount(MaxValue, 0)
+    }
+
+}
+
+/**
+ * Weight and count for a CubeId.
+ * @param weight Weight of the associated CubeId
+ * @param count Element count of the associated CubeId
+ */
+private class WeightAndCount(var weight: Weight, var count: Int) {
+
+  /**
+   * Determines whether an instance, with its instanceWeight, should be included
+   * in the associated cube
+   * @param instanceWeight Weight of a given instance
+   * @param limit total capacity of the cube i.e. groupCubeSize
+   */
+  def shouldInclude(instanceWeight: Weight, limit: Int): Boolean =
+    count < limit
+
+  /**
+   * Update metadata to include the instance
+   * @param instanceWeight Weight of a given instance
+   */
+  def update(instanceWeight: Weight): Unit = {
+    count += 1
+    weight = instanceWeight
+  }
+
+  /**
+   * Convert to WeightAndTreeSize, with cube size i.e. count as the initial tree size value.
+   * @param gcs groupCubeSize
+   * @param dcs desiredCubeSize
+   */
+  def toWeightAndTreeSize(gcs: Int, dcs: Int): WeightAndTreeSize = {
+    val nw = toNormalizedWeight(gcs, dcs)
+    new WeightAndTreeSize(nw, cubeSize)
+  }
+
+  /**
+   * @return the number of added instances to the associated cube
+   */
+  def cubeSize: Int = count
+
+  /**
+   * Compute NormalizedWeight according to the state of the cube
+   * @param gcs groupCubeSize
+   * @param dcs desiredCubeSize
+   */
+  def toNormalizedWeight(gcs: Int, dcs: Int): NormalizedWeight =
+    if (count == gcs) NormalizedWeight(weight)
+    else NormalizedWeight(dcs, cubeSize)
+
+}
+
+/**
+ * WeightAndCount for an existing leaf cube.
+ * It can accept up to (groupCubeSize - start) records.
+ */
+private class LeafCubeWeightAndCount(start: Int) extends WeightAndCount(MaxValue, start) {
+
+  override def cubeSize: Int = count - start
+
+}
+
+/**
+ * WeightAndCount for an existing inner cube.
+ * It can accept up to groupCubeSize records, with the additional constraint
+ * of instanceWeight < existingWeight.
+ * @param existingWeight Weight for the associated existing CubeId
+ */
+private class InnerCubeWeightAndCount(existingWeight: Weight)
+    extends WeightAndCount(existingWeight, 0) {
+
+  override def shouldInclude(instanceWeight: Weight, limit: Int): Boolean = {
+    instanceWeight < existingWeight && count < limit
+  }
+
+  override def toNormalizedWeight(gcs: Int, dcs: Int): NormalizedWeight = {
+    // An existing inner cube should always remain as such
+    NormalizedWeight(weight)
+  }
+
+}
 
 /**
  * Point, weight and parent cube identifier if available.
@@ -214,4 +330,4 @@ private class WeightAndTreeSize(val weight: NormalizedWeight, var treeSize: Doub
  * @param cubeBytes Array[Byte] unique to a cube
  * @param domain The number of records in a partition that fit in the said cube
  */
-case class CubeDomain(cubeBytes: Array[Byte], domain: Double)
+final case class CubeDomain(cubeBytes: Array[Byte], domain: Double)

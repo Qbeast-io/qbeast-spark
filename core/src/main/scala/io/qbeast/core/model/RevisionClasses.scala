@@ -236,7 +236,6 @@ case class IndexStatus(
 
 /**
  * Container for the status information of a cube
- *
  * @param maxWeight the max weight of the cube
  * @param normalizedWeight the normalized weight of the cube
  * @param blocks the blocks belonging to the cube
@@ -267,7 +266,7 @@ trait TableChanges {
   val updatedRevision: Revision
   val deltaReplicatedSet: Set[CubeId]
   val announcedOrReplicatedSet: Set[CubeId]
-  def cubeDomains: Map[CubeId, Double]
   def cubeState(cubeId: CubeId): Option[String]
   def cubeWeight(cubeId: CubeId): Option[Weight]
+  def cubeDomains: Map[CubeId, Double]
 }

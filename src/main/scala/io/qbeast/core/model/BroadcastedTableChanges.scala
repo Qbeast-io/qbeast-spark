@@ -25,14 +25,9 @@ object BroadcastedTableChanges {
       case Some(newRev) => newRev.createNewRevision
       case None => supersededIndexStatus.revision
     }
-    val cubeWeights = if (revisionChanges.isEmpty) {
-
-      CubeNormalizedWeights.mergeNormalizedWeights(
-        supersededIndexStatus.cubeNormalizedWeights,
-        deltaNormalizedCubeWeights)
-    } else {
-      CubeNormalizedWeights.mergeNormalizedWeights(Map.empty, deltaNormalizedCubeWeights)
-    }
+    val cubeWeights = deltaNormalizedCubeWeights
+      .mapValues(NormalizedWeight.toWeight)
+      .map(identity)
 
     val replicatedSet = if (revisionChanges.isEmpty) {
 
@@ -59,8 +54,8 @@ object BroadcastedTableChanges {
       updatedRevision = updatedRevision,
       deltaReplicatedSet = deltaReplicatedSet,
       announcedOrReplicatedSet = announcedSet ++ replicatedSet,
-      cubeStates = SparkSession.active.sparkContext.broadcast(cubeStates.toMap),
-      cubeWeights = SparkSession.active.sparkContext.broadcast(cubeWeights),
+      cubeStatesBroadcast = SparkSession.active.sparkContext.broadcast(cubeStates.toMap),
+      cubeWeightsBroadcast = SparkSession.active.sparkContext.broadcast(cubeWeights),
       cubeDomainsBroadcast = SparkSession.active.sparkContext.broadcast(deltaCubeDomains))
   }
 
@@ -72,14 +67,14 @@ case class BroadcastedTableChanges(
     updatedRevision: Revision,
     deltaReplicatedSet: Set[CubeId],
     announcedOrReplicatedSet: Set[CubeId],
-    cubeStates: Broadcast[Map[CubeId, String]],
-    cubeWeights: Broadcast[Map[CubeId, Weight]],
+    cubeStatesBroadcast: Broadcast[Map[CubeId, String]],
+    cubeWeightsBroadcast: Broadcast[Map[CubeId, Weight]],
     cubeDomainsBroadcast: Broadcast[Map[CubeId, Double]])
     extends TableChanges {
 
-  override def cubeWeight(cubeId: CubeId): Option[Weight] = cubeWeights.value.get(cubeId)
+  override def cubeWeight(cubeId: CubeId): Option[Weight] = cubeWeightsBroadcast.value.get(cubeId)
 
-  override def cubeState(cubeId: CubeId): Option[String] = cubeStates.value.get(cubeId)
+  override def cubeState(cubeId: CubeId): Option[String] = cubeStatesBroadcast.value.get(cubeId)
 
   override def cubeDomains: Map[CubeId, Double] = cubeDomainsBroadcast.value
 }

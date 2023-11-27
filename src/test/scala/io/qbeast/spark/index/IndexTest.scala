@@ -56,7 +56,7 @@ class IndexTest
 
         val (_, tc: BroadcastedTableChanges) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
-        checkCubes(tc.cubeWeights.value)
+        checkCubes(tc.cubeWeightsBroadcast.value)
       }
     }
   }
@@ -69,7 +69,7 @@ class IndexTest
 
         val (_, tc: BroadcastedTableChanges) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
-        checkWeightsIncrement(tc.cubeWeights.value)
+        checkWeightsIncrement(tc.cubeWeightsBroadcast.value)
       }
     }
   }
@@ -82,7 +82,7 @@ class IndexTest
 
         val (indexed, tc: BroadcastedTableChanges) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
-        checkCubesOnData(tc.cubeWeights.value, indexed, dimensionCount = 2)
+        checkCubesOnData(tc.cubeWeightsBroadcast.value, indexed, dimensionCount = 2)
       }
     }
   }
@@ -104,7 +104,7 @@ class IndexTest
           df.schema,
           Map("columnsToIndex" -> "user_id,product_id", "cubeSize" -> "10000"))
         val (indexed, tc: BroadcastedTableChanges) = oTreeAlgorithm.index(df, IndexStatus(rev))
-        val weightMap = tc.cubeWeights.value
+        val weightMap = tc.cubeWeightsBroadcast.value
 
         checkDFSize(indexed, df)
         checkCubes(weightMap)
@@ -136,7 +136,7 @@ class IndexTest
 
         val (indexed, tc: BroadcastedTableChanges) =
           oTreeAlgorithm.index(appendData, qbeastSnapshot.loadLatestIndexStatus)
-        val weightMap = tc.cubeWeights.value
+        val weightMap = tc.cubeWeightsBroadcast.value
 
         checkDFSize(indexed, df)
         checkCubes(weightMap)
@@ -195,6 +195,7 @@ class IndexTest
           .collect()
           .map(delta.IndexFiles.fromAddFile(2))
           .flatMap(_.blocks)
+
         blocks.foreach { block =>
           block.cubeId.parent match {
             case None => // cube is root
@@ -221,7 +222,7 @@ class IndexTest
         Map("columnsToIndex" -> "age,val2", "cubeSize" -> smallCubeSize.toString))
 
       val (indexed, tc: BroadcastedTableChanges) = oTreeAlgorithm.index(df, IndexStatus(rev))
-      val weightMap = tc.cubeWeights.value
+      val weightMap = tc.cubeWeightsBroadcast.value
 
       checkDFSize(indexed, df)
       checkCubes(weightMap)

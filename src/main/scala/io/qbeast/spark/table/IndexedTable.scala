@@ -100,7 +100,6 @@ trait IndexedTableFactory {
 
 /**
  * Implementation of IndexedTableFactory.
- *
  * @param keeper the keeper
  * @param indexManager the index manager
  * @param metadataManager the metadata manager
