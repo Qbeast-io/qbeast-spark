@@ -14,7 +14,9 @@ import java.util.Locale
 object Transformer {
 
   private val transformersRegistry: Map[String, TransformerType] =
-    Seq(LinearTransformer, HashTransformer).map(a => (a.transformerSimpleName, a)).toMap
+    Seq(LinearTransformer, HashTransformer, HistogramTransformer)
+      .map(a => (a.transformerSimpleName, a))
+      .toMap
 
   /**
    * Returns the transformer for the given column and type of transformer

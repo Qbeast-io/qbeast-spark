@@ -30,4 +30,5 @@ case class HashTransformation(nullValue: Any = Random.nextInt()) extends Transfo
   override def isSupersededBy(newTransformation: Transformation): Boolean = false
 
   override def merge(other: Transformation): Transformation = this
+
 }

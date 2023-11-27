@@ -132,13 +132,27 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
     // Merged schema will contain additional columns at the end
     val isNewSchema: Boolean = txn.metadata.schema != mergedSchema
     // Either the data triggered a new revision or the user specified options to amplify the ranges
-    val isQbeastMetadata: Boolean = txn.metadata.configuration.contains(lastRevisionID)
+    val containsQbeastMetadata: Boolean = txn.metadata.configuration.contains(lastRevisionID)
+
+    // TODO This whole class is starting to be messy, and contains a lot of IF then ELSE
+    // TODO We should refactor QbeastMetadataOperation to make it more readable and usable
+    // TODO Ideally, we should delegate this process to the underlying format
+
+    // Append on an empty table
+    val isNewWriteAppend = (!isOverwriteMode && txn.readVersion == -1)
+    // If the table exists, but the user added a new revision, we need to create a new revision
+    val isUserUpdatedMetadata =
+      containsQbeastMetadata &&
+        tableChanges.updatedRevision.revisionID == txn.metadata
+          .configuration(lastRevisionID)
+          .toInt + 1
+
+    // Whether:
+    // 1. Data Triggered a New Revision
+    // 2. User added a columnStats that triggered a new Revision
+    // 3. User made an APPEND on a NEW TABLE with columnStats that triggered a new Revision
     val isNewRevision: Boolean =
-      tableChanges.isNewRevision ||
-        (isQbeastMetadata &&
-          tableChanges.updatedRevision.revisionID == txn.metadata
-            .configuration(lastRevisionID)
-            .toInt + 1)
+      tableChanges.isNewRevision || isUserUpdatedMetadata || isNewWriteAppend
 
     val latestRevision = tableChanges.updatedRevision
     val baseConfiguration: Configuration =

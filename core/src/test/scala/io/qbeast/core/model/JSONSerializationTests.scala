@@ -1,6 +1,11 @@
 package io.qbeast.core.model
 
-import io.qbeast.core.transform.{HashTransformation, LinearTransformation, Transformation, Transformer}
+import io.qbeast.core.transform.{
+  HashTransformation,
+  LinearTransformation,
+  Transformation,
+  Transformer
+}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
