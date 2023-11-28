@@ -36,6 +36,6 @@ private[spark] trait DeltaStagingUtils extends StagingUtils {
    */
   def isStagingFile(a: AddFile): Boolean =
     a.tags == null || a.tags.isEmpty || a.tags
-      .getOrElse("revision", "") == "0"
+      .getOrElse("revision", "") == stagingID.toString
 
 }
