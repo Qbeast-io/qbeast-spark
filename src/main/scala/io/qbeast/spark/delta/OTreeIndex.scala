@@ -103,7 +103,7 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
     // FILTER FILES FROM DELTA
     val stagingFileStats = stagingFiles(partitionFilters, dataFilters)
     // JOIN BOTH FILTERED FILES
-    val fileStatsSet = qbeastFileStats ++ stagingFileStats
+    val fileStats = qbeastFileStats ++ stagingFileStats
 
     val sc = index.spark.sparkContext
     val execId = sc.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
@@ -113,13 +113,13 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
     logInfo(s"OTreeIndex data filters (exec id ${execId}): ${dfStr}")
 
     val allFilesCount = snapshot.allFiles.count
-    val nFiltered = allFilesCount - fileStatsSet.size
+    val nFiltered = allFilesCount - fileStats.size
     val filteredPct = ((nFiltered * 1.0) / allFilesCount) * 100.0
     val filteredMsg = f"${nFiltered} of ${allFilesCount} (${filteredPct}%.2f%%)"
     logInfo(s"Qbeast filtered files (exec id ${execId}): ${filteredMsg}")
 
     // RETURN
-    Seq(PartitionDirectory(new GenericInternalRow(Array.empty[Any]), fileStatsSet.toSeq))
+    Seq(PartitionDirectory(new GenericInternalRow(Array.empty[Any]), fileStats))
   }
 
   override def inputFiles: Array[String] = {
