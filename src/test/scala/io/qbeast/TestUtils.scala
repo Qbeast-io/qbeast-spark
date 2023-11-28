@@ -22,7 +22,7 @@ object TestUtils extends QbeastIntegrationTestSpec {
     sqlFilters.foreach(filter => dataFiltersSql should contain(filter))
   }
 
-  def checkFileFiltering(query: DataFrame): Unit = {
+  def checkFiltersArePushedDown(query: DataFrame): Unit = {
     val leaves =
       query.queryExecution.executedPlan.collectLeaves().filter(_.isInstanceOf[FileSourceScanExec])
 

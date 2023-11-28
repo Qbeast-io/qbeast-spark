@@ -1,11 +1,10 @@
 package io.qbeast.spark.utils
 
-import io.qbeast.TestUtils.{checkFileFiltering, checkLogicalFilterPushdown}
+import io.qbeast.TestUtils.{checkFiltersArePushedDown, checkLogicalFilterPushdown}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.OTreeIndex
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.functions.{avg, col, rand, regexp_replace, when}
-import org.scalatest.exceptions.TestFailedException
 
 class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 

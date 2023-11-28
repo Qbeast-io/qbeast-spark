@@ -62,15 +62,13 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
   private def qbeastMatchingFiles(
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[FileStatus] = {
-    matchingBlocks(partitionFilters, dataFilters).map { qbeastBlock =>
-      new FileStatus(
-        /* length */ qbeastBlock.size,
-        /* isDir */ false,
-        /* blockReplication */ 0,
-        /* blockSize */ 1,
-        /* modificationTime */ qbeastBlock.modificationTime,
-        absolutePath(qbeastBlock.path))
-    }.toSeq
+    matchingBlocks(partitionFilters, dataFilters)
+      .map(block => (block.file))
+      .map(file => (file.path, file))
+      .toMap
+      .values
+      .map(IndexFiles.toFileStatus(index.path))
+      .toSeq
   }
 
   /**
@@ -78,12 +76,12 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
    * The output is merged with those built from QbeastBlocks.
    * @return
    */
-  private def deltaMatchingFiles(
+  private def stagingFiles(
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[FileStatus] = {
 
-    // REMOVE REPLICATED FILES
-    // MAP FILES TO FILE STATUS
+    // Filters only staging files (tags IS NULL)
+    // and maps AddFile to FileStatus
     index
       .matchingFiles(partitionFilters, dataFilters)
       .filter(f => f.tags.isEmpty)
@@ -105,10 +103,9 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
     // FILTER FILES FROM QBEAST
     val qbeastFileStats = qbeastMatchingFiles(partitionFilters, dataFilters)
     // FILTER FILES FROM DELTA
-    val deltaFileStats = deltaMatchingFiles(partitionFilters, dataFilters)
-
+    val stagingFileStats = stagingFiles(partitionFilters, dataFilters)
     // JOIN BOTH FILTERED FILES
-    val fileStatsSet = (qbeastFileStats ++ deltaFileStats)
+    val fileStatsSet = qbeastFileStats ++ stagingFileStats
 
     val execId = spark.sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
     val pfStr = partitionFilters.map(f => f.toString).mkString(" ")
