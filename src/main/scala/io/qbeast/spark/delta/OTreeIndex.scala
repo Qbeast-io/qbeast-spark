@@ -113,7 +113,7 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
     logInfo(s"OTreeIndex data filters (exec id ${execId}): ${dfStr}")
 
     val allFilesCount = snapshot.allFiles.count
-    val nFiltered = allFilesCount - fileStats.size
+    val nFiltered = allFilesCount - fileStats.length
     val filteredPct = ((nFiltered * 1.0) / allFilesCount) * 100.0
     val filteredMsg = f"${nFiltered} of ${allFilesCount} (${filteredPct}%.2f%%)"
     logInfo(s"Qbeast filtered files (exec id ${execId}): ${filteredMsg}")
