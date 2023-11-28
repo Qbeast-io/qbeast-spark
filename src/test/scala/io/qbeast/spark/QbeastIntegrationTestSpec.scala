@@ -21,8 +21,8 @@ import org.scalatest.matchers.should.Matchers
 import java.nio.file.Files
 
 /**
- * This class contains all function that you should use to test qbeast over spark.
- * You can use it like:
+ * This class contains all function that you should use to test qbeast over spark. You can use it
+ * like:
  * {{{
  *  "my class" should "write correctly the data" in withSparkAndTmpDir {
  *   (spark,tmpDir) =>{
@@ -66,8 +66,10 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
 
   /**
    * This function is used to create a spark session with the given configuration.
-   * @param sparkConf the configuration
-   * @param testCode the code to run within the spark session
+   * @param sparkConf
+   *   the configuration
+   * @param testCode
+   *   the code to run within the spark session
    * @tparam T
    * @return
    */
@@ -93,7 +95,8 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
 
   /**
    * This function is used to create a spark session
-   * @param testCode the code to test within the spark session
+   * @param testCode
+   *   the code to test within the spark session
    * @tparam T
    * @return
    */
@@ -102,7 +105,8 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
   }
 
   /**
-   * Runs code with a Temporary Directory. After execution, the content of the directory is deleted.
+   * Runs code with a Temporary Directory. After execution, the content of the directory is
+   * deleted.
    * @param testCode
    * @tparam T
    * @return
@@ -122,13 +126,17 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
     withTmpDir(tmpDir => withSpark(spark => testCode(spark, tmpDir)))
 
   /**
-   * Runs a given test code with a QbeastContext instance. The specified Keeper
-   * instance is used to customize the QbeastContext.
+   * Runs a given test code with a QbeastContext instance. The specified Keeper instance is used
+   * to customize the QbeastContext.
    *
-   * @param keeper the keeper
-   * @param testCode the test code
-   * @tparam T the test result type
-   * @return the test result
+   * @param keeper
+   *   the keeper
+   * @param testCode
+   *   the test code
+   * @tparam T
+   *   the test result type
+   * @return
+   *   the test result
    */
   def withQbeastAndSparkContext[T](keeper: Keeper = LocalKeeper)(
       testCode: SparkSession => T): T = {
@@ -161,7 +169,8 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
 
   /**
    * Runs code with Warehouse/Catalog extensions
-   * @param testCode the code to reproduce
+   * @param testCode
+   *   the code to reproduce
    * @tparam T
    * @return
    */

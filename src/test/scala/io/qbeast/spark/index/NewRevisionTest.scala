@@ -323,4 +323,5 @@ class NewRevisionTest
         appendMax shouldBe 20
       }
   }
+
 }

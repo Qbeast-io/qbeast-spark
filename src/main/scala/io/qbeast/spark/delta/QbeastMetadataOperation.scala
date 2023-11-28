@@ -23,10 +23,12 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
   type Configuration = Map[String, String]
 
   /**
-   * Returns the same data type but set all nullability fields are true
-   * (ArrayType.containsNull, and MapType.valueContainsNull)
-   * @param dataType the data type
-   * @return same data type set to null
+   * Returns the same data type but set all nullability fields are true (ArrayType.containsNull,
+   * and MapType.valueContainsNull)
+   * @param dataType
+   *   the data type
+   * @return
+   *   same data type set to null
    */
   private def asNullable(dataType: DataType): DataType = {
     dataType match {
@@ -45,8 +47,10 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
 
   /**
    * Update metadata with new Qbeast Revision
-   * @param baseConfiguration the base configuration
-   * @param newRevision the new revision
+   * @param baseConfiguration
+   *   the base configuration
+   * @param newRevision
+   *   the new revision
    */
   private def updateQbeastRevision(
       baseConfiguration: Configuration,

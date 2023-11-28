@@ -18,44 +18,43 @@ import scala.reflect.ClassTag
 import io.qbeast.spark.delta.writer.RollupDataWriter
 
 /**
- * Qbeast context provides access to internal mechanisms of
- * the Qbeast index implementation.
+ * Qbeast context provides access to internal mechanisms of the Qbeast index implementation.
  */
 trait QbeastContext {
 
   /**
    * Returns the configuration.
    *
-   * @return the configuration
+   * @return
+   *   the configuration
    */
   def config: SparkConf
 
   /**
    * Returns the keeper.
    *
-   * @return the keeper
+   * @return
+   *   the keeper
    */
   def keeper: Keeper
 
   /**
    * Returns the IndexedTableFactory instance.
    *
-   * @return the IndexedTableFactory instance
+   * @return
+   *   the IndexedTableFactory instance
    */
   def indexedTableFactory: IndexedTableFactory
 }
 
 /**
- * Qbeast context companion object.
- * <p>
- * This object implements QbeastContext to be the single instance
- * used by the objects managed by Spark. By default it creates an internal
- * managed Qbeast context instance which is tired to the current Spark session
- * and is released when the session is closed. It is also possible to specify
- * a custom unmanaged Qbeast context with #setUnmanaged method which shadows
- * the default one. Such an unmanaged context is not released with the Spark
- * session and should be used in testing scenarios only. To restore the default
- * behavior use the #unsetUnmanaged method.
+ * Qbeast context companion object. <p> This object implements QbeastContext to be the single
+ * instance used by the objects managed by Spark. By default it creates an internal managed Qbeast
+ * context instance which is tired to the current Spark session and is released when the session
+ * is closed. It is also possible to specify a custom unmanaged Qbeast context with #setUnmanaged
+ * method which shadows the default one. Such an unmanaged context is not released with the Spark
+ * session and should be used in testing scenarios only. To restore the default behavior use the
+ * #unsetUnmanaged method.
  */
 object QbeastContext
     extends QbeastContext
@@ -88,10 +87,11 @@ object QbeastContext
     SparkRevisionFactory
 
   /**
-   * Sets the unmanaged context. The specified context will not
-   * be disposed automatically at the end of the Spark session.
+   * Sets the unmanaged context. The specified context will not be disposed automatically at the
+   * end of the Spark session.
    *
-   * @param context the unmanaged context to set
+   * @param context
+   *   the unmanaged context to set
    */
   def setUnmanaged(context: QbeastContext): Unit = this.synchronized {
     unmanagedOption = Some(context)
@@ -100,7 +100,8 @@ object QbeastContext
   /**
    * Unsets the unmanaged context.
    *
-   * @return the unmanaged context
+   * @return
+   *   the unmanaged context
    */
   def unsetUnmanaged(): Option[QbeastContext] = this.synchronized {
     val result = unmanagedOption

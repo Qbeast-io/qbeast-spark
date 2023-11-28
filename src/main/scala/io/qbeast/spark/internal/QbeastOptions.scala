@@ -10,8 +10,10 @@ import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, SparkSession}
 
 /**
  * Container for Qbeast options.
- * @param columnsToIndex value of columnsToIndex option
- * @param cubeSize value of cubeSize option
+ * @param columnsToIndex
+ *   value of columnsToIndex option
+ * @param cubeSize
+ *   value of cubeSize option
  */
 case class QbeastOptions(columnsToIndex: Seq[String], cubeSize: Int, stats: Option[DataFrame])
 
@@ -27,7 +29,8 @@ object QbeastOptions {
 
   /**
    * Gets the columns to index from the options
-   * @param options the options passed on the dataframe
+   * @param options
+   *   the options passed on the dataframe
    * @return
    */
   private def getColumnsToIndex(options: Map[String, String]): Seq[String] = {
@@ -42,7 +45,8 @@ object QbeastOptions {
 
   /**
    * Gets the desired cube size from the options
-   * @param options the options passed on the dataframe
+   * @param options
+   *   the options passed on the dataframe
    * @return
    */
 
@@ -54,11 +58,10 @@ object QbeastOptions {
   }
 
   /**
-   * Get the column stats from the options
-   * This stats should be in a JSON formatted string
-   * with the following schema
-   * {columnName_min:value, columnName_max:value, ...}
-   * @param options the options passed on the dataframe
+   * Get the column stats from the options This stats should be in a JSON formatted string with
+   * the following schema {columnName_min:value, columnName_max:value, ...}
+   * @param options
+   *   the options passed on the dataframe
    * @return
    */
   private def getStats(options: Map[String, String]): Option[DataFrame] = {
@@ -79,8 +82,10 @@ object QbeastOptions {
 
   /**
    * Create QbeastOptions object from options map
-   * @param options the options map
-   * @return the QbeastOptions
+   * @param options
+   *   the options map
+   * @return
+   *   the QbeastOptions
    */
   def apply(options: Map[String, String]): QbeastOptions = {
     val columnsToIndex = getColumnsToIndex(options)

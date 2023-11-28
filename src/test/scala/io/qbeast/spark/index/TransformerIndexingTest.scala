@@ -24,10 +24,14 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   /**
    * Compute String column histogram.
-   * @param columnName String column name
-   * @param numBins number of bins for the histogram
-   * @param df DataFrame
-   * @return Sorted String histogram as a String
+   * @param columnName
+   *   String column name
+   * @param numBins
+   *   number of bins for the histogram
+   * @param df
+   *   DataFrame
+   * @return
+   *   Sorted String histogram as a String
    */
   def getStringHistogramStr(columnName: String, numBins: Int, df: DataFrame): String = {
     val binStarts = "__bin_starts"
@@ -47,8 +51,8 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
   }
 
   /**
-   * Compute weighted encoding distance for files:
-   * (ascii(string_col_max.head) - ascii(string_col_min.head)) * numRecords
+   * Compute weighted encoding distance for files: (ascii(string_col_max.head) -
+   * ascii(string_col_min.head)) * numRecords
    */
   def computeColumnEncodingDist(
       spark: SparkSession,
@@ -452,4 +456,5 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
       histDist should be < hashDist
     })
+
 }

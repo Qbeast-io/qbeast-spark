@@ -13,15 +13,19 @@ import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
 
 /**
  * Analyzes and resolves the Spark Plan before Optimization
- * @param spark the SparkSession
+ * @param spark
+ *   the SparkSession
  */
 class QbeastAnalysis(spark: SparkSession) extends Rule[LogicalPlan] {
 
   /**
    * Returns the V1Relation from a V2Relation
-   * @param dataSourceV2Relation the V2Relation
-   * @param table the underlying table
-   * @return the LogicalRelation
+   * @param dataSourceV2Relation
+   *   the V2Relation
+   * @param table
+   *   the underlying table
+   * @return
+   *   the LogicalRelation
    */
   private def toV1Relation(
       dataSourceV2Relation: DataSourceV2Relation,

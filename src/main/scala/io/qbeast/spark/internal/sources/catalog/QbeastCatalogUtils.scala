@@ -29,8 +29,8 @@ import java.util
 import scala.collection.JavaConverters._
 
 /**
- * Object containing all the method utilities for creating and loading
- * a Qbeast formatted Table into the Catalog
+ * Object containing all the method utilities for creating and loading a Qbeast formatted Table
+ * into the Catalog
  */
 object QbeastCatalogUtils {
 
@@ -40,7 +40,8 @@ object QbeastCatalogUtils {
 
   /**
    * Checks if the provider is Qbeast
-   * @param provider the provider, if any
+   * @param provider
+   *   the provider, if any
    * @return
    */
   def isQbeastProvider(provider: Option[String]): Boolean = {
@@ -59,7 +60,8 @@ object QbeastCatalogUtils {
 
   /**
    * Checks if an Identifier is set with a path
-   * @param ident the Identifier
+   * @param ident
+   *   the Identifier
    * @return
    */
   def isPathTable(ident: Identifier): Boolean = {
@@ -133,15 +135,24 @@ object QbeastCatalogUtils {
 
   /**
    * Creates a Table on the Catalog
-   * @param ident the Identifier of the table
-   * @param schema the schema of the table
-   * @param partitions the partitions of the table, if any
-   * @param allTableProperties all the table properties
-   * @param writeOptions the write properties of the table
-   * @param dataFrame the dataframe to write, if any
-   * @param tableCreationMode the creation mode (could be CREATE, REPLACE or CREATE OR REPLACE)
-   * @param tableFactory the indexed table factory
-   * @param existingSessionCatalog the existing session catalog
+   * @param ident
+   *   the Identifier of the table
+   * @param schema
+   *   the schema of the table
+   * @param partitions
+   *   the partitions of the table, if any
+   * @param allTableProperties
+   *   all the table properties
+   * @param writeOptions
+   *   the write properties of the table
+   * @param dataFrame
+   *   the dataframe to write, if any
+   * @param tableCreationMode
+   *   the creation mode (could be CREATE, REPLACE or CREATE OR REPLACE)
+   * @param tableFactory
+   *   the indexed table factory
+   * @param existingSessionCatalog
+   *   the existing session catalog
    */
 
   def createQbeastTable(
@@ -234,9 +245,8 @@ object QbeastCatalogUtils {
   }
 
   /**
-   * Based on DeltaCatalog updateCatalog private method,
-   * it maintains the consistency of creating a table
-   * calling the spark session catalog.
+   * Based on DeltaCatalog updateCatalog private method, it maintains the consistency of creating
+   * a table calling the spark session catalog.
    * @param operation
    * @param table
    * @param isPathTable
@@ -280,8 +290,10 @@ object QbeastCatalogUtils {
 
   /**
    * Loads a qbeast table based on the underlying table
-   * @param table the underlying table
-   * @return a Table with Qbeast information and implementations
+   * @param table
+   *   the underlying table
+   * @return
+   *   a Table with Qbeast information and implementations
    */
   def loadQbeastTable(table: Table, tableFactory: IndexedTableFactory): Table = {
 

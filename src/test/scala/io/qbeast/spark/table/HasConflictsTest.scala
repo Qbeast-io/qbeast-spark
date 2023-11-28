@@ -7,8 +7,8 @@ import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
 class HasConflictsTest extends QbeastIntegrationTestSpec {
 
   /**
-   *  A conflict happens if there
-   * are new cubes that have been optimized but they were not announced.
+   * A conflict happens if there are new cubes that have been optimized but they were not
+   * announced.
    */
 
   "Has conflict method" should
@@ -57,4 +57,5 @@ class HasConflictsTest extends QbeastIntegrationTestSpec {
 
       }
     }
+
 }

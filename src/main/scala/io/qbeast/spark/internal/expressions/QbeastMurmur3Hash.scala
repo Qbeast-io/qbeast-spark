@@ -10,8 +10,10 @@ import org.apache.spark.unsafe.hash.Murmur3_x86_32
 /**
  * Qbeast hash expression based on Murmur3Hash algorithm
  *
- * @param children Sequence of expressions to hash
- * @param seed Seed for the Hash Expression
+ * @param children
+ *   Sequence of expressions to hash
+ * @param seed
+ *   Seed for the Hash Expression
  */
 case class QbeastMurmur3Hash(children: Seq[Expression], seed: Int) extends HashExpression[Int] {
   def this(arguments: Seq[Expression]) = this(arguments, 42)

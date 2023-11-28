@@ -13,10 +13,14 @@ import scala.collection.JavaConverters._
 /**
  * Builds the index status from a given snapshot and revision
  *
- * @param qbeastSnapshot the QbeastSnapshot
- * @param revision the revision
- * @param announcedSet the announced set available for the revision
- * @param replicatedSet the replicated set available for the revision
+ * @param qbeastSnapshot
+ *   the QbeastSnapshot
+ * @param revision
+ *   the revision
+ * @param announcedSet
+ *   the announced set available for the revision
+ * @param replicatedSet
+ *   the replicated set available for the revision
  */
 private[delta] class IndexStatusBuilder(
     qbeastSnapshot: DeltaQbeastSnapshot,
@@ -27,7 +31,8 @@ private[delta] class IndexStatusBuilder(
 
   /**
    * Dataset of files belonging to the specific revision
-   * @return the dataset of AddFile actions
+   * @return
+   *   the dataset of AddFile actions
    */
   def revisionFiles: Dataset[AddFile] =
     // this must be external to the lambda, to avoid SerializationErrors
@@ -62,7 +67,8 @@ private[delta] class IndexStatusBuilder(
   /**
    * Returns the index state for the given space revision
    *
-   * @return Dataset containing cube information
+   * @return
+   *   Dataset containing cube information
    */
   def indexCubeStatuses: SortedMap[CubeId, CubeStatus] = {
     val builder = SortedMap.newBuilder[CubeId, CubeStatus]

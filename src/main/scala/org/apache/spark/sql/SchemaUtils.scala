@@ -9,7 +9,8 @@ object SchemaUtils {
 
   /**
    * Sets all the fields from the Schema to nullable
-   * @param schema the schema to change
+   * @param schema
+   *   the schema to change
    * @return
    */
   def schemaAsNullable(schema: StructType): StructType = {
@@ -18,8 +19,10 @@ object SchemaUtils {
 
   /**
    * Whether the newSchema is read compatible with the currentSchema or not
-   * @param newSchema the schema to test
-   * @param currentSchema the current schema of the table
+   * @param newSchema
+   *   the schema to test
+   * @param currentSchema
+   *   the current schema of the table
    * @return
    */
   def isReadCompatible(newSchema: StructType, currentSchema: StructType): Boolean = {

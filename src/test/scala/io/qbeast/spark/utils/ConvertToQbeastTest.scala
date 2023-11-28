@@ -238,4 +238,5 @@ class ConvertToQbeastTest
       stagingCs.size shouldBe 1
       stagingCs.head.blocks.size shouldBe <(numSparkPartitions)
     })
+
 }

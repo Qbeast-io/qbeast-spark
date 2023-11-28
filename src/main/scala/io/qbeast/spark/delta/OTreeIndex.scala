@@ -21,14 +21,17 @@ import java.net.URI
 /**
  * FileIndex to prune files
  *
- * @param index the Tahoe log file index
- * @param spark spark session
+ * @param index
+ *   the Tahoe log file index
+ * @param spark
+ *   spark session
  */
 case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
 
   /**
    * Snapshot to analyze
-   * @return the snapshot
+   * @return
+   *   the snapshot
    */
   protected def snapshot: Snapshot = index.getSnapshot
 
@@ -53,8 +56,8 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
   }
 
   /**
-   * Collect Staging AddFiles from _delta_log and convert them into FileStatuses.
-   * The output is merged with those built from QbeastBlocks.
+   * Collect Staging AddFiles from _delta_log and convert them into FileStatuses. The output is
+   * merged with those built from QbeastBlocks.
    * @return
    */
   private def stagingFiles: Seq[FileStatus] = {
@@ -109,8 +112,7 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
 }
 
 /**
- * Companion object for OTreeIndex
- * Builds an OTreeIndex instance from the path to a table
+ * Companion object for OTreeIndex Builds an OTreeIndex instance from the path to a table
  */
 object OTreeIndex {
 
@@ -124,8 +126,7 @@ object OTreeIndex {
 }
 
 /**
- * Singleton object for EmptyIndex.
- * Used when creating a table with no data added
+ * Singleton object for EmptyIndex. Used when creating a table with no data added
  */
 
 object EmptyIndex extends FileIndex {

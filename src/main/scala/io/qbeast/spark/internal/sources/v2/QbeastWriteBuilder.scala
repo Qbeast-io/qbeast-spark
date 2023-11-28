@@ -20,9 +20,12 @@ import scala.collection.convert.ImplicitConversions.`map AsScala`
 
 /**
  * WriteBuilder implementation for Qbeast Format
- * @param info the write information
- * @param properties the table properties
- * @param indexedTable the Indexed Table
+ * @param info
+ *   the write information
+ * @param properties
+ *   the table properties
+ * @param indexedTable
+ *   the Indexed Table
  */
 class QbeastWriteBuilder(
     info: LogicalWriteInfo,
@@ -48,7 +51,8 @@ class QbeastWriteBuilder(
 
   /**
    * Build an InsertableRelation to be able to write the data in QbeastFormat
-   * @return the InsertableRelation with the corresponding method
+   * @return
+   *   the InsertableRelation with the corresponding method
    */
   override def build(): V1Write = new V1Write {
 

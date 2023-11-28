@@ -28,13 +28,20 @@ import scala.collection.mutable
 /**
  * BlockWriter is in charge of writing the qbeast data into files
  *
- * @param dataPath       path of the table
- * @param schema         schema of the original data
- * @param schemaIndex    schema with qbeast metadata columns
- * @param factory        output writer factory
- * @param serConf        configuration to serialize the data
- * @param qbeastColumns  qbeast metadata columns
- * @param tableChanges     the revision of the data to write
+ * @param dataPath
+ *   path of the table
+ * @param schema
+ *   schema of the original data
+ * @param schemaIndex
+ *   schema with qbeast metadata columns
+ * @param factory
+ *   output writer factory
+ * @param serConf
+ *   configuration to serialize the data
+ * @param qbeastColumns
+ *   qbeast metadata columns
+ * @param tableChanges
+ *   the revision of the data to write
  */
 case class BlockWriter(
     dataPath: String,
@@ -50,8 +57,10 @@ case class BlockWriter(
   /**
    * Writes rows in corresponding files
    *
-   * @param iter iterator of rows
-   * @return the sequence of files added
+   * @param iter
+   *   iterator of rows
+   * @return
+   *   the sequence of files added
    */
   def writeRow(rows: Iterator[InternalRow]): Iterator[(AddFile, TaskStats)] = {
     val revision = tableChanges.updatedRevision

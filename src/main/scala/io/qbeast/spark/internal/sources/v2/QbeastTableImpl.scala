@@ -21,11 +21,16 @@ import scala.collection.JavaConverters._
 
 /**
  * Table Implementation for Qbeast Format
- * @param path the Path of the table
- * @param options the write options
- * @param schema the schema of the table
- * @param catalogTable the underlying Catalog Table, if any
- * @param tableFactory the IndexedTable Factory
+ * @param path
+ *   the Path of the table
+ * @param options
+ *   the write options
+ * @param schema
+ *   the schema of the table
+ * @param catalogTable
+ *   the underlying Catalog Table, if any
+ * @param tableFactory
+ *   the IndexedTable Factory
  */
 class QbeastTableImpl private[sources] (
     tableIdentifier: TableIdentifier,

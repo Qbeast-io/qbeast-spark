@@ -8,16 +8,26 @@ import io.qbeast.spark.utils.MathOps.{l1Deviation, l2Deviation, roundToPrecision
 
 /**
  * Metrics that aim to provide an overview for a given index revision
- * @param cubeStatuses cube-wise metadata
- * @param dimensionCount the number of indexing columns
- * @param elementCount the total number of records
- * @param depth the largest cube depth
- * @param cubeCount the number of cubes
- * @param desiredCubeSize the target cube size for all inner cubes
- * @param indexingColumns columns on which the index is built
- * @param avgFanout the average number of child cubes for all inner cubes
- * @param depthOnBalance measurement for tree imbalance
- * @param innerCubeSizeMetrics stats on inner cube sizes
+ * @param cubeStatuses
+ *   cube-wise metadata
+ * @param dimensionCount
+ *   the number of indexing columns
+ * @param elementCount
+ *   the total number of records
+ * @param depth
+ *   the largest cube depth
+ * @param cubeCount
+ *   the number of cubes
+ * @param desiredCubeSize
+ *   the target cube size for all inner cubes
+ * @param indexingColumns
+ *   columns on which the index is built
+ * @param avgFanout
+ *   the average number of child cubes for all inner cubes
+ * @param depthOnBalance
+ *   measurement for tree imbalance
+ * @param innerCubeSizeMetrics
+ *   stats on inner cube sizes
  */
 case class IndexMetrics(
     cubeStatuses: Map[CubeId, CubeStatus],
@@ -133,11 +143,14 @@ object CubeSizeMetrics {
 object MathOps {
 
   /**
-   * Compute the relation between the actual depth over the theoretical depth of an index
-   * assuming full fanout for all inner cubes. The result can be used to measure tree imbalance.
-   * @param depth actual depth of the index
-   * @param cubeCount the number of actual cubes
-   * @param dimensionCount the number of dimensions
+   * Compute the relation between the actual depth over the theoretical depth of an index assuming
+   * full fanout for all inner cubes. The result can be used to measure tree imbalance.
+   * @param depth
+   *   actual depth of the index
+   * @param cubeCount
+   *   the number of actual cubes
+   * @param dimensionCount
+   *   the number of dimensions
    * @return
    */
   def depthOnBalance(depth: Int, cubeCount: Int, dimensionCount: Int): Double = {

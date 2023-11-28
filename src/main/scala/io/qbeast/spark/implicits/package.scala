@@ -8,8 +8,7 @@ import org.apache.spark.sql.{DataFrame, DataFrameReader, DataFrameWriter}
 package object implicits {
 
   /**
-   * Extends the DataFrameReader API by adding a qbeast function
-   * Usage:
+   * Extends the DataFrameReader API by adding a qbeast function Usage:
    * {{{
    * spark.read.qbeast(path)
    * }}}
@@ -23,8 +22,7 @@ package object implicits {
   }
 
   /**
-   * Extends the DataFrameWriter API by adding a qbeast function
-   * Usage:
+   * Extends the DataFrameWriter API by adding a qbeast function Usage:
    * {{{
    * df.write.qbeast(path)
    * }}}

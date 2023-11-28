@@ -7,24 +7,25 @@ import io.qbeast.core.model.CubeId
 import scala.collection.mutable
 
 /**
- * Rollup represents a single rollup operation which begins with populating the
- * instance with data to be rolled up and completes with computation of the
- * rollup result. Instances of this class should not be reused.
+ * Rollup represents a single rollup operation which begins with populating the instance with data
+ * to be rolled up and completes with computation of the rollup result. Instances of this class
+ * should not be reused.
  *
- * @param limit the limit for the sum of the cube sizes rolled up to the same
- * cube
+ * @param limit
+ *   the limit for the sum of the cube sizes rolled up to the same cube
  */
 private[writer] class Rollup(limit: Double) {
 
   private val groups = mutable.Map.empty[CubeId, Group]
 
   /**
-   * Populate this instance with given cube identifier and size. If this method
-   * is called several times with the same cube identifier then the provided
-   * sized are summed up.
+   * Populate this instance with given cube identifier and size. If this method is called several
+   * times with the same cube identifier then the provided sized are summed up.
    *
-   * @param cubeId the cube identifier
-   * @param size the size associated with the cube
+   * @param cubeId
+   *   the cube identifier
+   * @param size
+   *   the size associated with the cube
    */
   def populate(cubeId: CubeId, size: Double): Rollup = {
     val group = groups.getOrElseUpdate(cubeId, Group.empty)
@@ -33,11 +34,11 @@ private[writer] class Rollup(limit: Double) {
   }
 
   /**
-   * Computes the rollup result and returns the map where the keys are the
-   * original cube identifiers and the values are the cube identifiers to which
-   * the original data is rolled up.
+   * Computes the rollup result and returns the map where the keys are the original cube
+   * identifiers and the values are the cube identifiers to which the original data is rolled up.
    *
-   * @return the rollup result
+   * @return
+   *   the rollup result
    */
   def compute(): Map[CubeId, CubeId] = {
     val queue = new mutable.PriorityQueue()(Ordering.by[CubeId, Int](_.depth))

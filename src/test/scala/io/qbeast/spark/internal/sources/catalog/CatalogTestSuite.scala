@@ -19,9 +19,9 @@ import scala.util.Random
 
 /**
  * A test suite for Catalog tests. It includes:
- * - Creation of Student's dataframe
- * - Creation of QbeastCatalog with a delegated session catalog
- * - Schema of the Student's dataframe
+ *   - Creation of Student's dataframe
+ *   - Creation of QbeastCatalog with a delegated session catalog
+ *   - Schema of the Student's dataframe
  */
 trait CatalogTestSuite {
 

@@ -13,9 +13,12 @@ object RowUtils {
 
   /**
    * Converts the row values to a Point in the space
-   * @param row the row values
-   * @param revision the revision of the space
-   * @return the point
+   * @param row
+   *   the row values
+   * @param revision
+   *   the revision of the space
+   * @return
+   *   the point
    */
   def rowValuesToPoint(row: Row, revision: Revision): Point = Point {
     if (revision.transformations.isEmpty) {

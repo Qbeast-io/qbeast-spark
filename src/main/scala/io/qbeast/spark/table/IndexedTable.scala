@@ -18,61 +18,70 @@ import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame}
 import java.util.ConcurrentModificationException
 
 /**
- * Indexed table represents the tabular data storage
- * indexed with the OTree indexing technology.
+ * Indexed table represents the tabular data storage indexed with the OTree indexing technology.
  */
 trait IndexedTable {
 
   /**
    * Returns whether the table physically exists.
-   * @return the table physically exists.
+   * @return
+   *   the table physically exists.
    */
   def exists: Boolean
 
   /**
    * Returns the table id which identifies the table.
    *
-   * @return the table id
+   * @return
+   *   the table id
    */
   def tableID: QTableID
 
   /**
-   * Saves given data in the table and updates the index. The specified columns are
-   * used to define the index when the table is created or overwritten. The append
-   * flag defines whether the existing data should be overwritten.
+   * Saves given data in the table and updates the index. The specified columns are used to define
+   * the index when the table is created or overwritten. The append flag defines whether the
+   * existing data should be overwritten.
    *
-   * @param data the data to save
-   * @param parameters the parameters to save the data
-   * @param append the data should be appended to the table
-   * @return the base relation to read the saved data
+   * @param data
+   *   the data to save
+   * @param parameters
+   *   the parameters to save the data
+   * @param append
+   *   the data should be appended to the table
+   * @return
+   *   the base relation to read the saved data
    */
   def save(data: DataFrame, parameters: Map[String, String], append: Boolean): BaseRelation
 
   /**
    * Loads the table data.
    *
-   * @return the base relation to read the table data
+   * @return
+   *   the base relation to read the table data
    */
   def load(): BaseRelation
 
   /**
    * Analyzes the index for a given revision
-   * @param revisionID the identifier of revision to analyze
-   * @return the cubes to analyze
+   * @param revisionID
+   *   the identifier of revision to analyze
+   * @return
+   *   the cubes to analyze
    */
   def analyze(revisionID: RevisionID): Seq[String]
 
   /**
    * Optimizes the given table for a given revision
-   * @param revisionID the identifier of revision to optimize
+   * @param revisionID
+   *   the identifier of revision to optimize
    */
   def optimize(revisionID: RevisionID): Unit
 
   /**
-   * Optimizes the table by optimizing the data stored in the specified index
-   * files.
+   * Optimizes the table by optimizing the data stored in the specified index files.
    *
-   * @param files the index files to optimize
+   * @param files
+   *   the index files to optimize
    */
   def optimize(files: Seq[String]): Unit
 
@@ -88,23 +97,29 @@ trait IndexedTable {
 trait IndexedTableFactory {
 
   /**
-   * Returns a IndexedTable for given SQLContext and path.
-   * It is not guaranteed that the returned table physically
-   * exists, use IndexedTable#exists attribute to verify it.
+   * Returns a IndexedTable for given SQLContext and path. It is not guaranteed that the returned
+   * table physically exists, use IndexedTable#exists attribute to verify it.
    *
-   * @param tableId the table path
-   * @return the table
+   * @param tableId
+   *   the table path
+   * @return
+   *   the table
    */
   def getIndexedTable(tableId: QTableID): IndexedTable
 }
 
 /**
  * Implementation of IndexedTableFactory.
- * @param keeper the keeper
- * @param indexManager the index manager
- * @param metadataManager the metadata manager
- * @param dataWriter the data writer
- * @param revisionBuilder the revision builder
+ * @param keeper
+ *   the keeper
+ * @param indexManager
+ *   the index manager
+ * @param metadataManager
+ *   the metadata manager
+ * @param dataWriter
+ *   the data writer
+ * @param revisionBuilder
+ *   the revision builder
  */
 final class IndexedTableFactoryImpl(
     private val keeper: Keeper,
@@ -128,12 +143,18 @@ final class IndexedTableFactoryImpl(
 /**
  * Implementation of IndexedTable.
  *
- * @param tableID the table identifier
- * @param keeper the keeper
- * @param indexManager the index manager
- * @param metadataManager the metadata manager
- * @param dataWriter the data writer
- * @param revisionBuilder the revision builder
+ * @param tableID
+ *   the table identifier
+ * @param keeper
+ *   the keeper
+ * @param indexManager
+ *   the index manager
+ * @param metadataManager
+ *   the metadata manager
+ * @param dataWriter
+ *   the data writer
+ * @param revisionBuilder
+ *   the revision builder
  */
 private[table] class IndexedTableImpl(
     val tableID: QTableID,
@@ -177,10 +198,12 @@ private[table] class IndexedTableImpl(
   }
 
   /**
-   * Add the required indexing parameters when the SaveMode is Append.
-   * The user-provided parameters are respected.
-   * @param latestRevision the latest revision
-   * @param parameters the parameters required for indexing
+   * Add the required indexing parameters when the SaveMode is Append. The user-provided
+   * parameters are respected.
+   * @param latestRevision
+   *   the latest revision
+   * @param parameters
+   *   the parameters required for indexing
    */
   private def addRequiredParams(
       latestRevision: Revision,
@@ -272,7 +295,8 @@ private[table] class IndexedTableImpl(
 
   /**
    * Creates a QbeastBaseRelation for the given table.
-   * @return the QbeastBaseRelation
+   * @return
+   *   the QbeastBaseRelation
    */
   private def createQbeastBaseRelation(): BaseRelation = {
     QbeastBaseRelation.forQbeastTable(this)

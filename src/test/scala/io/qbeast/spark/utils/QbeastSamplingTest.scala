@@ -147,4 +147,5 @@ class QbeastSamplingTest extends QbeastIntegrationTestSpec {
 
       }
   }
+
 }

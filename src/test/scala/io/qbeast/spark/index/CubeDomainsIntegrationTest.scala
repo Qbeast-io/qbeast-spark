@@ -98,4 +98,5 @@ class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
       numElements / 100,
       CUBE_WEIGHTS_BUFFER_CAPACITY) shouldBe >(CubeDomainsBuilder.minGroupCubeSize)
   }
+
 }

@@ -23,13 +23,15 @@ import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 object QbeastBaseRelation {
 
   /**
-   * Returns a HadoopFsRelation that contains all of the data present
-   * in the table. This relation will be continually updated
-   * as files are added or removed from the table. However, new HadoopFsRelation
-   * must be requested in order to see changes to the schema.
-   * @param tableID the identifier of the table
-   * @param sqlContext the SQLContext
-   * @return the HadoopFsRelation
+   * Returns a HadoopFsRelation that contains all of the data present in the table. This relation
+   * will be continually updated as files are added or removed from the table. However, new
+   * HadoopFsRelation must be requested in order to see changes to the schema.
+   * @param tableID
+   *   the identifier of the table
+   * @param sqlContext
+   *   the SQLContext
+   * @return
+   *   the HadoopFsRelation
    */
   def createRelation(
       sqlContext: SQLContext,
@@ -83,10 +85,12 @@ object QbeastBaseRelation {
   }
 
   /**
-   * Function that can be called from a QbeastBaseRelation object to create a
-   * new QbeastBaseRelation with a new tableID.
-   * @param indexedTable the indexed table
-   * @return BaseRelation for the new table in Qbeast format
+   * Function that can be called from a QbeastBaseRelation object to create a new
+   * QbeastBaseRelation with a new tableID.
+   * @param indexedTable
+   *   the indexed table
+   * @return
+   *   BaseRelation for the new table in Qbeast format
    */
   def forQbeastTable(indexedTable: IndexedTable): BaseRelation = {
     forQbeastTableWithOptions(indexedTable, Map.empty)

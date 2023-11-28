@@ -14,7 +14,8 @@ object QbeastExceptionMessages {
 
   /**
    * Conversion error for unsupported file format
-   * @return Exception message with the input file format
+   * @return
+   *   Exception message with the input file format
    */
   def unsupportedFormatExceptionMsg: String => String = (fileFormat: String) =>
     s"Unsupported file format: $fileFormat"

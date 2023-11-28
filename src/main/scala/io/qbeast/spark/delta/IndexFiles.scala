@@ -32,9 +32,12 @@ object IndexFiles {
   /**
    * Creates an IndexFile instance from a given AddFile instance.
    *
-   * @param dimensionCount the number of the index dimensions
-   * @param addFile the AddFile instance
-   * @return an IndexFile instance
+   * @param dimensionCount
+   *   the number of the index dimensions
+   * @param addFile
+   *   the AddFile instance
+   * @return
+   *   an IndexFile instance
    */
   def fromAddFile(dimensionCount: Int)(addFile: AddFile): IndexFile = {
     val builder = new IndexFileBuilder()
@@ -55,9 +58,12 @@ object IndexFiles {
   /**
    * Converts a given IndexFile instance to an AddFile instance.
    *
-   * @param dataChange the index file represents a data change
-   * @param indexFile the IndexFile instance
-   * @return an AddFile instance
+   * @param dataChange
+   *   the index file represents a data change
+   * @param indexFile
+   *   the IndexFile instance
+   * @return
+   *   an AddFile instance
    */
   def toAddFile(dataChange: Boolean = true)(indexFile: IndexFile): AddFile = {
     val tags = Map(
@@ -75,9 +81,12 @@ object IndexFiles {
   /**
    * Converts a given IndexFile instance to a RemoveFile instance.
    *
-   * @param dataChange file removal implies data change
-   * @param indexFile the IndexFile instance
-   * @param a RemoveFile instance
+   * @param dataChange
+   *   file removal implies data change
+   * @param indexFile
+   *   the IndexFile instance
+   * @param a
+   *   RemoveFile instance
    */
   def toRemoveFile(dataChange: Boolean = false)(indexFile: IndexFile): RemoveFile =
     RemoveFile(
@@ -90,9 +99,12 @@ object IndexFiles {
   /**
    * Converts IndexFile instance to FileStatus instance.
    *
-   * @param indexPath the path to the root of the index
-   * @param indexFile the IndexFile instance
-   * @return a FileStatus instance
+   * @param indexPath
+   *   the path to the root of the index
+   * @param indexFile
+   *   the IndexFile instance
+   * @return
+   *   a FileStatus instance
    */
   def toFileStatus(indexPath: Path)(indexFile: IndexFile): FileStatus = {
     var path = new Path(new URI(indexFile.path))

@@ -52,7 +52,8 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction]
 
   /**
    * Returns the DeltaQbeastLog for the table
-   * @param tableID the table ID
+   * @param tableID
+   *   the table ID
    * @return
    */
   def loadDeltaQbeastLog(tableID: QTableID): DeltaQbeastLog = {
@@ -77,7 +78,8 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction]
   /**
    * Checks if there's an existing log directory for the table
    *
-   * @param tableID the table ID
+   * @param tableID
+   *   the table ID
    * @return
    */
   override def existsLog(tableID: QTableID): Boolean = {

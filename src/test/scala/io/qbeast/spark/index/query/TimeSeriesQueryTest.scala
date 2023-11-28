@@ -92,4 +92,5 @@ class TimeSeriesQueryTest extends QbeastIntegrationTestSpec with QueryTestSpec {
         .count()
 
     })
+
 }

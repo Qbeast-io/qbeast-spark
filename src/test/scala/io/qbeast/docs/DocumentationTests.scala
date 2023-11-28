@@ -113,4 +113,5 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
 
     }
   }
+
 }

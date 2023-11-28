@@ -44,16 +44,15 @@ private[spark] class StagingDataManager(tableID: QTableID) extends DeltaStagingU
   }
 
   /**
-   * Resolve write policy according to the current staging size and its
-   * desired value(spark.qbeast.index.stagingSizeInBytes) among the following
-   * possibilities:
-   * 1. stage the data without indexing
-   * 2. index the data while ignoring the staged data
-   * 3. index (data + staging area)
-   * @param data DataFrame to write
-   * @return a StagingResolution instance containing the data to write, the staging
-   *         RemoveFiles, and a boolean denoting whether the data to write is to be
-   *         staged or indexed.
+   * Resolve write policy according to the current staging size and its desired
+   * value(spark.qbeast.index.stagingSizeInBytes) among the following possibilities:
+   *   1. stage the data without indexing 2. index the data while ignoring the staged data 3.
+   *      index (data + staging area)
+   * @param data
+   *   DataFrame to write
+   * @return
+   *   a StagingResolution instance containing the data to write, the staging RemoveFiles, and a
+   *   boolean denoting whether the data to write is to be staged or indexed.
    */
   def updateWithStagedData(data: DataFrame): StagingResolution = {
     STAGING_SIZE_IN_BYTES match {
@@ -77,8 +76,8 @@ private[spark] class StagingDataManager(tableID: QTableID) extends DeltaStagingU
   }
 
   /**
-   * Stage the data without indexing by writing it in the delta format. If the table
-   * is not yet a qbeast table, use ConvertToQbeastCommand for conversion after the write.
+   * Stage the data without indexing by writing it in the delta format. If the table is not yet a
+   * qbeast table, use ConvertToQbeastCommand for conversion after the write.
    */
   def stageData(data: DataFrame, indexStatus: IndexStatus, append: Boolean): Unit = {
     // Write data to the staging area in the delta format

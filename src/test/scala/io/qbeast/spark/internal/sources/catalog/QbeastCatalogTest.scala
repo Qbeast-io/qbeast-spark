@@ -127,6 +127,7 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
     qbeastCatalog.listTables(defaultNamespace) shouldBe Array()
 
   })
+
   it should "rename table" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
     val qbeastCatalog = createQbeastCatalog(spark)
     val tableIdentifier = Identifier.of(defaultNamespace, "student")

@@ -66,4 +66,5 @@ class NormalizedWeightIntegrationTest extends QbeastIntegrationTestSpec {
 
         cubeNormalizedWeights.foreach(cubeInfo => cubeInfo._2 shouldBe 2.0)
     }
+
 }

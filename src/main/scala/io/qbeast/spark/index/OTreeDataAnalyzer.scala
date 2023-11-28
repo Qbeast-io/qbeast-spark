@@ -19,10 +19,14 @@ trait OTreeDataAnalyzer {
 
   /**
    * Analyze the data to process
-   * @param data the data to index
-   * @param indexStatus the current status of the index
-   * @param isReplication either we are replicating the elements or not
-   * @return the changes to the index
+   * @param data
+   *   the data to index
+   * @param indexStatus
+   *   the current status of the index
+   * @param isReplication
+   *   either we are replicating the elements or not
+   * @return
+   *   the changes to the index
    */
   def analyze(
       data: DataFrame,
@@ -38,10 +42,11 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
    */
 
   /**
-   * Analyze a specific group of columns of the dataframe
-   * and extract valuable statistics
-   * @param data the data to analyze
-   * @param columnTransformers the columns to analyze
+   * Analyze a specific group of columns of the dataframe and extract valuable statistics
+   * @param data
+   *   the data to analyze
+   * @param columnTransformers
+   *   the columns to analyze
    * @return
    */
   private[index] def getDataFrameStats(
@@ -54,8 +59,10 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
   /**
    * Given a Row with Statistics, outputs the RevisionChange
-   * @param row the row with statistics
-   * @param revision the current revision
+   * @param row
+   *   the row with statistics
+   * @param revision
+   *   the current revision
    * @return
    */
   private[index] def calculateRevisionChanges(
@@ -166,10 +173,11 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
     }
 
   /**
-   * Compute domain value for each cube from the existing index.
-   * The domain of a given cube is computed as a fraction of its parent domain proportional
-   * to the ratio between its own tree size and its parent subtree size.
-   * @param cubesStatuses CubeStatus for all existing cubes
+   * Compute domain value for each cube from the existing index. The domain of a given cube is
+   * computed as a fraction of its parent domain proportional to the ratio between its own tree
+   * size and its parent subtree size.
+   * @param cubesStatuses
+   *   CubeStatus for all existing cubes
    * @return
    */
   private[index] def computeExistingCubeDomains(
@@ -233,9 +241,12 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
 
   /**
    * Avoid computing the weight for the current cube if any of its ancestors is leaf.
-   * @param cube the current CubeId whose NormalizedWeight is of our interest
-   * @param cubeNormalizedWeights existing NormalizedWeights
-   * @param isReplication whether the current process is a replication process
+   * @param cube
+   *   the current CubeId whose NormalizedWeight is of our interest
+   * @param cubeNormalizedWeights
+   *   existing NormalizedWeights
+   * @param isReplication
+   *   whether the current process is a replication process
    * @return
    */
   private[index] def skipCube(
@@ -248,11 +259,14 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
   }
 
   /**
-   * Populate global NormalizedWeights in a top-down fashion using cube domains:
-   * Wc = Wpc + desiredCubeSize / domain. When treeSize <= desiredCubeSize, we force a leaf.
-   * @param mergedCubeDomains merged cube domain
-   * @param indexStatus existing index metadata
-   * @param isReplication whether the current process is a replication process
+   * Populate global NormalizedWeights in a top-down fashion using cube domains: Wc = Wpc +
+   * desiredCubeSize / domain. When treeSize <= desiredCubeSize, we force a leaf.
+   * @param mergedCubeDomains
+   *   merged cube domain
+   * @param indexStatus
+   *   existing index metadata
+   * @param isReplication
+   *   whether the current process is a replication process
    * @return
    */
   private[index] def estimateCubeWeights(

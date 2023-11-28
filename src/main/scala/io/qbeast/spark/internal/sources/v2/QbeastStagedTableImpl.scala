@@ -24,8 +24,8 @@ import java.util
 import scala.collection.JavaConverters._
 
 /**
- * Qbeast Implementation of StagedTable
- * An StagedTable allows Atomic CREATE TABLE AS SELECT / REPLACE TABLE AS SELECT
+ * Qbeast Implementation of StagedTable An StagedTable allows Atomic CREATE TABLE AS SELECT /
+ * REPLACE TABLE AS SELECT
  */
 private[sources] class QbeastStagedTableImpl(
     ident: Identifier,

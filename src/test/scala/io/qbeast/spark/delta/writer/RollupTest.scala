@@ -11,6 +11,7 @@ import io.qbeast.core.model.CubeId
  * Tests of Rollup.
  */
 class RollupTest extends AnyFlatSpec with Matchers {
+
   "Rollup" should "work correctly" in {
     val root = CubeId.root(1)
     val c0 = root.firstChild
@@ -34,4 +35,5 @@ class RollupTest extends AnyFlatSpec with Matchers {
     result(c10) shouldBe root
     result(c11) shouldBe c11
   }
+
 }

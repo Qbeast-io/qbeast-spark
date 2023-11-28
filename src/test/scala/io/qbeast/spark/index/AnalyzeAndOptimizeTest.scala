@@ -79,4 +79,5 @@ class AnalyzeAndOptimizeTest
         announcedCubes.foreach(r => replicatedCubes should contain(r))
       })
   }
+
 }

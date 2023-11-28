@@ -63,6 +63,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
     revision.transformations shouldBe Vector.empty
 
   })
+
   it should "createNewRevision with only indexed columns and no spec" in withSpark(spark => {
     import spark.implicits._
     val schema = 0.to(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).toDF().schema
@@ -284,4 +285,5 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
     revision.transformations shouldBe Vector.empty
 
   })
+
 }

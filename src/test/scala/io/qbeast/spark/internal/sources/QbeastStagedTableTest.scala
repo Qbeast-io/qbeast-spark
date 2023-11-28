@@ -25,6 +25,7 @@ class QbeastStagedTableTest extends QbeastIntegrationTestSpec with CatalogTestSu
         QbeastStagedTableImpl]
 
     })
+
   "QbeastStagedTable" should "retrieve schema" in withQbeastContextSparkAndTmpWarehouse(
     (spark, _) => {
       val qbeastCatalog = createQbeastCatalog(spark)

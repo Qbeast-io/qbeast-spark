@@ -120,4 +120,5 @@ class DataStagingTest
       stagingDataManager invokePrivate getCurrentStagingSize() shouldBe 0L
       indexedDataSize shouldBe 10001L
     }
+
 }

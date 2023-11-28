@@ -192,4 +192,5 @@ class DefaultStagedTableTest extends QbeastIntegrationTestSpec with CatalogTestS
         .newWriteBuilder(fakeLogicalWriteInfo)
         .build() shouldBe a[Any] // could be any type writeBuilder
     }))
+
 }

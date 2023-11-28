@@ -4,8 +4,7 @@ import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.{AnalysisException, Row}
 
 /**
- * Test for checking the correctness of the output schemas
- * when Appending Data through INSERT INTO
+ * Test for checking the correctness of the output schemas when Appending Data through INSERT INTO
  */
 class QbeastSchemaTest extends QbeastIntegrationTestSpec {
 
@@ -115,4 +114,5 @@ class QbeastSchemaTest extends QbeastIntegrationTestSpec {
         spark.sql("INSERT INTO student SELECT * FROM student_parquet"))
 
     })
+
 }

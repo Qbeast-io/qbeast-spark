@@ -72,4 +72,5 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
 
       }
   }
+
 }

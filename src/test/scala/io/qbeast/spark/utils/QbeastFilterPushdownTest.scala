@@ -332,4 +332,5 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
       }
   }
+
 }

@@ -174,4 +174,5 @@ class QbeastDataSourceTest extends FixtureAnyFlatSpec with MockitoSugar with Mat
       f.dataSource.createRelation(f.sqlContext, Map.empty)
     }
   }
+
 }

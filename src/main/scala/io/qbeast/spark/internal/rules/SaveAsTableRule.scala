@@ -15,7 +15,8 @@ import org.apache.spark.sql.catalyst.rules.Rule
 
 /**
  * Rule class that enforces to pass all the write options to the Table Implementation
- * @param spark the SparkSession
+ * @param spark
+ *   the SparkSession
  */
 class SaveAsTableRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
 

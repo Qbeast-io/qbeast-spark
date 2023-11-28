@@ -385,4 +385,5 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
           .foreach(child => weight < estimatedCubeWeights(child))
       }
   }
+
 }

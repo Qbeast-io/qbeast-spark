@@ -20,9 +20,12 @@ import org.apache.spark.sql.{AnalysisExceptionFactory, SparkSession}
 /**
  * Class for interacting with QbeastTable at a user level
  *
- * @param sparkSession active SparkSession
- * @param tableID      QTableID
- * @param indexedTableFactory configuration of the indexed table
+ * @param sparkSession
+ *   active SparkSession
+ * @param tableID
+ *   QTableID
+ * @param indexedTableFactory
+ *   configuration of the indexed table
  */
 class QbeastTable private (
     sparkSession: SparkSession,
@@ -51,10 +54,11 @@ class QbeastTable private (
   }
 
   /**
-   * The optimize operation should read the data of those cubes announced
-   * and replicate it in their children
-   * @param revisionID the identifier of the revision to optimize.
-   *                          If doesn't exist or none is specified, would be the last available
+   * The optimize operation should read the data of those cubes announced and replicate it in
+   * their children
+   * @param revisionID
+   *   the identifier of the revision to optimize. If doesn't exist or none is specified, would be
+   *   the last available
    */
   def optimize(revisionID: RevisionID): Unit = {
     if (!isStaging(revisionID)) {
@@ -71,19 +75,22 @@ class QbeastTable private (
   }
 
   /**
-   * Optimizes the data stored in the index files specified by paths relative to
-   * the table directory.
+   * Optimizes the data stored in the index files specified by paths relative to the table
+   * directory.
    *
-   * @param files the index files to optimize
+   * @param files
+   *   the index files to optimize
    */
   def optimize(files: Seq[String]): Unit = indexedTable.optimize(files)
 
   /**
-   * The analyze operation should analyze the index structure
-   * and find the cubes that need optimization
-   * @param revisionID the identifier of the revision to optimize.
-   *                        If doesn't exist or none is specified, would be the last available
-   * @return the sequence of cubes to optimize in string representation
+   * The analyze operation should analyze the index structure and find the cubes that need
+   * optimization
+   * @param revisionID
+   *   the identifier of the revision to optimize. If doesn't exist or none is specified, would be
+   *   the last available
+   * @return
+   *   the sequence of cubes to optimize in string representation
    */
   def analyze(revisionID: RevisionID): Seq[String] = {
     if (isStaging(revisionID)) Seq.empty
@@ -102,8 +109,9 @@ class QbeastTable private (
 
   /**
    * The compact operation should compact the small files in the table
-   * @param revisionID the identifier of the revision to optimize.
-   *                        If doesn't exist or none is specified, would be the last available
+   * @param revisionID
+   *   the identifier of the revision to optimize. If doesn't exist or none is specified, would be
+   *   the last available
    */
   def compact(revisionID: RevisionID): Unit = {
     checkRevisionAvailable(revisionID)
@@ -118,8 +126,9 @@ class QbeastTable private (
 
   /**
    * Outputs the indexed columns of the table
-   * @param revisionID the identifier of the revision.
-   *                          If doesn't exist or none is specified, would be the last available
+   * @param revisionID
+   *   the identifier of the revision. If doesn't exist or none is specified, would be the last
+   *   available
    * @return
    */
 
@@ -137,8 +146,9 @@ class QbeastTable private (
 
   /**
    * Outputs the cubeSize of the table
-   * @param revisionID the identifier of the revision.
-   *                          If doesn't exist or none is specified, would be the last available
+   * @param revisionID
+   *   the identifier of the revision. If doesn't exist or none is specified, would be the last
+   *   available
    * @return
    */
   def cubeSize(revisionID: RevisionID): Int = {
@@ -168,7 +178,8 @@ class QbeastTable private (
 
   /**
    * Gather an overview of the index for a given revision
-   * @param revisionID optional RevisionID
+   * @param revisionID
+   *   optional RevisionID
    * @return
    */
   def getIndexMetrics(revisionID: Option[RevisionID] = None): IndexMetrics = {

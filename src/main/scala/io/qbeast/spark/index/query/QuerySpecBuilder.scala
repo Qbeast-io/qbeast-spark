@@ -20,7 +20,8 @@ import org.apache.spark.sql.types.IntegerType
 
 /**
  * Builds a query specification from a set of filters
- * @param sparkFilters the filters
+ * @param sparkFilters
+ *   the filters
  */
 private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
     extends Serializable
@@ -30,9 +31,12 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
   /**
    * Extracts the data filters from the query that can be used by qbeast
    *
-   * @param dataFilters filters passed to the relation
-   * @param revision    the revision of the index
-   * @return sequence of filters involving qbeast format
+   * @param dataFilters
+   *   filters passed to the relation
+   * @param revision
+   *   the revision of the index
+   * @return
+   *   sequence of filters involving qbeast format
    */
   def extractQbeastFilters(dataFilters: Seq[Expression], revision: Revision): QbeastFilters = {
     // Get the indexed column names
@@ -64,13 +68,14 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
   }
 
   /**
-   * Extracts the sequence of query spaces
-   * That should be unioned after
+   * Extracts the sequence of query spaces That should be unioned after
    *
    * This RangeExpressions evaluate from >, >= to <, <= any indexed column
    *
-   * @param rangeExpressions the expressions passed by the spark engine
-   * @param revision the revision of the index
+   * @param rangeExpressions
+   *   the expressions passed by the spark engine
+   * @param revision
+   *   the revision of the index
    * @return
    */
 
@@ -119,8 +124,10 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
 
   /**
    * Extracts the sampling weight range of the query
-   * @param dataFilters the filters passed by the spark engine
-   * @return the upper and lower weight bounds (default: Weight.MinValue, Weight.MaxValue)
+   * @param dataFilters
+   *   the filters passed by the spark engine
+   * @return
+   *   the upper and lower weight bounds (default: Weight.MinValue, Weight.MaxValue)
    */
   def extractWeightRange(dataFilters: Seq[Expression]): WeightRange = {
 
@@ -143,8 +150,10 @@ private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
 
   /**
    * Builds the QuerySpec for the desired Revision
-   * @param revision the revision
-   * @return the non overlapping sequence of QuerySpecs
+   * @param revision
+   *   the revision
+   * @return
+   *   the non overlapping sequence of QuerySpecs
    */
 
   def build(revision: Revision): Seq[QuerySpec] = {

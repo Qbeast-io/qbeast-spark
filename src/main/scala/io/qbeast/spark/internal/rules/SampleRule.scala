@@ -16,16 +16,19 @@ import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import io.qbeast.spark.delta.OTreeIndex
 
 /**
- * Rule class that transforms a Sample operator over a QbeastRelation
- * into a suitable Filter for Qbeast
- * @param spark The current SparkSession
+ * Rule class that transforms a Sample operator over a QbeastRelation into a suitable Filter for
+ * Qbeast
+ * @param spark
+ *   The current SparkSession
  */
 class SampleRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
 
   /**
    * Extracts the weight range of the Sample operator
-   * @param sample the Sample operator
-   * @return the Range of Weights
+   * @param sample
+   *   the Sample operator
+   * @return
+   *   the Range of Weights
    */
   private def extractWeightRange(sample: Sample): WeightRange = {
     val minWeight = Weight(sample.lowerBound)
@@ -35,10 +38,14 @@ class SampleRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
 
   /**
    * Transforms the Sample Operator to a Filter
-   * @param sample the Sample Operator
-   * @param logicalRelation the LogicalRelation underneath
-   * @param indexedColumns the IndexedColumns of the LogicalRelation
-   * @return the new Filter
+   * @param sample
+   *   the Sample Operator
+   * @param logicalRelation
+   *   the LogicalRelation underneath
+   * @param indexedColumns
+   *   the IndexedColumns of the LogicalRelation
+   * @return
+   *   the new Filter
    */
   private def transformSampleToFilter(
       sample: Sample,

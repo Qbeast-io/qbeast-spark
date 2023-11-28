@@ -22,14 +22,19 @@ import org.apache.spark.util.SerializableConfiguration
 import scala.collection.mutable.ListBuffer
 
 /**
- * DeltaMetadataWriter is in charge of writing data to a table
- * and report the necessary log information
+ * DeltaMetadataWriter is in charge of writing data to a table and report the necessary log
+ * information
  *
- * @param tableID the table identifier
- * @param mode SaveMode of the writeMetadata
- * @param deltaLog deltaLog associated to the table
- * @param options options for writeMetadata operation
- * @param schema the schema of the table
+ * @param tableID
+ *   the table identifier
+ * @param mode
+ *   SaveMode of the writeMetadata
+ * @param deltaLog
+ *   deltaLog associated to the table
+ * @param options
+ *   options for writeMetadata operation
+ * @param schema
+ *   the schema of the table
  */
 private[delta] case class DeltaMetadataWriter(
     tableID: QTableID,
@@ -124,10 +129,14 @@ private[delta] case class DeltaMetadataWriter(
 
   /**
    * Writes metadata of the table
-   * @param txn transaction to commit
-   * @param tableChanges changes to apply
-   * @param newFiles files to add or remove
-   * @return the sequence of file actions to save in the commit log(add, remove...)
+   * @param txn
+   *   transaction to commit
+   * @param tableChanges
+   *   changes to apply
+   * @param newFiles
+   *   files to add or remove
+   * @return
+   *   the sequence of file actions to save in the commit log(add, remove...)
    */
   protected def updateMetadata(
       txn: OptimisticTransaction,

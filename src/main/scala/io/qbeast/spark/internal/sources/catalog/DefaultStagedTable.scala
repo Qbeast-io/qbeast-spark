@@ -19,11 +19,14 @@ import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
 import org.apache.spark.sql.types.StructType
 
 /**
- * A default StagedTable
- * This case class would delegate the methods to the underlying Catalog Table
- * @param ident the identifier
- * @param table the Table
- * @param catalog the Catalog
+ * A default StagedTable This case class would delegate the methods to the underlying Catalog
+ * Table
+ * @param ident
+ *   the identifier
+ * @param table
+ *   the Table
+ * @param catalog
+ *   the Catalog
  */
 private[catalog] case class DefaultStagedTable(
     ident: Identifier,

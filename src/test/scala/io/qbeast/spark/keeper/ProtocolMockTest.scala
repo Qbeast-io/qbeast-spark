@@ -3,6 +3,7 @@ package io.qbeast.spark.keeper
 import io.qbeast.core.keeper.{Keeper, LocalKeeper}
 
 class ProtocolMockTest extends ProtocolMockTestSpec {
+
   "the qbeast-spark client" should
     "throw an exception when an inconsistent state is found" ignore withContext(LocalKeeper) {
       context =>
@@ -30,6 +31,7 @@ class ProtocolMockTest extends ProtocolMockTestSpec {
         writer.succeeded shouldBe Some(false)
 
     }
+
   "A faulty keeper" should "not cause inconsistency with conflicts" ignore withContext(
     RandomKeeper) { context =>
     implicit val keeper: Keeper = RandomKeeper
@@ -78,6 +80,7 @@ class ProtocolMockTest extends ProtocolMockTestSpec {
       writer.succeeded shouldBe Some(true)
 
   }
+
   "A crashed with timeouts" should "not cause inconsistency in normal scenario" in withContext(
     LocalKeeper) { context =>
     implicit val keeper: Keeper = LocalKeeper
