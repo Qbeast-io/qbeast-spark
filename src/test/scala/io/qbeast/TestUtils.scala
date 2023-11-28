@@ -42,7 +42,7 @@ object TestUtils extends QbeastIntegrationTestSpec {
       }
   }
 
-  def checkFileSkipping(query: DataFrame): Unit = {
+  def checkFileFiltering(query: DataFrame): Unit = {
     val leaves =
       query.queryExecution.executedPlan.collectLeaves().filter(_.isInstanceOf[FileSourceScanExec])
 

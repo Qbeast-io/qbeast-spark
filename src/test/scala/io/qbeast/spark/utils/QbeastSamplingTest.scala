@@ -1,6 +1,6 @@
 package io.qbeast.spark.utils
 
-import io.qbeast.TestUtils.checkFileSkipping
+import io.qbeast.TestUtils._
 import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
 import org.apache.spark.sql.SparkSession
 
@@ -50,7 +50,7 @@ class QbeastSamplingTest extends QbeastIntegrationTestSpec {
         val precision = 0.01
 
         val query = df.sample(withReplacement = false, precision)
-        checkFileSkipping(query)
+        checkFileFiltering(query)
       }
     }
 
