@@ -3,41 +3,44 @@
  */
 package io.qbeast.spark.delta.writer
 
+import io.qbeast.core.model.CubeId
 import io.qbeast.core.model.DataWriter
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.delta.DeltaStatsCollectionUtils
-import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.delta.actions.FileAction
-import io.qbeast.core.model.{IndexStatus, QTableID, TableChanges}
-import io.qbeast.IISeq
+import io.qbeast.core.model.IndexFile
+import io.qbeast.core.model.IndexStatus
+import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.Revision
+import io.qbeast.core.model.RevisionID
+import io.qbeast.core.model.TableChanges
+import io.qbeast.core.model.Weight
+import io.qbeast.spark.delta.IndexFiles
 import io.qbeast.spark.index.QbeastColumns
+import io.qbeast.spark.index.RowUtils
+import io.qbeast.spark.internal.QbeastFunctions
+import io.qbeast.IISeq
+import org.apache.hadoop.fs.Path
+import org.apache.hadoop.mapreduce.Job
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.actions.FileAction
+import org.apache.spark.sql.delta.stats.DeltaFileStatistics
 import org.apache.spark.sql.delta.stats.DeltaJobStatisticsTracker
+import org.apache.spark.sql.delta.DeltaStatsCollectionUtils
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.execution.datasources.BasicWriteTaskStats
+import org.apache.spark.sql.execution.datasources.WriteJobStatsTracker
+import org.apache.spark.sql.execution.datasources.WriteTaskStats
+import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.struct
 import org.apache.spark.sql.functions.udf
-import org.apache.hadoop.mapreduce.Job
-import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
-import org.apache.spark.util.SerializableConfiguration
-import org.apache.spark.sql.catalyst.InternalRow
-import io.qbeast.core.model.CubeId
-import io.qbeast.core.model.Weight
-import io.qbeast.core.model.IndexFile
-import org.apache.spark.sql.execution.datasources.WriteJobStatsTracker
-import io.qbeast.spark.delta.IndexFiles
-import org.apache.spark.sql.delta.actions.AddFile
-import scala.collection.mutable
-import org.apache.spark.sql.expressions.UserDefinedFunction
-import org.apache.spark.sql.execution.datasources.WriteTaskStats
-import org.apache.spark.sql.delta.stats.DeltaFileStatistics
-import org.apache.spark.sql.execution.datasources.BasicWriteTaskStats
-import org.apache.hadoop.fs.Path
-import java.net.URI
-import io.qbeast.core.model.Revision
-import io.qbeast.core.model.RevisionID
-import org.apache.spark.sql.SparkSession
-import io.qbeast.spark.internal.QbeastFunctions
-import io.qbeast.spark.index.RowUtils
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.util.SerializableConfiguration
+
+import java.net.URI
+import scala.collection.mutable
 
 /**
  * Implementation of DataWriter that applies rollup to compact the files.

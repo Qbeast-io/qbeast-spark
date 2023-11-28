@@ -3,8 +3,8 @@
  */
 package io.qbeast.spark.index.query
 
-import io.qbeast.IISeq
 import io.qbeast.core.model._
+import io.qbeast.IISeq
 
 import scala.collection.mutable
 

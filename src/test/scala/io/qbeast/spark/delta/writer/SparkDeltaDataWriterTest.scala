@@ -1,9 +1,11 @@
 package io.qbeast.spark.delta.writer
 
-import io.qbeast.TestClasses._
-import io.qbeast.core.model.{IndexStatus, QTableID}
+import io.qbeast.core.model.IndexStatus
+import io.qbeast.core.model.QTableID
+import io.qbeast.spark.index.SparkOTreeManager
+import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionFactory}
+import io.qbeast.TestClasses._
 
 import scala.reflect.io.Path
 

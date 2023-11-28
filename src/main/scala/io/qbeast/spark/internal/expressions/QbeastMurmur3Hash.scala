@@ -3,8 +3,11 @@
  */
 package io.qbeast.spark.internal.expressions
 
-import org.apache.spark.sql.catalyst.expressions.{Expression, HashExpression, Murmur3HashFunction}
-import org.apache.spark.sql.types.{DataType, IntegerType}
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.HashExpression
+import org.apache.spark.sql.catalyst.expressions.Murmur3HashFunction
+import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.unsafe.hash.Murmur3_x86_32
 
 /**

@@ -53,7 +53,7 @@ Test / javaOptions += "-Xmx2G"
 Test / fork := true
 
 // Scala compiler settings
-ThisBuild / scalaVersion := "2.12.12"
+ThisBuild / scalaVersion := "2.12.18"
 ThisBuild / scalacOptions ++= Seq(
   "-encoding",
   "UTF-8",
@@ -153,13 +153,13 @@ ThisBuild / pomExtra :=
     </developer>
   </developers>
 
+// Scalafix settings
+ThisBuild / semanticdbEnabled := true
+ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
+
 // Scalafmt settings
 Compile / compile := (Compile / compile).dependsOn(Compile / scalafmtCheck).value
 Test / compile := (Test / compile).dependsOn(Test / scalafmtCheck).value
-
-// Scalastyle settings
-Compile / compile := (Compile / compile).dependsOn((Compile / scalastyle).toTask("")).value
-Test / compile := (Test / compile).dependsOn((Test / scalastyle).toTask("")).value
 
 // Header settings
 headerLicense := Some(HeaderLicense.Custom("Copyright 2021 Qbeast Analytics, S.L."))

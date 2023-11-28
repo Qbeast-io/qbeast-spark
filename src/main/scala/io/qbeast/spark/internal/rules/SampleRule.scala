@@ -3,17 +3,24 @@
  */
 package io.qbeast.spark.internal.rules
 
-import io.qbeast.core.model.{Weight, WeightRange}
+import io.qbeast.core.model.Weight
+import io.qbeast.core.model.WeightRange
+import io.qbeast.spark.delta.OTreeIndex
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
+import io.qbeast.IndexedColumns
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{And, GreaterThanOrEqual, LessThan, Literal}
-import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, Project, Sample}
+import org.apache.spark.sql.catalyst.expressions.And
+import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual
+import org.apache.spark.sql.catalyst.expressions.LessThan
+import org.apache.spark.sql.catalyst.expressions.Literal
+import org.apache.spark.sql.catalyst.plans.logical.Filter
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.plans.logical.Project
+import org.apache.spark.sql.catalyst.plans.logical.Sample
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.SparkSession
-import io.qbeast.IndexedColumns
-import org.apache.spark.sql.execution.datasources.HadoopFsRelation
-import io.qbeast.spark.delta.OTreeIndex
 
 /**
  * Rule class that transforms a Sample operator over a QbeastRelation into a suitable Filter for

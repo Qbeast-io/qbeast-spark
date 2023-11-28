@@ -3,8 +3,8 @@
  */
 package io.qbeast.spark.delta.writer
 
-import io.qbeast.core.model.Weight
 import io.qbeast.core.model.CubeId
+import io.qbeast.core.model.Weight
 
 /**
  * Stats of a data block.

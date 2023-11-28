@@ -3,9 +3,11 @@
  */
 package io.qbeast.core.transform
 
-import io.qbeast.core.model.{OrderedDataType, QDataType}
+import io.qbeast.core.model.OrderedDataType
+import io.qbeast.core.model.QDataType
 
-import java.sql.{Date, Timestamp}
+import java.sql.Date
+import java.sql.Timestamp
 import java.time.Instant
 
 object LinearTransformer extends TransformerType {
@@ -15,8 +17,10 @@ object LinearTransformer extends TransformerType {
 
 /**
  * Linear Transformer specification of a column
- * @param columnName the column name
- * @param dataType the data type of the column
+ * @param columnName
+ *   the column name
+ * @param dataType
+ *   the data type of the column
  */
 case class LinearTransformer(columnName: String, dataType: QDataType) extends Transformer {
   private def colMax = s"${columnName}_max"

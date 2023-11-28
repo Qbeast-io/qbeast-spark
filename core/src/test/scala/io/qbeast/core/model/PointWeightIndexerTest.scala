@@ -80,4 +80,5 @@ class PointWeightIndexerTest extends AnyFlatSpec with Matchers {
     val cubeIds = pwi.findTargetCubeIds(point, Weight(2), Some(id10))
     cubeIds shouldBe Seq(id1001)
   }
+
 }

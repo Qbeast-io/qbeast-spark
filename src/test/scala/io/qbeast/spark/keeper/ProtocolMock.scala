@@ -2,15 +2,20 @@ package io.qbeast.spark.keeper
 
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model._
+import io.qbeast.spark.delta.DeltaQbeastSnapshot
+import io.qbeast.spark.delta.MetadataWriterTest
+import io.qbeast.spark.delta.SparkDeltaMetadataManager
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.delta.{DeltaQbeastSnapshot, MetadataWriterTest, SparkDeltaMetadataManager}
 import org.apache.spark.sql.delta.actions.FileAction
-import org.apache.spark.sql.delta.{DeltaLog, DeltaOperations, DeltaOptions}
+import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.delta.DeltaOperations
+import org.apache.spark.sql.delta.DeltaOptions
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.SparkSession
 
-import java.util.ConcurrentModificationException
 import java.util.concurrent.CountDownLatch
+import java.util.ConcurrentModificationException
 
 // scalastyle:off println
 trait ConcurrentActor {

@@ -1,11 +1,12 @@
 package io.qbeast.spark.index
 
-import io.qbeast.TestClasses.Client3
-import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.delta.IndexFiles
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.TestClasses.Client3
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.{Dataset, SparkSession}
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
 
 class NormalizedWeightIntegrationTest extends QbeastIntegrationTestSpec {
 

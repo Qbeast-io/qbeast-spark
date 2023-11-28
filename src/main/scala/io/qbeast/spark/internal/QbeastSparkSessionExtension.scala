@@ -4,7 +4,9 @@
 package io.qbeast.spark.internal
 
 import io.delta.sql.DeltaSparkSessionExtension
-import io.qbeast.spark.internal.rules.{QbeastAnalysis, SampleRule, SaveAsTableRule}
+import io.qbeast.spark.internal.rules.QbeastAnalysis
+import io.qbeast.spark.internal.rules.SampleRule
+import io.qbeast.spark.internal.rules.SaveAsTableRule
 import org.apache.spark.sql.SparkSessionExtensions
 
 /**

@@ -18,8 +18,10 @@ final class IndexFileBuilder {
   /**
    * Sets the path.
    *
-   * @param path the path to set
-   * @return this instance
+   * @param path
+   *   the path to set
+   * @return
+   *   this instance
    */
   def setPath(path: String): IndexFileBuilder = {
     this.path = Some(path)
@@ -29,8 +31,10 @@ final class IndexFileBuilder {
   /**
    * Sets the size in bytes.
    *
-   * @param size the size in bytes
-   * @return this instance
+   * @param size
+   *   the size in bytes
+   * @return
+   *   this instance
    */
   def setSize(size: Long): IndexFileBuilder = {
     this.size = size
@@ -40,8 +44,10 @@ final class IndexFileBuilder {
   /**
    * Sets the modification time
    *
-   * @param modificationTime the modification time to set
-   * @return this instance
+   * @param modificationTime
+   *   the modification time to set
+   * @return
+   *   this instance
    */
   def setModificationTime(modificationTime: Long): IndexFileBuilder = {
     this.modificationTime = modificationTime
@@ -51,8 +57,10 @@ final class IndexFileBuilder {
   /**
    * Sets the revision identifier.
    *
-   * @param revisionId the revision identifier to set
-   * @return this instance
+   * @param revisionId
+   *   the revision identifier to set
+   * @return
+   *   this instance
    */
   def setRevisionId(revisionId: RevisionID): IndexFileBuilder = {
     this.revisionId = revisionId
@@ -62,7 +70,8 @@ final class IndexFileBuilder {
   /**
    * Begins a new block.
    *
-   * @return a new block builder
+   * @return
+   *   a new block builder
    */
   def beginBlock(): IndexFileBuilder.BlockBuilder = new IndexFileBuilder.BlockBuilder(this)
 
@@ -74,7 +83,8 @@ final class IndexFileBuilder {
   /**
    * Builds th result.
    *
-   * @return the index file
+   * @return
+   *   the index file
    */
   def result(): IndexFile = {
     val file = new IndexFile(path.get, size, modificationTime, revisionId, blocks.result())
@@ -102,8 +112,10 @@ object IndexFileBuilder {
     /**
      * Sets the cube identifier.
      *
-     * @param the cube identifier to set
-     * @return this instance
+     * @param the
+     *   cube identifier to set
+     * @return
+     *   this instance
      */
     def setCubeId(cubeId: CubeId): BlockBuilder = {
       this.cubeId = Some(cubeId)
@@ -113,8 +125,10 @@ object IndexFileBuilder {
     /**
      * Sets the minimum weight.
      *
-     * @param minWeight the minimum weight to set
-     * @return this instance
+     * @param minWeight
+     *   the minimum weight to set
+     * @return
+     *   this instance
      */
     def setMinWeight(minWeight: Weight): BlockBuilder = {
       this.minWeight = Some(minWeight)
@@ -122,11 +136,13 @@ object IndexFileBuilder {
     }
 
     /**
-     * Updates the minimum weight by setting the value to minimum between the
-     * previous value and the specified one.
+     * Updates the minimum weight by setting the value to minimum between the previous value and
+     * the specified one.
      *
-     * @param minWeight the minimum weight to set
-     * @return this instance
+     * @param minWeight
+     *   the minimum weight to set
+     * @return
+     *   this instance
      */
     def updateMinWeight(minWeight: Weight): BlockBuilder = {
       this.minWeight = this.minWeight match {
@@ -139,8 +155,10 @@ object IndexFileBuilder {
     /**
      * Sets the maximum weight.
      *
-     * @param maxWeight the maximum weight to set
-     * @return this instance
+     * @param maxWeight
+     *   the maximum weight to set
+     * @return
+     *   this instance
      */
     def setMaxWeight(maxWeight: Weight): BlockBuilder = {
       this.maxWeight = Some(maxWeight)
@@ -150,8 +168,10 @@ object IndexFileBuilder {
     /**
      * Sets the element count.
      *
-     * @param elemenCount the elemenCount to set
-     * @return this instance
+     * @param elemenCount
+     *   the elemenCount to set
+     * @return
+     *   this instance
      */
     def setElementCount(elementCount: Long): BlockBuilder = {
       this.elementCount = elementCount
@@ -161,14 +181,16 @@ object IndexFileBuilder {
     /**
      * Increments the element count.
      *
-     * @return this instance
+     * @return
+     *   this instance
      */
     def incrementElementCount(): BlockBuilder = setElementCount(elementCount + 1)
 
     /**
      * Sets replicated flag
      *
-     * @param replicated the replicated flag value to set
+     * @param replicated
+     *   the replicated flag value to set
      */
     def setReplicated(replicated: Boolean): BlockBuilder = {
       this.replicated = replicated
@@ -178,7 +200,8 @@ object IndexFileBuilder {
     /**
      * Ends the block.
      *
-     * @return the IndexFileBuilder instance
+     * @return
+     *   the IndexFileBuilder instance
      */
     def endBlock(): IndexFileBuilder = owner.addBlock(
       new Block(

@@ -5,16 +5,17 @@ package io.qbeast.spark.delta.writer
 
 import io.qbeast.core.model.CubeId
 import io.qbeast.core.model.IndexFile
+import io.qbeast.core.model.IndexFileBuilder
+import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
+import io.qbeast.core.model.RevisionID
 import io.qbeast.core.model.Weight
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.datasources.OutputWriter
 import org.apache.spark.sql.execution.datasources.WriteTaskStatsTracker
-import io.qbeast.core.model.IndexFileBuilder
-import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
+
 import scala.collection.mutable
-import org.apache.hadoop.fs.Path
-import org.apache.hadoop.conf.Configuration
-import io.qbeast.core.model.RevisionID
 
 /**
  * Writer for writing index files.

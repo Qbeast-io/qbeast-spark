@@ -1,13 +1,16 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.core.model.QTableID
-import io.qbeast.spark.delta.{DeltaQbeastSnapshot, SparkDeltaMetadataManager}
-import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
-import org.apache.spark.sql.{AnalysisException, DataFrame}
+import io.qbeast.spark.delta.DeltaQbeastSnapshot
+import io.qbeast.spark.delta.SparkDeltaMetadataManager
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastTable
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.AnalysisException
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.internal.Logging
 
 class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec with Logging {
 

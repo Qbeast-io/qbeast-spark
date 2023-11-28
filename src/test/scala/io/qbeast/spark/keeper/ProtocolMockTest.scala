@@ -1,6 +1,7 @@
 package io.qbeast.spark.keeper
 
-import io.qbeast.core.keeper.{Keeper, LocalKeeper}
+import io.qbeast.core.keeper.Keeper
+import io.qbeast.core.keeper.LocalKeeper
 
 class ProtocolMockTest extends ProtocolMockTestSpec {
 

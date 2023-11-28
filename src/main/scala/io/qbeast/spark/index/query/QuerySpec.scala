@@ -3,7 +3,9 @@
  */
 package io.qbeast.spark.index.query
 
-import io.qbeast.core.model.{QuerySpace, Weight, WeightRange}
+import io.qbeast.core.model.QuerySpace
+import io.qbeast.core.model.Weight
+import io.qbeast.core.model.WeightRange
 
 /**
  * Query specification

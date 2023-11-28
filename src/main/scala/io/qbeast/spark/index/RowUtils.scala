@@ -3,8 +3,10 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.core.model.{Point, Revision}
-import org.apache.spark.sql.{AnalysisExceptionFactory, Row}
+import io.qbeast.core.model.Point
+import io.qbeast.core.model.Revision
+import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.Row
 
 /**
  * Utility functions for working with Spark Rows

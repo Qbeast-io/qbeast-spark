@@ -5,16 +5,15 @@ package io.qbeast.spark.internal.sources.v2
 
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import io.qbeast.spark.table.IndexedTable
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.connector.write.{
-  LogicalWriteInfo,
-  SupportsOverwrite,
-  SupportsTruncate,
-  V1Write,
-  WriteBuilder
-}
+import org.apache.spark.sql.connector.write.LogicalWriteInfo
+import org.apache.spark.sql.connector.write.SupportsOverwrite
+import org.apache.spark.sql.connector.write.SupportsTruncate
+import org.apache.spark.sql.connector.write.V1Write
+import org.apache.spark.sql.connector.write.WriteBuilder
 import org.apache.spark.sql.execution.datasources.LogicalRelation
-import org.apache.spark.sql.sources.{Filter, InsertableRelation}
+import org.apache.spark.sql.sources.Filter
+import org.apache.spark.sql.sources.InsertableRelation
+import org.apache.spark.sql.DataFrame
 
 import scala.collection.convert.ImplicitConversions.`map AsScala`
 

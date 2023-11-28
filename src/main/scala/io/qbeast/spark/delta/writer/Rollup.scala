@@ -4,6 +4,7 @@
 package io.qbeast.spark.delta.writer
 
 import io.qbeast.core.model.CubeId
+
 import scala.collection.mutable
 
 /**

@@ -3,22 +3,25 @@
  */
 package io.qbeast.spark.internal.sources.v2
 
+import io.qbeast.spark.internal.sources.catalog.CreationMode
+import io.qbeast.spark.internal.sources.catalog.QbeastCatalogUtils
 import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
-import io.qbeast.spark.internal.sources.catalog.{CreationMode, QbeastCatalogUtils}
 import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.spark.sql.catalyst.catalog.SessionCatalog
+import org.apache.spark.sql.connector.catalog.Identifier
+import org.apache.spark.sql.connector.catalog.StagedTable
+import org.apache.spark.sql.connector.catalog.SupportsWrite
+import org.apache.spark.sql.connector.catalog.TableCapability
 import org.apache.spark.sql.connector.catalog.TableCapability.V1_BATCH_WRITE
-import org.apache.spark.sql.connector.catalog.{
-  Identifier,
-  StagedTable,
-  SupportsWrite,
-  TableCapability
-}
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.connector.write.{LogicalWriteInfo, V1Write, Write, WriteBuilder}
+import org.apache.spark.sql.connector.write.LogicalWriteInfo
+import org.apache.spark.sql.connector.write.V1Write
+import org.apache.spark.sql.connector.write.Write
+import org.apache.spark.sql.connector.write.WriteBuilder
 import org.apache.spark.sql.sources.InsertableRelation
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SparkSession
 
 import java.util
 import scala.collection.JavaConverters._

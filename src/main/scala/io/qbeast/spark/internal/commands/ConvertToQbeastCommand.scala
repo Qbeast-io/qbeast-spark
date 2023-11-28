@@ -4,20 +4,23 @@
 package io.qbeast.spark.internal.commands
 
 import io.qbeast.core.model._
-import io.qbeast.spark.delta.{DeltaQbeastSnapshot, SparkDeltaMetadataManager}
-import io.qbeast.spark.utils.MetadataConfig.{lastRevisionID, revision}
-import io.qbeast.spark.utils.QbeastExceptionMessages.{
-  incorrectIdentifierFormat,
-  partitionedTableExceptionMsg,
-  unsupportedFormatExceptionMsg
-}
+import io.qbeast.spark.delta.DeltaQbeastSnapshot
+import io.qbeast.spark.delta.SparkDeltaMetadataManager
+import io.qbeast.spark.utils.MetadataConfig.lastRevisionID
+import io.qbeast.spark.utils.MetadataConfig.revision
+import io.qbeast.spark.utils.QbeastExceptionMessages.incorrectIdentifierFormat
+import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
+import io.qbeast.spark.utils.QbeastExceptionMessages.unsupportedFormatExceptionMsg
 import org.apache.http.annotation.Experimental
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
-import org.apache.spark.sql.{AnalysisException, AnalysisExceptionFactory, Row, SparkSession}
+import org.apache.spark.sql.AnalysisException
+import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.SparkSession
 
 import java.util.Locale
 

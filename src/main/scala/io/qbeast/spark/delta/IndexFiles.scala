@@ -3,24 +3,25 @@
  */
 package io.qbeast.spark.delta
 
-import org.apache.spark.sql.delta.actions.AddFile
-import io.qbeast.core.model.IndexFile
-import io.qbeast.spark.utils.TagUtils
-import io.qbeast.IISeq
-import io.qbeast.core.model.Block
-import io.qbeast.core.model.IndexFileBuilder
-import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
-import io.qbeast.core.model.CubeId
-import java.io.StringWriter
 import com.fasterxml.jackson.core.JsonFactory
+import com.fasterxml.jackson.core.JsonParseException
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.core.JsonToken
-import com.fasterxml.jackson.core.JsonParseException
+import io.qbeast.core.model.Block
+import io.qbeast.core.model.CubeId
+import io.qbeast.core.model.IndexFile
+import io.qbeast.core.model.IndexFileBuilder
+import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
 import io.qbeast.core.model.Weight
+import io.qbeast.spark.utils.TagUtils
+import io.qbeast.IISeq
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.fs.Path
-import java.net.URI
+import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.actions.RemoveFile
+
+import java.io.StringWriter
+import java.net.URI
 
 /**
  * Utility object for working with index files.

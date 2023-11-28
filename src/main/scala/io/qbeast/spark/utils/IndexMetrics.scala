@@ -3,8 +3,12 @@
  */
 package io.qbeast.spark.utils
 
-import io.qbeast.core.model.{CubeId, CubeStatus}
-import io.qbeast.spark.utils.MathOps.{l1Deviation, l2Deviation, roundToPrecision, std}
+import io.qbeast.core.model.CubeId
+import io.qbeast.core.model.CubeStatus
+import io.qbeast.spark.utils.MathOps.l1Deviation
+import io.qbeast.spark.utils.MathOps.l2Deviation
+import io.qbeast.spark.utils.MathOps.roundToPrecision
+import io.qbeast.spark.utils.MathOps.std
 
 /**
  * Metrics that aim to provide an overview for a given index revision

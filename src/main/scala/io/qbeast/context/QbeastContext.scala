@@ -3,19 +3,24 @@
  */
 package io.qbeast.context
 
-import io.qbeast.core.keeper.{Keeper, LocalKeeper}
+import io.qbeast.core.keeper.Keeper
+import io.qbeast.core.keeper.LocalKeeper
 import io.qbeast.core.model._
+import io.qbeast.spark.delta.writer.RollupDataWriter
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
-import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionFactory}
-import io.qbeast.spark.table.{IndexedTableFactory, IndexedTableFactoryImpl}
-import org.apache.spark.SparkConf
-import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationEnd}
+import io.qbeast.spark.index.SparkOTreeManager
+import io.qbeast.spark.index.SparkRevisionFactory
+import io.qbeast.spark.table.IndexedTableFactory
+import io.qbeast.spark.table.IndexedTableFactoryImpl
+import org.apache.spark.scheduler.SparkListener
+import org.apache.spark.scheduler.SparkListenerApplicationEnd
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.SparkConf
 
 import scala.reflect.ClassTag
-import io.qbeast.spark.delta.writer.RollupDataWriter
 
 /**
  * Qbeast context provides access to internal mechanisms of the Qbeast index implementation.

@@ -3,14 +3,18 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.IISeq
 import io.qbeast.core.model._
 import io.qbeast.core.transform.Transformer
-import io.qbeast.spark.index.QbeastColumns.{cubeToReplicateColumnName, weightColumnName}
+import io.qbeast.spark.index.QbeastColumns.cubeToReplicateColumnName
+import io.qbeast.spark.index.QbeastColumns.weightColumnName
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
+import io.qbeast.IISeq
 import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.SparkSession
 
 /**
  * Analyzes the data and extracts OTree structures

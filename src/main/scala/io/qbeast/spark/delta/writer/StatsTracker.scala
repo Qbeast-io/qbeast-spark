@@ -3,7 +3,8 @@
  */
 package io.qbeast.spark.delta.writer
 
-import org.apache.spark.sql.execution.datasources.{WriteJobStatsTracker, WriteTaskStats}
+import org.apache.spark.sql.execution.datasources.WriteJobStatsTracker
+import org.apache.spark.sql.execution.datasources.WriteTaskStats
 
 case class TaskStats(writeTaskStats: Seq[WriteTaskStats], endTime: Long)
 

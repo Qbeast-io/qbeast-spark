@@ -1,8 +1,10 @@
 package io.qbeast.spark.table
 
-import io.qbeast.core.model.{CubeId, QTableID}
+import io.qbeast.core.model.CubeId
+import io.qbeast.core.model.QTableID
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
-import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastTable
 
 class HasConflictsTest extends QbeastIntegrationTestSpec {
 

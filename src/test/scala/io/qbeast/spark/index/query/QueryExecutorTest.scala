@@ -1,12 +1,14 @@
 package io.qbeast.spark.index.query
 
-import io.qbeast.core.model.{CubeId, Weight, WeightRange}
-import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.delta.IndexFiles
+import io.qbeast.core.model.CubeId
+import io.qbeast.core.model.Weight
+import io.qbeast.core.model.WeightRange
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
-
+import io.qbeast.spark.delta.IndexFiles
+import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.functions.{col, expr}
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.expr
 
 class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
 

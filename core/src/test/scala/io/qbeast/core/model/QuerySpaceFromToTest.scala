@@ -1,6 +1,7 @@
 package io.qbeast.core.model
 
-import io.qbeast.core.transform.{LinearTransformation, Transformation}
+import io.qbeast.core.transform.LinearTransformation
+import io.qbeast.core.transform.Transformation
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -165,4 +166,5 @@ class QuerySpaceFromToTest extends AnyFlatSpec with Matchers {
       allSpace shouldBe a[AllSpace]
       allSpace.intersectsWith(cube)
     }
+
 }

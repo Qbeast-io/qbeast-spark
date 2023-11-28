@@ -5,14 +5,17 @@ package org.apache.spark.sql.delta
 
 import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.QTableID
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.logical.LocalRelation
 import org.apache.spark.sql.delta.actions.Protocol
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
-import org.apache.spark.sql.delta.stats.{DeltaJobStatisticsTracker, StatisticsCollection}
+import org.apache.spark.sql.delta.stats.DeltaJobStatisticsTracker
+import org.apache.spark.sql.delta.stats.StatisticsCollection
 import org.apache.spark.sql.functions.to_json
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
 
 trait DeltaStatsCollectionUtils {
 

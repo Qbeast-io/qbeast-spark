@@ -1,11 +1,12 @@
 package io.qbeast.spark.utils
 
-import io.qbeast.TestClasses.T2
 import io.qbeast.core.model.StagingUtils
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
-import org.apache.spark.sql.SparkSession
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastTable
+import io.qbeast.TestClasses.T2
 import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.SparkSession
 
 class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils {
   val columnsToIndex: Seq[String] = Seq("a", "b")

@@ -1,11 +1,13 @@
 package io.qbeast.spark.index
 
-import io.qbeast.TestClasses.T3
 import io.qbeast.core.model._
-import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.core.transform.{HashTransformer, LinearTransformation, LinearTransformer}
+import io.qbeast.core.transform.HashTransformer
+import io.qbeast.core.transform.LinearTransformation
+import io.qbeast.core.transform.LinearTransformer
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
+import io.qbeast.spark.internal.QbeastOptions
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.TestClasses.T3
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.to_timestamp
 

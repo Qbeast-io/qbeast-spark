@@ -1,10 +1,10 @@
 package io.qbeast.spark.internal.sources.catalog
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import org.apache.spark.SparkConf
-import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.connector.catalog.Identifier
 import org.apache.spark.sql.connector.expressions.Transform
+import org.apache.spark.sql.AnalysisException
+import org.apache.spark.SparkConf
 
 import scala.collection.JavaConverters._
 

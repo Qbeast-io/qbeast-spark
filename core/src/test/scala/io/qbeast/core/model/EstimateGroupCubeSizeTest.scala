@@ -1,8 +1,9 @@
 package io.qbeast.core.model
 
-import org.scalatest.{AppendedClues, PrivateMethodTester}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.AppendedClues
+import org.scalatest.PrivateMethodTester
 
 class EstimateGroupCubeSizeTest
     extends AnyWordSpec

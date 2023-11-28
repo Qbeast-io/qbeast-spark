@@ -4,18 +4,20 @@
 package io.qbeast.spark
 
 import io.qbeast.context.QbeastContext
-import io.qbeast.core.model.{QTableID, RevisionID, StagingUtils}
+import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.RevisionID
+import io.qbeast.core.model.StagingUtils
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.internal.commands.{
-  AnalyzeTableCommand,
-  CompactTableCommand,
-  OptimizeTableCommand
-}
+import io.qbeast.spark.internal.commands.AnalyzeTableCommand
+import io.qbeast.spark.internal.commands.CompactTableCommand
+import io.qbeast.spark.internal.commands.OptimizeTableCommand
 import io.qbeast.spark.table._
+import io.qbeast.spark.utils.CubeSizeMetrics
+import io.qbeast.spark.utils.IndexMetrics
 import io.qbeast.spark.utils.MathOps.depthOnBalance
-import io.qbeast.spark.utils.{CubeSizeMetrics, IndexMetrics}
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.{AnalysisExceptionFactory, SparkSession}
+import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.SparkSession
 
 /**
  * Class for interacting with QbeastTable at a user level

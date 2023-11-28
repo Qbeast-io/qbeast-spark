@@ -4,17 +4,21 @@
 package io.qbeast.spark
 
 import com.github.mrpowers.spark.fast.tests.DatasetComparer
-import io.qbeast.core.keeper.{Keeper, LocalKeeper}
-import io.qbeast.context.{QbeastContext, QbeastContextImpl}
+import io.qbeast.context.QbeastContext
+import io.qbeast.context.QbeastContextImpl
+import io.qbeast.core.keeper.Keeper
+import io.qbeast.core.keeper.LocalKeeper
 import io.qbeast.core.model.IndexManager
+import io.qbeast.spark.delta.writer.RollupDataWriter
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
-import io.qbeast.spark.delta.writer.{RollupDataWriter}
-import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionFactory}
+import io.qbeast.spark.index.SparkOTreeManager
+import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.table.IndexedTableFactoryImpl
-import org.apache.log4j.{Level}
-import org.apache.spark.SparkConf
+import org.apache.log4j.Level
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.SparkConf
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 

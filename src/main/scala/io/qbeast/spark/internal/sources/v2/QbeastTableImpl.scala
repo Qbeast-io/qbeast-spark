@@ -5,16 +5,20 @@ package io.qbeast.spark.internal.sources.v2
 
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
-import org.apache.spark.sql.connector.catalog.TableCapability._
 import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.hadoop.fs.Path
-import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.catalog.CatalogTable
-import org.apache.spark.sql.{SparkSession, V2toV1Fallback}
-import org.apache.spark.sql.connector.catalog.{SupportsWrite, Table, TableCapability}
-import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
+import org.apache.spark.sql.catalyst.TableIdentifier
+import org.apache.spark.sql.connector.catalog.SupportsWrite
+import org.apache.spark.sql.connector.catalog.Table
+import org.apache.spark.sql.connector.catalog.TableCapability
+import org.apache.spark.sql.connector.catalog.TableCapability._
+import org.apache.spark.sql.connector.write.LogicalWriteInfo
+import org.apache.spark.sql.connector.write.WriteBuilder
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.V2toV1Fallback
 
 import java.util
 import scala.collection.JavaConverters._

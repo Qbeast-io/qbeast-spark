@@ -3,17 +3,23 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.{Revision, StagingUtils, TableChanges, mapper}
+import io.qbeast.core.model.mapper
+import io.qbeast.core.model.Revision
+import io.qbeast.core.model.StagingUtils
+import io.qbeast.core.model.TableChanges
 import io.qbeast.spark.utils.MetadataConfig
-import io.qbeast.spark.utils.MetadataConfig.{lastRevisionID, revision}
+import io.qbeast.spark.utils.MetadataConfig.lastRevisionID
+import io.qbeast.spark.utils.MetadataConfig.revision
+import org.apache.spark.sql.delta.schema.ImplicitMetadataOperation
+import org.apache.spark.sql.delta.schema.SchemaMergingUtils
+import org.apache.spark.sql.delta.DeltaErrors
+import org.apache.spark.sql.delta.MetadataMismatchErrorBuilder
+import org.apache.spark.sql.delta.OptimisticTransaction
+import org.apache.spark.sql.types.ArrayType
+import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.types.MapType
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.delta.schema.{ImplicitMetadataOperation, SchemaMergingUtils}
-import org.apache.spark.sql.delta.{
-  DeltaErrors,
-  MetadataMismatchErrorBuilder,
-  OptimisticTransaction
-}
-import org.apache.spark.sql.types.{ArrayType, DataType, MapType, StructType}
 
 /**
  * Qbeast metadata changes on a Delta Table.

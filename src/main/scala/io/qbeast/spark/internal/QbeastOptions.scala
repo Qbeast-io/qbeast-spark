@@ -6,7 +6,9 @@ package io.qbeast.spark.internal
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.index.ColumnsToIndex
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
-import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame, SparkSession}
+import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SparkSession
 
 /**
  * Container for Qbeast options.

@@ -4,19 +4,25 @@
 package io.qbeast.spark.internal.sources
 
 import io.qbeast.core.model.QTableID
-import io.qbeast.spark.table.{IndexedTable, IndexedTableFactory}
+import io.qbeast.spark.table.IndexedTable
+import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.spark.sql.connector.catalog.SparkCatalogV2Util
 import org.apache.spark.sql.connector.catalog.TableCapability._
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
-import org.apache.spark.sql.{AnalysisException, DataFrame, SQLContext, SaveMode}
-import org.mockito.ArgumentMatchers.{any, anyBoolean}
-import org.mockito.Mockito.{verify, when}
-import org.scalatest.Outcome
+import org.apache.spark.sql.AnalysisException
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.SaveMode
+import org.mockito.ArgumentMatchers.any
+import org.mockito.ArgumentMatchers.anyBoolean
+import org.mockito.Mockito.verify
+import org.mockito.Mockito.when
 import org.scalatest.flatspec.FixtureAnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.Outcome
 import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.JavaConverters._

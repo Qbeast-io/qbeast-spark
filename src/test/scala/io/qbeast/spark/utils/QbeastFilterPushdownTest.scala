@@ -1,11 +1,15 @@
 package io.qbeast.spark.utils
 
-import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.OTreeIndex
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
-import org.apache.spark.sql.DataFrame
+import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.execution.FileSourceScanExec
-import org.apache.spark.sql.functions.{avg, col, rand, regexp_replace, when}
+import org.apache.spark.sql.functions.avg
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.rand
+import org.apache.spark.sql.functions.regexp_replace
+import org.apache.spark.sql.functions.when
+import org.apache.spark.sql.DataFrame
 
 class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
@@ -270,7 +274,7 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
         val df = spark.read.format("qbeast").load(tmpDir)
 
         val filter =
-          s"(user_id IN (555304906, 514439763))"
+          "(user_id IN (555304906, 514439763))"
         val query = df.filter(filter)
         val originalQuery = data.filter(filter)
 

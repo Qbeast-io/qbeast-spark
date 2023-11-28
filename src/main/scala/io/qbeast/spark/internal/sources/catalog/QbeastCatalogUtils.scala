@@ -7,23 +7,24 @@ import io.qbeast.context.QbeastContext.metadataManager
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
 import io.qbeast.spark.table.IndexedTableFactory
-import org.apache.hadoop.fs.{FileSystem, Path}
-import org.apache.spark.sql.catalyst.TableIdentifier
+import org.apache.hadoop.fs.FileSystem
+import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.analysis.CannotReplaceMissingTableException
 import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.plans.logical.TableSpec
-import org.apache.spark.sql.connector.catalog.{Identifier, SparkCatalogV2Util, Table}
+import org.apache.spark.sql.catalyst.TableIdentifier
+import org.apache.spark.sql.connector.catalog.Identifier
+import org.apache.spark.sql.connector.catalog.SparkCatalogV2Util
+import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.datasources.DataSource
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{
-  AnalysisExceptionFactory,
-  DataFrame,
-  SaveMode,
-  SparkSession,
-  V1TableQbeast
-}
+import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.V1TableQbeast
 
 import java.util
 import scala.collection.JavaConverters._

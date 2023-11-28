@@ -1,11 +1,18 @@
 package io.qbeast.spark.index
 
+import io.qbeast.core.model.CubeDomainsBuilder
+import io.qbeast.core.model.CubeStatus
+import io.qbeast.core.model.IndexStatus
+import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.Weight
+import io.qbeast.spark.delta
+import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
-import io.qbeast.core.model.{CubeStatus, CubeDomainsBuilder, IndexStatus, QTableID, Weight}
-import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
-import org.apache.spark.qbeast.config.{CUBE_WEIGHTS_BUFFER_CAPACITY, DEFAULT_CUBE_SIZE}
-import org.apache.spark.sql.{Dataset, SparkSession}
+import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
+import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
 import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
 import org.scalatest.PrivateMethodTester
 
 class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateMethodTester {

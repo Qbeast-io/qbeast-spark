@@ -4,14 +4,16 @@
 package io.qbeast.spark.index.query
 
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.analysis.Resolver
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.util.DateTimeUtils.{daysToMicros, getZoneId}
+import org.apache.spark.sql.catalyst.util.DateTimeUtils.daysToMicros
+import org.apache.spark.sql.catalyst.util.DateTimeUtils.getZoneId
 import org.apache.spark.sql.catalyst.util.TypeUtils
 import org.apache.spark.sql.execution.InSubqueryExec
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{DateType, TimestampType}
+import org.apache.spark.sql.types.DateType
+import org.apache.spark.sql.types.TimestampType
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.unsafe.types.UTF8String
 
 import java.util.concurrent.TimeUnit

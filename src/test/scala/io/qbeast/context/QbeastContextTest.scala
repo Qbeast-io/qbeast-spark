@@ -3,12 +3,14 @@
  */
 package io.qbeast.context
 
-import io.qbeast.core.keeper.{Keeper, LocalKeeper}
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.core.keeper.Keeper
+import io.qbeast.core.keeper.LocalKeeper
+import io.qbeast.spark.delta.writer.RollupDataWriter
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
-import io.qbeast.spark.delta.writer.{RollupDataWriter}
-import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionFactory}
+import io.qbeast.spark.index.SparkOTreeManager
+import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.table.IndexedTableFactoryImpl
+import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

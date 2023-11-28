@@ -4,18 +4,16 @@
 package io.qbeast.spark.index.query
 
 import io.qbeast.core.model._
-import org.apache.spark.sql.catalyst.expressions.{
-  Attribute,
-  EqualTo,
-  Expression,
-  GreaterThan,
-  GreaterThanOrEqual,
-  IsNull,
-  LessThan,
-  LessThanOrEqual,
-  Literal,
-  SubqueryExpression
-}
+import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.EqualTo
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.GreaterThan
+import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual
+import org.apache.spark.sql.catalyst.expressions.IsNull
+import org.apache.spark.sql.catalyst.expressions.LessThan
+import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual
+import org.apache.spark.sql.catalyst.expressions.Literal
+import org.apache.spark.sql.catalyst.expressions.SubqueryExpression
 import org.apache.spark.sql.types.IntegerType
 
 /**

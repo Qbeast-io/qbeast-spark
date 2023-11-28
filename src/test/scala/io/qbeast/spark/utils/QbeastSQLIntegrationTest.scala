@@ -1,8 +1,10 @@
 package io.qbeast.spark.utils
 
-import io.qbeast.TestClasses.Student
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
+import io.qbeast.TestClasses.Student
+import org.apache.spark.sql.AnalysisException
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SparkSession
 
 import scala.util.Random
 
@@ -21,7 +23,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
       data.createOrReplaceTempView("data")
 
       spark.sql(
-        s"CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
+        "CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
           "OPTIONS ('columnsToIndex'='id')")
 
       val nonTemporaryTables = spark.sql("SHOW TABLES FROM default")
@@ -49,7 +51,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
     data.createOrReplaceTempView("data")
 
     spark.sql(
-      s"CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
+      "CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
         "OPTIONS ('columnsToIndex'='id')")
 
     spark.sql("INSERT INTO table student SELECT * FROM data")
@@ -71,7 +73,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
       data.createOrReplaceTempView("data")
 
       spark.sql(
-        s"CREATE OR REPLACE TABLE student USING qbeast " +
+        "CREATE OR REPLACE TABLE student USING qbeast " +
           "OPTIONS ('columnsToIndex'='id') " +
           "AS SELECT * FROM data;")
 
@@ -91,7 +93,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
     data.createOrReplaceTempView("data")
 
     spark.sql(
-      s"CREATE OR REPLACE TABLE student USING qbeast " +
+      "CREATE OR REPLACE TABLE student USING qbeast " +
         "OPTIONS ('columnsToIndex'='id') " +
         s"LOCATION '$tmpDir' " +
         "AS SELECT * FROM data;")
@@ -129,7 +131,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
 
       an[AnalysisException] shouldBe thrownBy(
         spark.sql(
-          s"CREATE OR REPLACE TABLE student USING qbeast " +
+          "CREATE OR REPLACE TABLE student USING qbeast " +
             s"OPTIONS ('columnsToIndex'='id','location'='$tmpDir/new') " +
             s"LOCATION '$tmpDir' "))
 

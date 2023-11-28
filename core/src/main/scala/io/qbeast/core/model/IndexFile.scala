@@ -6,13 +6,16 @@ package io.qbeast.core.model
 import io.qbeast.IISeq
 
 /**
- * Index file represents a physical file where blocks of the elements are
- * stored.
+ * Index file represents a physical file where blocks of the elements are stored.
  *
- * @param path the file path
- * @param size the file size in bytes
- * @param modificationTime the last modification timestamp
- * @param blocks the blocks
+ * @param path
+ *   the file path
+ * @param size
+ *   the file size in bytes
+ * @param modificationTime
+ *   the last modification timestamp
+ * @param blocks
+ *   the blocks
  */
 final class IndexFile private[model] (
     val path: String,
@@ -25,24 +28,28 @@ final class IndexFile private[model] (
   /**
    * The number of elements in the file
    *
-   * @return the number of elements
+   * @return
+   *   the number of elements
    */
   def elementCount = blocks.map(_.elementCount).sum
 
   /**
    * Returns whether file contains data from a given cube.
    *
-   * @param cubeId the cube identifier
-   * @return the file contains data of the cube
+   * @param cubeId
+   *   the cube identifier
+   * @return
+   *   the file contains data of the cube
    */
   def hasCubeData(cubeId: CubeId): Boolean = blocks.exists(_.cubeId == cubeId)
 
   /**
    * Tries to replicate the blocks that belong to the specified cubes
    *
-   * @param the cube identifiers
-   * @return an instance with corresponding blocks replicated or None if there
-   * are no such blocks
+   * @param the
+   *   cube identifiers
+   * @return
+   *   an instance with corresponding blocks replicated or None if there are no such blocks
    */
   def tryReplicateBlocks(cubeIds: Set[CubeId]): Option[IndexFile] = {
     if (!blocks.exists(block => cubeIds.contains(block.cubeId))) {

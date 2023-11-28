@@ -1,8 +1,8 @@
 package io.qbeast.spark.internal.sources
 
-import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.internal.sources.catalog.CatalogTestSuite
 import io.qbeast.spark.internal.sources.v2.QbeastStagedTableImpl
+import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.connector.catalog.Identifier
 import org.apache.spark.sql.connector.catalog.TableCapability.V1_BATCH_WRITE

@@ -93,4 +93,5 @@ class IndexFileTest extends AnyFlatSpec with Matchers {
       .result()
     file.toString shouldNot be("")
   }
+
 }

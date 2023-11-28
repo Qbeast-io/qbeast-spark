@@ -5,13 +5,11 @@ package io.qbeast.spark.internal.rules
 
 import io.qbeast.spark.internal.sources.catalog.QbeastCatalogUtils.isQbeastProvider
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.plans.logical.{
-  CreateTableAsSelect,
-  LogicalPlan,
-  ReplaceTableAsSelect
-}
+import org.apache.spark.sql.catalyst.plans.logical.CreateTableAsSelect
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.plans.logical.ReplaceTableAsSelect
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.SparkSession
 
 /**
  * Rule class that enforces to pass all the write options to the Table Implementation

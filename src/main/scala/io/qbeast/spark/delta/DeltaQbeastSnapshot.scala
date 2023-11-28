@@ -3,13 +3,16 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.IISeq
 import io.qbeast.core.model._
-import io.qbeast.spark.utils.{MetadataConfig, TagColumns}
-import org.apache.spark.sql.delta.Snapshot
+import io.qbeast.spark.utils.MetadataConfig
+import io.qbeast.spark.utils.TagColumns
+import io.qbeast.IISeq
 import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.functions.lit
-import org.apache.spark.sql.{AnalysisExceptionFactory, Dataset}
+import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.Dataset
+
 import scala.collection.JavaConverters._
 
 /**

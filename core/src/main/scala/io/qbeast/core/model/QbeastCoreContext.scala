@@ -6,9 +6,12 @@ import scala.reflect.ClassTag
 
 /**
  * Qbeast Core main components
- * @tparam DATA type of the data
- * @tparam DataSchema type of the data schema
- * @tparam FileDescriptor type of the file descriptor
+ * @tparam DATA
+ *   type of the data
+ * @tparam DataSchema
+ *   type of the data schema
+ * @tparam FileDescriptor
+ *   type of the file descriptor
  */
 trait QbeastCoreContext[DATA, DataSchema, FileDescriptor] {
   def metadataManager: MetadataManager[DataSchema, FileDescriptor]
@@ -23,16 +26,20 @@ trait QbeastCoreContext[DATA, DataSchema, FileDescriptor] {
 /**
  * RevisionFactory
  *
- * @tparam DataSchema type of the data schema
+ * @tparam DataSchema
+ *   type of the data schema
  */
 trait RevisionFactory[DataSchema] {
 
   /**
    * Create a new revision for a table with given parameters
    *
-   * @param qtableID      the table identifier
-   * @param schema        the schema
-   * @param options       the options
+   * @param qtableID
+   *   the table identifier
+   * @param schema
+   *   the schema
+   * @param options
+   *   the options
    * @return
    */
   def createNewRevision(
@@ -42,10 +49,14 @@ trait RevisionFactory[DataSchema] {
 
   /**
    * Create a new revision with given parameters from an old revision
-   * @param qtableID the table identifier
-   * @param schema the schema
-   * @param options the options
-   * @param oldRevision the old revision
+   * @param qtableID
+   *   the table identifier
+   * @param schema
+   *   the schema
+   * @param options
+   *   the options
+   * @param oldRevision
+   *   the old revision
    * @return
    */
   def createNextRevision(

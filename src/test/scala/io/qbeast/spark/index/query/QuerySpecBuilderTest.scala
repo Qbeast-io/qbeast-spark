@@ -1,7 +1,9 @@
 package io.qbeast.spark.index.query
 
 import io.qbeast.core.model._
-import io.qbeast.core.transform.{HashTransformation, LinearTransformation, Transformer}
+import io.qbeast.core.transform.HashTransformation
+import io.qbeast.core.transform.LinearTransformation
+import io.qbeast.core.transform.Transformer
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.functions.expr
 
@@ -106,7 +108,7 @@ class QuerySpecBuilderTest extends QbeastIntegrationTestSpec with QueryTestSpec 
 
   "extractQbeastFilters" should "extract qbeast filters correctly" in withSpark(spark => {
     val revision = createRevision()
-    val rangeExpression = expr(s"id >= 3 OR id < 8").expr
+    val rangeExpression = expr("id >= 3 OR id < 8").expr
     val weightExpression = weightFilters(WeightRange(Weight(Int.MinValue), Weight(Int.MaxValue)))
     val expressions = Seq(rangeExpression, weightExpression)
     val querySpecBuilder = new QuerySpecBuilder(expressions)

@@ -1,9 +1,11 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.spark.delta.OTreeIndex
-import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastTable
 import org.apache.spark.sql.execution.FileSourceScanExec
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SparkSession
 
 class QbeastSamplingTest extends QbeastIntegrationTestSpec {
 

@@ -10,6 +10,7 @@ import org.scalatest.matchers.should.Matchers
  * Tests of NormalizedWeight.
  */
 class NormalizedWeightTest extends AnyFlatSpec with Matchers {
+
   "NormalizedWeight" should "support merge with other maxWeight" in {
     NormalizedWeight.merge(2.0, 3.0) shouldBe 1.2
     NormalizedWeight.merge(0.0, 1.0) shouldBe 1.0

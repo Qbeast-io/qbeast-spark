@@ -5,28 +5,25 @@ package io.qbeast.spark.internal.sources
 
 import io.qbeast.context.QbeastContext
 import io.qbeast.context.QbeastContext.metadataManager
-import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
+import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.table.IndexedTableFactory
-import org.apache.hadoop.fs.{FileStatus, Path}
+import org.apache.hadoop.fs.FileStatus
+import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.sources.{
-  BaseRelation,
-  CreatableRelationProvider,
-  DataSourceRegister,
-  RelationProvider
-}
+import org.apache.spark.sql.sources.BaseRelation
+import org.apache.spark.sql.sources.CreatableRelationProvider
+import org.apache.spark.sql.sources.DataSourceRegister
+import org.apache.spark.sql.sources.RelationProvider
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
-import org.apache.spark.sql.{
-  AnalysisExceptionFactory,
-  DataFrame,
-  SQLContext,
-  SaveMode,
-  SparkSession
-}
+import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.SparkSession
 
 import java.util
 import scala.collection.JavaConverters.mapAsScalaMapConverter

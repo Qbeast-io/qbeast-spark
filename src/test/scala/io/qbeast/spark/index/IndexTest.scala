@@ -3,13 +3,18 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.TestClasses.{Client3, Client4}
-import io.qbeast.core.model.{BroadcastedTableChanges, _}
-import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
+import io.qbeast.core.model._
+import io.qbeast.core.model.BroadcastedTableChanges
+import io.qbeast.spark.delta
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.TestClasses.Client3
+import io.qbeast.TestClasses.Client4
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.types.{IntegerType, LongType}
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.LongType
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 

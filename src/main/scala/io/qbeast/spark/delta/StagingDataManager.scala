@@ -3,13 +3,18 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.{IndexStatus, QTableID}
+import io.qbeast.core.model.IndexStatus
+import io.qbeast.core.model.QTableID
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import org.apache.hadoop.fs.Path
 import org.apache.spark.qbeast.config.STAGING_SIZE_IN_BYTES
-import org.apache.spark.sql.delta.actions.{FileAction, RemoveFile}
-import org.apache.spark.sql.delta.{DeltaLog, Snapshot}
-import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
+import org.apache.spark.sql.delta.actions.FileAction
+import org.apache.spark.sql.delta.actions.RemoveFile
+import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.delta.Snapshot
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.SparkSession
 
 /**
  * Access point for staged data

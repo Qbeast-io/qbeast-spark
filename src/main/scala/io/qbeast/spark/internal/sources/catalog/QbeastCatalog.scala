@@ -4,22 +4,22 @@
 package io.qbeast.spark.internal.sources.catalog
 
 import io.qbeast.context.QbeastContext
+import io.qbeast.spark.internal.sources.v2.QbeastStagedTableImpl
+import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
 import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
-import io.qbeast.spark.internal.sources.v2.{QbeastStagedTableImpl, QbeastTableImpl}
 import org.apache.hadoop.fs.Path
+import org.apache.spark.sql.catalyst.analysis.NoSuchDatabaseException
+import org.apache.spark.sql.catalyst.analysis.NoSuchNamespaceException
+import org.apache.spark.sql.catalyst.analysis.NoSuchTableException
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.analysis.{
-  NoSuchDatabaseException,
-  NoSuchNamespaceException,
-  NoSuchTableException
-}
-import org.apache.spark.sql.{SparkCatalogUtils, SparkSession}
 import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.catalog.functions.UnboundFunction
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.delta.catalog.DeltaCatalog
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
+import org.apache.spark.sql.SparkCatalogUtils
+import org.apache.spark.sql.SparkSession
 
 import java.util
 import scala.collection.JavaConverters._

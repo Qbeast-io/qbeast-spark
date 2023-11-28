@@ -4,17 +4,22 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model.Block
-import io.qbeast.spark.index.query.{QueryExecutor, QuerySpecBuilder}
-import org.apache.hadoop.fs.{FileStatus, Path}
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.expressions.{Expression, GenericInternalRow}
-import org.apache.spark.sql.delta.{DeltaLog, Snapshot}
+import io.qbeast.spark.index.query.QueryExecutor
+import io.qbeast.spark.index.query.QuerySpecBuilder
+import org.apache.hadoop.fs.FileStatus
+import org.apache.hadoop.fs.Path
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.files.TahoeLogFileIndex
-import org.apache.spark.sql.execution.datasources.{FileIndex, PartitionDirectory}
-import org.apache.spark.sql.types.StructType
-import org.apache.spark.internal.Logging
+import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.delta.Snapshot
+import org.apache.spark.sql.execution.datasources.FileIndex
+import org.apache.spark.sql.execution.datasources.PartitionDirectory
 import org.apache.spark.sql.execution.SQLExecution
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.SparkSession
 
 import java.net.URI
 

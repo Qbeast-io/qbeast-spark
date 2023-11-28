@@ -3,9 +3,9 @@
  */
 package io.qbeast.spark.delta.writer
 
+import io.qbeast.core.model.CubeId
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import io.qbeast.core.model.CubeId
 
 /**
  * Tests of Rollup.

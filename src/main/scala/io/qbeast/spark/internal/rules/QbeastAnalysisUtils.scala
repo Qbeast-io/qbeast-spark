@@ -4,24 +4,28 @@
 package io.qbeast.spark.internal.rules
 
 import org.apache.spark.sql.catalyst.analysis.TableOutputResolver
-import org.apache.spark.sql.{AnalysisExceptionFactory, SchemaUtils}
-import org.apache.spark.sql.catalyst.expressions.{
-  Alias,
-  ArrayTransform,
-  Attribute,
-  Cast,
-  CreateStruct,
-  Expression,
-  GetArrayItem,
-  GetStructField,
-  LambdaFunction,
-  NamedExpression,
-  NamedLambdaVariable,
-  UpCast
-}
-import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Project}
+import org.apache.spark.sql.catalyst.expressions.Alias
+import org.apache.spark.sql.catalyst.expressions.ArrayTransform
+import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.Cast
+import org.apache.spark.sql.catalyst.expressions.CreateStruct
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.GetArrayItem
+import org.apache.spark.sql.catalyst.expressions.GetStructField
+import org.apache.spark.sql.catalyst.expressions.LambdaFunction
+import org.apache.spark.sql.catalyst.expressions.NamedExpression
+import org.apache.spark.sql.catalyst.expressions.NamedLambdaVariable
+import org.apache.spark.sql.catalyst.expressions.UpCast
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.plans.logical.Project
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{ArrayType, DataType, IntegerType, StructField, StructType}
+import org.apache.spark.sql.types.ArrayType
+import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.SchemaUtils
 
 private[rules] object QbeastAnalysisUtils {
 
@@ -40,7 +44,7 @@ private[rules] object QbeastAnalysisUtils {
     val output = query.output
     if (output.length < schema.length) {
       throw AnalysisExceptionFactory.create(
-        s"The number of colums to write does not correspond " +
+        "The number of colums to write does not correspond " +
           s"to the number of columns of the Table $tableName")
     }
     // Now we should try our best to match everything that already exists, and leave the rest

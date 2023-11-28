@@ -3,8 +3,9 @@
  */
 package io.qbeast.spark.index
 
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.types.{StructField, StructType}
 
 /**
  * QbeastColumns companion object.
@@ -41,7 +42,7 @@ object QbeastColumns {
    */
   val cubeToRollupColumnName = "_qbeastCubeToRollup"
 
-  val columnNames = Set(
+  val columnNames: Set[String] = Set(
     weightColumnName,
     cubeColumnName,
     stateColumnName,

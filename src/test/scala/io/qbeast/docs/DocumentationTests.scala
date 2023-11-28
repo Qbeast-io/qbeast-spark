@@ -1,9 +1,9 @@
 package io.qbeast.docs
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import org.apache.spark.SparkConf
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.input_file_name
+import org.apache.spark.SparkConf
 import org.scalatest.AppendedClues.convertToClueful
 
 class DocumentationTests extends QbeastIntegrationTestSpec {

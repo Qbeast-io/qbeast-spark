@@ -3,22 +3,25 @@
  */
 package io.qbeast.spark.delta.writer
 
-import io.qbeast.core.model.{CubeId, TableChanges, Weight, IndexFileBuilder}
+import io.qbeast.core.model.CubeId
+import io.qbeast.core.model.IndexFileBuilder
 import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
-import io.qbeast.spark.index.QbeastColumns
+import io.qbeast.core.model.TableChanges
+import io.qbeast.core.model.Weight
 import io.qbeast.spark.delta.IndexFiles
+import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.utils.State
 import org.apache.hadoop.fs.Path
-import org.apache.hadoop.mapred.{JobConf, TaskAttemptContextImpl, TaskAttemptID}
+import org.apache.hadoop.mapred.JobConf
+import org.apache.hadoop.mapred.TaskAttemptContextImpl
+import org.apache.hadoop.mapred.TaskAttemptID
 import org.apache.hadoop.mapreduce.TaskType
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.delta.actions.AddFile
-import org.apache.spark.sql.execution.datasources.{
-  OutputWriter,
-  OutputWriterFactory,
-  WriteJobStatsTracker,
-  WriteTaskStatsTracker
-}
+import org.apache.spark.sql.execution.datasources.OutputWriter
+import org.apache.spark.sql.execution.datasources.OutputWriterFactory
+import org.apache.spark.sql.execution.datasources.WriteJobStatsTracker
+import org.apache.spark.sql.execution.datasources.WriteTaskStatsTracker
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.SerializableConfiguration
 

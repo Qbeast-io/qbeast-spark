@@ -1,7 +1,12 @@
 package io.qbeast.spark.index.query
 
-import io.qbeast.core.model.{IntegerDataType, QTableID, Revision, Weight, WeightRange}
-import io.qbeast.core.transform.{LinearTransformation, Transformer}
+import io.qbeast.core.model.IntegerDataType
+import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.Revision
+import io.qbeast.core.model.Weight
+import io.qbeast.core.model.WeightRange
+import io.qbeast.core.transform.LinearTransformation
+import io.qbeast.core.transform.Transformer
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.functions.expr
 
@@ -11,7 +16,7 @@ class DisjunctiveQuerySpecTest extends QbeastIntegrationTestSpec with QueryTestS
 
   "QuerySpecBuilder" should "process disjunctive predicates" in withSpark(spark => {
     val revision = createRevision()
-    val expression = expr(s"3 <= id OR id < 8").expr
+    val expression = expr("3 <= id OR id < 8").expr
     val querySpecs = new QuerySpecBuilder(Seq(expression)).build(revision)
 
     querySpecs.size shouldBe 2
@@ -20,7 +25,7 @@ class DisjunctiveQuerySpecTest extends QbeastIntegrationTestSpec with QueryTestS
 
   it should "process disjunctive equality predicates" in withSpark(spark => {
     val revision = createRevision()
-    val expression = expr(s"3 == id OR id == 8").expr
+    val expression = expr("3 == id OR id == 8").expr
     val querySpecs = new QuerySpecBuilder(Seq(expression)).build(revision)
 
     querySpecs.size shouldBe 2
@@ -29,7 +34,7 @@ class DisjunctiveQuerySpecTest extends QbeastIntegrationTestSpec with QueryTestS
 
   it should "extract each space correctly" in withSpark(spark => {
     val revision = createRevision()
-    val expression = expr(s"3 <= id OR id > 10").expr
+    val expression = expr("3 <= id OR id > 10").expr
     val querySpecs = new QuerySpecBuilder(Seq(expression)).build(revision)
 
     // Size of the specs should be one since id > 10 is contained in the expression id >= 3
@@ -69,7 +74,7 @@ class DisjunctiveQuerySpecTest extends QbeastIntegrationTestSpec with QueryTestS
     val revision = createRevision()
     val weightRange = WeightRange(Weight(0.0), Weight(0.1))
     val weightFilter = weightFilters(weightRange)
-    val expression = expr(s"3 <= id OR id < 8").expr
+    val expression = expr("3 <= id OR id < 8").expr
     val querySpecs = new QuerySpecBuilder(Seq(expression, weightFilter)).build(revision)
 
     querySpecs.size shouldBe 2

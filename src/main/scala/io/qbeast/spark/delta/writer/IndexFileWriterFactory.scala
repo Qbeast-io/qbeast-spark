@@ -4,6 +4,7 @@
 package io.qbeast.spark.delta.writer
 
 import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.RevisionID
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapred.JobConf
 import org.apache.hadoop.mapred.TaskAttemptContextImpl
@@ -15,7 +16,6 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.SerializableConfiguration
 
 import java.util.UUID
-import io.qbeast.core.model.RevisionID
 
 /**
  * Factory for creating IndexFileWriter instances.
