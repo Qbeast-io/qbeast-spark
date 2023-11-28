@@ -1,6 +1,6 @@
 package io.qbeast.spark.utils
 
-import io.qbeast.TestUtils.{checkFiltersArePushedDown, checkLogicalFilterPushdown}
+import io.qbeast.TestUtils._
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.OTreeIndex
 import org.apache.spark.sql.execution.FileSourceScanExec

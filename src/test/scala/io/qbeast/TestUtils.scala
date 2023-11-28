@@ -38,6 +38,26 @@ object TestUtils extends QbeastIntegrationTestSpec {
     leaves
       .foreach {
         case f: FileSourceScanExec if f.relation.location.isInstanceOf[OTreeIndex] =>
+          f.dataFilters.nonEmpty shouldBe true
+      }
+  }
+
+  def checkFileSkipping(query: DataFrame): Unit = {
+    val leaves =
+      query.queryExecution.executedPlan.collectLeaves().filter(_.isInstanceOf[FileSourceScanExec])
+
+    leaves should not be empty
+
+    leaves.exists(p =>
+      p
+        .asInstanceOf[FileSourceScanExec]
+        .relation
+        .location
+        .isInstanceOf[OTreeIndex]) shouldBe true
+
+    leaves
+      .foreach {
+        case f: FileSourceScanExec if f.relation.location.isInstanceOf[OTreeIndex] =>
           val index = f.relation.location
           val matchingFiles =
             index.listFiles(f.partitionFilters, f.dataFilters).flatMap(_.files)
