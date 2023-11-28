@@ -120,7 +120,7 @@ case class OTreeIndex(index: TahoeLogFileIndex)
     logInfo(s"Qbeast filtered files (exec id ${execId}): ${filteredMsg}")
 
     // RETURN
-    Seq(PartitionDirectory(new GenericInternalRow(Array.empty[Any]), fileStats.toSeq))
+    Seq(PartitionDirectory(new GenericInternalRow(Array.empty[Any]), fileStats))
   }
 
   override def inputFiles: Array[String] = {
