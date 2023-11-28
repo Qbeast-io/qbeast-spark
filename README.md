@@ -89,22 +89,22 @@ $SPARK_HOME/bin/spark-shell \
 **Read** the **CSV** source file placed inside the project.
 
 ```scala
-val csv_df = spark.read.format("csv")
-  .option("header", "true")
-  .option("inferSchema", "true")
-  .load("./src/test/resources/ecommerce100K_2019_Oct.csv")
+val csvDF = spark.read.format("csv").
+  option("header", "true").
+  option("inferSchema", "true").
+  load("./src/test/resources/ecommerce100K_2019_Oct.csv")
 ```
 
 Indexing the dataset by writing it into the **qbeast** format, specifying the columns to index.
 
 ```scala
-val tmp_dir = "/tmp/qbeast-spark"
+val tmpDir = "/tmp/qbeast-spark"
 
-csv_df.write
-	.mode("overwrite")
-	.format("qbeast")
-	.option("columnsToIndex", "user_id,product_id")
-	.save(tmp_dir)
+csvDF.write.
+  mode("overwrite").
+  format("qbeast").
+  option("columnsToIndex", "user_id,product_id").
+  save(tmpDir)
 ```
 
 #### SQL Syntax.
@@ -129,20 +129,20 @@ spark.sql("INSERT INTO table student SELECT * FROM visitor_students")
 Load the newly indexed dataset.
 
 ```scala
-val qbeast_df =
-   spark
-     .read
-     .format("qbeast")
-     .load(tmp_dir)
+val qbeastDF =
+  spark.
+    read.
+    format("qbeast").
+    load(tmpDir)
 ```
 
 ### 4. Examine the Query plan for sampling
 **Sampling the data**, notice how the sampler is converted into filters and pushed down to the source!
 
 ```scala
-qbeast_df.sample(0.1).explain(true)
+qbeastDF.sample(0.1).explain(true)
 ```
-Go to the [Quickstart](./docs/Quickstart.md) or [notebook](docs/sample_pushdown_demo.ipynb) for more details.
+Go to the [Quickstart](./docs/Quickstart.md) or [notebook](docs/sampleopushdown_demo.ipynb) for more details.
 
 ### 5. Interact with the format
 
@@ -151,7 +151,7 @@ Get **insights** or execute **operations** to the data using the `QbeastTable` i
 ```scala
 import io.qbeast.spark.QbeastTable
 
-val qbeast_table = QbeastTable.forPath(spark, tmp_dir) 
+val qbeastTable = QbeastTable.forPath(spark, tmpDir) 
 
 qbeastTable.getIndexMetrics()
 
