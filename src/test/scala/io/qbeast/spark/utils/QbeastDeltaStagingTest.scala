@@ -41,7 +41,7 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
 
       val qbeastDf = spark.read.format("qbeast").load(tmpDir)
       val deltaDf = spark.read.format("delta").load(tmpDir)
-      assertLargeDatasetEquality(qbeastDf, deltaDf)
+      assertLargeDatasetEquality(qbeastDf, deltaDf, orderedComparison = false)
 
       // Should have the staging revision and the first revision
       val snapshot = DeltaLog.forTable(spark, tmpDir).unsafeVolatileSnapshot
@@ -64,7 +64,7 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
       val deltaDf = spark.read.format("delta").load(tmpDir)
       qbeastDf.count() shouldBe deltaDf.count()
 
-      assertLargeDatasetEquality(qbeastDf, deltaDf)
+      assertLargeDatasetEquality(qbeastDf, deltaDf, orderedComparison = false)
 
       // Should preserve standing staging revision behavior
       val snapshot = DeltaLog.forTable(spark, tmpDir).unsafeVolatileSnapshot

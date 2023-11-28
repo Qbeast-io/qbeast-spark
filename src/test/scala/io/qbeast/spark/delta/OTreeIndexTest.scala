@@ -136,21 +136,26 @@ class OTreeIndexTest extends QbeastIntegrationTestSpec {
       import spark.implicits._
       val source = Seq(1, 2, 3, 4).toDF("id")
 
-      source.write
+      source
+        .coalesce(4)
+        .write
         .format("delta")
         .save(tmpdir)
 
+      // CONVERT TO QBEAST
       ConvertToQbeastCommand.apply(tmpdir, Seq("id"), 1000)
 
       val deltaLog = DeltaLog.forTable(spark, tmpdir)
+      val snapshot = deltaLog.update()
       val tahoeFileIndex =
-        TahoeLogFileIndex(spark, deltaLog, deltaLog.dataPath, deltaLog.update(), Seq.empty, false)
+        TahoeLogFileIndex(spark, deltaLog, deltaLog.dataPath, snapshot, Seq.empty, false)
       val oTreeIndex = new OTreeIndexTest(tahoeFileIndex)
 
-      val allFiles = oTreeIndex.listFiles(Seq.empty, Seq.empty)
+      val allFiles = snapshot.allFiles
       val filteredFiles = oTreeIndex.listFiles(Seq.empty, Seq(expr("id == 1").expr))
 
-      allFiles.size shouldBe <(filteredFiles.size)
+      allFiles.count() shouldBe 4
+      filteredFiles.size shouldBe 1
     })
 
 }

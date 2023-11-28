@@ -1,33 +1,10 @@
 package io.qbeast.spark.utils
 
-import io.qbeast.spark.delta.OTreeIndex
+import io.qbeast.TestUtils.checkFileFiltering
 import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
-import org.apache.spark.sql.execution.FileSourceScanExec
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{SparkSession}
 
 class QbeastSamplingTest extends QbeastIntegrationTestSpec {
-
-  private def checkFileFiltering(query: DataFrame): Unit = {
-    val leaves = query.queryExecution.executedPlan.collectLeaves()
-
-    leaves.exists(p =>
-      p
-        .asInstanceOf[FileSourceScanExec]
-        .relation
-        .location
-        .isInstanceOf[OTreeIndex]) shouldBe true
-
-    leaves
-      .foreach {
-        case f: FileSourceScanExec if f.relation.location.isInstanceOf[OTreeIndex] =>
-          val index = f.relation.location
-          val matchingFiles =
-            index.listFiles(f.partitionFilters, f.dataFilters).flatMap(_.files)
-          val allFiles = index.inputFiles
-          matchingFiles.length shouldBe <(allFiles.length)
-      }
-
-  }
 
   "Qbeast" should
     "return a valid sample of the original dataset" in withQbeastContextSparkAndTmpDir {
