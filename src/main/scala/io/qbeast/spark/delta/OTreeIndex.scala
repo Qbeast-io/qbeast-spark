@@ -23,7 +23,10 @@ import java.net.URI
  * @param index the Tahoe log file index
  * @param spark spark session
  */
-case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
+case class OTreeIndex(index: TahoeLogFileIndex)
+    extends FileIndex
+    with DeltaStagingUtils
+    with Logging {
 
   /**
    * Snapshot to analyze
@@ -78,11 +81,9 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[FileStatus] = {
 
-    // Filters only staging files (tags IS NULL)
-    // and maps AddFile to FileStatus
     index
       .matchingFiles(partitionFilters, dataFilters)
-      .filter(f => f.tags.isEmpty)
+      .filter(isStagingFile)
       .map { f =>
         new FileStatus(
           /* length */ f.size,
@@ -119,7 +120,7 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
     logInfo(s"Qbeast filtered files (exec id ${execId}): ${filteredMsg}")
 
     // RETURN
-    Seq(PartitionDirectory(new GenericInternalRow(Array.empty[Any]), fileStats))
+    Seq(PartitionDirectory(new GenericInternalRow(Array.empty[Any]), fileStats.toSeq))
   }
 
   override def inputFiles: Array[String] = {
