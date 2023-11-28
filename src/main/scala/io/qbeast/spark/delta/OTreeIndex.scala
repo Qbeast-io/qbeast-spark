@@ -33,8 +33,6 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
 
   private def qbeastSnapshot = DeltaQbeastSnapshot(snapshot)
 
-  private lazy val spark = index.spark
-
   protected def absolutePath(child: String): Path = {
     val p = new Path(new URI(child))
     if (p.isAbsolute) {
@@ -107,7 +105,8 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
     // JOIN BOTH FILTERED FILES
     val fileStatsSet = qbeastFileStats ++ stagingFileStats
 
-    val execId = spark.sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
+    val sc = index.spark.sparkContext
+    val execId = sc.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
     val pfStr = partitionFilters.map(f => f.toString).mkString(" ")
     logInfo(s"OTreeIndex partition filters (exec id ${execId}): ${pfStr}")
     val dfStr = dataFilters.map(f => f.toString).mkString(" ")
