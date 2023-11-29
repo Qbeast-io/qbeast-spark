@@ -31,7 +31,7 @@ final class IndexFile private[model] (
    * @return
    *   the number of elements
    */
-  def elementCount = blocks.map(_.elementCount).sum
+  def elementCount: Long = blocks.map(_.elementCount).sum
 
   /**
    * Returns whether file contains data from a given cube.

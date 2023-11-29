@@ -288,7 +288,7 @@ case class CubeStatus(
   /**
    * The cube is fully replicated, i.e. all its blovks are replicated.
    */
-  lazy val replicated = blocks.forall(_.replicated)
+  lazy val replicated: Boolean = blocks.forall(_.replicated)
 }
 
 /**
