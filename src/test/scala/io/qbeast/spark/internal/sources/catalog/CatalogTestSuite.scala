@@ -3,6 +3,7 @@ package io.qbeast.spark.internal.sources.catalog
 import io.qbeast.context.QbeastContext
 import io.qbeast.spark.table.IndexedTableFactory
 import io.qbeast.TestClasses.Student
+import org.apache.spark.sql.connector.catalog.Column
 import org.apache.spark.sql.connector.catalog.SparkCatalogV2Util
 import org.apache.spark.sql.connector.catalog.StagingTableCatalog
 import org.apache.spark.sql.connector.catalog.SupportsNamespaces
@@ -19,7 +20,6 @@ import org.apache.spark.sql.SparkSession
 
 import scala.collection.immutable
 import scala.util.Random
-import org.apache.spark.sql.connector.catalog.Column
 
 /**
  * A test suite for Catalog tests. It includes:

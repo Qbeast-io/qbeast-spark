@@ -153,13 +153,13 @@ ThisBuild / pomExtra :=
     </developer>
   </developers>
 
-// Scalafix settings
-ThisBuild / semanticdbEnabled := true
-ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
-
 // Scalafmt settings
 Compile / compile := (Compile / compile).dependsOn(Compile / scalafmtCheck).value
 Test / compile := (Test / compile).dependsOn(Test / scalafmtCheck).value
+
+// Scalafix settings
+ThisBuild / semanticdbEnabled := true
+ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 
 // Header settings
 headerLicense := Some(HeaderLicense.Custom("Copyright 2021 Qbeast Analytics, S.L."))
