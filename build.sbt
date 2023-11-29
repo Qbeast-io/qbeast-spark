@@ -1,5 +1,5 @@
-import Dependencies._
 import xerial.sbt.Sonatype._
+import Dependencies._
 
 val mainVersion = "0.5.0-SNAPSHOT"
 
@@ -43,6 +43,7 @@ ThisBuild / organization := "io.qbeast"
 ThisBuild / organizationName := "Qbeast Analytics, S.L."
 ThisBuild / organizationHomepage := Some(url("https://qbeast.io/"))
 ThisBuild / startYear := Some(2021)
+
 ThisBuild / libraryDependencies ++= Seq(
   fasterxml % Provided,
   sparkFastTests % Test,
@@ -54,6 +55,7 @@ Test / fork := true
 
 // Scala compiler settings
 ThisBuild / scalaVersion := "2.12.18"
+
 ThisBuild / scalacOptions ++= Seq(
   "-encoding",
   "UTF-8",
@@ -91,11 +93,13 @@ ThisBuild / resolvers ++= Seq(Resolver.mavenLocal, Resolver.mavenCentral)
 
 // Repository for maven (Tagged releases on Maven Central using Sonatype)
 ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
+
 ThisBuild / sonatypeRepository := {
   val nexus = "https://s01.oss.sonatype.org/"
   if (isSnapshot.value) nexus + "content/repositories/snapshots"
   else nexus + "service/local"
 }
+
 ThisBuild / publishTo := {
   val nexus = "https://s01.oss.sonatype.org/"
   if (isSnapshot.value) {
@@ -106,14 +110,18 @@ ThisBuild / publishTo := {
 // Sonatype settings
 ThisBuild / publishMavenStyle := true
 ThisBuild / sonatypeProfileName := "io.qbeast"
+
 ThisBuild / sonatypeProjectHosting := Some(
   GitHubHosting(user = "Qbeast-io", repository = "qbeast-spark", email = "info@qbeast.io"))
+
 ThisBuild / licenses := Seq("APL2" -> url("https://www.apache.org/licenses/LICENSE-2.0.txt"))
 ThisBuild / homepage := Some(url("https://qbeast.io/"))
+
 ThisBuild / scmInfo := Some(
   ScmInfo(
     url("https://github.com/Qbeast-io/qbeast-spark"),
     "scm:git@github.com:Qbeast-io/qbeast-spark.git"))
+
 ThisBuild / pomExtra :=
   <developers>
     <developer>
