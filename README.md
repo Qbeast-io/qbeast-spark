@@ -174,6 +174,12 @@ Use [Python index visualizer](./utils/visualizer/README.md) for your indexed tab
 
 Check [here](https://docs.delta.io/latest/releases.html) for **Delta Lake** and **Apache Spark** version compatibility.  
 
+## Format changes
+
+Version 1.0.0 introduced changes in the index metadata format which are
+incompatible with the previous versions. However it is possible to migrate the
+existing tables without reindexing the data. Please find the details
+[here](./docs/IndexMetadataChangesInVersion1.0.0.md)
 
 # Contribution Guide
 
