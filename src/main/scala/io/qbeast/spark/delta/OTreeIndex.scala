@@ -9,7 +9,6 @@ import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{Expression, GenericInternalRow}
 import org.apache.spark.sql.delta.{DeltaLog, Snapshot}
-import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.files.TahoeLogFileIndex
 import org.apache.spark.sql.execution.datasources.{FileIndex, PartitionDirectory}
 import org.apache.spark.sql.types.StructType
@@ -24,7 +23,10 @@ import java.net.URI
  * @param index the Tahoe log file index
  * @param spark spark session
  */
-case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
+case class OTreeIndex(index: TahoeLogFileIndex)
+    extends FileIndex
+    with DeltaStagingUtils
+    with Logging {
 
   /**
    * Snapshot to analyze
@@ -53,45 +55,71 @@ case class OTreeIndex(index: TahoeLogFileIndex) extends FileIndex with Logging {
   }
 
   /**
-   * Collect Staging AddFiles from _delta_log and convert them into FileStatuses.
-   * The output is merged with those built from QbeastBlocks.
+   * Collect matching QbeastBlocks and convert them into FileStatuses.
+   * @param partitionFilters
+   * @param dataFilters
    * @return
    */
-  private def stagingFiles: Seq[FileStatus] = {
-    qbeastSnapshot.loadStagingBlocks().collect().map { a: AddFile =>
-      new FileStatus(
-        /* length */ a.size,
-        /* isDir */ false,
-        /* blockReplication */ 0,
-        /* blockSize */ 1,
-        /* modificationTime */ a.modificationTime,
-        absolutePath(a.path))
-    }
-  }
-
-  override def listFiles(
+  private def qbeastMatchingFiles(
       partitionFilters: Seq[Expression],
-      dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
-    val qbeastFileStats = matchingBlocks(partitionFilters, dataFilters)
+      dataFilters: Seq[Expression]): Seq[FileStatus] = {
+    matchingBlocks(partitionFilters, dataFilters)
       .map(block => (block.file))
       .map(file => (file.path, file))
       .toMap
       .values
       .map(IndexFiles.toFileStatus(index.path))
-      .toArray
-    val stagingStats = stagingFiles
-    val fileStats = qbeastFileStats ++ stagingStats
+      .toSeq
+  }
+
+  /**
+   * Collect matching staging files from _delta_log and convert them into FileStatuses.
+   * The output is merged with those built from QbeastBlocks.
+   * @return
+   */
+  private def stagingFiles(
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): Seq[FileStatus] = {
+
+    index
+      .matchingFiles(partitionFilters, dataFilters)
+      .filter(isStagingFile)
+      .map { f =>
+        new FileStatus(
+          /* length */ f.size,
+          /* isDir */ false,
+          /* blockReplication */ 0,
+          /* blockSize */ 1,
+          /* modificationTime */ f.modificationTime,
+          absolutePath(f.path))
+      }
+  }
+
+  override def listFiles(
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
+
+    // FILTER FILES FROM QBEAST
+    val qbeastFileStats = qbeastMatchingFiles(partitionFilters, dataFilters)
+    // FILTER FILES FROM DELTA
+    val stagingFileStats = stagingFiles(partitionFilters, dataFilters)
+    // JOIN BOTH FILTERED FILES
+    val fileStats = qbeastFileStats ++ stagingFileStats
+
     val sc = index.spark.sparkContext
     val execId = sc.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
     val pfStr = partitionFilters.map(f => f.toString).mkString(" ")
     logInfo(s"OTreeIndex partition filters (exec id ${execId}): ${pfStr}")
     val dfStr = dataFilters.map(f => f.toString).mkString(" ")
     logInfo(s"OTreeIndex data filters (exec id ${execId}): ${dfStr}")
+
     val allFilesCount = snapshot.allFiles.count
     val nFiltered = allFilesCount - fileStats.length
     val filteredPct = ((nFiltered * 1.0) / allFilesCount) * 100.0
     val filteredMsg = f"${nFiltered} of ${allFilesCount} (${filteredPct}%.2f%%)"
     logInfo(s"Qbeast filtered files (exec id ${execId}): ${filteredMsg}")
+
+    // RETURN
     Seq(PartitionDirectory(new GenericInternalRow(Array.empty[Any]), fileStats))
   }
 
