@@ -1,9 +1,10 @@
-# Index Metadata Changes in Version 1.0.0
+# QbeastFormat 1.0.0
 
-## Where the index metadata is stored?
+## What is Qbeast format?
 
-Qbeast tables are stored in Delta format, so the index metadadata is written
-as a part of the Delta log. In more details
+Qbeast format is used to store the big data tables making it efficient querying
+and sampling. It extends the Delta format, so the data is stored in parquet
+files and the index metadata is stored in the Delta log. In more details
 
 * the schema, index columns, data transformations, revisions and other
   information which is common for all the blocks is stored in the `metaData`
@@ -13,9 +14,10 @@ as a part of the Delta log. In more details
 
 ## Metadata changes introduced in the version 1.0.0
 
-* The replicated cubes are not stored in the Delta log anymore
-* Now a physical file can contain data from multiple blocks, so the information
-  stored in the `tags` of an `add` entry in the Delta log provides information
+* The information about the replicated cubes are not stored in the Delta log
+  anymore
+* A physical file can contain data from multiple blocks, so the information
+  stored in the `tags` of an `add`entry in the Delta log provides information
   about all the blocks stored in the corresponding index file.
 
 ## Block metadata before the version 1.0.0
