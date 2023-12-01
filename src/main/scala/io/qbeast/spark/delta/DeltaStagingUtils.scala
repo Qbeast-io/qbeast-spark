@@ -32,8 +32,10 @@ private[spark] trait DeltaStagingUtils extends StagingUtils {
 
   /**
    * Wether an AddFile is a staging file or not
-   * @param a the AddFile
-   * @return boolean
+   * @param a
+   *   the AddFile
+   * @return
+   *   boolean
    */
   def isStagingFile(a: AddFile): Boolean =
     a.tags == null || a.tags.isEmpty || a.tags

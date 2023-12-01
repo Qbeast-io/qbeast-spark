@@ -1,7 +1,8 @@
 package io.qbeast.spark.utils
 
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastTable
 import io.qbeast.TestUtils._
-import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
 import org.apache.spark.sql.SparkSession
 
 class QbeastSamplingTest extends QbeastIntegrationTestSpec {

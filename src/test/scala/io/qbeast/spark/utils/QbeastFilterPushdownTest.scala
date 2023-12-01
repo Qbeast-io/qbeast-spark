@@ -1,15 +1,14 @@
 package io.qbeast.spark.utils
 
-import io.qbeast.TestUtils._
-import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.OTreeIndex
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.TestUtils._
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.functions.avg
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.rand
 import org.apache.spark.sql.functions.regexp_replace
 import org.apache.spark.sql.functions.when
-import org.apache.spark.sql.DataFrame
 
 class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 

@@ -1,15 +1,15 @@
 package io.qbeast.spark.delta
 
-import io.qbeast.TestClasses.T2
 import io.qbeast.core.model.Block
-import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.TestClasses.T2
 import org.apache.hadoop.fs.Path
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.delta.files.TahoeLogFileIndex
+import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.expr
+import org.apache.spark.sql.SparkSession
 
 class OTreeIndexTest extends QbeastIntegrationTestSpec {
 

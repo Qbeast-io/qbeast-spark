@@ -9,16 +9,16 @@ import io.qbeast.spark.index.query.QuerySpecBuilder
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.fs.Path
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
+import org.apache.spark.sql.delta.files.TahoeLogFileIndex
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.delta.Snapshot
-import org.apache.spark.sql.delta.files.TahoeLogFileIndex
-import org.apache.spark.sql.execution.SQLExecution
 import org.apache.spark.sql.execution.datasources.FileIndex
 import org.apache.spark.sql.execution.datasources.PartitionDirectory
+import org.apache.spark.sql.execution.SQLExecution
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.SparkSession
 
 import java.net.URI
 
@@ -81,8 +81,8 @@ case class OTreeIndex(index: TahoeLogFileIndex)
   }
 
   /**
-   * Collect matching staging files from _delta_log and convert them into FileStatuses.
-   * The output is merged with those built from QbeastBlocks.
+   * Collect matching staging files from _delta_log and convert them into FileStatuses. The output
+   * is merged with those built from QbeastBlocks.
    * @return
    */
   private def stagingFiles(
