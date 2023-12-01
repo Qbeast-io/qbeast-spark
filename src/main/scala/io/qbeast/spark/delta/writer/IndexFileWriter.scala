@@ -5,24 +5,29 @@ package io.qbeast.spark.delta.writer
 
 import io.qbeast.core.model.CubeId
 import io.qbeast.core.model.IndexFile
+import io.qbeast.core.model.IndexFileBuilder
+import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
+import io.qbeast.core.model.RevisionID
 import io.qbeast.core.model.Weight
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.datasources.OutputWriter
 import org.apache.spark.sql.execution.datasources.WriteTaskStatsTracker
-import io.qbeast.core.model.IndexFileBuilder
-import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
+
 import scala.collection.mutable
-import org.apache.hadoop.fs.Path
-import org.apache.hadoop.conf.Configuration
-import io.qbeast.core.model.RevisionID
 
 /**
  * Writer for writing index files.
  *
- * @param revisionId the revision identifier
- * @param output the output writer
- * @param trackers the task stats trackers
- * @param config the Hadoop configuration
+ * @param revisionId
+ *   the revision identifier
+ * @param output
+ *   the output writer
+ * @param trackers
+ *   the task stats trackers
+ * @param config
+ *   the Hadoop configuration
  */
 private[writer] class IndexFileWriter(
     revisionId: RevisionID,
@@ -39,10 +44,14 @@ private[writer] class IndexFileWriter(
   /**
    * Writes a given row, that should not have Qbeast specific columns.
    *
-   * @param row the row to write
-   * @param weight the weight
-   * @param cubeId the cube identifier
-   * @param cubeMaxWeight the maximum cube weight
+   * @param row
+   *   the row to write
+   * @param weight
+   *   the weight
+   * @param cubeId
+   *   the cube identifier
+   * @param cubeMaxWeight
+   *   the maximum cube weight
    */
   def write(row: InternalRow, weight: Weight, cubeId: CubeId, cubeMaxWeight: Weight): Unit = {
     output.write(row)
@@ -56,7 +65,8 @@ private[writer] class IndexFileWriter(
   /**
    * Closes the writer and returns the written index file with the task stats.
    *
-   * @return the index file and the task stats
+   * @return
+   *   the index file and the task stats
    */
   def close(): (IndexFile, TaskStats) = {
     output.close()

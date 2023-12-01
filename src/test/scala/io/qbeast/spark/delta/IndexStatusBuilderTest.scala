@@ -1,6 +1,8 @@
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.{CubeId, CubeStatus, Weight}
+import io.qbeast.core.model.CubeId
+import io.qbeast.core.model.CubeStatus
+import io.qbeast.core.model.Weight
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.delta.DeltaLog
 

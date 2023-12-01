@@ -1,10 +1,11 @@
 package io.qbeast.spark.index
 
-import io.qbeast.core.model.{CubeId, Weight}
+import io.qbeast.core.model.CubeId
+import io.qbeast.core.model.Weight
 import io.qbeast.spark.index.QbeastColumns.cubeColumnName
 import org.apache.spark.sql.DataFrame
-import org.scalatest.AppendedClues.convertToClueful
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.AppendedClues.convertToClueful
 
 trait IndexTestChecks extends Matchers {
 
@@ -43,7 +44,7 @@ trait IndexTestChecks extends Matchers {
         if (cube.isRoot) {
 
           (weightMap should contain key cube) withClue
-            s"Cube root appears in data but not in weight map"
+            "Cube root appears in data but not in weight map"
         } else {
           val parent = cube.parent.get
 

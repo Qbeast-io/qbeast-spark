@@ -3,17 +3,23 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.{Revision, StagingUtils, TableChanges, mapper}
+import io.qbeast.core.model.mapper
+import io.qbeast.core.model.Revision
+import io.qbeast.core.model.StagingUtils
+import io.qbeast.core.model.TableChanges
 import io.qbeast.spark.utils.MetadataConfig
-import io.qbeast.spark.utils.MetadataConfig.{lastRevisionID, revision}
+import io.qbeast.spark.utils.MetadataConfig.lastRevisionID
+import io.qbeast.spark.utils.MetadataConfig.revision
+import org.apache.spark.sql.delta.schema.ImplicitMetadataOperation
+import org.apache.spark.sql.delta.schema.SchemaMergingUtils
+import org.apache.spark.sql.delta.DeltaErrors
+import org.apache.spark.sql.delta.MetadataMismatchErrorBuilder
+import org.apache.spark.sql.delta.OptimisticTransaction
+import org.apache.spark.sql.types.ArrayType
+import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.types.MapType
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.delta.schema.{ImplicitMetadataOperation, SchemaMergingUtils}
-import org.apache.spark.sql.delta.{
-  DeltaErrors,
-  MetadataMismatchErrorBuilder,
-  OptimisticTransaction
-}
-import org.apache.spark.sql.types.{ArrayType, DataType, MapType, StructType}
 
 /**
  * Qbeast metadata changes on a Delta Table.
@@ -23,10 +29,12 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
   type Configuration = Map[String, String]
 
   /**
-   * Returns the same data type but set all nullability fields are true
-   * (ArrayType.containsNull, and MapType.valueContainsNull)
-   * @param dataType the data type
-   * @return same data type set to null
+   * Returns the same data type but set all nullability fields are true (ArrayType.containsNull,
+   * and MapType.valueContainsNull)
+   * @param dataType
+   *   the data type
+   * @return
+   *   same data type set to null
    */
   private def asNullable(dataType: DataType): DataType = {
     dataType match {
@@ -45,8 +53,10 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
 
   /**
    * Update metadata with new Qbeast Revision
-   * @param baseConfiguration the base configuration
-   * @param newRevision the new revision
+   * @param baseConfiguration
+   *   the base configuration
+   * @param newRevision
+   *   the new revision
    */
   private def updateQbeastRevision(
       baseConfiguration: Configuration,

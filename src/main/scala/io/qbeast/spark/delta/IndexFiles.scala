@@ -3,24 +3,25 @@
  */
 package io.qbeast.spark.delta
 
-import org.apache.spark.sql.delta.actions.AddFile
-import io.qbeast.core.model.IndexFile
-import io.qbeast.spark.utils.TagUtils
-import io.qbeast.IISeq
-import io.qbeast.core.model.Block
-import io.qbeast.core.model.IndexFileBuilder
-import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
-import io.qbeast.core.model.CubeId
-import java.io.StringWriter
 import com.fasterxml.jackson.core.JsonFactory
+import com.fasterxml.jackson.core.JsonParseException
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.core.JsonToken
-import com.fasterxml.jackson.core.JsonParseException
+import io.qbeast.core.model.Block
+import io.qbeast.core.model.CubeId
+import io.qbeast.core.model.IndexFile
+import io.qbeast.core.model.IndexFileBuilder
+import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
 import io.qbeast.core.model.Weight
+import io.qbeast.spark.utils.TagUtils
+import io.qbeast.IISeq
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.fs.Path
-import java.net.URI
+import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.actions.RemoveFile
+
+import java.io.StringWriter
+import java.net.URI
 
 /**
  * Utility object for working with index files.
@@ -32,9 +33,12 @@ object IndexFiles {
   /**
    * Creates an IndexFile instance from a given AddFile instance.
    *
-   * @param dimensionCount the number of the index dimensions
-   * @param addFile the AddFile instance
-   * @return an IndexFile instance
+   * @param dimensionCount
+   *   the number of the index dimensions
+   * @param addFile
+   *   the AddFile instance
+   * @return
+   *   an IndexFile instance
    */
   def fromAddFile(dimensionCount: Int)(addFile: AddFile): IndexFile = {
     val builder = new IndexFileBuilder()
@@ -55,9 +59,12 @@ object IndexFiles {
   /**
    * Converts a given IndexFile instance to an AddFile instance.
    *
-   * @param dataChange the index file represents a data change
-   * @param indexFile the IndexFile instance
-   * @return an AddFile instance
+   * @param dataChange
+   *   the index file represents a data change
+   * @param indexFile
+   *   the IndexFile instance
+   * @return
+   *   an AddFile instance
    */
   def toAddFile(dataChange: Boolean = true)(indexFile: IndexFile): AddFile = {
     val tags = Map(
@@ -75,9 +82,12 @@ object IndexFiles {
   /**
    * Converts a given IndexFile instance to a RemoveFile instance.
    *
-   * @param dataChange file removal implies data change
-   * @param indexFile the IndexFile instance
-   * @param a RemoveFile instance
+   * @param dataChange
+   *   file removal implies data change
+   * @param indexFile
+   *   the IndexFile instance
+   * @param a
+   *   RemoveFile instance
    */
   def toRemoveFile(dataChange: Boolean = false)(indexFile: IndexFile): RemoveFile =
     RemoveFile(
@@ -90,9 +100,12 @@ object IndexFiles {
   /**
    * Converts IndexFile instance to FileStatus instance.
    *
-   * @param indexPath the path to the root of the index
-   * @param indexFile the IndexFile instance
-   * @return a FileStatus instance
+   * @param indexPath
+   *   the path to the root of the index
+   * @param indexFile
+   *   the IndexFile instance
+   * @return
+   *   a FileStatus instance
    */
   def toFileStatus(indexPath: Path)(indexFile: IndexFile): FileStatus = {
     var path = new Path(new URI(indexFile.path))

@@ -3,36 +3,46 @@
  */
 package io.qbeast.core.transform
 
-import com.fasterxml.jackson.core.{JsonGenerator, JsonParser, TreeNode}
-import com.fasterxml.jackson.databind.annotation.{JsonDeserialize, JsonSerialize}
+import com.fasterxml.jackson.core.JsonGenerator
+import com.fasterxml.jackson.core.JsonParser
+import com.fasterxml.jackson.core.TreeNode
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.jsontype.TypeSerializer
-import com.fasterxml.jackson.databind.node.{DoubleNode, IntNode, NumericNode, TextNode}
+import com.fasterxml.jackson.databind.node.DoubleNode
+import com.fasterxml.jackson.databind.node.IntNode
+import com.fasterxml.jackson.databind.node.NumericNode
+import com.fasterxml.jackson.databind.node.TextNode
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
-import com.fasterxml.jackson.databind.{DeserializationContext, SerializerProvider}
-import io.qbeast.core.model.{
-  DateDataType,
-  DecimalDataType,
-  DoubleDataType,
-  FloatDataType,
-  IntegerDataType,
-  LongDataType,
-  OrderedDataType,
-  TimestampDataType
-}
+import com.fasterxml.jackson.databind.DeserializationContext
+import com.fasterxml.jackson.databind.SerializerProvider
+import io.qbeast.core.model.DateDataType
+import io.qbeast.core.model.DecimalDataType
+import io.qbeast.core.model.DoubleDataType
+import io.qbeast.core.model.FloatDataType
+import io.qbeast.core.model.IntegerDataType
+import io.qbeast.core.model.LongDataType
+import io.qbeast.core.model.OrderedDataType
+import io.qbeast.core.model.TimestampDataType
 
 import java.math.BigDecimal
-import java.sql.{Date, Timestamp}
+import java.sql.Date
+import java.sql.Timestamp
 import java.time.Instant
-import scala.util.Random
 import scala.util.hashing.MurmurHash3
+import scala.util.Random
 
 /**
  * A linear transformation of a coordinate based on min max values
- * @param minNumber minimum value of the space
- * @param maxNumber maximum value of the space
- * @param nullValue the value to use for null coordinates
- * @param orderedDataType ordered data type of the coordinate
+ * @param minNumber
+ *   minimum value of the space
+ * @param maxNumber
+ *   maximum value of the space
+ * @param nullValue
+ *   the value to use for null coordinates
+ * @param orderedDataType
+ *   ordered data type of the coordinate
  */
 @JsonSerialize(using = classOf[LinearTransformationSerializer])
 @JsonDeserialize(using = classOf[LinearTransformationDeserializer])
@@ -69,11 +79,12 @@ case class LinearTransformation(
 
   /**
    * Merges two transformations. The domain of the resulting transformation is the union of this
-   * and the other transformation. The range of the resulting transformation
-   * is the intersection of this and the other transformation,
-   * which can be a LinearTransformation or IdentityTransformation
+   * and the other transformation. The range of the resulting transformation is the intersection
+   * of this and the other transformation, which can be a LinearTransformation or
+   * IdentityTransformation
    * @param other
-   * @return a new Transformation that contains both this and other.
+   * @return
+   *   a new Transformation that contains both this and other.
    */
   override def merge(other: Transformation): Transformation = {
     other match {
@@ -104,8 +115,10 @@ case class LinearTransformation(
 
   /**
    * This method should determine if the new data will cause the creation of a new revision.
-   * @param newTransformation the new transformation created with statistics over the new data
-   * @return true if the domain of the newTransformation is not fully contained in this one.
+   * @param newTransformation
+   *   the new transformation created with statistics over the new data
+   * @return
+   *   true if the domain of the newTransformation is not fully contained in this one.
    */
   override def isSupersededBy(newTransformation: Transformation): Boolean =
     newTransformation match {
@@ -163,8 +176,8 @@ class LinearTransformationSerializer
 object LinearTransformation {
 
   /**
-   * Creates a LinearTransformation that has random value for the nulls
-   * within the [minNumber, maxNumber] range
+   * Creates a LinearTransformation that has random value for the nulls within the [minNumber,
+   * maxNumber] range
    * @param minNumber
    * @param maxNumber
    * @param orderedDataType
@@ -229,8 +242,8 @@ class LinearTransformationDeserializer
 object LinearTransformationUtils {
 
   /**
-   * Creates a LinearTransformationUtils object that contains
-   * useful functions that can be used outside of the LinearTransformation class.
+   * Creates a LinearTransformationUtils object that contains useful functions that can be used
+   * outside of the LinearTransformation class.
    * @param minNumber
    * @param maxNumber
    * @param orderedDataType

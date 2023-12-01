@@ -3,13 +3,16 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.TestClasses.T1
-import io.qbeast.core.model.{BroadcastedTableChanges, _}
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.core.model._
+import io.qbeast.core.model.BroadcastedTableChanges
+import io.qbeast.core.transform.HashTransformation
+import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.core.transform.{HashTransformation, LinearTransformation}
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.TestClasses.T1
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.udf
 import org.apache.spark.SparkException
-import org.apache.spark.sql.functions.{col, udf}
 
 import scala.util.Random
 

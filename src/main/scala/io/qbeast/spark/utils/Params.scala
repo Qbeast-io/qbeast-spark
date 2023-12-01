@@ -4,6 +4,7 @@
 package io.qbeast.spark.utils
 
 import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.Column
 
 /**
  * Names of possible states of the cube
@@ -18,7 +19,7 @@ object State {
  * Tag keys for saving qbeast index metadata into the delta commit log
  */
 object TagColumns {
-  final val revision = col("tags.revision")
+  final val revision: Column = col("tags.revision")
 }
 
 object TagUtils {

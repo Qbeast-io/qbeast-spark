@@ -4,32 +4,36 @@
 package io.qbeast.spark.internal.rules
 
 import org.apache.spark.sql.catalyst.analysis.TableOutputResolver
-import org.apache.spark.sql.{AnalysisExceptionFactory, SchemaUtils}
-import org.apache.spark.sql.catalyst.expressions.{
-  Alias,
-  ArrayTransform,
-  Attribute,
-  Cast,
-  CreateStruct,
-  Expression,
-  GetArrayItem,
-  GetStructField,
-  LambdaFunction,
-  NamedExpression,
-  NamedLambdaVariable,
-  UpCast
-}
-import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Project}
+import org.apache.spark.sql.catalyst.expressions.Alias
+import org.apache.spark.sql.catalyst.expressions.ArrayTransform
+import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.Cast
+import org.apache.spark.sql.catalyst.expressions.CreateStruct
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.GetArrayItem
+import org.apache.spark.sql.catalyst.expressions.GetStructField
+import org.apache.spark.sql.catalyst.expressions.LambdaFunction
+import org.apache.spark.sql.catalyst.expressions.NamedExpression
+import org.apache.spark.sql.catalyst.expressions.NamedLambdaVariable
+import org.apache.spark.sql.catalyst.expressions.UpCast
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.plans.logical.Project
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{ArrayType, DataType, IntegerType, StructField, StructType}
+import org.apache.spark.sql.types.ArrayType
+import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.SchemaUtils
 
 private[rules] object QbeastAnalysisUtils {
 
   private lazy val conf = SQLConf.get
 
   /**
-   * Checks if the schema of the Table corresponds to the schema of the Query
-   * From Delta Lake OSS Project code in DeltaAnalysis
+   * Checks if the schema of the Table corresponds to the schema of the Query From Delta Lake OSS
+   * Project code in DeltaAnalysis
    *
    * @param tableName
    * @param query
@@ -40,7 +44,7 @@ private[rules] object QbeastAnalysisUtils {
     val output = query.output
     if (output.length < schema.length) {
       throw AnalysisExceptionFactory.create(
-        s"The number of colums to write does not correspond " +
+        "The number of colums to write does not correspond " +
           s"to the number of columns of the Table $tableName")
     }
     // Now we should try our best to match everything that already exists, and leave the rest
@@ -54,12 +58,16 @@ private[rules] object QbeastAnalysisUtils {
   }
 
   /**
-   * From DeltaAnalysis code in spark/src/main/scala/org/apache/spark/sql/delta/DeltaAnalysis.scala
-   * Performs the schema adjustment by adding UpCasts (which are safe)
-   * and Aliases so that we can check if the schema of the insert query matches our table
-   * @param query the input query for the insert
-   * @param targetAttrs the target attributes
-   * @param tblName the name of the table
+   * From DeltaAnalysis code in
+   * spark/src/main/scala/org/apache/spark/sql/delta/DeltaAnalysis.scala Performs the schema
+   * adjustment by adding UpCasts (which are safe) and Aliases so that we can check if the schema
+   * of the insert query matches our table
+   * @param query
+   *   the input query for the insert
+   * @param targetAttrs
+   *   the target attributes
+   * @param tblName
+   *   the name of the table
    * @return
    */
   def resolveQueryColumnsByOrdinal(
@@ -81,8 +89,9 @@ private[rules] object QbeastAnalysisUtils {
   type CastFunction = (Expression, DataType, String) => Expression
 
   /**
-   * From DeltaAnalysis code in spark/src/main/scala/org/apache/spark/sql/delta/DeltaAnalysis.scala
-   * Get cast operation for the level of strictness in the schema a user asked for
+   * From DeltaAnalysis code in
+   * spark/src/main/scala/org/apache/spark/sql/delta/DeltaAnalysis.scala Get cast operation for
+   * the level of strictness in the schema a user asked for
    * @return
    */
   def getCastFunction: CastFunction = {
@@ -103,14 +112,19 @@ private[rules] object QbeastAnalysisUtils {
   }
 
   /**
-   * From DeltaAnalysis code in spark/src/main/scala/org/apache/spark/sql/delta/DeltaAnalysis.scala
-   * Recursively casts structs in case it contains null types.
-   * TODO: Support other complex types like MapType and ArrayType
-   * @param tableName the name of the table
-   * @param parent the parent expression to cast
-   * @param source the source schema
-   * @param target the target schema
-   * @return The casted expression
+   * From DeltaAnalysis code in
+   * spark/src/main/scala/org/apache/spark/sql/delta/DeltaAnalysis.scala Recursively casts structs
+   * in case it contains null types. TODO: Support other complex types like MapType and ArrayType
+   * @param tableName
+   *   the name of the table
+   * @param parent
+   *   the parent expression to cast
+   * @param source
+   *   the source schema
+   * @param target
+   *   the target schema
+   * @return
+   *   The casted expression
    */
   def addCastsToStructs(
       tableName: String,
@@ -159,14 +173,20 @@ private[rules] object QbeastAnalysisUtils {
   }
 
   /**
-   * From DeltaAnalysis code in spark/src/main/scala/org/apache/spark/sql/delta/DeltaAnalysis.scala
+   * From DeltaAnalysis code in
+   * spark/src/main/scala/org/apache/spark/sql/delta/DeltaAnalysis.scala
    *
    * Recursively add casts to Array[Struct]
-   * @param tableName the name of the table
-   * @param parent the parent expression
-   * @param source the source Struct
-   * @param target the final target Struct
-   * @param sourceNullable if source is nullable
+   * @param tableName
+   *   the name of the table
+   * @param parent
+   *   the parent expression
+   * @param source
+   *   the source Struct
+   * @param target
+   *   the final target Struct
+   * @param sourceNullable
+   *   if source is nullable
    * @return
    */
 
@@ -187,11 +207,15 @@ private[rules] object QbeastAnalysisUtils {
   }
 
   /**
-   * From DeltaAnalysis code in spark/src/main/scala/org/apache/spark/sql/delta/DeltaAnalysis.scala
-   * Adds cast to input/query column from the target table
-   * @param attr the column to cast in Attribute form
-   * @param targetAttr the target column of the table
-   * @param tblName the name of the table
+   * From DeltaAnalysis code in
+   * spark/src/main/scala/org/apache/spark/sql/delta/DeltaAnalysis.scala Adds cast to input/query
+   * column from the target table
+   * @param attr
+   *   the column to cast in Attribute form
+   * @param targetAttr
+   *   the target column of the table
+   * @param tblName
+   *   the name of the table
    * @return
    */
   def addCastToColumn(

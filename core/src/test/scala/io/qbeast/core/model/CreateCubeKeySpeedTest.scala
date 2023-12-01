@@ -5,7 +5,8 @@ package io.qbeast.core.model
 
 import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.{Millis, Span}
+import org.scalatest.time.Millis
+import org.scalatest.time.Span
 import org.scalatest.wordspec.AnyWordSpec
 
 import scala.util.Random
@@ -43,6 +44,7 @@ class CreateCubeKeySpeedTest extends AnyWordSpec with Matchers with TimeLimitedT
 
     CubeKeyFactory.createCubeKey(from, 20)
   }
+
   for (from <- points3d) {
 
     CubeKeyFactory.createCubeKey(from, 20)
@@ -85,6 +87,7 @@ class CreateCubeKeySpeedTest extends AnyWordSpec with Matchers with TimeLimitedT
 
     }
   }
+
   "A 4D CubeKey" should {
     "complete in time" in {
 

@@ -1,9 +1,9 @@
 package io.qbeast.core.model
 
 import io.qbeast.core.transform.HashTransformer
-import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.PrivateMethodTester
 
 import scala.util.Random
 
@@ -147,4 +147,5 @@ class CubeDomainsBuilderTest extends AnyFlatSpec with Matchers with PrivateMetho
     val result = builder.result()
     result.size shouldBe result.distinct.size
   }
+
 }

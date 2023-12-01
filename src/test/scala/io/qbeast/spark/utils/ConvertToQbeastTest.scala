@@ -3,14 +3,14 @@ package io.qbeast.spark.utils
 import io.qbeast.core.model.StagingUtils
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
-import io.qbeast.spark.utils.QbeastExceptionMessages.{
-  incorrectIdentifierFormat,
-  partitionedTableExceptionMsg,
-  unsupportedFormatExceptionMsg
-}
-import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
+import io.qbeast.spark.utils.QbeastExceptionMessages.incorrectIdentifierFormat
+import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
+import io.qbeast.spark.utils.QbeastExceptionMessages.unsupportedFormatExceptionMsg
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastTable
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.{AnalysisException, SparkSession}
+import org.apache.spark.sql.AnalysisException
+import org.apache.spark.sql.SparkSession
 import org.scalatest.PrivateMethodTester
 
 class ConvertToQbeastTest
@@ -238,4 +238,5 @@ class ConvertToQbeastTest
       stagingCs.size shouldBe 1
       stagingCs.head.blocks.size shouldBe <(numSparkPartitions)
     })
+
 }

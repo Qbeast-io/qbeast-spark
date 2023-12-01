@@ -4,7 +4,9 @@
 package org.apache.spark.qbeast
 
 import io.qbeast.context.QbeastContext
-import org.apache.spark.internal.config.{ConfigBuilder, ConfigEntry, OptionalConfigEntry}
+import org.apache.spark.internal.config.ConfigBuilder
+import org.apache.spark.internal.config.ConfigEntry
+import org.apache.spark.internal.config.OptionalConfigEntry
 
 package object config {
 

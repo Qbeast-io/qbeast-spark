@@ -3,33 +3,43 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.{QTableID, RevisionID, TableChanges}
+import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.RevisionID
+import io.qbeast.core.model.TableChanges
 import io.qbeast.spark.delta.writer.StatsTracker.registerStatsTrackers
 import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
 import io.qbeast.spark.utils.TagColumns
 import org.apache.spark.sql.delta.actions._
 import org.apache.spark.sql.delta.commands.DeltaCommand
-import org.apache.spark.sql.delta.{DeltaLog, DeltaOperations, DeltaOptions, OptimisticTransaction}
-import org.apache.spark.sql.execution.datasources.{
-  BasicWriteJobStatsTracker,
-  WriteJobStatsTracker
-}
+import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.delta.DeltaOperations
+import org.apache.spark.sql.delta.DeltaOptions
+import org.apache.spark.sql.delta.OptimisticTransaction
+import org.apache.spark.sql.execution.datasources.BasicWriteJobStatsTracker
+import org.apache.spark.sql.execution.datasources.WriteJobStatsTracker
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{AnalysisExceptionFactory, SaveMode, SparkSession}
+import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.util.SerializableConfiguration
 
 import scala.collection.mutable.ListBuffer
 
 /**
- * DeltaMetadataWriter is in charge of writing data to a table
- * and report the necessary log information
+ * DeltaMetadataWriter is in charge of writing data to a table and report the necessary log
+ * information
  *
- * @param tableID the table identifier
- * @param mode SaveMode of the writeMetadata
- * @param deltaLog deltaLog associated to the table
- * @param options options for writeMetadata operation
- * @param schema the schema of the table
+ * @param tableID
+ *   the table identifier
+ * @param mode
+ *   SaveMode of the writeMetadata
+ * @param deltaLog
+ *   deltaLog associated to the table
+ * @param options
+ *   options for writeMetadata operation
+ * @param schema
+ *   the schema of the table
  */
 private[delta] case class DeltaMetadataWriter(
     tableID: QTableID,
@@ -124,10 +134,14 @@ private[delta] case class DeltaMetadataWriter(
 
   /**
    * Writes metadata of the table
-   * @param txn transaction to commit
-   * @param tableChanges changes to apply
-   * @param newFiles files to add or remove
-   * @return the sequence of file actions to save in the commit log(add, remove...)
+   * @param txn
+   *   transaction to commit
+   * @param tableChanges
+   *   changes to apply
+   * @param newFiles
+   *   files to add or remove
+   * @return
+   *   the sequence of file actions to save in the commit log(add, remove...)
    */
   protected def updateMetadata(
       txn: OptimisticTransaction,

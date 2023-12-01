@@ -3,8 +3,8 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.IISeq
 import io.qbeast.core.model._
+import io.qbeast.IISeq
 import org.apache.spark.sql.DataFrame
 
 /**
@@ -14,26 +14,34 @@ object SparkOTreeManager extends IndexManager[DataFrame] with Serializable {
 
   /**
    * Builds an OTree index.
-   * @param data the data to index
-   * @param indexStatus the current status of the index
-   * @return the changes to the index
+   * @param data
+   *   the data to index
+   * @param indexStatus
+   *   the current status of the index
+   * @return
+   *   the changes to the index
    */
   override def index(data: DataFrame, indexStatus: IndexStatus): (DataFrame, TableChanges) =
     index(data, indexStatus, isReplication = false)
 
   /**
    * Optimizes the index
-   * @param data the data to optimize
-   * @param indexStatus the current status of the index
-   * @return the changes to the index
+   * @param data
+   *   the data to optimize
+   * @param indexStatus
+   *   the current status of the index
+   * @return
+   *   the changes to the index
    */
   override def optimize(data: DataFrame, indexStatus: IndexStatus): (DataFrame, TableChanges) =
     index(data, indexStatus, isReplication = true)
 
   /**
    * Analyzes the index
-   * @param indexStatus the current status of the index
-   * @return the cubes to optimize
+   * @param indexStatus
+   *   the current status of the index
+   * @return
+   *   the cubes to optimize
    */
   override def analyze(indexStatus: IndexStatus): IISeq[CubeId] = {
     findCubesToOptimize(indexStatus)

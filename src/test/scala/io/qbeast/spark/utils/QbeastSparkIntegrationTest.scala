@@ -1,8 +1,9 @@
 package io.qbeast.spark.utils
 
-import io.qbeast.TestClasses.Student
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import io.qbeast.TestClasses.Student
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SparkSession
 
 import scala.util.Random
 
@@ -113,7 +114,7 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
       val data = createStudentsTestData(spark)
       data.createOrReplaceTempView("data")
       spark
-        .sql(s"SELECT * FROM data")
+        .sql("SELECT * FROM data")
         .write
         .option("columnsToIndex", "id,name")
         .option("path", tmpDir)

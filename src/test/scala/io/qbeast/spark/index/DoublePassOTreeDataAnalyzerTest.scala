@@ -1,17 +1,20 @@
 package io.qbeast.spark.index
 
-import io.qbeast.IISeq
-import io.qbeast.TestClasses._
 import io.qbeast.core.model._
-import io.qbeast.core.transform.{HashTransformation, LinearTransformation, Transformer}
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.core.transform.HashTransformation
+import io.qbeast.core.transform.LinearTransformation
+import io.qbeast.core.transform.Transformer
 import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer._
 import io.qbeast.spark.index.QbeastColumns.weightColumnName
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
 import io.qbeast.spark.utils.SparkToQTypesUtils
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.IISeq
+import io.qbeast.TestClasses._
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructField
-import org.apache.spark.sql.{Dataset, SparkSession}
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
 import org.scalatest.matchers.must.Matchers.convertToAnyMustWrapper
 
 class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
@@ -60,7 +63,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
     val columnTransformer = revision.columnTransformers.head
     columnTransformer.columnName shouldBe "c"
-    columnTransformer.spec shouldBe s"c:hashing"
+    columnTransformer.spec shouldBe "c:hashing"
 
     val transformation = revision.transformations.head
     transformation mustBe a[HashTransformation]
@@ -385,4 +388,5 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
           .foreach(child => weight < estimatedCubeWeights(child))
       }
   }
+
 }

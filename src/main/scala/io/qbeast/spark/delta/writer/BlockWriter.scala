@@ -3,22 +3,25 @@
  */
 package io.qbeast.spark.delta.writer
 
-import io.qbeast.core.model.{CubeId, TableChanges, Weight, IndexFileBuilder}
+import io.qbeast.core.model.CubeId
+import io.qbeast.core.model.IndexFileBuilder
 import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
-import io.qbeast.spark.index.QbeastColumns
+import io.qbeast.core.model.TableChanges
+import io.qbeast.core.model.Weight
 import io.qbeast.spark.delta.IndexFiles
+import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.utils.State
 import org.apache.hadoop.fs.Path
-import org.apache.hadoop.mapred.{JobConf, TaskAttemptContextImpl, TaskAttemptID}
+import org.apache.hadoop.mapred.JobConf
+import org.apache.hadoop.mapred.TaskAttemptContextImpl
+import org.apache.hadoop.mapred.TaskAttemptID
 import org.apache.hadoop.mapreduce.TaskType
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.delta.actions.AddFile
-import org.apache.spark.sql.execution.datasources.{
-  OutputWriter,
-  OutputWriterFactory,
-  WriteJobStatsTracker,
-  WriteTaskStatsTracker
-}
+import org.apache.spark.sql.execution.datasources.OutputWriter
+import org.apache.spark.sql.execution.datasources.OutputWriterFactory
+import org.apache.spark.sql.execution.datasources.WriteJobStatsTracker
+import org.apache.spark.sql.execution.datasources.WriteTaskStatsTracker
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.SerializableConfiguration
 
@@ -28,13 +31,20 @@ import scala.collection.mutable
 /**
  * BlockWriter is in charge of writing the qbeast data into files
  *
- * @param dataPath       path of the table
- * @param schema         schema of the original data
- * @param schemaIndex    schema with qbeast metadata columns
- * @param factory        output writer factory
- * @param serConf        configuration to serialize the data
- * @param qbeastColumns  qbeast metadata columns
- * @param tableChanges     the revision of the data to write
+ * @param dataPath
+ *   path of the table
+ * @param schema
+ *   schema of the original data
+ * @param schemaIndex
+ *   schema with qbeast metadata columns
+ * @param factory
+ *   output writer factory
+ * @param serConf
+ *   configuration to serialize the data
+ * @param qbeastColumns
+ *   qbeast metadata columns
+ * @param tableChanges
+ *   the revision of the data to write
  */
 case class BlockWriter(
     dataPath: String,
@@ -50,8 +60,10 @@ case class BlockWriter(
   /**
    * Writes rows in corresponding files
    *
-   * @param iter iterator of rows
-   * @return the sequence of files added
+   * @param iter
+   *   iterator of rows
+   * @return
+   *   the sequence of files added
    */
   def writeRow(rows: Iterator[InternalRow]): Iterator[(AddFile, TaskStats)] = {
     val revision = tableChanges.updatedRevision

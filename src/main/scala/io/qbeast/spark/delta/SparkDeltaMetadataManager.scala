@@ -3,12 +3,14 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.IISeq
 import io.qbeast.core.model._
+import io.qbeast.IISeq
 import org.apache.spark.sql.delta.actions.FileAction
-import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions}
+import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.delta.DeltaOptions
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.SparkSession
 
 /**
  * Spark+Delta implementation of the MetadataManager interface
@@ -52,7 +54,8 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction]
 
   /**
    * Returns the DeltaQbeastLog for the table
-   * @param tableID the table ID
+   * @param tableID
+   *   the table ID
    * @return
    */
   def loadDeltaQbeastLog(tableID: QTableID): DeltaQbeastLog = {
@@ -77,7 +80,8 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction]
   /**
    * Checks if there's an existing log directory for the table
    *
-   * @param tableID the table ID
+   * @param tableID
+   *   the table ID
    * @return
    */
   override def existsLog(tableID: QTableID): Boolean = {

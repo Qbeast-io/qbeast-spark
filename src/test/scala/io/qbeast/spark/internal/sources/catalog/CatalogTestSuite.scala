@@ -1,27 +1,31 @@
 package io.qbeast.spark.internal.sources.catalog
 
-import io.qbeast.TestClasses.Student
 import io.qbeast.context.QbeastContext
 import io.qbeast.spark.table.IndexedTableFactory
-import org.apache.spark.sql.{DataFrame, SparkCatalogUtils, SparkSession}
-import org.apache.spark.sql.connector.catalog.{
-  SparkCatalogV2Util,
-  StagingTableCatalog,
-  SupportsNamespaces,
-  TableCatalog
-}
+import io.qbeast.TestClasses.Student
+import org.apache.spark.sql.connector.catalog.Column
+import org.apache.spark.sql.connector.catalog.SparkCatalogV2Util
+import org.apache.spark.sql.connector.catalog.StagingTableCatalog
+import org.apache.spark.sql.connector.catalog.SupportsNamespaces
+import org.apache.spark.sql.connector.catalog.TableCatalog
 import org.apache.spark.sql.connector.write.LogicalWriteInfo
-import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
+import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SparkCatalogUtils
+import org.apache.spark.sql.SparkSession
 
 import scala.collection.immutable
 import scala.util.Random
 
 /**
  * A test suite for Catalog tests. It includes:
- * - Creation of Student's dataframe
- * - Creation of QbeastCatalog with a delegated session catalog
- * - Schema of the Student's dataframe
+ *   - Creation of Student's dataframe
+ *   - Creation of QbeastCatalog with a delegated session catalog
+ *   - Schema of the Student's dataframe
  */
 trait CatalogTestSuite {
 
@@ -31,7 +35,7 @@ trait CatalogTestSuite {
       StructField("name", StringType, true),
       StructField("age", IntegerType, true)))
 
-  val columns = SparkCatalogV2Util.structTypeToV2Columns(schema)
+  val columns: Array[Column] = SparkCatalogV2Util.structTypeToV2Columns(schema)
 
   val defaultNamespace: Array[String] = Array("default")
 

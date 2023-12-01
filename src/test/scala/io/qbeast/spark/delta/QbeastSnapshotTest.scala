@@ -3,12 +3,15 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.TestClasses.Client3
-import io.qbeast.core.model.{CubeStatus, QTableID}
+import io.qbeast.core.model.CubeStatus
+import io.qbeast.core.model.QTableID
 import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.TestClasses.Client3
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.{AnalysisException, Dataset, SparkSession}
+import org.apache.spark.sql.AnalysisException
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
 import org.scalatest.AppendedClues.convertToClueful
 
 class QbeastSnapshotTest extends QbeastIntegrationTestSpec {

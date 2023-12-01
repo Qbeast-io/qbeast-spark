@@ -1,11 +1,13 @@
 package io.qbeast.spark.index
 
-import io.qbeast.TestClasses.T3
 import io.qbeast.core.model._
-import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.core.transform.{HashTransformer, LinearTransformation, LinearTransformer}
+import io.qbeast.core.transform.HashTransformer
+import io.qbeast.core.transform.LinearTransformation
+import io.qbeast.core.transform.LinearTransformer
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
+import io.qbeast.spark.internal.QbeastOptions
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.TestClasses.T3
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.to_timestamp
 
@@ -63,6 +65,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
     revision.transformations shouldBe Vector.empty
 
   })
+
   it should "createNewRevision with only indexed columns and no spec" in withSpark(spark => {
     import spark.implicits._
     val schema = 0.to(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).toDF().schema
@@ -284,4 +287,5 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
     revision.transformations shouldBe Vector.empty
 
   })
+
 }

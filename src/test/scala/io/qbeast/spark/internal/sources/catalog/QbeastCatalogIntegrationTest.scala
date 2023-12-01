@@ -1,8 +1,8 @@
 package io.qbeast.spark.internal.sources.catalog
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import org.apache.spark.SparkConf
 import org.apache.spark.sql.AnalysisException
+import org.apache.spark.SparkConf
 
 class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with CatalogTestSuite {
 
@@ -140,7 +140,7 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
       data.write.format("qbeast").option("columnsToIndex", "id").save(tmpDir)
 
       spark.sql(
-        s"CREATE EXTERNAL TABLE student " +
+        "CREATE EXTERNAL TABLE student " +
           s"USING qbeast OPTIONS ('columnsToIndex'='id') LOCATION '$tmpDir'")
 
       val table = spark.table("student")
@@ -157,7 +157,7 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
       data.write.format("qbeast").option("columnsToIndex", "id").save(tmpDir)
 
       spark.sql(
-        s"CREATE EXTERNAL TABLE student (id INT, name STRING, age INT) " +
+        "CREATE EXTERNAL TABLE student (id INT, name STRING, age INT) " +
           s"USING qbeast OPTIONS ('columnsToIndex'='id') LOCATION '$tmpDir'")
 
       val table = spark.table("student")
@@ -174,7 +174,7 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
       data.write.format("qbeast").option("columnsToIndex", "id").save(tmpDir)
 
       an[AnalysisException] shouldBe thrownBy(
-        spark.sql(s"CREATE EXTERNAL TABLE student (id INT, age INT) " +
+        spark.sql("CREATE EXTERNAL TABLE student (id INT, age INT) " +
           s"USING qbeast OPTIONS ('columnsToIndex'='id') LOCATION '$tmpDir'"))
 
     })
@@ -183,7 +183,7 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
     withQbeastContextSparkAndTmpWarehouse((spark, tmpWarehouse) => {
 
       an[AnalysisException] shouldBe thrownBy(
-        spark.sql(s"CREATE EXTERNAL TABLE student " +
+        spark.sql("CREATE EXTERNAL TABLE student " +
           s"USING qbeast OPTIONS ('columnsToIndex'='id') LOCATION '$tmpWarehouse'"))
 
     })

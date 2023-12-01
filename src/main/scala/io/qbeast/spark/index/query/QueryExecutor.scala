@@ -3,20 +3,22 @@
  */
 package io.qbeast.spark.index.query
 
-import io.qbeast.IISeq
 import io.qbeast.core.model._
+import io.qbeast.IISeq
 
 import scala.collection.mutable
 
 /**
  * Executes a query against a Qbeast snapshot
- * @param querySpecBuilder the builder for the query specification
+ * @param querySpecBuilder
+ *   the builder for the query specification
  */
 class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSnapshot) {
 
   /**
    * Executes the query on each revision according to their QuerySpec
-   * @return the final sequence of blocks that match the query
+   * @return
+   *   the final sequence of blocks that match the query
    */
   def execute(): Iterable[Block] = {
 

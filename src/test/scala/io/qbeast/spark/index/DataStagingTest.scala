@@ -1,12 +1,15 @@
 package io.qbeast.spark.index
 
-import io.qbeast.TestClasses.T2
-import io.qbeast.core.model.{QTableID, StagingUtils}
-import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.delta.{DeltaQbeastSnapshot, StagingDataManager}
+import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.StagingUtils
+import io.qbeast.spark.delta.DeltaQbeastSnapshot
+import io.qbeast.spark.delta.StagingDataManager
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.TestClasses.T2
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SparkSession
 import org.scalatest.PrivateMethodTester
 
 class DataStagingTest
@@ -120,4 +123,5 @@ class DataStagingTest
       stagingDataManager invokePrivate getCurrentStagingSize() shouldBe 0L
       indexedDataSize shouldBe 10001L
     }
+
 }

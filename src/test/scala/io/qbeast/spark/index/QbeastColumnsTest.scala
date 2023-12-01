@@ -3,14 +3,12 @@
  */
 package io.qbeast.spark.index
 
-import org.apache.spark.sql.types.{
-  BinaryType,
-  IntegerType,
-  LongType,
-  StringType,
-  StructField,
-  StructType
-}
+import org.apache.spark.sql.types.BinaryType
+import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.LongType
+import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -18,6 +16,7 @@ import org.scalatest.matchers.should.Matchers
  * Tests for [[QbeastColumns]].
  */
 class QbeastColumnsTest extends AnyFlatSpec with Matchers {
+
   "QbeastColumns" should "define column names starting with _qbeast" in {
     QbeastColumns.weightColumnName should startWith("_qbeast")
     QbeastColumns.cubeColumnName should startWith("_qbeast")
@@ -136,4 +135,5 @@ class QbeastColumnsTest extends AnyFlatSpec with Matchers {
     QbeastColumns.contains(StructField("revision", LongType)) shouldBe false
     QbeastColumns.contains(StructField("cubeToReplicate", BinaryType)) shouldBe false
   }
+
 }

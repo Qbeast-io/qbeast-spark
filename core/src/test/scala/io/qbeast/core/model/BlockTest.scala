@@ -129,4 +129,5 @@ class BlockTest extends AnyFlatSpec with Matchers {
     val block = file.blocks(0)
     block.toString() shouldNot be("")
   }
+
 }

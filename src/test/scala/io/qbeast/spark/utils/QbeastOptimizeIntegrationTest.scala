@@ -1,7 +1,8 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.core.model.CubeId
-import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastTable
 import org.apache.spark.sql.SparkSession
 
 class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
@@ -72,4 +73,5 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
 
       }
   }
+
 }

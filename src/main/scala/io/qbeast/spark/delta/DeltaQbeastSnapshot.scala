@@ -3,19 +3,23 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.IISeq
 import io.qbeast.core.model._
-import io.qbeast.spark.utils.{MetadataConfig, TagColumns}
-import org.apache.spark.sql.delta.Snapshot
+import io.qbeast.spark.utils.MetadataConfig
+import io.qbeast.spark.utils.TagColumns
+import io.qbeast.IISeq
 import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.functions.lit
-import org.apache.spark.sql.{AnalysisExceptionFactory, Dataset}
+import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.Dataset
+
 import scala.collection.JavaConverters._
 
 /**
  * Qbeast Snapshot that provides information about the current index state.
  *
- * @param snapshot the internal Delta Lakes log snapshot
+ * @param snapshot
+ *   the internal Delta Lakes log snapshot
  */
 case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
     extends QbeastSnapshot
@@ -33,7 +37,8 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
   /**
    * Constructs revision dictionary
    *
-   * @return a map of revision identifier and revision
+   * @return
+   *   a map of revision identifier and revision
    */
   private val revisionsMap: Map[RevisionID, Revision] = {
     val listRevisions = metadataMap.filterKeys(_.startsWith(MetadataConfig.revision))
@@ -48,7 +53,8 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
   /**
    * Returns last available revision identifier
    *
-   * @return revision identifier
+   * @return
+   *   revision identifier
    */
   private val lastRevisionID: RevisionID =
     metadataMap.getOrElse(MetadataConfig.lastRevisionID, "-1").toLong
@@ -56,8 +62,10 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
   /**
    * Looks up for a revision with a certain identifier
    *
-   * @param revisionID the ID of the revision
-   * @return revision information for the corresponding identifier
+   * @param revisionID
+   *   the ID of the revision
+   * @return
+   *   revision information for the corresponding identifier
    */
   private def getRevision(revisionID: RevisionID): Revision = {
     revisionsMap
@@ -69,8 +77,10 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
   /**
    * Returns true if a revision with a specific revision identifier exists
    *
-   * @param revisionID the identifier of the revision
-   * @return boolean
+   * @param revisionID
+   *   the identifier of the revision
+   * @return
+   *   boolean
    */
   def existsRevision(revisionID: RevisionID): Boolean = {
     revisionsMap.contains(revisionID)
@@ -79,7 +89,8 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
   /**
    * Obtains the latest IndexStatus for the last RevisionID
    *
-   * @return the latest IndexStatus for lastRevisionID
+   * @return
+   *   the latest IndexStatus for lastRevisionID
    */
   override def loadLatestIndexStatus: IndexStatus = {
     loadIndexStatus(lastRevisionID)
@@ -88,7 +99,8 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
   /**
    * Obtains the latest IndexStatus for a given RevisionID
    *
-   * @param revisionID the RevisionID
+   * @param revisionID
+   *   the RevisionID
    * @return
    */
   override def loadIndexStatus(revisionID: RevisionID): IndexStatus = {
@@ -112,7 +124,8 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
   /**
    * Obtain all Revisions for a given QTableID
    *
-   * @return an immutable Seq of Revision for qtable
+   * @return
+   *   an immutable Seq of Revision for qtable
    */
   override def loadAllRevisions: IISeq[Revision] =
     revisionsMap.values.toVector
@@ -120,7 +133,8 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
   /**
    * Obtain the last Revisions
    *
-   * @return an immutable Seq of Revision for qtable
+   * @return
+   *   an immutable Seq of Revision for qtable
    */
   override def loadLatestRevision: Revision = {
     getRevision(lastRevisionID)
@@ -129,8 +143,10 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
   /**
    * Obtain the IndexStatus for a given RevisionID
    *
-   * @param revisionID the RevisionID
-   * @return the IndexStatus for revisionID
+   * @param revisionID
+   *   the RevisionID
+   * @return
+   *   the IndexStatus for revisionID
    */
   override def loadRevision(revisionID: RevisionID): Revision = {
     getRevision(revisionID)
@@ -139,8 +155,10 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
   /**
    * Loads the most updated revision at a given timestamp
    *
-   * @param timestamp the timestamp in Long format
-   * @return the latest Revision at a concrete timestamp
+   * @param timestamp
+   *   the timestamp in Long format
+   * @return
+   *   the latest Revision at a concrete timestamp
    */
   override def loadRevisionAt(timestamp: Long): Revision = {
     val candidateRevisions = revisionsMap.values.filter(_.timestamp <= timestamp)
@@ -153,8 +171,10 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
 
   /**
    * Loads the dataset of qbeast blocks for a given revision
-   * @param revisionID the revision identifier
-   * @return the Dataset of QbeastBlocks
+   * @param revisionID
+   *   the revision identifier
+   * @return
+   *   the Dataset of QbeastBlocks
    */
   def loadRevisionBlocks(revisionID: RevisionID): Dataset[AddFile] = {
     if (isStaging(revisionID)) loadStagingBlocks()

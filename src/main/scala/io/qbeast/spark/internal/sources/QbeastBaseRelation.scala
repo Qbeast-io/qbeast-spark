@@ -3,19 +3,21 @@
  */
 package io.qbeast.spark.internal.sources
 
-import org.apache.spark.sql.sources.BaseRelation
-import org.apache.spark.sql.sources.InsertableRelation
-import org.apache.spark.sql.SQLContext
-import org.apache.spark.sql.types.{StructField, StructType}
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.SparkSession
-import io.qbeast.spark.delta.{EmptyIndex, OTreeIndex}
-import org.apache.spark.sql.execution.datasources.HadoopFsRelation
-import io.qbeast.spark.table.IndexedTable
 import io.qbeast.context.QbeastContext
+import io.qbeast.spark.delta.EmptyIndex
+import io.qbeast.spark.delta.OTreeIndex
+import io.qbeast.spark.table.IndexedTable
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.execution.datasources.HadoopFsRelation
+import org.apache.spark.sql.sources.BaseRelation
+import org.apache.spark.sql.sources.InsertableRelation
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.SparkSession
 
 /**
  * Companion object for QbeastBaseRelation
@@ -23,13 +25,15 @@ import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 object QbeastBaseRelation {
 
   /**
-   * Returns a HadoopFsRelation that contains all of the data present
-   * in the table. This relation will be continually updated
-   * as files are added or removed from the table. However, new HadoopFsRelation
-   * must be requested in order to see changes to the schema.
-   * @param tableID the identifier of the table
-   * @param sqlContext the SQLContext
-   * @return the HadoopFsRelation
+   * Returns a HadoopFsRelation that contains all of the data present in the table. This relation
+   * will be continually updated as files are added or removed from the table. However, new
+   * HadoopFsRelation must be requested in order to see changes to the schema.
+   * @param tableID
+   *   the identifier of the table
+   * @param sqlContext
+   *   the SQLContext
+   * @return
+   *   the HadoopFsRelation
    */
   def createRelation(
       sqlContext: SQLContext,
@@ -83,10 +87,12 @@ object QbeastBaseRelation {
   }
 
   /**
-   * Function that can be called from a QbeastBaseRelation object to create a
-   * new QbeastBaseRelation with a new tableID.
-   * @param indexedTable the indexed table
-   * @return BaseRelation for the new table in Qbeast format
+   * Function that can be called from a QbeastBaseRelation object to create a new
+   * QbeastBaseRelation with a new tableID.
+   * @param indexedTable
+   *   the indexed table
+   * @return
+   *   BaseRelation for the new table in Qbeast format
    */
   def forQbeastTable(indexedTable: IndexedTable): BaseRelation = {
     forQbeastTableWithOptions(indexedTable, Map.empty)

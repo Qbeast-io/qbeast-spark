@@ -6,10 +6,12 @@ package io.qbeast.core.model
 object CubeNormalizedWeights {
 
   /**
-   * This method return the merge between the previous state of the index status
-   * and the newly computed NormalizedCubeWeights.
-   * @param previousStateNormalizedWeights the previous state of the NormalizedCubeWeights
-   * @param deltaNormalizedCubeWeights the newly computed NormalizedCubeWeights
+   * This method return the merge between the previous state of the index status and the newly
+   * computed NormalizedCubeWeights.
+   * @param previousStateNormalizedWeights
+   *   the previous state of the NormalizedCubeWeights
+   * @param deltaNormalizedCubeWeights
+   *   the newly computed NormalizedCubeWeights
    * @return
    */
   def mergeNormalizedWeights(

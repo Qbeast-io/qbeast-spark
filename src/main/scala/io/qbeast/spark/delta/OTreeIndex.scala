@@ -4,24 +4,31 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model.Block
-import io.qbeast.spark.index.query.{QueryExecutor, QuerySpecBuilder}
-import org.apache.hadoop.fs.{FileStatus, Path}
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.expressions.{Expression, GenericInternalRow}
-import org.apache.spark.sql.delta.{DeltaLog, Snapshot}
-import org.apache.spark.sql.delta.files.TahoeLogFileIndex
-import org.apache.spark.sql.execution.datasources.{FileIndex, PartitionDirectory}
-import org.apache.spark.sql.types.StructType
+import io.qbeast.spark.index.query.QueryExecutor
+import io.qbeast.spark.index.query.QuerySpecBuilder
+import org.apache.hadoop.fs.FileStatus
+import org.apache.hadoop.fs.Path
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
+import org.apache.spark.sql.delta.files.TahoeLogFileIndex
+import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.delta.Snapshot
+import org.apache.spark.sql.execution.datasources.FileIndex
+import org.apache.spark.sql.execution.datasources.PartitionDirectory
 import org.apache.spark.sql.execution.SQLExecution
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.SparkSession
 
 import java.net.URI
 
 /**
  * FileIndex to prune files
  *
- * @param index the Tahoe log file index
- * @param spark spark session
+ * @param index
+ *   the Tahoe log file index
+ * @param spark
+ *   spark session
  */
 case class OTreeIndex(index: TahoeLogFileIndex)
     extends FileIndex
@@ -30,7 +37,8 @@ case class OTreeIndex(index: TahoeLogFileIndex)
 
   /**
    * Snapshot to analyze
-   * @return the snapshot
+   * @return
+   *   the snapshot
    */
   protected def snapshot: Snapshot = index.getSnapshot
 
@@ -73,8 +81,8 @@ case class OTreeIndex(index: TahoeLogFileIndex)
   }
 
   /**
-   * Collect matching staging files from _delta_log and convert them into FileStatuses.
-   * The output is merged with those built from QbeastBlocks.
+   * Collect matching staging files from _delta_log and convert them into FileStatuses. The output
+   * is merged with those built from QbeastBlocks.
    * @return
    */
   private def stagingFiles(
@@ -137,8 +145,7 @@ case class OTreeIndex(index: TahoeLogFileIndex)
 }
 
 /**
- * Companion object for OTreeIndex
- * Builds an OTreeIndex instance from the path to a table
+ * Companion object for OTreeIndex Builds an OTreeIndex instance from the path to a table
  */
 object OTreeIndex {
 
@@ -152,8 +159,7 @@ object OTreeIndex {
 }
 
 /**
- * Singleton object for EmptyIndex.
- * Used when creating a table with no data added
+ * Singleton object for EmptyIndex. Used when creating a table with no data added
  */
 
 object EmptyIndex extends FileIndex {

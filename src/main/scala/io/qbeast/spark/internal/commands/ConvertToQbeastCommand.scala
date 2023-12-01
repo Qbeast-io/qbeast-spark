@@ -4,34 +4,36 @@
 package io.qbeast.spark.internal.commands
 
 import io.qbeast.core.model._
-import io.qbeast.spark.delta.{DeltaQbeastSnapshot, SparkDeltaMetadataManager}
-import io.qbeast.spark.utils.MetadataConfig.{lastRevisionID, revision}
-import io.qbeast.spark.utils.QbeastExceptionMessages.{
-  incorrectIdentifierFormat,
-  partitionedTableExceptionMsg,
-  unsupportedFormatExceptionMsg
-}
+import io.qbeast.spark.delta.DeltaQbeastSnapshot
+import io.qbeast.spark.delta.SparkDeltaMetadataManager
+import io.qbeast.spark.utils.MetadataConfig.lastRevisionID
+import io.qbeast.spark.utils.MetadataConfig.revision
+import io.qbeast.spark.utils.QbeastExceptionMessages.incorrectIdentifierFormat
+import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
+import io.qbeast.spark.utils.QbeastExceptionMessages.unsupportedFormatExceptionMsg
 import org.apache.http.annotation.Experimental
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
-import org.apache.spark.sql.{AnalysisException, AnalysisExceptionFactory, Row, SparkSession}
+import org.apache.spark.sql.AnalysisException
+import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.SparkSession
 
 import java.util.Locale
 
 /**
- * Command to convert a parquet or a delta table into a qbeast table.
- * The command creates the an empty revision for the metadata, the qbeast options provided
- * should be those with which the user want to index the table. Partitioned tables are not
- * supported.
- * @param identifier STRING, table identifier consisting of "format.`tablePath`"
- *                   e.g. parquet.`/tmp/test/`
- * @param columnsToIndex Seq[STRING], the columns on which the index is built
- *                       e.g. Seq("col1", "col2")
- * @param cubeSize INT, the desired cube size for the index
- *                 e.g. 5000
+ * Command to convert a parquet or a delta table into a qbeast table. The command creates the an
+ * empty revision for the metadata, the qbeast options provided should be those with which the
+ * user want to index the table. Partitioned tables are not supported.
+ * @param identifier
+ *   STRING, table identifier consisting of "format.`tablePath`" e.g. parquet.`/tmp/test/`
+ * @param columnsToIndex
+ *   Seq[STRING], the columns on which the index is built e.g. Seq("col1", "col2")
+ * @param cubeSize
+ *   INT, the desired cube size for the index e.g. 5000
  */
 @Experimental
 case class ConvertToQbeastCommand(

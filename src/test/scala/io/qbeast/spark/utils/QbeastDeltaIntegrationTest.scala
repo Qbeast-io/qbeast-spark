@@ -1,8 +1,9 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import org.apache.spark.sql.delta.{DeltaLog}
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SparkSession
 
 /**
  * Tests for ensuring compatibility between Qbeast and underlying features of Delta Lake

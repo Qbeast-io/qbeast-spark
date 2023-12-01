@@ -4,8 +4,8 @@
 package io.qbeast.core
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include
-import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.json.JsonMapper
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 
 package object model {

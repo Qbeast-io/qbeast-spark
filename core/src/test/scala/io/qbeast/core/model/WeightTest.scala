@@ -10,6 +10,7 @@ import org.scalatest.matchers.should.Matchers
  * Tests for [[Weight]].
  */
 class WeightTest extends AnyFlatSpec with Matchers {
+
   "Weight" should "compute fraction correctly" in {
     Weight.MinValue.fraction shouldBe 0.0
     Weight.MaxValue.fraction shouldBe 1.0
@@ -48,4 +49,5 @@ class WeightTest extends AnyFlatSpec with Matchers {
   it should "implement compare correctly" in {
     Weight(1) should be <= Weight(2)
   }
+
 }

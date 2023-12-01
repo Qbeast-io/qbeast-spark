@@ -1,6 +1,8 @@
 package io.qbeast.core.model
 
-import com.fasterxml.jackson.annotation.{JsonCreator, JsonIgnore, JsonValue}
+import com.fasterxml.jackson.annotation.JsonCreator
+import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonValue
 
 /**
  * Companion object for QDataType

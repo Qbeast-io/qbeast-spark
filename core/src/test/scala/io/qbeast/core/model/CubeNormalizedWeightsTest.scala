@@ -68,4 +68,5 @@ class CubeNormalizedWeightsTest extends AnyFlatSpec with Matchers {
       .mergeNormalizedWeights(Map(root -> 0.1), Map(root -> 0.01))(root)
       .fraction shouldBe 0.009 +- 0.0001
   }
+
 }

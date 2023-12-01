@@ -3,11 +3,12 @@
  */
 package io.qbeast.spark.utils
 
-import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import org.apache.spark.sql.{AnalysisException}
+import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.functions.{col, lit}
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.AnalysisException
 
 class QbeastSparkCorrectnessTest extends QbeastIntegrationTestSpec {
 

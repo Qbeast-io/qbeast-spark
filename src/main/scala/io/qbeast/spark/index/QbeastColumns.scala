@@ -3,8 +3,9 @@
  */
 package io.qbeast.spark.index
 
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.types.{StructField, StructType}
 
 /**
  * QbeastColumns companion object.
@@ -41,7 +42,7 @@ object QbeastColumns {
    */
   val cubeToRollupColumnName = "_qbeastCubeToRollup"
 
-  val columnNames = Set(
+  val columnNames: Set[String] = Set(
     weightColumnName,
     cubeColumnName,
     stateColumnName,
@@ -52,16 +53,20 @@ object QbeastColumns {
   /**
    * Creates an instance for a given data frame.
    *
-   * @param dataFrame the data frame
-   * @return an instance
+   * @param dataFrame
+   *   the data frame
+   * @return
+   *   an instance
    */
   def apply(dataFrame: DataFrame): QbeastColumns = apply(dataFrame.schema)
 
   /**
    * Creates an instance for a given schema.
    *
-   * @param schema the schema
-   * @return an instance
+   * @param schema
+   *   the schema
+   * @return
+   *   an instance
    */
   def apply(schema: StructType): QbeastColumns = {
     val columnIndexes = schema.fieldNames.zipWithIndex.toMap
@@ -77,40 +82,41 @@ object QbeastColumns {
   /**
    * Returns whether a given column is a Qbeast column.
    *
-   * @param columnName the column name
-   * @return the column is a Qbeast column
+   * @param columnName
+   *   the column name
+   * @return
+   *   the column is a Qbeast column
    */
   def contains(columnName: String): Boolean = columnNames.contains(columnName)
 
   /**
    * Returns whether a given field is a Qbeast column.
    *
-   * @param field the field
-   * @return the field is a Qbeast column
+   * @param field
+   *   the field
+   * @return
+   *   the field is a Qbeast column
    */
   def contains(field: StructField): Boolean = contains(field.name)
 }
 
 /**
- * Qbeast columns are used to store the intermediate
- * computation results used during indexing. They are
- * temporarily added to the original data frame and
- * are removed when the indexing is complete.
+ * Qbeast columns are used to store the intermediate computation results used during indexing.
+ * They are temporarily added to the original data frame and are removed when the indexing is
+ * complete.
  *
- * @param weightColumnIndex the weight column index
- *                          or -1 if it is missing
- * @param cubeColumnIndex the cube column index
- *                        or -1 if it is missing
- * @param stateColumnIndex the state column index
- *                         or -1 if it is missing
- * @param revisionColumnIndex the revision column index
- *                            or -1 if it is missing
- * @param cubeToReplicateColumnIndex the cube to replicate
- *                                   column index or -1 if
- *                                   it is missing
- * @param cubeToRollupColumnIndex the cube to rollup
- *                                   column index or -1 if
- *                                   it is missing
+ * @param weightColumnIndex
+ *   the weight column index or -1 if it is missing
+ * @param cubeColumnIndex
+ *   the cube column index or -1 if it is missing
+ * @param stateColumnIndex
+ *   the state column index or -1 if it is missing
+ * @param revisionColumnIndex
+ *   the revision column index or -1 if it is missing
+ * @param cubeToReplicateColumnIndex
+ *   the cube to replicate column index or -1 if it is missing
+ * @param cubeToRollupColumnIndex
+ *   the cube to rollup column index or -1 if it is missing
  */
 case class QbeastColumns(
     weightColumnIndex: Int,
@@ -123,8 +129,10 @@ case class QbeastColumns(
   /**
    * Returns whether a given column is one of the Qbeast columns.
    *
-   * @param columnIndex the column index
-   * @return the column is one of the Qbeast columns
+   * @param columnIndex
+   *   the column index
+   * @return
+   *   the column is one of the Qbeast columns
    */
   def contains(columnIndex: Int): Boolean = {
     columnIndex == weightColumnIndex ||
@@ -138,42 +146,48 @@ case class QbeastColumns(
   /**
    * Returns whether the weight column exists.
    *
-   * @return the weight column exists
+   * @return
+   *   the weight column exists
    */
   def hasWeightColumn: Boolean = weightColumnIndex >= 0
 
   /**
    * Returns whether the cube column exists.
    *
-   * @return the cube column exists
+   * @return
+   *   the cube column exists
    */
   def hasCubeColumn: Boolean = cubeColumnIndex >= 0
 
   /**
    * Returns whether the state column exists.
    *
-   * @return the state column exists
+   * @return
+   *   the state column exists
    */
   def hasStateColumn: Boolean = stateColumnIndex >= 0
 
   /**
    * Returns whether the revision column exists.
    *
-   * @return the revision column exists
+   * @return
+   *   the revision column exists
    */
   def hasRevisionColumn: Boolean = revisionColumnIndex >= 0
 
   /**
    * Returns whether the cube to replicate column exists.
    *
-   * @return the cube to replicate column exists
+   * @return
+   *   the cube to replicate column exists
    */
   def hasCubeToReplicateColumn: Boolean = cubeToReplicateColumnIndex >= 0
 
   /**
    * Returns whether the cube to rollup column exists.
    *
-   * @return the cube to rollup column exists
+   * @return
+   *   the cube to rollup column exists
    */
   def hasCubeToRollupColumn: Boolean = cubeToRollupColumnIndex >= 0
 }

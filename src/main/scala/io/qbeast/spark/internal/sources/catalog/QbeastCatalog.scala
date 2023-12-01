@@ -4,31 +4,30 @@
 package io.qbeast.spark.internal.sources.catalog
 
 import io.qbeast.context.QbeastContext
+import io.qbeast.spark.internal.sources.v2.QbeastStagedTableImpl
+import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
 import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
-import io.qbeast.spark.internal.sources.v2.{QbeastStagedTableImpl, QbeastTableImpl}
 import org.apache.hadoop.fs.Path
+import org.apache.spark.sql.catalyst.analysis.NoSuchDatabaseException
+import org.apache.spark.sql.catalyst.analysis.NoSuchNamespaceException
+import org.apache.spark.sql.catalyst.analysis.NoSuchTableException
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.analysis.{
-  NoSuchDatabaseException,
-  NoSuchNamespaceException,
-  NoSuchTableException
-}
-import org.apache.spark.sql.{SparkCatalogUtils, SparkSession}
 import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.catalog.functions.UnboundFunction
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.delta.catalog.DeltaCatalog
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
+import org.apache.spark.sql.SparkCatalogUtils
+import org.apache.spark.sql.SparkSession
 
 import java.util
 import scala.collection.JavaConverters._
 
 /**
- * QbeastCatalog is a CatalogExtenssion that supports Namespaces
- * and the CREATION and/or REPLACEMENT of tables
- * QbeastCatalog uses a session catalog of type T
- * to delegate high-level operations
+ * QbeastCatalog is a CatalogExtenssion that supports Namespaces and the CREATION and/or
+ * REPLACEMENT of tables QbeastCatalog uses a session catalog of type T to delegate high-level
+ * operations
  */
 class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatalog]
     extends CatalogExtension
@@ -62,12 +61,12 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
   /**
    * Gets the session catalog depending on provider properties, if any
    *
-   * The intention is to include the different catalog providers
-   * while we add the integrations with the formats.
-   * For example, for "delta" provider it will return a DeltaCatalog instance.
+   * The intention is to include the different catalog providers while we add the integrations
+   * with the formats. For example, for "delta" provider it will return a DeltaCatalog instance.
    *
    * In this way, users may only need to instantiate one single unified catalog.
-   * @param properties the properties with the provider parameter
+   * @param properties
+   *   the properties with the provider parameter
    * @return
    */
   private def getSessionCatalog(properties: Map[String, String] = Map.empty): T = {
@@ -136,9 +135,8 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
 
   /**
    * For StageReplace, StageReplaceOrCreate and StageCreate, the following pipeline is executed:
-   * 1. Check if it's a Qbeast Provider
-   * 2. If true, it creates a QbeastStagedTable, which allows atomizing the changes to the Catalog.
-   * 3. Otherwise, output a DefaultStagedTable
+   *   1. Check if it's a Qbeast Provider 2. If true, it creates a QbeastStagedTable, which allows
+   *      atomizing the changes to the Catalog. 3. Otherwise, output a DefaultStagedTable
    */
 
   override def stageReplace(

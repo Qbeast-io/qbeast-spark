@@ -1,6 +1,7 @@
 package io.qbeast.core.transform
 
-import io.qbeast.core.model.{QDataType, StringDataType}
+import io.qbeast.core.model.QDataType
+import io.qbeast.core.model.StringDataType
 
 object HistogramTransformer extends TransformerType {
   override def transformerSimpleName: String = "histogram"
@@ -35,8 +36,10 @@ trait HistogramTransformer extends Transformer {
   /**
    * Returns the Transformation given a row representation of the values
    *
-   * @param row the values
-   * @return the transformation
+   * @param row
+   *   the values
+   * @return
+   *   the transformation
    */
   override def makeTransformation(row: String => Any): Transformation
 

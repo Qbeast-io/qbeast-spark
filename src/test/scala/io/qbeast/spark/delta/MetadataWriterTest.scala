@@ -2,9 +2,10 @@ package io.qbeast.spark.delta
 
 import io.qbeast.core.model._
 import org.apache.spark.sql.delta._
+import org.apache.spark.sql.delta.actions.Action
+import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.SaveMode
-import org.apache.spark.sql.delta.actions.{Action, FileAction}
 
 class MetadataWriterTest(
     tableID: QTableID,

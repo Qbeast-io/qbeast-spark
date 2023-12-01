@@ -17,6 +17,8 @@ jobs:
         java-version: 1.8
     - name: Assembly
       run: sbt assembly
+    - name: Lint
+      run: sbt "scalafixAll --check"
     - name: Test
       run: |
         sbt coverage 'test' coverageReport

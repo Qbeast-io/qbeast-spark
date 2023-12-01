@@ -4,6 +4,7 @@
 package io.qbeast.spark.delta.writer
 
 import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.RevisionID
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapred.JobConf
 import org.apache.hadoop.mapred.TaskAttemptContextImpl
@@ -15,17 +16,22 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.SerializableConfiguration
 
 import java.util.UUID
-import io.qbeast.core.model.RevisionID
 
 /**
  * Factory for creating IndexFileWriter instances.
  *
- * @param tableId the table identifier
- * @param schema the table schema
- * @param revisionId the index revision identifier
- * @param outputFactory the output factory
- * @param trackers the stats trackers
- * @param config the Hadoop configuration in serializable form
+ * @param tableId
+ *   the table identifier
+ * @param schema
+ *   the table schema
+ * @param revisionId
+ *   the index revision identifier
+ * @param outputFactory
+ *   the output factory
+ * @param trackers
+ *   the stats trackers
+ * @param config
+ *   the Hadoop configuration in serializable form
  */
 private[writer] class IndexFileWriterFactory(
     tableId: QTableID,
@@ -39,7 +45,8 @@ private[writer] class IndexFileWriterFactory(
   /**
    * Creates a new IndexFileWriter instance.
    *
-   * @return a new IndexFileWriter instance
+   * @return
+   *   a new IndexFileWriter instance
    */
   def createIndexFileWriter(): IndexFileWriter = {
     val path = new Path(tableId.id, s"${UUID.randomUUID()}.parquet").toString()
