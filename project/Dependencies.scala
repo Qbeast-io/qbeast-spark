@@ -4,14 +4,14 @@ import sbt._
  * External libraries used in the project with versions.
  */
 object Dependencies {
-  lazy val sparkVersion: String = sys.props.get("spark.version").getOrElse("3.4.1")
+  lazy val sparkVersion: String = sys.props.get("spark.version").getOrElse("3.5.0")
   lazy val hadoopVersion: String = sys.props.get("hadoop.version").getOrElse("3.3.4")
-  lazy val deltaVersion: String = "2.4.0"
+  lazy val deltaVersion: String = "3.0.0"
 
   val sparkCore = "org.apache.spark" %% "spark-core" % sparkVersion
   val sparkSql = "org.apache.spark" %% "spark-sql" % sparkVersion
   val hadoopClient = "org.apache.hadoop" % "hadoop-client" % hadoopVersion
-  val deltaCore = "io.delta" %% "delta-core" % deltaVersion
+  val deltaSpark = "io.delta" %% "delta-spark" % deltaVersion
   val sparkFastTests = "com.github.mrpowers" %% "spark-fast-tests" % "1.0.0"
   val scalaTest = "org.scalatest" %% "scalatest" % "3.2.9"
   val mockito = "org.scalatestplus" %% "mockito-3-4" % "3.2.9.0"

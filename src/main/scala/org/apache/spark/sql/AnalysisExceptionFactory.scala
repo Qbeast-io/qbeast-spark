@@ -3,7 +3,7 @@
  */
 package org.apache.spark.sql
 
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.QueryContext
 
 /**
  * Static factory for creating AnalysisException instances. This class allows to use the package
@@ -32,13 +32,17 @@ object AnalysisExceptionFactory {
       message: String,
       line: Option[Int] = None,
       startPosition: Option[Int] = None,
-      plan: Option[LogicalPlan] = None,
-      cause: Option[Throwable] = None): AnalysisException =
+      cause: Option[Throwable] = None,
+      errorClass: Option[String] = None,
+      messageParameters: Map[String, String] = Map.empty,
+      context: Array[QueryContext] = Array.empty): AnalysisException =
     new AnalysisException(
       message = message,
       line = line,
       startPosition = startPosition,
-      plan = plan,
-      cause = cause)
+      context = context,
+      cause = cause,
+      errorClass = errorClass,
+      messageParameters = messageParameters)
 
 }

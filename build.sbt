@@ -19,7 +19,7 @@ lazy val qbeastSpark = (project in file("."))
       sparkCore % Provided,
       sparkSql % Provided,
       hadoopClient % Provided,
-      deltaCore % Provided,
+      deltaSpark % Provided,
       amazonAws % Test,
       hadoopCommons % Test,
       hadoopAws % Test),
