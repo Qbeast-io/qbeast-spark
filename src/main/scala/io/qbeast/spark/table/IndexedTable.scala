@@ -31,6 +31,12 @@ trait IndexedTable {
   def exists: Boolean
 
   /**
+   * Returns whether the table is converted to Qbeast format.
+   * @return
+   */
+  def isConverted: Boolean
+
+  /**
    * Returns the table id which identifies the table.
    *
    * @return the table id
@@ -140,6 +146,13 @@ private[table] class IndexedTableImpl(
   private var snapshotCache: Option[QbeastSnapshot] = None
 
   override def exists: Boolean = !snapshot.isInitial
+
+  override def isConverted: Boolean = try {
+    snapshot.loadLatestRevision
+    true
+  } catch {
+    case _: Exception => false
+  }
 
   private def isNewRevision(qbeastOptions: QbeastOptions, latestRevision: Revision): Boolean = {
     // TODO feature: columnsToIndex may change between revisions

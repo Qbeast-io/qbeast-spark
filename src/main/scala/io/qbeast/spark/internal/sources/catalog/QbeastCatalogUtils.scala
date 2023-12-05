@@ -5,11 +5,9 @@ package io.qbeast.spark.internal.sources.catalog
 
 import io.qbeast.context.QbeastContext.metadataManager
 import io.qbeast.core.model.QTableID
-import io.qbeast.spark.QbeastTableUtils
-import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
+import io.qbeast.spark.internal.QbeastOptions.{COLUMNS_TO_INDEX, CUBE_SIZE, checkQbeastProperties}
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
-import io.qbeast.spark.table.IndexedTableFactory
+import io.qbeast.spark.table.{IndexedTable, IndexedTableFactory}
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.CannotReplaceMissingTableException
@@ -135,6 +133,53 @@ object QbeastCatalogUtils {
   }
 
   /**
+   * Loads the Qbeast parameters from:
+   * - Properties
+   * - Existing indexedTable
+   * @param tableType the table type
+   * @param indexedTable the indexed table
+   * @param properties the properties
+   * @return
+   */
+  def loadQbeastRequiredProperties(
+      tableType: CatalogTableType,
+      indexedTable: IndexedTable,
+      properties: Map[String, String]): Map[String, String] = {
+
+    val isExternal = tableType == CatalogTableType.EXTERNAL
+    val containsColumnsToIndex =
+      properties.contains("columnsToIndex") || properties.contains("columnstoindex")
+    if (isExternal && indexedTable.exists) {
+      // IF the table is EXTERNAL and EXISTS physically,
+      // Check and Add Qbeast Properties
+      (containsColumnsToIndex, indexedTable.isConverted) match {
+        case (false, true) =>
+          // If it does NOT contain Qbeast Properties AND is converted, load the latest revision
+          val qbeastSnapshot = metadataManager.loadSnapshot(indexedTable.tableID)
+          val latestRevision = qbeastSnapshot.loadLatestRevision
+          val columnsToIndex = latestRevision.columnTransformers.map(_.columnName).mkString(",")
+          Map(
+            COLUMNS_TO_INDEX -> columnsToIndex,
+            CUBE_SIZE -> latestRevision.desiredCubeSize.toString)
+        case (_, false) =>
+          // If it is NOT converted, throw error
+          throw AnalysisExceptionFactory.create(
+            "The table you are trying to create is not Qbeast Formatted. " +
+              "Please specify the columns to index and the cube size in the options. " +
+              "You can also use the ConvertToQbeastCommand before creating the table.")
+        case _ =>
+          // If it contains Qbeast Properties, check them
+          checkQbeastProperties(properties)
+          Map.empty
+      }
+    } else {
+      // If it's NOT external, check the properties
+      checkQbeastProperties(properties)
+      Map.empty
+    }
+  }
+
+  /**
    * Creates a Table on the Catalog
    * @param ident the Identifier of the table
    * @param schema the schema of the table
@@ -158,7 +203,7 @@ object QbeastCatalogUtils {
       tableFactory: IndexedTableFactory,
       existingSessionCatalog: SessionCatalog): Unit = {
 
-    val isPathTable = QbeastCatalogUtils.isPathTable(ident)
+    val isPathTable = this.isPathTable(ident)
 
     // Get table location
     val location = if (isPathTable) {
@@ -179,32 +224,11 @@ object QbeastCatalogUtils {
       .orElse(existingTableOpt.flatMap(_.storage.locationUri))
       .getOrElse(existingSessionCatalog.defaultTablePath(id))
 
-    // IF the table is EXTERNAL
-    // AND no qbeast properties are defined
-    // we can load the configuration from the commit log
-    val isExternal = tableType == CatalogTableType.EXTERNAL
-    val qbeastProperties =
-      if (isExternal) {
-        val locPath = new Path(loc)
-        val containsQbeastProperties =
-          QbeastOptions.containsQbeastProperties(allTableProperties.asScala.toMap)
-        if (!containsQbeastProperties && QbeastTableUtils.isQbeastTable(locPath)) {
-          QbeastTableUtils.getExistingConf(spark, locPath)
-        } else if (containsQbeastProperties) {
-          checkQbeastProperties(allTableProperties.asScala.toMap)
-          Map.empty // nothing to add
-        } else {
-          throw AnalysisExceptionFactory.create(
-            "The table you are trying to create is not Qbeast Formatted. " +
-              "Please specify the columns to index and the cube size in the options. " +
-              "You can also use the ConvertToQbeastCommand before creating the table.")
-        }
-      } else {
-        checkQbeastProperties(allTableProperties.asScala.toMap)
-        Map.empty // nothing to add
-      }
-
-    val allProperties = allTableProperties.asScala.toMap ++ qbeastProperties
+    // Process the parameters/options/configuration sent to the table
+    val properties = allTableProperties.asScala.toMap
+    val indexedTable = tableFactory.getIndexedTable(QTableID(loc.toString))
+    val allProperties =
+      properties ++ loadQbeastRequiredProperties(tableType, indexedTable, properties)
 
     // Initialize the path option
     val storage = DataSource
@@ -240,9 +264,7 @@ object QbeastCatalogUtils {
     // Write data, if any
     val append = tableCreationMode.saveMode == SaveMode.Append
     dataFrame.map { df =>
-      tableFactory
-        .getIndexedTable(QTableID(loc.toString))
-        .save(df, allTableProperties.asScala.toMap, append)
+      indexedTable.save(df, allProperties, append)
     }
 
     // Update the existing session catalog with the Qbeast table information

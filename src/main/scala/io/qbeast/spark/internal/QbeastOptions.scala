@@ -97,10 +97,6 @@ object QbeastOptions {
         }))
   }
 
-  def containsQbeastProperties(parameters: Map[String, String]): Boolean = {
-    parameters.contains("columnsToIndex") || parameters.contains("columnstoindex")
-  }
-
   def checkQbeastProperties(parameters: Map[String, String]): Unit = {
     require(
       parameters.contains("columnsToIndex") || parameters.contains("columnstoindex"),
