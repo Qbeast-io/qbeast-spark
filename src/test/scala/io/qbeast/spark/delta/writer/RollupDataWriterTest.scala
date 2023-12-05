@@ -4,6 +4,7 @@ import io.qbeast.core.model.IndexStatus
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.index.SparkRevisionFactory
+import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
 
@@ -23,8 +24,9 @@ class RollupDataWriterTest extends QbeastIntegrationTestSpec {
       val tableID = QTableID(tmpDir)
       val parameters: Map[String, String] =
         Map("columnsToIndex" -> "age,val2", "cubeSize" -> cubeSize.toString)
-      val indexStatus =
-        IndexStatus(SparkRevisionFactory.createNewRevision(tableID, df.schema, parameters))
+      val revision =
+        SparkRevisionFactory.createNewRevision(tableID, df.schema, QbeastOptions(parameters))
+      val indexStatus = IndexStatus(revision)
       val (qbeastData, tableChanges) = SparkOTreeManager.index(df, indexStatus)
 
       val fileActions = RollupDataWriter.write(tableID, df.schema, qbeastData, tableChanges)

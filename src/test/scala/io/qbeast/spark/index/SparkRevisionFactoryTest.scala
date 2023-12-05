@@ -56,7 +56,8 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
       SparkRevisionFactory.createNewRevision(
         qid,
         schema,
-        Map(QbeastOptions.COLUMNS_TO_INDEX -> "a", QbeastOptions.CUBE_SIZE -> "10"))
+        QbeastOptions(
+          Map(QbeastOptions.COLUMNS_TO_INDEX -> "a", QbeastOptions.CUBE_SIZE -> "10")))
 
     revision.tableID shouldBe qid
     revision.revisionID shouldBe 0
@@ -74,7 +75,8 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
       SparkRevisionFactory.createNewRevision(
         qid,
         schema,
-        Map(QbeastOptions.COLUMNS_TO_INDEX -> "a,b,c,d", QbeastOptions.CUBE_SIZE -> "10"))
+        QbeastOptions(
+          Map(QbeastOptions.COLUMNS_TO_INDEX -> "a,b,c,d", QbeastOptions.CUBE_SIZE -> "10")))
 
     revision.tableID shouldBe qid
     revision.revisionID shouldBe 0
@@ -90,9 +92,10 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
       SparkRevisionFactory.createNewRevision(
         qid,
         schema,
-        Map(
-          QbeastOptions.COLUMNS_TO_INDEX -> "a:linear,b:linear,c:hashing,d:linear",
-          QbeastOptions.CUBE_SIZE -> "10"))
+        QbeastOptions(
+          Map(
+            QbeastOptions.COLUMNS_TO_INDEX -> "a:linear,b:linear,c:hashing,d:linear",
+            QbeastOptions.CUBE_SIZE -> "10")))
 
     revisionExplicit.copy(timestamp = 0) shouldBe revision.copy(timestamp = 0)
   })
@@ -105,10 +108,11 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
       SparkRevisionFactory.createNewRevision(
         qid,
         schema,
-        Map(
-          QbeastOptions.COLUMNS_TO_INDEX -> "a",
-          QbeastOptions.CUBE_SIZE -> "10",
-          QbeastOptions.STATS -> """{ "a_min": 0, "a_max": 10 }"""))
+        QbeastOptions(
+          Map(
+            QbeastOptions.COLUMNS_TO_INDEX -> "a",
+            QbeastOptions.CUBE_SIZE -> "10",
+            QbeastOptions.STATS -> """{ "a_min": 0, "a_max": 10 }""")))
 
     revision.tableID shouldBe qid
     // the reason while it's 1 is because columnStats are provided here
@@ -216,7 +220,8 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
       SparkRevisionFactory.createNewRevision(
         qid,
         schema,
-        Map(QbeastOptions.COLUMNS_TO_INDEX -> "date", QbeastOptions.STATS -> columnStats))
+        QbeastOptions(
+          Map(QbeastOptions.COLUMNS_TO_INDEX -> "date", QbeastOptions.STATS -> columnStats)))
 
     val transformation = revision.transformations.head
     transformation should not be null
@@ -235,11 +240,12 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
         SparkRevisionFactory.createNewRevision(
           qid,
           schema,
-          Map(
-            QbeastOptions.COLUMNS_TO_INDEX -> "a,b",
-            QbeastOptions.CUBE_SIZE -> "10",
-            QbeastOptions.STATS ->
-              """{ "a_min": 0, "a_max": 10, "b_min": 10.0, "b_max": 20.0}""".stripMargin))
+          QbeastOptions(
+            Map(
+              QbeastOptions.COLUMNS_TO_INDEX -> "a,b",
+              QbeastOptions.CUBE_SIZE -> "10",
+              QbeastOptions.STATS ->
+                """{ "a_min": 0, "a_max": 10, "b_min": 10.0, "b_max": 20.0}""".stripMargin)))
 
       revision.tableID shouldBe qid
       // the reason while it's 1 is because columnStats are provided here
@@ -272,9 +278,10 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
       SparkRevisionFactory.createNewRevision(
         qid,
         schema,
-        Map(
-          QbeastOptions.COLUMNS_TO_INDEX -> "a:hashing,b:hashing,c:hashing,d:hashing",
-          QbeastOptions.CUBE_SIZE -> "10"))
+        QbeastOptions(
+          Map(
+            QbeastOptions.COLUMNS_TO_INDEX -> "a:hashing,b:hashing,c:hashing,d:hashing",
+            QbeastOptions.CUBE_SIZE -> "10")))
 
     revision.tableID shouldBe qid
     revision.revisionID shouldBe 0
