@@ -3,7 +3,6 @@ package io.qbeast.spark.index
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.Row
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.index._
 
 class SparkAutoIndexerTest extends QbeastIntegrationTestSpec {
 
