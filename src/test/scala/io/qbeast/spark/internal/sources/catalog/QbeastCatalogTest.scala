@@ -4,7 +4,6 @@ import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.internal.sources.v2.{QbeastStagedTableImpl, QbeastTableImpl}
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.analysis.CannotReplaceMissingTableException
 import org.apache.spark.sql.connector.catalog.{
   CatalogExtension,
   CatalogPlugin,
@@ -248,7 +247,7 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
 
   "QbeastCatalogUtils" should "throw an error when trying to replace a non-existing table" in
     withQbeastContextSparkAndTmpWarehouse((spark, _) => {
-      an[CannotReplaceMissingTableException] shouldBe thrownBy(
+      an[AnalysisException] shouldBe thrownBy(
         QbeastCatalogUtils.createQbeastTable(
           Identifier.of(defaultNamespace, "students"),
           schema,
