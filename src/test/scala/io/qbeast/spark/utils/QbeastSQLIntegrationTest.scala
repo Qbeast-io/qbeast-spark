@@ -121,6 +121,44 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
 
   })
 
+  // TODO
+  it should "create EXTERNAL existing table WITHOUT options" in
+    withQbeastContextSparkAndTmpWarehouse((spark, tmpDir) => {
+
+      val location = tmpDir + "/external_student/"
+      val data = createTestData(spark)
+      data.write.format("qbeast").option("columnsToIndex", "id,name").save(location)
+
+      spark.sql(
+        s"CREATE EXTERNAL TABLE student (id INT, name STRING, age INT) " +
+          s"USING qbeast " +
+          s"LOCATION '$location'")
+
+    })
+
+  // TODO
+  it should "throw an error if the table is NOT qbeast" in withQbeastContextSparkAndTmpWarehouse(
+    (spark, tmpDir) => {
+
+      val location = tmpDir + "/external_student/"
+      val data = createTestData(spark)
+      data.write.format("delta").save(location)
+
+      an[AnalysisException] shouldBe thrownBy(
+        spark.sql(
+          s"CREATE EXTERNAL TABLE student (id INT, name STRING, age INT) " +
+            s"USING qbeast " +
+            s"LOCATION '$location'"))
+
+      an[AnalysisException] shouldBe thrownBy(
+        spark.sql(
+          s"CREATE EXTERNAL TABLE student (id INT, name STRING, age INT) " +
+            s"USING qbeast " +
+            "OPTIONS ('columnsToIndex'='id') " +
+            s"LOCATION '$location'"))
+
+    })
+
   it should "throw an error when using different path locations" in
     withQbeastContextSparkAndTmpWarehouse((spark, tmpDir) => {
 

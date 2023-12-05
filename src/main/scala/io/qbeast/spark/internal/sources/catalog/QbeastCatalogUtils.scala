@@ -5,6 +5,9 @@ package io.qbeast.spark.internal.sources.catalog
 
 import io.qbeast.context.QbeastContext.metadataManager
 import io.qbeast.core.model.QTableID
+import io.qbeast.spark.QbeastTableUtils
+import io.qbeast.spark.internal.QbeastOptions
+import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
 import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.hadoop.fs.{FileSystem, Path}
@@ -161,7 +164,7 @@ object QbeastCatalogUtils {
     val location = if (isPathTable) {
       Option(ident.name())
     } else {
-      Option(allTableProperties.get("location"))
+      allTableProperties.asScala.get("location")
     }
 
     // Define the table type.
@@ -175,6 +178,33 @@ object QbeastCatalogUtils {
     val loc = locUriOpt
       .orElse(existingTableOpt.flatMap(_.storage.locationUri))
       .getOrElse(existingSessionCatalog.defaultTablePath(id))
+
+    // IF the table is EXTERNAL
+    // AND no qbeast properties are defined
+    // we can load the configuration from the commit log
+    val isExternal = tableType == CatalogTableType.EXTERNAL
+    val qbeastProperties =
+      if (isExternal) {
+        val locPath = new Path(loc)
+        val containsQbeastProperties =
+          QbeastOptions.containsQbeastProperties(allTableProperties.asScala.toMap)
+        if (!containsQbeastProperties && QbeastTableUtils.isQbeastTable(locPath)) {
+          QbeastTableUtils.getExistingConf(spark, locPath)
+        } else if (containsQbeastProperties) {
+          checkQbeastProperties(allTableProperties.asScala.toMap)
+          Map.empty // nothing to add
+        } else {
+          throw AnalysisExceptionFactory.create(
+            "The table you are trying to create is not Qbeast Formatted. " +
+              "Please specify the columns to index and the cube size in the options. " +
+              "You can also use the ConvertToQbeastCommand before creating the table.")
+        }
+      } else {
+        checkQbeastProperties(allTableProperties.asScala.toMap)
+        Map.empty // nothing to add
+      }
+
+    val allProperties = allTableProperties.asScala.toMap ++ qbeastProperties
 
     // Initialize the path option
     val storage = DataSource
@@ -198,7 +228,7 @@ object QbeastCatalogUtils {
       provider = Some("qbeast"),
       partitionColumnNames = Seq.empty,
       bucketSpec = None,
-      properties = allTableProperties.asScala.toMap,
+      properties = allProperties,
       comment = commentOpt)
 
     // Verify the schema if it's an external table
