@@ -277,7 +277,7 @@ private[table] class IndexedTableImpl(
         val optionalColumnsToIndex = parameters.contains(COLUMNS_TO_INDEX)
         val updatedParameters = if (!optionalColumnsToIndex && !AUTO_INDEXING_ENABLED) {
           throw AnalysisExceptionFactory.create(
-            s"Auto indexing is disabled. Pleasespecify the columns to index in a comma separated way" +
+            "Auto indexing is disabled. Pleasespecify the columns to index in a comma separated way" +
               " as .option(columnsToIndex, ...) or enable auto indexing with spark.qbeast.index.autoIndexingEnabled=true")
         } else if (AUTO_INDEXING_ENABLED) {
           val columnsToIndex = autoIndexer.chooseColumnsToIndex(data)
