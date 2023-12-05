@@ -100,6 +100,42 @@ In a `JSON` string, you can pass the **minimum and maximum values of the columns
 }
 ```
 
+## TxnAppId and TxnVersion
+
+These options are used to make the writes idempotent.
+
+The option `txnAppId` identifies an application writing data to the table. It is
+the responsibility of the user to assign unique identifiers to the applications
+writing data to the table.
+
+The option `txnVersion` identifies the transaction issued by the application.
+The value of this option must be a valid string representation of a positive
+long number.
+
+```scala
+df.write.format("qbeast")
+.option("columnsToIndex", "a")
+.option("txnAppId", "ingestionService")
+.option("txnVersion", "1")
+```
+
+If the table already contains the data written by some other transaction with
+the same `txnAppId` and `txnVersion` then the requested write will be ignored.
+
+```scala
+// The data is written
+df.write.format("qbeast")
+.option("columnsToIndex", "a")
+.option("txnAppId", "ingestionService")
+.option("txnVersion", "1")
+...
+// The data is ignored
+df.write.format("qbeast")
+.mode("append")
+.option("txnAppId", "ingestionService")
+.option("txnVersion", "1")
+```
+
 ## Indexing Timestamps with ColumnStats
 
 For indexing `Timestamps` or `Dates` with `columnStats` (min and maximum ranges), notice that **the values need to be formatted in a proper way** (following `"yyyy-MM-dd HH:mm:ss.SSSSSS'Z'"` pattern) for Qbeast to be able to parse it. 
