@@ -273,15 +273,13 @@ private[table] class IndexedTableImpl(
           }
         }
       } else {
-        // NEW TABLE
         // IF autoIndexingEnabled, choose columns to index
         val optionalColumnsToIndex = parameters.contains(COLUMNS_TO_INDEX)
         val updatedParameters = if (!optionalColumnsToIndex && !AUTO_INDEXING_ENABLED) {
           throw AnalysisExceptionFactory.create(
             s"Auto indexing is disabled. Pleasespecify the columns to index in a comma separated way" +
               " as .option(columnsToIndex, ...) or enable auto indexing with spark.qbeast.index.autoIndexingEnabled=true")
-        }
-        else if (!optionalColumnsToIndex && AUTO_INDEXING_ENABLED) {
+        } else if (AUTO_INDEXING_ENABLED) {
           val columnsToIndex = autoIndexer.chooseColumnsToIndex(data)
           parameters + (COLUMNS_TO_INDEX -> columnsToIndex.mkString(","))
         } else parameters
