@@ -10,6 +10,7 @@ import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.fs.Path
+import org.apache.spark.qbeast.config.AUTO_INDEXING_ENABLED
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.expressions.Transform
@@ -92,6 +93,10 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       mode: SaveMode,
       parameters: Map[String, String],
       data: DataFrame): BaseRelation = {
+
+    require(
+      parameters.contains("columnsToIndex") || mode == SaveMode.Append || AUTO_INDEXING_ENABLED,
+      throw AnalysisExceptionFactory.create("'columnsToIndex' is not specified"))
 
     val tableId = QbeastOptions.loadTableIDFromParameters(parameters)
     val table = tableFactory.getIndexedTable(tableId)
