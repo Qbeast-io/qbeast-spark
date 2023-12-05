@@ -121,7 +121,6 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
 
   })
 
-  // TODO
   it should "create EXTERNAL existing table WITHOUT options" in
     withQbeastContextSparkAndTmpWarehouse((spark, tmpDir) => {
 
@@ -136,7 +135,6 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
 
     })
 
-  // TODO
   it should "throw an error if the table is NOT qbeast" in withQbeastContextSparkAndTmpWarehouse(
     (spark, tmpDir) => {
 
