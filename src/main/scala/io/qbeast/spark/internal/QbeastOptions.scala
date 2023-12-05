@@ -25,6 +25,8 @@ object QbeastOptions {
   val PATH = "path"
   val STATS = "columnStats"
 
+  private final val keys = Seq(COLUMNS_TO_INDEX, CUBE_SIZE, PATH, STATS)
+
   /**
    * Gets the columns to index from the options
    * @param options the options passed on the dataframe
@@ -89,17 +91,21 @@ object QbeastOptions {
     QbeastOptions(columnsToIndex, desiredCubeSize, stats)
   }
 
-  def loadTableIDFromParameters(parameters: Map[String, String]): QTableID = {
+  def loadTableIDFromOptions(options: Map[String, String]): QTableID = {
     new QTableID(
-      parameters.getOrElse(
+      options.getOrElse(
         PATH, {
           throw AnalysisExceptionFactory.create("'path' is not specified")
         }))
   }
 
-  def checkQbeastProperties(parameters: Map[String, String]): Unit = {
+  def loadQbeastOptions(options: Map[String, String]): Map[String, String] = {
+    options.filter(keys.contains)
+  }
+
+  def checkQbeastOptions(options: Map[String, String]): Unit = {
     require(
-      parameters.contains("columnsToIndex") || parameters.contains("columnstoindex"),
+      options.contains("columnsToIndex") || options.contains("columnstoindex"),
       throw AnalysisExceptionFactory.create("'columnsToIndex is not specified"))
   }
 

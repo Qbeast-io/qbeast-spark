@@ -5,7 +5,12 @@ package io.qbeast.spark.internal.sources.catalog
 
 import io.qbeast.context.QbeastContext.metadataManager
 import io.qbeast.core.model.QTableID
-import io.qbeast.spark.internal.QbeastOptions.{COLUMNS_TO_INDEX, CUBE_SIZE, checkQbeastProperties}
+import io.qbeast.spark.internal.QbeastOptions.{
+  COLUMNS_TO_INDEX,
+  CUBE_SIZE,
+  checkQbeastOptions,
+  loadQbeastOptions
+}
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
 import io.qbeast.spark.table.{IndexedTable, IndexedTableFactory}
 import org.apache.hadoop.fs.{FileSystem, Path}
@@ -133,15 +138,13 @@ object QbeastCatalogUtils {
   }
 
   /**
-   * Loads the Qbeast parameters from:
-   * - Properties
-   * - Existing indexedTable
+   * Loads the Qbeast options if necessary
    * @param tableType the table type
    * @param indexedTable the indexed table
    * @param properties the properties
    * @return
    */
-  def loadQbeastRequiredProperties(
+  private def loadQbeastRequiredOptions(
       tableType: CatalogTableType,
       indexedTable: IndexedTable,
       properties: Map[String, String]): Map[String, String] = {
@@ -169,13 +172,13 @@ object QbeastCatalogUtils {
               "You can also use the ConvertToQbeastCommand before creating the table.")
         case _ =>
           // If it contains Qbeast Properties, check them
-          checkQbeastProperties(properties)
-          Map.empty
+          checkQbeastOptions(properties)
+          loadQbeastOptions(properties)
       }
     } else {
       // If it's NOT external, check the properties
-      checkQbeastProperties(properties)
-      Map.empty
+      checkQbeastOptions(properties)
+      loadQbeastOptions(properties)
     }
   }
 
@@ -204,12 +207,13 @@ object QbeastCatalogUtils {
       existingSessionCatalog: SessionCatalog): Unit = {
 
     val isPathTable = this.isPathTable(ident)
+    val properties = allTableProperties.asScala.toMap
 
     // Get table location
     val location = if (isPathTable) {
       Option(ident.name())
     } else {
-      allTableProperties.asScala.get("location")
+      properties.get("location")
     }
 
     // Define the table type.
@@ -225,10 +229,9 @@ object QbeastCatalogUtils {
       .getOrElse(existingSessionCatalog.defaultTablePath(id))
 
     // Process the parameters/options/configuration sent to the table
-    val properties = allTableProperties.asScala.toMap
     val indexedTable = tableFactory.getIndexedTable(QTableID(loc.toString))
     val allProperties =
-      properties ++ loadQbeastRequiredProperties(tableType, indexedTable, properties)
+      properties ++ loadQbeastRequiredOptions(tableType, indexedTable, properties)
 
     // Initialize the path option
     val storage = DataSource
