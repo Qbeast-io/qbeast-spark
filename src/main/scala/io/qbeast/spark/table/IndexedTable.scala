@@ -11,6 +11,7 @@ import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.QbeastOptions.COLUMNS_TO_INDEX
 import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
+import org.apache.spark.qbeast.config.AUTO_INDEXING_ENABLED
 import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.sources.BaseRelation
@@ -129,7 +130,8 @@ final class IndexedTableFactoryImpl(
     private val indexManager: IndexManager[DataFrame],
     private val metadataManager: MetadataManager[StructType, FileAction, QbeastOptions],
     private val dataWriter: DataWriter[DataFrame, StructType, FileAction],
-    private val revisionFactory: RevisionFactory[StructType, QbeastOptions])
+    private val revisionFactory: RevisionFactory[StructType, QbeastOptions],
+    private val autoIndexer: AutoIndexer[DataFrame])
     extends IndexedTableFactory {
 
   override def getIndexedTable(tableID: QTableID): IndexedTable =
@@ -139,7 +141,8 @@ final class IndexedTableFactoryImpl(
       indexManager,
       metadataManager,
       dataWriter,
-      revisionFactory)
+      revisionFactory,
+      autoIndexer)
 
 }
 
@@ -158,6 +161,8 @@ final class IndexedTableFactoryImpl(
  *   the data writer
  * @param revisionBuilder
  *   the revision builder
+ * @param autoIndexer
+ *   the auto indexer
  */
 private[table] class IndexedTableImpl(
     val tableID: QTableID,
@@ -165,7 +170,8 @@ private[table] class IndexedTableImpl(
     private val indexManager: IndexManager[DataFrame],
     private val metadataManager: MetadataManager[StructType, FileAction, QbeastOptions],
     private val dataWriter: DataWriter[DataFrame, StructType, FileAction],
-    private val revisionFactory: RevisionFactory[StructType, QbeastOptions])
+    private val revisionFactory: RevisionFactory[StructType, QbeastOptions],
+    private val autoIndexer: AutoIndexer[DataFrame])
     extends IndexedTable
     with StagingUtils {
   private var snapshotCache: Option[QbeastSnapshot] = None
@@ -267,7 +273,18 @@ private[table] class IndexedTableImpl(
           }
         }
       } else {
-        val options = QbeastOptions(parameters)
+        // NEW TABLE
+        // IF autoIndexingEnabled, choose columns to index
+        val optionalColumnsToIndex = parameters.contains(COLUMNS_TO_INDEX)
+        val updatedParameters = if (!optionalColumnsToIndex && AUTO_INDEXING_ENABLED) {
+          val columnsToIndex = autoIndexer.chooseColumnsToIndex(data)
+          parameters + (COLUMNS_TO_INDEX -> columnsToIndex.mkString(","))
+        } else if (!AUTO_INDEXING_ENABLED) {
+          throw AnalysisExceptionFactory.create(
+            s"Auto indexing is disabled. Pleasespecify the columns to index in a comma separated way" +
+              " as .option(columnsToIndex, ...) or enable auto indexing with spark.qbeast.index.autoIndexingEnabled=true")
+        } else parameters
+        val options = QbeastOptions(updatedParameters)
         val revision = revisionFactory.createNewRevision(tableID, data.schema, options)
         (IndexStatus(revision), options)
       }

@@ -93,10 +93,6 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       parameters: Map[String, String],
       data: DataFrame): BaseRelation = {
 
-    require(
-      parameters.contains("columnsToIndex") || mode == SaveMode.Append,
-      throw AnalysisExceptionFactory.create("'columnsToIndex' is not specified"))
-
     val tableId = QbeastOptions.loadTableIDFromParameters(parameters)
     val table = tableFactory.getIndexedTable(tableId)
     mode match {

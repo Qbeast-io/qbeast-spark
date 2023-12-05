@@ -1,5 +1,7 @@
 package io.qbeast.spark.utils
 
+import io.qbeast.core.model.QTableID
+import io.qbeast.spark.delta.SparkDeltaMetadataManager
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Student
 import org.apache.spark.sql.DataFrame
@@ -130,5 +132,35 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
 
       assertSmallDatasetEquality(indexed, data, orderedComparison = false, ignoreNullable = true)
     })
+
+  // TODO
+  it should "work without providing columnsToIndex" in withExtendedSparkAndTmpDir(
+    sparkConfWithSqlAndCatalog.set("spark.qbeast.index.autoIndexerEnabled", "true")) {
+    (spark, tmpDir) =>
+      {
+        val data = createStudentsTestData(spark)
+        data.write.format("qbeast").save(tmpDir)
+
+        val indexed = spark.read.format("qbeast").load(tmpDir)
+
+        indexed.count() shouldBe data.count()
+
+        indexed.columns.toSet shouldBe data.columns.toSet
+
+        assertSmallDatasetEquality(
+          indexed,
+          data,
+          orderedComparison = false,
+          ignoreNullable = true)
+
+        val tableId = QTableID(tmpDir)
+        val qbeastLog = SparkDeltaMetadataManager.loadDeltaQbeastLog(tableId)
+        val latestRevision = qbeastLog.qbeastSnapshot.loadLatestRevision
+        latestRevision.revisionID shouldBe 1
+        latestRevision.columnTransformers.map(
+          _.columnName) shouldBe data.columns.toSeq // ALL COLUMNS BY DEFAULT
+
+      }
+  }
 
 }

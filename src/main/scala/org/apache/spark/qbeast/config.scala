@@ -46,6 +46,12 @@ package object config {
       .longConf
       .createOptional
 
+  private[config] val autoIndexingEnabled: ConfigEntry[Boolean] =
+    ConfigBuilder("spark.qbeast.index.autoIndexerEnabled")
+      .version("0.2.0")
+      .booleanConf
+      .createWithDefault(false)
+
   def DEFAULT_NUMBER_OF_RETRIES: Int = QbeastContext.config
     .get(defaultNumberOfRetries)
 
@@ -62,5 +68,7 @@ package object config {
     QbeastContext.config.get(maxCompactionFileSizeInBytes)
 
   def STAGING_SIZE_IN_BYTES: Option[Long] = QbeastContext.config.get(stagingSizeInBytes)
+
+  def AUTO_INDEXING_ENABLED: Boolean = QbeastContext.config.get(autoIndexingEnabled)
 
 }
