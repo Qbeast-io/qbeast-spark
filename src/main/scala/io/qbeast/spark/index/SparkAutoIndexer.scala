@@ -1,3 +1,6 @@
+/*
+ * Copyright 2021 Qbeast Analytics, S.L.
+ */
 package io.qbeast.spark.index
 
 import io.qbeast.core.model.AutoIndexer
@@ -5,12 +8,11 @@ import org.apache.spark.sql.DataFrame
 
 object SparkAutoIndexer extends AutoIndexer[DataFrame] with Serializable {
 
-  override def simpleName: String = "SparkAutoIndexer"
-
-  override val MAX_COLUMNS_TO_INDEX: Int = 32
+  override val MAX_COLUMNS_TO_INDEX: Option[Int] = None
 
   override def chooseColumnsToIndex(data: DataFrame): Seq[String] = {
-    data.schema.fields.take(MAX_COLUMNS_TO_INDEX).map(_.name) // TODO
+    val numColumnsToIndex = MAX_COLUMNS_TO_INDEX.getOrElse(data.schema.fields.length)
+    data.schema.fields.take(numColumnsToIndex).map(_.name) // TODO
   }
 
 }
