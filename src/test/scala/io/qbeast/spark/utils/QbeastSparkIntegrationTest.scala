@@ -1,8 +1,7 @@
 package io.qbeast.spark.utils
 
-import io.qbeast.core.model.QTableID
-import io.qbeast.spark.delta.SparkDeltaMetadataManager
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastTable
 import io.qbeast.TestClasses.Student
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
@@ -153,12 +152,9 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
           orderedComparison = false,
           ignoreNullable = true)
 
-        val tableId = QTableID(tmpDir)
-        val qbeastLog = SparkDeltaMetadataManager.loadDeltaQbeastLog(tableId)
-        val latestRevision = qbeastLog.qbeastSnapshot.loadLatestRevision
-        latestRevision.revisionID shouldBe 1
-        latestRevision.columnTransformers.map(
-          _.columnName) shouldBe data.columns.toSeq // ALL COLUMNS BY DEFAULT
+        val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+        qbeastTable.indexedColumns() shouldBe Seq("id")
+        qbeastTable.latestRevisionID() shouldBe 1L
 
       }
   }

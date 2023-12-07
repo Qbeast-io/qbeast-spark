@@ -8,9 +8,13 @@ package io.qbeast.core.model
 trait AutoIndexer[DATA] {
 
   /**
-   * Maximum number of columns to index
+   * Chooses the columns to index.
+   * @param data
+   *   the data to index
+   * @return
+   *   A sequence with the names of the columns to index
    */
-  val MAX_COLUMNS_TO_INDEX: Int
+  def chooseColumnsToIndex(data: DATA): Seq[String]
 
   /**
    * Chooses the columns to index.
@@ -21,6 +25,6 @@ trait AutoIndexer[DATA] {
    * @return
    *   A sequence with the names of the columns to index
    */
-  def chooseColumnsToIndex(data: DATA, numColumnsToIndex: Int = MAX_COLUMNS_TO_INDEX): Seq[String]
+  def chooseColumnsToIndex(data: DATA, numColumnsToIndex: Int): Seq[String]
 
 }

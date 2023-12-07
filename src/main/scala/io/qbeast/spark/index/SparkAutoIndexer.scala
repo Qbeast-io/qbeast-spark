@@ -17,11 +17,16 @@ import org.apache.spark.sql.DataFrame
 
 object SparkAutoIndexer extends AutoIndexer[DataFrame] with Serializable {
 
-  override val MAX_COLUMNS_TO_INDEX: Int = MAX_NUM_COLUMNS_TO_INDEX.getOrElse(3)
+  override def chooseColumnsToIndex(data: DataFrame): Seq[String] = {
+    chooseColumnsToIndex(data, MAX_NUM_COLUMNS_TO_INDEX)
+  }
 
-  override def chooseColumnsToIndex(
-      data: DataFrame,
-      numColumnsToSelect: Int = MAX_COLUMNS_TO_INDEX): Seq[String] = {
+  override def chooseColumnsToIndex(data: DataFrame, numColumnsToIndex: Int): Seq[String] = {
+
+    // IF there's no data to write, we return all the columns to index
+    if (data.isEmpty) {
+      return data.columns.take(numColumnsToIndex)
+    }
 
     var updatedData = data
     val inputCols = data.columns
@@ -84,7 +89,7 @@ object SparkAutoIndexer extends AutoIndexer[DataFrame] with Serializable {
 
     // Get the indices of columns with the lowest average correlation
     val sortedIndices = averageCorrelation.zipWithIndex.sortBy { case (corr, _) => corr }
-    val selectedIndices = sortedIndices.take(numColumnsToSelect).map(_._2)
+    val selectedIndices = sortedIndices.take(numColumnsToIndex).map(_._2)
 
     // Create a mapping from transformed column names to original column names
     val transformedToOriginal = inputCols.flatMap { colName =>
