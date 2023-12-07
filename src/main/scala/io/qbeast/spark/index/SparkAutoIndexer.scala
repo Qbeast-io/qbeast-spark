@@ -17,11 +17,26 @@ import org.apache.spark.sql.DataFrame
 
 object SparkAutoIndexer extends AutoIndexer[DataFrame] with Serializable {
 
+  /**
+   * The maximum number of columns to index.
+   *
+   * @return
+   */
   override def MAX_COLUMNS_TO_INDEX: Int = MAX_NUM_COLUMNS_TO_INDEX
+
+  /**
+   * Chooses the columns to index without limiting the number of columns.
+   *
+   * @param data
+   *   the data to index
+   * @return
+   */
+  override def chooseColumnsToIndex(data: DataFrame): Seq[String] =
+    chooseColumnsToIndex(data, MAX_COLUMNS_TO_INDEX)
 
   override def chooseColumnsToIndex(
       data: DataFrame,
-      numColumnsToIndex: Int = MAX_COLUMNS_TO_INDEX): Seq[String] = {
+      numColumnsToIndex: Int = MAX_NUM_COLUMNS_TO_INDEX): Seq[String] = {
 
     // IF there's no data to write, we return all the columns to index
     if (data.isEmpty) {
