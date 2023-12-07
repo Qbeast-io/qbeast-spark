@@ -10,19 +10,18 @@ import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.ml.linalg.Matrix
 import org.apache.spark.ml.stat.Correlation
 import org.apache.spark.ml.Pipeline
+import org.apache.spark.qbeast.config.MAX_NUM_COLUMNS_TO_INDEX
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.unix_timestamp
 import org.apache.spark.sql.DataFrame
 
 object SparkAutoIndexer extends AutoIndexer[DataFrame] with Serializable {
 
-  override val MAX_COLUMNS_TO_INDEX: Option[Int] = Some(1)
+  override val MAX_COLUMNS_TO_INDEX: Int = MAX_NUM_COLUMNS_TO_INDEX.getOrElse(3)
 
-  override def chooseColumnsToIndex(data: DataFrame): Seq[String] = {
-    chooseColumnsToIndex(data, MAX_COLUMNS_TO_INDEX.getOrElse(1))
-  }
-
-  def chooseColumnsToIndex(data: DataFrame, numColumnsToSelect: Int): Seq[String] = {
+  override def chooseColumnsToIndex(
+      data: DataFrame,
+      numColumnsToSelect: Int = MAX_COLUMNS_TO_INDEX): Seq[String] = {
 
     var updatedData = data
     val inputCols = data.columns

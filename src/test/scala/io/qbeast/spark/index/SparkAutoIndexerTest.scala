@@ -1,7 +1,5 @@
 package io.qbeast.spark.index
 
-import org.apache.spark.sql.types._
-import org.apache.spark.sql.Row
 import io.qbeast.spark.QbeastIntegrationTestSpec
 
 class SparkAutoIndexerTest extends QbeastIntegrationTestSpec {
@@ -10,23 +8,13 @@ class SparkAutoIndexerTest extends QbeastIntegrationTestSpec {
 
   it should "select correct columns for indexing" in withSpark(spark => {
 
-    // Define schema
-    val schema = StructType(Array(
-      StructField("id", IntegerType, true),
-      StructField("name", StringType, true),
-      StructField("timestamp", TimestampType, true),
-      StructField("value", DoubleType, true)
-    ))
-
+    import spark.implicits._
     // Create test data
-    val data = Seq(
-      Row(1, "Alice", java.sql.Timestamp.valueOf("2023-01-01 10:00:00"), 12.5),
-      Row(2, "Bob", java.sql.Timestamp.valueOf("2023-01-02 11:30:00"), 15.0)
+    val testDF = Seq(
+      (1, "Alice", java.sql.Timestamp.valueOf("2023-01-01 10:00:00"), 12.5),
+      (2, "Bob", java.sql.Timestamp.valueOf("2023-01-02 11:30:00"), 15.0)
       // Add more rows as needed
-    )
-
-    // Create DataFrame
-    val testDF = spark.createDataFrame(spark.sparkContext.parallelize(data), schema)
+    ).toDF("id", "name", "timestamp", "value")
 
     // Initialize SparkAutoIndexer
     val autoIndexer = SparkAutoIndexer
@@ -38,6 +26,7 @@ class SparkAutoIndexerTest extends QbeastIntegrationTestSpec {
     // Assertions
     selectedColumns.length shouldBe numColumnsToSelect
     // Additional assertions as needed
+    selectedColumns shouldBe Seq("name", "value")
   })
 
 }

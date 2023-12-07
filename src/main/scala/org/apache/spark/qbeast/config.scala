@@ -52,6 +52,12 @@ package object config {
       .booleanConf
       .createWithDefault(false)
 
+  private[config] val maxNumColumnsToIndex: OptionalConfigEntry[Int] =
+    ConfigBuilder("spark.qbeast.index.maxColumnsToIndex")
+      .version("0.2.0")
+      .intConf
+      .createOptional
+
   def DEFAULT_NUMBER_OF_RETRIES: Int = QbeastContext.config
     .get(defaultNumberOfRetries)
 
@@ -70,5 +76,7 @@ package object config {
   def STAGING_SIZE_IN_BYTES: Option[Long] = QbeastContext.config.get(stagingSizeInBytes)
 
   def AUTO_INDEXING_ENABLED: Boolean = QbeastContext.config.get(autoIndexingEnabled)
+
+  def MAX_NUM_COLUMNS_TO_INDEX: Option[Int] = QbeastContext.config.get(maxNumColumnsToIndex)
 
 }
