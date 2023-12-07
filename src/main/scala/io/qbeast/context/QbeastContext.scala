@@ -10,6 +10,7 @@ import io.qbeast.spark.delta.writer.RollupDataWriter
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
 import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.index.SparkRevisionFactory
+import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.table.IndexedTableFactory
 import io.qbeast.spark.table.IndexedTableFactoryImpl
 import org.apache.spark.scheduler.SparkListener
@@ -63,7 +64,7 @@ trait QbeastContext {
  */
 object QbeastContext
     extends QbeastContext
-    with QbeastCoreContext[DataFrame, StructType, FileAction] {
+    with QbeastCoreContext[DataFrame, StructType, QbeastOptions, FileAction] {
   private var managedOption: Option[QbeastContext] = None
   private var unmanagedOption: Option[QbeastContext] = None
 
@@ -82,13 +83,13 @@ object QbeastContext
 
   override def indexManager: IndexManager[DataFrame] = SparkOTreeManager
 
-  override def metadataManager: MetadataManager[StructType, FileAction] =
+  override def metadataManager: MetadataManager[StructType, FileAction, QbeastOptions] =
     SparkDeltaMetadataManager
 
   override def dataWriter: DataWriter[DataFrame, StructType, FileAction] =
     RollupDataWriter
 
-  override def revisionBuilder: RevisionFactory[StructType] =
+  override def revisionBuilder: RevisionFactory[StructType, QbeastOptions] =
     SparkRevisionFactory
 
   /**

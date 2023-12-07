@@ -20,7 +20,7 @@ import scala.util.matching.Regex
 /**
  * Spark implementation of RevisionBuilder
  */
-object SparkRevisionFactory extends RevisionFactory[StructType] {
+object SparkRevisionFactory extends RevisionFactory[StructType, QbeastOptions] {
 
   val SpecExtractor: Regex = "([^:]+):([A-z]+)".r
 
@@ -31,11 +31,10 @@ object SparkRevisionFactory extends RevisionFactory[StructType] {
   override def createNewRevision(
       qtableID: QTableID,
       schema: StructType,
-      options: Map[String, String]): Revision = {
+      options: QbeastOptions): Revision = {
 
-    val qbeastOptions = QbeastOptions(options)
-    val columnSpecs = qbeastOptions.columnsToIndex
-    val desiredCubeSize = qbeastOptions.cubeSize
+    val columnSpecs = options.columnsToIndex
+    val desiredCubeSize = options.cubeSize
 
     val transformers = columnSpecs.map {
       case SpecExtractor(columnName, transformerType) =>
@@ -46,7 +45,7 @@ object SparkRevisionFactory extends RevisionFactory[StructType] {
 
     }.toVector
 
-    qbeastOptions.stats match {
+    options.stats match {
       case None => Revision.firstRevision(qtableID, desiredCubeSize, transformers)
       case Some(stats) =>
         val columnStats = stats.first()
@@ -84,7 +83,7 @@ object SparkRevisionFactory extends RevisionFactory[StructType] {
   override def createNextRevision(
       qtableID: QTableID,
       schema: StructType,
-      options: Map[String, String],
+      options: QbeastOptions,
       oldRevisionID: RevisionID): Revision = {
     val revision = createNewRevision(qtableID, schema, options)
     revision.copy(revisionID = oldRevisionID + 1)

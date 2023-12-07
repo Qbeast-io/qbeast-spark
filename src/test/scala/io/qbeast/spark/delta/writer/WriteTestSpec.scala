@@ -5,6 +5,7 @@ import io.qbeast.spark.index.NormalizedWeight
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.index.SparkRevisionFactory
+import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.TestClasses.IndexData
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
@@ -63,7 +64,7 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
     .createNewRevision(
       QTableID("test"),
       data.schema,
-      Map("columnsToIndex" -> "id", "cubeSize" -> "10000"))
+      QbeastOptions(Map("columnsToIndex" -> "id", "cubeSize" -> "10000")))
 
   val cubeStatuses: SortedMap[CubeId, CubeStatus] = {
     val cubeStatusesSeq = weightMap.toIndexedSeq.map {

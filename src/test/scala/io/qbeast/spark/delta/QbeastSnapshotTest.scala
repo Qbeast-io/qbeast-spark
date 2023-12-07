@@ -6,6 +6,7 @@ package io.qbeast.spark.delta
 import io.qbeast.core.model.CubeStatus
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.index.SparkRevisionFactory
+import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
 import org.apache.spark.sql.delta.DeltaLog
@@ -67,7 +68,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
         val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
         val columnTransformers = SparkRevisionFactory
-          .createNewRevision(QTableID(tmpDir), df.schema, options)
+          .createNewRevision(QTableID(tmpDir), df.schema, QbeastOptions(options))
           .columnTransformers
 
         val revision = qbeastSnapshot.loadLatestRevision

@@ -27,7 +27,7 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
     val rev = SparkRevisionFactory.createNewRevision(
       qid,
       df.schema,
-      Map(QbeastOptions.COLUMNS_TO_INDEX -> "a,b,c"))
+      QbeastOptions(Map(QbeastOptions.COLUMNS_TO_INDEX -> "a,b,c")))
 
     val indexStatus = IndexStatus(rev)
     val tableChanges = BroadcastedTableChanges(None, indexStatus, Map.empty, Map.empty)
@@ -50,7 +50,7 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
     val rev = SparkRevisionFactory.createNewRevision(
       qid,
       df.schema,
-      Map(QbeastOptions.COLUMNS_TO_INDEX -> "a,b,c"))
+      QbeastOptions(Map(QbeastOptions.COLUMNS_TO_INDEX -> "a,b,c")))
     val indexStatus = IndexStatus(rev)
 
     val revisionChange =
@@ -84,7 +84,7 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
     val rev = SparkRevisionFactory.createNewRevision(
       qid,
       df.schema,
-      Map(QbeastOptions.COLUMNS_TO_INDEX -> "a:hashing,b:hashing,c:hashing"))
+      QbeastOptions(Map(QbeastOptions.COLUMNS_TO_INDEX -> "a:hashing,b:hashing,c:hashing")))
     val indexStatus = IndexStatus(rev)
 
     val revisionChange =
