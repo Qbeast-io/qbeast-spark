@@ -6,7 +6,6 @@ package io.qbeast.spark.internal.sources.catalog
 import io.qbeast.context.QbeastContext
 import io.qbeast.spark.internal.sources.v2.QbeastStagedTableImpl
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
-import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.analysis.NoSuchDatabaseException
 import org.apache.spark.sql.catalyst.analysis.NoSuchNamespaceException
@@ -109,7 +108,6 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
       properties: util.Map[String, String]): Table = {
 
     if (QbeastCatalogUtils.isQbeastProvider(properties)) {
-      checkQbeastProperties(properties.asScala.toMap)
       // Create the table
       QbeastCatalogUtils.createQbeastTable(
         ident,

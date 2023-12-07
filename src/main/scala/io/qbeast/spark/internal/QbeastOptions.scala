@@ -131,10 +131,4 @@ object QbeastOptions {
         }))
   }
 
-  def checkQbeastProperties(parameters: Map[String, String]): Unit = {
-    require(
-      parameters.contains("columnsToIndex") || parameters.contains("columnstoindex"),
-      throw AnalysisExceptionFactory.create("'columnsToIndex is not specified"))
-  }
-
 }
