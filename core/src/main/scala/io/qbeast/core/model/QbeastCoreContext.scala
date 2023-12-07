@@ -20,7 +20,7 @@ trait QbeastCoreContext[DATA, DataSchema, QbeastOptions, FileDescriptor] {
   def dataWriter: DataWriter[DATA, DataSchema, FileDescriptor]
   def indexManager: IndexManager[DATA]
   def queryManager[QUERY: ClassTag]: QueryManager[QUERY, DATA]
-  def revisionBuilder: RevisionFactory[DataSchema, QbeastOptions],
+  def revisionBuilder: RevisionFactory[DataSchema, QbeastOptions]
   def autoIndexer: AutoIndexer[DATA]
   def keeper: Keeper
 
