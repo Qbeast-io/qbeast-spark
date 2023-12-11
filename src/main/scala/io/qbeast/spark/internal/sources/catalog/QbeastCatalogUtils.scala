@@ -182,9 +182,9 @@ object QbeastCatalogUtils {
     // Process the parameters/options/configuration sent to the table
     val indexedTable = tableFactory.getIndexedTable(QTableID(loc.toString))
     val allProperties = {
-      if (tableType == CatalogTableType.EXTERNAL && !indexedTable.isConverted)
+      if (tableType == CatalogTableType.EXTERNAL && !indexedTable.isConverted) {
         throw AnalysisExceptionFactory.create("This Table is not converted")
-      else {
+      } else {
         try {
           checkQbeastOptions(properties)
           properties // No options added
