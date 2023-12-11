@@ -1,5 +1,4 @@
 package io.qbeast.spark.utils
-
 import io.qbeast.spark.delta.OTreeIndex
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestUtils._

@@ -8,8 +8,7 @@ import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.lit
-import org.apache.spark.sql.Column
-import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.{Column, Dataset}
 
 private[spark] trait DeltaStagingUtils extends StagingUtils {
   protected def snapshot: Snapshot
