@@ -8,7 +8,7 @@ import io.qbeast.core.model._
 import io.qbeast.spark.delta.{CubeDataLoader, StagingDataManager, StagingResolution}
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.spark.internal.QbeastOptions.{COLUMNS_TO_INDEX, CUBE_SIZE}
+import io.qbeast.spark.internal.QbeastOptions._
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
 import org.apache.spark.sql.delta.actions.FileAction
@@ -42,6 +42,13 @@ trait IndexedTable {
    * @return the table id
    */
   def tableID: QTableID
+
+  /**
+   * Returns the table properties.
+   *
+   * @return the table properties
+   */
+  def properties: Map[String, String]
 
   /**
    * Saves given data in the table and updates the index. The specified columns are
@@ -152,6 +159,19 @@ private[table] class IndexedTableImpl(
     true
   } catch {
     case _: Exception => false
+  }
+
+  override def properties: Map[String, String] = {
+    if (exists && isConverted) {
+      val latestRevision = snapshot.loadLatestRevision
+      Map(
+        COLUMNS_TO_INDEX -> latestRevision.columnTransformers
+          .map(_.columnName)
+          .mkString(","),
+        CUBE_SIZE -> latestRevision.desiredCubeSize.toString)
+    } else {
+      Map.empty
+    }
   }
 
   private def isNewRevision(qbeastOptions: QbeastOptions, latestRevision: Revision): Boolean = {

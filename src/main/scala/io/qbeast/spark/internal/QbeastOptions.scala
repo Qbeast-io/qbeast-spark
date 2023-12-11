@@ -25,8 +25,6 @@ object QbeastOptions {
   val PATH = "path"
   val STATS = "columnStats"
 
-  private final val keys = Seq(COLUMNS_TO_INDEX, CUBE_SIZE, PATH, STATS)
-
   /**
    * Gets the columns to index from the options
    * @param options the options passed on the dataframe
@@ -97,10 +95,6 @@ object QbeastOptions {
         PATH, {
           throw AnalysisExceptionFactory.create("'path' is not specified")
         }))
-  }
-
-  def loadQbeastOptions(options: Map[String, String]): Map[String, String] = {
-    options.filter(keys.contains)
   }
 
   def checkQbeastOptions(options: Map[String, String]): Unit = {
