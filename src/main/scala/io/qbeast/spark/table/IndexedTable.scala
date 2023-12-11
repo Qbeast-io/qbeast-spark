@@ -214,7 +214,7 @@ private[table] class IndexedTableImpl(
    * @param parameters
    *   the parameters required for indexing
    */
-  private def addRequiredParams(
+  def addRequiredParams(
       latestRevision: Revision,
       parameters: Map[String, String]): Map[String, String] = {
     val columnsToIndex = latestRevision.columnTransformers.map(_.columnName).mkString(",")

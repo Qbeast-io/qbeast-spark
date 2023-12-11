@@ -34,9 +34,7 @@ object SparkAutoIndexer extends AutoIndexer[DataFrame] with Serializable {
   override def chooseColumnsToIndex(data: DataFrame): Seq[String] =
     chooseColumnsToIndex(data, MAX_COLUMNS_TO_INDEX)
 
-  override def chooseColumnsToIndex(
-      data: DataFrame,
-      numColumnsToIndex: Int = MAX_NUM_COLUMNS_TO_INDEX): Seq[String] = {
+  override def chooseColumnsToIndex(data: DataFrame, numColumnsToIndex: Int): Seq[String] = {
 
     // IF there's no data to write, we return all the columns to index
     if (data.isEmpty) {
