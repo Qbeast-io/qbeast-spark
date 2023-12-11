@@ -181,16 +181,19 @@ object QbeastCatalogUtils {
 
     // Process the parameters/options/configuration sent to the table
     val indexedTable = tableFactory.getIndexedTable(QTableID(loc.toString))
+    val isNewQbeastTable = (tableType == CatalogTableType.EXTERNAL) && !indexedTable.isConverted
     val allProperties = {
-      if (tableType == CatalogTableType.EXTERNAL && !indexedTable.isConverted) {
-        throw AnalysisExceptionFactory.create("This Table is not converted")
-      } else {
-        try {
-          checkQbeastOptions(properties)
-          properties // No options added
-        } catch {
-          case _: AnalysisException => properties ++ indexedTable.properties
-        }
+      try {
+        checkQbeastOptions(properties)
+        properties // No options added
+      } catch {
+        case _: AnalysisException if (isNewQbeastTable) =>
+          throw AnalysisExceptionFactory.create(
+            "The table you are trying to create is not Qbeast Formatted. " +
+              "Please specify the columns to index and the cube size in the options. " +
+              "You can also use the ConvertToQbeastCommand before creating the table.")
+        case _: AnalysisException => // Add existing table properties
+          properties ++ indexedTable.properties // Add the write options
       }
     }
 
