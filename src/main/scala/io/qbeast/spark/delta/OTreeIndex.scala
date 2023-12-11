@@ -4,36 +4,42 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model.Block
-import io.qbeast.core.model.QbeastBlock
 import io.qbeast.spark.index.query.QueryExecutor
 import io.qbeast.spark.index.query.QuerySpecBuilder
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.fs.Path
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
+import org.apache.spark.sql.delta.files.TahoeLogFileIndex
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.delta.Snapshot
-import org.apache.spark.sql.delta.files.TahoeLogFileIndex
-import org.apache.spark.sql.execution.SQLExecution
 import org.apache.spark.sql.execution.datasources.FileIndex
 import org.apache.spark.sql.execution.datasources.PartitionDirectory
+import org.apache.spark.sql.execution.SQLExecution
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.internal.Logging
+import org.apache.spark.sql.SparkSession
 
 import java.net.URI
 
 /**
  * FileIndex to prune files
  *
- * @param index the Tahoe log file index
- * @param spark spark session
+ * @param index
+ *   the Tahoe log file index
+ * @param spark
+ *   spark session
  */
 case class OTreeIndex(index: TahoeLogFileIndex)
-  extends FileIndex
+    extends FileIndex
     with DeltaStagingUtils
     with Logging {
 
+  /**
+   * Snapshot to analyze
+   * @return
+   *   the snapshot
+   */
   protected def snapshot: Snapshot = index.getSnapshot
 
   private def qbeastSnapshot = DeltaQbeastSnapshot(snapshot)
@@ -48,71 +54,86 @@ case class OTreeIndex(index: TahoeLogFileIndex)
   }
 
   protected def matchingBlocks(
-                                partitionFilters: Seq[Expression],
-                                dataFilters: Seq[Expression]): Iterable[Block] = {
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): Iterable[Block] = {
+
     val querySpecBuilder = new QuerySpecBuilder(dataFilters ++ partitionFilters)
     val queryExecutor = new QueryExecutor(querySpecBuilder, qbeastSnapshot)
     queryExecutor.execute()
   }
 
+  /**
+   * Collect matching QbeastBlocks and convert them into FileStatuses.
+   * @param partitionFilters
+   * @param dataFilters
+   * @return
+   */
   private def qbeastMatchingFiles(
-                                   partitionFilters: Seq[Expression],
-                                   dataFilters: Seq[Expression]): Seq[FileStatus] = {
-    matchingBlocks(partitionFilters, dataFilters).map {
-      case qbeastBlock: QbeastBlock =>
-        new FileStatus(
-          length = qbeastBlock.size,
-          isDir = false,
-          blockReplication = 0,
-          blockSize = 1,
-          modificationTime = qbeastBlock.modificationTime,
-          path = absolutePath(qbeastBlock.path))
-      case block =>
-        IndexFiles.toFileStatus(index.path)(block.file)
-    }.toSeq
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): Seq[FileStatus] = {
+    matchingBlocks(partitionFilters, dataFilters)
+      .map(block => (block.file))
+      .map(file => (file.path, file))
+      .toMap
+      .values
+      .map(IndexFiles.toFileStatus(index.path))
+      .toSeq
   }
 
+  /**
+   * Collect matching staging files from _delta_log and convert them into FileStatuses. The output
+   * is merged with those built from QbeastBlocks.
+   * @return
+   */
   private def stagingFiles(
-                            partitionFilters: Seq[Expression],
-                            dataFilters: Seq[Expression]): Seq[FileStatus] = {
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): Seq[FileStatus] = {
+
     index
       .matchingFiles(partitionFilters, dataFilters)
       .filter(isStagingFile)
       .map { f =>
         new FileStatus(
-          length = f.size,
-          isDir = false,
-          blockReplication = 0,
-          blockSize = 1,
-          modificationTime = f.modificationTime,
-          path = absolutePath(f.path))
+          /* length */ f.size,
+          /* isDir */ false,
+          /* blockReplication */ 0,
+          /* blockSize */ 1,
+          /* modificationTime */ f.modificationTime,
+          absolutePath(f.path))
       }
   }
 
   override def listFiles(
-                          partitionFilters: Seq[Expression],
-                          dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
+
+    // FILTER FILES FROM QBEAST
     val qbeastFileStats = qbeastMatchingFiles(partitionFilters, dataFilters)
+    // FILTER FILES FROM DELTA
     val stagingFileStats = stagingFiles(partitionFilters, dataFilters)
+    // JOIN BOTH FILTERED FILES
     val fileStats = qbeastFileStats ++ stagingFileStats
 
     val sc = index.spark.sparkContext
     val execId = sc.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
-    val pfStr = partitionFilters.map(_.toString).mkString(" ")
-    logInfo(s"OTreeIndex partition filters (exec id $execId): $pfStr")
-    val dfStr = dataFilters.map(_.toString).mkString(" ")
-    logInfo(s"OTreeIndex data filters (exec id $execId): $dfStr")
+    val pfStr = partitionFilters.map(f => f.toString).mkString(" ")
+    logInfo(s"OTreeIndex partition filters (exec id ${execId}): ${pfStr}")
+    val dfStr = dataFilters.map(f => f.toString).mkString(" ")
+    logInfo(s"OTreeIndex data filters (exec id ${execId}): ${dfStr}")
 
     val allFilesCount = snapshot.allFiles.count
     val nFiltered = allFilesCount - fileStats.length
-    val filteredPct = (nFiltered.toDouble / allFilesCount) * 100.0
-    val filteredMsg = f"$nFiltered of $allFilesCount (${filteredPct}%.2f%%)"
-    logInfo(s"Qbeast filtered files (exec id $execId): $filteredMsg")
+    val filteredPct = ((nFiltered * 1.0) / allFilesCount) * 100.0
+    val filteredMsg = f"${nFiltered} of ${allFilesCount} (${filteredPct}%.2f%%)"
+    logInfo(s"Qbeast filtered files (exec id ${execId}): ${filteredMsg}")
 
+    // RETURN
     Seq(PartitionDirectory(new GenericInternalRow(Array.empty[Any]), fileStats))
   }
 
-  override def inputFiles: Array[String] = index.inputFiles
+  override def inputFiles: Array[String] = {
+    index.inputFiles
+  }
 
   override def refresh(): Unit = index.refresh()
 
@@ -123,21 +144,30 @@ case class OTreeIndex(index: TahoeLogFileIndex)
   override def partitionSchema: StructType = index.partitionSchema
 }
 
+/**
+ * Companion object for OTreeIndex Builds an OTreeIndex instance from the path to a table
+ */
 object OTreeIndex {
+
   def apply(spark: SparkSession, path: Path): OTreeIndex = {
     val deltaLog = DeltaLog.forTable(spark, path)
     val unsafeVolatileSnapshot = deltaLog.update()
     val tahoe = TahoeLogFileIndex(spark, deltaLog, path, unsafeVolatileSnapshot, Seq.empty, false)
     OTreeIndex(tahoe)
   }
+
 }
+
+/**
+ * Singleton object for EmptyIndex. Used when creating a table with no data added
+ */
 
 object EmptyIndex extends FileIndex {
   override def rootPaths: Seq[Path] = Seq.empty
 
   override def listFiles(
-                          partitionFilters: Seq[Expression],
-                          dataFilters: Seq[Expression]): Seq[PartitionDirectory] = Seq.empty
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): Seq[PartitionDirectory] = Seq.empty
 
   override def inputFiles: Array[String] = Array.empty
 
