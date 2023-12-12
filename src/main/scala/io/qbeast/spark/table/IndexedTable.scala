@@ -14,7 +14,7 @@ import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{AnalysisException, AnalysisExceptionFactory, DataFrame}
+import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame}
 
 import java.util.ConcurrentModificationException
 
@@ -242,7 +242,7 @@ private[table] class IndexedTableImpl(
         if (isStaging(latestRevision)) { // If the existing Revision is Staging
           IndexStatus(revisionBuilder.createNewRevision(tableID, data.schema, updatedParameters))
         } else {
-          if (isNewRevision(QbeastOptions(updatedParameters), latestRevision)) {
+          if (isNewRevision(QbeastOptions(updatedParameters))) {
             // If the new parameters generate a new revision, we need to create another one
             val newPotentialRevision = revisionBuilder
               .createNewRevision(tableID, data.schema, updatedParameters)
