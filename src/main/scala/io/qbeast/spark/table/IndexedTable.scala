@@ -34,7 +34,7 @@ trait IndexedTable {
    * Returns whether the table contains Qbeast metadata
    * @return
    */
-  def containsQbeastMetadata: Boolean
+  def hasQbeastMetadata: Boolean
 
   /**
    * Returns the table id which identifies the table.
@@ -161,7 +161,7 @@ private[table] class IndexedTableImpl(
 
   override def exists: Boolean = !snapshot.isInitial
 
-  override def containsQbeastMetadata: Boolean = try {
+  override def hasQbeastMetadata: Boolean = try {
     snapshot.loadLatestRevision
     true
   } catch {
@@ -169,10 +169,12 @@ private[table] class IndexedTableImpl(
   }
 
   override def verifyAndMergeProperties(properties: Map[String, String]): Map[String, String] = {
-    if (!exists) { // IF not exists, we should only check new properties
+    if (!exists) {
+      // IF not exists, we should only check new properties
       checkQbeastOptions(properties)
       properties
-    } else if (containsQbeastMetadata) { // If exists, we can merge both properties: new and current
+    } else if (hasQbeastMetadata) {
+      // IF has qbeast metadata, we can merge both properties: new and current
       val currentColumnsIndexed =
         latestRevision.columnTransformers.map(_.columnName).mkString(",")
       val currentCubeSize = latestRevision.desiredCubeSize.toString
