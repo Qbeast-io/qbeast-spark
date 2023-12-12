@@ -50,7 +50,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
 
     spark.sql(
       s"CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
-        "TBLPROPERTIES ('columnsToIndex'='id')")
+        "OPTIONS ('columnsToIndex'='id')")
 
     spark.sql("INSERT INTO table student SELECT * FROM data")
 
