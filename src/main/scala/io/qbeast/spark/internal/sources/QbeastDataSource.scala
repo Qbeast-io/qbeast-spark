@@ -4,7 +4,6 @@
 package io.qbeast.spark.internal.sources
 
 import io.qbeast.context.QbeastContext
-import io.qbeast.context.QbeastContext.metadataManager
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
 import io.qbeast.spark.table.IndexedTableFactory
@@ -58,11 +57,7 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
     val indexedTable = tableFactory.getIndexedTable(tableId)
     if (indexedTable.exists) {
       // If the table exists, we make sure to pass all the properties to QbeastTableImpl
-      val currentRevision = metadataManager.loadSnapshot(tableId).loadLatestRevision
-      val indexProperties = Map(
-        "columnsToIndex" -> currentRevision.columnTransformers.map(_.columnName).mkString(","),
-        "cubeSize" -> currentRevision.desiredCubeSize.toString)
-      val tableProperties = properties.asScala.toMap ++ indexProperties
+      val tableProperties = indexedTable.verifyAndMergeProperties(properties.asScala.toMap)
       new QbeastTableImpl(
         TableIdentifier(tableId.id),
         new Path(tableId.id),

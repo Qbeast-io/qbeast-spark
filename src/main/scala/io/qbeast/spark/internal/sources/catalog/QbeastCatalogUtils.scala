@@ -3,11 +3,10 @@
  */
 package io.qbeast.spark.internal.sources.catalog
 
-import io.qbeast.context.QbeastContext.metadataManager
+import io.qbeast.context.QbeastContext.{metadataManager}
 import io.qbeast.core.model.QTableID
-import io.qbeast.spark.internal.QbeastOptions._
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
-import io.qbeast.spark.table.{IndexedTableFactory}
+import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.CannotReplaceMissingTableException
@@ -19,7 +18,6 @@ import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.datasources.DataSource
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{
-  AnalysisException,
   AnalysisExceptionFactory,
   DataFrame,
   SaveMode,
@@ -181,21 +179,7 @@ object QbeastCatalogUtils {
 
     // Process the parameters/options/configuration sent to the table
     val indexedTable = tableFactory.getIndexedTable(QTableID(loc.toString))
-    val isNewQbeastTable = (tableType == CatalogTableType.EXTERNAL) && !indexedTable.isConverted
-    if (indexedTable.exists && isNewQbeastTable) {
-      throw AnalysisExceptionFactory.create(
-        "The table you are trying to create already exists and is NOT Qbeast Formatted. " +
-          "Please use the ConvertToQbeastCommand before creating the table.")
-    }
-    val allProperties = {
-      try {
-        checkQbeastOptions(properties)
-        properties // No options added
-      } catch {
-        case _: AnalysisException => // Add existing table properties
-          properties ++ indexedTable.properties // Add the write options
-      }
-    }
+    val allProperties = indexedTable.verifyAndMergeProperties(properties)
 
     // Initialize the path option
     val storage = DataSource
