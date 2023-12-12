@@ -16,7 +16,7 @@ class QbeastCreateTableSQLTest extends QbeastIntegrationTestSpec {
     students.toDF()
   }
 
-  it should "create EXTERNAL existing indexedTable WITHOUT options" in
+  "Qbeast SQL" should "create EXTERNAL existing indexedTable WITHOUT options" in
     withQbeastContextSparkAndTmpWarehouse((spark, tmpDir) => {
 
       val location = tmpDir + "/external_student/"
