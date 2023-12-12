@@ -6,11 +6,9 @@ package io.qbeast.spark.internal.sources.catalog
 import io.qbeast.context.QbeastContext.metadataManager
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
-import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
 import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.fs.Path
-import org.apache.spark.qbeast.config.AUTO_INDEXING_ENABLED
 import org.apache.spark.sql.catalyst.analysis.CannotReplaceMissingTableException
 import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.plans.logical.TableSpec
@@ -204,12 +202,6 @@ object QbeastCatalogUtils {
             "to get all the benefits of data skipping. ")
     }
 
-    val indexedTable = tableFactory.getIndexedTable(QTableID(loc.toString))
-    val properties = allTableProperties.asScala.toMap
-    if (!indexedTable.exists && !AUTO_INDEXING_ENABLED) {
-      checkQbeastProperties(properties)
-    }
-
     val t = new CatalogTable(
       identifier = id,
       tableType = tableType,
@@ -218,7 +210,7 @@ object QbeastCatalogUtils {
       provider = Some("qbeast"),
       partitionColumnNames = Seq.empty,
       bucketSpec = None,
-      properties = properties,
+      properties = allTableProperties.asScala.toMap,
       comment = commentOpt)
 
     // Verify the schema if it's an external table
@@ -232,7 +224,7 @@ object QbeastCatalogUtils {
     dataFrame.map { df =>
       tableFactory
         .getIndexedTable(QTableID(loc.toString))
-        .save(df, properties, append)
+        .save(df, allTableProperties.asScala.toMap, append)
     }
 
     // Update the existing session catalog with the Qbeast table information
