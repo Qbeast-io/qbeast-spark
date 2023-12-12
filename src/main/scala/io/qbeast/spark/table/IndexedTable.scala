@@ -165,7 +165,7 @@ private[table] class IndexedTableImpl(
     snapshot.loadLatestRevision
     true
   } catch {
-    case _: AnalysisException => false
+    case _: Exception => false
   }
 
   override def verifyAndMergeProperties(properties: Map[String, String]): Map[String, String] = {
@@ -236,16 +236,16 @@ private[table] class IndexedTableImpl(
       append: Boolean): BaseRelation = {
     val indexStatus =
       if (exists && append) {
-        // If the indexedTable exists and we are appending new data
+        // If the table exists and we are appending new data
         // 1. Load existing IndexStatus
-        val updatedProperties = verifyAndMergeProperties(parameters)
+        val updatedParameters = verifyAndMergeProperties(parameters)
         if (isStaging(latestRevision)) { // If the existing Revision is Staging
-          IndexStatus(revisionBuilder.createNewRevision(tableID, data.schema, updatedProperties))
+          IndexStatus(revisionBuilder.createNewRevision(tableID, data.schema, updatedParameters))
         } else {
-          if (isNewRevision(QbeastOptions(updatedProperties))) {
+          if (isNewRevision(QbeastOptions(updatedParameters), latestRevision)) {
             // If the new parameters generate a new revision, we need to create another one
             val newPotentialRevision = revisionBuilder
-              .createNewRevision(tableID, data.schema, updatedProperties)
+              .createNewRevision(tableID, data.schema, updatedParameters)
             val newRevisionCubeSize = newPotentialRevision.desiredCubeSize
             // Merge new Revision Transformations with old Revision Transformations
             val newRevisionTransformations =
@@ -296,7 +296,7 @@ private[table] class IndexedTableImpl(
   }
 
   /**
-   * Creates a QbeastBaseRelation for the given indexedTable.
+   * Creates a QbeastBaseRelation for the given table.
    * @return the QbeastBaseRelation
    */
   private def createQbeastBaseRelation(): BaseRelation = {
@@ -414,7 +414,7 @@ private[table] class IndexedTableImpl(
     val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
 
     metadataManager.updateWithTransaction(tableID, schema, append = true) {
-      // There's no affected indexedTable changes on compaction, so we send an empty object
+      // There's no affected table changes on compaction, so we send an empty object
       val tableChanges = BroadcastedTableChanges(None, currentIndexStatus, Map.empty)
       val fileActions =
         dataWriter.compact(tableID, schema, currentIndexStatus, tableChanges)
