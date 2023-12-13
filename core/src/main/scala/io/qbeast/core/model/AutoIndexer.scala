@@ -19,7 +19,8 @@ trait AutoIndexer[DATA] {
    *   the data to index
    * @return
    */
-  def chooseColumnsToIndex(data: DATA): Seq[String]
+  def chooseColumnsToIndex(data: DATA): Seq[String] =
+    chooseColumnsToIndex(data, MAX_COLUMNS_TO_INDEX)
 
   /**
    * Chooses the columns to index.
