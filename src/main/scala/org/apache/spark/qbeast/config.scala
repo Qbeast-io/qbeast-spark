@@ -46,7 +46,7 @@ package object config {
       .longConf
       .createOptional
 
-  private[config] val autoIndexingEnabled: ConfigEntry[Boolean] =
+  private[config] val columnsToIndexSelectorEnabled: ConfigEntry[Boolean] =
     ConfigBuilder("spark.qbeast.index.columnsToIndex.auto")
       .version("0.2.0")
       .booleanConf
@@ -75,7 +75,7 @@ package object config {
 
   def STAGING_SIZE_IN_BYTES: Option[Long] = QbeastContext.config.get(stagingSizeInBytes)
 
-  def AUTO_INDEXING_ENABLED: Boolean = QbeastContext.config.get(autoIndexingEnabled)
+  def COLUMN_SELECTOR_ENABLED: Boolean = QbeastContext.config.get(columnsToIndexSelectorEnabled)
 
   def MAX_NUM_COLUMNS_TO_INDEX: Int = QbeastContext.config.get(maxNumColumnsToIndex)
 

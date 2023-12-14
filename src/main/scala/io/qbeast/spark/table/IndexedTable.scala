@@ -11,7 +11,7 @@ import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.QbeastOptions.COLUMNS_TO_INDEX
 import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
-import org.apache.spark.qbeast.config.AUTO_INDEXING_ENABLED
+import org.apache.spark.qbeast.config.COLUMN_SELECTOR_ENABLED
 import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.sources.BaseRelation
@@ -275,11 +275,11 @@ private[table] class IndexedTableImpl(
       } else {
         // IF autoIndexingEnabled, choose columns to index
         val optionalColumnsToIndex = parameters.contains(COLUMNS_TO_INDEX)
-        val updatedParameters = if (!optionalColumnsToIndex && !AUTO_INDEXING_ENABLED) {
+        val updatedParameters = if (!optionalColumnsToIndex && !COLUMN_SELECTOR_ENABLED) {
           throw AnalysisExceptionFactory.create(
             "Auto indexing is disabled. Pleasespecify the columns to index in a comma separated way" +
               " as .option(columnsToIndex, ...) or enable auto indexing with spark.qbeast.index.autoIndexingEnabled=true")
-        } else if (AUTO_INDEXING_ENABLED) {
+        } else if (COLUMN_SELECTOR_ENABLED) {
           val columnsToIndex = autoIndexer.selectColumnsToIndex(data)
           parameters + (COLUMNS_TO_INDEX -> columnsToIndex.mkString(","))
         } else parameters
