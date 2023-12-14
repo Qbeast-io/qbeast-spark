@@ -63,7 +63,7 @@ class SparkColumnsToIndexSelectorTest extends QbeastIntegrationTestSpec {
   })
 
   it should "select all columns if maxColumnsToIndex > num columns of dataframe" in withExtendedSpark(
-    sparkConf = sparkConfWithSqlAndCatalog.set("spark.qbeast.index.maxColumnsToIndex", "10"))(
+    sparkConf = sparkConfWithSqlAndCatalog.set("spark.qbeast.index.columnsToIndex.auto.max", "10"))(
     spark => {
 
       import spark.implicits._
@@ -86,7 +86,7 @@ class SparkColumnsToIndexSelectorTest extends QbeastIntegrationTestSpec {
     })
 
   it should "not select more than maxColumnsToIndex" in withExtendedSpark(sparkConf =
-    sparkConfWithSqlAndCatalog.set("spark.qbeast.index.maxColumnsToIndex", "10"))(spark => {
+    sparkConfWithSqlAndCatalog.set("spark.qbeast.index.columnsToIndex.auto.max", "10"))(spark => {
 
     import spark.implicits._
     val largeColumnDF =

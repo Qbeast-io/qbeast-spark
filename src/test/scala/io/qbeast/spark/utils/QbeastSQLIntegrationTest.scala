@@ -183,7 +183,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
     }
 
   it should "work without providing columnsToIndex" in withExtendedSparkAndTmpDir(
-    sparkConfWithSqlAndCatalog.set("spark.qbeast.index.autoIndexerEnabled", "true")) {
+    sparkConfWithSqlAndCatalog.set("spark.qbeast.index.columnsToIndex.auto", "true")) {
     (spark, tmpDir) =>
       {
         val data = createTestData(spark)
