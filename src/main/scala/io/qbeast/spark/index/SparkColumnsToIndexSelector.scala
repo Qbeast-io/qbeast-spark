@@ -13,7 +13,9 @@ import org.apache.spark.ml.Pipeline
 import org.apache.spark.qbeast.config.MAX_NUM_COLUMNS_TO_INDEX
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.unix_timestamp
+import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.TimestampType
 import org.apache.spark.sql.DataFrame
 
 object SparkColumnsToIndexSelector extends ColumnsToIndexSelector[DataFrame] with Serializable {
@@ -33,7 +35,7 @@ object SparkColumnsToIndexSelector extends ColumnsToIndexSelector[DataFrame] wit
    */
   private def withUnixTimestamp(data: DataFrame, inputCols: Seq[StructField]): DataFrame = {
     val timestampColsTransformation = inputCols
-      .filter(_.dataType == org.apache.spark.sql.types.TimestampType)
+      .filter(_.dataType == TimestampType)
       .map(c => (c.name, unix_timestamp(col(c.name))))
       .toMap
 
@@ -54,7 +56,7 @@ object SparkColumnsToIndexSelector extends ColumnsToIndexSelector[DataFrame] wit
 
     val transformers = inputCols
       .collect {
-        case column if column.dataType == org.apache.spark.sql.types.StringType =>
+        case column if column.dataType == StringType =>
           val colName = column.name
           val indexer = new StringIndexer().setInputCol(colName).setOutputCol(s"${colName}_Index")
           val encoder =
