@@ -1,14 +1,14 @@
-## Auto Indexer
+## Columns To Index Selector
 
-Qbeast Format organizes the records using a multidimensional index. This index is built on a subset of the columns in the table. From `1.0.0` version, **the columns can be selected automatically by the Auto Indexer or manually by the user**.
+Qbeast Format organizes the records using a multidimensional index. This index is built on a subset of the columns in the table. From `1.0.0` version, **the columns can be selected automatically by enabling the automatic column index selector or manually by the user**.
 
 If you want to forget about the distribution and let qbeast handle all the indexing pre-process, there's no need to specify the `columnsToIndex` in the **DataFrame**.
 
-You only need to **enable the Auto Indexer in the `SparkConf`**:
+You only need to **enable the Columns To Index Selector in the `SparkConf`**:
 
 ```shell
---conf spark.qbeast.index.autoIndexerEnabled=true \
---conf spark.qbeast.index.maxColumnsToIndex=10
+--conf spark.qbeast.index.columnsToIndex.auto=true \
+--conf spark.qbeast.index.columnsToIndex.auto.max=10
 ```
 
 And **write the DataFrame as usual**:
@@ -24,10 +24,10 @@ spark.sql("CREATE TABLE table_name USING qbeast LOCATION 'path/to/table'")
 ```
 ### Interface
 
-The Auto Indexer is an interface that can be implemented by different classes. The interface is defined as follows:
+The `ColumnsToIndexSelector` is an interface that can be implemented by different classes. The interface is defined as follows:
 
 ```scala
-trait AutoIndexer[DATA] {
+trait ColumnsToIndexSelector[DATA] {
 
   /**
    * The maximum number of columns to index.
@@ -36,32 +36,32 @@ trait AutoIndexer[DATA] {
   def MAX_COLUMNS_TO_INDEX: Int
 
   /**
-   * Chooses the columns to index without limiting the number of columns.
+   * Selects the columns to index given a DataFrame
    * @param data
    *   the data to index
    * @return
    */
-  def chooseColumnsToIndex(data: DATA): Seq[String]
+  def selectColumnsToIndex(data: DATA): Seq[String] =
+    selectColumnsToIndex(data, MAX_COLUMNS_TO_INDEX)
 
   /**
-   * Chooses the columns to index.
+   * Selects the columns to index with a given number of columns to index
    * @param data
    *   the data to index
    * @param numColumnsToIndex
-   *   the number of columns to index if not specified, the default value is
-   *   MAX_NUM_COLUMNS_TO_INDEX
+   *   the number of columns to index
    * @return
    *   A sequence with the names of the columns to index
    */
-  def chooseColumnsToIndex(data: DATA, numColumnsToIndex: Int): Seq[String]
+  def selectColumnsToIndex(data: DATA, numColumnsToIndex: Int): Seq[String]
 
 }
 
 ```
 
-### SparkAutoIndexer
+### SparkColumnsToIndexSelector
 
-`SparkAutoIndexer` is the first implementation of the AutoIndexer process. Is designed to work with Apache Spark DataFrames and **provides functionality to automatically select columns for indexing based on certain criteria**.
+`SparkColumnsToIndexSelector` is the first implementation of the `ColumnsToIndexSelector` process. Is designed to work with Apache Spark DataFrames and **provides functionality to automatically select columns for indexing based on certain criteria**.
 
 The steps are the following:
 
