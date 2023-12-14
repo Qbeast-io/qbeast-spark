@@ -131,7 +131,7 @@ final class IndexedTableFactoryImpl(
     private val metadataManager: MetadataManager[StructType, FileAction, QbeastOptions],
     private val dataWriter: DataWriter[DataFrame, StructType, FileAction],
     private val revisionFactory: RevisionFactory[StructType, QbeastOptions],
-    private val autoIndexer: AutoIndexer[DataFrame])
+    private val autoIndexer: ColumnsToIndexSelector[DataFrame])
     extends IndexedTableFactory {
 
   override def getIndexedTable(tableID: QTableID): IndexedTable =
@@ -171,7 +171,7 @@ private[table] class IndexedTableImpl(
     private val metadataManager: MetadataManager[StructType, FileAction, QbeastOptions],
     private val dataWriter: DataWriter[DataFrame, StructType, FileAction],
     private val revisionFactory: RevisionFactory[StructType, QbeastOptions],
-    private val autoIndexer: AutoIndexer[DataFrame])
+    private val autoIndexer: ColumnsToIndexSelector[DataFrame])
     extends IndexedTable
     with StagingUtils {
   private var snapshotCache: Option[QbeastSnapshot] = None
@@ -280,7 +280,7 @@ private[table] class IndexedTableImpl(
             "Auto indexing is disabled. Pleasespecify the columns to index in a comma separated way" +
               " as .option(columnsToIndex, ...) or enable auto indexing with spark.qbeast.index.autoIndexingEnabled=true")
         } else if (AUTO_INDEXING_ENABLED) {
-          val columnsToIndex = autoIndexer.chooseColumnsToIndex(data)
+          val columnsToIndex = autoIndexer.selectColumnsToIndex(data)
           parameters + (COLUMNS_TO_INDEX -> columnsToIndex.mkString(","))
         } else parameters
         val options = QbeastOptions(updatedParameters)

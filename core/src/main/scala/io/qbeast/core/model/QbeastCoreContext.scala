@@ -21,7 +21,7 @@ trait QbeastCoreContext[DATA, DataSchema, QbeastOptions, FileDescriptor] {
   def indexManager: IndexManager[DATA]
   def queryManager[QUERY: ClassTag]: QueryManager[QUERY, DATA]
   def revisionBuilder: RevisionFactory[DataSchema, QbeastOptions]
-  def autoIndexer: AutoIndexer[DATA]
+  def columnSelector: ColumnsToIndexSelector[DATA]
   def keeper: Keeper
 
 }

@@ -8,7 +8,7 @@ import io.qbeast.core.keeper.LocalKeeper
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.writer.RollupDataWriter
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
-import io.qbeast.spark.index.SparkAutoIndexer
+import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.internal.QbeastOptions
@@ -93,7 +93,7 @@ object QbeastContext
   override def revisionBuilder: RevisionFactory[StructType, QbeastOptions] =
     SparkRevisionFactory
 
-  override def autoIndexer: AutoIndexer[DataFrame] = SparkAutoIndexer
+  override def columnSelector: ColumnsToIndexSelector[DataFrame] = SparkColumnsToIndexSelector
 
   /**
    * Sets the unmanaged context. The specified context will not be disposed automatically at the
@@ -150,7 +150,7 @@ object QbeastContext
       metadataManager,
       dataWriter,
       revisionBuilder,
-      autoIndexer)
+      columnSelector)
 
   private def destroyManaged(): Unit = this.synchronized {
     managedOption.foreach(_.keeper.stop())

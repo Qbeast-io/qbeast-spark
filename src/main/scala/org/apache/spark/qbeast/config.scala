@@ -47,13 +47,13 @@ package object config {
       .createOptional
 
   private[config] val autoIndexingEnabled: ConfigEntry[Boolean] =
-    ConfigBuilder("spark.qbeast.index.autoIndexerEnabled")
+    ConfigBuilder("spark.qbeast.index.columnsToIndex.auto")
       .version("0.2.0")
       .booleanConf
       .createWithDefault(false)
 
   private[config] val maxNumColumnsToIndex: ConfigEntry[Int] =
-    ConfigBuilder("spark.qbeast.index.maxColumnsToIndex")
+    ConfigBuilder("spark.qbeast.index.columnsToIndex.auto.max")
       .version("0.2.0")
       .intConf
       .createWithDefault(3)

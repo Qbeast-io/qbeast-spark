@@ -1,6 +1,6 @@
 package io.qbeast.spark.utils
 
-import io.qbeast.spark.index.SparkAutoIndexer
+import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.QbeastTable
 import io.qbeast.TestClasses.Student
@@ -194,7 +194,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
             s"LOCATION '$tmpDir' " +
             "AS SELECT * FROM data;")
 
-        val autoColumnsToIndex = SparkAutoIndexer.chooseColumnsToIndex(data)
+        val autoColumnsToIndex = SparkColumnsToIndexSelector.selectColumnsToIndex(data)
 
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
         qbeastTable.indexedColumns() shouldBe autoColumnsToIndex

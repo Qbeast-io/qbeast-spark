@@ -2,9 +2,9 @@ package io.qbeast.spark.index
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
 
-class SparkAutoIndexerTest extends QbeastIntegrationTestSpec {
+class SparkColumnsToIndexSelectorTest extends QbeastIntegrationTestSpec {
 
-  behavior of "SparkAutoIndexer"
+  behavior of "SparkColumnsToIndexSelector"
 
   it should "select correct columns for indexing" in withSpark(spark => {
 
@@ -16,10 +16,10 @@ class SparkAutoIndexerTest extends QbeastIntegrationTestSpec {
       // Add more rows as needed
     ).toDF("id", "name", "timestamp", "value")
 
-    // Initialize SparkAutoIndexer
-    val autoIndexer = SparkAutoIndexer
+    // Initialize SparkColumnsToIndexSelector
+    val autoIndexer = SparkColumnsToIndexSelector
     val numColumnsToSelect = 2 // Adjust as needed
-    val selectedColumns = autoIndexer.chooseColumnsToIndex(testDF, numColumnsToSelect)
+    val selectedColumns = autoIndexer.selectColumnsToIndex(testDF, numColumnsToSelect)
 
     // Assertions
     selectedColumns.length shouldBe numColumnsToSelect
@@ -37,9 +37,9 @@ class SparkAutoIndexerTest extends QbeastIntegrationTestSpec {
       // Add more rows as needed
     ).toDF("s", "i")
 
-    // Initialize SparkAutoIndexer
-    val autoIndexer = SparkAutoIndexer
-    val selectedColumns = autoIndexer.chooseColumnsToIndex(testDF)
+    // Initialize SparkColumnsToIndexSelector
+    val autoIndexer = SparkColumnsToIndexSelector
+    val selectedColumns = autoIndexer.selectColumnsToIndex(testDF)
 
     selectedColumns should contain theSameElementsAs testDF.columns
   })
@@ -55,9 +55,9 @@ class SparkAutoIndexerTest extends QbeastIntegrationTestSpec {
       // Add more rows as needed
     ).toDF("id", "name", "timestamp", "value")
 
-    // Initialize SparkAutoIndexer
-    val autoIndexer = SparkAutoIndexer
-    val selectedColumns = autoIndexer.chooseColumnsToIndex(testDF)
+    // Initialize SparkColumnsToIndexSelector
+    val autoIndexer = SparkColumnsToIndexSelector
+    val selectedColumns = autoIndexer.selectColumnsToIndex(testDF)
 
     selectedColumns.length shouldBe 3
   })
@@ -74,11 +74,11 @@ class SparkAutoIndexerTest extends QbeastIntegrationTestSpec {
         // Add more rows as needed
       ).toDF("id", "name", "timestamp", "value")
 
-      // Initialize SparkAutoIndexer
-      val autoIndexer = SparkAutoIndexer
+      // Initialize SparkColumnsToIndexSelector
+      val autoIndexer = SparkColumnsToIndexSelector
 
       // Invoke method
-      val selectedColumns = autoIndexer.chooseColumnsToIndex(testDF)
+      val selectedColumns = autoIndexer.selectColumnsToIndex(testDF)
 
       // Assertions
       selectedColumns.length shouldBe 4 // 4 columns in the test data
@@ -93,8 +93,8 @@ class SparkAutoIndexerTest extends QbeastIntegrationTestSpec {
       Seq((1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), (2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13))
         .toDF()
 
-    val autoIndexer = SparkAutoIndexer
-    val selectedLargeColumns = autoIndexer.chooseColumnsToIndex(largeColumnDF)
+    val autoIndexer = SparkColumnsToIndexSelector
+    val selectedLargeColumns = autoIndexer.selectColumnsToIndex(largeColumnDF)
     selectedLargeColumns.length shouldBe 10
   })
 
@@ -107,9 +107,9 @@ class SparkAutoIndexerTest extends QbeastIntegrationTestSpec {
       .empty[(Int, String, java.sql.Timestamp, Double)]
       .toDF("id", "name", "timestamp", "value")
 
-    // Initialize SparkAutoIndexer
-    val autoIndexer = SparkAutoIndexer
-    val selectedColumns = autoIndexer.chooseColumnsToIndex(testDF)
+    // Initialize SparkColumnsToIndexSelector
+    val autoIndexer = SparkColumnsToIndexSelector
+    val selectedColumns = autoIndexer.selectColumnsToIndex(testDF)
 
     // Assertions
     selectedColumns should contain theSameElementsAs testDF.columns.take(3)
