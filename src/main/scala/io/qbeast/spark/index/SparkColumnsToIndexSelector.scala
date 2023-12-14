@@ -82,7 +82,7 @@ object SparkColumnsToIndexSelector extends ColumnsToIndexSelector[DataFrame] wit
   }
 
   /**
-   * Calculates the top N minimum absolute correlated columns
+   * Selects the top N minimum absolute correlated columns
    * @param data
    *   the DataFrame
    * @param inputCols
@@ -91,7 +91,7 @@ object SparkColumnsToIndexSelector extends ColumnsToIndexSelector[DataFrame] wit
    *   the number of columns to return
    * @return
    */
-  protected def getTopNCorrelatedColumns(
+  protected def selectTopNCorrelatedColumns(
       data: DataFrame,
       inputCols: Seq[StructField],
       numCols: Int): Array[String] = {
@@ -137,7 +137,7 @@ object SparkColumnsToIndexSelector extends ColumnsToIndexSelector[DataFrame] wit
     val preprocessedPipeline = withPreprocessedPipeline(updatedData, inputCols)
     // Calculate the top N minimum absolute correlated columns
     val selectedColumns =
-      getTopNCorrelatedColumns(preprocessedPipeline, inputCols, numColumnsToIndex)
+      selectTopNCorrelatedColumns(preprocessedPipeline, inputCols, numColumnsToIndex)
 
     selectedColumns
 
