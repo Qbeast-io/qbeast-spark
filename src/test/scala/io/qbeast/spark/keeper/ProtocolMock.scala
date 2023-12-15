@@ -141,7 +141,7 @@ class WritingProcess(context: ProtoTestContext)(implicit keeper: Keeper) extends
       val writer = writeData(rev)
       while (tries > 0) {
         val knownAnnounced = winfo.announcedCubes.map(rev.createCubeId)
-        deltaLog.withNewTransaction { txn =>
+        deltaLog.withNewTransaction(None, Some(deltaLog.update())) { txn =>
           enteredTransaction()
           val (changes, newFiles) = writer
           val finalActions = metadataWriter.updateMetadata(txn, changes, newFiles)
@@ -182,6 +182,7 @@ class OptimizingProcessGood(context: ProtoTestContext)(implicit keeper: Keeper)
     val bo = keeper.beginOptimization(tableID, rev.revisionID)
 
     val deltaLog = SparkDeltaMetadataManager.loadDeltaQbeastLog(tableID).deltaLog
+    val deltaSnapshot = deltaLog.update()
     val mode = SaveMode.Append
     val options =
       new DeltaOptions(Map("path" -> tableID.id), SparkSession.active.sessionState.conf)
@@ -190,7 +191,7 @@ class OptimizingProcessGood(context: ProtoTestContext)(implicit keeper: Keeper)
 
     try {
       val optimizer = optimizeData(rev, cubesToOptimize)
-      deltaLog.withNewTransaction(tnx => {
+      deltaLog.withNewTransaction(None, Some(deltaSnapshot))(tnx => {
         enteredTransaction()
         val (changes, newFiles) = optimizer
         simulatePause()
@@ -215,6 +216,7 @@ class OptimizingProcessBad(context: ProtoTestContext, args: Seq[String])(implici
     val bo = keeper.beginOptimization(tableID, rev.revisionID)
 
     val deltaLog = SparkDeltaMetadataManager.loadDeltaQbeastLog(tableID).deltaLog
+    val deltaSnapshot = deltaLog.update()
     val mode = SaveMode.Append
     val options =
       new DeltaOptions(Map("path" -> tableID.id), SparkSession.active.sessionState.conf)
@@ -224,7 +226,7 @@ class OptimizingProcessBad(context: ProtoTestContext, args: Seq[String])(implici
 
     try {
       val optimizer = optimizeData(rev, cubesToOptimize.map(rev.createCubeId))
-      deltaLog.withNewTransaction(tnx => {
+      deltaLog.withNewTransaction(None, Some(deltaSnapshot))(tnx => {
         enteredTransaction()
         val (changes, newFiles) = optimizer
         simulatePause()

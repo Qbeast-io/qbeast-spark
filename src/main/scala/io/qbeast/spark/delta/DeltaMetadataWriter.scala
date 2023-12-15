@@ -76,7 +76,7 @@ private[delta] case class DeltaMetadataWriter(
   }
 
   def writeWithTransaction(writer: => (TableChanges, Seq[FileAction])): Unit = {
-    deltaLog.withNewTransaction { txn =>
+    deltaLog.withNewTransaction(None, Some(deltaLog.update())) { txn =>
       // Register metrics to use in the Commit Info
       val statsTrackers = createStatsTrackers(txn)
       registerStatsTrackers(statsTrackers)
@@ -90,7 +90,7 @@ private[delta] case class DeltaMetadataWriter(
   }
 
   def updateMetadataWithTransaction(update: => Configuration): Unit = {
-    deltaLog.withNewTransaction { txn =>
+    deltaLog.withNewTransaction(None, Some(deltaLog.update())) { txn =>
       if (txn.metadata.partitionColumns.nonEmpty) {
         throw AnalysisExceptionFactory.create(partitionedTableExceptionMsg)
       }
