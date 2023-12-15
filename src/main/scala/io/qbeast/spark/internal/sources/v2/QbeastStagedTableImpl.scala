@@ -49,10 +49,6 @@ private[sources] class QbeastStagedTableImpl(
 
   override def commitStagedChanges(): Unit = {
 
-    // scalastyle:off
-    println("PROPERTIES UNDER THE HOOD")
-    properties.asScala.toMap.foreach(println)
-
     val props = new util.HashMap[String, String]()
 
     // Options passed in through the SQL API will show up both with an "option." prefix and
