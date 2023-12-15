@@ -37,7 +37,6 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
       }
     }
 
-  // TODO
   it should "work with SaveAsTable" in withQbeastContextSparkAndTmpWarehouse { (spark, tmpDir) =>
     {
 
