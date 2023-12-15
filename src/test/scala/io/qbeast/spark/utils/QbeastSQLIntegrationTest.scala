@@ -1,6 +1,8 @@
 package io.qbeast.spark.utils
 
+import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastTable
 import io.qbeast.TestClasses.Student
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.DataFrame
@@ -179,5 +181,26 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
         spark.sql("SELECT * FROM students WHERE name == 'qbeast'").count shouldBe 1
       }
     }
+
+  it should "work without providing columnsToIndex" in withExtendedSparkAndTmpDir(
+    sparkConfWithSqlAndCatalog.set("spark.qbeast.index.columnsToIndex.auto", "true")) {
+    (spark, tmpDir) =>
+      {
+        val data = createTestData(spark)
+        data.createOrReplaceTempView("data")
+
+        spark.sql(
+          "CREATE OR REPLACE TABLE student USING qbeast " +
+            s"LOCATION '$tmpDir' " +
+            "AS SELECT * FROM data;")
+
+        val autoColumnsToIndex = SparkColumnsToIndexSelector.selectColumnsToIndex(data)
+
+        val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+        qbeastTable.indexedColumns() shouldBe autoColumnsToIndex
+        qbeastTable.latestRevisionID() shouldBe 1L
+
+      }
+  }
 
 }

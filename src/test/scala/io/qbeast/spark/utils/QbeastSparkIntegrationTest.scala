@@ -1,6 +1,7 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastTable
 import io.qbeast.TestClasses.Student
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
@@ -130,5 +131,31 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
 
       assertSmallDatasetEquality(indexed, data, orderedComparison = false, ignoreNullable = true)
     })
+
+  it should "work without providing columnsToIndex" in withExtendedSparkAndTmpDir(
+    sparkConfWithSqlAndCatalog.set("spark.qbeast.index.columnsToIndex.auto", "true")) {
+    (spark, tmpDir) =>
+      {
+        val data = createStudentsTestData(spark)
+        data.write.format("qbeast").save(tmpDir)
+
+        val indexed = spark.read.format("qbeast").load(tmpDir)
+
+        indexed.count() shouldBe data.count()
+
+        indexed.columns.toSet shouldBe data.columns.toSet
+
+        assertSmallDatasetEquality(
+          indexed,
+          data,
+          orderedComparison = false,
+          ignoreNullable = true)
+
+        val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+        qbeastTable.indexedColumns() shouldBe Seq("name", "age", "id")
+        qbeastTable.latestRevisionID() shouldBe 1L
+
+      }
+  }
 
 }

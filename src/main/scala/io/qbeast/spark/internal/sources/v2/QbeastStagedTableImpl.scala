@@ -5,7 +5,6 @@ package io.qbeast.spark.internal.sources.v2
 
 import io.qbeast.spark.internal.sources.catalog.CreationMode
 import io.qbeast.spark.internal.sources.catalog.QbeastCatalogUtils
-import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
 import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.spark.sql.catalyst.catalog.SessionCatalog
 import org.apache.spark.sql.connector.catalog.Identifier
@@ -71,9 +70,6 @@ private[sources] class QbeastStagedTableImpl(
     // Drop the delta configuration check,
     // we pass all the writeOptions to the properties as well
     writeOptions.foreach { case (k, v) => props.put(k, v) }
-
-    // Check all the Qbeast properties are correctly specified
-    checkQbeastProperties(props.asScala.toMap)
 
     // Creates the corresponding table on the Catalog and executes
     // the writing of the dataFrame (if any)

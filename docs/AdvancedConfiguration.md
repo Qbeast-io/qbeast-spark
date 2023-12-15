@@ -65,6 +65,22 @@ You can specify different advanced options to the columns to index:
 df.write.format("qbeast").option("columnsToIndex", "column:type,column2:type...")
 ```
 
+## Automatic Column Selection
+
+To **avoid specifying the `columnsToIndex`**, you can enable auto indexer through the Spark Configuration:
+
+```shell
+--conf spark.qbeast.index.columnsToIndex.auto=true \
+--conf spark.qbeast.index.columnsToIndex.auto.max=10
+```
+And write the DataFrame without any extra option:
+
+```scala
+df.write.format("qbeast").save("path/to/table")
+```
+
+Read more about it in the [Columns to Index selector](ColumnsToIndexSelector.md) section.
+
 ## CubeSize
 
 CubeSize option lets you specify the maximum size of the cube, in number of records. By default, it's set to 5M.
