@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.internal.sources.catalog
 
-import io.qbeast.context.QbeastContext.metadataManager
+import io.qbeast.context.QbeastContext.{metadataManager}
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
 import io.qbeast.spark.table.IndexedTableFactory
@@ -155,13 +155,14 @@ object QbeastCatalogUtils {
       tableFactory: IndexedTableFactory,
       existingSessionCatalog: SessionCatalog): Unit = {
 
-    val isPathTable = QbeastCatalogUtils.isPathTable(ident)
+    val isPathTable = this.isPathTable(ident)
+    val properties = allTableProperties.asScala.toMap
 
     // Get table location
     val location = if (isPathTable) {
       Option(ident.name())
     } else {
-      Option(allTableProperties.get("location"))
+      properties.get("location")
     }
 
     // Define the table type.
@@ -175,6 +176,10 @@ object QbeastCatalogUtils {
     val loc = locUriOpt
       .orElse(existingTableOpt.flatMap(_.storage.locationUri))
       .getOrElse(existingSessionCatalog.defaultTablePath(id))
+
+    // Process the parameters/options/configuration sent to the table
+    val indexedTable = tableFactory.getIndexedTable(QTableID(loc.toString))
+    val allProperties = indexedTable.verifyAndMergeProperties(properties)
 
     // Initialize the path option
     val storage = DataSource
@@ -198,7 +203,7 @@ object QbeastCatalogUtils {
       provider = Some("qbeast"),
       partitionColumnNames = Seq.empty,
       bucketSpec = None,
-      properties = allTableProperties.asScala.toMap,
+      properties = allProperties,
       comment = commentOpt)
 
     // Verify the schema if it's an external table
@@ -210,9 +215,7 @@ object QbeastCatalogUtils {
     // Write data, if any
     val append = tableCreationMode.saveMode == SaveMode.Append
     dataFrame.map { df =>
-      tableFactory
-        .getIndexedTable(QTableID(loc.toString))
-        .save(df, allTableProperties.asScala.toMap, append)
+      indexedTable.save(df, allProperties, append)
     }
 
     // Update the existing session catalog with the Qbeast table information

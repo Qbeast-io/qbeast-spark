@@ -3,7 +3,7 @@
  */
 package io.qbeast.spark.internal.sources.v2
 
-import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
+import io.qbeast.spark.internal.QbeastOptions.checkQbeastOptions
 import io.qbeast.spark.internal.sources.catalog.{CreationMode, QbeastCatalogUtils}
 import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.spark.sql.catalyst.catalog.SessionCatalog
@@ -70,7 +70,7 @@ private[sources] class QbeastStagedTableImpl(
     writeOptions.foreach { case (k, v) => props.put(k, v) }
 
     // Check all the Qbeast properties are correctly specified
-    checkQbeastProperties(props.asScala.toMap)
+    checkQbeastOptions(props.asScala.toMap)
 
     // Creates the corresponding table on the Catalog and executes
     // the writing of the dataFrame (if any)

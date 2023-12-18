@@ -8,7 +8,7 @@ import io.qbeast.core.model._
 import io.qbeast.spark.delta.{CubeDataLoader, StagingDataManager, StagingResolution}
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.spark.internal.QbeastOptions.{COLUMNS_TO_INDEX, CUBE_SIZE}
+import io.qbeast.spark.internal.QbeastOptions._
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
 import org.apache.spark.sql.delta.actions.FileAction
@@ -31,11 +31,24 @@ trait IndexedTable {
   def exists: Boolean
 
   /**
+   * Returns whether the table contains Qbeast metadata
+   * @return
+   */
+  def hasQbeastMetadata: Boolean
+
+  /**
    * Returns the table id which identifies the table.
    *
    * @return the table id
    */
   def tableID: QTableID
+
+  /**
+   * Merge new and index current properties
+   * @param properties the properties you want to merge
+   * @return
+   */
+  def verifyAndMergeProperties(properties: Map[String, String]): Map[String, String]
 
   /**
    * Saves given data in the table and updates the index. The specified columns are
@@ -139,11 +152,61 @@ private[table] class IndexedTableImpl(
     with StagingUtils {
   private var snapshotCache: Option[QbeastSnapshot] = None
 
+  /**
+   * Latest Revision Available
+   *
+   * @return
+   */
+  private def latestRevision: Revision = snapshot.loadLatestRevision
+
   override def exists: Boolean = !snapshot.isInitial
 
-  private def isNewRevision(qbeastOptions: QbeastOptions, latestRevision: Revision): Boolean = {
+  override def hasQbeastMetadata: Boolean = try {
+    snapshot.loadLatestRevision
+    true
+  } catch {
+    case _: Exception => false
+  }
+
+  override def verifyAndMergeProperties(properties: Map[String, String]): Map[String, String] = {
+    if (!exists) {
+      // IF not exists, we should only check new properties
+      checkQbeastOptions(properties)
+      properties
+    } else if (hasQbeastMetadata) {
+      // IF has qbeast metadata, we can merge both properties: new and current
+      val currentColumnsIndexed =
+        latestRevision.columnTransformers.map(_.columnName).mkString(",")
+      val currentCubeSize = latestRevision.desiredCubeSize.toString
+      val finalProperties = {
+        (properties.contains(COLUMNS_TO_INDEX), properties.contains(CUBE_SIZE)) match {
+          case (true, true) => properties
+          case (false, false) =>
+            properties + (COLUMNS_TO_INDEX -> currentColumnsIndexed, CUBE_SIZE -> currentCubeSize)
+          case (true, false) => properties + (CUBE_SIZE -> currentCubeSize)
+          case (false, true) =>
+            properties + (COLUMNS_TO_INDEX -> currentColumnsIndexed)
+        }
+      }
+      finalProperties
+    } else {
+      throw AnalysisExceptionFactory.create(
+        s"Table ${tableID.id} exists but does not contain Qbeast metadata. " +
+          s"Please use ConvertToQbeastCommand to convert the table to Qbeast.")
+    }
+  }
+
+  private def isNewRevision(qbeastOptions: QbeastOptions): Boolean = {
+
     // TODO feature: columnsToIndex may change between revisions
-    checkColumnsToMatchSchema(latestRevision)
+    val columnsToIndex = qbeastOptions.columnsToIndex
+    val currentColumnsToIndex = latestRevision.columnTransformers.map(_.columnName)
+    val isNewColumns = !latestRevision.matchColumns(columnsToIndex)
+    if (isNewColumns) {
+      throw AnalysisExceptionFactory.create(
+        s"Columns to index '${columnsToIndex.mkString(",")}' do not match " +
+          s"existing index ${currentColumnsToIndex.mkString(",")}.")
+    }
     // Checks if the desiredCubeSize is different from the existing one
     val isNewCubeSize = latestRevision.desiredCubeSize != qbeastOptions.cubeSize
     // Checks if the user-provided column boundaries would trigger the creation of
@@ -169,26 +232,6 @@ private[table] class IndexedTableImpl(
 
   }
 
-  /**
-   * Add the required indexing parameters when the SaveMode is Append.
-   * The user-provided parameters are respected.
-   * @param latestRevision the latest revision
-   * @param parameters the parameters required for indexing
-   */
-  private def addRequiredParams(
-      latestRevision: Revision,
-      parameters: Map[String, String]): Map[String, String] = {
-    val columnsToIndex = latestRevision.columnTransformers.map(_.columnName).mkString(",")
-    val desiredCubeSize = latestRevision.desiredCubeSize.toString
-    (parameters.contains(COLUMNS_TO_INDEX), parameters.contains(CUBE_SIZE)) match {
-      case (true, true) => parameters
-      case (false, false) =>
-        parameters + (COLUMNS_TO_INDEX -> columnsToIndex, CUBE_SIZE -> desiredCubeSize)
-      case (true, false) => parameters + (CUBE_SIZE -> desiredCubeSize)
-      case (false, true) => parameters + (COLUMNS_TO_INDEX -> columnsToIndex)
-    }
-  }
-
   override def save(
       data: DataFrame,
       parameters: Map[String, String],
@@ -197,12 +240,11 @@ private[table] class IndexedTableImpl(
       if (exists && append) {
         // If the table exists and we are appending new data
         // 1. Load existing IndexStatus
-        val latestRevision = snapshot.loadLatestRevision
-        val updatedParameters = addRequiredParams(latestRevision, parameters)
+        val updatedParameters = verifyAndMergeProperties(parameters)
         if (isStaging(latestRevision)) { // If the existing Revision is Staging
           IndexStatus(revisionBuilder.createNewRevision(tableID, data.schema, updatedParameters))
         } else {
-          if (isNewRevision(QbeastOptions(updatedParameters), latestRevision)) {
+          if (isNewRevision(QbeastOptions(updatedParameters))) {
             // If the new parameters generate a new revision, we need to create another one
             val newPotentialRevision = revisionBuilder
               .createNewRevision(tableID, data.schema, updatedParameters)
@@ -253,14 +295,6 @@ private[table] class IndexedTableImpl(
 
   private def clearCaches(): Unit = {
     snapshotCache = None
-  }
-
-  private def checkColumnsToMatchSchema(revision: Revision): Unit = {
-    val columnsToIndex = revision.columnTransformers.map(_.columnName)
-    if (!snapshot.loadLatestRevision.matchColumns(columnsToIndex)) {
-      throw AnalysisExceptionFactory.create(
-        s"Columns to index '$columnsToIndex' do not match existing index.")
-    }
   }
 
   /**

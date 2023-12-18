@@ -4,7 +4,6 @@
 package io.qbeast.spark.internal.sources
 
 import io.qbeast.context.QbeastContext
-import io.qbeast.context.QbeastContext.metadataManager
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
 import io.qbeast.spark.table.IndexedTableFactory
@@ -54,15 +53,11 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       schema: StructType,
       partitioning: Array[Transform],
       properties: util.Map[String, String]): Table = {
-    val tableId = QbeastOptions.loadTableIDFromParameters(properties.asScala.toMap)
+    val tableId = QbeastOptions.loadTableIDFromOptions(properties.asScala.toMap)
     val indexedTable = tableFactory.getIndexedTable(tableId)
     if (indexedTable.exists) {
       // If the table exists, we make sure to pass all the properties to QbeastTableImpl
-      val currentRevision = metadataManager.loadSnapshot(tableId).loadLatestRevision
-      val indexProperties = Map(
-        "columnsToIndex" -> currentRevision.columnTransformers.map(_.columnName).mkString(","),
-        "cubeSize" -> currentRevision.desiredCubeSize.toString)
-      val tableProperties = properties.asScala.toMap ++ indexProperties
+      val tableProperties = indexedTable.verifyAndMergeProperties(properties.asScala.toMap)
       new QbeastTableImpl(
         TableIdentifier(tableId.id),
         new Path(tableId.id),
@@ -100,7 +95,7 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       parameters.contains("columnsToIndex") || mode == SaveMode.Append,
       throw AnalysisExceptionFactory.create("'columnsToIndex' is not specified"))
 
-    val tableId = QbeastOptions.loadTableIDFromParameters(parameters)
+    val tableId = QbeastOptions.loadTableIDFromOptions(parameters)
     val table = tableFactory.getIndexedTable(tableId)
     mode match {
       case SaveMode.Append => table.save(data, parameters, append = true)
@@ -116,7 +111,7 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
   override def createRelation(
       sqlContext: SQLContext,
       parameters: Map[String, String]): BaseRelation = {
-    val tableID = QbeastOptions.loadTableIDFromParameters(parameters)
+    val tableID = QbeastOptions.loadTableIDFromOptions(parameters)
     val table = tableFactory.getIndexedTable(tableID)
     if (table.exists) {
       table.load()
