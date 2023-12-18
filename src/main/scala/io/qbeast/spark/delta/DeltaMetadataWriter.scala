@@ -76,6 +76,13 @@ private[delta] case class DeltaMetadataWriter(
   }
 
   def writeWithTransaction(writer: => (TableChanges, Seq[FileAction])): Unit = {
+    val oldTransactions = deltaLog.unsafeVolatileSnapshot.setTransactions
+    // If the transaction was completed before then no operation
+    for (txn <- oldTransactions; version <- options.txnVersion; appId <- options.txnAppId) {
+      if (txn.appId == appId && txn.version == version) {
+        return
+      }
+    }
     deltaLog.withNewTransaction(None, Some(deltaLog.update())) { txn =>
       // Register metrics to use in the Commit Info
       val statsTrackers = createStatsTrackers(txn)
@@ -83,9 +90,13 @@ private[delta] case class DeltaMetadataWriter(
       // Execute write
       val (changes, newFiles) = writer
       // Update Qbeast Metadata (replicated set, revision..)
-      val finalActions = updateMetadata(txn, changes, newFiles)
+      var actions = updateMetadata(txn, changes, newFiles)
+      // Set transaction identifier if specified
+      for (txnVersion <- options.txnVersion; txnAppId <- options.txnAppId) {
+        actions +:= SetTransaction(txnAppId, txnVersion, Some(System.currentTimeMillis()))
+      }
       // Commit the information to the DeltaLog
-      txn.commit(finalActions, deltaOperation)
+      txn.commit(actions, deltaOperation)
     }
   }
 

@@ -10,15 +10,18 @@ import scala.reflect.ClassTag
  *   type of the data
  * @tparam DataSchema
  *   type of the data schema
+ * @tparam QbeastOptions
+ *   type of the Qbeast options
  * @tparam FileDescriptor
  *   type of the file descriptor
  */
-trait QbeastCoreContext[DATA, DataSchema, FileDescriptor] {
-  def metadataManager: MetadataManager[DataSchema, FileDescriptor]
+trait QbeastCoreContext[DATA, DataSchema, QbeastOptions, FileDescriptor] {
+  def metadataManager: MetadataManager[DataSchema, FileDescriptor, QbeastOptions]
   def dataWriter: DataWriter[DATA, DataSchema, FileDescriptor]
   def indexManager: IndexManager[DATA]
   def queryManager[QUERY: ClassTag]: QueryManager[QUERY, DATA]
-  def revisionBuilder: RevisionFactory[DataSchema]
+  def revisionBuilder: RevisionFactory[DataSchema, QbeastOptions]
+  def columnSelector: ColumnsToIndexSelector[DATA]
   def keeper: Keeper
 
 }
@@ -28,8 +31,10 @@ trait QbeastCoreContext[DATA, DataSchema, FileDescriptor] {
  *
  * @tparam DataSchema
  *   type of the data schema
+ * @tparam QbeastOptions
+ *   type of the Qbeast options
  */
-trait RevisionFactory[DataSchema] {
+trait RevisionFactory[DataSchema, QbeastOptions] {
 
   /**
    * Create a new revision for a table with given parameters
@@ -42,10 +47,7 @@ trait RevisionFactory[DataSchema] {
    *   the options
    * @return
    */
-  def createNewRevision(
-      qtableID: QTableID,
-      schema: DataSchema,
-      options: Map[String, String]): Revision
+  def createNewRevision(qtableID: QTableID, schema: DataSchema, options: QbeastOptions): Revision
 
   /**
    * Create a new revision with given parameters from an old revision
@@ -62,7 +64,7 @@ trait RevisionFactory[DataSchema] {
   def createNextRevision(
       qtableID: QTableID,
       schema: DataSchema,
-      options: Map[String, String],
+      options: QbeastOptions,
       oldRevision: RevisionID): Revision
 
 }

@@ -4,6 +4,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model._
+import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.IISeq
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.delta.DeltaLog
@@ -15,16 +16,29 @@ import org.apache.spark.sql.SparkSession
 /**
  * Spark+Delta implementation of the MetadataManager interface
  */
-object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction] {
+object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction, QbeastOptions] {
 
-  override def updateWithTransaction(tableID: QTableID, schema: StructType, append: Boolean)(
-      writer: => (TableChanges, IISeq[FileAction])): Unit = {
+  override def updateWithTransaction(
+      tableID: QTableID,
+      schema: StructType,
+      options: QbeastOptions,
+      append: Boolean)(writer: => (TableChanges, IISeq[FileAction])): Unit = {
 
     val deltaLog = loadDeltaQbeastLog(tableID).deltaLog
     val mode = if (append) SaveMode.Append else SaveMode.Overwrite
-    val options =
-      new DeltaOptions(Map("path" -> tableID.id), SparkSession.active.sessionState.conf)
-    val metadataWriter = DeltaMetadataWriter(tableID, mode, deltaLog, options, schema)
+    val conf = SparkSession.active.sessionState.conf
+    val deltaOptions = Map.newBuilder[String, String]
+    deltaOptions += "path" -> tableID.id
+    for (txnAppId <- options.txnAppId; txnVersion <- options.txnVersion) {
+      deltaOptions += DeltaOptions.TXN_APP_ID -> txnAppId
+      deltaOptions += DeltaOptions.TXN_VERSION -> txnVersion
+    }
+    val metadataWriter = DeltaMetadataWriter(
+      tableID,
+      mode,
+      deltaLog,
+      new DeltaOptions(deltaOptions.result(), conf),
+      schema)
     metadataWriter.writeWithTransaction(writer)
   }
 

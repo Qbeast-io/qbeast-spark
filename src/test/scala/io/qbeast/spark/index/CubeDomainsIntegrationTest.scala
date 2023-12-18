@@ -6,6 +6,7 @@ import io.qbeast.core.model.IndexStatus
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.Weight
 import io.qbeast.spark.delta
+import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
 import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
@@ -38,7 +39,8 @@ class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
               .createNewRevision(
                 QTableID("test"),
                 df.schema,
-                Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> "10000")))
+                QbeastOptions(
+                  Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> "10000"))))
           val (_, tc) = oTreeAlgorithm.index(df.toDF(), indexStatus)
           df.write
             .format("qbeast")

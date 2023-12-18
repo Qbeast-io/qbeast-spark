@@ -6,18 +6,31 @@ package io.qbeast.spark.internal
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.index.ColumnsToIndex
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
+import org.apache.spark.sql.delta.DeltaOptions
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
 
 /**
  * Container for Qbeast options.
+ *
  * @param columnsToIndex
  *   value of columnsToIndex option
  * @param cubeSize
  *   value of cubeSize option
+ * @param stats
+ *   the stats if available
+ * @param txnVersion
+ *   the transaction identifier
+ * @param txnAppId
+ *   the application identifier
  */
-case class QbeastOptions(columnsToIndex: Seq[String], cubeSize: Int, stats: Option[DataFrame])
+case class QbeastOptions(
+    columnsToIndex: Seq[String],
+    cubeSize: Int,
+    stats: Option[DataFrame],
+    txnAppId: Option[String],
+    txnVersion: Option[String])
 
 /**
  * Options available when trying to write in qbeast format
@@ -28,6 +41,8 @@ object QbeastOptions {
   val CUBE_SIZE = "cubeSize"
   val PATH = "path"
   val STATS = "columnStats"
+  val TXN_APP_ID = DeltaOptions.TXN_APP_ID
+  val TXN_VERSION = DeltaOptions.TXN_VERSION
 
   /**
    * Gets the columns to index from the options
@@ -82,6 +97,11 @@ object QbeastOptions {
     }
   }
 
+  private def getTxnAppId(options: Map[String, String]): Option[String] = options.get(TXN_APP_ID)
+
+  private def getTxnVersion(options: Map[String, String]): Option[String] =
+    options.get(TXN_VERSION)
+
   /**
    * Create QbeastOptions object from options map
    * @param options
@@ -93,8 +113,15 @@ object QbeastOptions {
     val columnsToIndex = getColumnsToIndex(options)
     val desiredCubeSize = getDesiredCubeSize(options)
     val stats = getStats(options)
-    QbeastOptions(columnsToIndex, desiredCubeSize, stats)
+    val txnAppId = getTxnAppId(options)
+    val txnVersion = getTxnVersion(options)
+    QbeastOptions(columnsToIndex, desiredCubeSize, stats, txnAppId, txnVersion)
   }
+
+  /**
+   * The empty options to be used as a placeholder.
+   */
+  lazy val empty: QbeastOptions = QbeastOptions(Seq.empty, DEFAULT_CUBE_SIZE, None, None, None)
 
   def loadTableIDFromParameters(parameters: Map[String, String]): QTableID = {
     new QTableID(
