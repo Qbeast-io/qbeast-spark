@@ -9,6 +9,7 @@ import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
+import io.qbeast.spark.internal.QbeastOptions
 
 class OTreeAlgorithmTest extends QbeastIntegrationTestSpec {
 
@@ -81,7 +82,7 @@ class OTreeAlgorithmTest extends QbeastIntegrationTestSpec {
       val rev = SparkRevisionFactory.createNewRevision(
         QTableID("test"),
         df.schema,
-        Map("columnsToIndex" -> df.columns.mkString(","), "cubeSize" -> "10000"))
+        QbeastOptions(Map("columnsToIndex" -> df.columns.mkString(","), "cubeSize" -> "10000")))
 
       val newDf = df.transform(DoublePassOTreeDataAnalyzer.addRandomWeight(rev))
       /* With less than 10k rows the probability of a collision is approximately 0.3%,

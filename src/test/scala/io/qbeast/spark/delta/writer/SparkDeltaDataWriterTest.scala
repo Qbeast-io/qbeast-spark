@@ -12,6 +12,7 @@ import org.apache.spark.qbeast.config.{
 import org.apache.spark.sql.delta.actions.AddFile
 
 import scala.reflect.io.Path
+import io.qbeast.spark.internal.QbeastOptions
 
 class SparkDeltaDataWriterTest extends QbeastIntegrationTestSpec {
 
@@ -28,7 +29,8 @@ class SparkDeltaDataWriterTest extends QbeastIntegrationTestSpec {
       val parameters: Map[String, String] =
         Map("columnsToIndex" -> "age,val2", "cubeSize" -> cubeSize.toString)
       val indexStatus =
-        IndexStatus(SparkRevisionFactory.createNewRevision(tableID, df.schema, parameters))
+        IndexStatus(
+          SparkRevisionFactory.createNewRevision(tableID, df.schema, QbeastOptions(parameters)))
       val (qbeastData, tableChanges) = SparkOTreeManager.index(df, indexStatus)
 
       val fileActions = SparkDeltaDataWriter.write(tableID, df.schema, qbeastData, tableChanges)

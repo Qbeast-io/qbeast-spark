@@ -12,6 +12,7 @@ import org.apache.spark.sql.types.{IntegerType, LongType}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import io.qbeast.spark.internal.QbeastOptions
 
 class IndexTest
     extends AnyFlatSpec
@@ -21,6 +22,7 @@ class IndexTest
 
   // TEST CONFIGURATIONS
   private val options = Map("columnsToIndex" -> "age,val2", "cubeSize" -> "10000")
+  private val qbeastOptions = QbeastOptions(options)
 
   private def createDF(): DataFrame = {
     val spark = SparkSession.active
@@ -39,7 +41,8 @@ class IndexTest
     withOTreeAlgorithm { oTreeAlgorithm =>
       {
         val df = createDF()
-        val rev = SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, options)
+        val rev =
+          SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, qbeastOptions)
 
         val (indexed, _) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
@@ -52,7 +55,8 @@ class IndexTest
     withOTreeAlgorithm { oTreeAlgorithm =>
       {
         val df = createDF()
-        val rev = SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, options)
+        val rev =
+          SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, qbeastOptions)
 
         val (_, tc: BroadcastedTableChanges) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
@@ -65,7 +69,8 @@ class IndexTest
     withOTreeAlgorithm { oTreeAlgorithm =>
       {
         val df = createDF()
-        val rev = SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, options)
+        val rev =
+          SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, qbeastOptions)
 
         val (_, tc: BroadcastedTableChanges) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
@@ -78,7 +83,8 @@ class IndexTest
     withOTreeAlgorithm { oTreeAlgorithm =>
       {
         val df = createDF()
-        val rev = SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, options)
+        val rev =
+          SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, qbeastOptions)
 
         val (indexed, tc: BroadcastedTableChanges) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
@@ -102,7 +108,7 @@ class IndexTest
         val rev = SparkRevisionFactory.createNewRevision(
           QTableID("test"),
           df.schema,
-          Map("columnsToIndex" -> "user_id,product_id", "cubeSize" -> "10000"))
+          QbeastOptions(Map("columnsToIndex" -> "user_id,product_id", "cubeSize" -> "10000")))
         val (indexed, tc: BroadcastedTableChanges) = oTreeAlgorithm.index(df, IndexStatus(rev))
         val weightMap = tc.cubeWeights.value
 
@@ -179,7 +185,8 @@ class IndexTest
     withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
       withOTreeAlgorithm { oTreeAlgorithm =>
         val df = createDF()
-        val rev = SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, options)
+        val rev =
+          SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, qbeastOptions)
         val (_, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
 
         df.write
@@ -217,7 +224,7 @@ class IndexTest
       val rev = SparkRevisionFactory.createNewRevision(
         QTableID("test"),
         df.schema,
-        Map("columnsToIndex" -> "age,val2", "cubeSize" -> smallCubeSize.toString))
+        QbeastOptions(Map("columnsToIndex" -> "age,val2", "cubeSize" -> smallCubeSize.toString)))
 
       val (indexed, tc: BroadcastedTableChanges) = oTreeAlgorithm.index(df, IndexStatus(rev))
       val weightMap = tc.cubeWeights.value
