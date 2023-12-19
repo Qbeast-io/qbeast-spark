@@ -15,6 +15,7 @@ import java.util.UUID
 import scala.collection.immutable
 import scala.collection.immutable.SortedMap
 import scala.util.Random
+import io.qbeast.spark.internal.QbeastOptions
 
 case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: String) {
 
@@ -60,7 +61,7 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
     .createNewRevision(
       QTableID("test"),
       data.schema,
-      Map("columnsToIndex" -> "id", "cubeSize" -> "10000"))
+      QbeastOptions(Map("columnsToIndex" -> "id", "cubeSize" -> "10000")))
 
   val cubeStatuses: SortedMap[CubeId, CubeStatus] = {
     val cubeStatusesSeq = weightMap.toIndexedSeq.map {

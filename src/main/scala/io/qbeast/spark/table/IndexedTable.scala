@@ -115,9 +115,9 @@ trait IndexedTableFactory {
 final class IndexedTableFactoryImpl(
     private val keeper: Keeper,
     private val indexManager: IndexManager[DataFrame],
-    private val metadataManager: MetadataManager[StructType, FileAction],
+    private val metadataManager: MetadataManager[StructType, FileAction, QbeastOptions],
     private val dataWriter: DataWriter[DataFrame, StructType, FileAction],
-    private val revisionBuilder: RevisionFactory[StructType])
+    private val revisionFactory: RevisionFactory[StructType, QbeastOptions])
     extends IndexedTableFactory {
 
   override def getIndexedTable(tableID: QTableID): IndexedTable =
@@ -127,7 +127,7 @@ final class IndexedTableFactoryImpl(
       indexManager,
       metadataManager,
       dataWriter,
-      revisionBuilder)
+      revisionFactory)
 
 }
 
@@ -145,9 +145,9 @@ private[table] class IndexedTableImpl(
     val tableID: QTableID,
     private val keeper: Keeper,
     private val indexManager: IndexManager[DataFrame],
-    private val metadataManager: MetadataManager[StructType, FileAction],
+    private val metadataManager: MetadataManager[StructType, FileAction, QbeastOptions],
     private val dataWriter: DataWriter[DataFrame, StructType, FileAction],
-    private val revisionBuilder: RevisionFactory[StructType])
+    private val revisionFactory: RevisionFactory[StructType, QbeastOptions])
     extends IndexedTable
     with StagingUtils {
   private var snapshotCache: Option[QbeastSnapshot] = None
@@ -236,18 +236,19 @@ private[table] class IndexedTableImpl(
       data: DataFrame,
       parameters: Map[String, String],
       append: Boolean): BaseRelation = {
-    val indexStatus =
+    val (indexStatus, options) =
       if (exists && append) {
         // If the table exists and we are appending new data
         // 1. Load existing IndexStatus
-        val updatedParameters = verifyAndMergeProperties(parameters)
+        val options = QbeastOptions(verifyAndMergeProperties(parameters))
         if (isStaging(latestRevision)) { // If the existing Revision is Staging
-          IndexStatus(revisionBuilder.createNewRevision(tableID, data.schema, updatedParameters))
+          val revision = revisionFactory.createNewRevision(tableID, data.schema, options)
+          (IndexStatus(revision), options)
         } else {
-          if (isNewRevision(QbeastOptions(updatedParameters))) {
+          if (isNewRevision(options)) {
             // If the new parameters generate a new revision, we need to create another one
-            val newPotentialRevision = revisionBuilder
-              .createNewRevision(tableID, data.schema, updatedParameters)
+            val newPotentialRevision = revisionFactory
+              .createNewRevision(tableID, data.schema, options)
             val newRevisionCubeSize = newPotentialRevision.desiredCubeSize
             // Merge new Revision Transformations with old Revision Transformations
             val newRevisionTransformations =
@@ -266,19 +267,20 @@ private[table] class IndexedTableImpl(
               transformationsChanges = newRevisionTransformations)
 
             // Output the New Revision into the IndexStatus
-            IndexStatus(revisionChanges.createNewRevision)
+            (IndexStatus(revisionChanges.createNewRevision), options)
           } else {
             // If the new parameters does not create a different revision,
             // load the latest IndexStatus
-            snapshot.loadIndexStatus(latestRevision.revisionID)
+            (snapshot.loadIndexStatus(latestRevision.revisionID), options)
           }
         }
       } else {
-        IndexStatus(revisionBuilder.createNewRevision(tableID, data.schema, parameters))
+        val options = QbeastOptions(parameters)
+        val revision = revisionFactory.createNewRevision(tableID, data.schema, options)
+        (IndexStatus(revision), options)
       }
 
-    val relation = write(data, indexStatus, append)
-    relation
+    write(data, indexStatus, options, append)
   }
 
   override def load(): BaseRelation = {
@@ -305,7 +307,11 @@ private[table] class IndexedTableImpl(
     QbeastBaseRelation.forQbeastTable(this)
   }
 
-  private def write(data: DataFrame, indexStatus: IndexStatus, append: Boolean): BaseRelation = {
+  private def write(
+      data: DataFrame,
+      indexStatus: IndexStatus,
+      options: QbeastOptions,
+      append: Boolean): BaseRelation = {
     val revision = indexStatus.revision
     keeper.withWrite(tableID, revision.revisionID) { write =>
       var tries = DEFAULT_NUMBER_OF_RETRIES
@@ -315,7 +321,7 @@ private[table] class IndexedTableImpl(
         val replicatedSet = updatedStatus.replicatedSet
         val revisionID = updatedStatus.revision.revisionID
         try {
-          doWrite(data, updatedStatus, append)
+          doWrite(data, updatedStatus, options, append)
           tries = 0
         } catch {
           case cme: ConcurrentModificationException
@@ -337,15 +343,19 @@ private[table] class IndexedTableImpl(
     createQbeastBaseRelation()
   }
 
-  private def doWrite(data: DataFrame, indexStatus: IndexStatus, append: Boolean): Unit = {
+  private def doWrite(
+      data: DataFrame,
+      indexStatus: IndexStatus,
+      options: QbeastOptions,
+      append: Boolean): Unit = {
     val stagingDataManager: StagingDataManager = new StagingDataManager(tableID)
     stagingDataManager.updateWithStagedData(data) match {
       case r: StagingResolution if r.sendToStaging =>
-        stagingDataManager.stageData(data, indexStatus, append)
+        stagingDataManager.stageData(data, indexStatus, options, append)
 
       case StagingResolution(dataToWrite, removeFiles, false) =>
         val schema = dataToWrite.schema
-        metadataManager.updateWithTransaction(tableID, schema, append) {
+        metadataManager.updateWithTransaction(tableID, schema, options, append) {
           val (qbeastData, tableChanges) = indexManager.index(dataToWrite, indexStatus)
           val fileActions = dataWriter.write(tableID, schema, qbeastData, tableChanges)
           (tableChanges, fileActions ++ removeFiles)
@@ -394,7 +404,7 @@ private[table] class IndexedTableImpl(
       indexStatus: IndexStatus,
       cubesToOptimize: Set[CubeId]): Unit = {
 
-    metadataManager.updateWithTransaction(tableID, schema, append = true) {
+    metadataManager.updateWithTransaction(tableID, schema, QbeastOptions.empty, append = true) {
       val dataToReplicate =
         CubeDataLoader(tableID).loadSetWithCubeColumn(
           cubesToOptimize,
@@ -415,7 +425,7 @@ private[table] class IndexedTableImpl(
     val schema = metadataManager.loadCurrentSchema(tableID)
     val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
 
-    metadataManager.updateWithTransaction(tableID, schema, append = true) {
+    metadataManager.updateWithTransaction(tableID, schema, QbeastOptions.empty, append = true) {
       // There's no affected table changes on compaction, so we send an empty object
       val tableChanges = BroadcastedTableChanges(None, currentIndexStatus, Map.empty)
       val fileActions =

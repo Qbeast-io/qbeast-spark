@@ -6,8 +6,9 @@ import io.qbeast.IISeq
  * Metadata Manager template
  * @tparam DataSchema type of data schema
  * @tparam FileDescriptor type of file descriptor
+ * @tparam QbeastOptions type of Qbeast options
  */
-trait MetadataManager[DataSchema, FileDescriptor] {
+trait MetadataManager[DataSchema, FileDescriptor, QbeastOptions] {
   type Configuration = Map[String, String]
 
   /**
@@ -28,11 +29,15 @@ trait MetadataManager[DataSchema, FileDescriptor] {
    * Writes and updates the metadata by using transaction control
    * @param tableID the QTableID
    * @param schema the schema of the data
+   * @param options the Qbeast options
    * @param append the append flag
    * @param writer the writer code to be executed
    */
-  def updateWithTransaction(tableID: QTableID, schema: DataSchema, append: Boolean)(
-      writer: => (TableChanges, IISeq[FileDescriptor])): Unit
+  def updateWithTransaction(
+      tableID: QTableID,
+      schema: DataSchema,
+      options: QbeastOptions,
+      append: Boolean)(writer: => (TableChanges, IISeq[FileDescriptor])): Unit
 
   /**
    * Updates the table metadata by overwriting the metadata configurations

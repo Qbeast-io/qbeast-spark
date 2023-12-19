@@ -10,6 +10,7 @@ import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.{AnalysisException, Dataset, SparkSession}
 import org.scalatest.AppendedClues.convertToClueful
+import io.qbeast.spark.internal.QbeastOptions
 
 class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
 
@@ -64,7 +65,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
         val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
         val columnTransformers = SparkRevisionFactory
-          .createNewRevision(QTableID(tmpDir), df.schema, options)
+          .createNewRevision(QTableID(tmpDir), df.schema, QbeastOptions(options))
           .columnTransformers
 
         val revision = qbeastSnapshot.loadLatestRevision

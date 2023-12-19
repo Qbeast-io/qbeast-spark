@@ -7,6 +7,7 @@ import org.apache.spark.qbeast.config.{CUBE_WEIGHTS_BUFFER_CAPACITY, DEFAULT_CUB
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.delta.DeltaLog
 import org.scalatest.PrivateMethodTester
+import io.qbeast.spark.internal.QbeastOptions
 
 class CubeWeightsIntegrationTest extends QbeastIntegrationTestSpec with PrivateMethodTester {
 
@@ -31,7 +32,8 @@ class CubeWeightsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
               .createNewRevision(
                 QTableID("test"),
                 df.schema,
-                Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> "10000")))
+                QbeastOptions(
+                  Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> "10000"))))
           val (_, tc) = oTreeAlgorithm.index(df.toDF(), indexStatus)
           df.write
             .format("qbeast")

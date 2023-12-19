@@ -16,6 +16,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.reflect.ClassTag
+import io.qbeast.spark.internal.QbeastOptions
 
 /**
  * Qbeast context provides access to internal mechanisms of
@@ -59,7 +60,7 @@ trait QbeastContext {
  */
 object QbeastContext
     extends QbeastContext
-    with QbeastCoreContext[DataFrame, StructType, FileAction] {
+    with QbeastCoreContext[DataFrame, StructType, FileAction, QbeastOptions] {
   private var managedOption: Option[QbeastContext] = None
   private var unmanagedOption: Option[QbeastContext] = None
 
@@ -78,13 +79,13 @@ object QbeastContext
 
   override def indexManager: IndexManager[DataFrame] = SparkOTreeManager
 
-  override def metadataManager: MetadataManager[StructType, FileAction] =
+  override def metadataManager: MetadataManager[StructType, FileAction, QbeastOptions] =
     SparkDeltaMetadataManager
 
   override def dataWriter: DataWriter[DataFrame, StructType, FileAction] =
     SparkDeltaDataWriter
 
-  override def revisionBuilder: RevisionFactory[StructType] =
+  override def revisionBuilder: RevisionFactory[StructType, QbeastOptions] =
     SparkRevisionFactory
 
   /**

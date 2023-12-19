@@ -10,6 +10,8 @@ import org.apache.spark.qbeast.config.STAGING_SIZE_IN_BYTES
 import org.apache.spark.sql.delta.actions.{FileAction, RemoveFile}
 import org.apache.spark.sql.delta.{DeltaLog, Snapshot}
 import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
+import io.qbeast.spark.internal.QbeastOptions
+import org.apache.spark.sql.delta.DeltaOptions
 
 /**
  * Access point for staged data
@@ -79,13 +81,31 @@ private[spark] class StagingDataManager(tableID: QTableID) extends DeltaStagingU
   /**
    * Stage the data without indexing by writing it in the delta format. If the table
    * is not yet a qbeast table, use ConvertToQbeastCommand for conversion after the write.
+   *
+   * @param data
+   *   the data to stage
+   * @param indexStatus
+   *   the index status
+   * @param options
+   *   the options
+   * @param append
+   *   the operation appends data
    */
-  def stageData(data: DataFrame, indexStatus: IndexStatus, append: Boolean): Unit = {
+  def stageData(
+      data: DataFrame,
+      indexStatus: IndexStatus,
+      options: QbeastOptions,
+      append: Boolean): Unit = {
     // Write data to the staging area in the delta format
-    data.write
+    var writer = data.write
       .format("delta")
       .mode(if (append) SaveMode.Append else SaveMode.Overwrite)
-      .save(tableID.id)
+    for (txnVersion <- options.txnVersion; txnAppId <- options.txnAppId) {
+      writer = writer
+        .option(DeltaOptions.TXN_VERSION, txnVersion)
+        .option(DeltaOptions.TXN_APP_ID, txnAppId)
+    }
+    writer.save(tableID.id)
 
     // Convert if the table is not yet qbeast
     if (isInitial) {
