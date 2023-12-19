@@ -116,17 +116,17 @@ object QbeastOptions {
    */
   lazy val empty: QbeastOptions = QbeastOptions(Seq.empty, DEFAULT_CUBE_SIZE, None, None, None)
 
-  def loadTableIDFromParameters(parameters: Map[String, String]): QTableID = {
+  def loadTableIDFromOptions(options: Map[String, String]): QTableID = {
     new QTableID(
-      parameters.getOrElse(
+      options.getOrElse(
         PATH, {
           throw AnalysisExceptionFactory.create("'path' is not specified")
         }))
   }
 
-  def checkQbeastProperties(parameters: Map[String, String]): Unit = {
+  def checkQbeastOptions(options: Map[String, String]): Unit = {
     require(
-      parameters.contains("columnsToIndex") || parameters.contains("columnstoindex"),
+      options.contains("columnsToIndex") || options.contains("columnstoindex"),
       throw AnalysisExceptionFactory.create("'columnsToIndex is not specified"))
   }
 
