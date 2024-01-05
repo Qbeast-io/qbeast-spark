@@ -23,11 +23,14 @@ class SaveAsTableRule(spark: SparkSession) extends Rule[LogicalPlan] with Loggin
   private def createTableSpec(
       tableSpec: TableSpecBase,
       writeOptions: Map[String, String]): TableSpec = {
-    val finalProperties = writeOptions ++ tableSpec.properties
+    val options = tableSpec match {
+      case s: TableSpec => writeOptions ++ s.options
+      case _ => writeOptions
+    }
     TableSpec(
-      properties = finalProperties,
+      properties = tableSpec.properties,
       provider = tableSpec.provider,
-      options = writeOptions,
+      options = options,
       location = tableSpec.location,
       comment = tableSpec.comment,
       serde = tableSpec.serde,
