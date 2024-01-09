@@ -62,16 +62,16 @@ You can run the qbeast-spark application locally on your computer, or using a Do
 You can find it in the [Packages section](https://github.com/orgs/Qbeast-io/packages?repo_name=qbeast-spark).
 
 ### Pre: Install **Spark**
-Download **Spark 3.1.1 with Hadoop 3.2**, unzip it, and create the `SPARK_HOME` environment variable:<br />
+Download **Spark 3.4.1 with Hadoop 3.3.4**, unzip it, and create the `SPARK_HOME` environment variable:<br />
 
 >:information_source: **Note**: You can use Hadoop 2.7 if desired, but you could have some troubles with different cloud providers' storage, read more about it [here](docs/CloudStorages.md).
 
 ```bash
-wget https://archive.apache.org/dist/spark/spark-3.3.0/spark-3.3.0-bin-hadoop3.tgz
+wget https://archive.apache.org/dist/spark/spark-3.4.1/spark-3.4.1-bin-hadoop3.tgz
 
-tar -xzvf spark-3.3.0-bin-hadoop3.tgz
+tar -xzvf spark-3.4.1-bin-hadoop3.tgz
 
-export SPARK_HOME=$PWD/spark-3.3.0-bin-hadoop3
+export SPARK_HOME=$PWD/spark-3.4.1-bin-hadoop3
  ```
 ### 1. Launch a spark-shell
 
@@ -79,7 +79,7 @@ export SPARK_HOME=$PWD/spark-3.3.0-bin-hadoop3
 
 ```bash
 $SPARK_HOME/bin/spark-shell \
---packages io.qbeast:qbeast-spark_2.12:0.4.0,io.delta:delta-core_2.12:2.1.0 \
+--packages io.qbeast:qbeast-spark_2.12:0.5.0,io.delta:delta-core_2.12:2.4.0 \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
 --conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
 ```
