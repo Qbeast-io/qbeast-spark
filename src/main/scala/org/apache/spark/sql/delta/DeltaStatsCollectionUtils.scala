@@ -9,7 +9,6 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.logical.LocalRelation
 import org.apache.spark.sql.catalyst.types.DataTypeUtils.toAttributes
-import org.apache.spark.sql.delta.actions.Metadata
 import org.apache.spark.sql.delta.actions.Protocol
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.delta.stats.DeltaJobStatisticsTracker
@@ -33,9 +32,17 @@ trait DeltaStatsCollectionUtils {
    * outputStatsCollectionSchema
    */
   protected def getStatsSchema(
-      metadata: Metadata,
+      snapshot: Snapshot,
+      outputSchema: StructType,
       dataFrameOutput: Seq[Attribute],
       partitionSchema: StructType): (Seq[Attribute], Seq[Attribute]) = {
+
+    // Column mapping mode
+    val columnMappingMode = snapshot.columnMappingMode
+    // Stats Schema: if the table is not initialized, we use the output schema to collect stats;
+    // otherwise, we use the table schema to collect stats
+    val statsSchema =
+      if (snapshot.version == -1L) outputSchema else snapshot.schema
     val partitionColNames = partitionSchema.map(_.name).toSet
 
     // The outputStatsCollectionSchema comes from DataFrame output
@@ -44,14 +51,14 @@ trait DeltaStatsCollectionUtils {
       .filterNot(c => partitionColNames.contains(c.name))
 
     // The tableStatsCollectionSchema comes from table schema
-    val statsTableSchema = toAttributes(metadata.schema)
-    val mappedStatsTableSchema = if (metadata.columnMappingMode == NoMapping) {
+    val statsTableSchema = toAttributes(statsSchema)
+    val mappedStatsTableSchema = if (columnMappingMode == NoMapping) {
       statsTableSchema
     } else {
       DeltaColumnMapping.createPhysicalAttributes(
         statsTableSchema,
-        metadata.schema,
-        metadata.columnMappingMode)
+        statsSchema,
+        columnMappingMode)
     }
 
     // It's important to first do the column mapping and then drop the partition columns
@@ -68,16 +75,19 @@ trait DeltaStatsCollectionUtils {
 
     if (QbeastContext.config.get(DeltaSQLConf.DELTA_COLLECT_STATS)) {
       val outputStatsAtrributes = data.queryExecution.analyzed.output
+      val outputSchema = data.schema
 
       val deltaLog = DeltaLog.forTable(sparkSession, tableID.id)
       val deltaSnapshot = deltaLog.update()
       val deltaMetadata = deltaSnapshot.metadata
       val outputPath = deltaLog.dataPath
 
-      val (outputStatsCollectionSchema, tableStatsCollectionSchema) = getStatsSchema(
-        deltaMetadata,
-        outputStatsAtrributes,
-        deltaSnapshot.metadata.partitionSchema)
+      val (outputStatsCollectionSchema, tableStatsCollectionSchema) =
+        getStatsSchema(
+          deltaSnapshot,
+          outputSchema,
+          outputStatsAtrributes,
+          deltaMetadata.partitionSchema)
 
       val statsCollection = new StatisticsCollection {
 
