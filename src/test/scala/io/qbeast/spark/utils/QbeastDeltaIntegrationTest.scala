@@ -53,4 +53,21 @@ class QbeastDeltaIntegrationTest extends QbeastIntegrationTestSpec {
 
     })
 
+  it should "not write stats when specified" in withExtendedSparkAndTmpDir(
+    sparkConfWithSqlAndCatalog.set("spark.databricks.delta.stats.collect", "false"))(
+    (spark, tmpDir) => {
+
+      val data = createSimpleTestData(spark)
+      data.write
+        .format("qbeast")
+        .option("columnsToIndex", "a,b")
+        .save(tmpDir)
+
+      val stats =
+        DeltaLog.forTable(spark, tmpDir).update().allFiles.collect().map(_.stats)
+      stats.length shouldBe >(0)
+      stats.head shouldBe null
+
+    })
+
 }

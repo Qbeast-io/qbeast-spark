@@ -19,6 +19,7 @@ import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.actions.RemoveFile
+import org.apache.spark.sql.execution.datasources.FileStatusWithMetadata
 
 import java.io.StringWriter
 import java.net.URI
@@ -113,6 +114,11 @@ object IndexFiles {
       path = new Path(indexPath, path)
     }
     new FileStatus(indexFile.size, false, 0, 0, indexFile.modificationTime, path)
+  }
+
+  def toFileStatusWithMetadata(indexPath: Path, metadata: Map[String, String] = Map.empty)(
+      indexFile: IndexFile): FileStatusWithMetadata = {
+    FileStatusWithMetadata(toFileStatus(indexPath)(indexFile), metadata)
   }
 
   private def encodeBlocks(blocks: IISeq[Block]): String = {

@@ -15,6 +15,7 @@ import org.apache.spark.sql.delta.files.TahoeLogFileIndex
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.execution.datasources.FileIndex
+import org.apache.spark.sql.execution.datasources.FileStatusWithMetadata
 import org.apache.spark.sql.execution.datasources.PartitionDirectory
 import org.apache.spark.sql.execution.SQLExecution
 import org.apache.spark.sql.types.StructType
@@ -70,13 +71,13 @@ case class OTreeIndex(index: TahoeLogFileIndex)
    */
   private def qbeastMatchingFiles(
       partitionFilters: Seq[Expression],
-      dataFilters: Seq[Expression]): Seq[FileStatus] = {
+      dataFilters: Seq[Expression]): Seq[FileStatusWithMetadata] = {
     matchingBlocks(partitionFilters, dataFilters)
       .map(block => (block.file))
       .map(file => (file.path, file))
       .toMap
       .values
-      .map(IndexFiles.toFileStatus(index.path))
+      .map(IndexFiles.toFileStatusWithMetadata(index.path))
       .toSeq
   }
 
@@ -87,19 +88,20 @@ case class OTreeIndex(index: TahoeLogFileIndex)
    */
   private def stagingFiles(
       partitionFilters: Seq[Expression],
-      dataFilters: Seq[Expression]): Seq[FileStatus] = {
+      dataFilters: Seq[Expression]): Seq[FileStatusWithMetadata] = {
 
     index
       .matchingFiles(partitionFilters, dataFilters)
       .filter(isStagingFile)
       .map { f =>
-        new FileStatus(
+        val fileStatus = new FileStatus(
           /* length */ f.size,
           /* isDir */ false,
           /* blockReplication */ 0,
           /* blockSize */ 1,
           /* modificationTime */ f.modificationTime,
           absolutePath(f.path))
+        FileStatusWithMetadata(fileStatus, Map.empty)
       }
   }
 
