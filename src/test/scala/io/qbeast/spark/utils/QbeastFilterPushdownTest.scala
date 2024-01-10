@@ -1,6 +1,6 @@
 package io.qbeast.spark.utils
 
-import io.qbeast.spark.delta.OTreeIndex
+import io.qbeast.spark.delta.DefaultFileIndex
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestUtils._
 import org.apache.spark.sql.execution.FileSourceScanExec
@@ -280,7 +280,7 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
           .collectLeaves()
           .filter(_.isInstanceOf[FileSourceScanExec])
           .foreach {
-            case f: FileSourceScanExec if f.relation.location.isInstanceOf[OTreeIndex] =>
+            case f: FileSourceScanExec if f.relation.location.isInstanceOf[DefaultFileIndex] =>
               val index = f.relation.location
               val matchingFiles =
                 index.listFiles(f.partitionFilters, f.dataFilters).flatMap(_.files)

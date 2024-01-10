@@ -28,8 +28,6 @@ import java.net.URI
  *
  * @param index
  *   the Tahoe log file index
- * @param spark
- *   spark session
  */
 case class OTreeIndex(index: TahoeLogFileIndex)
     extends FileIndex
