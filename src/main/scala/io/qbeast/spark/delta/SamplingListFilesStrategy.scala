@@ -13,11 +13,13 @@ import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.files.TahoeLogFileIndex
+import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.execution.datasources.FileStatusWithMetadata
 import org.apache.spark.sql.execution.datasources.PartitionDirectory
+import org.apache.spark.sql.execution.SQLExecution
 
 /**
- * Implementation of ListFilesStrategy to be used when the qury contains sampling clauses.
+ * Implementation of ListFilesStrategy to be used when the query contains sampling clauses.
  */
 private[delta] object SamplingListFilesStrategy
     extends ListFilesStrategy
@@ -28,8 +30,11 @@ private[delta] object SamplingListFilesStrategy
       target: TahoeLogFileIndex,
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
+    val snapshot = target.getSnapshot
+    val path = target.path
     val files = listStagingAreaFiles(target, partitionFilters, dataFilters) ++
-      listIndexFiles(target, partitionFilters, dataFilters)
+      listIndexFiles(snapshot, path, partitionFilters, dataFilters)
+    logFilteredFiles(target, snapshot, files)
     Seq(PartitionDirectory(new GenericInternalRow(Array.empty[Any]), files))
   }
 
@@ -63,20 +68,33 @@ private[delta] object SamplingListFilesStrategy
   }
 
   private def listIndexFiles(
-      target: TahoeLogFileIndex,
+      snapshot: Snapshot,
+      path: Path,
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[FileStatusWithMetadata] = {
     val querySpecBuilder = new QuerySpecBuilder(dataFilters ++ partitionFilters)
-    val snapshot = DeltaQbeastSnapshot(target.getSnapshot)
-    val queryExecutor = new QueryExecutor(querySpecBuilder, snapshot)
+    val queryExecutor = new QueryExecutor(querySpecBuilder, DeltaQbeastSnapshot(snapshot))
     queryExecutor
       .execute()
       .map(block => (block.file))
       .map(file => (file.path, file))
       .toMap
       .values
-      .map(IndexFiles.toFileStatusWithMetadata(target.path))
+      .map(IndexFiles.toFileStatusWithMetadata(path))
       .toSeq
+  }
+
+  private def logFilteredFiles(
+      target: TahoeLogFileIndex,
+      snapshot: Snapshot,
+      files: Seq[FileStatusWithMetadata]): Unit = {
+    val context = target.spark.sparkContext
+    val execId = context.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
+    val count = snapshot.allFiles.count
+    val filteredCount = count - files.length
+    val filteredPercent = (filteredCount.toDouble / count) * 100.0
+    val info = f"${filteredCount} of ${count} (${filteredPercent}%.2f%%)"
+    logInfo(s"Sampling filtered files (exec id ${execId}): ${info}")
   }
 
 }
