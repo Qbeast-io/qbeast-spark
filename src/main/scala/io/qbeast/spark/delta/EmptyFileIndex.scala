@@ -13,7 +13,7 @@ import org.apache.spark.sql.types.StructType
 /**
  * Implementation of FileIndex to be used for empty tables.
  */
-object EmptyFileIndex extends FileIndex {
+object EmptyFileIndex extends FileIndex with Serializable {
 
   override def rootPaths: Seq[Path] = Seq.empty
 
