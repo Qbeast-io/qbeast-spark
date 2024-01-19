@@ -26,8 +26,7 @@ lazy val qbeastSpark = (project in file("."))
       hadoopAws % Test),
     Test / parallelExecution := false,
     assembly / test := {},
-    assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false),
-    publish / skip := true)
+    assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false))
   .settings(noWarningInConsole)
 
 qbeastSpark / Compile / doc / scalacOptions ++= Seq(
