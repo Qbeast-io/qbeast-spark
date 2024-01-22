@@ -130,6 +130,21 @@ $SPARK_HOME/bin/spark-shell \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension
 ```
 
+### 4. Publishing artefacts in the local repository
+Sometimes it is convenient to have custom versions of the library to be
+published in the local repository like IVy or Maven. For local Ivy (`~/.ivy2`)
+use
+
+```bash
+sbt publishLocal
+```
+
+For local Maven (~/.m2) use
+
+```bash
+sbt publishM2
+```
+
 <br/>
 
 # Community Values
