@@ -9,6 +9,7 @@ import io.qbeast.core.model.TableChanges
 import io.qbeast.spark.delta.writer.StatsTracker.registerStatsTrackers
 import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
 import io.qbeast.spark.utils.TagColumns
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.delta.actions._
 import org.apache.spark.sql.delta.commands.DeltaCommand
 import org.apache.spark.sql.delta.DeltaLog
@@ -48,7 +49,8 @@ private[delta] case class DeltaMetadataWriter(
     options: DeltaOptions,
     schema: StructType)
     extends QbeastMetadataOperation
-    with DeltaCommand {
+    with DeltaCommand
+    with Logging {
 
   private def isOverwriteOperation: Boolean = mode == SaveMode.Overwrite
 
@@ -80,6 +82,9 @@ private[delta] case class DeltaMetadataWriter(
     // If the transaction was completed before then no operation
     for (txn <- oldTransactions; version <- options.txnVersion; appId <- options.txnAppId) {
       if (txn.appId == appId && txn.version == version) {
+        val message = s"Transaction ${version} from application ${appId} is already completed," +
+          " the requested write is ignored"
+        logWarning(message)
         return
       }
     }
