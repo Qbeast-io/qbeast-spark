@@ -3,9 +3,8 @@ package io.qbeast.core.model
 import io.qbeast.core.model.Weight.MaxValue
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.PrivateMethodTester
 
-class WeightAndCountTest extends AnyFlatSpec with Matchers with PrivateMethodTester {
+class WeightAndCountTest extends AnyFlatSpec with Matchers {
 
   "WeightAndCountFactory" should "create proper instances of WeightAndCount" in {
     // Existing index:

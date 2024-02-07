@@ -59,10 +59,10 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
       if (cubeIter.hasNext) { // cases 1 to 3
         cubeIter.next() match {
           case (cube, CubeStatus(_, maxWeight, _, blocks)) if cube == currentCube => // Case 1
-            val unfilteredBlocks = if (querySpec.weightRange.to < maxWeight) {
-              // cube maxWeight is larger than the sample fraction, weightRange.to,
-              // it means that currentCube is the last cube to visit from the current branch.
-              // All blocks are retrieved and no more cubes from the branch will be visited.
+            val unfilteredBlocks = if (querySpec.weightRange.to <= maxWeight) {
+              // cube maxWeight is larger than or equal to the sample fraction (weightRange.to),
+              // that currentCube is the last cube to visit from the current branch - all blocks
+              // are to be retrieved and no more cubes from the branch should be visited.
               blocks
             } else {
               // Otherwise,
@@ -85,12 +85,17 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
               cubeFiles
             }
 
-            outputBlocks ++= unfilteredBlocks.filter(block =>
-              block.maxWeight > querySpec.weightRange.from)
+            // Blocks should have overlapping weight ranges with that from the query.
+            // Note that blocks don't contain records with weight = block.minWeight, which are
+            // contained in their direct parent cubes.
+            outputBlocks ++= unfilteredBlocks
+              .filter(block =>
+                querySpec.weightRange.from <= block.maxWeight
+                  && querySpec.weightRange.to > block.minWeight)
 
           case (cube, _) if currentCube.isAncestorOf(cube) => // Case 2
-            // c is a child cube of currentCube. Aside from c, we also need to
-            // consider c's sibling cubes.
+            // cube is a descendant of currentCube, and currentCube is missing.
+            // We proceed navigating the subtree.
             val nextLevel = currentCube.children
               .filter(querySpec.querySpace.intersectsWith)
             stack.pushAll(nextLevel)
