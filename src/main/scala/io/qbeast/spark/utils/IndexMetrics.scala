@@ -10,6 +10,8 @@ import io.qbeast.spark.utils.MathOps.l2Deviation
 import io.qbeast.spark.utils.MathOps.roundToPrecision
 import io.qbeast.spark.utils.MathOps.std
 
+import scala.collection.immutable.SortedMap
+
 /**
  * Metrics that aim to provide an overview for a given index revision
  * @param cubeStatuses
@@ -34,7 +36,7 @@ import io.qbeast.spark.utils.MathOps.std
  *   stats on inner cube sizes
  */
 case class IndexMetrics(
-    cubeStatuses: Map[CubeId, CubeStatus],
+    cubeStatuses: SortedMap[CubeId, CubeStatus],
     dimensionCount: Int,
     elementCount: Long,
     depth: Int,
