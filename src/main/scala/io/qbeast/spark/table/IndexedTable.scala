@@ -4,7 +4,8 @@
 package io.qbeast.spark.table
 
 import io.qbeast.core.keeper.Keeper
-import io.qbeast.core.model.{RevisionFactory, _}
+import io.qbeast.core.model._
+import io.qbeast.core.model.RevisionFactory
 import io.qbeast.spark.delta.StagingDataManager
 import io.qbeast.spark.delta.StagingResolution
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
@@ -402,7 +403,11 @@ private[table] class IndexedTableImpl(
         .toIndexedSeq
       if (indexFiles.nonEmpty) {
         val indexStatus = snapshot.loadIndexStatus(revision.revisionID)
-        metadataManager.updateWithTransaction(tableID, schema, QbeastOptions.empty, append = true) {
+        metadataManager.updateWithTransaction(
+          tableID,
+          schema,
+          QbeastOptions.empty,
+          append = true) {
           val tableChanges = BroadcastedTableChanges(None, indexStatus, Map.empty, Map.empty)
           val fileActions =
             dataWriter.compact(tableID, schema, revision, indexStatus, indexFiles)
