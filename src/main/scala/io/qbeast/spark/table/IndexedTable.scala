@@ -5,6 +5,7 @@ package io.qbeast.spark.table
 
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model._
+import io.qbeast.core.model.RevisionFactory
 import io.qbeast.spark.delta.StagingDataManager
 import io.qbeast.spark.delta.StagingResolution
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
@@ -122,7 +123,7 @@ trait IndexedTableFactory {
  *   the metadata manager
  * @param dataWriter
  *   the data writer
- * @param revisionBuilder
+ * @param revisionFactory
  *   the revision builder
  */
 final class IndexedTableFactoryImpl(
@@ -159,8 +160,8 @@ final class IndexedTableFactoryImpl(
  *   the metadata manager
  * @param dataWriter
  *   the data writer
- * @param revisionBuilder
- *   the revision builder
+ * @param revisionFactory
+ *   the revision factory
  * @param autoIndexer
  *   the auto indexer
  */
@@ -388,12 +389,12 @@ private[table] class IndexedTableImpl(
   }
 
   override def optimize(revisionID: RevisionID): Unit = {
-    val files = snapshot.loadIndexFiles(revisionID).map(_.path).toSeq
+    val files = snapshot.loadIndexFiles(revisionID).map(_.path)
     optimize(files)
   }
 
   override def optimize(files: Seq[String]): Unit = {
-    val paths = files.toSeq
+    val paths = files.toSet
     val schema = metadataManager.loadCurrentSchema(tableID)
     snapshot.loadAllRevisions.foreach { revision =>
       val indexFiles = snapshot
@@ -402,7 +403,11 @@ private[table] class IndexedTableImpl(
         .toIndexedSeq
       if (indexFiles.nonEmpty) {
         val indexStatus = snapshot.loadIndexStatus(revision.revisionID)
-        metadataManager.updateWithTransaction(tableID, schema, QbeastOptions.empty, true) {
+        metadataManager.updateWithTransaction(
+          tableID,
+          schema,
+          QbeastOptions.empty,
+          append = true) {
           val tableChanges = BroadcastedTableChanges(None, indexStatus, Map.empty, Map.empty)
           val fileActions =
             dataWriter.compact(tableID, schema, revision, indexStatus, indexFiles)
