@@ -143,7 +143,7 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
 
     // Qbeast configuration metadata
     val (configuration, hasRevisionUpdate) =
-      if (isNewRevision || isOverwriteMode)
+      if (isNewRevision || isOverwriteMode || tableChanges.isOptimizeOperation)
         (updateQbeastRevision(baseConfiguration, latestRevision), true)
       else (baseConfiguration, false)
 
