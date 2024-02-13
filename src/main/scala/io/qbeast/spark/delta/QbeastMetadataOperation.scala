@@ -185,6 +185,8 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
       }
       errorBuilder.finalizeAndThrow(spark.sessionState.conf)
     } else if (hasRevisionUpdate) {
+      // Aside from rewrites and schema changes, we will update the metadata only
+      // when there's a Revision update. Metadata entries interrupt concurrent writes.
       txn.updateMetadata(txn.metadata.copy(configuration = configuration))
     }
   }
