@@ -142,10 +142,10 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
       else txn.metadata.configuration
 
     // Qbeast configuration metadata
-    val configuration =
-      if (isNewRevision || isOverwriteMode) {
-        updateQbeastRevision(baseConfiguration, latestRevision)
-      } else baseConfiguration
+    val (configuration, hasRevisionUpdate) =
+      if (isNewRevision || isOverwriteMode || tableChanges.isOptimizeOperation)
+        (updateQbeastRevision(baseConfiguration, latestRevision), true)
+      else (baseConfiguration, false)
 
     if (txn.readVersion == -1) {
       super.updateMetadata(
@@ -165,8 +165,7 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
       recordDeltaEvent(txn.deltaLog, "delta.ddl.overwriteSchema")
       if (rearrangeOnly) {
         throw DeltaErrors.unexpectedDataChangeException(
-          "Overwrite the Delta table schema or " +
-            "change the partition schema")
+          "Overwrite the Delta table schema or change the partition schema")
       }
       txn.updateMetadata(newMetadata)
     } else if (isNewSchema && canMergeSchema) {
@@ -185,7 +184,11 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
         errorBuilder.addSchemaMismatch(txn.metadata.schema, dataSchema, txn.metadata.id)
       }
       errorBuilder.finalizeAndThrow(spark.sessionState.conf)
-    } else txn.updateMetadata(txn.metadata.copy(configuration = configuration))
+    } else if (hasRevisionUpdate) {
+      // Aside from rewrites and schema changes, we will update the metadata only
+      // when there's a Revision update. Metadata entries interrupt concurrent writes.
+      txn.updateMetadata(txn.metadata.copy(configuration = configuration))
+    }
   }
 
   override protected val canMergeSchema: Boolean = true

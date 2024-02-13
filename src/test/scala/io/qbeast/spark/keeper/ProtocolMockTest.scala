@@ -106,7 +106,7 @@ class ProtocolMockTest extends ProtocolMockTestSpec {
   }
 
   "A write timout" should
-    "not cause inconsistency when a a timeout may interfere with an optimization" in withContext(
+    "not cause inconsistency when a timeout may interfere with an optimization" in withContext(
       LocalKeeper) { context =>
       implicit val keeper = LocalKeeper
       val initProcess = new InitProcess(context)

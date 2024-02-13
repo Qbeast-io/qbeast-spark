@@ -5,6 +5,9 @@ package io.qbeast.spark.utils
 
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import org.apache.spark.sql.delta.actions.Action
+import org.apache.spark.sql.delta.actions.Metadata
+import org.apache.spark.sql.delta.util.FileNames
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.lit
@@ -219,6 +222,32 @@ class QbeastSparkCorrectnessTest extends QbeastIntegrationTestSpec {
               .save(tmpDir)
           }
         }
+    }
+
+  "Appends" should "only update metadata when needed" in
+    withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
+      {
+        val df = loadTestData(spark).limit(5000)
+        df.write
+          .format("qbeast")
+          .option("columnsToIndex", "user_id,price")
+          .save(tmpDir)
+        df.write.mode("append").format("qbeast").save(tmpDir)
+
+        val deltaLog = DeltaLog.forTable(spark, tmpDir)
+        val conf = deltaLog.newDeltaHadoopConf()
+        deltaLog.store
+          .read(FileNames.deltaFile(deltaLog.logPath, 0L), conf)
+          .map(Action.fromJson)
+          .collect { case a: Metadata => a }
+          .isEmpty shouldBe false
+
+        deltaLog.store
+          .read(FileNames.deltaFile(deltaLog.logPath, 1L), conf)
+          .map(Action.fromJson)
+          .collect { case a: Metadata => a }
+          .isEmpty shouldBe true
+      }
     }
 
 }
