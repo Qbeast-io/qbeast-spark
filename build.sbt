@@ -162,6 +162,6 @@ Compile / compile := (Compile / compile).dependsOn((Compile / scalastyle).toTask
 Test / compile := (Test / compile).dependsOn((Test / scalastyle).toTask("")).value
 
 // Header settings
-headerLicense := Some(HeaderLicense.Custom("Copyright 2021 Qbeast Analytics, S.L."))
+headerLicense := Some(HeaderLicense.ALv2("2021", "Qbeast Analytics, S.L."))
 headerEmptyLine := false
 Compile / compile := (Compile / compile).dependsOn(Compile / headerCheck).value
