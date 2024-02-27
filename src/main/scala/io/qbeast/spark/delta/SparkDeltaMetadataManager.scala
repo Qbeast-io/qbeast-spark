@@ -33,6 +33,9 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction,
       deltaOptions += DeltaOptions.TXN_APP_ID -> txnAppId
       deltaOptions += DeltaOptions.TXN_VERSION -> txnVersion
     }
+    if (options.userMetadata.nonEmpty) {
+      deltaOptions += DeltaOptions.USER_METADATA_OPTION -> options.userMetadata.get
+    }
     val metadataWriter = DeltaMetadataWriter(
       tableID,
       mode,
