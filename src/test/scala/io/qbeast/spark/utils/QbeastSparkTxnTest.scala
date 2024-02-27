@@ -48,7 +48,7 @@ class QbeastSparkTxnTest extends QbeastIntegrationTestSpec {
       transaction.version shouldBe 1
   }
 
-  it should "ignore aleady processed transaction while indexing data" in withExtendedSparkAndTmpDir(
+  it should "ignore already processed transaction while indexing data" in withExtendedSparkAndTmpDir(
     sparkConfWithSqlAndCatalog) { (spark, tmpDir) =>
     val data = makeDataFrame(spark)
     data.write

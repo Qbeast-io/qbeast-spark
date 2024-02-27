@@ -109,6 +109,10 @@ private[spark] class StagingDataManager(tableID: QTableID) extends DeltaStagingU
         .option(DeltaOptions.TXN_VERSION, txnVersion)
         .option(DeltaOptions.TXN_APP_ID, txnAppId)
     }
+    if (options.userMetadata.nonEmpty) {
+      writer = writer
+        .option(DeltaOptions.USER_METADATA_OPTION, options.userMetadata.get)
+    }
     writer.save(tableID.id)
 
     // Convert if the table is not yet qbeast

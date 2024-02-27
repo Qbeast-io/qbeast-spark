@@ -1,5 +1,6 @@
 package io.qbeast.spark.utils
 
+import io.delta.tables._
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.DataFrame
@@ -69,5 +70,26 @@ class QbeastDeltaIntegrationTest extends QbeastIntegrationTestSpec {
       stats.head shouldBe null
 
     })
+
+  it should "store userMetadata" in withQbeastContextSparkAndTmpDir((spark, tmpDir) => {
+    val data = createSimpleTestData(spark)
+    data.write
+      .format("qbeast")
+      .option("columnsToIndex", "a,b")
+      .option("userMetadata", "userMetadata1")
+      .save(tmpDir)
+
+    data.write
+      .mode("append")
+      .format("qbeast")
+      .option("userMetadata", "userMetadata2")
+      .save(tmpDir)
+
+    import spark.implicits._
+
+    val deltaTable = DeltaTable.forPath(spark, tmpDir)
+    val allUserMetadata = deltaTable.history().select("userMetadata").as[String].collect()
+    allUserMetadata should contain theSameElementsAs "userMetadata1" :: "userMetadata2" :: Nil
+  })
 
 }
