@@ -15,25 +15,30 @@
  */
 package io.qbeast.spark.internal.rules
 
-import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
 import io.qbeast.spark.internal.rules.QbeastAnalysisUtils._
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.plans.logical.{AppendData, LogicalPlan}
+import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
+import org.apache.spark.sql.catalyst.plans.logical.AppendData
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
+import org.apache.spark.sql.execution.datasources.LogicalRelation
+import org.apache.spark.sql.SparkSession
 
 /**
  * Analyzes and resolves the Spark Plan before Optimization
- * @param spark the SparkSession
+ * @param spark
+ *   the SparkSession
  */
 class QbeastAnalysis(spark: SparkSession) extends Rule[LogicalPlan] {
 
   /**
    * Returns the V1Relation from a V2Relation
-   * @param dataSourceV2Relation the V2Relation
-   * @param table the underlying table
-   * @return the LogicalRelation
+   * @param dataSourceV2Relation
+   *   the V2Relation
+   * @param table
+   *   the underlying table
+   * @return
+   *   the LogicalRelation
    */
   private def toV1Relation(
       dataSourceV2Relation: DataSourceV2Relation,

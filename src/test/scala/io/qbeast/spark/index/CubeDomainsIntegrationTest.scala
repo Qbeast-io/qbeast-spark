@@ -1,15 +1,23 @@
 package io.qbeast.spark.index
 
+import io.qbeast.core.model.CubeDomainsBuilder
+import io.qbeast.core.model.CubeStatus
+import io.qbeast.core.model.IndexStatus
+import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.Weight
+import io.qbeast.spark.delta
+import io.qbeast.spark.internal.QbeastOptions
+import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
-import io.qbeast.core.model.{CubeStatus, CubeWeightsBuilder, IndexStatus, QTableID, Weight}
-import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
-import org.apache.spark.qbeast.config.{CUBE_WEIGHTS_BUFFER_CAPACITY, DEFAULT_CUBE_SIZE}
-import org.apache.spark.sql.{Dataset, SparkSession}
+import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
+import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
 import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
 import org.scalatest.PrivateMethodTester
 import io.qbeast.spark.internal.QbeastOptions
 
-class CubeWeightsIntegrationTest extends QbeastIntegrationTestSpec with PrivateMethodTester {
+class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateMethodTester {
 
   def createDF(size: Int): Dataset[Client3] = {
     val spark = SparkSession.active
@@ -47,7 +55,7 @@ class CubeWeightsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
 
           // commitLogWeightMap shouldBe weightMap
           commitLogWeightMap.keys.foreach(cubeId => {
-            tc.cubeWeights(cubeId) should be('defined)
+            tc.cubeWeight(cubeId) should be('defined)
           })
         }
 
@@ -75,29 +83,30 @@ class CubeWeightsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
 
   it should "respect the lower bound for groupCubeSize(1000)" in withSpark { _ =>
     val numElements =
-      DEFAULT_CUBE_SIZE * CUBE_WEIGHTS_BUFFER_CAPACITY / CubeWeightsBuilder.minGroupCubeSize
+      DEFAULT_CUBE_SIZE * CUBE_WEIGHTS_BUFFER_CAPACITY / CubeDomainsBuilder.minGroupCubeSize
     val numPartitions = 1
     val estimateGroupCubeSize = PrivateMethod[Int]('estimateGroupCubeSize)
 
     // numElements = 5e11 > 5e8 => groupCubeSize < 1000 => groupCubeSize = 1000
-    CubeWeightsBuilder invokePrivate estimateGroupCubeSize(
+    CubeDomainsBuilder invokePrivate estimateGroupCubeSize(
       DEFAULT_CUBE_SIZE,
       numPartitions,
       numElements * 1000,
-      CUBE_WEIGHTS_BUFFER_CAPACITY) shouldBe CubeWeightsBuilder.minGroupCubeSize
+      CUBE_WEIGHTS_BUFFER_CAPACITY) shouldBe CubeDomainsBuilder.minGroupCubeSize
 
     // numElements = 5e8 => groupCubeSize = 1000
-    CubeWeightsBuilder invokePrivate estimateGroupCubeSize(
+    CubeDomainsBuilder invokePrivate estimateGroupCubeSize(
       DEFAULT_CUBE_SIZE,
       numPartitions,
       numElements,
-      CUBE_WEIGHTS_BUFFER_CAPACITY) shouldBe CubeWeightsBuilder.minGroupCubeSize
+      CUBE_WEIGHTS_BUFFER_CAPACITY) shouldBe CubeDomainsBuilder.minGroupCubeSize
 
     // numElements = 5e6 < 5e8 => groupCubeSize > 1000
-    CubeWeightsBuilder invokePrivate estimateGroupCubeSize(
+    CubeDomainsBuilder invokePrivate estimateGroupCubeSize(
       DEFAULT_CUBE_SIZE,
       numPartitions,
       numElements / 100,
-      CUBE_WEIGHTS_BUFFER_CAPACITY) shouldBe >(CubeWeightsBuilder.minGroupCubeSize)
+      CUBE_WEIGHTS_BUFFER_CAPACITY) shouldBe >(CubeDomainsBuilder.minGroupCubeSize)
   }
+
 }

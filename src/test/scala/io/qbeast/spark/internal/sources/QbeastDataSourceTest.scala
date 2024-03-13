@@ -16,19 +16,28 @@
 package io.qbeast.spark.internal.sources
 
 import io.qbeast.core.model.QTableID
-import io.qbeast.spark.table.{IndexedTable, IndexedTableFactory}
+import io.qbeast.spark.table.IndexedTable
+import io.qbeast.spark.table.IndexedTableFactory
+import org.apache.log4j.Level
 import org.apache.spark.sql.connector.catalog.SparkCatalogV2Util
 import org.apache.spark.sql.connector.catalog.TableCapability._
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
-import org.apache.spark.sql.{AnalysisException, DataFrame, SQLContext, SaveMode}
-import org.mockito.ArgumentMatchers.{any, anyBoolean}
-import org.mockito.Mockito.{verify, when}
-import org.scalatest.Outcome
+import org.apache.spark.sql.AnalysisException
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.SparkConf
+import org.mockito.ArgumentMatchers.any
+import org.mockito.ArgumentMatchers.anyBoolean
+import org.mockito.Mockito.verify
+import org.mockito.Mockito.when
 import org.scalatest.flatspec.FixtureAnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.Outcome
 import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.JavaConverters._
@@ -48,6 +57,20 @@ class QbeastDataSourceTest extends FixtureAnyFlatSpec with MockitoSugar with Mat
       dataSource: QbeastDataSource)
 
   override type FixtureParam = Fixture
+
+  private def withSpark[T](testCode: SparkSession => T): T = {
+    val spark = SparkSession
+      .builder()
+      .appName("QbeastDataSource")
+      .config(new SparkConf().setMaster("local[2]"))
+      .getOrCreate()
+    spark.sparkContext.setLogLevel(Level.WARN.toString)
+    try {
+      testCode(spark)
+    } finally {
+      spark.close()
+    }
+  }
 
   override protected def withFixture(test: OneArgTest): Outcome = {
     val sqlContext = mock[SQLContext]
@@ -167,10 +190,12 @@ class QbeastDataSourceTest extends FixtureAnyFlatSpec with MockitoSugar with Mat
   }
 
   it should "throw exception for write if columns to index are not specified" in { f =>
-    val parameters = Map("path" -> path)
-    val data = mock[DataFrame]
-    a[AnalysisException] shouldBe thrownBy {
-      f.dataSource.createRelation(f.sqlContext, SaveMode.Overwrite, parameters, data)
+    withSpark { _ =>
+      val parameters = Map("path" -> path)
+      val data = mock[DataFrame]
+      a[AnalysisException] shouldBe thrownBy {
+        f.dataSource.createRelation(f.sqlContext, SaveMode.Overwrite, parameters, data)
+      }
     }
   }
 
@@ -186,4 +211,5 @@ class QbeastDataSourceTest extends FixtureAnyFlatSpec with MockitoSugar with Mat
       f.dataSource.createRelation(f.sqlContext, Map.empty)
     }
   }
+
 }

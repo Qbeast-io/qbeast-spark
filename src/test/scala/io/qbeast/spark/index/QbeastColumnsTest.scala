@@ -15,14 +15,12 @@
  */
 package io.qbeast.spark.index
 
-import org.apache.spark.sql.types.{
-  BinaryType,
-  IntegerType,
-  LongType,
-  StringType,
-  StructField,
-  StructType
-}
+import org.apache.spark.sql.types.BinaryType
+import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.LongType
+import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -30,12 +28,14 @@ import org.scalatest.matchers.should.Matchers
  * Tests for [[QbeastColumns]].
  */
 class QbeastColumnsTest extends AnyFlatSpec with Matchers {
+
   "QbeastColumns" should "define column names starting with _qbeast" in {
     QbeastColumns.weightColumnName should startWith("_qbeast")
     QbeastColumns.cubeColumnName should startWith("_qbeast")
     QbeastColumns.stateColumnName should startWith("_qbeast")
     QbeastColumns.revisionColumnName should startWith("_qbeast")
     QbeastColumns.cubeToReplicateColumnName should startWith("_qbeast")
+    QbeastColumns.cubeToRollupColumnName should startWith("_qbeast")
   }
 
   it should "create instance from schema correctly" in {
@@ -58,6 +58,8 @@ class QbeastColumnsTest extends AnyFlatSpec with Matchers {
     columns1.hasRevisionColumn shouldBe false
     columns1.cubeToReplicateColumnIndex shouldBe -1
     columns1.hasCubeToReplicateColumn shouldBe false
+    columns1.cubeToRollupColumnIndex shouldBe -1
+    columns1.hasCubeToRollupColumn shouldBe false
 
     val schema2 = StructType(
       Seq(
@@ -65,7 +67,8 @@ class QbeastColumnsTest extends AnyFlatSpec with Matchers {
         StructField(QbeastColumns.revisionColumnName, LongType),
         StructField("B", StringType),
         StructField(QbeastColumns.cubeToReplicateColumnName, BinaryType),
-        StructField("C", StringType)))
+        StructField("C", StringType),
+        StructField(QbeastColumns.cubeToRollupColumnName, BinaryType)))
     val columns2 = QbeastColumns(schema2)
     columns2.weightColumnIndex shouldBe -1
     columns2.hasWeightColumn shouldBe false
@@ -77,6 +80,8 @@ class QbeastColumnsTest extends AnyFlatSpec with Matchers {
     columns2.hasRevisionColumn shouldBe true
     columns2.cubeToReplicateColumnIndex shouldBe 3
     columns2.hasCubeToReplicateColumn shouldBe true
+    columns2.cubeToRollupColumnIndex shouldBe 5
+    columns2.hasCubeToRollupColumn shouldBe true
   }
 
   it should "implement contains correctly" in {
@@ -102,13 +107,15 @@ class QbeastColumnsTest extends AnyFlatSpec with Matchers {
         StructField(QbeastColumns.revisionColumnName, LongType),
         StructField("B", StringType),
         StructField(QbeastColumns.cubeToReplicateColumnName, BinaryType),
-        StructField("C", StringType)))
+        StructField("C", StringType),
+        StructField(QbeastColumns.cubeToRollupColumnName, BinaryType)))
     val columns2 = QbeastColumns(schema2)
     columns2.contains(0) shouldBe false
     columns2.contains(1) shouldBe true
     columns2.contains(2) shouldBe false
     columns2.contains(3) shouldBe true
     columns2.contains(4) shouldBe false
+    columns2.contains(5) shouldBe true
   }
 
   it should "recognize all the Qbeast column names" in {
@@ -117,6 +124,7 @@ class QbeastColumnsTest extends AnyFlatSpec with Matchers {
     QbeastColumns.contains(QbeastColumns.stateColumnName) shouldBe true
     QbeastColumns.contains(QbeastColumns.revisionColumnName) shouldBe true
     QbeastColumns.contains(QbeastColumns.cubeToReplicateColumnName) shouldBe true
+    QbeastColumns.contains(QbeastColumns.cubeToRollupColumnName) shouldBe true
     QbeastColumns.contains("weight") shouldBe false
     QbeastColumns.contains("cube") shouldBe false
     QbeastColumns.contains("state") shouldBe false
@@ -131,10 +139,13 @@ class QbeastColumnsTest extends AnyFlatSpec with Matchers {
     QbeastColumns.contains(StructField(QbeastColumns.revisionColumnName, LongType)) shouldBe true
     QbeastColumns.contains(
       StructField(QbeastColumns.cubeToReplicateColumnName, BinaryType)) shouldBe true
+    QbeastColumns.contains(
+      StructField(QbeastColumns.cubeToRollupColumnName, BinaryType)) shouldBe true
     QbeastColumns.contains(StructField("weight", IntegerType)) shouldBe false
     QbeastColumns.contains(StructField("cube", BinaryType)) shouldBe false
     QbeastColumns.contains(StructField("state", StringType)) shouldBe false
     QbeastColumns.contains(StructField("revision", LongType)) shouldBe false
     QbeastColumns.contains(StructField("cubeToReplicate", BinaryType)) shouldBe false
   }
+
 }

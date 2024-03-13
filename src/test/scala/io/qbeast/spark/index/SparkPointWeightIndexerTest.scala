@@ -15,13 +15,16 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.TestClasses.T1
-import io.qbeast.core.model.{BroadcastedTableChanges, _}
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.core.model._
+import io.qbeast.core.model.BroadcastedTableChanges
+import io.qbeast.core.transform.HashTransformation
+import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.core.transform.{HashTransformation, LinearTransformation}
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.TestClasses.T1
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.udf
 import org.apache.spark.SparkException
-import org.apache.spark.sql.functions.{col, udf}
 
 import scala.util.Random
 
@@ -39,7 +42,7 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
       QbeastOptions(Map(QbeastOptions.COLUMNS_TO_INDEX -> "a,b,c")))
 
     val indexStatus = IndexStatus(rev)
-    val tableChanges = BroadcastedTableChanges(None, indexStatus, Map.empty)
+    val tableChanges = BroadcastedTableChanges(None, indexStatus, Map.empty, Map.empty)
     val r = udf(() => {
       Random.nextInt
     })
@@ -72,7 +75,7 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
           Some(LinearTransformation(0, 10, IntegerDataType)),
           Some(HashTransformation()),
           Some(LinearTransformation(0.0, 10.0, DoubleDataType))))
-    val tc = BroadcastedTableChanges(Some(revisionChange), indexStatus, Map.empty)
+    val tc = BroadcastedTableChanges(Some(revisionChange), indexStatus, Map.empty, Map.empty)
 
     val r = udf(() => {
       Random.nextInt
@@ -106,7 +109,7 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
           Some(HashTransformation()),
           Some(HashTransformation()),
           Some(HashTransformation())))
-    val tc = BroadcastedTableChanges(Some(revisionChange), indexStatus, Map.empty)
+    val tc = BroadcastedTableChanges(Some(revisionChange), indexStatus, Map.empty, Map.empty)
 
     val r = udf(() => {
       Random.nextInt

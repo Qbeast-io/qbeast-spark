@@ -1,11 +1,25 @@
 package io.qbeast.spark.index.query
 
-import io.qbeast.core.model.{CubeId, QbeastBlock, Weight, WeightRange}
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.core.model.AllSpace
+import io.qbeast.core.model.Block
+import io.qbeast.core.model.CubeId
+import io.qbeast.core.model.CubeStatus
+import io.qbeast.core.model.IndexStatus
+import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.Revision
+import io.qbeast.core.model.Weight
+import io.qbeast.core.model.WeightRange
+import io.qbeast.core.transform.EmptyTransformer
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
-
+import io.qbeast.spark.delta.IndexFiles
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.functions.{col, expr}
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.expr
+
+import scala.collection.immutable.SortedMap
 
 class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
 
@@ -26,7 +40,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val allDeltaFiles = deltaLog.update().allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.path)
+    val matchFiles = queryExecutor.execute().map(_.file.path).toSet
 
     val diff = allFiles.toSet -- matchFiles.toSet
 
@@ -51,7 +65,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val allDeltaFiles = deltaLog.update().allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.path)
+    val matchFiles = queryExecutor.execute().map(_.file.path).toSet
 
     matchFiles.size shouldBe <(allFiles.length)
     matchFiles.foreach(file => allFiles should contain(file))
@@ -73,7 +87,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val allDeltaFiles = deltaLog.update().allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.path)
+    val matchFiles = queryExecutor.execute().map(_.file.path).toSet
 
     matchFiles.size shouldBe <(allFiles.length)
     matchFiles.foreach(file => allFiles should contain(file))
@@ -106,7 +120,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val allDeltaFiles = deltaLog.update().allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.path)
+    val matchFiles = queryExecutor.execute().map(_.file.path)
 
     val diff = allFiles.toSet -- matchFiles.toSet
     diff.size shouldBe 0
@@ -115,7 +129,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
 
   })
 
-  it should "skip files with maxWeight < weightRange.from" in withSparkAndTmpDir(
+  it should "skip blocks with maxWeight < weightRange.from" in withSparkAndTmpDir(
     (spark, tmpDir) => {
       val df = createDF(500000, spark).toDF()
 
@@ -130,20 +144,13 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
 
       val queryExecutor = new QueryExecutor(querySpecBuilder, qbeastSnapshot)
 
-      val allDeltaFiles = deltaLog.update().allFiles.collect()
-      val allFiles = allDeltaFiles.map(_.path)
+      val allBlocks =
+        deltaLog.update().allFiles.collect().map(IndexFiles.fromAddFile(2)).flatMap(_.blocks)
 
-      val matchFiles = queryExecutor.execute().map(_.path)
-      val diff = allFiles.toSet -- matchFiles.toSet
+      val matchingBlocks = queryExecutor.execute()
 
-      val allQbeastFiles = allDeltaFiles.map(addFile =>
-        QbeastBlock(addFile.path, addFile.tags, addFile.size, addFile.modificationTime))
-
-      for (f <- allQbeastFiles) {
-        if (f.maxWeight < weightRange.from) {
-          diff should contain(f.path)
-          matchFiles should not contain (f.path)
-        }
+      allBlocks.filter(_.maxWeight < weightRange.from).foreach { block =>
+        matchingBlocks should not contain (block)
       }
     })
 
@@ -171,7 +178,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val queryExecutor = new QueryExecutor(querySpecBuilder, qbeastSnapshot)
     val matchFiles = queryExecutor
       .executeRevision(querySpec, faultyIndexStatus)
-      .map(_.path)
+      .map(_.file.path)
 
     val allFiles = deltaLog.update().allFiles.collect().map(_.path)
 
@@ -204,6 +211,64 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
       indexed.where("a <= 1").count shouldBe 2
       indexed.where("a <= 49999").count shouldBe 50000
 
+    })
+
+  it should "filter cube blocks by query weight range" in
+    withSparkAndTmpDir((spark, tmpDir) => {
+      val samplingFraction = 0.5
+      val root = CubeId.root(2)
+      val c1 = root.firstChild
+
+      val rootBlock =
+        s"""{
+          "cubeId": "${root.string}",
+          "minWeight": ${Weight(0.0).value},
+          "maxWeight": ${Weight(0.1).value},
+          "elementCount": 1, "replicated": false}""".stripMargin
+      val c1Block1 =
+        s"""{
+          "cubeId": "${c1.string}",
+          "minWeight": ${Weight(0.1).value},
+          "maxWeight": ${Weight(0.2).value},
+          "elementCount": 1,"replicated": false}""".stripMargin
+      val c1Block2 =
+        s"""{"cubeId": "${c1.string}",
+          "minWeight": ${Weight(0.7).value},
+          "maxWeight": ${Weight(0.8).value},
+          "elementCount": 1, "replicated": false}"""
+
+      val Seq(rb1, c1b1, c1b2) = IndexFiles
+        .fromAddFile(2)(
+          AddFile(
+            path = tmpDir,
+            partitionValues = Map.empty,
+            size = 1L,
+            modificationTime = 1L,
+            dataChange = true,
+            tags = Map("blocks" -> s"""[$rootBlock, $c1Block1, $c1Block2]""")))
+        .blocks
+
+      val indexStatus = IndexStatus(
+        Revision.firstRevision(
+          new QTableID(tmpDir),
+          1,
+          Vector(EmptyTransformer("t1"), EmptyTransformer("t2"))),
+        cubesStatuses = SortedMap(
+          root -> CubeStatus(root, Weight(0.1), 0.1, rb1 :: Nil),
+          c1 -> CubeStatus(root, Weight(0.2), 0.2, c1b1 :: c1b2 :: Nil)))
+
+      val executor = new QueryExecutor(
+        new QuerySpecBuilder(Seq.empty[Expression]),
+        DeltaQbeastSnapshot(DeltaLog.forTable(spark, tmpDir).update()))
+
+      val executeRevision: PrivateMethod[Seq[Block]] = PrivateMethod[Seq[Block]]('executeRevision)
+      val outputBlocks = executor invokePrivate executeRevision(
+        QuerySpec(WeightRange(Weight(0d), Weight(samplingFraction)), AllSpace()),
+        indexStatus)
+
+      // c1Block2 should not be part of outputBlocks
+      outputBlocks.size shouldBe 2
+      outputBlocks.contains(c1b2) shouldBe false
     })
 
 }

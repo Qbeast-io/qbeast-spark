@@ -22,8 +22,10 @@ case class StringHistogramTransformer(columnName: String, dataType: QDataType)
   /**
    * Returns the Transformation given a row representation of the values
    *
-   * @param row the values
-   * @return the transformation
+   * @param row
+   *   the values
+   * @return
+   *   the transformation
    */
   override def makeTransformation(row: String => Any): Transformation = {
     val hist = row(columnHistogram) match {

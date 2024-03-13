@@ -6,6 +6,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class EmptyTransformationTest extends AnyFlatSpec with Matchers {
+
   it should "always map to the same value" in {
     val t = EmptyTransformation()
 
@@ -37,4 +38,5 @@ class EmptyTransformationTest extends AnyFlatSpec with Matchers {
     et.merge(lt) shouldBe lt
     et.merge(sht) shouldBe sht
   }
+
 }

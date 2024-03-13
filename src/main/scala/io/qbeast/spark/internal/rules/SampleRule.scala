@@ -15,29 +15,39 @@
  */
 package io.qbeast.spark.internal.rules
 
-import io.qbeast.core.model.{Weight, WeightRange}
+import io.qbeast.core.model.Weight
+import io.qbeast.core.model.WeightRange
+import io.qbeast.spark.delta.OTreeIndex
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
+import io.qbeast.IndexedColumns
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{And, GreaterThanOrEqual, LessThan, Literal}
-import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, Project, Sample}
+import org.apache.spark.sql.catalyst.expressions.And
+import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual
+import org.apache.spark.sql.catalyst.expressions.LessThan
+import org.apache.spark.sql.catalyst.expressions.Literal
+import org.apache.spark.sql.catalyst.plans.logical.Filter
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.plans.logical.Project
+import org.apache.spark.sql.catalyst.plans.logical.Sample
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.SparkSession
-import io.qbeast.IndexedColumns
-import org.apache.spark.sql.execution.datasources.HadoopFsRelation
-import io.qbeast.spark.delta.OTreeIndex
 
 /**
- * Rule class that transforms a Sample operator over a QbeastRelation
- * into a suitable Filter for Qbeast
- * @param spark The current SparkSession
+ * Rule class that transforms a Sample operator over a QbeastRelation into a suitable Filter for
+ * Qbeast
+ * @param spark
+ *   The current SparkSession
  */
 class SampleRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
 
   /**
    * Extracts the weight range of the Sample operator
-   * @param sample the Sample operator
-   * @return the Range of Weights
+   * @param sample
+   *   the Sample operator
+   * @return
+   *   the Range of Weights
    */
   private def extractWeightRange(sample: Sample): WeightRange = {
     val minWeight = Weight(sample.lowerBound)
@@ -47,10 +57,14 @@ class SampleRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
 
   /**
    * Transforms the Sample Operator to a Filter
-   * @param sample the Sample Operator
-   * @param logicalRelation the LogicalRelation underneath
-   * @param indexedColumns the IndexedColumns of the LogicalRelation
-   * @return the new Filter
+   * @param sample
+   *   the Sample Operator
+   * @param logicalRelation
+   *   the LogicalRelation underneath
+   * @param indexedColumns
+   *   the IndexedColumns of the LogicalRelation
+   * @return
+   *   the new Filter
    */
   private def transformSampleToFilter(
       sample: Sample,

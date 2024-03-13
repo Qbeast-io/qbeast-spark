@@ -15,10 +15,16 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.core.model.{QDataType, QTableID, Revision, RevisionFactory, RevisionID}
+import io.qbeast.core.model.QDataType
+import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.Revision
+import io.qbeast.core.model.RevisionFactory
+import io.qbeast.core.model.RevisionID
+import io.qbeast.core.transform.EmptyTransformation
+import io.qbeast.core.transform.Transformation
+import io.qbeast.core.transform.Transformer
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.utils.SparkToQTypesUtils
-import io.qbeast.core.transform.{EmptyTransformation, Transformation, Transformer}
 import org.apache.spark.sql.types.StructType
 
 import scala.util.matching.Regex

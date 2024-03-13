@@ -1,20 +1,25 @@
 package io.qbeast.spark.index.query
 
-import io.qbeast.TestClasses.T2
-import io.qbeast.core.model.{IntegerDataType, QTableID, QuerySpaceFromTo, Revision, WeightRange}
-import io.qbeast.core.transform.{LinearTransformation, Transformer}
+import io.qbeast.core.model.IntegerDataType
+import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QuerySpaceFromTo
+import io.qbeast.core.model.Revision
+import io.qbeast.core.model.WeightRange
+import io.qbeast.core.transform.LinearTransformation
+import io.qbeast.core.transform.Transformer
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
-import org.apache.spark.sql.{Column, Dataset, SparkSession}
-import org.apache.spark.sql.catalyst.expressions.{
-  And,
-  Expression,
-  GreaterThanOrEqual,
-  LessThan,
-  Literal
-}
-import org.scalatest.PrivateMethodTester
+import io.qbeast.TestClasses.T2
+import org.apache.spark.sql.catalyst.expressions.And
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.GreaterThanOrEqual
+import org.apache.spark.sql.catalyst.expressions.LessThan
+import org.apache.spark.sql.catalyst.expressions.Literal
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.PrivateMethodTester
 
 trait QueryTestSpec extends AnyFlatSpec with Matchers with PrivateMethodTester {
 

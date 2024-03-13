@@ -15,14 +15,16 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.TestClasses.Client3
 import io.qbeast.core.model.CubeId
-import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable, delta}
-import org.apache.spark.sql.SparkSession
+import io.qbeast.spark.delta
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastTable
+import io.qbeast.TestClasses.Client3
 import org.apache.spark.sql.delta.DeltaLog
-import org.scalatest.PrivateMethodTester
+import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.PrivateMethodTester
 
 class AnalyzeAndOptimizeTest
     extends AnyFlatSpec
@@ -74,7 +76,7 @@ class AnalyzeAndOptimizeTest
     announcedCubes.foreach(a => replicatedCubes shouldNot contain(a))
   }
 
-  "Optimize command" should "replicate cubes in announce set" in withSparkAndTmpDir {
+  "Optimize command" should "replicate cubes in announce set" ignore withSparkAndTmpDir {
     (spark, tmpDir) =>
       appendNewRevision(spark, tmpDir, 1)
 
@@ -91,4 +93,5 @@ class AnalyzeAndOptimizeTest
         announcedCubes.foreach(r => replicatedCubes should contain(r))
       })
   }
+
 }

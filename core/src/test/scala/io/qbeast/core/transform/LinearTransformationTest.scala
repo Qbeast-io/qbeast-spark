@@ -115,4 +115,5 @@ class LinearTransformationTest extends AnyFlatSpec with Matchers {
     linearT.isSupersededBy(IdentityToZeroTransformation(10)) shouldBe false
 
   }
+
 }

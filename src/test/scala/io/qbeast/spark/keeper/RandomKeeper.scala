@@ -1,7 +1,11 @@
 package io.qbeast.spark.keeper
 
-import io.qbeast.core.keeper.{Keeper, Optimization, Write}
-import io.qbeast.core.model.{CubeId, Point, QTableID}
+import io.qbeast.core.keeper.Keeper
+import io.qbeast.core.keeper.Optimization
+import io.qbeast.core.keeper.Write
+import io.qbeast.core.model.CubeId
+import io.qbeast.core.model.Point
+import io.qbeast.core.model.QTableID
 
 import java.util.UUID
 import scala.util.Random

@@ -1,11 +1,12 @@
 package io.qbeast.spark.index
 
-import io.qbeast.TestClasses.Client3
-import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.utils.TagUtils
+import io.qbeast.spark.delta.IndexFiles
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.TestClasses.Client3
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.{Dataset, SparkSession}
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
 
 class NormalizedWeightIntegrationTest extends QbeastIntegrationTestSpec {
 
@@ -22,7 +23,6 @@ class NormalizedWeightIntegrationTest extends QbeastIntegrationTestSpec {
   "CubeNormalizedWeights" should
     "write a the right Weight with a single full file" in withQbeastContextSparkAndTmpDir {
       (spark, tmpDir) =>
-        import spark.implicits._
         val cubeSize = 10000
         val df = createDF(cubeSize).repartition(1)
         val names = List("age", "val2")
@@ -38,9 +38,13 @@ class NormalizedWeightIntegrationTest extends QbeastIntegrationTestSpec {
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
         val files = deltaLog.update().allFiles
         files.count() shouldBe 1
-        files.map(_.tags(TagUtils.maxWeight).toInt).collect()(0) shouldBe <=(Int.MaxValue)
-        files.map(_.tags(TagUtils.state)).collect()(0) shouldBe "FLOODED"
-
+        files.collect
+          .map(IndexFiles.fromAddFile(names.length))
+          .flatMap(_.blocks)
+          .foreach { block =>
+            block.maxWeight.value shouldBe <=(Int.MaxValue)
+            block.replicated shouldBe false
+          }
     }
 
   it should
@@ -63,4 +67,5 @@ class NormalizedWeightIntegrationTest extends QbeastIntegrationTestSpec {
 
         cubeNormalizedWeights.foreach(cubeInfo => cubeInfo._2 shouldBe 2.0)
     }
+
 }

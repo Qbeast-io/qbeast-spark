@@ -15,14 +15,15 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.TestClasses._
 import io.qbeast.core.transform.LinearTransformation
-import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
-import org.apache.spark.sql.SparkSession
+import io.qbeast.spark.delta
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.TestClasses._
 import org.apache.spark.sql.delta.DeltaLog
-import org.scalatest.PrivateMethodTester
+import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.PrivateMethodTester
 
 class NewRevisionTest
     extends AnyFlatSpec
@@ -84,8 +85,8 @@ class NewRevisionTest
           val rdd =
             spark.sparkContext.parallelize(
               Seq(
-                Client3(1, s"student-1", 1, 1000 + 123, 2567.3432143),
-                Client3(2, s"student-2", 2, 2 * 1000 + 123, 2 * 2567.3432143)))
+                Client3(1, "student-1", 1, 1000 + 123, 2567.3432143),
+                Client3(2, "student-2", 2, 2 * 1000 + 123, 2 * 2567.3432143)))
 
           val df = spark.createDataFrame(rdd)
 
@@ -112,8 +113,8 @@ class NewRevisionTest
       val rdd =
         spark.sparkContext.parallelize(
           Seq(
-            Client3(1, s"student-1", 1, 1000 + 123, 2567.3432143),
-            Client3(2, s"student-2", 2, 2 * 1000 + 123, 2 * 2567.3432143)))
+            Client3(1, "student-1", 1, 1000 + 123, 2567.3432143),
+            Client3(2, "student-2", 2, 2 * 1000 + 123, 2 * 2567.3432143)))
 
       val df = spark.createDataFrame(rdd)
       val names = List("age", "val2")
@@ -146,8 +147,8 @@ class NewRevisionTest
         val rdd =
           spark.sparkContext.parallelize(
             Seq(
-              Client3(1, s"student-1", 1, 1000 + 123, 2567.3432143),
-              Client3(2, s"student-2", 2, 2 * 1000 + 123, 2 * 2567.3432143)))
+              Client3(1, "student-1", 1, 1000 + 123, 2567.3432143),
+              Client3(2, "student-2", 2, 2 * 1000 + 123, 2 * 2567.3432143)))
 
         val df = spark.createDataFrame(rdd)
 
@@ -179,8 +180,8 @@ class NewRevisionTest
         val rdd =
           spark.sparkContext.parallelize(
             Seq(
-              Client3(1, s"student-1", 1, 1000 + 123, 2567.3432143),
-              Client3(2, s"student-2", 2, 2 * 1000 + 123, 2 * 2567.3432143)))
+              Client3(1, "student-1", 1, 1000 + 123, 2567.3432143),
+              Client3(2, "student-2", 2, 2 * 1000 + 123, 2 * 2567.3432143)))
 
         val df = spark.createDataFrame(rdd)
 
@@ -211,8 +212,8 @@ class NewRevisionTest
         val rdd =
           spark.sparkContext.parallelize(
             Seq(
-              Client3(1, s"student-1", 1, 1000 + 123, 2567.3432143),
-              Client3(2, s"student-2", 10, 2 * 1000 + 123, 2 * 2567.3432143)))
+              Client3(1, "student-1", 1, 1000 + 123, 2567.3432143),
+              Client3(2, "student-2", 10, 2 * 1000 + 123, 2 * 2567.3432143)))
 
         val df = spark.createDataFrame(rdd)
 
@@ -244,8 +245,8 @@ class NewRevisionTest
       val rdd =
         spark.sparkContext.parallelize(
           Seq(
-            Client3(1, s"student-1", 1, 1000 + 123, 2567.3432143),
-            Client3(2, s"student-2", 2, 2 * 1000 + 123, 2 * 2567.3432143)))
+            Client3(1, "student-1", 1, 1000 + 123, 2567.3432143),
+            Client3(2, "student-2", 2, 2 * 1000 + 123, 2 * 2567.3432143)))
 
       val df = spark.createDataFrame(rdd)
       val names = List("age")
@@ -292,8 +293,8 @@ class NewRevisionTest
         import spark.implicits._
 
         val df1 = Seq(
-          Client3(1, s"student-1", 1, 1000 + 123, 2567.3432143),
-          Client3(2, s"student-2", 2, 2 * 1000 + 123, 2 * 2567.3432143)).toDF()
+          Client3(1, "student-1", 1, 1000 + 123, 2567.3432143),
+          Client3(2, "student-2", 2, 2 * 1000 + 123, 2 * 2567.3432143)).toDF()
 
         // Creates a Revision with ID = 1
         df1.write
@@ -304,8 +305,8 @@ class NewRevisionTest
 
         // APPEND with 'invalid' columnStats: columnStats < appendMinMax
         val df2 = Seq(
-          Client3(1, s"student-1", 1, 1000 + 123, 2567.3432143),
-          Client3(2, s"student-2", 20, 2 * 1000 + 123, 2 * 2567.3432143)).toDF()
+          Client3(1, "student-1", 1, 1000 + 123, 2567.3432143),
+          Client3(2, "student-2", 20, 2 * 1000 + 123, 2 * 2567.3432143)).toDF()
         val columnStats = """{ "age_min": 1, "age_max": 10 }"""
         df2.write
           .format("qbeast")
@@ -335,4 +336,5 @@ class NewRevisionTest
         appendMax shouldBe 20
       }
   }
+
 }

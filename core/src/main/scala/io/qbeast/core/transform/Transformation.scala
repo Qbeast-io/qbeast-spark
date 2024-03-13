@@ -17,7 +17,8 @@ package io.qbeast.core.transform
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 
-import java.sql.{Date, Timestamp}
+import java.sql.Date
+import java.sql.Timestamp
 import java.time.Instant
 
 /**
@@ -32,16 +33,20 @@ trait Transformation extends Serializable {
   /**
    * Converts a real number to a normalized value.
    *
-   * @param value a real number to convert
-   * @return a real number between 0 and 1
+   * @param value
+   *   a real number to convert
+   * @return
+   *   a real number between 0 and 1
    */
   def transform(value: Any): Double
 
   /**
    * This method should determine if the new data will cause the creation of a new revision.
    *
-   * @param newTransformation the new transformation created with statistics over the new data
-   * @return true if the domain of the newTransformation is not fully contained in this one.
+   * @param newTransformation
+   *   the new transformation created with statistics over the new data
+   * @return
+   *   true if the domain of the newTransformation is not fully contained in this one.
    */
   def isSupersededBy(newTransformation: Transformation): Boolean
 
@@ -49,7 +54,8 @@ trait Transformation extends Serializable {
    * Merges two transformations. The domain of the resulting transformation is the union of this
    *
    * @param other
-   * @return a new Transformation that contains both this and other.
+   * @return
+   *   a new Transformation that contains both this and other.
    */
   def merge(other: Transformation): Transformation
 }
