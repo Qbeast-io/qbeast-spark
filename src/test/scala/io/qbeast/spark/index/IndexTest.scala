@@ -30,7 +30,6 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import io.qbeast.spark.internal.QbeastOptions
 
 class IndexTest
     extends AnyFlatSpec

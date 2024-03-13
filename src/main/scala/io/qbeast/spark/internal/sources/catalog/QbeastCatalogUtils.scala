@@ -15,7 +15,7 @@
  */
 package io.qbeast.spark.internal.sources.catalog
 
-import io.qbeast.context.QbeastContext.{metadataManager}
+import io.qbeast.context.QbeastContext.metadataManager
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
 import io.qbeast.spark.table.IndexedTableFactory

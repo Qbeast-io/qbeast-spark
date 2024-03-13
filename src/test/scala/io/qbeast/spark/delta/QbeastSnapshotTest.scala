@@ -26,7 +26,6 @@ import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 import org.scalatest.AppendedClues.convertToClueful
-import io.qbeast.spark.internal.QbeastOptions
 
 class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
 

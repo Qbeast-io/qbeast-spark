@@ -49,11 +49,11 @@ object QbeastBaseRelation {
    */
   def createRelation(
       sqlContext: SQLContext,
-      indexedTable: IndexedTable,
+      table: IndexedTable,
       options: Map[String, String]): BaseRelation = {
 
     val spark = SparkSession.active
-    val tableID = indexedTable.tableID
+    val tableID = table.tableID
     val snapshot = QbeastContext.metadataManager.loadSnapshot(tableID)
     val schema = QbeastContext.metadataManager.loadCurrentSchema(tableID)
     if (snapshot.isInitial) {
@@ -68,7 +68,7 @@ object QbeastBaseRelation {
         new ParquetFileFormat(),
         options)(spark) with InsertableRelation {
         def insert(data: DataFrame, overwrite: Boolean): Unit = {
-          indexedTable.save(data, options, append = !overwrite)
+          table.save(data, options, append = !overwrite)
         }
       }
     } else {
@@ -79,7 +79,7 @@ object QbeastBaseRelation {
       val file = new ParquetFileFormat()
 
       // Verify and Merge options with existing indexed properties
-      val parameters = indexedTable.verifyAndMergeProperties(options)
+      val parameters = table.verifyAndMergeProperties(options)
 
       new HadoopFsRelation(
         fileIndex,
@@ -89,7 +89,7 @@ object QbeastBaseRelation {
         file,
         parameters)(spark) with InsertableRelation {
         def insert(data: DataFrame, overwrite: Boolean): Unit = {
-          indexedTable.save(data, parameters, append = !overwrite)
+          table.save(data, parameters, append = !overwrite)
         }
       }
     }
