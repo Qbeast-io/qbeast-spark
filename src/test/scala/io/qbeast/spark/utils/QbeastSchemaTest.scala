@@ -125,8 +125,10 @@ class QbeastSchemaTest extends QbeastIntegrationTestSpec {
 
   })
 
-  it should "not merge schemas with different column number" in withQbeastContextSparkAndTmpWarehouse(
+  it should "not merge schemas if specified in SQL" in withQbeastContextSparkAndTmpWarehouse(
     (spark, _) => {
+
+      // TODO: all failing because when creating a table, no initial schema is commited
 
       import spark.implicits._
 
@@ -136,6 +138,7 @@ class QbeastSchemaTest extends QbeastIntegrationTestSpec {
 
       val dfExtraCol = Seq((1, "John"), (2, "Doe")).toDF("id", "name")
 
+      // EXRA COLUMN
       an[AnalysisException] shouldBe thrownBy(
         dfExtraCol.write
           .format("qbeast")
@@ -143,45 +146,68 @@ class QbeastSchemaTest extends QbeastIntegrationTestSpec {
           .option("columnsToIndex", "id")
           .insertInto("student"))
 
-    })
+      // RENAME
+      val renamedDF = Seq((1, "John", 10)).toDF("id", "name2", "age")
+      an[AnalysisException] shouldBe thrownBy(
+        renamedDF.write
+          .format("qbeast")
+          .mode("append")
+          .option("columnsToIndex", "id")
+          .insertInto("student"))
 
-  // TODO
-  it should "fail when renaming a column" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
-
-    import spark.implicits._
-    spark.sql(
-      "CREATE TABLE student (id INT, name STRING, age INT) USING delta " +
-        "OPTIONS ('columnsToIndex'='id')")
-
-    val renamedDF = Seq((1, "John", 10)).toDF("id", "name2", "age")
-    an[AnalysisException] shouldBe thrownBy(
-      renamedDF.write
+      // MERGESCHEMA YES
+      dfExtraCol.write
         .format("qbeast")
         .mode("append")
+        .option("mergeSchema", "true")
+        .insertInto("student")
+
+      spark.table("student").schema shouldBe (dfExtraCol.schema)
+
+    })
+
+  it should "not merge schemas if specified with DataFrame API" in withQbeastContextSparkAndTmpDir(
+    (spark, tmpDir) => {
+
+      import spark.implicits._
+
+      val df = Seq(1, 2).toDF("id")
+      val path = s"$tmpDir/student"
+      df.write
+        .format("qbeast")
+        .mode("overwrite")
         .option("columnsToIndex", "id")
-        .insertInto("student"))
+        .save(path)
 
-  })
+      val dfExtraCol = Seq((1, "John"), (2, "Doe")).toDF("id", "name")
 
-  // TODO
-  it should "merge schemas if specified" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
+      // EXRA COLUMN
+      an[AnalysisException] shouldBe thrownBy(
+        dfExtraCol.write
+          .format("qbeast")
+          .mode("append")
+          .option("columnsToIndex", "id")
+          .save(path))
 
-    import spark.implicits._
+      // RENAME
+      val renamedDF = Seq((1, "John", 10)).toDF("id", "name2", "age")
+      an[AnalysisException] shouldBe thrownBy(
+        renamedDF.write
+          .format("qbeast")
+          .mode("append")
+          .option("columnsToIndex", "id")
+          .save(path))
 
-    spark.sql(
-      "CREATE TABLE student (id INT) USING qbeast " +
-        "OPTIONS ('columnsToIndex'='id')")
+      // MERGESCHEMA YES
+      // TODO: failing, options should be passed to the save method
+      dfExtraCol.write
+        .format("qbeast")
+        .mode("append")
+        .option("mergeSchema", "true")
+        .save(path)
 
-    val dfExtraCol = Seq((1, "John"), (2, "Doe")).toDF("id", "name")
+      spark.table("student").schema shouldBe (dfExtraCol.schema)
 
-    dfExtraCol.write
-      .format("qbeast")
-      .mode("append")
-      // .option("mergeSchema", "true")
-      .insertInto("student")
-
-    spark.table("student").schema shouldBe (dfExtraCol.schema)
-
-  })
+    })
 
 }
