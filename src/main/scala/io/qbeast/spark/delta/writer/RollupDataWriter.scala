@@ -58,8 +58,6 @@ object RollupDataWriter
       schema: StructType,
       data: DataFrame,
       tableChanges: TableChanges): IISeq[FileAction] = {
-
-    println("WRITE WITH SCHEMA: " + schema)
     val extendedData = extendDataWithCubeToRollup(data, tableChanges)
     val revision = tableChanges.updatedRevision
     val getCubeMaxWeight = { cubeId: CubeId =>

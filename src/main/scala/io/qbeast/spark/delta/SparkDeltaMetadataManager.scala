@@ -27,8 +27,6 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction,
     val deltaLog = loadDeltaQbeastLog(tableID).deltaLog
     val mode = if (append) SaveMode.Append else SaveMode.Overwrite
     val deltaOptions = options.toDeltaOptions()
-    println("DeltaOptions: " + deltaOptions)
-    println("mergeSchema" + deltaOptions.canMergeSchema)
     val metadataWriter =
       DeltaMetadataWriter(tableID, mode, deltaLog, deltaOptions, schema)
     metadataWriter.writeWithTransaction(writer)
