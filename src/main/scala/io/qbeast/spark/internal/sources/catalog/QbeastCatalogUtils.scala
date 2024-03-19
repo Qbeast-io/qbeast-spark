@@ -239,10 +239,15 @@ object QbeastCatalogUtils {
     val fs = tableLocation.getFileSystem(hadoopConf)
     val table = verifySchema(fs, tableLocation, t)
 
+    // TODO Before creating the table, we should check if the table is already created
+    // TODO If it does not exist, we should create the table physically with the corresponding schema
+
     // Write data, if any
     val append = tableCreationMode.saveMode == SaveMode.Append
     dataFrame.map { df =>
-      indexedTable.save(df, allProperties, append)
+      tableFactory
+        .getIndexedTable(QTableID(loc.toString))
+        .save(df, allTableProperties.asScala.toMap, append)
     }
 
     // Update the existing session catalog with the Qbeast table information
