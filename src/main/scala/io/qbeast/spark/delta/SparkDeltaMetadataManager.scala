@@ -38,22 +38,11 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction,
 
     val deltaLog = loadDeltaQbeastLog(tableID).deltaLog
     val mode = if (append) SaveMode.Append else SaveMode.Overwrite
-    val conf = SparkSession.active.sessionState.conf
-    val deltaOptions = Map.newBuilder[String, String]
-    deltaOptions += "path" -> tableID.id
-    for (txnAppId <- options.txnAppId; txnVersion <- options.txnVersion) {
-      deltaOptions += DeltaOptions.TXN_APP_ID -> txnAppId
-      deltaOptions += DeltaOptions.TXN_VERSION -> txnVersion
-    }
-    if (options.userMetadata.nonEmpty) {
-      deltaOptions += DeltaOptions.USER_METADATA_OPTION -> options.userMetadata.get
-    }
-    val metadataWriter = DeltaMetadataWriter(
-      tableID,
-      mode,
-      deltaLog,
-      new DeltaOptions(deltaOptions.result(), conf),
-      schema)
+    val deltaOptions = options.toDeltaOptions()
+    println("DeltaOptions: " + deltaOptions)
+    println("mergeSchema" + deltaOptions.canMergeSchema)
+    val metadataWriter =
+      DeltaMetadataWriter(tableID, mode, deltaLog, deltaOptions, schema)
     metadataWriter.writeWithTransaction(writer)
   }
 
