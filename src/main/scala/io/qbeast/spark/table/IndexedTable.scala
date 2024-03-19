@@ -234,6 +234,7 @@ private[table] class IndexedTableImpl(
       data: DataFrame,
       parameters: Map[String, String],
       append: Boolean): BaseRelation = {
+    println("parameters" + parameters)
     val (indexStatus, options) =
       if (exists && append) {
         // If the table exists and we are appending new data
@@ -288,6 +289,7 @@ private[table] class IndexedTableImpl(
         val revision = revisionFactory.createNewRevision(tableID, data.schema, options)
         (IndexStatus(revision), options)
       }
+    println("QbeastOptions: " + options.toString)
     write(data, indexStatus, options, append)
   }
 

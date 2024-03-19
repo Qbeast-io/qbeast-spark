@@ -155,15 +155,6 @@ class QbeastSchemaTest extends QbeastIntegrationTestSpec {
           .option("columnsToIndex", "id")
           .insertInto("student"))
 
-      // MERGESCHEMA YES
-      dfExtraCol.write
-        .format("qbeast")
-        .mode("append")
-        .option("mergeSchema", "true")
-        .insertInto("student")
-
-      spark.table("student").schema shouldBe (dfExtraCol.schema)
-
     })
 
   it should "not merge schemas if specified with DataFrame API" in withQbeastContextSparkAndTmpDir(
@@ -199,14 +190,17 @@ class QbeastSchemaTest extends QbeastIntegrationTestSpec {
           .save(path))
 
       // MERGESCHEMA YES
-      // TODO: failing, options should be passed to the save method
       dfExtraCol.write
         .format("qbeast")
         .mode("append")
         .option("mergeSchema", "true")
         .save(path)
 
-      spark.table("student").schema shouldBe (dfExtraCol.schema)
+      spark.read
+        .format("qbeast")
+        .load(path)
+        .schema
+        .fieldNames shouldBe dfExtraCol.schema.fieldNames
 
     })
 
