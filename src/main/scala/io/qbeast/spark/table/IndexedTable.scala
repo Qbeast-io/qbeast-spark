@@ -329,6 +329,8 @@ private[table] class IndexedTableImpl(
       indexStatus: IndexStatus,
       options: QbeastOptions,
       append: Boolean): BaseRelation = {
+
+    println("WRITE TO")
     val revision = indexStatus.revision
     keeper.withWrite(tableID, revision.revisionID) { write =>
       var tries = DEFAULT_NUMBER_OF_RETRIES

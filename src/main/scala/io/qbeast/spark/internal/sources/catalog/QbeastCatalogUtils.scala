@@ -22,6 +22,7 @@ import org.apache.spark.sql.execution.datasources.DataSource
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.V1TableQbeast
@@ -221,11 +222,18 @@ object QbeastCatalogUtils {
 
     // Write data, if any
     val append = tableCreationMode.saveMode == SaveMode.Append
-    dataFrame.map { df =>
-      tableFactory
-        .getIndexedTable(QTableID(loc.toString))
-        .save(df, allTableProperties.asScala.toMap, append)
+    val dataToAppend = dataFrame match {
+      case Some(d) => d
+      case None =>
+        spark.createDataFrame(
+          spark.sparkContext.emptyRDD[Row],
+          schema
+        ) // first commit as an empty Dataframe
     }
+
+    tableFactory
+      .getIndexedTable(QTableID(loc.toString))
+      .save(dataToAppend, allTableProperties.asScala.toMap, append)
 
     // Update the existing session catalog with the Qbeast table information
     updateCatalog(

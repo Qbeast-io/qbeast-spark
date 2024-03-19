@@ -24,7 +24,7 @@ import org.apache.spark.sql.SparkSession
 /**
  * Qbeast metadata changes on a Delta Table.
  */
-private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation with StagingUtils {
+private[delta] trait QbeastMetadataOperation extends ImplicitMetadataOperation with StagingUtils {
 
   type Configuration = Map[String, String]
 
@@ -104,14 +104,17 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
     val dataSchema = StructType(schema.fields.map(field =>
       field.copy(nullable = true, dataType = asNullable(field.dataType))))
 
+    println("SCHEMA" + dataSchema.json)
     val mergedSchema =
       if (isOverwriteMode && canOverwriteSchema) dataSchema
       else SchemaMergingUtils.mergeSchemas(txn.metadata.schema, dataSchema)
+    println("MERGED SCHEMA" + mergedSchema)
 
     val normalizedPartitionCols = Seq.empty
 
     // Merged schema will contain additional columns at the end
     val isNewSchema: Boolean = txn.metadata.schema != mergedSchema
+    println("IS NEW SCHEMA" + isNewSchema)
     // Either the data triggered a new revision or the user specified options to amplify the ranges
     val containsQbeastMetadata: Boolean = txn.metadata.configuration.contains(lastRevisionID)
 
@@ -147,7 +150,8 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
         (updateQbeastRevision(baseConfiguration, latestRevision), true)
       else (baseConfiguration, false)
 
-    if (txn.readVersion == -1) {
+    if (!txn.deltaLog.tableExists) {
+      println("TABLE DOES NOTE XISTS")
       super.updateMetadata(
         spark,
         txn,
@@ -157,6 +161,8 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
         isOverwriteMode,
         rearrangeOnly)
     } else if (isOverwriteMode && canOverwriteSchema && isNewSchema) {
+      println(
+        "IS OVERWRITE MODE" + isOverwriteMode + "CAN OVERWRITE SCHEMA" + canOverwriteSchema + "IS NEW SCHEMA" + isNewSchema)
       // Can define new partitioning in overwrite mode
       val newMetadata = txn.metadata.copy(
         schemaString = dataSchema.json,
@@ -169,6 +175,7 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
       }
       txn.updateMetadata(newMetadata)
     } else if (isNewSchema && canMergeSchema) {
+      println("IS NEW SCHEMA AND CAN MERGE")
       logInfo(s"New merged schema: ${mergedSchema.treeString}")
       recordDeltaEvent(txn.deltaLog, "delta.ddl.mergeSchema")
       if (rearrangeOnly) {
@@ -177,6 +184,7 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
       txn.updateMetadata(
         txn.metadata.copy(schemaString = mergedSchema.json, configuration = configuration))
     } else if (isNewSchema) {
+      println("IS NEW SCHEMA; CANNOT MERGE")
       recordDeltaEvent(txn.deltaLog, "delta.schemaValidation.failure")
       val errorBuilder = new MetadataMismatchErrorBuilder
       if (isOverwriteMode) errorBuilder.addOverwriteBit()
@@ -191,6 +199,6 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
     }
   }
 
-  override protected val canMergeSchema: Boolean = true
-  override protected val canOverwriteSchema: Boolean = true
+  override protected val canMergeSchema: Boolean
+  override protected val canOverwriteSchema: Boolean
 }

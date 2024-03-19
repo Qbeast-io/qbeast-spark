@@ -105,6 +105,7 @@ private[sources] class QbeastStagedTableImpl(
           new InsertableRelation {
             def insert(data: DataFrame, overwrite: Boolean): Unit = {
               dataFrame = Some(data)
+
             }
           }
         }

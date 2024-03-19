@@ -116,4 +116,72 @@ class QbeastSchemaTest extends QbeastIntegrationTestSpec {
 
     })
 
+  it should "work with delta" in withQbeastContextSparkAndTmpWarehouse((spark, tmpDir) => {
+
+    spark.sql(s"CREATE TABLE student (id INT) USING delta LOCATION '$tmpDir/student'")
+    val location = s"$tmpDir/student"
+    // read delta
+    spark.read.format("delta").load(location).show()
+
+  })
+
+  it should "not merge schemas with different column number" in withQbeastContextSparkAndTmpWarehouse(
+    (spark, _) => {
+
+      import spark.implicits._
+
+      spark.sql(
+        "CREATE TABLE student (id INT) USING qbeast " +
+          "OPTIONS ('columnsToIndex'='id')")
+
+      val dfExtraCol = Seq((1, "John"), (2, "Doe")).toDF("id", "name")
+
+      an[AnalysisException] shouldBe thrownBy(
+        dfExtraCol.write
+          .format("qbeast")
+          .mode("append")
+          .option("columnsToIndex", "id")
+          .insertInto("student"))
+
+    })
+
+  // TODO
+  it should "fail when renaming a column" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
+
+    import spark.implicits._
+    spark.sql(
+      "CREATE TABLE student (id INT, name STRING, age INT) USING delta " +
+        "OPTIONS ('columnsToIndex'='id')")
+
+    val renamedDF = Seq((1, "John", 10)).toDF("id", "name2", "age")
+    an[AnalysisException] shouldBe thrownBy(
+      renamedDF.write
+        .format("qbeast")
+        .mode("append")
+        .option("columnsToIndex", "id")
+        .insertInto("student"))
+
+  })
+
+  // TODO
+  it should "merge schemas if specified" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
+
+    import spark.implicits._
+
+    spark.sql(
+      "CREATE TABLE student (id INT) USING qbeast " +
+        "OPTIONS ('columnsToIndex'='id')")
+
+    val dfExtraCol = Seq((1, "John"), (2, "Doe")).toDF("id", "name")
+
+    dfExtraCol.write
+      .format("qbeast")
+      .mode("append")
+      // .option("mergeSchema", "true")
+      .insertInto("student")
+
+    spark.table("student").schema shouldBe (dfExtraCol.schema)
+
+  })
+
 }
