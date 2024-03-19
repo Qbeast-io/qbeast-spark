@@ -17,7 +17,9 @@ package io.qbeast.spark.internal.sources.catalog
 
 import io.qbeast.context.QbeastContext.metadataManager
 import io.qbeast.core.model.QTableID
+import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
+import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.fs.Path
@@ -29,6 +31,7 @@ import org.apache.spark.sql.connector.catalog.Identifier
 import org.apache.spark.sql.connector.catalog.SparkCatalogV2Util
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
+import org.apache.spark.sql.delta.commands.CreateDeltaTableCommand
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.datasources.DataSource
 import org.apache.spark.sql.types.StructType
@@ -222,6 +225,7 @@ object QbeastCatalogUtils {
             "to get all the benefits of data skipping. ")
     }
 
+    // Create an object for the Catalog Table
     val t = new CatalogTable(
       identifier = id,
       tableType = tableType,
@@ -239,25 +243,48 @@ object QbeastCatalogUtils {
     val fs = tableLocation.getFileSystem(hadoopConf)
     val table = verifySchema(fs, tableLocation, t)
 
-    // TODO Before creating the table, we should check if the table is already created
-    // TODO If it does not exist, we should create the table physically with the corresponding schema
+    dataFrame match {
+      case Some(df) =>
+        // If the table exists or the query contains a SAVE TABLE AS (SELECT ...)
+        // we should first write the data with the Qbeast format
+        // and update the Catalog
 
-    // Write data, if any
-    val append = tableCreationMode.saveMode == SaveMode.Append
-    dataFrame.map { df =>
-      tableFactory
-        .getIndexedTable(QTableID(loc.toString))
-        .save(df, allTableProperties.asScala.toMap, append)
+        val append = tableCreationMode.saveMode == SaveMode.Append
+        tableFactory
+          .getIndexedTable(QTableID(loc.toString))
+          .save(df, allTableProperties.asScala.toMap, append)
+
+        // Update the existing session catalog with the Qbeast table information
+        updateCatalog(
+          QTableID(loc.toString),
+          tableCreationMode,
+          table,
+          isPathTable,
+          existingTableOpt,
+          existingSessionCatalog)
+
+      case None =>
+        // If the table does not exist, we should create the table physically
+        // TODO Ideally we should unify both processes in one
+        //  called CREATE QBEAST TABLE COMMAND
+
+        val qbeastOptions = QbeastOptions(allTableProperties.asScala.toMap)
+        val columnsToIndex = qbeastOptions.columnsToIndex
+        val cubeSize = qbeastOptions.cubeSize
+
+        // CREATE DELTA TABLE COMMAND
+        CreateDeltaTableCommand(
+          table = table,
+          existingTableOpt = existingTableOpt,
+          mode = tableCreationMode.saveMode,
+          query = None,
+          tableByPath = isPathTable).run(spark)
+
+        // CONVERT TO QBEAST COMMAND
+        val convertToQbeastId = s"delta.`${loc.toString}`"
+        ConvertToQbeastCommand(convertToQbeastId, columnsToIndex, cubeSize)
+          .run(spark)
     }
-
-    // Update the existing session catalog with the Qbeast table information
-    updateCatalog(
-      QTableID(loc.toString),
-      tableCreationMode,
-      table,
-      isPathTable,
-      existingTableOpt,
-      existingSessionCatalog)
   }
 
   private def checkLogCreation(tableID: QTableID): Unit = {
