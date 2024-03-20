@@ -17,6 +17,8 @@ package io.qbeast.spark.internal
 
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.index.ColumnsToIndex
+import io.qbeast.spark.internal.QbeastOptions.COLUMNS_TO_INDEX
+import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
 import org.apache.spark.sql.delta.DeltaOptions
 import org.apache.spark.sql.AnalysisExceptionFactory
@@ -53,26 +55,25 @@ case class QbeastOptions(
     mergeSchema: Option[String],
     overwriteSchema: Option[String]) {
 
-  def toDeltaOptions(): DeltaOptions = {
-
-    val spark = SparkSession.active
-    val conf = spark.sessionState.conf
-    val deltaOptions = Map.newBuilder[String, String]
+  def toMap(): Map[String, String] = {
+    val options = Map.newBuilder[String, String]
     for (txnAppId <- txnAppId; txnVersion <- txnVersion) {
-      deltaOptions += DeltaOptions.TXN_APP_ID -> txnAppId
-      deltaOptions += DeltaOptions.TXN_VERSION -> txnVersion
+      options += DeltaOptions.TXN_APP_ID -> txnAppId
+      options += DeltaOptions.TXN_VERSION -> txnVersion
     }
     if (userMetadata.nonEmpty) {
-      deltaOptions += DeltaOptions.USER_METADATA_OPTION -> userMetadata.get
+      options += DeltaOptions.USER_METADATA_OPTION -> userMetadata.get
     }
     if (mergeSchema.nonEmpty) {
-      deltaOptions += DeltaOptions.MERGE_SCHEMA_OPTION -> mergeSchema.get
+      options += DeltaOptions.MERGE_SCHEMA_OPTION -> mergeSchema.get
     }
     if (overwriteSchema.nonEmpty) {
-      deltaOptions += DeltaOptions.OVERWRITE_SCHEMA_OPTION -> overwriteSchema.get
+      options += DeltaOptions.OVERWRITE_SCHEMA_OPTION -> overwriteSchema.get
     }
+    options += COLUMNS_TO_INDEX -> columnsToIndex.mkString(",")
+    options += CUBE_SIZE -> cubeSize.toString
 
-    new DeltaOptions(deltaOptions.result(), conf)
+    options.result()
 
   }
 

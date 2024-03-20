@@ -82,6 +82,7 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
 
       })
 
+  // TODO
   it should "crate table" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
 
     spark.sql(
