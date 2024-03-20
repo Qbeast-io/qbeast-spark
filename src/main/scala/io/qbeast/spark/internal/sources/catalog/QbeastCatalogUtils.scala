@@ -40,8 +40,6 @@ object QbeastCatalogUtils {
 
   val QBEAST_PROVIDER_NAME: String = "qbeast"
 
-  lazy val spark: SparkSession = SparkSession.active
-
   /**
    * Checks if the provider is Qbeast
    * @param provider
@@ -99,7 +97,11 @@ object QbeastCatalogUtils {
     }
   }
 
-  private def verifySchema(fs: FileSystem, path: Path, table: CatalogTable): CatalogTable = {
+  private def verifySchema(
+      spark: SparkSession,
+      fs: FileSystem,
+      path: Path,
+      table: CatalogTable): CatalogTable = {
 
     val isTablePopulated = table.tableType == CatalogTableType.EXTERNAL && fs
       .exists(path) && fs.listStatus(path).nonEmpty
@@ -170,6 +172,7 @@ object QbeastCatalogUtils {
       tableFactory: IndexedTableFactory,
       existingSessionCatalog: SessionCatalog): Unit = {
 
+    val spark = SparkSession.active
     val isPathTable = QbeastCatalogUtils.isPathTable(ident)
 
     // Get table location
@@ -221,7 +224,8 @@ object QbeastCatalogUtils {
     val tableLocation = new Path(loc)
     val hadoopConf = spark.sharedState.sparkContext.hadoopConfiguration
     val fs = tableLocation.getFileSystem(hadoopConf)
-    val table = verifySchema(fs, tableLocation, t)
+    val table = verifySchema(spark, fs, tableLocation, t)
+    val deltaTableExists = DeltaLog.forTable(spark, loc.toString).tableExists
 
     dataFrame match {
       case Some(df) =>
@@ -234,27 +238,31 @@ object QbeastCatalogUtils {
           .getIndexedTable(QTableID(loc.toString))
           .save(df, allTableProperties.asScala.toMap, append)
 
-      case None =>
+      case None if (!deltaTableExists) =>
         // If the table does not exist, we should create the table physically
         // TODO Ideally we should unify both processes in one
         //  called CREATE QBEAST TABLE COMMAND
 
-        val qbeastOptions = QbeastOptions(allTableProperties.asScala.toMap)
+        val tablePropertiesMap = allTableProperties.asScala.toMap
+        val qbeastOptions = QbeastOptions(tablePropertiesMap)
         val columnsToIndex = qbeastOptions.columnsToIndex
         val cubeSize = qbeastOptions.cubeSize
 
         // Write an empty DF to Delta
         val emptyDFWithSchema = spark
-          .createDataFrame(spark.sparkContext.emptyRDD[Row], schema)
+          .createDataFrame(spark.sharedState.sparkContext.emptyRDD[Row], schema)
         emptyDFWithSchema.write
           .format("delta")
-          .options(allTableProperties.asScala.toMap) // TODO we should filter the options
-          .save(loc.toString)
+          .mode(SaveMode.Overwrite)
+          .options(tablePropertiesMap) // TODO we should filter the options
+          .save(tableLocation.toString)
 
+        // TODO failing here
         // Convert To Qbeast
         val convertToQbeastId = s"delta.`${loc.toString}`"
-        ConvertToQbeastCommand(convertToQbeastId, columnsToIndex, cubeSize).run(spark)
+        ConvertToQbeastCommand(convertToQbeastId, columnsToIndex, cubeSize).run(spark) ç
 
+      case _ => // do nothing: table exists
     }
 
     // Update the existing session catalog with the Qbeast table information

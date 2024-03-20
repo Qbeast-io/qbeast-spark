@@ -108,8 +108,6 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
       properties: util.Map[String, String]): Table = {
 
     if (QbeastCatalogUtils.isQbeastProvider(properties)) {
-      // TODO check the schema
-      println("SCHEMA: " + schema)
       // Create the table
       QbeastCatalogUtils.createQbeastTable(
         ident,
@@ -121,10 +119,6 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
         TableCreationMode.CREATE_TABLE,
         tableFactory,
         spark.sessionState.catalog)
-
-      // TODO check tables in the catalog
-      spark.sql("SHOW TABLES").show()
-
       // Load the table
       loadTable(ident)
     } else {
