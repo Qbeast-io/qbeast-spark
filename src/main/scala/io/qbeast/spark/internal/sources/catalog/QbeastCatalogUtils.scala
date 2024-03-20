@@ -31,12 +31,12 @@ import org.apache.spark.sql.connector.catalog.Identifier
 import org.apache.spark.sql.connector.catalog.SparkCatalogV2Util
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.delta.commands.CreateDeltaTableCommand
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.datasources.DataSource
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.V1TableQbeast
@@ -254,15 +254,6 @@ object QbeastCatalogUtils {
           .getIndexedTable(QTableID(loc.toString))
           .save(df, allTableProperties.asScala.toMap, append)
 
-        // Update the existing session catalog with the Qbeast table information
-        updateCatalog(
-          QTableID(loc.toString),
-          tableCreationMode,
-          table,
-          isPathTable,
-          existingTableOpt,
-          existingSessionCatalog)
-
       case None =>
         // If the table does not exist, we should create the table physically
         // TODO Ideally we should unify both processes in one
@@ -272,19 +263,28 @@ object QbeastCatalogUtils {
         val columnsToIndex = qbeastOptions.columnsToIndex
         val cubeSize = qbeastOptions.cubeSize
 
-        // CREATE DELTA TABLE COMMAND
-        CreateDeltaTableCommand(
-          table = table,
-          existingTableOpt = existingTableOpt,
-          mode = tableCreationMode.saveMode,
-          query = None,
-          tableByPath = isPathTable).run(spark)
+        // Write an empty DF to Delta
+        val emptyDFWithSchema = spark
+          .createDataFrame(spark.sparkContext.emptyRDD[Row], schema)
+        emptyDFWithSchema.write
+          .format("delta")
+          .options(allTableProperties.asScala.toMap) // TODO we should filter the options
+          .save(loc.toString)
 
-        // CONVERT TO QBEAST COMMAND
+        // Convert To Qbeast
         val convertToQbeastId = s"delta.`${loc.toString}`"
-        ConvertToQbeastCommand(convertToQbeastId, columnsToIndex, cubeSize)
-          .run(spark)
+        ConvertToQbeastCommand(convertToQbeastId, columnsToIndex, cubeSize).run(spark)
+
     }
+
+    // Update the existing session catalog with the Qbeast table information
+    updateCatalog(
+      QTableID(loc.toString),
+      tableCreationMode,
+      table,
+      isPathTable,
+      existingTableOpt,
+      existingSessionCatalog)
   }
 
   private def checkLogCreation(tableID: QTableID): Unit = {
