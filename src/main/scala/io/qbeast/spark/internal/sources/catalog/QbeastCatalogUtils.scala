@@ -260,7 +260,7 @@ object QbeastCatalogUtils {
         // TODO failing here
         // Convert To Qbeast
         val convertToQbeastId = s"delta.`${loc.toString}`"
-        ConvertToQbeastCommand(convertToQbeastId, columnsToIndex, cubeSize).run(spark) ç
+        ConvertToQbeastCommand(convertToQbeastId, columnsToIndex, cubeSize).run(spark)
 
       case _ => // do nothing: table exists
     }
