@@ -170,6 +170,6 @@ ThisBuild / semanticdbEnabled := true
 ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 
 // Header settings
-headerLicense := Some(HeaderLicense.Custom("Copyright 2021 Qbeast Analytics, S.L."))
+headerLicense := Some(HeaderLicense.ALv2("2021", "Qbeast Analytics, S.L."))
 headerEmptyLine := false
 Compile / compile := (Compile / compile).dependsOn(Compile / headerCheck).value
