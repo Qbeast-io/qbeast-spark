@@ -10,6 +10,7 @@ import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.fs.Path
+import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.COLUMN_SELECTOR_ENABLED
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.connector.catalog._
@@ -28,6 +29,7 @@ import org.apache.spark.sql.SparkSession
 
 import java.util
 import scala.collection.JavaConverters.mapAsScalaMapConverter
+import scala.util.chaining.scalaUtilChainingOps
 
 /**
  * Qbeast data source is implementation of Spark data source API V1.
@@ -36,7 +38,8 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
     extends TableProvider
     with CreatableRelationProvider
     with DataSourceRegister
-    with RelationProvider {
+    with RelationProvider
+    with Logging {
 
   /**
    * Constructor to be used by Spark.
@@ -54,6 +57,9 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       properties: util.Map[String, String]): Table = {
     val tableId = QbeastOptions.loadTableIDFromParameters(properties.asScala.toMap)
     val indexedTable = tableFactory.getIndexedTable(tableId)
+    val exception = new Exception(s"Creating relation")
+    logInfo(s"Qbeast: Getting Qbeast table ${tableId}")
+    exception.printStackTrace()
     if (indexedTable.exists) {
       // If the table exists, we make sure to pass all the properties to QbeastTableImpl
       val currentRevision = metadataManager.loadSnapshot(tableId).loadLatestRevision
@@ -100,7 +106,8 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
 
     val tableId = QbeastOptions.loadTableIDFromParameters(parameters)
     val table = tableFactory.getIndexedTable(tableId)
-    mode match {
+    logInfo(s"Qbeast: Creating Qbeast relation ${tableId}")
+    val result = mode match {
       case SaveMode.Append => table.save(data, parameters, append = true)
       case SaveMode.Overwrite => table.save(data, parameters, append = false)
       case SaveMode.ErrorIfExists if table.exists =>
@@ -109,6 +116,7 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       case SaveMode.Ignore if table.exists => table.load()
       case SaveMode.Ignore => table.save(data, parameters, append = false)
     }
+    result.tap(r => logInfo(s"Qbeast: Created Qbeast relation ${tableId}"))
   }
 
   override def createRelation(
@@ -116,8 +124,10 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       parameters: Map[String, String]): BaseRelation = {
     val tableID = QbeastOptions.loadTableIDFromParameters(parameters)
     val table = tableFactory.getIndexedTable(tableID)
+    logInfo(s"Qbeast: Creating Qbeast relation ${tableID}")
     if (table.exists) {
-      table.load()
+      val result = table.load()
+      result.tap(r => logInfo(s"Qbeast: Created Qbeast relation ${tableID}"))
     } else {
       throw AnalysisExceptionFactory.create(
         s"'$tableID' is not a Qbeast formatted data directory.")

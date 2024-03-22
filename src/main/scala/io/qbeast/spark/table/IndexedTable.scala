@@ -12,6 +12,7 @@ import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.QbeastOptions.COLUMNS_TO_INDEX
 import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
+import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.COLUMN_SELECTOR_ENABLED
 import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
 import org.apache.spark.sql.delta.actions.FileAction
@@ -174,7 +175,8 @@ private[table] class IndexedTableImpl(
     private val revisionFactory: RevisionFactory[StructType, QbeastOptions],
     private val autoIndexer: ColumnsToIndexSelector[DataFrame])
     extends IndexedTable
-    with StagingUtils {
+    with StagingUtils
+    with Logging {
   private var snapshotCache: Option[QbeastSnapshot] = None
 
   override def exists: Boolean = !snapshot.isInitial
@@ -238,6 +240,7 @@ private[table] class IndexedTableImpl(
       if (exists && append) {
         // If the table exists and we are appending new data
         // 1. Load existing IndexStatus
+        logInfo(s"Qbeast: Appending data to table ${tableID}")
         val latestRevision = snapshot.loadLatestRevision
         val options = QbeastOptions(addRequiredParams(latestRevision, parameters))
         if (isStaging(latestRevision)) { // If the existing Revision is Staging
@@ -246,10 +249,12 @@ private[table] class IndexedTableImpl(
         } else {
           if (isNewRevision(options, latestRevision)) {
             // If the new parameters generate a new revision, we need to create another one
+            logInfo(s"Qbeast: Creating new revision for table ${tableID}")
             val newPotentialRevision = revisionFactory
               .createNewRevision(tableID, data.schema, options)
             val newRevisionCubeSize = newPotentialRevision.desiredCubeSize
             // Merge new Revision Transformations with old Revision Transformations
+            logInfo(s"Qbeast: Merging transformations for table ${tableID}")
             val newRevisionTransformations =
               latestRevision.transformations.zip(newPotentialRevision.transformations).map {
                 case (oldTransformation, newTransformation)
@@ -259,6 +264,7 @@ private[table] class IndexedTableImpl(
               }
 
             // Create a RevisionChange
+            logInfo(s"Qbeast: Creating new revision changes for table ${tableID}")
             val revisionChanges = RevisionChange(
               supersededRevision = latestRevision,
               timestamp = System.currentTimeMillis(),
@@ -266,10 +272,12 @@ private[table] class IndexedTableImpl(
               transformationsChanges = newRevisionTransformations)
 
             // Output the New Revision into the IndexStatus
+            logInfo(s"Qbeast: Outputting new revision for table ${tableID}")
             (IndexStatus(revisionChanges.createNewRevision), options)
           } else {
             // If the new parameters does not create a different revision,
             // load the latest IndexStatus
+            logInfo(s"Qbeast: Loading latest revision for table ${tableID}")
             (snapshot.loadIndexStatus(latestRevision.revisionID), options)
           }
         }
@@ -288,6 +296,7 @@ private[table] class IndexedTableImpl(
         val revision = revisionFactory.createNewRevision(tableID, data.schema, options)
         (IndexStatus(revision), options)
       }
+    logInfo(s"Qbeast: Saving data to table ${tableID}")
     write(data, indexStatus, options, append)
   }
 
