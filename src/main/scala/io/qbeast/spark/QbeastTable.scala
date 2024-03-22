@@ -15,7 +15,6 @@ import io.qbeast.spark.table._
 import io.qbeast.spark.utils.CubeSizeMetrics
 import io.qbeast.spark.utils.IndexMetrics
 import io.qbeast.spark.utils.MathOps.depthOnBalance
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.SparkSession
@@ -35,12 +34,7 @@ class QbeastTable private (
     tableID: QTableID,
     indexedTableFactory: IndexedTableFactory)
     extends Serializable
-    with StagingUtils
-    with Logging {
-
-  val exception = new Exception(s"Creating relation")
-  logInfo(s"Qbeast: Creating Qbeast relation ${tableID}")
-  exception.printStackTrace()
+    with StagingUtils {
 
   private def deltaLog: DeltaLog = DeltaLog.forTable(sparkSession, tableID.id)
 
