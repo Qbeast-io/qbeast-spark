@@ -18,7 +18,7 @@ import org.apache.spark.unsafe.types.UTF8String
 
 import java.util.concurrent.TimeUnit
 
-private[query] trait QueryFiltersUtils {
+trait QueryFiltersUtils {
 
   lazy val spark: SparkSession = SparkSession.active
   lazy val nameEquality: Resolver = spark.sessionState.analyzer.resolver
@@ -55,13 +55,27 @@ private[query] trait QueryFiltersUtils {
    *   the Expression
    * @return
    */
-
   def isQbeastWeightExpression(expression: Expression): Boolean = {
     expression match {
       case BinaryComparison(_: QbeastMurmur3Hash, _) => true
       case _ => false
     }
   }
+
+  /**
+   * Returns whether given expressions contain a Qbeast weight expression, i.e. sampling clause.
+   * Subqueries are not supported.
+   *
+   * @param expressions
+   *   the expressions to test
+   * @return
+   *   the expression has Qbeast weight expression
+   */
+  def haveQbeastWeightExpression(expressions: Seq[Expression]): Boolean =
+    expressions
+      .filterNot(SubqueryExpression.hasSubquery)
+      .flatMap(splitConjunctiveExpressions)
+      .exists(isQbeastWeightExpression)
 
   /**
    * Checks if an Expression is Disjunctive (OR)
@@ -90,13 +104,12 @@ private[query] trait QueryFiltersUtils {
   }
 
   /**
-   * Recursively split Conjunctive operators (OR) in an expression
+   * Recursively split Conjunctive operators (AND) in an expression
    *
    * @param condition
    *   the expression to evaluate
    * @return
    */
-
   def splitConjunctiveExpressions(condition: Expression): Seq[Expression] = {
     condition match {
       case And(cond1, cond2) =>
