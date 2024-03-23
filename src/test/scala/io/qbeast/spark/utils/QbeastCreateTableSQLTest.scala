@@ -49,7 +49,7 @@ class QbeastCreateTableSQLTest extends QbeastIntegrationTestSpec {
         spark.sql(
           s"CREATE EXTERNAL TABLE student (id INT, name STRING, age INT) " +
             s"USING qbeast " +
-            "OPTIONS ('columnsToIndex'='id') " +
+            s"OPTIONS ('columnsToIndex'='id') " +
             s"LOCATION '$location'"))
 
     })
