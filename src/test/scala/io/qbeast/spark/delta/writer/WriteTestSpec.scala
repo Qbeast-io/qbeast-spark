@@ -19,7 +19,6 @@ import java.util.UUID
 import scala.collection.immutable
 import scala.collection.immutable.SortedMap
 import scala.util.Random
-import io.qbeast.spark.internal.QbeastOptions
 
 case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: String) {
 

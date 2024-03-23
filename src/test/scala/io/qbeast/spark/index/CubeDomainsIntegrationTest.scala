@@ -15,7 +15,6 @@ import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 import org.scalatest.PrivateMethodTester
-import io.qbeast.spark.internal.QbeastOptions
 
 class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateMethodTester {
 
