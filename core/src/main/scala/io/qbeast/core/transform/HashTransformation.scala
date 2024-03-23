@@ -1,11 +1,12 @@
 package io.qbeast.core.transform
 
-import scala.util.Random
 import scala.util.hashing.MurmurHash3
+import scala.util.Random
 
 /**
  * A hash transformation of a coordinate
- * @param nullValue the value to use for null coordinates
+ * @param nullValue
+ *   the value to use for null coordinates
  */
 case class HashTransformation(nullValue: Any = Random.nextInt()) extends Transformation {
 
@@ -24,8 +25,10 @@ case class HashTransformation(nullValue: Any = Random.nextInt()) extends Transfo
 
   /**
    * HashTransformation never changes
-   * @param newTransformation the new transformation created with statistics over the new data
-   *  @return true if the domain of the newTransformation is not fully contained in this one.
+   * @param newTransformation
+   *   the new transformation created with statistics over the new data
+   * @return
+   *   true if the domain of the newTransformation is not fully contained in this one.
    */
   override def isSupersededBy(newTransformation: Transformation): Boolean = false
 

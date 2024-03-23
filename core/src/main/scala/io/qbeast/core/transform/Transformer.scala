@@ -16,7 +16,9 @@
 package io.qbeast.core.transform
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import io.qbeast.core.model.{OrderedDataType, QDataType, StringDataType}
+import io.qbeast.core.model.OrderedDataType
+import io.qbeast.core.model.QDataType
+import io.qbeast.core.model.StringDataType
 
 import java.util.Locale
 
@@ -32,10 +34,14 @@ object Transformer {
 
   /**
    * Returns the transformer for the given column and type of transformer
-   * @param transformerTypeName the name of the transformer type: could be hashing or linear
-   * @param columnName the name of the column
-   * @param dataType the type of the data
-   * @return the Transformer
+   * @param transformerTypeName
+   *   the name of the transformer type: could be hashing or linear
+   * @param columnName
+   *   the name of the column
+   * @param dataType
+   *   the type of the data
+   * @return
+   *   the Transformer
    */
   def apply(transformerTypeName: String, columnName: String, dataType: QDataType): Transformer = {
 
@@ -45,9 +51,12 @@ object Transformer {
 
   /**
    * Returns the transformer for a given column
-   * @param columnName the name of the column
-   * @param dataType the type of the data
-   * @return the Transformer
+   * @param columnName
+   *   the name of the column
+   * @param dataType
+   *   the type of the data
+   * @return
+   *   the Transformer
    */
   def apply(columnName: String, dataType: QDataType): Transformer = {
     getDefaultTransformerForType(dataType)(columnName, dataType)
@@ -55,8 +64,10 @@ object Transformer {
 
   /**
    * Returns the transformer type for a given data type
-   * @param dataType the type of the data
-   * @return the transformer type: could be hashing or linear
+   * @param dataType
+   *   the type of the data
+   * @return
+   *   the transformer type: could be hashing or linear
    */
   def getDefaultTransformerForType(dataType: QDataType): TransformerType = transformersRegistry {
     dataType match {
@@ -103,16 +114,21 @@ trait Transformer extends Serializable {
 
   /**
    * Returns the Transformation given a row representation of the values
-   * @param row the values
-   * @return the transformation
+   * @param row
+   *   the values
+   * @return
+   *   the transformation
    */
   def makeTransformation(row: String => Any): Transformation
 
   /**
    * Returns the new Transformation if the space has changed
-   * @param currentTransformation the current transformation
-   * @param row the row containing the new space values
-   * @return an optional new transformation
+   * @param currentTransformation
+   *   the current transformation
+   * @param row
+   *   the row containing the new space values
+   * @return
+   *   an optional new transformation
    */
   def maybeUpdateTransformation(
       currentTransformation: Transformation,
@@ -136,16 +152,20 @@ object NoColumnStats extends ColumnStats(Nil, Nil)
 
 /**
  * Stores the stats of the column
- * @param statsNames the names of the stats
- * @param statsSqlPredicates the stats column predicates
+ * @param statsNames
+ *   the names of the stats
+ * @param statsSqlPredicates
+ *   the stats column predicates
  */
 case class ColumnStats(statsNames: Seq[String], statsSqlPredicates: Seq[String])
     extends Serializable {
 
   /**
    * Gets the values of the stats
-   * @param row the row of values
-   * @return the stats values
+   * @param row
+   *   the row of values
+   * @return
+   *   the stats values
    */
   def getValues(row: Map[String, Any]): Seq[Any] = statsNames.map(column => row(column))
 }

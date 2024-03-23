@@ -1,12 +1,16 @@
 package io.qbeast.spark.index
 
-import io.qbeast.TestClasses.T2
-import io.qbeast.core.model.{QTableID, StagingUtils}
-import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.delta.{DeltaQbeastSnapshot, StagingDataManager}
+import io.delta.tables.DeltaTable
+import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.StagingUtils
+import io.qbeast.spark.delta.DeltaQbeastSnapshot
+import io.qbeast.spark.delta.StagingDataManager
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.TestClasses.T2
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SparkSession
 import org.scalatest.PrivateMethodTester
 
 class DataStagingTest
@@ -73,7 +77,7 @@ class DataStagingTest
         .loadIndexStatus(1)
         .cubesStatuses
         .values
-        .flatMap(_.files.map(_.elementCount))
+        .flatMap(_.blocks.map(_.elementCount))
         .sum
 
       stagingDataManager invokePrivate getCurrentStagingSize() shouldBe 0L
@@ -114,10 +118,32 @@ class DataStagingTest
         .loadIndexStatus(1)
         .cubesStatuses
         .values
-        .flatMap(_.files.map(_.elementCount))
+        .flatMap(_.blocks.map(_.elementCount))
         .sum
 
       stagingDataManager invokePrivate getCurrentStagingSize() shouldBe 0L
       indexedDataSize shouldBe 10001L
     }
+
+  it should "write userMetadata" in withExtendedSparkAndTmpDir(
+    sparkConfWithSqlAndCatalog
+      .set("spark.qbeast.index.stagingSizeInBytes", "1")) { (spark, tmpDir) =>
+    {
+      val df = createDF(spark)
+      df.write
+        .format("qbeast")
+        .option("columnsToIndex", "a,c")
+        .option("cubeSize", "2000")
+        .option("userMetadata", "userMetadata1")
+        .save(tmpDir)
+
+      val deltaTable = DeltaTable.forPath(spark, tmpDir)
+      val userMetadata =
+        deltaTable.history().orderBy("timestamp").select("userMetadata").first().getAs[String](0)
+
+      userMetadata shouldBe "userMetadata1"
+
+    }
+  }
+
 }

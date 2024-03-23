@@ -1,7 +1,8 @@
 package io.qbeast.spark.internal.sources.catalog
 
+import io.qbeast.spark.internal.sources.v2.QbeastStagedTableImpl
+import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.internal.sources.v2.{QbeastStagedTableImpl, QbeastTableImpl}
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.connector.catalog.{
@@ -13,7 +14,9 @@ import org.apache.spark.sql.connector.catalog.{
   TableChange
 }
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
+import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 import scala.collection.JavaConverters._
@@ -126,6 +129,7 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
     qbeastCatalog.listTables(defaultNamespace) shouldBe Array()
 
   })
+
   it should "rename table" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
     val qbeastCatalog = createQbeastCatalog(spark)
     val tableIdentifier = Identifier.of(defaultNamespace, "student")

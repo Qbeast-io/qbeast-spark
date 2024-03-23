@@ -15,17 +15,23 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.{ReplicatedSet, Revision, StagingUtils, TableChanges, mapper}
+import io.qbeast.core.model.mapper
+import io.qbeast.core.model.Revision
+import io.qbeast.core.model.StagingUtils
+import io.qbeast.core.model.TableChanges
 import io.qbeast.spark.utils.MetadataConfig
-import io.qbeast.spark.utils.MetadataConfig.{lastRevisionID, revision}
+import io.qbeast.spark.utils.MetadataConfig.lastRevisionID
+import io.qbeast.spark.utils.MetadataConfig.revision
+import org.apache.spark.sql.delta.schema.ImplicitMetadataOperation
+import org.apache.spark.sql.delta.schema.SchemaMergingUtils
+import org.apache.spark.sql.delta.DeltaErrors
+import org.apache.spark.sql.delta.MetadataMismatchErrorBuilder
+import org.apache.spark.sql.delta.OptimisticTransaction
+import org.apache.spark.sql.types.ArrayType
+import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.types.MapType
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.delta.schema.{ImplicitMetadataOperation, SchemaMergingUtils}
-import org.apache.spark.sql.delta.{
-  DeltaErrors,
-  MetadataMismatchErrorBuilder,
-  OptimisticTransaction
-}
-import org.apache.spark.sql.types.{ArrayType, DataType, MapType, StructType}
 
 /**
  * Qbeast metadata changes on a Delta Table.
@@ -35,10 +41,12 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
   type Configuration = Map[String, String]
 
   /**
-   * Returns the same data type but set all nullability fields are true
-   * (ArrayType.containsNull, and MapType.valueContainsNull)
-   * @param dataType the data type
-   * @return same data type set to null
+   * Returns the same data type but set all nullability fields are true (ArrayType.containsNull,
+   * and MapType.valueContainsNull)
+   * @param dataType
+   *   the data type
+   * @return
+   *   same data type set to null
    */
   private def asNullable(dataType: DataType): DataType = {
     dataType match {
@@ -48,45 +56,19 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
     }
   }
 
-  /**
-   * Updates Delta Metadata Configuration with new replicated set
-   * for given revision
-   * @param baseConfiguration Delta Metadata Configuration
-   * @param revision the new revision to persist
-   * @param deltaReplicatedSet the new set of replicated cubes
-   */
-
-  private def updateQbeastReplicatedSet(
-      baseConfiguration: Configuration,
-      revision: Revision,
-      deltaReplicatedSet: ReplicatedSet): Configuration = {
-
-    val revisionID = revision.revisionID
-    assert(baseConfiguration.contains(s"${MetadataConfig.revision}.$revisionID"))
-
-    val newReplicatedSet = deltaReplicatedSet.map(_.string)
-    // Save the replicated set of cube id's as String representation
-
-    baseConfiguration.updated(
-      s"${MetadataConfig.replicatedSet}.$revisionID",
-      mapper.writeValueAsString(newReplicatedSet))
-
-  }
-
   private def overwriteQbeastConfiguration(baseConfiguration: Configuration): Configuration = {
     val revisionKeys = baseConfiguration.keys.filter(_.startsWith(MetadataConfig.revision))
-    val replicatedSetKeys = {
-      baseConfiguration.keys.filter(_.startsWith(MetadataConfig.replicatedSet))
-    }
     val other = baseConfiguration.keys.filter(_ == MetadataConfig.lastRevisionID)
-    val qbeastKeys = revisionKeys ++ replicatedSetKeys ++ other
+    val qbeastKeys = revisionKeys ++ other
     baseConfiguration -- qbeastKeys
   }
 
   /**
    * Update metadata with new Qbeast Revision
-   * @param baseConfiguration the base configuration
-   * @param newRevision the new revision
+   * @param baseConfiguration
+   *   the base configuration
+   * @param newRevision
+   *   the new revision
    */
   private def updateQbeastRevision(
       baseConfiguration: Configuration,
@@ -126,7 +108,6 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
       txn: OptimisticTransaction,
       schema: StructType,
       isOverwriteMode: Boolean,
-      isOptimizeOperation: Boolean,
       rearrangeOnly: Boolean,
       tableChanges: TableChanges): Unit = {
 
@@ -173,15 +154,10 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
       else txn.metadata.configuration
 
     // Qbeast configuration metadata
-    val configuration =
-      if (isNewRevision || isOverwriteMode) {
-        updateQbeastRevision(baseConfiguration, latestRevision)
-      } else if (isOptimizeOperation) {
-        updateQbeastReplicatedSet(
-          baseConfiguration,
-          latestRevision,
-          tableChanges.announcedOrReplicatedSet)
-      } else baseConfiguration
+    val (configuration, hasRevisionUpdate) =
+      if (isNewRevision || isOverwriteMode || tableChanges.isOptimizeOperation)
+        (updateQbeastRevision(baseConfiguration, latestRevision), true)
+      else (baseConfiguration, false)
 
     if (txn.readVersion == -1) {
       super.updateMetadata(
@@ -201,8 +177,7 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
       recordDeltaEvent(txn.deltaLog, "delta.ddl.overwriteSchema")
       if (rearrangeOnly) {
         throw DeltaErrors.unexpectedDataChangeException(
-          "Overwrite the Delta table schema or " +
-            "change the partition schema")
+          "Overwrite the Delta table schema or change the partition schema")
       }
       txn.updateMetadata(newMetadata)
     } else if (isNewSchema && canMergeSchema) {
@@ -221,7 +196,11 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
         errorBuilder.addSchemaMismatch(txn.metadata.schema, dataSchema, txn.metadata.id)
       }
       errorBuilder.finalizeAndThrow(spark.sessionState.conf)
-    } else txn.updateMetadata(txn.metadata.copy(configuration = configuration))
+    } else if (hasRevisionUpdate) {
+      // Aside from rewrites and schema changes, we will update the metadata only
+      // when there's a Revision update. Metadata entries interrupt concurrent writes.
+      txn.updateMetadata(txn.metadata.copy(configuration = configuration))
+    }
   }
 
   override protected val canMergeSchema: Boolean = true

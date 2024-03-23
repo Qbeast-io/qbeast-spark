@@ -25,8 +25,10 @@ object QbeastFunctions {
 
   /**
    * QbeastMurmur3Hash function
-   * @param cols the columns to hash
-   * @return the resultant column
+   * @param cols
+   *   the columns to hash
+   * @return
+   *   the resultant column
    */
   def qbeastHash(cols: Column*): Column =
     new Column(new QbeastMurmur3Hash(cols.map(_.expr)))

@@ -1,8 +1,9 @@
 package io.qbeast.core.model
 
-import org.scalatest.{AppendedClues, PrivateMethodTester}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.AppendedClues
+import org.scalatest.PrivateMethodTester
 
 class EstimateGroupCubeSizeTest
     extends AnyWordSpec
@@ -16,7 +17,7 @@ class EstimateGroupCubeSizeTest
     "numElements < desiredCubeSize and numElements < cubeWeightsBufferCapacity" should {
       "create the correct number of groups" in {
         val estimateGroupCubeSize = PrivateMethod[Double]('estimateGroupCubeSize)
-        CubeWeightsBuilder invokePrivate estimateGroupCubeSize(
+        CubeDomainsBuilder invokePrivate estimateGroupCubeSize(
           1000000,
           1,
           10000L,
@@ -32,7 +33,7 @@ class EstimateGroupCubeSizeTest
 
         for ((nP, gS) <- numPartitions zip groupCubeSizes) {
 
-          CubeWeightsBuilder invokePrivate estimateGroupCubeSize(
+          CubeDomainsBuilder invokePrivate estimateGroupCubeSize(
             1000000,
             nP,
             1000000L,
@@ -44,7 +45,7 @@ class EstimateGroupCubeSizeTest
     "numElements > desiredCubeSize and numElements > cubeWeightsBufferCapacity" should {
       "create the correct number of groups" in {
         val estimateGroupCubeSize = PrivateMethod[Double]('estimateGroupCubeSize)
-        CubeWeightsBuilder invokePrivate estimateGroupCubeSize(
+        CubeDomainsBuilder invokePrivate estimateGroupCubeSize(
           1000000,
           15,
           2000000L,

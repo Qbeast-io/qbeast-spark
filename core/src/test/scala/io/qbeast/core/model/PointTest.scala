@@ -24,6 +24,7 @@ import scala.collection.immutable
  * Tests for [[Point]].
  */
 class PointTest extends AnyFlatSpec with Matchers {
+
   "Point" should "have a correct constructor" in {
     val point = Point(immutable.IndexedSeq(1.0, 2.0, 3.0))
     point.dimensionCount shouldBe 3
@@ -94,4 +95,5 @@ class PointTest extends AnyFlatSpec with Matchers {
     point1 <= point4 shouldBe false
     point1 <= point5 shouldBe false
   }
+
 }

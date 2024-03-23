@@ -74,4 +74,5 @@ class StringHistogramTransformationTest extends AnyFlatSpec with Matchers {
     an[IllegalArgumentException] should be thrownBy
       StringHistogramTransformation(Array("a"))
   }
+
 }

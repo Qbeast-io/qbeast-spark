@@ -1,9 +1,9 @@
 package io.qbeast.spark.internal.sources
 
-import io.qbeast.TestClasses.Student
 import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.TestClasses.Student
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.sources.InsertableRelation
 
@@ -46,7 +46,7 @@ class QbeastBaseRelationTest extends QbeastIntegrationTestSpec {
 
     // Create Staged Table with Spark SQL
     spark.sql(
-      s"CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
+      "CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
         "OPTIONS ('columnsToIndex'='id')")
 
     val indexedTable = QbeastContext.indexedTableFactory.getIndexedTable(QTableID(tmpDir))

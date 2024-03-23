@@ -15,34 +15,35 @@
  */
 package io.qbeast.spark.internal.sources.catalog
 
-import io.qbeast.context.QbeastContext.{metadataManager}
+import io.qbeast.context.QbeastContext.metadataManager
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
 import io.qbeast.spark.table.IndexedTableFactory
-import org.apache.hadoop.fs.{FileSystem, Path}
-import org.apache.spark.sql.catalyst.TableIdentifier
+import org.apache.hadoop.fs.FileSystem
+import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.analysis.CannotReplaceMissingTableException
 import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.plans.logical.TableSpec
-import org.apache.spark.sql.connector.catalog.{Identifier, SparkCatalogV2Util, Table}
+import org.apache.spark.sql.catalyst.TableIdentifier
+import org.apache.spark.sql.connector.catalog.Identifier
+import org.apache.spark.sql.connector.catalog.SparkCatalogV2Util
+import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.datasources.DataSource
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{
-  AnalysisExceptionFactory,
-  DataFrame,
-  SaveMode,
-  SparkSession,
-  V1TableQbeast
-}
+import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.V1TableQbeast
 
 import java.util
 import scala.collection.JavaConverters._
 
 /**
- * Object containing all the method utilities for creating and loading
- * a Qbeast formatted Table into the Catalog
+ * Object containing all the method utilities for creating and loading a Qbeast formatted Table
+ * into the Catalog
  */
 object QbeastCatalogUtils {
 
@@ -52,7 +53,8 @@ object QbeastCatalogUtils {
 
   /**
    * Checks if the provider is Qbeast
-   * @param provider the provider, if any
+   * @param provider
+   *   the provider, if any
    * @return
    */
   def isQbeastProvider(provider: Option[String]): Boolean = {
@@ -71,7 +73,8 @@ object QbeastCatalogUtils {
 
   /**
    * Checks if an Identifier is set with a path
-   * @param ident the Identifier
+   * @param ident
+   *   the Identifier
    * @return
    */
   def isPathTable(ident: Identifier): Boolean = {
@@ -145,15 +148,24 @@ object QbeastCatalogUtils {
 
   /**
    * Creates a Table on the Catalog
-   * @param ident the Identifier of the table
-   * @param schema the schema of the table
-   * @param partitions the partitions of the table, if any
-   * @param allTableProperties all the table properties
-   * @param writeOptions the write properties of the table
-   * @param dataFrame the dataframe to write, if any
-   * @param tableCreationMode the creation mode (could be CREATE, REPLACE or CREATE OR REPLACE)
-   * @param tableFactory the indexed table factory
-   * @param existingSessionCatalog the existing session catalog
+   * @param ident
+   *   the Identifier of the table
+   * @param schema
+   *   the schema of the table
+   * @param partitions
+   *   the partitions of the table, if any
+   * @param allTableProperties
+   *   all the table properties
+   * @param writeOptions
+   *   the write properties of the table
+   * @param dataFrame
+   *   the dataframe to write, if any
+   * @param tableCreationMode
+   *   the creation mode (could be CREATE, REPLACE or CREATE OR REPLACE)
+   * @param tableFactory
+   *   the indexed table factory
+   * @param existingSessionCatalog
+   *   the existing session catalog
    */
 
   def createQbeastTable(
@@ -189,10 +201,6 @@ object QbeastCatalogUtils {
       .orElse(existingTableOpt.flatMap(_.storage.locationUri))
       .getOrElse(existingSessionCatalog.defaultTablePath(id))
 
-    // Process the parameters/options/configuration sent to the table
-    val indexedTable = tableFactory.getIndexedTable(QTableID(loc.toString))
-    val allProperties = indexedTable.verifyAndMergeProperties(properties)
-
     // Initialize the path option
     val storage = DataSource
       .buildStorageFormatFromOptions(writeOptions)
@@ -215,7 +223,7 @@ object QbeastCatalogUtils {
       provider = Some("qbeast"),
       partitionColumnNames = Seq.empty,
       bucketSpec = None,
-      properties = allProperties,
+      properties = allTableProperties.asScala.toMap,
       comment = commentOpt)
 
     // Verify the schema if it's an external table
@@ -227,7 +235,9 @@ object QbeastCatalogUtils {
     // Write data, if any
     val append = tableCreationMode.saveMode == SaveMode.Append
     dataFrame.map { df =>
-      indexedTable.save(df, allProperties, append)
+      tableFactory
+        .getIndexedTable(QTableID(loc.toString))
+        .save(df, allTableProperties.asScala.toMap, append)
     }
 
     // Update the existing session catalog with the Qbeast table information
@@ -249,9 +259,8 @@ object QbeastCatalogUtils {
   }
 
   /**
-   * Based on DeltaCatalog updateCatalog private method,
-   * it maintains the consistency of creating a table
-   * calling the spark session catalog.
+   * Based on DeltaCatalog updateCatalog private method, it maintains the consistency of creating
+   * a table calling the spark session catalog.
    * @param operation
    * @param table
    * @param isPathTable
@@ -295,8 +304,10 @@ object QbeastCatalogUtils {
 
   /**
    * Loads a qbeast table based on the underlying table
-   * @param table the underlying table
-   * @return a Table with Qbeast information and implementations
+   * @param table
+   *   the underlying table
+   * @return
+   *   a Table with Qbeast information and implementations
    */
   def loadQbeastTable(table: Table, tableFactory: IndexedTableFactory): Table = {
 

@@ -15,17 +15,20 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.spark.utils.{State, TagUtils}
-import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.delta.files.TahoeLogFileIndex
+import org.apache.spark.sql.execution.datasources.PartitionDirectory
 
 /**
- * AddFile with Replicate information
+ * Default implementation of the ListFilesStrategy which simply applies Delta filtering based on
+ * min/max and other stats.
  */
-object ReplicatedFile {
+private[delta] object DefaultListFilesStrategy extends ListFilesStrategy with Serializable {
 
-  def apply(addFile: AddFile): AddFile = {
-    val newTags = addFile.tags.updated(TagUtils.state, State.REPLICATED)
-    addFile.copy(tags = newTags, modificationTime = System.currentTimeMillis())
-  }
+  override def listFiles(
+      target: TahoeLogFileIndex,
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): Seq[PartitionDirectory] =
+    target.listFiles(partitionFilters, dataFilters)
 
 }

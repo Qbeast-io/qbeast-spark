@@ -6,17 +6,23 @@ import scala.reflect.ClassTag
 
 /**
  * Qbeast Core main components
- * @tparam DATA type of the data
- * @tparam DataSchema type of the data schema
- * @tparam FileDescriptor type of the file descriptor
- * @tparam QbeastOptions type of Qbeast options
+ *
+ * @tparam DATA
+ *   type of the data
+ * @tparam DataSchema
+ *   type of the data schema
+ * @tparam QbeastOptions
+ *   type of the Qbeast options
+ * @tparam FileDescriptor
+ *   type of the file descriptor
  */
-trait QbeastCoreContext[DATA, DataSchema, FileDescriptor, QbeastOptions] {
+trait QbeastCoreContext[DATA, DataSchema, QbeastOptions, FileDescriptor] {
   def metadataManager: MetadataManager[DataSchema, FileDescriptor, QbeastOptions]
   def dataWriter: DataWriter[DATA, DataSchema, FileDescriptor]
   def indexManager: IndexManager[DATA]
   def queryManager[QUERY: ClassTag]: QueryManager[QUERY, DATA]
   def revisionBuilder: RevisionFactory[DataSchema, QbeastOptions]
+  def columnSelector: ColumnsToIndexSelector[DATA]
   def keeper: Keeper
 
 }
@@ -24,26 +30,36 @@ trait QbeastCoreContext[DATA, DataSchema, FileDescriptor, QbeastOptions] {
 /**
  * RevisionFactory
  *
- * @tparam DataSchema type of the data schema
+ * @tparam DataSchema
+ *   type of the data schema
+ * @tparam QbeastOptions
+ *   type of the Qbeast options
  */
 trait RevisionFactory[DataSchema, QbeastOptions] {
 
   /**
    * Create a new revision for a table with given parameters
    *
-   * @param qtableID      the table identifier
-   * @param schema        the schema
-   * @param options       the options
+   * @param qtableID
+   *   the table identifier
+   * @param schema
+   *   the schema
+   * @param options
+   *   the options
    * @return
    */
   def createNewRevision(qtableID: QTableID, schema: DataSchema, options: QbeastOptions): Revision
 
   /**
    * Create a new revision with given parameters from an old revision
-   * @param qtableID the table identifier
-   * @param schema the schema
-   * @param options the options
-   * @param oldRevision the old revision
+   * @param qtableID
+   *   the table identifier
+   * @param schema
+   *   the schema
+   * @param options
+   *   the options
+   * @param oldRevision
+   *   the old revision
    * @return
    */
   def createNextRevision(

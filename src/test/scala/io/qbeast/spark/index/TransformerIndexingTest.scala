@@ -1,22 +1,22 @@
 package io.qbeast.spark.index
 
-import io.qbeast.TestClasses._
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import org.apache.spark.sql.functions.{
-  to_date,
-  to_timestamp,
-  col,
-  min,
-  substring,
-  abs,
-  sum,
-  ascii
-}
+import io.qbeast.TestClasses._
 import org.apache.spark.sql.delta.skipping.MultiDimClusteringFunctions
-import org.apache.spark.sql.{Dataset, DataFrame, SparkSession}
+import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.functions.abs
+import org.apache.spark.sql.functions.ascii
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.min
+import org.apache.spark.sql.functions.substring
+import org.apache.spark.sql.functions.sum
+import org.apache.spark.sql.functions.to_date
+import org.apache.spark.sql.functions.to_timestamp
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.apache.spark.sql.delta.DeltaLog
 
 import scala.util.Random
 
@@ -24,10 +24,14 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   /**
    * Compute String column histogram.
-   * @param columnName String column name
-   * @param numBins number of bins for the histogram
-   * @param df DataFrame
-   * @return Sorted String histogram as a String
+   * @param columnName
+   *   String column name
+   * @param numBins
+   *   number of bins for the histogram
+   * @param df
+   *   DataFrame
+   * @return
+   *   Sorted String histogram as a String
    */
   def getStringHistogramStr(columnName: String, numBins: Int, df: DataFrame): String = {
     val binStarts = "__bin_starts"
@@ -47,8 +51,8 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
   }
 
   /**
-   * Compute weighted encoding distance for files:
-   * (ascii(string_col_max.head) - ascii(string_col_min.head)) * numRecords
+   * Compute weighted encoding distance for files: (ascii(string_col_max.head) -
+   * ascii(string_col_min.head)) * numRecords
    */
   def computeColumnEncodingDist(
       spark: SparkSession,
@@ -452,4 +456,5 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
       histDist should be < hashDist
     })
+
 }

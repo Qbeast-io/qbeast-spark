@@ -16,11 +16,12 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model.StagingUtils
-import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.lit
-import org.apache.spark.sql.{Column, Dataset}
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.Dataset
 
 private[spark] trait DeltaStagingUtils extends StagingUtils {
   protected def snapshot: Snapshot
@@ -43,8 +44,10 @@ private[spark] trait DeltaStagingUtils extends StagingUtils {
 
   /**
    * Wether an AddFile is a staging file or not
-   * @param a the AddFile
-   * @return boolean
+   * @param a
+   *   the AddFile
+   * @return
+   *   boolean
    */
   def isStagingFile(a: AddFile): Boolean =
     a.tags == null || a.tags.isEmpty || a.tags

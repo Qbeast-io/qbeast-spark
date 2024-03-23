@@ -66,4 +66,5 @@ class HashTransformationTest extends AnyFlatSpec with Matchers {
     }
 
   }
+
 }

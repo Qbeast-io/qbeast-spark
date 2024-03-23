@@ -15,8 +15,8 @@
  */
 package io.qbeast.core.keeper
 
-import io.qbeast.SerializedCubeID
 import io.qbeast.core.model.QTableID
+import io.qbeast.SerializedCubeID
 
 import java.util.ServiceLoader
 
@@ -28,19 +28,26 @@ trait Keeper {
   /**
    * Begins a write for given index domain revision.
    *
-   * @param tableID the table identifier
-   * @param revision the domain revision
-   * @return the write operation
+   * @param tableID
+   *   the table identifier
+   * @param revision
+   *   the domain revision
+   * @return
+   *   the write operation
    */
   def beginWrite(tableID: QTableID, revision: Long): Write
 
   /**
    * Runs an action as part of write operation for the specified index revision.
    *
-   * @param tableID the table identifier
-   * @param revision the index domain revision
-   * @tparam T the result type
-   * @return the result
+   * @param tableID
+   *   the table identifier
+   * @param revision
+   *   the index domain revision
+   * @tparam T
+   *   the result type
+   * @return
+   *   the result
    */
   def withWrite[T](tableID: QTableID, revision: Long)(action: Write => T): T = {
     val write = beginWrite(tableID, revision)
@@ -53,18 +60,25 @@ trait Keeper {
 
   /**
    * Announces cubes for given index domain revision
-   * @param tableID the table identifier
-   * @param revision the domain revision
-   * @param cubes the announced cube identifiers
+   * @param tableID
+   *   the table identifier
+   * @param revision
+   *   the domain revision
+   * @param cubes
+   *   the announced cube identifiers
    */
   def announce(tableID: QTableID, revision: Long, cubes: Seq[SerializedCubeID]): Unit
 
   /**
    * Begins an optimization for given index domain revision.
-   * @param tableID the table identifier
-   * @param revision the domain revision
-   * @param cubeLimit the maximum (exclusive) number of cubes to be optimized
-   * @return the optimization operation
+   * @param tableID
+   *   the table identifier
+   * @param revision
+   *   the domain revision
+   * @param cubeLimit
+   *   the maximum (exclusive) number of cubes to be optimized
+   * @return
+   *   the optimization operation
    */
   def beginOptimization(
       tableID: QTableID,
@@ -95,7 +109,8 @@ trait Optimization {
   /**
    * Ends the optimization.
    *
-   * @param replicatedCubes the replicated cube identifiers
+   * @param replicatedCubes
+   *   the replicated cube identifiers
    */
   def end(replicatedCubes: Set[SerializedCubeID]): Unit
 }
@@ -129,8 +144,10 @@ object Keeper {
   /**
    * Creates a Keeper instance for a given configuration.
    *
-   * @param config the configuration
-   * @return a Keeper instance
+   * @param config
+   *   the configuration
+   * @return
+   *   a Keeper instance
    */
   def apply(config: Map[String, String]): Keeper = {
     val loader = ServiceLoader.load(classOf[KeeperFactory])
@@ -145,12 +162,10 @@ object Keeper {
 }
 
 /**
- * Factory for creating Keeper instances. This interface
- * should be implemented and deployed by external libraries as follows:
- * <ul>
- *   <li>Implement this interface in a class which has public no-argument constructor</li>
- *   <li>Register the implementation according to ServiceLoader specification</li>
- *   <li>Add the jar with the implementation to the application classpath</li>
+ * Factory for creating Keeper instances. This interface should be implemented and deployed by
+ * external libraries as follows: <ul> <li>Implement this interface in a class which has public
+ * no-argument constructor</li> <li>Register the implementation according to ServiceLoader
+ * specification</li> <li>Add the jar with the implementation to the application classpath</li>
  * </ul>
  */
 trait KeeperFactory {
@@ -158,8 +173,10 @@ trait KeeperFactory {
   /**
    * Creates a new keeper for a given configuration.
    *
-   * @param config the configuration
-   * @return a new keeper
+   * @param config
+   *   the configuration
+   * @return
+   *   a new keeper
    */
   def createKeeper(config: Map[String, String]): Keeper
 }

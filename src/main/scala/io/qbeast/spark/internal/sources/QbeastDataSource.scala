@@ -16,28 +16,27 @@
 package io.qbeast.spark.internal.sources
 
 import io.qbeast.context.QbeastContext
-import io.qbeast.spark.internal.QbeastOptions
+import io.qbeast.context.QbeastContext.metadataManager
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
+import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.table.IndexedTableFactory
-import org.apache.hadoop.fs.{FileStatus, Path}
+import org.apache.hadoop.fs.FileStatus
+import org.apache.hadoop.fs.Path
+import org.apache.spark.qbeast.config.COLUMN_SELECTOR_ENABLED
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.sources.{
-  BaseRelation,
-  CreatableRelationProvider,
-  DataSourceRegister,
-  RelationProvider
-}
+import org.apache.spark.sql.sources.BaseRelation
+import org.apache.spark.sql.sources.CreatableRelationProvider
+import org.apache.spark.sql.sources.DataSourceRegister
+import org.apache.spark.sql.sources.RelationProvider
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
-import org.apache.spark.sql.{
-  AnalysisExceptionFactory,
-  DataFrame,
-  SQLContext,
-  SaveMode,
-  SparkSession
-}
+import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.SparkSession
 
 import java.util
 import scala.collection.JavaConverters.mapAsScalaMapConverter
@@ -65,11 +64,15 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       schema: StructType,
       partitioning: Array[Transform],
       properties: util.Map[String, String]): Table = {
-    val tableId = QbeastOptions.loadTableIDFromOptions(properties.asScala.toMap)
+    val tableId = QbeastOptions.loadTableIDFromParameters(properties.asScala.toMap)
     val indexedTable = tableFactory.getIndexedTable(tableId)
     if (indexedTable.exists) {
       // If the table exists, we make sure to pass all the properties to QbeastTableImpl
-      val tableProperties = indexedTable.verifyAndMergeProperties(properties.asScala.toMap)
+      val currentRevision = metadataManager.loadSnapshot(tableId).loadLatestRevision
+      val indexProperties = Map(
+        "columnsToIndex" -> currentRevision.columnTransformers.map(_.columnName).mkString(","),
+        "cubeSize" -> currentRevision.desiredCubeSize.toString)
+      val tableProperties = properties.asScala.toMap ++ indexProperties
       new QbeastTableImpl(
         TableIdentifier(tableId.id),
         new Path(tableId.id),
@@ -104,10 +107,10 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       data: DataFrame): BaseRelation = {
 
     require(
-      parameters.contains("columnsToIndex") || mode == SaveMode.Append,
+      parameters.contains("columnsToIndex") || mode == SaveMode.Append || COLUMN_SELECTOR_ENABLED,
       throw AnalysisExceptionFactory.create("'columnsToIndex' is not specified"))
 
-    val tableId = QbeastOptions.loadTableIDFromOptions(parameters)
+    val tableId = QbeastOptions.loadTableIDFromParameters(parameters)
     val table = tableFactory.getIndexedTable(tableId)
     mode match {
       case SaveMode.Append => table.save(data, parameters, append = true)
@@ -123,7 +126,7 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
   override def createRelation(
       sqlContext: SQLContext,
       parameters: Map[String, String]): BaseRelation = {
-    val tableID = QbeastOptions.loadTableIDFromOptions(parameters)
+    val tableID = QbeastOptions.loadTableIDFromParameters(parameters)
     val table = tableFactory.getIndexedTable(tableID)
     if (table.exists) {
       table.load()

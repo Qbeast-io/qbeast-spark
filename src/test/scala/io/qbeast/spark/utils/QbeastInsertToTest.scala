@@ -1,8 +1,8 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import org.apache.spark.sql.Row
 import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.Row
 
 class QbeastInsertToTest extends QbeastIntegrationTestSpec {
 
@@ -192,7 +192,7 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
     withQbeastContextSparkAndTmpWarehouse((spark, tmpWarehouse) => {
 
       spark.sql(
-        s"CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
+        "CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
           "OPTIONS ('columnsToIndex'='id')")
 
       spark.sql("INSERT INTO student VALUES (1, 'John', 10)")

@@ -15,27 +15,29 @@
  */
 package io.qbeast.spark.internal.sources.catalog
 
-import org.apache.spark.sql.AnalysisExceptionFactory
-import org.apache.spark.sql.connector.catalog.{
-  Column,
-  Identifier,
-  SparkCatalogV2Util,
-  StagedTable,
-  SupportsWrite,
-  Table,
-  TableCapability,
-  TableCatalog
-}
+import org.apache.spark.sql.connector.catalog.Column
+import org.apache.spark.sql.connector.catalog.Identifier
+import org.apache.spark.sql.connector.catalog.SparkCatalogV2Util
+import org.apache.spark.sql.connector.catalog.StagedTable
+import org.apache.spark.sql.connector.catalog.SupportsWrite
+import org.apache.spark.sql.connector.catalog.Table
+import org.apache.spark.sql.connector.catalog.TableCapability
+import org.apache.spark.sql.connector.catalog.TableCatalog
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
+import org.apache.spark.sql.connector.write.LogicalWriteInfo
+import org.apache.spark.sql.connector.write.WriteBuilder
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.AnalysisExceptionFactory
 
 /**
- * A default StagedTable
- * This case class would delegate the methods to the underlying Catalog Table
- * @param ident the identifier
- * @param table the Table
- * @param catalog the Catalog
+ * A default StagedTable This case class would delegate the methods to the underlying Catalog
+ * Table
+ * @param ident
+ *   the identifier
+ * @param table
+ *   the Table
+ * @param catalog
+ *   the Catalog
  */
 private[catalog] case class DefaultStagedTable(
     ident: Identifier,

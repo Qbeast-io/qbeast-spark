@@ -16,7 +16,9 @@
 package org.apache.spark.qbeast
 
 import io.qbeast.context.QbeastContext
-import org.apache.spark.internal.config.{ConfigBuilder, ConfigEntry, OptionalConfigEntry}
+import org.apache.spark.internal.config.ConfigBuilder
+import org.apache.spark.internal.config.ConfigEntry
+import org.apache.spark.internal.config.OptionalConfigEntry
 
 package object config {
 
@@ -56,6 +58,18 @@ package object config {
       .longConf
       .createOptional
 
+  private[config] val columnsToIndexSelectorEnabled: ConfigEntry[Boolean] =
+    ConfigBuilder("spark.qbeast.index.columnsToIndex.auto")
+      .version("0.2.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  private[config] val maxNumColumnsToIndex: ConfigEntry[Int] =
+    ConfigBuilder("spark.qbeast.index.columnsToIndex.auto.max")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(3)
+
   def DEFAULT_NUMBER_OF_RETRIES: Int = QbeastContext.config
     .get(defaultNumberOfRetries)
 
@@ -72,5 +86,9 @@ package object config {
     QbeastContext.config.get(maxCompactionFileSizeInBytes)
 
   def STAGING_SIZE_IN_BYTES: Option[Long] = QbeastContext.config.get(stagingSizeInBytes)
+
+  def COLUMN_SELECTOR_ENABLED: Boolean = QbeastContext.config.get(columnsToIndexSelectorEnabled)
+
+  def MAX_NUM_COLUMNS_TO_INDEX: Int = QbeastContext.config.get(maxNumColumnsToIndex)
 
 }

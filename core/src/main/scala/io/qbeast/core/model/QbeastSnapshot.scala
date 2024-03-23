@@ -19,40 +19,67 @@ trait QbeastSnapshot {
 
   /**
    * Obtains the latest IndexStatus
-   * @return the index status
+   * @return
+   *   the index status
    */
   def loadLatestIndexStatus: IndexStatus
 
   /**
    * Obtains the latest IndexStatus for a given revision
-   * @param revisionID the RevisionID
-   * @return the index status
+   * @param revisionID
+   *   the RevisionID
+   * @return
+   *   the index status
    */
   def loadIndexStatus(revisionID: RevisionID): IndexStatus
 
   /**
+   * Loads the index files of the lates revision.
+   *
+   * @return
+   *   the index files of the lates revision
+   */
+  def loadLatestIndexFiles: IISeq[IndexFile]
+
+  /**
+   * Loads the index files of the specified revision.
+   *
+   * @param revisionId
+   *   the revision identitifier
+   * @return
+   *   the index files of the specified revision
+   */
+  def loadIndexFiles(revisionId: RevisionID): IISeq[IndexFile]
+
+  /**
    * Obtains all Revisions
-   * @return an immutable Seq of Revision
+   * @return
+   *   an immutable Seq of Revision
    */
   def loadAllRevisions: IISeq[Revision]
 
   /**
    * Obtains the last Revision available
-   * @return the revision
+   * @return
+   *   the revision
    */
   def loadLatestRevision: Revision
 
   /**
    * Obtains the IndexStatus for a given revision
-   * @param revisionID the revision identifier
-   * @return the index status
+   * @param revisionID
+   *   the revision identifier
+   * @return
+   *   the index status
    */
   def loadRevision(revisionID: RevisionID): Revision
 
   /**
    * Loads the first revision available at a given timestamp
-   * @param timestamp the timestamp
-   * @return the revision
+   * @param timestamp
+   *   the timestamp
+   * @return
+   *   the revision
    */
   def loadRevisionAt(timestamp: Long): Revision
 

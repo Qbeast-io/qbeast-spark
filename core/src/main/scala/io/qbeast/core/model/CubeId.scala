@@ -15,7 +15,8 @@
  */
 package io.qbeast.core.model
 
-import io.qbeast.core.model.CubeId.{ChildrenIterator, Codec}
+import io.qbeast.core.model.CubeId.ChildrenIterator
+import io.qbeast.core.model.CubeId.Codec
 
 import java.nio.ByteBuffer
 import scala.collection.immutable.BitSet
@@ -29,9 +30,12 @@ object CubeId {
   /**
    * Creates a cube identifier for given dimension count and bytes.
    *
-   * @param dimensionCount the dimension count
-   * @param bytes the bytes
-   * @return a cube identifier
+   * @param dimensionCount
+   *   the dimension count
+   * @param bytes
+   *   the bytes
+   * @return
+   *   a cube identifier
    */
   def apply(dimensionCount: Int, bytes: Array[Byte]): CubeId = {
     require(dimensionCount > 0)
@@ -48,9 +52,12 @@ object CubeId {
   /**
    * Creates a cube identifier for given dimension count and string.
    *
-   * @param dimensionCount the dimension count
-   * @param string the string
-   * @return a cube identifier
+   * @param dimensionCount
+   *   the dimension count
+   * @param string
+   *   the string
+   * @return
+   *   a cube identifier
    */
   def apply(dimensionCount: Int, string: String): CubeId =
     Codec.decode(dimensionCount, string)
@@ -58,8 +65,10 @@ object CubeId {
   /**
    * Creates a root cube identifier for given dimension count.
    *
-   * @param dimensionCount the dimension count
-   * @return a new root cube identifier
+   * @param dimensionCount
+   *   the dimension count
+   * @return
+   *   a new root cube identifier
    */
   def root(dimensionCount: Int): CubeId = {
     require(dimensionCount > 0)
@@ -67,12 +76,13 @@ object CubeId {
   }
 
   /**
-   * Returns the identifiers of the cubes which contain a given point. The returned
-   * iterator allows to traverse the sequence of nested container cubes starting
-   * with the root cube.
+   * Returns the identifiers of the cubes which contain a given point. The returned iterator
+   * allows to traverse the sequence of nested container cubes starting with the root cube.
    *
-   * @param point the point
-   * @return the identifiers of the container cubes
+   * @param point
+   *   the point
+   * @return
+   *   the identifiers of the container cubes
    */
   def containers(point: Point): Iterator[CubeId] = {
     require(point.coordinates.forall { c => 0.0 <= c && c <= 1.0 })
@@ -80,13 +90,16 @@ object CubeId {
   }
 
   /**
-   * Returns the identifiers of the cubes which contain a given point. The returned
-   * iterator allows to traverse the sequence of nested container cubes starting
-   * with the child cube of the specified parent cube.
+   * Returns the identifiers of the cubes which contain a given point. The returned iterator
+   * allows to traverse the sequence of nested container cubes starting with the child cube of the
+   * specified parent cube.
    *
-   * @param point the point
-   * @param parent the parent cube identifier
-   * @return the identifiers of the container cubes
+   * @param point
+   *   the point
+   * @param parent
+   *   the parent cube identifier
+   * @return
+   *   the identifiers of the container cubes
    */
   def containers(point: Point, parent: CubeId): Iterator[CubeId] = {
     require(parent.contains(point))
@@ -94,12 +107,15 @@ object CubeId {
   }
 
   /**
-   * Returns the identifier of the the cube containing a
-   * given point and having the specified depth.
+   * Returns the identifier of the the cube containing a given point and having the specified
+   * depth.
    *
-   * @param point the point
-   * @param depth the depth
-   * @return the container cube identifier
+   * @param point
+   *   the point
+   * @param depth
+   *   the depth
+   * @return
+   *   the container cube identifier
    */
   def container(point: Point, depth: Int): CubeId = {
     require(depth >= 0)
@@ -251,9 +267,12 @@ object CubeId {
 /**
  * Cube identifier.
  *
- * @param dimensionCount the dimension count
- * @param depth the cube depth
- * @param bitMask the bitMask representing the cube z-index, possibly containing redundant elements.
+ * @param dimensionCount
+ *   the dimension count
+ * @param depth
+ *   the cube depth
+ * @param bitMask
+ *   the bitMask representing the cube z-index, possibly containing redundant elements.
  */
 case class CubeId(dimensionCount: Int, depth: Int, bitMask: Array[Long])
     extends Serializable
@@ -262,9 +281,11 @@ case class CubeId(dimensionCount: Int, depth: Int, bitMask: Array[Long])
 
   /**
    * Compare two CubeIds.
-   * @param that the other CubeId
-   * @return a negative integer, zero, or a positive integer as this CubeId
-   *         is less than, equal to, or greater than the other CubeId.
+   * @param that
+   *   the other CubeId
+   * @return
+   *   a negative integer, zero, or a positive integer as this CubeId is less than, equal to, or
+   *   greater than the other CubeId.
    */
   override def compare(that: CubeId): Int = {
     require(
@@ -293,9 +314,10 @@ case class CubeId(dimensionCount: Int, depth: Int, bitMask: Array[Long])
   }
 
   /**
-   * Returns true if this cube is the ancestor of the other cube.
-   * In case this and other are the same cube, it returns true.
-   * @param other cube to check
+   * Returns true if this cube is the ancestor of the other cube. In case this and other are the
+   * same cube, it returns true.
+   * @param other
+   *   cube to check
    * @return
    */
   def isAncestorOf(other: CubeId): Boolean = {
@@ -314,14 +336,16 @@ case class CubeId(dimensionCount: Int, depth: Int, bitMask: Array[Long])
   /**
    * Returns whether the identifier represents the root cube.
    *
-   * @return the identifier represents the root cube.
+   * @return
+   *   the identifier represents the root cube.
    */
   def isRoot: Boolean = depth == 0
 
   /**
    * Returns the parent cube identifier if available.
    *
-   * @return the parent cube identifier if available.
+   * @return
+   *   the parent cube identifier if available.
    */
   def parent: Option[CubeId] = {
     if (isRoot) {
@@ -336,7 +360,8 @@ case class CubeId(dimensionCount: Int, depth: Int, bitMask: Array[Long])
   /**
    * Returns the first child identifier.
    *
-   * @return the first child identifier
+   * @return
+   *   the first child identifier
    */
   def firstChild: CubeId = {
     new CubeId(dimensionCount, depth + 1, bitMask)
@@ -345,14 +370,16 @@ case class CubeId(dimensionCount: Int, depth: Int, bitMask: Array[Long])
   /**
    * Returns the child identifiers.
    *
-   * @return the child identifiers
+   * @return
+   *   the child identifiers
    */
   def children: Iterator[CubeId] = new ChildrenIterator(this)
 
   /**
    * Returns the next sibling identifier if available.
    *
-   * @return the next sibling identifier if available
+   * @return
+   *   the next sibling identifier if available
    */
   def nextSibling: Option[CubeId] = {
     if (isRoot) {
@@ -375,22 +402,26 @@ case class CubeId(dimensionCount: Int, depth: Int, bitMask: Array[Long])
   /**
    * Returns the cube point with minimum coordinates.
    *
-   * @return the cube point with minimum coordinates.
+   * @return
+   *   the cube point with minimum coordinates.
    */
   def from: Point = range._1
 
   /**
    * Returns the cube point with maximum coordinates.
    *
-   * @return the cube point with maximum coordinates.
+   * @return
+   *   the cube point with maximum coordinates.
    */
   def to: Point = range._2
 
   /**
    * Returns whether the cube contains a given point.
    *
-   * @param point the point
-   * @return the cube contains the point
+   * @param point
+   *   the point
+   * @return
+   *   the cube contains the point
    */
   private[model] def contains(point: Point): Boolean = {
     require(point.dimensionCount == dimensionCount)
@@ -418,7 +449,8 @@ case class CubeId(dimensionCount: Int, depth: Int, bitMask: Array[Long])
   /**
    * Returns the bytes to be stored in a byte array.
    *
-   * @return the bytes
+   * @return
+   *   the bytes
    */
   def bytes: Array[Byte] = {
     val length = Integer.BYTES + java.lang.Long.BYTES * bitMask.length
@@ -432,7 +464,8 @@ case class CubeId(dimensionCount: Int, depth: Int, bitMask: Array[Long])
   /**
    * Returns the string to be stored in the block file metadata.
    *
-   * @return the string
+   * @return
+   *   the string
    */
   def string: String = Codec.encode(this)
 

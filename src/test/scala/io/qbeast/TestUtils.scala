@@ -1,10 +1,10 @@
 package io.qbeast
 
-import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.delta.OTreeIndex
+import io.qbeast.spark.delta.DefaultFileIndex
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
-import org.apache.spark.sql.DataFrame
+import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.execution.FileSourceScanExec
+import org.apache.spark.sql.DataFrame
 
 object TestUtils extends QbeastIntegrationTestSpec {
 
@@ -13,7 +13,7 @@ object TestUtils extends QbeastIntegrationTestSpec {
 
     val dataFilters = leaves
       .collectFirst {
-        case f: FileSourceScanExec if f.relation.location.isInstanceOf[OTreeIndex] =>
+        case f: FileSourceScanExec if f.relation.location.isInstanceOf[DefaultFileIndex] =>
           f.dataFilters.filterNot(_.isInstanceOf[QbeastMurmur3Hash])
       }
       .getOrElse(Seq.empty)
@@ -33,11 +33,11 @@ object TestUtils extends QbeastIntegrationTestSpec {
         .asInstanceOf[FileSourceScanExec]
         .relation
         .location
-        .isInstanceOf[OTreeIndex]) shouldBe true
+        .isInstanceOf[DefaultFileIndex]) shouldBe true
 
     leaves
       .foreach {
-        case f: FileSourceScanExec if f.relation.location.isInstanceOf[OTreeIndex] =>
+        case f: FileSourceScanExec if f.relation.location.isInstanceOf[DefaultFileIndex] =>
           f.dataFilters.nonEmpty shouldBe true
       }
   }
@@ -53,11 +53,11 @@ object TestUtils extends QbeastIntegrationTestSpec {
         .asInstanceOf[FileSourceScanExec]
         .relation
         .location
-        .isInstanceOf[OTreeIndex]) shouldBe true
+        .isInstanceOf[DefaultFileIndex]) shouldBe true
 
     leaves
       .foreach {
-        case f: FileSourceScanExec if f.relation.location.isInstanceOf[OTreeIndex] =>
+        case f: FileSourceScanExec if f.relation.location.isInstanceOf[DefaultFileIndex] =>
           val index = f.relation.location
           val matchingFiles =
             index.listFiles(f.partitionFilters, f.dataFilters).flatMap(_.files)

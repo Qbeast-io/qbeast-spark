@@ -17,82 +17,90 @@ package io.qbeast.spark.table
 
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model._
-import io.qbeast.spark.delta.{CubeDataLoader, StagingDataManager, StagingResolution}
-import io.qbeast.spark.index.QbeastColumns
-import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.spark.internal.QbeastOptions._
+import io.qbeast.core.model.RevisionFactory
+import io.qbeast.spark.delta.StagingDataManager
+import io.qbeast.spark.delta.StagingResolution
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
+import io.qbeast.spark.internal.QbeastOptions
+import io.qbeast.spark.internal.QbeastOptions.COLUMNS_TO_INDEX
+import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
+import org.apache.spark.qbeast.config.COLUMN_SELECTOR_ENABLED
 import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{AnalysisExceptionFactory, DataFrame}
+import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.DataFrame
 
 import java.util.ConcurrentModificationException
 
 /**
- * Indexed table represents the tabular data storage
- * indexed with the OTree indexing technology.
+ * Indexed table represents the tabular data storage indexed with the OTree indexing technology.
  */
 trait IndexedTable {
 
   /**
    * Returns whether the table physically exists.
-   * @return the table physically exists.
+   * @return
+   *   the table physically exists.
    */
   def exists: Boolean
 
   /**
-   * Returns whether the table contains Qbeast metadata
-   * @return
-   */
-  def hasQbeastMetadata: Boolean
-
-  /**
    * Returns the table id which identifies the table.
    *
-   * @return the table id
+   * @return
+   *   the table id
    */
   def tableID: QTableID
 
   /**
-   * Merge new and index current properties
-   * @param properties the properties you want to merge
-   * @return
-   */
-  def verifyAndMergeProperties(properties: Map[String, String]): Map[String, String]
-
-  /**
-   * Saves given data in the table and updates the index. The specified columns are
-   * used to define the index when the table is created or overwritten. The append
-   * flag defines whether the existing data should be overwritten.
+   * Saves given data in the table and updates the index. The specified columns are used to define
+   * the index when the table is created or overwritten. The append flag defines whether the
+   * existing data should be overwritten.
    *
-   * @param data the data to save
-   * @param parameters the parameters to save the data
-   * @param append the data should be appended to the table
-   * @return the base relation to read the saved data
+   * @param data
+   *   the data to save
+   * @param parameters
+   *   the parameters to save the data
+   * @param append
+   *   the data should be appended to the table
+   * @return
+   *   the base relation to read the saved data
    */
   def save(data: DataFrame, parameters: Map[String, String], append: Boolean): BaseRelation
 
   /**
    * Loads the table data.
    *
-   * @return the base relation to read the table data
+   * @return
+   *   the base relation to read the table data
    */
   def load(): BaseRelation
 
   /**
    * Analyzes the index for a given revision
-   * @param revisionID the identifier of revision to analyze
-   * @return the cubes to analyze
+   * @param revisionID
+   *   the identifier of revision to analyze
+   * @return
+   *   the cubes to analyze
    */
   def analyze(revisionID: RevisionID): Seq[String]
 
   /**
    * Optimizes the given table for a given revision
-   * @param revisionID the identifier of revision to optimize
+   * @param revisionID
+   *   the identifier of revision to optimize
    */
   def optimize(revisionID: RevisionID): Unit
+
+  /**
+   * Optimizes the table by optimizing the data stored in the specified index files.
+   *
+   * @param files
+   *   the index files to optimize
+   */
+  def optimize(files: Seq[String]): Unit
 
   /**
    * Compacts the small files for a given table
@@ -106,30 +114,37 @@ trait IndexedTable {
 trait IndexedTableFactory {
 
   /**
-   * Returns a IndexedTable for given SQLContext and path.
-   * It is not guaranteed that the returned table physically
-   * exists, use IndexedTable#exists attribute to verify it.
+   * Returns a IndexedTable for given SQLContext and path. It is not guaranteed that the returned
+   * table physically exists, use IndexedTable#exists attribute to verify it.
    *
-   * @param tableId the table path
-   * @return the table
+   * @param tableId
+   *   the table path
+   * @return
+   *   the table
    */
   def getIndexedTable(tableId: QTableID): IndexedTable
 }
 
 /**
  * Implementation of IndexedTableFactory.
- * @param keeper the keeper
- * @param indexManager the index manager
- * @param metadataManager the metadata manager
- * @param dataWriter the data writer
- * @param revisionBuilder the revision builder
+ * @param keeper
+ *   the keeper
+ * @param indexManager
+ *   the index manager
+ * @param metadataManager
+ *   the metadata manager
+ * @param dataWriter
+ *   the data writer
+ * @param revisionFactory
+ *   the revision builder
  */
 final class IndexedTableFactoryImpl(
     private val keeper: Keeper,
     private val indexManager: IndexManager[DataFrame],
     private val metadataManager: MetadataManager[StructType, FileAction, QbeastOptions],
     private val dataWriter: DataWriter[DataFrame, StructType, FileAction],
-    private val revisionFactory: RevisionFactory[StructType, QbeastOptions])
+    private val revisionFactory: RevisionFactory[StructType, QbeastOptions],
+    private val autoIndexer: ColumnsToIndexSelector[DataFrame])
     extends IndexedTableFactory {
 
   override def getIndexedTable(tableID: QTableID): IndexedTable =
@@ -139,19 +154,28 @@ final class IndexedTableFactoryImpl(
       indexManager,
       metadataManager,
       dataWriter,
-      revisionFactory)
+      revisionFactory,
+      autoIndexer)
 
 }
 
 /**
  * Implementation of IndexedTable.
  *
- * @param tableID the table identifier
- * @param keeper the keeper
- * @param indexManager the index manager
- * @param metadataManager the metadata manager
- * @param dataWriter the data writer
- * @param revisionBuilder the revision builder
+ * @param tableID
+ *   the table identifier
+ * @param keeper
+ *   the keeper
+ * @param indexManager
+ *   the index manager
+ * @param metadataManager
+ *   the metadata manager
+ * @param dataWriter
+ *   the data writer
+ * @param revisionFactory
+ *   the revision factory
+ * @param autoIndexer
+ *   the auto indexer
  */
 private[table] class IndexedTableImpl(
     val tableID: QTableID,
@@ -159,7 +183,8 @@ private[table] class IndexedTableImpl(
     private val indexManager: IndexManager[DataFrame],
     private val metadataManager: MetadataManager[StructType, FileAction, QbeastOptions],
     private val dataWriter: DataWriter[DataFrame, StructType, FileAction],
-    private val revisionFactory: RevisionFactory[StructType, QbeastOptions])
+    private val revisionFactory: RevisionFactory[StructType, QbeastOptions],
+    private val autoIndexer: ColumnsToIndexSelector[DataFrame])
     extends IndexedTable
     with StagingUtils {
   private var snapshotCache: Option[QbeastSnapshot] = None
@@ -169,56 +194,12 @@ private[table] class IndexedTableImpl(
    *
    * @return
    */
-  private def latestRevision: Revision = snapshot.loadLatestRevision
-
   override def exists: Boolean = !snapshot.isInitial
 
-  override def hasQbeastMetadata: Boolean = try {
-    snapshot.loadLatestRevision
-    true
-  } catch {
-    case _: Exception => false
-  }
-
-  override def verifyAndMergeProperties(properties: Map[String, String]): Map[String, String] = {
-    if (!exists) {
-      // IF not exists, we should only check new properties
-      checkQbeastOptions(properties)
-      properties
-    } else if (hasQbeastMetadata) {
-      // IF has qbeast metadata, we can merge both properties: new and current
-      val currentColumnsIndexed =
-        latestRevision.columnTransformers.map(_.columnName).mkString(",")
-      val currentCubeSize = latestRevision.desiredCubeSize.toString
-      val finalProperties = {
-        (properties.contains(COLUMNS_TO_INDEX), properties.contains(CUBE_SIZE)) match {
-          case (true, true) => properties
-          case (false, false) =>
-            properties + (COLUMNS_TO_INDEX -> currentColumnsIndexed, CUBE_SIZE -> currentCubeSize)
-          case (true, false) => properties + (CUBE_SIZE -> currentCubeSize)
-          case (false, true) =>
-            properties + (COLUMNS_TO_INDEX -> currentColumnsIndexed)
-        }
-      }
-      finalProperties
-    } else {
-      throw AnalysisExceptionFactory.create(
-        s"Table ${tableID.id} exists but does not contain Qbeast metadata. " +
-          s"Please use ConvertToQbeastCommand to convert the table to Qbeast.")
-    }
-  }
-
-  private def isNewRevision(qbeastOptions: QbeastOptions): Boolean = {
+  private def isNewRevision(qbeastOptions: QbeastOptions, latestRevision: Revision): Boolean = {
 
     // TODO feature: columnsToIndex may change between revisions
-    val columnsToIndex = qbeastOptions.columnsToIndex
-    val currentColumnsToIndex = latestRevision.columnTransformers.map(_.columnName)
-    val isNewColumns = !latestRevision.matchColumns(columnsToIndex)
-    if (isNewColumns) {
-      throw AnalysisExceptionFactory.create(
-        s"Columns to index '${columnsToIndex.mkString(",")}' do not match " +
-          s"existing index ${currentColumnsToIndex.mkString(",")}.")
-    }
+    checkColumnsToMatchSchema(latestRevision)
     // Checks if the desiredCubeSize is different from the existing one
     val isNewCubeSize = latestRevision.desiredCubeSize != qbeastOptions.cubeSize
     // Checks if the user-provided column boundaries would trigger the creation of
@@ -244,6 +225,29 @@ private[table] class IndexedTableImpl(
 
   }
 
+  /**
+   * Add the required indexing parameters when the SaveMode is Append. The user-provided
+   * parameters are respected.
+   * @param latestRevision
+   *   the latest revision
+   * @param parameters
+   *   the parameters required for indexing
+   */
+  def addRequiredParams(
+      latestRevision: Revision,
+      parameters: Map[String, String]): Map[String, String] = {
+    val columnsToIndex = latestRevision.columnTransformers.map(_.columnName).mkString(",")
+    val desiredCubeSize = latestRevision.desiredCubeSize.toString
+    var correctParameters = parameters
+    if (!parameters.contains(COLUMNS_TO_INDEX)) {
+      correctParameters += COLUMNS_TO_INDEX -> columnsToIndex
+    }
+    if (!parameters.contains(CUBE_SIZE)) {
+      correctParameters += CUBE_SIZE -> desiredCubeSize
+    }
+    correctParameters
+  }
+
   override def save(
       data: DataFrame,
       parameters: Map[String, String],
@@ -252,12 +256,13 @@ private[table] class IndexedTableImpl(
       if (exists && append) {
         // If the table exists and we are appending new data
         // 1. Load existing IndexStatus
-        val options = QbeastOptions(verifyAndMergeProperties(parameters))
+        val latestRevision = snapshot.loadLatestRevision
+        val options = QbeastOptions(addRequiredParams(latestRevision, parameters))
         if (isStaging(latestRevision)) { // If the existing Revision is Staging
           val revision = revisionFactory.createNewRevision(tableID, data.schema, options)
           (IndexStatus(revision), options)
         } else {
-          if (isNewRevision(options)) {
+          if (isNewRevision(options, latestRevision)) {
             // If the new parameters generate a new revision, we need to create another one
             val newPotentialRevision = revisionFactory
               .createNewRevision(tableID, data.schema, options)
@@ -287,11 +292,20 @@ private[table] class IndexedTableImpl(
           }
         }
       } else {
-        val options = QbeastOptions(parameters)
+        // IF autoIndexingEnabled, choose columns to index
+        val optionalColumnsToIndex = parameters.contains(COLUMNS_TO_INDEX)
+        val updatedParameters = if (!optionalColumnsToIndex && !COLUMN_SELECTOR_ENABLED) {
+          throw AnalysisExceptionFactory.create(
+            "Auto indexing is disabled. Please specify the columns to index in a comma separated way" +
+              " as .option(columnsToIndex, ...) or enable auto indexing with spark.qbeast.index.autoIndexingEnabled=true")
+        } else if (COLUMN_SELECTOR_ENABLED) {
+          val columnsToIndex = autoIndexer.selectColumnsToIndex(data)
+          parameters + (COLUMNS_TO_INDEX -> columnsToIndex.mkString(","))
+        } else parameters
+        val options = QbeastOptions(updatedParameters)
         val revision = revisionFactory.createNewRevision(tableID, data.schema, options)
         (IndexStatus(revision), options)
       }
-
     write(data, indexStatus, options, append)
   }
 
@@ -311,9 +325,18 @@ private[table] class IndexedTableImpl(
     snapshotCache = None
   }
 
+  private def checkColumnsToMatchSchema(revision: Revision): Unit = {
+    val columnsToIndex = revision.columnTransformers.map(_.columnName)
+    if (!snapshot.loadLatestRevision.matchColumns(columnsToIndex)) {
+      throw AnalysisExceptionFactory.create(
+        s"Columns to index '$columnsToIndex' do not match existing index.")
+    }
+  }
+
   /**
    * Creates a QbeastBaseRelation for the given table.
-   * @return the QbeastBaseRelation
+   * @return
+   *   the QbeastBaseRelation
    */
   private def createQbeastBaseRelation(): BaseRelation = {
     QbeastBaseRelation.forQbeastTable(this)
@@ -384,68 +407,34 @@ private[table] class IndexedTableImpl(
   }
 
   override def optimize(revisionID: RevisionID): Unit = {
+    val files = snapshot.loadIndexFiles(revisionID).map(_.path)
+    optimize(files)
+  }
 
-    // begin keeper transaction
-    val bo = keeper.beginOptimization(tableID, revisionID)
-
-    val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
-    val cubesToOptimize = bo.cubesToOptimize.map(currentIndexStatus.revision.createCubeId)
-    val indexStatus = currentIndexStatus.addAnnouncements(cubesToOptimize)
-    val cubesToReplicate = indexStatus.cubesToOptimize
+  override def optimize(files: Seq[String]): Unit = {
+    val paths = files.toSet
     val schema = metadataManager.loadCurrentSchema(tableID)
-
-    if (cubesToReplicate.nonEmpty) {
-      try {
-        // Try to commit transaction
-        doOptimize(schema, indexStatus, cubesToReplicate)
-      } catch {
-        case _: ConcurrentModificationException => bo.end(Set())
-      } finally {
-        // end keeper transaction
-        bo.end(cubesToReplicate.map(_.string))
+    snapshot.loadAllRevisions.foreach { revision =>
+      val indexFiles = snapshot
+        .loadIndexFiles(revision.revisionID)
+        .filter(file => paths.contains(file.path))
+        .toIndexedSeq
+      if (indexFiles.nonEmpty) {
+        val indexStatus = snapshot.loadIndexStatus(revision.revisionID)
+        metadataManager.updateWithTransaction(
+          tableID,
+          schema,
+          QbeastOptions.empty,
+          append = true) {
+          val tableChanges = BroadcastedTableChanges(None, indexStatus, Map.empty, Map.empty)
+          val fileActions =
+            dataWriter.compact(tableID, schema, revision, indexStatus, indexFiles)
+          (tableChanges, fileActions)
+        }
       }
-    } else {
-      bo.end(Set())
     }
-
-    clearCaches()
   }
 
-  private def doOptimize(
-      schema: StructType,
-      indexStatus: IndexStatus,
-      cubesToOptimize: Set[CubeId]): Unit = {
-
-    metadataManager.updateWithTransaction(tableID, schema, QbeastOptions.empty, append = true) {
-      val dataToReplicate =
-        CubeDataLoader(tableID).loadSetWithCubeColumn(
-          cubesToOptimize,
-          indexStatus.revision,
-          QbeastColumns.cubeToReplicateColumnName)
-      val (qbeastData, tableChanges) =
-        indexManager.optimize(dataToReplicate, indexStatus)
-      val fileActions =
-        dataWriter.write(tableID, schema, qbeastData, tableChanges)
-      (tableChanges, fileActions)
-    }
-
-  }
-
-  override def compact(revisionID: RevisionID): Unit = {
-
-    // Load the schema and the current status
-    val schema = metadataManager.loadCurrentSchema(tableID)
-    val currentIndexStatus = snapshot.loadIndexStatus(revisionID)
-
-    metadataManager.updateWithTransaction(tableID, schema, QbeastOptions.empty, append = true) {
-      // There's no affected table changes on compaction, so we send an empty object
-      val tableChanges = BroadcastedTableChanges(None, currentIndexStatus, Map.empty)
-      val fileActions =
-        dataWriter.compact(tableID, schema, currentIndexStatus, tableChanges)
-      (tableChanges, fileActions)
-
-    }
-
-  }
+  override def compact(revisionID: RevisionID): Unit = optimize(revisionID)
 
 }
