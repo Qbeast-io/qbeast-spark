@@ -73,7 +73,6 @@ class QbeastCreateTableSQLTest extends QbeastIntegrationTestSpec {
       an[AnalysisException] shouldBe thrownBy(data.writeTo("student_column_change").append())
     })
 
-
   it should "overwrite existing CUBE SIZE options if specified" in
     withQbeastContextSparkAndTmpWarehouse((spark, tmpDir) => {
 
