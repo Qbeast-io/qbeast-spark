@@ -26,8 +26,8 @@ class QbeastCreateTableSQLTest extends QbeastIntegrationTestSpec {
       data.write.format("qbeast").option("columnsToIndex", "id,name").save(location)
 
       spark.sql(
-        s"CREATE EXTERNAL TABLE student (id INT, name STRING, age INT) " +
-          s"USING qbeast " +
+        "CREATE EXTERNAL TABLE student (id INT, name STRING, age INT) " +
+          "USING qbeast " +
           s"LOCATION '$location'")
 
     })
@@ -41,15 +41,15 @@ class QbeastCreateTableSQLTest extends QbeastIntegrationTestSpec {
 
       an[AnalysisException] shouldBe thrownBy(
         spark.sql(
-          s"CREATE EXTERNAL TABLE student (id INT, name STRING, age INT) " +
-            s"USING qbeast " +
+          "CREATE EXTERNAL TABLE student (id INT, name STRING, age INT) " +
+            "USING qbeast " +
             s"LOCATION '$location'"))
 
       an[AnalysisException] shouldBe thrownBy(
         spark.sql(
-          s"CREATE EXTERNAL TABLE student (id INT, name STRING, age INT) " +
-            s"USING qbeast " +
-            s"OPTIONS ('columnsToIndex'='id') " +
+          "CREATE EXTERNAL TABLE student (id INT, name STRING, age INT) " +
+            "USING qbeast " +
+            "OPTIONS ('columnsToIndex'='id') " +
             s"LOCATION '$location'"))
 
     })
@@ -64,14 +64,15 @@ class QbeastCreateTableSQLTest extends QbeastIntegrationTestSpec {
 
       // COLUMNS TO INDEX ARE CHANGED
       spark.sql(
-        s"CREATE EXTERNAL TABLE student_column_change (id INT, name STRING, age INT) " +
-          s"USING qbeast " +
-          s"OPTIONS ('columnsToIndex'='id,name') " +
+        "CREATE EXTERNAL TABLE student_column_change (id INT, name STRING, age INT) " +
+          "USING qbeast " +
+          "OPTIONS ('columnsToIndex'='id,name') " +
           s"LOCATION '$location'")
 
       // COLUMNS TO INDEX CANNOT BE CHANGED
       an[AnalysisException] shouldBe thrownBy(data.writeTo("student_column_change").append())
     })
+
 
   it should "overwrite existing CUBE SIZE options if specified" in
     withQbeastContextSparkAndTmpWarehouse((spark, tmpDir) => {
@@ -86,9 +87,9 @@ class QbeastCreateTableSQLTest extends QbeastIntegrationTestSpec {
         .save(location)
 
       spark.sql(
-        s"CREATE EXTERNAL TABLE student_cube_change (id INT, name STRING, age INT) " +
-          s"USING qbeast " +
-          s"OPTIONS ('cubeSize'='50') " +
+        "CREATE EXTERNAL TABLE student_cube_change (id INT, name STRING, age INT) " +
+          "USING qbeast " +
+          "OPTIONS ('cubeSize'='50') " +
           s"LOCATION '$location'")
 
       val qbeastTable = QbeastTable.forPath(spark, location)
@@ -107,9 +108,9 @@ class QbeastCreateTableSQLTest extends QbeastIntegrationTestSpec {
       val location = tmpDir + "/external_student/"
 
       spark.sql(
-        s"CREATE EXTERNAL TABLE student (id INT, name STRING, age INT) " +
-          s"USING qbeast " +
-          s"OPTIONS ('columnsToIndex'='id,name') " +
+        "CREATE EXTERNAL TABLE student (id INT, name STRING, age INT) " +
+          "USING qbeast " +
+          "OPTIONS ('columnsToIndex'='id,name') " +
           s"LOCATION '$location'")
 
       // SELECT FROM
