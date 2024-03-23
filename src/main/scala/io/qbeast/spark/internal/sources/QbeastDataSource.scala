@@ -57,9 +57,7 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       properties: util.Map[String, String]): Table = {
     val tableId = QbeastOptions.loadTableIDFromParameters(properties.asScala.toMap)
     val indexedTable = tableFactory.getIndexedTable(tableId)
-    val exception = new Exception(s"Creating relation")
     logInfo(s"Qbeast: Getting Qbeast table ${tableId}")
-    exception.printStackTrace()
     if (indexedTable.exists) {
       // If the table exists, we make sure to pass all the properties to QbeastTableImpl
       val currentRevision = metadataManager.loadSnapshot(tableId).loadLatestRevision

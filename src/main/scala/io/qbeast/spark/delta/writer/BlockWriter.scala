@@ -126,9 +126,7 @@ case class BlockWriter(
         .setRevisionId(revision.revisionID)
         .result()
 
-      val exception = new Exception(s"Block writer adding file")
       logInfo(s"Qbeast: Adding file $file")
-      exception.printStackTrace()
       val addFile = IndexFiles.toAddFile()(file)
 
       (addFile, taskStats)
