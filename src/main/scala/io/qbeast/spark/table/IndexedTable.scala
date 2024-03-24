@@ -244,7 +244,7 @@ private[table] class IndexedTableImpl(
     } else {
       throw AnalysisExceptionFactory.create(
         s"Table ${tableID.id} exists but does not contain Qbeast metadata. " +
-          s"Please use ConvertToQbeastCommand to convert the table to Qbeast.")
+          "Please use ConvertToQbeastCommand to convert the table to Qbeast.")
     }
   }
 
