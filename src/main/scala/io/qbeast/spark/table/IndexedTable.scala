@@ -306,16 +306,18 @@ private[table] class IndexedTableImpl(
       throw AnalysisExceptionFactory.create(
         "Auto indexing is disabled. Please specify the columns to index in a comma separated way" +
           " as .option(columnsToIndex, ...) or enable auto indexing with spark.qbeast.index.autoIndexingEnabled=true")
-    } else if (!optionalColumnsToIndex && COLUMN_SELECTOR_ENABLED && data.isDefined) {
-      // If columnsToIndex is NOT present, the column selector is ENABLED and DATA is AVAILABLE
-      // We can automatically choose the columnsToIndex based on dataFrame
-      val columnsToIndex = columnSelector.selectColumnsToIndex(data.get)
-      parameters + (COLUMNS_TO_INDEX -> columnsToIndex.mkString(","))
-    } else if (data.isEmpty) {
-      // If columnsToIndex is NOT present, the column selector is ENABLED but DATA is NOT AVAILABLE
-      // We should throw an exception
-      throw AnalysisExceptionFactory.create(
-        "Auto indexing is enabled but no data is available to select columns to index")
+    } else if (!optionalColumnsToIndex && COLUMN_SELECTOR_ENABLED) {
+      data match {
+        case Some(df) => {
+          // If columnsToIndex is NOT present, the column selector is ENABLED and DATA is AVAILABLE
+          // We can automatically choose the columnsToIndex based on dataFrame
+          val columnsToIndex = columnSelector.selectColumnsToIndex(df)
+          parameters + (COLUMNS_TO_INDEX -> columnsToIndex.mkString(","))
+        }
+        case None =>
+          throw AnalysisExceptionFactory.create(
+            "Auto indexing is enabled but no data is available to select columns to index")
+      }
     } else parameters
   }
 

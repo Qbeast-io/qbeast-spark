@@ -250,12 +250,12 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
 
   "QbeastCatalogUtils" should "throw an error when trying to replace a non-existing table" in
     withQbeastContextSparkAndTmpWarehouse((spark, _) => {
-      an[CannotReplaceMissingTableException] shouldBe thrownBy(
+      an[AnalysisException] shouldBe thrownBy(
         QbeastCatalogUtils.createQbeastTable(
           Identifier.of(defaultNamespace, "students"),
           schema,
           Array.empty,
-          Map("columnsToIndex" -> "id").asJava,
+          Map.empty[String, String].asJava,
           Map.empty,
           None,
           TableCreationMode.REPLACE_TABLE,
