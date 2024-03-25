@@ -54,9 +54,10 @@ trait IndexedTable {
   def hasQbeastMetadata: Boolean
 
   /**
-   * Adds the indexed columns to the parameters if there are is not present, auto indexing is
-   * enabled and dataframe is available.
-   *
+   * Adds the indexed columns to the parameter if:
+   *   - ColumnsToIndex is NOT present
+   *   - AutoIndexing is enabled
+   *   - Data is available
    * @param parameters
    * @param data
    * @return
@@ -301,13 +302,18 @@ private[table] class IndexedTableImpl(
       data: Option[DataFrame]): Map[String, String] = {
     val optionalColumnsToIndex = parameters.contains(COLUMNS_TO_INDEX)
     if (!optionalColumnsToIndex && !COLUMN_SELECTOR_ENABLED) {
+      // IF autoIndexingEnabled is disabled, and no columnsToIndex are specified we should throw an exception
       throw AnalysisExceptionFactory.create(
         "Auto indexing is disabled. Please specify the columns to index in a comma separated way" +
           " as .option(columnsToIndex, ...) or enable auto indexing with spark.qbeast.index.autoIndexingEnabled=true")
-    } else if (COLUMN_SELECTOR_ENABLED && data.isDefined) {
+    } else if (!optionalColumnsToIndex && COLUMN_SELECTOR_ENABLED && data.isDefined) {
+      // If columnsToIndex is NOT present, the column selector is ENABLED and DATA is AVAILABLE
+      // We can automatically choose the columnsToIndex based on dataFrame
       val columnsToIndex = columnSelector.selectColumnsToIndex(data.get)
       parameters + (COLUMNS_TO_INDEX -> columnsToIndex.mkString(","))
     } else if (data.isEmpty) {
+      // If columnsToIndex is NOT present, the column selector is ENABLED but DATA is NOT AVAILABLE
+      // We should throw an exception
       throw AnalysisExceptionFactory.create(
         "Auto indexing is enabled but no data is available to select columns to index")
     } else parameters
