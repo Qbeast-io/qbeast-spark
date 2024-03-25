@@ -16,8 +16,8 @@
 package io.qbeast.spark.internal.sources
 
 import io.qbeast.context.QbeastContext
-import io.qbeast.spark.delta.EmptyIndex
-import io.qbeast.spark.delta.OTreeIndex
+import io.qbeast.spark.delta.DefaultFileIndex
+import io.qbeast.spark.delta.EmptyFileIndex
 import io.qbeast.spark.table.IndexedTable
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
@@ -61,7 +61,7 @@ object QbeastBaseRelation {
       // This could happen if we CREATE/REPLACE TABLE without inserting data
       // In this case, we use the options variable
       new HadoopFsRelation(
-        EmptyIndex,
+        EmptyFileIndex,
         partitionSchema = StructType(Seq.empty[StructField]),
         dataSchema = schema,
         bucketSpec = None,
@@ -74,7 +74,7 @@ object QbeastBaseRelation {
     } else {
       // If the table contains data, initialize it
       val path = new Path(tableID.id)
-      val fileIndex = OTreeIndex(spark, path)
+      val fileIndex = DefaultFileIndex(spark, path)
       val bucketSpec: Option[BucketSpec] = None
       val file = new ParquetFileFormat()
 
