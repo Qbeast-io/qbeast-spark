@@ -1,28 +1,20 @@
-# QbeastFormat 1.0.0
+# QbeastFormat 0.6.0
 
-## What is Qbeast format?
+**The version 0.6.0 introduces a new format for the Qbeast tables.** 
 
-Qbeast format is used to store the big data tables making it efficient querying
-and sampling. It extends the Delta format, so the data is stored in parquet
-files and the index metadata is stored in the Delta log. In more details
+This document states the main changes and how we can recover a table written with a past version.
 
-* the schema, index columns, data transformations, revisions and other
-  information which is common for all the blocks is stored in the `metaData`
-  attribute of the Delta log header.
-* the information about individual blocks of index data is stored in the `tags`
-  attribute of the `add` entries of the Delta log.
+# Metadata changes
 
-## Metadata changes introduced in the version 1.0.0
-
-* The information about the replicated cubes are not stored in the Delta log
-  anymore
-* A physical file can contain data from multiple blocks, so the information
+* **The information about the replicated cubes are not stored in the Delta log
+  anymore.**
+* **A physical file can contain data from multiple `blocks`**, so the information
   stored in the `tags` of an `add`entry in the Delta log provides information
   about all the blocks stored in the corresponding index file.
 
-## Block metadata before the version 1.0.0
+## Block metadata before v0.6.0
 
-Before the vesion 1.0.0 the `tags` attribute of the `add` entry contained a JSON
+Before the version 0.6.0 the `tags` attribute of the `add` entry contained a JSON
 like the following:
 
 ```JSON
@@ -36,17 +28,18 @@ like the following:
 }
 ```
 
-where
 
-* possible values for the state are FLOODED, ANNOUNCED and REPLICATED
-* cube value is the string representation of the cube identifier
-* revision value is the revision identifier
-* minWeight/maxWeight define the range of the element weights
-* elementCount provides the number of elements in the block 
+| Term            | Description                                    |
+|-----------------|------------------------------------------------|
+| `cube`          | The serialized representation of the Cube.     |
+| `revision`      | The metadata of the tree.                      |
+| `elementCount`  | The number of elements in the block.           |
+| `minWeight`     | The minimum weight of the block.               |
+| `maxWeight`     | The maximum weight of the block.               |
 
-## Block metadata from the version 1.0.0
+## Block metadata from v0.6.0
 
-From the version 1.0.0 the `tags` attribute of the add entry contains a JSON
+From the version 0.6.0 the `tags` attribute of the add entry contains a JSON
 like the following:
 
 ```JSON
@@ -73,10 +66,11 @@ like the following:
 The `blocks` attribute contains a string which is a JSON with necessary escapes
 for the quotes.
 
-## How to transform an existing table
+
+# How to transform an existing table
 
 It is possible to transform a table written with the library with the version
-before 1.0.0 into a table compatible with the version 1.0.0 without reindexing
+before 0.6.0 into a table compatible with the version 0.6.0 without reindexing
 the table data. The utility should implement the following steps:
 
 * remove the information about the replicated cubes from the Delta log metadata

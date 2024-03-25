@@ -1,6 +1,6 @@
 ## Columns To Index Selector
 
-Qbeast Format organizes the records using a multidimensional index. This index is built on a subset of the columns in the table. From `1.0.0` version, **the columns can be selected automatically by enabling the automatic column index selector or manually by the user**.
+Qbeast Format organizes the records using a multidimensional index. This index is built on a subset of the columns in the table. From `0.6.0` version, **the columns can be selected automatically by enabling the automatic column index selector or manually by the user**.
 
 If you want to forget about the distribution and let qbeast handle all the indexing pre-process, there's no need to specify the `columnsToIndex` in the **DataFrame**.
 
