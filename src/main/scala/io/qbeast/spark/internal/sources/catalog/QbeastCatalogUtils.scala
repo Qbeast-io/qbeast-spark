@@ -203,7 +203,9 @@ object QbeastCatalogUtils {
 
     // Process the parameters/options/configuration sent to the table
     val indexedTable = tableFactory.getIndexedTable(QTableID(loc.toString))
-    val allProperties = indexedTable.verifyAndMergeProperties(properties)
+    // IF autoIndexingEnabled, choose columns to index
+    val updatedProperties = indexedTable.selectColumnsToIndex(properties, dataFrame)
+    val allProperties = indexedTable.verifyAndMergeProperties(updatedProperties)
 
     // Initialize the path option
     val storage = DataSource

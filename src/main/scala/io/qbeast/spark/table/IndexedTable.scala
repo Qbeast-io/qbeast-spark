@@ -54,6 +54,18 @@ trait IndexedTable {
   def hasQbeastMetadata: Boolean
 
   /**
+   * Adds the indexed columns to the parameters if there are is not present, auto indexing is
+   * enabled and dataframe is available.
+   *
+   * @param parameters
+   * @param data
+   * @return
+   */
+  def selectColumnsToIndex(
+      parameters: Map[String, String],
+      data: Option[DataFrame]): Map[String, String]
+
+  /**
    * Returns the table id which identifies the table.
    *
    * @return
@@ -159,7 +171,7 @@ final class IndexedTableFactoryImpl(
     private val metadataManager: MetadataManager[StructType, FileAction, QbeastOptions],
     private val dataWriter: DataWriter[DataFrame, StructType, FileAction],
     private val revisionFactory: RevisionFactory[StructType, QbeastOptions],
-    private val autoIndexer: ColumnsToIndexSelector[DataFrame])
+    private val columnSelector: ColumnsToIndexSelector[DataFrame])
     extends IndexedTableFactory {
 
   override def getIndexedTable(tableID: QTableID): IndexedTable =
@@ -170,7 +182,7 @@ final class IndexedTableFactoryImpl(
       metadataManager,
       dataWriter,
       revisionFactory,
-      autoIndexer)
+      columnSelector)
 
 }
 
@@ -189,7 +201,7 @@ final class IndexedTableFactoryImpl(
  *   the data writer
  * @param revisionFactory
  *   the revision factory
- * @param autoIndexer
+ * @param columnSelector
  *   the auto indexer
  */
 private[table] class IndexedTableImpl(
@@ -199,7 +211,7 @@ private[table] class IndexedTableImpl(
     private val metadataManager: MetadataManager[StructType, FileAction, QbeastOptions],
     private val dataWriter: DataWriter[DataFrame, StructType, FileAction],
     private val revisionFactory: RevisionFactory[StructType, QbeastOptions],
-    private val autoIndexer: ColumnsToIndexSelector[DataFrame])
+    private val columnSelector: ColumnsToIndexSelector[DataFrame])
     extends IndexedTable
     with StagingUtils {
   private var snapshotCache: Option[QbeastSnapshot] = None
@@ -284,6 +296,23 @@ private[table] class IndexedTableImpl(
 
   }
 
+  override def selectColumnsToIndex(
+      parameters: Map[String, String],
+      data: Option[DataFrame]): Map[String, String] = {
+    val optionalColumnsToIndex = parameters.contains(COLUMNS_TO_INDEX)
+    if (!optionalColumnsToIndex && !COLUMN_SELECTOR_ENABLED) {
+      throw AnalysisExceptionFactory.create(
+        "Auto indexing is disabled. Please specify the columns to index in a comma separated way" +
+          " as .option(columnsToIndex, ...) or enable auto indexing with spark.qbeast.index.autoIndexingEnabled=true")
+    } else if (COLUMN_SELECTOR_ENABLED && data.isDefined) {
+      val columnsToIndex = columnSelector.selectColumnsToIndex(data.get)
+      parameters + (COLUMNS_TO_INDEX -> columnsToIndex.mkString(","))
+    } else if (data.isEmpty) {
+      throw AnalysisExceptionFactory.create(
+        "Auto indexing is enabled but no data is available to select columns to index")
+    } else parameters
+  }
+
   override def save(
       data: DataFrame,
       parameters: Map[String, String],
@@ -328,15 +357,7 @@ private[table] class IndexedTableImpl(
         }
       } else {
         // IF autoIndexingEnabled, choose columns to index
-        val optionalColumnsToIndex = parameters.contains(COLUMNS_TO_INDEX)
-        val updatedParameters = if (!optionalColumnsToIndex && !COLUMN_SELECTOR_ENABLED) {
-          throw AnalysisExceptionFactory.create(
-            "Auto indexing is disabled. Please specify the columns to index in a comma separated way" +
-              " as .option(columnsToIndex, ...) or enable auto indexing with spark.qbeast.index.autoIndexingEnabled=true")
-        } else if (COLUMN_SELECTOR_ENABLED) {
-          val columnsToIndex = autoIndexer.selectColumnsToIndex(data)
-          parameters + (COLUMNS_TO_INDEX -> columnsToIndex.mkString(","))
-        } else parameters
+        val updatedParameters = selectColumnsToIndex(parameters, Some(data))
         val options = QbeastOptions(updatedParameters)
         val revision = revisionFactory.createNewRevision(tableID, data.schema, options)
         (IndexStatus(revision), options)
