@@ -130,10 +130,6 @@ trait IndexedTable {
    */
   def optimize(files: Seq[String]): Unit
 
-  /**
-   * Compacts the small files for a given table
-   */
-  def compact(revisionID: RevisionID): Unit
 }
 
 /**
@@ -490,7 +486,5 @@ private[table] class IndexedTableImpl(
       }
     }
   }
-
-  override def compact(revisionID: RevisionID): Unit = optimize(revisionID)
 
 }

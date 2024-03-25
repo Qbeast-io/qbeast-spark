@@ -224,7 +224,7 @@ class ConvertToQbeastTest
 
       // Perform compaction
       val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-      qbeastTable.compact()
+      qbeastTable.optimize()
 
       // Compare DataFrames
       val sourceDf = spark.read.format(fileFormat).load(tmpDir)

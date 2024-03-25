@@ -12,7 +12,7 @@ import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
 
-class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec with Logging {
+class QbeastOptimizeRevisionIntegrationTest extends QbeastIntegrationTestSpec with Logging {
 
   private def writeTestDataInBatches(batch: DataFrame, tmpDir: String, numBatches: Int): Unit = {
     1.to(numBatches).foreach { _ =>
@@ -20,7 +20,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec with Log
     }
   }
 
-  "Compaction command" should
+  "Optimize by Revision command" should
     "reduce the number of files" in withSparkAndTmpDir((spark, tmpDir) => {
 
       val data = loadTestData(spark)
@@ -39,7 +39,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec with Log
       val originalNumOfFiles = indexed.select(input_file_name()).distinct().count()
 
       val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-      qbeastTable.compact()
+      qbeastTable.optimize()
 
       val finalNumOfFiles = indexed.select(input_file_name()).distinct().count()
       finalNumOfFiles shouldBe <(originalNumOfFiles)
@@ -69,7 +69,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec with Log
 
       // Compact the tables
       val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-      qbeastTable.compact()
+      qbeastTable.optimize()
 
       // Check if number of files are less than the original
       val finalNumOfFilesRoot = getRootCubeFileCount(spark, tmpDir)
@@ -93,7 +93,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec with Log
 
     // Compact the table
     val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-    qbeastTable.compact()
+    qbeastTable.optimize()
 
     val newIndexStatus = DeltaQbeastSnapshot(deltaLog.update()).loadLatestIndexStatus
 
@@ -133,7 +133,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec with Log
 
     // Compact the table
     val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-    qbeastTable.compact()
+    qbeastTable.optimize()
 
     // Count files compacted for each revision
     val newAllFiles = DeltaLog.forTable(spark, tmpDir).unsafeVolatileSnapshot.allFiles
@@ -172,7 +172,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec with Log
 
     // Compact the table
     val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-    qbeastTable.compact(1)
+    qbeastTable.optimize(1)
 
     // Count files compacted for each revision
     val newAllFiles = DeltaLog.forTable(spark, tmpDir).unsafeVolatileSnapshot.allFiles
@@ -195,7 +195,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec with Log
 
       // Try to compact the table with non-existing revision ID
       val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-      a[AnalysisException] shouldBe thrownBy(qbeastTable.compact(3))
+      a[AnalysisException] shouldBe thrownBy(qbeastTable.optimize(3))
 
     })
 

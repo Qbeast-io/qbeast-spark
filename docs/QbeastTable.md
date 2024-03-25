@@ -30,15 +30,20 @@ Through QbeastTable you can also execute `Analyze`, `Optimize` and `Compact` ope
 
 - **`Analyze`**: analyzes the index **searching for possible optimizations**.
 - **`Optimize`**: optimize the index parts analyzed in the previous operation. The goal is to **improve reading performance** by accessing the less amount of data possible.
-- **`Compact`**: **rearranges** index information that is stored into **small files**. Compaction will **reduce the number of files** when you have many writing operations on the table.
+
 ```scala
 qbeastTable.analyze() // returns the Serialized cube ID's to optimize
 
 qbeastTable.optimize() // optimizes the cubes
-
-qbeastTable.compact() // compacts small files into bigger ones
 ```
 
+Optimize command can work both by RevisionID or by files:
+
+```
+qbeastTable.optimize(0) // optimize by RevisionID
+
+qbeastTable.optimize(Seq("file1", "file2")) // optimize by files
+```
 ## Index Metrics
 
 `IndexMetrics` aims to provide an overview for a given revision of the index.

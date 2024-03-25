@@ -40,7 +40,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val allDeltaFiles = deltaLog.update().allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.file.path).toSet
+    val matchFiles = queryExecutor.execute().map(_.file.path)
 
     val diff = allFiles.toSet -- matchFiles.toSet
 
@@ -65,7 +65,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val allDeltaFiles = deltaLog.update().allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.file.path).toSet
+    val matchFiles = queryExecutor.execute().map(_.file.path)
 
     matchFiles.size shouldBe <(allFiles.length)
     matchFiles.foreach(file => allFiles should contain(file))
@@ -87,7 +87,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val allDeltaFiles = deltaLog.update().allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.file.path).toSet
+    val matchFiles = queryExecutor.execute().map(_.file.path)
 
     matchFiles.size shouldBe <(allFiles.length)
     matchFiles.foreach(file => allFiles should contain(file))
