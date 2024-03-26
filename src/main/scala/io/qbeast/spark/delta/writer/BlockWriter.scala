@@ -16,6 +16,7 @@ import org.apache.hadoop.mapred.JobConf
 import org.apache.hadoop.mapred.TaskAttemptContextImpl
 import org.apache.hadoop.mapred.TaskAttemptID
 import org.apache.hadoop.mapreduce.TaskType
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.execution.datasources.OutputWriter
@@ -55,7 +56,8 @@ case class BlockWriter(
     statsTrackers: Seq[WriteJobStatsTracker],
     qbeastColumns: QbeastColumns,
     tableChanges: TableChanges)
-    extends Serializable {
+    extends Serializable
+    with Logging {
 
   /**
    * Writes rows in corresponding files
@@ -123,6 +125,8 @@ case class BlockWriter(
         .setModificationTime(fileStatus.getModificationTime())
         .setRevisionId(revision.revisionID)
         .result()
+
+      logInfo(s"Qbeast: Adding file $file")
       val addFile = IndexFiles.toAddFile()(file)
 
       (addFile, taskStats)
