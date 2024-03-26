@@ -212,7 +212,7 @@ class ConvertToQbeastTest
       qbeastTable.optimize()
 
       // Compare DataFrames
-      val sourceDf = spark.read.format("delta").load(tmpDir)
+      val sourceDf = spark.read.format(fileFormat).load(tmpDir)
       val qbeastDf = spark.read.format("qbeast").load(tmpDir)
       assertLargeDatasetEquality(qbeastDf, sourceDf, orderedComparison = false)
     })
