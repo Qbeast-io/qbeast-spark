@@ -75,7 +75,7 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
       stagingIndexStatus.replicatedOrAnnouncedSet.isEmpty shouldBe true
     })
 
-  it should "correctly optimize the staging revision" in withSparkAndTmpDir((spark, tmpDir) => {
+  it should "correctly compact the staging revision" in withSparkAndTmpDir((spark, tmpDir) => {
     writeHybridTable(spark, tmpDir)
 
     // Number of delta files before compaction
@@ -85,7 +85,7 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
 
     // Perform compaction
     val table = QbeastTable.forPath(spark, tmpDir)
-    table.optimize(stagingID)
+    table.compact(stagingID)
 
     // Number of delta files after compaction
     val qsAfter = DeltaQbeastSnapshot(deltaLog.update())

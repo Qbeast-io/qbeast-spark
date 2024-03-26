@@ -33,8 +33,16 @@ Let's take a look to the Index metadata to understand what is written in the Del
 
 ### Index Metadata
 
-On a high level, the index consists of one or more `OTree` that contain `cubes` (or nodes), and each cube is made of `blocks` that contain the actual data written by the user.
-All records from the log are of **file-level** information.
+On a high level, the index consists of one or more `OTrees` that contain `cubes` (or nodes), and each cube is made of `blocks` that contain the actual data written by the user.
+All records from the log are of **block/file-level** information.
+
+| Term              | Description                                                                                                                                                                                                                                                                                               |
+|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `revision`        | Locates the particular tree in the space, which includes the min/max values for each column indexed and timestamp.                                                                                                                                                                                |
+| `transformations` | Inside `revision` consist of two maps (in this case), each corresponding to one of the `indexedColumns`. Each pair of `min`/`max` defines the range of values of the associated indexed column that the `tree` can contain and is to be expanded to accommodate new rows that fall outside the current range. |
+| `cube`            | Identifies the current `block`'s `cube` from the `tree`.                                                                                                                                                                                                                                                  |
+| `state`           | Of the `block` determines the **READ** and **WRITE** protocols. It can be `FLOODED`, `ANNOUNCED`, or `REPLICATED`.                                                                                                                                                                                        |
+| `weightMax/weightMin` | Each element gets assigned with a uniformly created `weight` parameter. `weightMin` and `weightMax` define the range of weights that the `block` can contain.                                                                                                                                             |
 
 
 ### AddFile changes
@@ -63,15 +71,14 @@ Here you can see the changes on the `AddFile` **`tags`** information
 }
 ```
 
-| Term           | Description                                                                                                                                  |
-|----------------|----------------------------------------------------------------------------------------------------------------------------------------------|
-| `revision`     | The metadata of the tree. Locates the particular tree in the space, which includes the min/max values for each column indexed and timestamp. |
-| `blocks`       | A list of the blocks that are stored inside the file. Can belong to different cubes.                                                         |
-| `cube`         | The serialized representation of the Cube.                                                                                                   |
-| `minWeight`    | The minimum weight of the block.                                                                                                             |
-| `maxWeight`    | The maximum weight of the block.                                                                                                             |
-| `elementCount` | The number of elements in the block.                                                                                                         |
-| `replicated`   | A flag that indicates if the block is replicated. Replication is **not available** from v0.6.0.                                                  |
+| Term           | Description                                                                          |
+|----------------|--------------------------------------------------------------------------------------|
+| `revision`     | The metadata of the tree.                                                            |
+| `blocks`       | A list of the blocks that are stored inside the file. Can belong to different cubes. |
+| `cube`         | The serialized representation of the Cube.                                           |
+| `elementCount` | The number of elements in the block.                                                 |
+| `minWeight`    | The minimum weight of the block.                                                     |
+| `maxWeight`    | The maximum weight of the block.                                                     |
 
 
 
@@ -103,7 +110,7 @@ We store two different values:
 
 ### Revision
 
-A closer look to the `qb.revision.$number`:
+A more closer look to the `qb.revision.$number`:
 
 ```json
 
