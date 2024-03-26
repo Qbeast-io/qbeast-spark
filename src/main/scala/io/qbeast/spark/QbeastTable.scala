@@ -75,15 +75,17 @@ class QbeastTable private (
    *   the last available
    */
   def optimize(revisionID: RevisionID): Unit = {
-    checkRevisionAvailable(revisionID)
-    OptimizeTableCommand(revisionID, indexedTable)
-      .run(sparkSession)
-
+    if (!isStaging(revisionID)) {
+      checkRevisionAvailable(revisionID)
+      OptimizeTableCommand(revisionID, indexedTable)
+        .run(sparkSession)
+    }
   }
 
   def optimize(): Unit = {
-    optimize(latestRevisionAvailableID)
-
+    if (!isStaging(latestRevisionAvailableID)) {
+      optimize(latestRevisionAvailableID)
+    }
   }
 
   /**
