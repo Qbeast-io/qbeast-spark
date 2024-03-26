@@ -103,7 +103,7 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
 
     val tableId = QbeastOptions.loadTableIDFromParameters(parameters)
     val table = tableFactory.getIndexedTable(tableId)
-    logTrace(s"Start: Create Qbeast relation ${tableId}")
+    logTrace(s"Begin: Create Qbeast relation ${tableId}")
     val result = mode match {
       case SaveMode.Append => table.save(data, parameters, append = true)
       case SaveMode.Overwrite => table.save(data, parameters, append = false)
@@ -122,7 +122,7 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       parameters: Map[String, String]): BaseRelation = {
     val tableID = QbeastOptions.loadTableIDFromParameters(parameters)
     val table = tableFactory.getIndexedTable(tableID)
-    logTrace(s"Start: Create Qbeast relation ${tableID}")
+    logTrace(s"Begin: Create Qbeast relation ${tableID}")
     if (table.exists) {
       val result = table.load()
       logTrace(s"End: Create Qbeast relation ${tableID}")

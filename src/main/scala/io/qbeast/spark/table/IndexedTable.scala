@@ -236,7 +236,7 @@ private[table] class IndexedTableImpl(
       data: DataFrame,
       parameters: Map[String, String],
       append: Boolean): BaseRelation = {
-    logTrace(s"Start: save table ${tableID}")
+    logTrace(s"Begin: save table ${tableID}")
     val (indexStatus, options) =
       if (exists && append) {
         // If the table exists and we are appending new data
@@ -298,7 +298,7 @@ private[table] class IndexedTableImpl(
         (IndexStatus(revision), options)
       }
     val result = write(data, indexStatus, options, append)
-    logTrace(s"Done: save table ${tableID}")
+    logTrace(s"End: save table ${tableID}")
     result
   }
 
