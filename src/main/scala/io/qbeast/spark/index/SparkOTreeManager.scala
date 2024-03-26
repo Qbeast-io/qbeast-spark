@@ -5,12 +5,13 @@ package io.qbeast.spark.index
 
 import io.qbeast.core.model._
 import io.qbeast.IISeq
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.DataFrame
 
 /**
  * Implementation of OTreeAlgorithm.
  */
-object SparkOTreeManager extends IndexManager[DataFrame] with Serializable {
+object SparkOTreeManager extends IndexManager[DataFrame] with Serializable with Logging {
 
   /**
    * Builds an OTree index.
@@ -70,6 +71,7 @@ object SparkOTreeManager extends IndexManager[DataFrame] with Serializable {
       dataFrame: DataFrame,
       indexStatus: IndexStatus,
       isReplication: Boolean): (DataFrame, TableChanges) = {
+    logTrace(s"Begin: index with revision ${indexStatus.revision}")
     // Analyze the data and compute weight and estimated weight map of the result
     val (weightedDataFrame, tc) =
       DoublePassOTreeDataAnalyzer.analyze(dataFrame, indexStatus, isReplication)
@@ -80,7 +82,9 @@ object SparkOTreeManager extends IndexManager[DataFrame] with Serializable {
     val indexedDataFrame =
       weightedDataFrame.transform(pointWeightIndexer.buildIndex)
 
-    (indexedDataFrame, tc)
+    val result = (indexedDataFrame, tc)
+    logTrace(s"End: index with revision ${indexStatus.revision}")
+    result
   }
 
 }

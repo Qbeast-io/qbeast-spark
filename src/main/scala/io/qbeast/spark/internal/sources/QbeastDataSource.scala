@@ -29,7 +29,6 @@ import org.apache.spark.sql.SparkSession
 
 import java.util
 import scala.collection.JavaConverters.mapAsScalaMapConverter
-import scala.util.chaining.scalaUtilChainingOps
 
 /**
  * Qbeast data source is implementation of Spark data source API V1.
@@ -57,7 +56,7 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       properties: util.Map[String, String]): Table = {
     val tableId = QbeastOptions.loadTableIDFromParameters(properties.asScala.toMap)
     val indexedTable = tableFactory.getIndexedTable(tableId)
-    logInfo(s"Qbeast: Getting Qbeast table ${tableId}")
+    logInfo(s"Getting Qbeast table ${tableId}")
     if (indexedTable.exists) {
       // If the table exists, we make sure to pass all the properties to QbeastTableImpl
       val currentRevision = metadataManager.loadSnapshot(tableId).loadLatestRevision
@@ -104,7 +103,7 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
 
     val tableId = QbeastOptions.loadTableIDFromParameters(parameters)
     val table = tableFactory.getIndexedTable(tableId)
-    logInfo(s"Qbeast: Creating Qbeast relation ${tableId}")
+    logTrace(s"Start: Create Qbeast relation ${tableId}")
     val result = mode match {
       case SaveMode.Append => table.save(data, parameters, append = true)
       case SaveMode.Overwrite => table.save(data, parameters, append = false)
@@ -114,7 +113,8 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       case SaveMode.Ignore if table.exists => table.load()
       case SaveMode.Ignore => table.save(data, parameters, append = false)
     }
-    result.tap(r => logInfo(s"Qbeast: Created Qbeast relation ${tableId}"))
+    logTrace(s"End: Create Qbeast relation ${tableId}")
+    result
   }
 
   override def createRelation(
@@ -122,10 +122,11 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       parameters: Map[String, String]): BaseRelation = {
     val tableID = QbeastOptions.loadTableIDFromParameters(parameters)
     val table = tableFactory.getIndexedTable(tableID)
-    logInfo(s"Qbeast: Creating Qbeast relation ${tableID}")
+    logTrace(s"Start: Create Qbeast relation ${tableID}")
     if (table.exists) {
       val result = table.load()
-      result.tap(r => logInfo(s"Qbeast: Created Qbeast relation ${tableID}"))
+      logTrace(s"End: Create Qbeast relation ${tableID}")
+      result
     } else {
       throw AnalysisExceptionFactory.create(
         s"'$tableID' is not a Qbeast formatted data directory.")
