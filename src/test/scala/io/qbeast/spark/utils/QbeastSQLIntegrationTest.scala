@@ -1,8 +1,27 @@
+/*
+ * Copyright 2021 Qbeast Analytics, S.L.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.qbeast.spark.utils
 
-import io.qbeast.TestClasses.Student
+import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
+import io.qbeast.spark.QbeastTable
+import io.qbeast.TestClasses.Student
+import org.apache.spark.sql.AnalysisException
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SparkSession
 
 import scala.util.Random
 
@@ -21,7 +40,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
       data.createOrReplaceTempView("data")
 
       spark.sql(
-        s"CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
+        "CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
           "OPTIONS ('columnsToIndex'='id')")
 
       val nonTemporaryTables = spark.sql("SHOW TABLES FROM default")
@@ -49,7 +68,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
     data.createOrReplaceTempView("data")
 
     spark.sql(
-      s"CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
+      "CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
         "OPTIONS ('columnsToIndex'='id')")
 
     spark.sql("INSERT INTO table student SELECT * FROM data")
@@ -71,7 +90,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
       data.createOrReplaceTempView("data")
 
       spark.sql(
-        s"CREATE OR REPLACE TABLE student USING qbeast " +
+        "CREATE OR REPLACE TABLE student USING qbeast " +
           "OPTIONS ('columnsToIndex'='id') " +
           "AS SELECT * FROM data;")
 
@@ -91,7 +110,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
     data.createOrReplaceTempView("data")
 
     spark.sql(
-      s"CREATE OR REPLACE TABLE student USING qbeast " +
+      "CREATE OR REPLACE TABLE student USING qbeast " +
         "OPTIONS ('columnsToIndex'='id') " +
         s"LOCATION '$tmpDir' " +
         "AS SELECT * FROM data;")
@@ -129,7 +148,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
 
       an[AnalysisException] shouldBe thrownBy(
         spark.sql(
-          s"CREATE OR REPLACE TABLE student USING qbeast " +
+          "CREATE OR REPLACE TABLE student USING qbeast " +
             s"OPTIONS ('columnsToIndex'='id','location'='$tmpDir/new') " +
             s"LOCATION '$tmpDir' "))
 
@@ -177,5 +196,26 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
         spark.sql("SELECT * FROM students WHERE name == 'qbeast'").count shouldBe 1
       }
     }
+
+  it should "work without providing columnsToIndex" in withExtendedSparkAndTmpDir(
+    sparkConfWithSqlAndCatalog.set("spark.qbeast.index.columnsToIndex.auto", "true")) {
+    (spark, tmpDir) =>
+      {
+        val data = createTestData(spark)
+        data.createOrReplaceTempView("data")
+
+        spark.sql(
+          "CREATE OR REPLACE TABLE student USING qbeast " +
+            s"LOCATION '$tmpDir' " +
+            "AS SELECT * FROM data;")
+
+        val autoColumnsToIndex = SparkColumnsToIndexSelector.selectColumnsToIndex(data)
+
+        val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+        qbeastTable.indexedColumns() shouldBe autoColumnsToIndex
+        qbeastTable.latestRevisionID() shouldBe 1L
+
+      }
+  }
 
 }

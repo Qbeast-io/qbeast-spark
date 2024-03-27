@@ -1,15 +1,37 @@
+/*
+ * Copyright 2021 Qbeast Analytics, S.L.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.qbeast.spark.index
 
-import io.qbeast.TestClasses.Client3
-import io.qbeast.core.model.{CubeStatus, CubeWeightsBuilder, IndexStatus, QTableID, Weight}
-import io.qbeast.spark.{QbeastIntegrationTestSpec, delta}
-import org.apache.spark.qbeast.config.{CUBE_WEIGHTS_BUFFER_CAPACITY, DEFAULT_CUBE_SIZE}
-import org.apache.spark.sql.{Dataset, SparkSession}
-import org.apache.spark.sql.delta.DeltaLog
-import org.scalatest.PrivateMethodTester
+import io.qbeast.core.model.CubeDomainsBuilder
+import io.qbeast.core.model.CubeStatus
+import io.qbeast.core.model.IndexStatus
+import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.Weight
+import io.qbeast.spark.delta
 import io.qbeast.spark.internal.QbeastOptions
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.TestClasses.Client3
+import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
+import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
+import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
+import org.scalatest.PrivateMethodTester
 
-class CubeWeightsIntegrationTest extends QbeastIntegrationTestSpec with PrivateMethodTester {
+class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateMethodTester {
 
   def createDF(size: Int): Dataset[Client3] = {
     val spark = SparkSession.active
@@ -47,7 +69,7 @@ class CubeWeightsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
 
           // commitLogWeightMap shouldBe weightMap
           commitLogWeightMap.keys.foreach(cubeId => {
-            tc.cubeWeights(cubeId) should be('defined)
+            tc.cubeWeight(cubeId) should be('defined)
           })
         }
 
@@ -75,29 +97,30 @@ class CubeWeightsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
 
   it should "respect the lower bound for groupCubeSize(1000)" in withSpark { _ =>
     val numElements =
-      DEFAULT_CUBE_SIZE * CUBE_WEIGHTS_BUFFER_CAPACITY / CubeWeightsBuilder.minGroupCubeSize
+      DEFAULT_CUBE_SIZE * CUBE_WEIGHTS_BUFFER_CAPACITY / CubeDomainsBuilder.minGroupCubeSize
     val numPartitions = 1
     val estimateGroupCubeSize = PrivateMethod[Int]('estimateGroupCubeSize)
 
     // numElements = 5e11 > 5e8 => groupCubeSize < 1000 => groupCubeSize = 1000
-    CubeWeightsBuilder invokePrivate estimateGroupCubeSize(
+    CubeDomainsBuilder invokePrivate estimateGroupCubeSize(
       DEFAULT_CUBE_SIZE,
       numPartitions,
       numElements * 1000,
-      CUBE_WEIGHTS_BUFFER_CAPACITY) shouldBe CubeWeightsBuilder.minGroupCubeSize
+      CUBE_WEIGHTS_BUFFER_CAPACITY) shouldBe CubeDomainsBuilder.minGroupCubeSize
 
     // numElements = 5e8 => groupCubeSize = 1000
-    CubeWeightsBuilder invokePrivate estimateGroupCubeSize(
+    CubeDomainsBuilder invokePrivate estimateGroupCubeSize(
       DEFAULT_CUBE_SIZE,
       numPartitions,
       numElements,
-      CUBE_WEIGHTS_BUFFER_CAPACITY) shouldBe CubeWeightsBuilder.minGroupCubeSize
+      CUBE_WEIGHTS_BUFFER_CAPACITY) shouldBe CubeDomainsBuilder.minGroupCubeSize
 
     // numElements = 5e6 < 5e8 => groupCubeSize > 1000
-    CubeWeightsBuilder invokePrivate estimateGroupCubeSize(
+    CubeDomainsBuilder invokePrivate estimateGroupCubeSize(
       DEFAULT_CUBE_SIZE,
       numPartitions,
       numElements / 100,
-      CUBE_WEIGHTS_BUFFER_CAPACITY) shouldBe >(CubeWeightsBuilder.minGroupCubeSize)
+      CUBE_WEIGHTS_BUFFER_CAPACITY) shouldBe >(CubeDomainsBuilder.minGroupCubeSize)
   }
+
 }

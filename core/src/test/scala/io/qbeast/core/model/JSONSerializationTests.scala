@@ -1,24 +1,25 @@
 package io.qbeast.core.model
 
-import io.qbeast.core.transform.{
-  HashTransformation,
-  LinearTransformation,
-  Transformation,
-  Transformer
-}
+import io.qbeast.core.transform.HashTransformation
+import io.qbeast.core.transform.LinearTransformation
+import io.qbeast.core.transform.Transformation
+import io.qbeast.core.transform.Transformer
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.sql.{Date, Timestamp}
-import scala.util.Random
+import java.sql.Date
+import java.sql.Timestamp
 import scala.util.hashing.MurmurHash3
+import scala.util.Random
 
 class JSONSerializationTests extends AnyFlatSpec with Matchers {
+
   "QTableID" should "have a small json representation serializable" in {
     val tableID = new QTableID("test")
     mapper.writeValueAsString(tableID) shouldBe "\"test\""
     mapper.readValue[QTableID]("\"test\"", classOf[QTableID]) shouldBe tableID
   }
+
   "A QDataType" should "just serialize with its name" in {
     for (dataName <- QDataType.qtypes.keys) {
       val dataType = QDataType(dataName)
@@ -28,6 +29,7 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
     }
 
   }
+
   "A transformer" should "Serializer with the class type" in {
     val tr: Transformer = Transformer("linear", "test1", DoubleDataType)
     val ser =
@@ -53,6 +55,7 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
     mapper.readValue[Transformation](ser, classOf[Transformation]) shouldBe tr
 
   }
+
   "A LinearTransformation" should "serializer with the class type con Integer" in {
     val tr: Transformation = LinearTransformation(0, 10, 5, IntegerDataType)
     val ser =
@@ -62,6 +65,7 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
     mapper.readValue[Transformation](ser, classOf[Transformation]) shouldBe tr
 
   }
+
   "A LinearTransformation" should "serializer with the class type con Long" in {
     val tr: Transformation = LinearTransformation(0L, 10L, 5L, LongDataType)
     val ser =
@@ -147,6 +151,7 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
     mapper.readValue[Revision](json, classOf[Revision]) shouldBe rev
 
   }
+
   "A revision" should "Serialize with all Long Transform*" in {
     val rev =
       Revision(
@@ -166,6 +171,7 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
     mapper.readValue[Revision](json, classOf[Revision]) shouldBe rev
 
   }
+
   "A revision" should "Serialize with all Hash Transform*" in {
     val rev =
       Revision(

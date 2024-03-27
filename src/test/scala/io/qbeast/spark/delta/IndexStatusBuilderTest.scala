@@ -1,6 +1,23 @@
+/*
+ * Copyright 2021 Qbeast Analytics, S.L.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.{CubeId, CubeStatus, Weight}
+import io.qbeast.core.model.CubeId
+import io.qbeast.core.model.CubeStatus
+import io.qbeast.core.model.Weight
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.delta.DeltaLog
 
@@ -23,9 +40,9 @@ class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {
         DeltaQbeastSnapshot(deltaLog.update()).loadLatestIndexStatus
 
       indexStatus.revision.revisionID shouldBe 1
-      indexStatus.cubesStatuses.foreach(_._2.files.size shouldBe 1)
+      indexStatus.cubesStatuses.foreach(_._2.blocks.size shouldBe 1)
       indexStatus.cubesStatuses.foreach { case (cube: CubeId, cubeStatus: CubeStatus) =>
-        cubeStatus.files.foreach(block => block.cube shouldBe cube.string)
+        cubeStatus.blocks.foreach(block => block.cubeId shouldBe cube)
       }
       indexStatus.replicatedSet shouldBe Set.empty
       indexStatus.announcedSet shouldBe Set.empty
@@ -56,11 +73,11 @@ class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {
     secondIndexStatus.revision.revisionID shouldBe 1
     secondIndexStatus.announcedSet shouldBe Set.empty
     secondIndexStatus.replicatedSet shouldBe Set.empty
-    secondIndexStatus.cubesStatuses.foreach(_._2.files.size shouldBe <=(2))
+    secondIndexStatus.cubesStatuses.foreach(_._2.blocks.size shouldBe <=(2))
     secondIndexStatus.cubesStatuses.foreach { case (cube: CubeId, cubeStatus: CubeStatus) =>
       if (cubeStatus.maxWeight < Weight.MaxValue) {
         firstIndexStatus.cubesStatuses.get(cube) shouldBe defined
-        cubeStatus.maxWeight shouldBe cubeStatus.files.map(_.maxWeight).min
+        cubeStatus.maxWeight shouldBe cubeStatus.blocks.map(_.maxWeight).min
         cubeStatus.maxWeight shouldBe <=(firstIndexStatus.cubesStatuses(cube).maxWeight)
       }
     }

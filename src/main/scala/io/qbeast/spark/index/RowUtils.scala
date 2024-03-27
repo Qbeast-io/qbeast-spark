@@ -15,8 +15,10 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.core.model.{Point, Revision}
-import org.apache.spark.sql.{AnalysisExceptionFactory, Row}
+import io.qbeast.core.model.Point
+import io.qbeast.core.model.Revision
+import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.Row
 
 /**
  * Utility functions for working with Spark Rows
@@ -25,9 +27,12 @@ object RowUtils {
 
   /**
    * Converts the row values to a Point in the space
-   * @param row the row values
-   * @param revision the revision of the space
-   * @return the point
+   * @param row
+   *   the row values
+   * @param revision
+   *   the revision of the space
+   * @return
+   *   the point
    */
   def rowValuesToPoint(row: Row, revision: Revision): Point = Point {
     if (revision.transformations.isEmpty) {

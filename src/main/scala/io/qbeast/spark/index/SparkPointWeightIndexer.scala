@@ -15,11 +15,14 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.core.model.{PointWeightIndexer, TableChanges, Weight}
+import io.qbeast.core.model.PointWeightIndexer
+import io.qbeast.core.model.TableChanges
+import io.qbeast.core.model.Weight
 import io.qbeast.spark.index.QbeastColumns._
 import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.{DataFrame, Row}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
 
 private class SparkPointWeightIndexer(tableChanges: TableChanges, isReplication: Boolean)
     extends Serializable {

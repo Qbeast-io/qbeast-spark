@@ -15,13 +15,13 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.TestClasses._
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.index.QbeastColumns._
-import io.qbeast.spark.QbeastIntegrationTestSpec
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.functions._
 import io.qbeast.spark.internal.QbeastOptions
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.TestClasses._
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.DataFrame
 
 class OTreeAlgorithmTest extends QbeastIntegrationTestSpec {
 

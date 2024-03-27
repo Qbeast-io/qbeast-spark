@@ -15,7 +15,8 @@
  */
 package io.qbeast.core.model
 
-import io.qbeast.core.transform.{HashTransformation, Transformation}
+import io.qbeast.core.transform.HashTransformation
+import io.qbeast.core.transform.Transformation
 
 /**
  * Query space defines the domain area requested by the query.
@@ -24,8 +25,10 @@ trait QuerySpace {
 
   /**
    * Checks if this QuerySpace contains other QuerySpace
-   * @param other the other query space
-   * @return true if this QuerySpace contains the other QuerySpace
+   * @param other
+   *   the other query space
+   * @return
+   *   true if this QuerySpace contains the other QuerySpace
    */
 
   def contains(other: QuerySpace): Boolean
@@ -33,8 +36,10 @@ trait QuerySpace {
   /**
    * Returns whether the space intersects with a given cube.
    *
-   * @param cube the cube
-   * @return the space intersects with the cube
+   * @param cube
+   *   the cube
+   * @return
+   *   the space intersects with the cube
    */
   def intersectsWith(cube: CubeId): Boolean
 }
@@ -62,12 +67,13 @@ case class EmptySpace() extends QuerySpace {
 }
 
 /**
- * *
- * Describe the query range in the area included in [originalFrom,originalTo)
- * (inclusive, exclusive).
+ * * Describe the query range in the area included in [originalFrom,originalTo) (inclusive,
+ * exclusive).
  *
- * @param from inclusive starting range
- * @param to   exclusive ending query range
+ * @param from
+ *   inclusive starting range
+ * @param to
+ *   exclusive ending query range
  */
 class QuerySpaceFromTo(private val from: Seq[Option[Double]], private val to: Seq[Option[Double]])
     extends QuerySpace {

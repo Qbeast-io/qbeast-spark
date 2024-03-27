@@ -1,11 +1,26 @@
+/*
+ * Copyright 2021 Qbeast Analytics, S.L.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.qbeast.spark.utils
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import org.apache.spark.sql.{AnalysisException, Row}
+import org.apache.spark.sql.AnalysisException
+import org.apache.spark.sql.Row
 
 /**
- * Test for checking the correctness of the output schemas
- * when Appending Data through INSERT INTO
+ * Test for checking the correctness of the output schemas when Appending Data through INSERT INTO
  */
 class QbeastSchemaTest extends QbeastIntegrationTestSpec {
 
@@ -13,7 +28,7 @@ class QbeastSchemaTest extends QbeastIntegrationTestSpec {
     withQbeastContextSparkAndTmpWarehouse((spark, _) => {
 
       spark.sql(
-        s"CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
+        "CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
           "OPTIONS ('columnsToIndex'='id')")
 
       an[AnalysisException] shouldBe thrownBy(spark.sql("INSERT INTO student VALUES (1, 'John')"))
@@ -23,7 +38,7 @@ class QbeastSchemaTest extends QbeastIntegrationTestSpec {
   it should "replace schemas by ordinal" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
 
     spark.sql(
-      s"CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
+      "CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
         "OPTIONS ('columnsToIndex'='id')")
 
     spark.sql("INSERT INTO student VALUES (1, 'John', 10)")
@@ -35,7 +50,7 @@ class QbeastSchemaTest extends QbeastIntegrationTestSpec {
   it should "replace schemas by name" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
 
     spark.sql(
-      s"CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
+      "CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
         "OPTIONS ('columnsToIndex'='id')")
 
     spark.sql("INSERT INTO student(id, name, age) VALUES (1, 'John', 10)")
@@ -46,7 +61,7 @@ class QbeastSchemaTest extends QbeastIntegrationTestSpec {
   it should "detect schema mismatch" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
 
     spark.sql(
-      s"CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
+      "CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
         "OPTIONS ('columnsToIndex'='id')")
 
     an[AnalysisException] shouldBe thrownBy(
@@ -58,7 +73,7 @@ class QbeastSchemaTest extends QbeastIntegrationTestSpec {
     (spark, _) => {
 
       spark.sql(
-        s"CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
+        "CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
           "OPTIONS ('columnsToIndex'='id')")
 
       an[Exception] shouldBe thrownBy(spark.sql("INSERT INTO student VALUES ('John', 10, 1)"))
@@ -69,12 +84,12 @@ class QbeastSchemaTest extends QbeastIntegrationTestSpec {
     (spark, _) => {
 
       spark.sql(
-        s"CREATE TABLE student_parquet (id_parquet INT, name_parquet STRING, age_parquet INT) " +
-          s"USING parquet")
+        "CREATE TABLE student_parquet (id_parquet INT, name_parquet STRING, age_parquet INT) " +
+          "USING parquet")
       spark.sql("INSERT INTO student_parquet VALUES (1, 'John', 10)")
 
       spark.sql(
-        s"CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
+        "CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
           "OPTIONS ('columnsToIndex'='id')")
 
       spark.sql("INSERT INTO student SELECT * FROM student_parquet")
@@ -86,12 +101,12 @@ class QbeastSchemaTest extends QbeastIntegrationTestSpec {
     withQbeastContextSparkAndTmpWarehouse((spark, _) => {
 
       spark.sql(
-        s"CREATE TABLE student_parquet (id_parquet INT, name_parquet STRING) " +
-          s"USING parquet")
+        "CREATE TABLE student_parquet (id_parquet INT, name_parquet STRING) " +
+          "USING parquet")
       spark.sql("INSERT INTO student_parquet VALUES (1, 'John')")
 
       spark.sql(
-        s"CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
+        "CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
           "OPTIONS ('columnsToIndex'='id')")
 
       an[AnalysisException] shouldBe thrownBy(
@@ -103,16 +118,17 @@ class QbeastSchemaTest extends QbeastIntegrationTestSpec {
     withQbeastContextSparkAndTmpWarehouse((spark, _) => {
 
       spark.sql(
-        s"CREATE TABLE student_parquet (id STRING, name STRING, age INT) " +
-          s"USING parquet")
+        "CREATE TABLE student_parquet (id STRING, name STRING, age INT) " +
+          "USING parquet")
       spark.sql("INSERT INTO student_parquet VALUES ('1', 'John', 20L)")
 
       spark.sql(
-        s"CREATE TABLE student (id INT, name STRING, age INT) USING delta " +
+        "CREATE TABLE student (id INT, name STRING, age INT) USING delta " +
           "OPTIONS ('columnsToIndex'='id')")
 
       an[AnalysisException] shouldBe thrownBy(
         spark.sql("INSERT INTO student SELECT * FROM student_parquet"))
 
     })
+
 }

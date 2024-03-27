@@ -24,6 +24,7 @@ import scala.util.Random
  * Tests for CubeId.
  */
 class CubeIdTest extends AnyFlatSpec with Matchers {
+
   "CubeId" should "implement equals correctly" in {
     val id1 = CubeId.root(2)
     val id2 = id1.firstChild
@@ -270,4 +271,5 @@ class CubeIdTest extends AnyFlatSpec with Matchers {
       otherKid = kid
     }
   }
+
 }

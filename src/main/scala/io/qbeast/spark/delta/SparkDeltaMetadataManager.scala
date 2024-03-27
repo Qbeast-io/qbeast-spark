@@ -15,13 +15,15 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.IISeq
 import io.qbeast.core.model._
-import org.apache.spark.sql.delta.actions.FileAction
-import org.apache.spark.sql.delta.{DeltaLog, DeltaOptions}
-import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{SaveMode, SparkSession}
 import io.qbeast.spark.internal.QbeastOptions
+import io.qbeast.IISeq
+import org.apache.spark.sql.delta.actions.FileAction
+import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.delta.DeltaOptions
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.SparkSession
 
 /**
  * Spark+Delta implementation of the MetadataManager interface
@@ -42,6 +44,9 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction,
     for (txnAppId <- options.txnAppId; txnVersion <- options.txnVersion) {
       deltaOptions += DeltaOptions.TXN_APP_ID -> txnAppId
       deltaOptions += DeltaOptions.TXN_VERSION -> txnVersion
+    }
+    if (options.userMetadata.nonEmpty) {
+      deltaOptions += DeltaOptions.USER_METADATA_OPTION -> options.userMetadata.get
     }
     val metadataWriter = DeltaMetadataWriter(
       tableID,
@@ -78,7 +83,8 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction,
 
   /**
    * Returns the DeltaQbeastLog for the table
-   * @param tableID the table ID
+   * @param tableID
+   *   the table ID
    * @return
    */
   def loadDeltaQbeastLog(tableID: QTableID): DeltaQbeastLog = {
@@ -103,7 +109,8 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction,
   /**
    * Checks if there's an existing log directory for the table
    *
-   * @param tableID the table ID
+   * @param tableID
+   *   the table ID
    * @return
    */
   override def existsLog(tableID: QTableID): Boolean = {

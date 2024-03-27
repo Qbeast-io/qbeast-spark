@@ -1,21 +1,39 @@
+/*
+ * Copyright 2021 Qbeast Analytics, S.L.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.qbeast.spark.delta.writer
 
-import io.qbeast.TestClasses.IndexData
 import io.qbeast.core.model._
+import io.qbeast.spark.index.NormalizedWeight
+import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.index.QbeastColumns._
-import io.qbeast.spark.index.{NormalizedWeight, QbeastColumns, SparkRevisionFactory}
+import io.qbeast.spark.index.SparkRevisionFactory
+import io.qbeast.spark.internal.QbeastOptions
+import io.qbeast.TestClasses.IndexData
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.execution.datasources.{OutputWriterFactory}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.execution.datasources.OutputWriterFactory
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.util.SerializableConfiguration
 
 import java.util.UUID
 import scala.collection.immutable
 import scala.collection.immutable.SortedMap
 import scala.util.Random
-import io.qbeast.spark.internal.QbeastOptions
 
 case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: String) {
 
@@ -67,21 +85,23 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
     val cubeStatusesSeq = weightMap.toIndexedSeq.map {
       case (cubeId: CubeId, normalizedWeight: NormalizedWeight) =>
         val maxWeight = Weight(normalizedWeight)
-        val files = 1
-          .to(4)
-          .map(i => {
-            // Create a QbeastBlock under the revision
-            QbeastBlock(
-              UUID.randomUUID().toString,
-              cubeId.string,
-              rev.revisionID,
-              Weight.MinValue,
-              maxWeight,
-              "FLOODED",
-              i * 10,
-              i * 1000L,
-              System.currentTimeMillis())
-          })
+        val files = (1 to 4)
+          .map { i =>
+            // Create a Block under the revision
+            new IndexFileBuilder()
+              .setPath(UUID.randomUUID().toString)
+              .setSize(i * 1000L)
+              .setModificationTime(System.currentTimeMillis())
+              .setRevisionId(rev.revisionID)
+              .beginBlock()
+              .setCubeId(cubeId)
+              .setMaxWeight(maxWeight)
+              .setElementCount(i * 10L)
+              .setReplicated(false)
+              .endBlock()
+              .result()
+          }
+          .flatMap(_.blocks)
         (cubeId, CubeStatus(cubeId, maxWeight, normalizedWeight, files))
     }
 
@@ -91,7 +111,11 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
   val indexStatus: IndexStatus = IndexStatus(rev, Set.empty, Set.empty, cubeStatuses)
 
   val tableChanges: TableChanges =
-    BroadcastedTableChanges(None, IndexStatus(rev), deltaNormalizedCubeWeights = weightMap)
+    BroadcastedTableChanges(
+      None,
+      IndexStatus(rev),
+      deltaNormalizedCubeWeights = weightMap,
+      Map.empty)
 
   val writer: BlockWriter = new BlockWriter(
     dataPath = tmpDir,
@@ -106,10 +130,10 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
   def writeData(): Unit = {
 
     cubeStatuses.foreach { case (cubeId: CubeId, cubeStatus: CubeStatus) =>
-      cubeStatus.files.foreach { i =>
+      cubeStatus.blocks.foreach { i =>
         // Write data in parquetFile
         val dataCube = indexed.where(s"$cubeColumnName == '${cubeId.string}'")
-        dataCube.coalesce(1).write.format("parquet").save(tmpDir + "/" + i.path)
+        dataCube.coalesce(1).write.format("parquet").save(tmpDir + "/" + i.file.path)
       }
 
     }

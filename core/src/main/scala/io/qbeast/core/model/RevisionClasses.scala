@@ -1,10 +1,27 @@
+/*
+ * Copyright 2021 Qbeast Analytics, S.L.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.qbeast.core.model
 
-import com.fasterxml.jackson.annotation.{JsonCreator, JsonValue}
+import com.fasterxml.jackson.annotation.JsonCreator
+import com.fasterxml.jackson.annotation.JsonValue
 import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import com.fasterxml.jackson.databind.annotation.JsonSerialize.Typing
+import io.qbeast.core.transform.Transformation
+import io.qbeast.core.transform.Transformer
 import io.qbeast.IISeq
-import io.qbeast.core.transform.{Transformation, Transformer}
 
 import scala.collection.immutable.SortedMap
 
@@ -17,7 +34,8 @@ object QTableID {
 
 /**
  * Unique identifier class for Qbeast Table
- * @param _id the identifier in string form
+ * @param _id
+ *   the identifier in string form
  */
 final class QTableID(_id: String) extends Serializable {
 
@@ -44,10 +62,14 @@ object Revision {
 
   /**
    * Create a new first revision for a table
-   * @param tableID the table identifier
-   * @param desiredCubeSize the desired cube size
-   * @param columnTransformers the column transformers
-   * @return the new Revision, without any data insights
+   * @param tableID
+   *   the table identifier
+   * @param desiredCubeSize
+   *   the desired cube size
+   * @param columnTransformers
+   *   the column transformers
+   * @return
+   *   the new Revision, without any data insights
    */
   def firstRevision(
       tableID: QTableID,
@@ -64,11 +86,16 @@ object Revision {
 
   /**
    * Create a new first revision for a table with pre-loaded transformations
-   * @param tableID the table identifier
-   * @param desiredCubeSize the desired cube size
-   * @param columnTransformers the column transformers
-   * @param columnTransformations the column transformations
-   * @return the new revision, with the specified transformations
+   * @param tableID
+   *   the table identifier
+   * @param desiredCubeSize
+   *   the desired cube size
+   * @param columnTransformers
+   *   the column transformers
+   * @param columnTransformations
+   *   the column transformations
+   * @return
+   *   the new revision, with the specified transformations
    */
 
   def firstRevision(
@@ -89,12 +116,18 @@ object Revision {
 
 /**
  * A revision of a QTable.
- * @param revisionID the identifier of the revision
- * @param timestamp the timestamp
- * @param tableID the table identifier
- * @param desiredCubeSize the desired cube size
- * @param columnTransformers the column transformers
- * @param transformations the space transformations
+ * @param revisionID
+ *   the identifier of the revision
+ * @param timestamp
+ *   the timestamp
+ * @param tableID
+ *   the table identifier
+ * @param desiredCubeSize
+ *   the desired cube size
+ * @param columnTransformers
+ *   the column transformers
+ * @param transformations
+ *   the space transformations
  */
 final case class Revision(
     revisionID: RevisionID,
@@ -113,8 +146,10 @@ final case class Revision(
   /**
    * Controls that this revision indexes all and only the provided columns.
    *
-   * @param columnsToIndex the column names to check.
-   * @return true if the revision indexes all and only the provided columns.
+   * @param columnsToIndex
+   *   the column names to check.
+   * @return
+   *   true if the revision indexes all and only the provided columns.
    */
   def matchColumns(columnsToIndex: Seq[String]): Boolean = {
     columnsToIndex.toSet == columnTransformers.map(_.columnName).toSet
@@ -122,15 +157,19 @@ final case class Revision(
 
   /**
    * Creates a new CubeId in this revision
-   * @param bytes the byte representation of the CubeId
-   * @return a valid CubeID
+   * @param bytes
+   *   the byte representation of the CubeId
+   * @return
+   *   a valid CubeID
    */
   def createCubeId(bytes: Array[Byte]): CubeId = CubeId(columnTransformers.size, bytes)
 
   /**
    * Creates a new CubeId in this revision
-   * @param value the string representation of the CubeId
-   * @return a valid CubeID
+   * @param value
+   *   the string representation of the CubeId
+   * @return
+   *   a valid CubeID
    */
   def createCubeId(value: String): CubeId = CubeId(columnTransformers.size, value)
 
@@ -138,8 +177,10 @@ final case class Revision(
 
   /**
    * returns the normalized values
-   * @param values row values for the indexing columns
-   * @return the normalized values
+   * @param values
+   *   row values for the indexing columns
+   * @return
+   *   the normalized values
    */
   def transform(values: IISeq[_]): IISeq[Double] = {
     assert(
@@ -157,11 +198,16 @@ final case class Revision(
 
 /**
  * Container for the set of changes to a revision
- * @param timestamp the timestamp
- * @param supersededRevision the superseded revision
- * @param desiredCubeSizeChange the desired cube size option change
- * @param columnTransformersChanges the column transformers optional changes
- * @param transformationsChanges the space transformations optional changes
+ * @param timestamp
+ *   the timestamp
+ * @param supersededRevision
+ *   the superseded revision
+ * @param desiredCubeSizeChange
+ *   the desired cube size option change
+ * @param columnTransformersChanges
+ *   the column transformers optional changes
+ * @param transformationsChanges
+ *   the space transformations optional changes
  */
 case class RevisionChange(
     timestamp: Long,
@@ -201,10 +247,14 @@ case class RevisionChange(
 
 /**
  * Container for the current status of the index
- * @param revision the revision
- * @param replicatedSet the set of cubes in a replicated state
- * @param announcedSet the set of cubes in an announced state
- * @param cubesStatuses the map containing the status (maxWeight and files) of each cube
+ * @param revision
+ *   the revision
+ * @param replicatedSet
+ *   the set of cubes in a replicated state
+ * @param announcedSet
+ *   the set of cubes in an announced state
+ * @param cubesStatuses
+ *   the map containing the status (maxWeight and files) of each cube
  */
 
 case class IndexStatus(
@@ -236,16 +286,25 @@ case class IndexStatus(
 
 /**
  * Container for the status information of a cube
- * @param maxWeight the max weight of the cube
- * @param normalizedWeight the normalized weight of the cube
- * @param files the files belonging to the cube
+ * @param maxWeight
+ *   the max weight of the cube
+ * @param normalizedWeight
+ *   the normalized weight of the cube
+ * @param blocks
+ *   the blocks belonging to the cube
  */
 case class CubeStatus(
     cubeId: CubeId,
     maxWeight: Weight,
     normalizedWeight: NormalizedWeight,
-    files: IISeq[QbeastBlock])
-    extends Serializable
+    blocks: IISeq[Block])
+    extends Serializable {
+
+  /**
+   * The cube is fully replicated, i.e. all its blovks are replicated.
+   */
+  lazy val replicated: Boolean = blocks.forall(_.replicated)
+}
 
 /**
  * Companion object for the IndexStatus
@@ -261,5 +320,6 @@ trait TableChanges {
   val deltaReplicatedSet: Set[CubeId]
   val announcedOrReplicatedSet: Set[CubeId]
   def cubeState(cubeId: CubeId): Option[String]
-  def cubeWeights(cubeId: CubeId): Option[Weight]
+  def cubeWeight(cubeId: CubeId): Option[Weight]
+  def cubeDomains: Map[CubeId, Double]
 }

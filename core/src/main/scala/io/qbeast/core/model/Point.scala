@@ -25,8 +25,10 @@ object Point {
   /**
    * Creates a point from given coordinates.
    *
-   * @param coordinates the coordinates
-   * @return a point
+   * @param coordinates
+   *   the coordinates
+   * @return
+   *   a point
    */
   def apply(coordinates: Double*): Point = apply(coordinates.toIndexedSeq)
 }
@@ -34,7 +36,8 @@ object Point {
 /**
  * Point in a multidimensional space.
  *
- * @param coordinates the coordinates
+ * @param coordinates
+ *   the coordinates
  */
 case class Point(coordinates: IISeq[Double]) {
   require(coordinates.nonEmpty)
@@ -42,15 +45,18 @@ case class Point(coordinates: IISeq[Double]) {
   /**
    * Returns the dimension count.
    *
-   * @return the dimension count
+   * @return
+   *   the dimension count
    */
   def dimensionCount: Int = coordinates.length
 
   /**
    * Scales the point by given factors.
    *
-   * @param factors the factors
-   * @return the scaled point
+   * @param factors
+   *   the factors
+   * @return
+   *   the scaled point
    */
   def scale(factors: Seq[Double]): Point =
     transform[Double](factors, (x: Double, y: Double) => x * y)
@@ -58,16 +64,20 @@ case class Point(coordinates: IISeq[Double]) {
   /**
    * Scales the point by a given factor.
    *
-   * @param factor the factor
-   * @return the scaled point
+   * @param factor
+   *   the factor
+   * @return
+   *   the scaled point
    */
   def scale(factor: Double): Point = transform(factor, (x: Double, y: Double) => x * y)
 
   /**
    * Moves the point by given shifts.
    *
-   * @param shifts the shifts
-   * @return the moved point
+   * @param shifts
+   *   the shifts
+   * @return
+   *   the moved point
    */
   def move(shifts: Seq[Double]): Point =
     transform[Double](shifts, (x: Double, y: Double) => x + y)
@@ -75,18 +85,21 @@ case class Point(coordinates: IISeq[Double]) {
   /**
    * Moves the point by a given shift.
    *
-   * @param shift the shift
-   * @return the moved point
+   * @param shift
+   *   the shift
+   * @return
+   *   the moved point
    */
   def move(shift: Double): Point = transform[Double](shift, (x: Double, y: Double) => x + y)
 
   /**
-   * Returns whether all the coordinates of this point are less than
-   * corresponding coordinates of a given one.
+   * Returns whether all the coordinates of this point are less than corresponding coordinates of
+   * a given one.
    *
-   * @param that that point
-   * @return all coordinates are less than corresponding coordinates
-   *         of the other point
+   * @param that
+   *   that point
+   * @return
+   *   all coordinates are less than corresponding coordinates of the other point
    */
   def <(that: Point): Boolean = {
     require(that.dimensionCount == dimensionCount)
@@ -94,12 +107,13 @@ case class Point(coordinates: IISeq[Double]) {
   }
 
   /**
-   * Returns whether all the coordinates of this point are less than
-   * or equal to corresponding coordinates of a given one.
+   * Returns whether all the coordinates of this point are less than or equal to corresponding
+   * coordinates of a given one.
    *
-   * @param that that point
-   * @return all coordinates are less than or equal to corresponding
-   *         coordinates of the other point
+   * @param that
+   *   that point
+   * @return
+   *   all coordinates are less than or equal to corresponding coordinates of the other point
    */
   def <=(that: Point): Boolean = {
     require(that.dimensionCount == dimensionCount)

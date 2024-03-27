@@ -15,33 +15,44 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.{QTableID, RevisionID, TableChanges}
+import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.RevisionID
+import io.qbeast.core.model.TableChanges
 import io.qbeast.spark.delta.writer.StatsTracker.registerStatsTrackers
 import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
 import io.qbeast.spark.utils.TagColumns
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.delta.actions._
 import org.apache.spark.sql.delta.commands.DeltaCommand
-import org.apache.spark.sql.delta.{DeltaLog, DeltaOperations, DeltaOptions, OptimisticTransaction}
-import org.apache.spark.sql.execution.datasources.{
-  BasicWriteJobStatsTracker,
-  WriteJobStatsTracker
-}
+import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.delta.DeltaOperations
+import org.apache.spark.sql.delta.DeltaOptions
+import org.apache.spark.sql.delta.OptimisticTransaction
+import org.apache.spark.sql.execution.datasources.BasicWriteJobStatsTracker
+import org.apache.spark.sql.execution.datasources.WriteJobStatsTracker
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{AnalysisExceptionFactory, SaveMode, SparkSession}
+import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.util.SerializableConfiguration
 
 import scala.collection.mutable.ListBuffer
 
 /**
- * DeltaMetadataWriter is in charge of writing data to a table
- * and report the necessary log information
+ * DeltaMetadataWriter is in charge of writing data to a table and report the necessary log
+ * information
  *
- * @param tableID the table identifier
- * @param mode SaveMode of the writeMetadata
- * @param deltaLog deltaLog associated to the table
- * @param options options for writeMetadata operation
- * @param schema the schema of the table
+ * @param tableID
+ *   the table identifier
+ * @param mode
+ *   SaveMode of the writeMetadata
+ * @param deltaLog
+ *   deltaLog associated to the table
+ * @param options
+ *   options for writeMetadata operation
+ * @param schema
+ *   the schema of the table
  */
 private[delta] case class DeltaMetadataWriter(
     tableID: QTableID,
@@ -50,7 +61,8 @@ private[delta] case class DeltaMetadataWriter(
     options: DeltaOptions,
     schema: StructType)
     extends QbeastMetadataOperation
-    with DeltaCommand {
+    with DeltaCommand
+    with Logging {
 
   private def isOverwriteOperation: Boolean = mode == SaveMode.Overwrite
 
@@ -82,10 +94,13 @@ private[delta] case class DeltaMetadataWriter(
     // If the transaction was completed before then no operation
     for (txn <- oldTransactions; version <- options.txnVersion; appId <- options.txnAppId) {
       if (txn.appId == appId && txn.version == version) {
+        val message = s"Transaction ${version} from application ${appId} is already completed," +
+          " the requested write is ignored"
+        logWarning(message)
         return
       }
     }
-    deltaLog.withNewTransaction { txn =>
+    deltaLog.withNewTransaction(None, Some(deltaLog.update())) { txn =>
       // Register metrics to use in the Commit Info
       val statsTrackers = createStatsTrackers(txn)
       registerStatsTrackers(statsTrackers)
@@ -103,7 +118,7 @@ private[delta] case class DeltaMetadataWriter(
   }
 
   def updateMetadataWithTransaction(update: => Configuration): Unit = {
-    deltaLog.withNewTransaction { txn =>
+    deltaLog.withNewTransaction(None, Some(deltaLog.update())) { txn =>
       if (txn.metadata.partitionColumns.nonEmpty) {
         throw AnalysisExceptionFactory.create(partitionedTableExceptionMsg)
       }
@@ -121,24 +136,18 @@ private[delta] case class DeltaMetadataWriter(
   }
 
   private def updateReplicatedFiles(tableChanges: TableChanges): Seq[Action] = {
-
     val revision = tableChanges.updatedRevision
+    val dimensionCount = revision.transformations.length
     val deltaReplicatedSet = tableChanges.deltaReplicatedSet
-
-    val cubeStrings = deltaReplicatedSet.map(_.string)
-    val cubeBlocks =
-      deltaLog
-        .update()
-        .allFiles
-        .where(TagColumns.revision === lit(revision.revisionID.toString) &&
-          TagColumns.cube.isInCollection(cubeStrings))
-        .collect()
-
-    val newReplicatedFiles = cubeBlocks.map(ReplicatedFile(_))
-    val deleteFiles = cubeBlocks.map(_.remove)
-
-    deleteFiles ++ newReplicatedFiles
-
+    deltaLog
+      .update()
+      .allFiles
+      .where(TagColumns.revision === lit(revision.revisionID.toString))
+      .collect()
+      .map(IndexFiles.fromAddFile(dimensionCount))
+      .flatMap(_.tryReplicateBlocks(deltaReplicatedSet))
+      .map(IndexFiles.toAddFile(false))
+      .toSeq
   }
 
   private def updateTransactionVersion(
@@ -153,10 +162,14 @@ private[delta] case class DeltaMetadataWriter(
 
   /**
    * Writes metadata of the table
-   * @param txn transaction to commit
-   * @param tableChanges changes to apply
-   * @param newFiles files to add or remove
-   * @return the sequence of file actions to save in the commit log(add, remove...)
+   * @param txn
+   *   transaction to commit
+   * @param tableChanges
+   *   changes to apply
+   * @param newFiles
+   *   files to add or remove
+   * @return
+   *   the sequence of file actions to save in the commit log(add, remove...)
    */
   protected def updateMetadata(
       txn: OptimisticTransaction,
@@ -180,13 +193,7 @@ private[delta] case class DeltaMetadataWriter(
     // The Metadata can be updated only once in a single transaction
     // If a new space revision or a new replicated set is detected,
     // we update everything in the same operation
-    updateQbeastMetadata(
-      txn,
-      schema,
-      isOverwriteOperation,
-      isOptimizeOperation,
-      rearrangeOnly,
-      tableChanges)
+    updateQbeastMetadata(txn, schema, isOverwriteOperation, rearrangeOnly, tableChanges)
 
     if (txn.readVersion < 0) {
       // Initialize the log path

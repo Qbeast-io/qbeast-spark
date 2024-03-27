@@ -16,25 +16,30 @@
 package io.qbeast.spark
 
 import com.github.mrpowers.spark.fast.tests.DatasetComparer
-import io.qbeast.core.keeper.{Keeper, LocalKeeper}
-import io.qbeast.context.{QbeastContext, QbeastContextImpl}
+import io.qbeast.context.QbeastContext
+import io.qbeast.context.QbeastContextImpl
+import io.qbeast.core.keeper.Keeper
+import io.qbeast.core.keeper.LocalKeeper
 import io.qbeast.core.model.IndexManager
+import io.qbeast.spark.delta.writer.RollupDataWriter
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
-import io.qbeast.spark.delta.writer.{SparkDeltaDataWriter}
-import io.qbeast.spark.index.{SparkOTreeManager, SparkRevisionFactory}
+import io.qbeast.spark.index.SparkColumnsToIndexSelector
+import io.qbeast.spark.index.SparkOTreeManager
+import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.table.IndexedTableFactoryImpl
-import org.apache.log4j.{Level}
-import org.apache.spark.SparkConf
+import org.apache.log4j.Level
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.SparkConf
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.nio.file.Files
 
 /**
- * This class contains all function that you should use to test qbeast over spark.
- * You can use it like:
+ * This class contains all function that you should use to test qbeast over spark. You can use it
+ * like:
  * {{{
  *  "my class" should "write correctly the data" in withSparkAndTmpDir {
  *   (spark,tmpDir) =>{
@@ -78,8 +83,10 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
 
   /**
    * This function is used to create a spark session with the given configuration.
-   * @param sparkConf the configuration
-   * @param testCode the code to run within the spark session
+   * @param sparkConf
+   *   the configuration
+   * @param testCode
+   *   the code to run within the spark session
    * @tparam T
    * @return
    */
@@ -105,7 +112,8 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
 
   /**
    * This function is used to create a spark session
-   * @param testCode the code to test within the spark session
+   * @param testCode
+   *   the code to test within the spark session
    * @tparam T
    * @return
    */
@@ -114,7 +122,8 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
   }
 
   /**
-   * Runs code with a Temporary Directory. After execution, the content of the directory is deleted.
+   * Runs code with a Temporary Directory. After execution, the content of the directory is
+   * deleted.
    * @param testCode
    * @tparam T
    * @return
@@ -134,13 +143,17 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
     withTmpDir(tmpDir => withSpark(spark => testCode(spark, tmpDir)))
 
   /**
-   * Runs a given test code with a QbeastContext instance. The specified Keeper
-   * instance is used to customize the QbeastContext.
+   * Runs a given test code with a QbeastContext instance. The specified Keeper instance is used
+   * to customize the QbeastContext.
    *
-   * @param keeper the keeper
-   * @param testCode the test code
-   * @tparam T the test result type
-   * @return the test result
+   * @param keeper
+   *   the keeper
+   * @param testCode
+   *   the test code
+   * @tparam T
+   *   the test result type
+   * @return
+   *   the test result
    */
   def withQbeastAndSparkContext[T](keeper: Keeper = LocalKeeper)(
       testCode: SparkSession => T): T = {
@@ -149,8 +162,9 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
         keeper,
         SparkOTreeManager,
         SparkDeltaMetadataManager,
-        SparkDeltaDataWriter,
-        SparkRevisionFactory)
+        RollupDataWriter,
+        SparkRevisionFactory,
+        SparkColumnsToIndexSelector)
       val context = new QbeastContextImpl(spark.sparkContext.getConf, keeper, indexedTableFactory)
       try {
         QbeastContext.setUnmanaged(context)
@@ -173,7 +187,8 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
 
   /**
    * Runs code with Warehouse/Catalog extensions
-   * @param testCode the code to reproduce
+   * @param testCode
+   *   the code to reproduce
    * @tparam T
    * @return
    */

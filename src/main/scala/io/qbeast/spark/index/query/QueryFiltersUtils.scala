@@ -16,27 +16,31 @@
 package io.qbeast.spark.index.query
 
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.analysis.Resolver
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.util.DateTimeUtils.{daysToMicros, getZoneId}
+import org.apache.spark.sql.catalyst.util.DateTimeUtils.daysToMicros
+import org.apache.spark.sql.catalyst.util.DateTimeUtils.getZoneId
 import org.apache.spark.sql.catalyst.util.TypeUtils
 import org.apache.spark.sql.execution.InSubqueryExec
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{DateType, TimestampType}
+import org.apache.spark.sql.types.DateType
+import org.apache.spark.sql.types.TimestampType
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.unsafe.types.UTF8String
 
 import java.util.concurrent.TimeUnit
 
-private[query] trait QueryFiltersUtils {
+trait QueryFiltersUtils {
 
   lazy val spark: SparkSession = SparkSession.active
   lazy val nameEquality: Resolver = spark.sessionState.analyzer.resolver
 
   /**
    * Checks if an expression references to a certain column
-   * @param expr the Expression
-   * @param columnName the name of the column
+   * @param expr
+   *   the Expression
+   * @param columnName
+   *   the name of the column
    * @return
    */
   def hasColumnReference(expr: Expression, columnName: String): Boolean = {
@@ -45,8 +49,10 @@ private[query] trait QueryFiltersUtils {
 
   /**
    * Checks if an expression references to any of the Qbeast Indexed Columns
-   * @param expr the Expression
-   * @param indexedColumns the current indexed columns
+   * @param expr
+   *   the Expression
+   * @param indexedColumns
+   *   the current indexed columns
    * @return
    */
   def hasQbeastColumnReference(expr: Expression, indexedColumns: Seq[String]): Boolean = {
@@ -57,10 +63,10 @@ private[query] trait QueryFiltersUtils {
 
   /**
    * Checks if an Expression is a Qbeast Weight filter
-   * @param expression the Expression
+   * @param expression
+   *   the Expression
    * @return
    */
-
   def isQbeastWeightExpression(expression: Expression): Boolean = {
     expression match {
       case BinaryComparison(_: QbeastMurmur3Hash, _) => true
@@ -69,8 +75,24 @@ private[query] trait QueryFiltersUtils {
   }
 
   /**
+   * Returns whether given expressions contain a Qbeast weight expression, i.e. sampling clause.
+   * Subqueries are not supported.
+   *
+   * @param expressions
+   *   the expressions to test
+   * @return
+   *   the expression has Qbeast weight expression
+   */
+  def haveQbeastWeightExpression(expressions: Seq[Expression]): Boolean =
+    expressions
+      .filterNot(SubqueryExpression.hasSubquery)
+      .flatMap(splitConjunctiveExpressions)
+      .exists(isQbeastWeightExpression)
+
+  /**
    * Checks if an Expression is Disjunctive (OR)
-   * @param condition the expression
+   * @param condition
+   *   the expression
    * @return
    */
   def isDisjunctiveExpression(condition: Expression): Boolean = {
@@ -80,7 +102,8 @@ private[query] trait QueryFiltersUtils {
   /**
    * Recursively split Disjunctive operators (AND) in an expression
    *
-   * @param condition the expression to evaluate
+   * @param condition
+   *   the expression to evaluate
    * @return
    */
 
@@ -93,12 +116,12 @@ private[query] trait QueryFiltersUtils {
   }
 
   /**
-   * Recursively split Conjunctive operators (OR) in an expression
+   * Recursively split Conjunctive operators (AND) in an expression
    *
-   * @param condition the expression to evaluate
+   * @param condition
+   *   the expression to evaluate
    * @return
    */
-
   def splitConjunctiveExpressions(condition: Expression): Seq[Expression] = {
     condition match {
       case And(cond1, cond2) =>
@@ -109,7 +132,8 @@ private[query] trait QueryFiltersUtils {
 
   /**
    * Convert a Literal value from Spark to a Qbeast/Scala core type
-   * @param l the Literal to convert
+   * @param l
+   *   the Literal to convert
    * @return
    */
 
@@ -131,10 +155,8 @@ private[query] trait QueryFiltersUtils {
   }
 
   /**
-   * Transform an expression
-   * Based on Delta DataSkippingReader
-   * Since we already know this filter are eligible for skipping
-   * we directly output the RangePredicate
+   * Transform an expression Based on Delta DataSkippingReader Since we already know this filter
+   * are eligible for skipping we directly output the RangePredicate
    *
    * @param column
    * @param values
@@ -153,12 +175,13 @@ private[query] trait QueryFiltersUtils {
   /**
    * Transform IN expression to a Range(>=, <=)
    *
-   * Based on Delta DataSkippingReader
-   * We match cases in which an IN predicate is called
-   * and transform them to a range predicate (>=, <=)
+   * Based on Delta DataSkippingReader We match cases in which an IN predicate is called and
+   * transform them to a range predicate (>=, <=)
    *
-   * @param expression the expression to transform
-   * @return the sequence of expressions corresponding to the range
+   * @param expression
+   *   the expression to transform
+   * @return
+   *   the sequence of expressions corresponding to the range
    */
 
   def transformInExpressions(expression: Expression): Seq[Expression] = {

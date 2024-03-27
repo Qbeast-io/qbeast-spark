@@ -18,7 +18,8 @@ package io.qbeast.core.model
 import org.scalatest.concurrent.TimeLimits
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.{Millis, Span}
+import org.scalatest.time.Millis
+import org.scalatest.time.Span
 
 import scala.util.Random
 
@@ -119,4 +120,5 @@ class CubeIdSpeedTest extends AnyFlatSpec with Matchers with TimeLimits {
     time2 should be > time1
 
   }
+
 }

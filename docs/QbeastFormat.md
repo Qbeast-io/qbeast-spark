@@ -18,59 +18,63 @@ Following each write transaction is the creation of a new log file. **Table-leve
 
 ## Qbeast-spark on Delta
 
-### Changes on _delta_log/
+Qbeast format extends the Delta Lake Format, so the data is stored in Parquet
+files and the Index Metadata is stored in the Delta log. 
 
-> We are working on providing a **unified metadata structure** for Qbeast Format.
->
-> Any feedback is welcome!
+In more details:
 
-**Qbeast-spark** extends Delta Lake to enhance **Data Lakehouses** with functionalities such as `multi-dimensional indexing`, efficient `sampling`, `table tolerance`, etc., through modifying the log files on the **record level**. Each record's `tags` field has information that describes the `OTree`, `cube`, and `block` involved in the operation.
+* the schema, index columns, data transformations, revisions and other
+  information which is common for all the blocks is stored in the `metaData`
+  attribute of the Delta log header.
+* the information about individual blocks of index data is stored in the `tags`
+  attribute of the `add` entries of the Delta log.
 
-Before showing the changes, let's take a look on the components of the index.
+Let's take a look to the Index metadata to understand what is written in the Delta Log JSON files.
 
-### Components of the index
+### Index Metadata
 
-On a high level, the index consists of one or more `OTrees` that contain `cubes`(or nodes), and each cube is made of `blocks` that contain the actual data written by the user. All records from the log are of **block/file-level** information.
+On a high level, the index consists of one or more `OTree` that contain `cubes` (or nodes), and each cube is made of `blocks` that contain the actual data written by the user.
+All records from the log are of **file-level** information.
 
-- `revision` locates the particular tree
-
-
-- `cube` identifies the current `block`'s `cube` from the `tree`
-
-
-- `state` of the `block` determines the **READ** and **WRITE** protocols
-
-
-- `weightMax/weightMin`: Each element gets assigned with a uniformly created `weight` parameter. `weightMin` and `weightMax` define the range of weights that the `block` can contain.
-
-
-- `transformations` inside `revision` consist of two maps(in this case), each corresponding to one of the `indexedColumns`. Each pair of `min`/`max` defines the range of values of the associated indexed column that the `tree` can contain and is to be expanded to accommodate new rows that fall outside the current range.
 
 ### AddFile changes
 
 Here you can see the changes on the `AddFile` **`tags`** information
-```json
-{
-  "add": {
-    "path": "d54ba0cd-c315-4388-9bce-fe573f5d0a64.parquet",
-    ...
-    "tags": {
-      "state": "FLOODED",
-      "cube": "gw",
-      "revision": "1",
-      "elementCount": "10836",
-      "minWeight": "-1253864150",
-      "maxWeight": "1254740128"
-    }
-  }
-}
 
+```JSON
+"tags": {
+  "revision": "1",
+  "blocks": "[
+    {
+      \"cube\": \"w\",
+      \"minWeight\": 2,
+      \"maxWeight\": 3,
+      \"replicated\": false,
+      \"elementCount\": 4
+    },
+    {
+      \"cube\": \"wg\",
+      \"minWeight\": 5,
+      \"maxWeight\": 6,
+      \"replicated\": false,
+      \"elementCount\": 7
+    },
+  ]" 
+}
 ```
-- `cube` the serialized representation of the Cube
-- `revision`: the metadata of the tree
-- `elementCount`: the number of elements in the block
-- `minWeight`: the minimum weight of the block
-- `maxWeight`: the maximum weight of the block
+
+| Term           | Description                                                                                                                                  |
+|----------------|----------------------------------------------------------------------------------------------------------------------------------------------|
+| `revision`     | The metadata of the tree. Locates the particular tree in the space, which includes the min/max values for each column indexed and timestamp. |
+| `blocks`       | A list of the blocks that are stored inside the file. Can belong to different cubes.                                                         |
+| `cube`         | The serialized representation of the Cube.                                                                                                   |
+| `minWeight`    | The minimum weight of the block.                                                                                                             |
+| `maxWeight`    | The maximum weight of the block.                                                                                                             |
+| `elementCount` | The number of elements in the block.                                                                                                         |
+| `replicated`   | A flag that indicates if the block is replicated. Replication is **not available** from v0.6.0.                                                  |
+
+
+
 ### MetaData changes
 
 And here the changes on `Metadata` `configuration` map
@@ -90,12 +94,16 @@ And here the changes on `Metadata` `configuration` map
 
 ```
 We store two different values:
-- A pointer to the last revision available `qbeast.lastRevisionID`
-- The different characteristics of this revision (`qb.revision.1`). 
 
-### Revision information
 
-A more closer look to the `qb.revision.1`:
+| Term                    | Description                                         |
+|-------------------------|-----------------------------------------------------|
+| `qbeast.lastRevisionID` | A pointer to the last revision available.           |
+| `qb.revision.$number`   | The characteristics of the Revision, in JSON style. |
+
+### Revision
+
+A closer look to the `qb.revision.$number`:
 
 ```json
 
@@ -137,19 +145,20 @@ A more closer look to the `qb.revision.1`:
 
 In Revision, you can find different information about the tree status and configuration:
 
-- `timestamp` the time when the revision was created
-- `tableID` the identifier of the table that the revision belongs
-- `desiredCubeSize` the cube size from the option `cubeSize`
-- `columnTransformers` the metadata of the different columns indexed with the option `columnsToIndex`
+| Term                            | Description                                                                                     |
+|---------------------------------|-------------------------------------------------------------------------------------------------|
+| `timestamp`                     | The time when the revision was created.                                                         |
+| `tableID`                       | The identifier of the table that the revision belongs to.                                       |
+| `desiredCubeSize`               | The cube size from the option `cubeSize`.                                                       |
+| `columnTransformers`            | The metadata of the different columns indexed with the option `columnsToIndex`.                 |
+| `columnTransformers.columnName` | The name of the column.                                                                         |
+| `columnTransformers.dataType`   | The data type of the column.                                                                    |
+| `transformations`               | Contains information about the **space** of the data indexed by column.                         |
+| `transformations.className`     | The name of the class that implements the transformation.                                       |
+| `transformations.minNumber`     | The minimum value.                                                                              |
+| `transformations.maxNumber`     | The maximum value.                                                                              |
+| `transformations.nullValue`     | The value that represents the null in the space.                                                |
 
-    - `columnTransformers.columnName` the name of the column
-    - `columnTransformers.dataType` the data type of the column
-- `transformations` contains information about the **space** of the data indexed by column
-
-    - `transformations.className` the name of the class that implements the transformation
-    - `transformations.minNumber` the minimum value
-    - `transformations.maxNumber` the maximum value
-    - `transformations.nullValue` the value that represents the null in the space
 
 In this case, we index columns `user_id` and `product_id` (which are both `Integers`) with a linear transformation. This means that they will not suffer any transformation besides the normalization.
 
@@ -175,6 +184,8 @@ val qTable = spark.read.format("qbeast").load(path)
 By doing so, we also enable subsequent appends using either delta or qbeast.
 Conversion on a partitioned table is not supported.
 
+### Compaction
+
 `Compaction` can be performed on the staging revision to group small delta files:
 ```scala
 import io.qbeast.spark.QbeastTable
@@ -183,37 +194,7 @@ val table = QbeastTable.forPath(spark, "/pathToTable/")
 table.compact(0)
 ```
 
-### State changes in MetaData
+### Index Replication
 
-**Data de-normalization** is a crucial component behind our multi-dimensional index. Instead of storing an index in a separate tree-like data structure, we reorganize the data and their replications in an `OTree`, whose **hierarchical structure** is the actual index.
 
-We also store the `cube` state changes in the `_delta_log/`. During index optimization, affected `blocks` modify their states, and new `blocks` are added. Users can trigger the optimization process manually through `analyze()` and `optimize()` methods.
-
-See [OTreeAlgorithm](./OTreeAlgorithm.md) or the [research paper](https://upcommons.upc.edu/bitstream/handle/2117/180358/The_OTree_for_IEEE_short_paper.pdf?sequence=1) for more details.
-
-```scala
-import io.qbeast.spark.table._
-
-val dir = "path/to/mytable"
-val qbeastTable = QbeastTable.forPath(spark, dir)
-
-qbeastTable.analyze()
-
-qbeastTable.optimize()
-```
-
-**Cubes** are analyzed, and their **states** are changed according to the relation between their `payload` and the number of elements they contain. `cube` state changes can be viewed reading the `metaData` on the last delta commit log:
-
-```json
-{"metaData":{
-  "configuration":
-  {
-    ...
-    "qbeast.replicatedSet.1":"[\"\",\"g\",\"gQ\"]"},
-    ...
-  }
-}
-
-```
-
-In this case, some blocks from cubes `root`, `g` and `gQ` transformed to the state of `REPLICATED`. Corresponding actions such as `Add` and `Remove` are recorded in `_delta_log/`, with `revision` from the log shown here as their `timestamp`.
+> Analyze and Replication operations are NOT available from version 0.6.0. Read all the reasoning and changes on the [Qbeast Format 0.6.0](./QbeastFormat0.6.0.md) document. 

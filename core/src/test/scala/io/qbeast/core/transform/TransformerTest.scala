@@ -1,10 +1,14 @@
 package io.qbeast.core.transform
 
-import io.qbeast.core.model.{DateDataType, IntegerDataType, StringDataType, TimestampDataType}
+import io.qbeast.core.model.DateDataType
+import io.qbeast.core.model.IntegerDataType
+import io.qbeast.core.model.StringDataType
+import io.qbeast.core.model.TimestampDataType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.sql.{Date, Timestamp}
+import java.sql.Date
+import java.sql.Timestamp
 
 class TransformerTest extends AnyFlatSpec with Matchers {
 
@@ -124,4 +128,5 @@ class TransformerTest extends AnyFlatSpec with Matchers {
     val transformation = transformer.makeTransformation(r => r)
     transformation shouldBe a[EmptyTransformation]
   }
+
 }

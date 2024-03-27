@@ -15,14 +15,17 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.TestClasses.Client3
-import io.qbeast.core.model.{CubeStatus, QTableID}
+import io.qbeast.core.model.CubeStatus
+import io.qbeast.core.model.QTableID
 import io.qbeast.spark.index.SparkRevisionFactory
-import io.qbeast.spark.QbeastIntegrationTestSpec
-import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.{AnalysisException, Dataset, SparkSession}
-import org.scalatest.AppendedClues.convertToClueful
 import io.qbeast.spark.internal.QbeastOptions
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.TestClasses.Client3
+import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.AnalysisException
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
+import org.scalatest.AppendedClues.convertToClueful
 
 class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
 
@@ -159,7 +162,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
               qbeastSnapshot,
               qbeastSnapshot.loadLatestIndexStatus.revision,
               Set.empty)
-          val revisionState = builder.buildCubesStatuses
+          val revisionState = builder.indexCubeStatuses
 
           val overflowed = qbeastSnapshot.loadLatestIndexStatus.overflowedSet
 

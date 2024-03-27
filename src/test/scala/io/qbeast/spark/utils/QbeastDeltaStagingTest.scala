@@ -1,11 +1,27 @@
+/*
+ * Copyright 2021 Qbeast Analytics, S.L.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.qbeast.spark.utils
 
-import io.qbeast.TestClasses.T2
 import io.qbeast.core.model.StagingUtils
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
-import org.apache.spark.sql.SparkSession
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastTable
+import io.qbeast.TestClasses.T2
 import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.SparkSession
 
 class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils {
   val columnsToIndex: Seq[String] = Seq("a", "b")
@@ -74,33 +90,29 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
       stagingIndexStatus.replicatedOrAnnouncedSet.isEmpty shouldBe true
     })
 
-  it should "correctly compact the staging revision" in withExtendedSparkAndTmpDir(
-    sparkConfWithSqlAndCatalog
-      .set("spark.qbeast.compact.minFileSizeInBytes", "1")) { (spark, tmpDir) =>
-    {
-      writeHybridTable(spark, tmpDir)
+  it should "correctly compact the staging revision" in withSparkAndTmpDir((spark, tmpDir) => {
+    writeHybridTable(spark, tmpDir)
 
-      // Number of delta files before compaction
-      val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val qsBefore = DeltaQbeastSnapshot(deltaLog.update())
-      val numFilesBefore = qsBefore.loadIndexStatus(stagingID).cubesStatuses.head._2.files.size
+    // Number of delta files before compaction
+    val deltaLog = DeltaLog.forTable(spark, tmpDir)
+    val qsBefore = DeltaQbeastSnapshot(deltaLog.update())
+    val numFilesBefore = qsBefore.loadIndexFiles(stagingID).size
 
-      // Perform compaction
-      val table = QbeastTable.forPath(spark, tmpDir)
-      table.compact(stagingID)
+    // Perform compaction
+    val table = QbeastTable.forPath(spark, tmpDir)
+    table.compact(stagingID)
 
-      // Number of delta files after compaction
-      val qsAfter = DeltaQbeastSnapshot(deltaLog.update())
-      val numFilesAfter = qsAfter.loadIndexStatus(stagingID).cubesStatuses.head._2.files.size
+    // Number of delta files after compaction
+    val qsAfter = DeltaQbeastSnapshot(deltaLog.update())
+    val numFilesAfter = qsAfter.loadIndexFiles(stagingID).size
 
-      numFilesAfter shouldBe <(numFilesBefore)
+    numFilesAfter shouldBe <(numFilesBefore)
 
-      val deltaDf = spark.read.format("delta").load(tmpDir)
-      val qbeastDf = spark.read.format("qbeast").load(tmpDir)
+    val deltaDf = spark.read.format("delta").load(tmpDir)
+    val qbeastDf = spark.read.format("qbeast").load(tmpDir)
 
-      assertLargeDatasetEquality(qbeastDf, deltaDf)
-    }
-  }
+    assertLargeDatasetEquality(qbeastDf, deltaDf)
+  })
 
   it should "sample correctly" in withSparkAndTmpDir((spark, tmpDir) => {
     writeHybridTable(spark, tmpDir)

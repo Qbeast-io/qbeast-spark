@@ -1,8 +1,25 @@
+/*
+ * Copyright 2021 Qbeast Analytics, S.L.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.qbeast.spark.utils
 
-import io.qbeast.TestClasses.Student
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import io.qbeast.spark.QbeastTable
+import io.qbeast.TestClasses.Student
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SparkSession
 
 import scala.util.Random
 
@@ -113,7 +130,7 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
       val data = createStudentsTestData(spark)
       data.createOrReplaceTempView("data")
       spark
-        .sql(s"SELECT * FROM data")
+        .sql("SELECT * FROM data")
         .write
         .option("columnsToIndex", "id,name")
         .option("path", tmpDir)
@@ -129,5 +146,31 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
 
       assertSmallDatasetEquality(indexed, data, orderedComparison = false, ignoreNullable = true)
     })
+
+  it should "work without providing columnsToIndex" in withExtendedSparkAndTmpDir(
+    sparkConfWithSqlAndCatalog.set("spark.qbeast.index.columnsToIndex.auto", "true")) {
+    (spark, tmpDir) =>
+      {
+        val data = createStudentsTestData(spark)
+        data.write.format("qbeast").save(tmpDir)
+
+        val indexed = spark.read.format("qbeast").load(tmpDir)
+
+        indexed.count() shouldBe data.count()
+
+        indexed.columns.toSet shouldBe data.columns.toSet
+
+        assertSmallDatasetEquality(
+          indexed,
+          data,
+          orderedComparison = false,
+          ignoreNullable = true)
+
+        val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+        qbeastTable.indexedColumns() shouldBe Seq("name", "age", "id")
+        qbeastTable.latestRevisionID() shouldBe 1L
+
+      }
+  }
 
 }

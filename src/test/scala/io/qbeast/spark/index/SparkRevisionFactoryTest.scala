@@ -1,11 +1,28 @@
+/*
+ * Copyright 2021 Qbeast Analytics, S.L.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.qbeast.spark.index
 
-import io.qbeast.TestClasses.T3
 import io.qbeast.core.model._
-import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.core.transform.{HashTransformer, LinearTransformation, LinearTransformer}
+import io.qbeast.core.transform.HashTransformer
+import io.qbeast.core.transform.LinearTransformation
+import io.qbeast.core.transform.LinearTransformer
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
+import io.qbeast.spark.internal.QbeastOptions
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.TestClasses.T3
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.to_timestamp
 
@@ -64,6 +81,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
     revision.transformations shouldBe Vector.empty
 
   })
+
   it should "createNewRevision with only indexed columns and no spec" in withSpark(spark => {
     import spark.implicits._
     val schema = 0.to(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).toDF().schema
@@ -291,4 +309,5 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
     revision.transformations shouldBe Vector.empty
 
   })
+
 }

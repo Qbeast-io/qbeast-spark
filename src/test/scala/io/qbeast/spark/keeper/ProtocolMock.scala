@@ -1,16 +1,36 @@
+/*
+ * Copyright 2021 Qbeast Analytics, S.L.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.qbeast.spark.keeper
 
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model._
+import io.qbeast.spark.delta.DeltaQbeastSnapshot
+import io.qbeast.spark.delta.MetadataWriterTest
+import io.qbeast.spark.delta.SparkDeltaMetadataManager
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.delta.{DeltaQbeastSnapshot, MetadataWriterTest, SparkDeltaMetadataManager}
 import org.apache.spark.sql.delta.actions.FileAction
-import org.apache.spark.sql.delta.{DeltaLog, DeltaOperations, DeltaOptions}
+import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.delta.DeltaOperations
+import org.apache.spark.sql.delta.DeltaOptions
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.SparkSession
 
-import java.util.ConcurrentModificationException
 import java.util.concurrent.CountDownLatch
+import java.util.ConcurrentModificationException
 
 // scalastyle:off println
 trait ConcurrentActor {
@@ -54,7 +74,11 @@ trait ConcurrentActor {
 
   def writeData(rev: Revision): (TableChanges, Seq[FileAction]) = {
     val tableChanges =
-      BroadcastedTableChanges(None, IndexStatus(rev), deltaNormalizedCubeWeights = Map.empty)
+      BroadcastedTableChanges(
+        None,
+        IndexStatus(rev),
+        deltaNormalizedCubeWeights = Map.empty,
+        Map.empty)
     (tableChanges, Seq.empty)
   }
 
@@ -66,6 +90,7 @@ trait ConcurrentActor {
         None,
         IndexStatus(rev),
         deltaNormalizedCubeWeights = Map.empty,
+        Map.empty,
         deltaReplicatedSet = cubesToOptimize)
     (tableChanges, Seq.empty)
   }
@@ -131,7 +156,7 @@ class WritingProcess(context: ProtoTestContext)(implicit keeper: Keeper) extends
       val writer = writeData(rev)
       while (tries > 0) {
         val knownAnnounced = winfo.announcedCubes.map(rev.createCubeId)
-        deltaLog.withNewTransaction { txn =>
+        deltaLog.withNewTransaction(None, Some(deltaLog.update())) { txn =>
           enteredTransaction()
           val (changes, newFiles) = writer
           val finalActions = metadataWriter.updateMetadata(txn, changes, newFiles)
@@ -172,6 +197,7 @@ class OptimizingProcessGood(context: ProtoTestContext)(implicit keeper: Keeper)
     val bo = keeper.beginOptimization(tableID, rev.revisionID)
 
     val deltaLog = SparkDeltaMetadataManager.loadDeltaQbeastLog(tableID).deltaLog
+    val deltaSnapshot = deltaLog.update()
     val mode = SaveMode.Append
     val options =
       new DeltaOptions(Map("path" -> tableID.id), SparkSession.active.sessionState.conf)
@@ -180,7 +206,7 @@ class OptimizingProcessGood(context: ProtoTestContext)(implicit keeper: Keeper)
 
     try {
       val optimizer = optimizeData(rev, cubesToOptimize)
-      deltaLog.withNewTransaction(tnx => {
+      deltaLog.withNewTransaction(None, Some(deltaSnapshot))(tnx => {
         enteredTransaction()
         val (changes, newFiles) = optimizer
         simulatePause()
@@ -205,6 +231,7 @@ class OptimizingProcessBad(context: ProtoTestContext, args: Seq[String])(implici
     val bo = keeper.beginOptimization(tableID, rev.revisionID)
 
     val deltaLog = SparkDeltaMetadataManager.loadDeltaQbeastLog(tableID).deltaLog
+    val deltaSnapshot = deltaLog.update()
     val mode = SaveMode.Append
     val options =
       new DeltaOptions(Map("path" -> tableID.id), SparkSession.active.sessionState.conf)
@@ -214,7 +241,7 @@ class OptimizingProcessBad(context: ProtoTestContext, args: Seq[String])(implici
 
     try {
       val optimizer = optimizeData(rev, cubesToOptimize.map(rev.createCubeId))
-      deltaLog.withNewTransaction(tnx => {
+      deltaLog.withNewTransaction(None, Some(deltaSnapshot))(tnx => {
         enteredTransaction()
         val (changes, newFiles) = optimizer
         simulatePause()

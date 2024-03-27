@@ -15,18 +15,19 @@
  */
 package io.qbeast.spark
 
-import org.apache.spark.sql.{DataFrame, DataFrameReader, DataFrameWriter}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.DataFrameReader
+import org.apache.spark.sql.DataFrameWriter
 
 package object implicits {
 
   /**
-   * Extends the DataFrameReader API by adding a qbeast function
-   * Usage:
+   * Extends the DataFrameReader API by adding a qbeast function Usage:
    * {{{
    * spark.read.qbeast(path)
    * }}}
    */
-  implicit class QbeastDataFrameReader(val reader: DataFrameReader) extends AnyVal {
+  implicit class QbeastDataFrameReader(private val reader: DataFrameReader) extends AnyVal {
 
     def qbeast(path: String): DataFrame = {
       reader.format("qbeast").load(path)
@@ -35,13 +36,13 @@ package object implicits {
   }
 
   /**
-   * Extends the DataFrameWriter API by adding a qbeast function
-   * Usage:
+   * Extends the DataFrameWriter API by adding a qbeast function Usage:
    * {{{
    * df.write.qbeast(path)
    * }}}
    */
-  implicit class QbeastDataFrameWriter[T](val dfWriter: DataFrameWriter[T]) extends AnyVal {
+  implicit class QbeastDataFrameWriter[T](private val dfWriter: DataFrameWriter[T])
+      extends AnyVal {
 
     def qbeast(output: String): Unit = {
       dfWriter.format("qbeast").save(output)

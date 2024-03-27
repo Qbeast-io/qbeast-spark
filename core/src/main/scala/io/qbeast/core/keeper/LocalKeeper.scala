@@ -15,14 +15,14 @@
  */
 package io.qbeast.core.keeper
 
-import io.qbeast.SerializedCubeID
 import io.qbeast.core.model.QTableID
+import io.qbeast.SerializedCubeID
 
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Implementation of Keeper which saves announced set in memory. This implementation is used
- * when no other implementation can be obtained from ServiceLoader.
+ * Implementation of Keeper which saves announced set in memory. This implementation is used when
+ * no other implementation can be obtained from ServiceLoader.
  */
 object LocalKeeper extends Keeper {
   private val generator = new AtomicInteger()

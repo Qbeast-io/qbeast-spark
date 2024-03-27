@@ -16,33 +16,35 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model._
-import io.qbeast.spark.delta.QbeastMetadataSQL._
-import io.qbeast.spark.utils.State.FLOODED
-import io.qbeast.spark.utils.TagColumns
 import org.apache.spark.sql.delta.actions.AddFile
-import org.apache.spark.sql.functions.{col, collect_list, lit, min, sum}
-import org.apache.spark.sql.{Dataset, SparkSession}
+import org.apache.spark.sql.Dataset
 
 import scala.collection.immutable.SortedMap
+import scala.collection.JavaConverters._
 
 /**
  * Builds the index status from a given snapshot and revision
- * @param qbeastSnapshot the QbeastSnapshot
- * @param revision the revision
- * @param announcedSet the announced set available for the revision
- * @param replicatedSet the replicated set available for the revision
+ *
+ * @param qbeastSnapshot
+ *   the QbeastSnapshot
+ * @param revision
+ *   the revision
+ * @param announcedSet
+ *   the announced set available for the revision
+ * @param replicatedSet
+ *   the replicated set available for the revision
  */
 private[delta] class IndexStatusBuilder(
     qbeastSnapshot: DeltaQbeastSnapshot,
     revision: Revision,
-    replicatedSet: ReplicatedSet,
     announcedSet: Set[CubeId] = Set.empty)
     extends Serializable
     with StagingUtils {
 
   /**
    * Dataset of files belonging to the specific revision
-   * @return the dataset of AddFile actions
+   * @return
+   *   the dataset of AddFile actions
    */
   def revisionFiles: Dataset[AddFile] =
     // this must be external to the lambda, to avoid SerializationErrors
@@ -51,7 +53,10 @@ private[delta] class IndexStatusBuilder(
   def build(): IndexStatus = {
     val cubeStatus =
       if (isStaging(revision)) stagingCubeStatuses
-      else buildCubesStatuses
+      else indexCubeStatuses
+
+    val replicatedSet =
+      cubeStatus.valuesIterator.filter(_.replicated).map(_.cubeId).toSet
 
     IndexStatus(
       revision = revision,
@@ -62,53 +67,43 @@ private[delta] class IndexStatusBuilder(
 
   def stagingCubeStatuses: SortedMap[CubeId, CubeStatus] = {
     val root = revision.createCubeIdRoot()
-    val maxWeight = Weight.MaxValue
     val blocks = revisionFiles
-      .collect()
-      .map(addFile =>
-        QbeastBlock(
-          addFile.path,
-          "",
-          revision.revisionID,
-          Weight.MinValue,
-          maxWeight,
-          FLOODED,
-          0,
-          addFile.size,
-          addFile.modificationTime))
+      .toLocalIterator()
+      .asScala
+      .map(IndexFiles.fromAddFile(root.dimensionCount))
+      .flatMap(_.blocks)
       .toIndexedSeq
-
-    SortedMap(root -> CubeStatus(root, maxWeight, maxWeight.fraction, blocks))
+    SortedMap(root -> CubeStatus(root, Weight.MaxValue, Weight.MaxValue.fraction, blocks))
   }
 
   /**
    * Returns the index state for the given space revision
-   * @return Dataset containing cube information
+   *
+   * @return
+   *   Dataset containing cube information
    */
-  def buildCubesStatuses: SortedMap[CubeId, CubeStatus] = {
-
-    val spark = SparkSession.active
+  def indexCubeStatuses: SortedMap[CubeId, CubeStatus] = {
     val builder = SortedMap.newBuilder[CubeId, CubeStatus]
-
-    val rev = revision
-
-    import spark.implicits._
-    val ndims: Int = rev.transformations.size
+    val dimensionCount = revision.transformations.size
+    val desiredCubeSize = revision.desiredCubeSize
     revisionFiles
-      .groupBy(TagColumns.cube)
-      .agg(
-        min(weight(TagColumns.maxWeight)).as("maxWeight"),
-        sum(TagColumns.elementCount).as("elementCount"),
-        collect_list(qblock).as("files"))
-      .select(
-        createCube(col("cube"), lit(ndims)).as("cubeId"),
-        col("maxWeight"),
-        normalizeWeight(col("maxWeight"), col("elementCount"), lit(rev.desiredCubeSize)).as(
-          "normalizedWeight"),
-        col("files"))
-      .as[CubeStatus]
-      .collect()
-      .foreach(row => builder += row.cubeId -> row)
+      .toLocalIterator()
+      .asScala
+      .map(IndexFiles.fromAddFile(dimensionCount))
+      .flatMap(_.blocks)
+      .toSeq
+      .groupBy(_.cubeId)
+      .iterator
+      .map { case (cubeId, blocks) =>
+        val maxWeight = blocks.map(_.maxWeight).min
+        val cubeSize = blocks.map(_.elementCount).sum
+        val normalizedWeight =
+          if (maxWeight < Weight.MaxValue) maxWeight.fraction
+          else NormalizedWeight(desiredCubeSize, cubeSize)
+        val status = CubeStatus(cubeId, maxWeight, normalizedWeight, blocks.toIndexedSeq)
+        (cubeId, status)
+      }
+      .foreach(builder += _)
     builder.result()
   }
 

@@ -15,14 +15,20 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.Weight
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.delta.files.TahoeLogFileIndex
+import org.apache.spark.sql.execution.datasources.PartitionDirectory
 
 /**
- * Cube Information
- *
- * @param cube      Id of the cube
- * @param maxWeight Maximum maxWeight of the cube
- * @param size      Number of elements of the cube
+ * Default implementation of the ListFilesStrategy which simply applies Delta filtering based on
+ * min/max and other stats.
  */
+private[delta] object DefaultListFilesStrategy extends ListFilesStrategy with Serializable {
 
-case class CubeInfo(cube: String, maxWeight: Weight, size: Long)
+  override def listFiles(
+      target: TahoeLogFileIndex,
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): Seq[PartitionDirectory] =
+    target.listFiles(partitionFilters, dataFilters)
+
+}
