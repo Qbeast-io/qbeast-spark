@@ -15,7 +15,13 @@
  */
 package io.qbeast.spark.index
 
+import io.qbeast.context.QbeastContext
+import io.qbeast.core.model.QTableID
+import io.qbeast.spark.delta.writer.RollupDataWriter
+import io.qbeast.spark.delta.SparkDeltaMetadataManager
+import io.qbeast.spark.table.IndexedTableFactoryImpl
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import org.apache.spark.sql.AnalysisException
 
 class SparkColumnsToIndexSelectorTest extends QbeastIntegrationTestSpec {
 
@@ -59,7 +65,6 @@ class SparkColumnsToIndexSelectorTest extends QbeastIntegrationTestSpec {
     selectedColumns should contain theSameElementsAs testDF.columns
   })
 
-  // TODO - Check if this should be the default behavior
   it should "select maximum 3 columns by default" in withSpark(spark => {
 
     import spark.implicits._
@@ -114,7 +119,6 @@ class SparkColumnsToIndexSelectorTest extends QbeastIntegrationTestSpec {
     selectedLargeColumns.length shouldBe 10
   })
 
-  // TODO - Check if this should be the default behavior
   it should "use the 3 first columns if no data is provided" in withSpark(spark => {
 
     import spark.implicits._

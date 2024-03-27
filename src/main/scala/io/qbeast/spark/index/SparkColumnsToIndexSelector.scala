@@ -137,7 +137,8 @@ object SparkColumnsToIndexSelector extends ColumnsToIndexSelector[DataFrame] wit
 
   override def selectColumnsToIndex(data: DataFrame, numColumnsToIndex: Int): Seq[String] = {
 
-    // IF there's no data to write, we return all the columns to index
+    // TODO ISSUE #295 (https://github.com/Qbeast-io/qbeast-spark/issues/295)
+    //  Unclear behaviour of SparkColumnsToIndexSelector when DataFrame is empty
     if (data.isEmpty) {
       return data.columns.take(numColumnsToIndex)
     }
