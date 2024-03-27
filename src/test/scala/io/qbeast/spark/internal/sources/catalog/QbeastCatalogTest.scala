@@ -255,7 +255,7 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
           Identifier.of(defaultNamespace, "students"),
           schema,
           Array.empty,
-          Map.empty[String, String].asJava,
+          Map("columnsToIndex" -> "id").asJava,
           Map.empty,
           None,
           TableCreationMode.REPLACE_TABLE,

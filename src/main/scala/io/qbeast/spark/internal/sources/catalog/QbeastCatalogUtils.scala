@@ -5,7 +5,9 @@ package io.qbeast.spark.internal.sources.catalog
 
 import io.qbeast.context.QbeastContext.metadataManager
 import io.qbeast.core.model.QTableID
+import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
+import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.fs.Path
@@ -22,6 +24,7 @@ import org.apache.spark.sql.execution.datasources.DataSource
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.V1TableQbeast
@@ -36,8 +39,6 @@ import scala.collection.JavaConverters._
 object QbeastCatalogUtils {
 
   val QBEAST_PROVIDER_NAME: String = "qbeast"
-
-  lazy val spark: SparkSession = SparkSession.active
 
   /**
    * Checks if the provider is Qbeast
@@ -96,7 +97,11 @@ object QbeastCatalogUtils {
     }
   }
 
-  private def verifySchema(fs: FileSystem, path: Path, table: CatalogTable): CatalogTable = {
+  private def verifySchema(
+      spark: SparkSession,
+      fs: FileSystem,
+      path: Path,
+      table: CatalogTable): CatalogTable = {
 
     val isTablePopulated = table.tableType == CatalogTableType.EXTERNAL && fs
       .exists(path) && fs.listStatus(path).nonEmpty
@@ -167,6 +172,7 @@ object QbeastCatalogUtils {
       tableFactory: IndexedTableFactory,
       existingSessionCatalog: SessionCatalog): Unit = {
 
+    val spark = SparkSession.active
     val isPathTable = QbeastCatalogUtils.isPathTable(ident)
 
     // Get table location
@@ -202,6 +208,7 @@ object QbeastCatalogUtils {
             "to get all the benefits of data skipping. ")
     }
 
+    // Create an object for the Catalog Table
     val t = new CatalogTable(
       identifier = id,
       tableType = tableType,
@@ -217,14 +224,45 @@ object QbeastCatalogUtils {
     val tableLocation = new Path(loc)
     val hadoopConf = spark.sharedState.sparkContext.hadoopConfiguration
     val fs = tableLocation.getFileSystem(hadoopConf)
-    val table = verifySchema(fs, tableLocation, t)
+    val table = verifySchema(spark, fs, tableLocation, t)
+    val deltaTableExists = DeltaLog.forTable(spark, loc.toString).tableExists
 
-    // Write data, if any
-    val append = tableCreationMode.saveMode == SaveMode.Append
-    dataFrame.map { df =>
-      tableFactory
-        .getIndexedTable(QTableID(loc.toString))
-        .save(df, allTableProperties.asScala.toMap, append)
+    dataFrame match {
+      case Some(df) =>
+        // If the table exists or the query contains a SAVE TABLE AS (SELECT ...)
+        // we should first write the data with the Qbeast format
+        // and update the Catalog
+
+        val append = tableCreationMode.saveMode == SaveMode.Append
+        tableFactory
+          .getIndexedTable(QTableID(loc.toString))
+          .save(df, allTableProperties.asScala.toMap, append)
+
+      case None if (!deltaTableExists) =>
+        // If the table does not exist, we should create the table physically
+        // TODO Ideally we should unify both processes in one
+        //  called CREATE QBEAST TABLE COMMAND
+
+        val tablePropertiesMap = allTableProperties.asScala.toMap
+        val qbeastOptions = QbeastOptions(tablePropertiesMap)
+        val columnsToIndex = qbeastOptions.columnsToIndex
+        val cubeSize = qbeastOptions.cubeSize
+
+        // Write an empty DF to Delta
+        val emptyDFWithSchema = spark
+          .createDataFrame(spark.sharedState.sparkContext.emptyRDD[Row], schema)
+        emptyDFWithSchema.write
+          .format("delta")
+          .mode(SaveMode.Overwrite)
+          .options(tablePropertiesMap) // TODO we should filter the options
+          .save(tableLocation.toString)
+
+        // TODO failing here
+        // Convert To Qbeast
+        val convertToQbeastId = s"delta.`${loc.toString}`"
+        ConvertToQbeastCommand(convertToQbeastId, columnsToIndex, cubeSize).run(spark)
+
+      case _ => // do nothing: table exists
     }
 
     // Update the existing session catalog with the Qbeast table information
