@@ -15,13 +15,7 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.context.QbeastContext
-import io.qbeast.core.model.QTableID
-import io.qbeast.spark.delta.writer.RollupDataWriter
-import io.qbeast.spark.delta.SparkDeltaMetadataManager
-import io.qbeast.spark.table.IndexedTableFactoryImpl
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import org.apache.spark.sql.AnalysisException
 
 class SparkColumnsToIndexSelectorTest extends QbeastIntegrationTestSpec {
 

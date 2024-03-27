@@ -7,7 +7,12 @@ lazy val qbeastCore = (project in file("core"))
   .settings(
     name := "qbeast-core",
     version := mainVersion,
-    libraryDependencies ++= Seq(apacheCommons % Test))
+    libraryDependencies ++= Seq(apacheCommons % Test),
+    licenses := Seq("APL2" -> url("https://www.apache.org/licenses/LICENSE-2.0.txt")),
+    homepage := Some(url("https://qbeast.io/")),
+    headerLicense := Some(HeaderLicense.ALv2("2021", "Qbeast Analytics, S.L.")),
+    headerEmptyLine := false,
+    Compile / compile := (Compile / compile).dependsOn(Compile / headerCheck).value)
 
 // Projects
 lazy val qbeastSpark = (project in file("."))
