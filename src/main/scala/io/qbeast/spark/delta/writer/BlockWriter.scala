@@ -82,10 +82,6 @@ case class BlockWriter(
     val contexts = mutable.Map.empty[CubeId, BlockContext]
     rows.foreach { row =>
       val cubeId = revision.createCubeId(row.getBinary(qbeastColumns.cubeColumnIndex))
-      // TODO make sure this does not compromise the structure of the index
-      // It could happen than estimated weights
-      // doesn't include all the cubes present in the final indexed dataframe
-      // we save those newly added leaves with the max weight possible
 
       val state = tableChanges.cubeState(cubeId).getOrElse(State.FLOODED)
       val maxWeight = tableChanges.cubeWeight(cubeId).getOrElse(Weight.MaxValue)
