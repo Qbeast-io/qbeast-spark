@@ -47,47 +47,17 @@ object CubeDomainsBuilder {
     Math.max(minGroupCubeSize, groupCubeSize.toInt)
   }
 
-  /**
-   * Compute cube NormalizedWeights to properly reflect leaf cube elementCounts.
-   */
-  private def computeNormalizedWeights(
-      desiredCubeSize: Int,
-      groupCubeSize: Int,
-      cubeStatuses: Map[CubeId, CubeStatus]): Map[CubeId, NormalizedWeight] = {
-    val isLeaf = (cubeId: CubeId) => !cubeId.children.exists(cubeStatuses.contains)
-    val multiplier = groupCubeSize / desiredCubeSize.toDouble
-
-    cubeStatuses.map {
-      case (cubeId, status) if isLeaf(cubeId) =>
-        val cubeSize = status.blocks.map(_.elementCount).sum
-        val groupSize = (cubeSize * multiplier).toLong.max(1L)
-        val nw = NormalizedWeight(groupCubeSize, groupSize).max(1.0)
-        cubeId -> nw
-      case (cubeId, status) => cubeId -> status.normalizedWeight
-    }
-  }
-
   def apply(
-      indexStatus: IndexStatus,
+      existingCubeWeights: Map[CubeId, Weight],
+      replicatedOrAnnouncedSet: Set[CubeId],
+      desiredCubeSize: Int,
       numPartitions: Int,
       numElements: Long,
       bufferCapacity: Long): CubeDomainsBuilder = {
-    val desiredCubeSize = indexStatus.revision.desiredCubeSize
-    val groupCubeSize = estimateGroupCubeSize(
-      indexStatus.revision.desiredCubeSize,
-      numPartitions,
-      numElements,
-      bufferCapacity)
-    val factory = new WeightAndCountFactory(
-      computeNormalizedWeights(desiredCubeSize, groupCubeSize, indexStatus.cubesStatuses),
-      groupCubeSize)
-
-    new CubeDomainsBuilder(
-      desiredCubeSize,
-      groupCubeSize,
-      bufferCapacity,
-      factory,
-      indexStatus.replicatedOrAnnouncedSet)
+    val groupCubeSize =
+      estimateGroupCubeSize(desiredCubeSize, numPartitions, numElements, bufferCapacity)
+    val factory = new WeightAndCountFactory(existingCubeWeights)
+    new CubeDomainsBuilder(groupCubeSize, bufferCapacity, factory, replicatedOrAnnouncedSet)
   }
 
 }
@@ -95,16 +65,15 @@ object CubeDomainsBuilder {
 /**
  * Builder for creating cube domains.
  * @param groupCubeSize
- *   the number of elements for each group
+ *   the desired number of elements for each cube in the local index
  * @param bufferCapacity
  *   the buffer capacity to store the cube weights in memory
+ * @param weightAndCountFactory
+ *   the factory for WeightAndCount
  * @param replicatedOrAnnouncedSet
  *   the announced or replicated cubes' identifiers
- * @param existingNormalizedWeights
- *   the cube NormalizedWeights for the existing index
  */
 class CubeDomainsBuilder protected (
-    private val desiredCubeSize: Int,
     private val groupCubeSize: Int,
     private val bufferCapacity: Long,
     private val weightAndCountFactory: WeightAndCountFactory,
@@ -177,7 +146,7 @@ class CubeDomainsBuilder protected (
     // Convert cube Weight and size into a Map[CubeId, (NormalizedWeight, Double)] from which
     // the cube domains are computed.
     weights.map { case (cubeId, weightAndCount) =>
-      cubeId -> weightAndCount.toWeightAndTreeSize(groupCubeSize, desiredCubeSize)
+      cubeId -> weightAndCount.toWeightAndTreeSize(groupCubeSize)
     }.toMap
 
   }
@@ -235,22 +204,18 @@ class CubeDomainsBuilder protected (
  * Factory for WeightAndCount. The creation of which depends on whether the associated CubeId is
  * present in the existing index, if it's a inner or leaf cube.
  *
- * @param existingNormalizedWeights
+ * @param existingCubeWeights
  *   Cube Weight of the existing index
- * @param groupCubeSize
- *   partition-level cube size for indexing
  */
-private class WeightAndCountFactory(
-    existingNormalizedWeights: Map[CubeId, NormalizedWeight],
-    groupCubeSize: Int) {
+private class WeightAndCountFactory(existingCubeWeights: Map[CubeId, Weight]) {
 
   def create(cubeId: CubeId): WeightAndCount =
-    existingNormalizedWeights.get(cubeId) match {
-      case Some(nw: NormalizedWeight) if nw < 1.0 =>
-        new InnerCubeWeightAndCount(Weight(nw))
-      case Some(nw: NormalizedWeight) =>
-        val existingLeafSize = ((groupCubeSize - 1) / nw).toInt
-        new LeafCubeWeightAndCount(existingLeafSize)
+    existingCubeWeights.get(cubeId) match {
+      case Some(w: Weight) if NormalizedWeight(w) < 1.0 =>
+        new InnerCubeWeightAndCount(w)
+      case Some(_: Weight) =>
+        val leafSize = 0
+        new LeafCubeWeightAndCount(leafSize)
       case None => new WeightAndCount(MaxValue, 0)
     }
 
@@ -290,11 +255,9 @@ private class WeightAndCount(var weight: Weight, var count: Int) {
    * Convert to WeightAndTreeSize, with cube size i.e. count as the initial tree size value.
    * @param gcs
    *   groupCubeSize
-   * @param dcs
-   *   desiredCubeSize
    */
-  def toWeightAndTreeSize(gcs: Int, dcs: Int): WeightAndTreeSize = {
-    val nw = toNormalizedWeight(gcs, dcs)
+  def toWeightAndTreeSize(gcs: Int): WeightAndTreeSize = {
+    val nw = toNormalizedWeight(gcs)
     new WeightAndTreeSize(nw, cubeSize)
   }
 
@@ -308,12 +271,10 @@ private class WeightAndCount(var weight: Weight, var count: Int) {
    * Compute NormalizedWeight according to the state of the cube
    * @param gcs
    *   groupCubeSize
-   * @param dcs
-   *   desiredCubeSize
    */
-  def toNormalizedWeight(gcs: Int, dcs: Int): NormalizedWeight =
+  def toNormalizedWeight(gcs: Int): NormalizedWeight =
     if (count == gcs) NormalizedWeight(weight)
-    else NormalizedWeight(dcs, cubeSize)
+    else NormalizedWeight(gcs, cubeSize)
 
 }
 
@@ -328,7 +289,7 @@ private class LeafCubeWeightAndCount(start: Int) extends WeightAndCount(MaxValue
 
 /**
  * WeightAndCount for an existing inner cube. It can accept up to groupCubeSize records, with the
- * additional constraint of instanceWeight < existingWeight.
+ * additional constraint of instanceWeight being less than existingWeight.
  * @param existingWeight
  *   Weight for the associated existing CubeId
  */
@@ -339,7 +300,7 @@ private class InnerCubeWeightAndCount(existingWeight: Weight)
     instanceWeight < existingWeight && count < limit
   }
 
-  override def toNormalizedWeight(gcs: Int, dcs: Int): NormalizedWeight = {
+  override def toNormalizedWeight(gcs: Int): NormalizedWeight = {
     // An existing inner cube should always remain as such
     NormalizedWeight(weight)
   }
