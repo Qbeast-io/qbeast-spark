@@ -22,7 +22,22 @@ class CubeDomainsBuilderTest extends AnyFlatSpec with Matchers with PrivateMetho
       .firstRevision(QTableID("test"), dcs, transformers, transformations)
       .copy(revisionID = 1)
 
-  private val emptyIndexStatus = IndexStatus.empty(rev)
+  private def createCubeDomainsBuilder(
+      existingCubeWeights: Map[CubeId, Weight] = Map.empty,
+      replicatedOrAnnouncedSet: Set[CubeId] = Set.empty,
+      desiredCubeSize: Int = rev.desiredCubeSize,
+      numPartitions: Int = 10,
+      elementCount: Long = 100L,
+      bufferCapacity: Long = 100000L): CubeDomainsBuilder = {
+    // The default setting creates a groupCubeSize of 40
+    CubeDomainsBuilder(
+      existingCubeWeights,
+      replicatedOrAnnouncedSet,
+      desiredCubeSize,
+      numPartitions,
+      elementCount,
+      bufferCapacity)
+  }
 
   private val computeWeightsAndCubeSizes: PrivateMethod[Map[CubeId, WeightAndTreeSize]] =
     PrivateMethod[Map[CubeId, WeightAndTreeSize]]('computeWeightsAndSizes)
@@ -41,30 +56,29 @@ class CubeDomainsBuilderTest extends AnyFlatSpec with Matchers with PrivateMetho
   }
 
   "CubeWeightsBuilder" should "add weights to the cube until it is full" in {
-    val builder = CubeDomainsBuilder(emptyIndexStatus, 10, 1000, 100000)
+    val builder = createCubeDomainsBuilder()
     (1 to 100).foreach(_ => builder.update(point, Weight(Random.nextInt())))
 
     // Cube -> (NormalizedWeight, cubeSize)
     val wts = builder invokePrivate computeWeightsAndCubeSizes()
 
     // Inner cubes are full with gcs elements each, the remaining is stored in the leaf cube
-    // groupCubeSize = 40
     wts.mapValues(_.treeSize).toSeq.sortBy(_._1).map(_._2) shouldBe Seq(40d, 40d, 20d)
   }
 
   it should "assign the correct NormalizedWeight to a leaf cube" in {
-    val builder = CubeDomainsBuilder(emptyIndexStatus, 10, 1000, 100000)
+    val builder = createCubeDomainsBuilder()
     (1 to 100).foreach(_ => builder.update(point, Weight(Random.nextInt())))
 
     // Cube -> (NormalizedWeight, cubeSize)
     val wts = builder invokePrivate computeWeightsAndCubeSizes()
     // The leaf cube has 20 elements, which is < gcs
-    wts.toSeq.maxBy(_._1)._2.weight shouldBe NormalizedWeight(dcs, 20)
+    wts.toSeq.maxBy(_._1)._2.weight shouldBe NormalizedWeight(40, 20L)
   }
 
   it should "give the values whether the data is sorted or not" in {
-    val randomBuilder = CubeDomainsBuilder(emptyIndexStatus, 10, 1000, 100000)
-    val sortedBuilder = CubeDomainsBuilder(emptyIndexStatus, 10, 1000, 100000)
+    val randomBuilder = createCubeDomainsBuilder()
+    val sortedBuilder = createCubeDomainsBuilder()
 
     val weights = (1 to 100).map(_ => Weight(Random.nextInt()))
     weights.foreach(w => randomBuilder.update(point, w))
@@ -79,7 +93,7 @@ class CubeDomainsBuilderTest extends AnyFlatSpec with Matchers with PrivateMetho
   }
 
   it should "compute domains correctly" in {
-    val builder = CubeDomainsBuilder(emptyIndexStatus, 10, 1000, 100000)
+    val builder = createCubeDomainsBuilder()
     (1 to 100).foreach(_ =>
       builder.update(Point(Random.nextFloat(), Random.nextFloat()), Weight(Random.nextInt())))
 
@@ -93,36 +107,28 @@ class CubeDomainsBuilderTest extends AnyFlatSpec with Matchers with PrivateMetho
   }
 
   it should "respect bufferCapacity" in {
-    val builder = CubeDomainsBuilder(emptyIndexStatus, 10, 10000, 800)
+    val builder = createCubeDomainsBuilder(elementCount = 1000, bufferCapacity = 800)
     (1 to 1000).foreach(_ => builder.update(point, Weight(Random.nextInt())))
 
     val result = builder.result()
     // A new index in created each time the bufferCapacity is exceeded
-    result.count(cd => rev.createCubeId(cd.cubeBytes).depth == 0) shouldBe 2
+    result.count { cd =>
+      val cubeId = rev.createCubeId(cd.cubeBytes)
+      val isRoot = cubeId.depth == 0
+      isRoot
+    } shouldBe 2
   }
 
   it should "handle empty partitions" in {
-    val builder = CubeDomainsBuilder(emptyIndexStatus, 10, 1000, 100000)
-    val domains = builder.resultInternal()
+    val builder = createCubeDomainsBuilder()
+    val domains = builder.result()
 
     domains.isEmpty shouldBe true
   }
 
-  it should "add maxWeight to the child of an announced cube" in {
+  it should "add maxWeight to the child of a replicated or announced cube" in {
     val root = rev.createCubeIdRoot()
-    val builder =
-      CubeDomainsBuilder(emptyIndexStatus.copy(announcedSet = Set(root)), 10, 1000, 100000)
-    builder.update(point, Weight(2))
-
-    val Seq(c0, c1) = builder.result().map(cd => rev.createCubeId(cd.cubeBytes)).sorted
-    c0 shouldBe root
-    c1.parent shouldBe Some(c0)
-  }
-
-  it should "add maxWeight to the child of a replicated cube" in {
-    val root = rev.createCubeIdRoot()
-    val builder =
-      CubeDomainsBuilder(emptyIndexStatus.copy(announcedSet = Set(root)), 10, 1000, 100000)
+    val builder = createCubeDomainsBuilder(replicatedOrAnnouncedSet = Set(root))
     builder.update(point, Weight(2))
 
     val Seq(c0, c1) = builder.result().map(cd => rev.createCubeId(cd.cubeBytes)).sorted
@@ -131,7 +137,7 @@ class CubeDomainsBuilderTest extends AnyFlatSpec with Matchers with PrivateMetho
   }
 
   it should "calculate domain for the root" in {
-    val builder = CubeDomainsBuilder(emptyIndexStatus, 10, 1000, 100000)
+    val builder = createCubeDomainsBuilder()
     (1 to 100).foreach(_ => builder.update(point, Weight(Random.nextInt())))
 
     val partitionCubeDomains =
@@ -141,7 +147,7 @@ class CubeDomainsBuilderTest extends AnyFlatSpec with Matchers with PrivateMetho
   }
 
   it should "not duplicate elements in result" in {
-    val builder = CubeDomainsBuilder(emptyIndexStatus, 10, 1000, 100000)
+    val builder = createCubeDomainsBuilder()
     (1 to 100).foreach(_ => builder.update(point, Weight(Random.nextInt())))
 
     val result = builder.result()

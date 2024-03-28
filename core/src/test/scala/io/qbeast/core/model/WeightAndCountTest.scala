@@ -16,7 +16,7 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers {
     val c1 = l1Cubes.next()
     val newCube = l1Cubes.next()
 
-    val wcFactory = new WeightAndCountFactory(Map(root -> 0.8, c1 -> 1.0), 300)
+    val wcFactory = new WeightAndCountFactory(Map(root -> Weight(0.8), c1 -> Weight(1.0)))
     val root_ = wcFactory.create(root)
     root_ shouldBe an[InnerCubeWeightAndCount]
     root_.weight shouldBe Weight(0.8)
@@ -25,7 +25,7 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers {
     val c1_ = wcFactory.create(c1)
     c1_ shouldBe an[LeafCubeWeightAndCount]
     c1_.weight shouldBe MaxValue
-    c1_.count shouldBe 300 - 1
+    c1_.count shouldBe 0 // Leaf cube start with 0 existing records
 
     val newCube_ = wcFactory.create(newCube)
     newCube_ shouldBe an[WeightAndCount]
@@ -36,7 +36,6 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers {
   "A new WeightAndCount" should "include, update, and convert correctly (when full)" in {
     val newWc = new WeightAndCount(MaxValue, 0)
     val groupCubeSize = 5
-    val desiredCubeSize = groupCubeSize * 2
     val baseWeight = 0.54
 
     // Weights from Weight(0.55) to Weight(0.64)
@@ -44,7 +43,7 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers {
       val w = Weight(baseWeight + (i.toDouble / 100))
       if (newWc.shouldInclude(w, groupCubeSize)) newWc.update(w)
     }
-    val wts = newWc.toWeightAndTreeSize(groupCubeSize, desiredCubeSize)
+    val wts = newWc.toWeightAndTreeSize(groupCubeSize)
 
     // With the groupCubeSize being 5, it should only accept the first 5 records
     newWc.count shouldBe 5
@@ -59,7 +58,6 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers {
   it should "include, update, and convert correctly (when NOT full)" in {
     val newWc = new WeightAndCount(MaxValue, 0)
     val groupCubeSize = 15
-    val desiredCubeSize = groupCubeSize * 2
     val baseWeight = 0.54
 
     // Weights from Weight(0.55) to Weight(0.64)
@@ -67,24 +65,22 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers {
       val w = Weight(baseWeight + (i.toDouble / 100))
       if (newWc.shouldInclude(w, groupCubeSize)) newWc.update(w)
     }
-    val wts = newWc.toWeightAndTreeSize(groupCubeSize, desiredCubeSize)
+    val wts = newWc.toWeightAndTreeSize(groupCubeSize)
 
     // With the groupCubeSize being 15, it should accept all 10 records
     newWc.count shouldBe 10
     newWc.cubeSize shouldBe 10
     wts.treeSize shouldBe 10
 
-    // A full new WeightAndCount should have the proper Weight and NormalizedWeight
+    // A new WeightAndCount should have the proper Weight and NormalizedWeight when not full
     newWc.weight shouldBe Weight(0.64)
-    wts.weight shouldBe NormalizedWeight(desiredCubeSize, 10)
+    wts.weight shouldBe NormalizedWeight(groupCubeSize, 10)
 
   }
 
   "An InnerCubeWeightAndCount" should "be limited by existingWeight" in {
-    val existingWeight = Weight(0.6)
-    val innerWc = new InnerCubeWeightAndCount(existingWeight)
+    val innerWc = new InnerCubeWeightAndCount(Weight(0.6))
     val groupCubeSize = 15
-    val desiredCubeSize = groupCubeSize * 2
     val baseWeight = 0.54
 
     // Weights from Weight(0.55) to Weight(0.64)
@@ -93,7 +89,7 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers {
       if (innerWc.shouldInclude(w, groupCubeSize)) innerWc.update(w)
     }
 
-    val wts = innerWc.toWeightAndTreeSize(groupCubeSize, desiredCubeSize)
+    val wts = innerWc.toWeightAndTreeSize(groupCubeSize)
     // It should accept only the first 5 elements that have w < 0.6
     innerWc.count shouldBe 5
     innerWc.cubeSize shouldBe 5
@@ -107,7 +103,6 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers {
   "LeafCubeWeightAndCount" should "include, update, and convert correctly (when full)" in {
     val leafWc = new LeafCubeWeightAndCount(5)
     val groupCubeSize = 10
-    val desiredCubeSize = groupCubeSize * 2
     val baseWeight = 0.54
 
     // Weights from Weight(0.55) to Weight(0.64)
@@ -115,7 +110,7 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers {
       val w = Weight(baseWeight + (i.toDouble / 100))
       if (leafWc.shouldInclude(w, groupCubeSize)) leafWc.update(w)
     }
-    val wts = leafWc.toWeightAndTreeSize(groupCubeSize, desiredCubeSize)
+    val wts = leafWc.toWeightAndTreeSize(groupCubeSize)
 
     // With the groupCubeSize being 10, it should only accept the first
     // groupCubeSize - start = 5 records
@@ -132,7 +127,6 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers {
   it should "include, update, and convert correctly (when NOT full)" in {
     val leafWc = new LeafCubeWeightAndCount(5)
     val groupCubeSize = 15
-    val desiredCubeSize = groupCubeSize * 2
     val baseWeight = 0.54
 
     // Weights from Weight(0.55) to Weight(0.64)
@@ -140,7 +134,7 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers {
       val w = Weight(baseWeight + (i.toDouble / 100))
       if (leafWc.shouldInclude(w, groupCubeSize)) leafWc.update(w)
     }
-    val wts = leafWc.toWeightAndTreeSize(groupCubeSize, desiredCubeSize)
+    val wts = leafWc.toWeightAndTreeSize(groupCubeSize)
 
     // With the groupCubeSize being 15, it has the space for 10 records so
     // it should accept all 5
@@ -149,7 +143,7 @@ class WeightAndCountTest extends AnyFlatSpec with Matchers {
     wts.treeSize shouldBe 5
 
     // A full LeafCubeWeightAndCount should have the proper NormalizedWeight
-    wts.weight shouldBe NormalizedWeight(desiredCubeSize, 5)
+    wts.weight shouldBe NormalizedWeight(groupCubeSize, 5)
   }
 
 }
