@@ -76,6 +76,7 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
         "columnsToIndex" -> currentRevision.columnTransformers.map(_.columnName).mkString(","),
         "cubeSize" -> currentRevision.desiredCubeSize.toString)
       val tableProperties = properties.asScala.toMap ++ indexProperties
+      logDebug(s"Table ${tableId} properties: ${tableProperties}")
       new QbeastTableImpl(
         TableIdentifier(tableId.id),
         new Path(tableId.id),
