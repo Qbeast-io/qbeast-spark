@@ -146,10 +146,11 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       val bufferCapacity: Long = CUBE_WEIGHTS_BUFFER_CAPACITY
 
       // Broadcast large objects for CubeDomainsBuilder
-      val broadcastExistingCubeWeights = SparkSession.active.sparkContext.broadcast(
-        indexStatus.cubesStatuses.mapValues(_.maxWeight).map(identity))
+      val broadcastExistingCubeWeights =
+        spark.sparkContext.broadcast(
+          indexStatus.cubesStatuses.mapValues(_.maxWeight).map(identity))
       val broadcastReplicatedOrAnnouncedSet =
-        SparkSession.active.sparkContext.broadcast(indexStatus.replicatedOrAnnouncedSet)
+        spark.sparkContext.broadcast(indexStatus.replicatedOrAnnouncedSet)
 
       val selected = weightedDataFrame.select(cols.map(col): _*)
       val weightIndex = selected.schema.fieldIndex(weightColumnName)

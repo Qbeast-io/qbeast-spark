@@ -209,14 +209,26 @@ class CubeDomainsBuilder protected (
  */
 private class WeightAndCountFactory(existingCubeWeights: Map[CubeId, Weight]) {
 
+  /**
+   * Create an instance of WeightAndCount for a given cube depending on its status in the existing
+   * index
+   * @param cubeId
+   *   CubeId to create a WeightAndCount for
+   * @return
+   *   WeightAndCount
+   */
   def create(cubeId: CubeId): WeightAndCount =
     existingCubeWeights.get(cubeId) match {
       case Some(w: Weight) if NormalizedWeight(w) < 1.0 =>
+        // cubeId present in the existing index as an inner cube
         new InnerCubeWeightAndCount(w)
       case Some(_: Weight) =>
+        // cubeId present in the existing index as a leaf cube
         val leafSize = 0
         new LeafCubeWeightAndCount(leafSize)
-      case None => new WeightAndCount(MaxValue, 0)
+      case None =>
+        // cubeId not present in the existing index
+        new WeightAndCount(MaxValue, 0)
     }
 
 }
