@@ -152,7 +152,15 @@ final case class Revision(
    *   true if the revision indexes all and only the provided columns.
    */
   def matchColumns(columnsToIndex: Seq[String]): Boolean = {
-    columnsToIndex.toSet == columnTransformers.map(_.columnName).toSet
+    columnsToIndex.size == columnTransformers.size && columnsToIndex
+      .zip(columnTransformers)
+      .forall { case (columnToIndex, t) =>
+        if (columnToIndex.contains(":")) {
+          columnToIndex == t.spec
+        } else {
+          columnToIndex == t.columnName
+        }
+      }
   }
 
   /**
