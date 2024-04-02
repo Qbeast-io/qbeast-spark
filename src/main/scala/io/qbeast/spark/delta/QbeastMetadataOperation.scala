@@ -36,7 +36,7 @@ import org.apache.spark.sql.SparkSession
 /**
  * Qbeast metadata changes on a Delta Table.
  */
-private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation with StagingUtils {
+private[delta] trait QbeastMetadataOperation extends ImplicitMetadataOperation with StagingUtils {
 
   type Configuration = Map[String, String]
 
