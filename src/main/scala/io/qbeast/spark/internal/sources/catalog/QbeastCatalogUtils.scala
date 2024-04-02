@@ -186,6 +186,7 @@ object QbeastCatalogUtils {
 
     val spark = SparkSession.active
     val isPathTable = QbeastCatalogUtils.isPathTable(ident)
+    val properties = allTableProperties.asScala.toMap
 
     // Get table location
     val location = if (isPathTable) {
