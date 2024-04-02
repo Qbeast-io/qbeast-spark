@@ -143,8 +143,6 @@ class QbeastSchemaTest extends QbeastIntegrationTestSpec {
   it should "not merge schemas if specified in SQL" in withQbeastContextSparkAndTmpWarehouse(
     (spark, _) => {
 
-      // TODO: all failing because when creating a table, no initial schema is commited
-
       import spark.implicits._
 
       spark.sql(
