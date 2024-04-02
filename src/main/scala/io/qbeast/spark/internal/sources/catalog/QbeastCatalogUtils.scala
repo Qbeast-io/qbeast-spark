@@ -249,7 +249,7 @@ object QbeastCatalogUtils {
 
     dataFrame match {
       case Some(df) =>
-        // If the table exists or the query contains a SAVE TABLE AS (SELECT ...)
+        // If the query contains a SAVE TABLE AS (SELECT ...)
         // we should first write the data with the Qbeast format
         // and update the Catalog
 
@@ -258,11 +258,8 @@ object QbeastCatalogUtils {
           .getIndexedTable(QTableID(loc.toString))
           .save(df, allTableProperties.asScala.toMap, append)
 
-      case None if (!deltaTableExists) =>
+      case None if !deltaTableExists =>
         // If the table does not exist, we should create the table physically
-        // TODO Ideally we should unify both processes in one
-        //  called CREATE QBEAST TABLE COMMAND
-
         val tablePropertiesMap = allTableProperties.asScala.toMap
         val qbeastOptions = QbeastOptions(tablePropertiesMap)
         val columnsToIndex = qbeastOptions.columnsToIndex
@@ -274,15 +271,15 @@ object QbeastCatalogUtils {
         emptyDFWithSchema.write
           .format("delta")
           .mode(SaveMode.Overwrite)
-          .options(tablePropertiesMap) // TODO we should filter the options
+          .options(tablePropertiesMap)
           .save(tableLocation.toString)
 
-        // TODO failing here
-        // Convert To Qbeast
         val convertToQbeastId = s"delta.`${loc.toString}`"
         ConvertToQbeastCommand(convertToQbeastId, columnsToIndex, cubeSize).run(spark)
 
-      case _ => // do nothing: table exists
+      case _ =>
+      // do nothing: table exists in Location and there's no more data to write.
+      // Table is Created with the existing Metadata
     }
 
     // Update the existing session catalog with the Qbeast table information
