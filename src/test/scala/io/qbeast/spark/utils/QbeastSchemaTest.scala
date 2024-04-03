@@ -151,7 +151,7 @@ class QbeastSchemaTest extends QbeastIntegrationTestSpec {
 
       val dfExtraCol = Seq((1, "John"), (2, "Doe")).toDF("id", "name")
 
-      // EXRA COLUMN
+      // EXTRA COLUMN
       an[AnalysisException] shouldBe thrownBy(
         dfExtraCol.write
           .format("qbeast")
@@ -185,7 +185,7 @@ class QbeastSchemaTest extends QbeastIntegrationTestSpec {
 
       val dfExtraCol = Seq((1, "John"), (2, "Doe")).toDF("id", "name")
 
-      // EXRA COLUMN
+      // EXTRA COLUMN
       an[AnalysisException] shouldBe thrownBy(
         dfExtraCol.write
           .format("qbeast")
