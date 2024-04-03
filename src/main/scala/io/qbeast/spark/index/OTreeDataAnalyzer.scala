@@ -326,7 +326,9 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
       dataFrame: DataFrame,
       indexStatus: IndexStatus,
       isReplication: Boolean): (DataFrame, TableChanges) = {
-    logTrace(s"Begin: analyze for index ${indexStatus.revision}")
+    // For logging purposes
+    val indexStatusRevision = indexStatus.revision
+    logTrace(s"Begin: analyze for index with revision=$indexStatusRevision and isReplication=$isReplication")
 
     // Compute the statistics for the indexedColumns
     val columnTransformers = indexStatus.revision.columnTransformers
@@ -358,7 +360,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
           computePartitionCubeDomains(numElements, newRevision, indexStatus, isReplication))
 
     // Compute global cube domains for the current write
-    logDebug(s"Computing global cube domains for index ${indexStatus.revision}")
+    logDebug(s"Computing global cube domains for index $indexStatusRevision")
     val globalCubeDomains: Map[CubeId, Double] =
       partitionCubeDomains
         .transform(computeGlobalCubeDomains(newRevision))
@@ -366,11 +368,11 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
         .toMap
 
     // Merge globalCubeDomain with the existing cube domains
-    logDebug(s"Merging global cube domains for index ${indexStatus.revision}")
+    logDebug(s"Merging global cube domains for index $indexStatusRevision")
     val mergedCubeDomains: Map[CubeId, Double] = mergeCubeDomains(globalCubeDomains, indexStatus)
 
     // Populate NormalizedWeight level-wise from top to bottom
-    logDebug(s"Estimating cube weights for index ${indexStatus.revision}, ${isReplication}")
+    logDebug(s"Estimating cube weights for index $indexStatusRevision")
     val estimatedCubeWeights: Map[CubeId, NormalizedWeight] =
       estimateCubeWeights(mergedCubeDomains.toSeq, indexStatus, isReplication)
 
@@ -384,7 +386,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
       else Set.empty[CubeId])
 
     val result = (weightedDataFrame, tableChanges)
-    logTrace(s"End: analyze for index ${indexStatus.revision}")
+    logTrace(s"End: analyze for index $indexStatusRevision")
     result
   }
 
