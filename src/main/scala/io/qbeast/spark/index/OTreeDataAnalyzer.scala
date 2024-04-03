@@ -350,6 +350,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
       case None => indexStatus.revision
       case Some(revisionChange) => revisionChange.createNewRevision
     }
+    logDebug(s"newRevision=$newRevision")
 
     // Add a random weight column
     val weightedDataFrame = dataFrame.transform(addRandomWeight(newRevision))
@@ -361,7 +362,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
           computePartitionCubeDomains(numElements, newRevision, indexStatus, isReplication))
 
     // Compute global cube domains for the current write
-    logDebug(s"Computing global cube domains for index $indexStatusRevision")
+    logDebug(s"Computing global cube domains for index revision $indexStatusRevision")
     val globalCubeDomains: Map[CubeId, Double] =
       partitionCubeDomains
         .transform(computeGlobalCubeDomains(newRevision))
@@ -369,11 +370,11 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
         .toMap
 
     // Merge globalCubeDomain with the existing cube domains
-    logDebug(s"Merging global cube domains for index $indexStatusRevision")
+    logDebug(s"Merging global cube domains for index revision $indexStatusRevision")
     val mergedCubeDomains: Map[CubeId, Double] = mergeCubeDomains(globalCubeDomains, indexStatus)
 
     // Populate NormalizedWeight level-wise from top to bottom
-    logDebug(s"Estimating cube weights for index $indexStatusRevision")
+    logDebug(s"Estimating cube weights for index revision $indexStatusRevision")
     val estimatedCubeWeights: Map[CubeId, NormalizedWeight] =
       estimateCubeWeights(mergedCubeDomains.toSeq, indexStatus, isReplication)
 
@@ -387,7 +388,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
       else Set.empty[CubeId])
 
     val result = (weightedDataFrame, tableChanges)
-    logTrace(s"End: analyze for index $indexStatusRevision")
+    logTrace(s"End: analyze for index with revision $indexStatusRevision")
     result
   }
 

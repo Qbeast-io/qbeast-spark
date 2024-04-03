@@ -134,7 +134,12 @@ case class BlockWriter(
         .setRevisionId(revision.revisionID)
         .result()
 
-      logInfo(s"Qbeast: Adding file $file")
+      logInfo(s"Adding file ${file.path}")
+      logDebug(s"""Additional file information:
+              | path=${file.path},
+              | size=${file.size},
+              | modificationTime=${file.modificationTime},
+              | revision=${file.revisionId}""".stripMargin)
       val addFile = IndexFiles.toAddFile()(file)
 
       (addFile, taskStats)
