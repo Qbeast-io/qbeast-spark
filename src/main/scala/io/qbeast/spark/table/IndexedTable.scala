@@ -360,7 +360,8 @@ private[table] class IndexedTableImpl(
               timestamp = System.currentTimeMillis(),
               desiredCubeSizeChange = Some(newRevisionCubeSize),
               transformationsChanges = newRevisionTransformations)
-            logDebug(s"Creating new revision changes for table ${tableID} with revisionChanges=${revisionChanges})")
+            logDebug(
+              s"Creating new revision changes for table ${tableID} with revisionChanges=${revisionChanges})")
 
             // Output the New Revision into the IndexStatus
             (IndexStatus(revisionChanges.createNewRevision), options)

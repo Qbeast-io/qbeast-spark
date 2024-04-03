@@ -328,7 +328,8 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
       isReplication: Boolean): (DataFrame, TableChanges) = {
     // For logging purposes
     val indexStatusRevision = indexStatus.revision
-    logTrace(s"Begin: analyze for index with revision=$indexStatusRevision and isReplication=$isReplication")
+    logTrace(
+      s"Begin: analyze for index with revision=$indexStatusRevision and isReplication=$isReplication")
 
     // Compute the statistics for the indexedColumns
     val columnTransformers = indexStatus.revision.columnTransformers
