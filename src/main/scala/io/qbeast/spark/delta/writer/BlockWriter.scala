@@ -136,10 +136,10 @@ case class BlockWriter(
 
       logInfo(s"Adding file ${file.path}")
       logDebug(s"""Additional file information:
-              | path=${file.path},
-              | size=${file.size},
-              | modificationTime=${file.modificationTime},
-              | revision=${file.revisionId}""".stripMargin)
+              |path=${file.path},
+              |size=${file.size},
+              |modificationTime=${file.modificationTime},
+              |revision=${file.revisionId}""".stripMargin.replaceAll("\n", " "))
       val addFile = IndexFiles.toAddFile()(file)
 
       (addFile, taskStats)

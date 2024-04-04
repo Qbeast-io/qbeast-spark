@@ -83,7 +83,7 @@ object SparkOTreeManager extends IndexManager[DataFrame] with Serializable with 
       dataFrame: DataFrame,
       indexStatus: IndexStatus,
       isReplication: Boolean): (DataFrame, TableChanges) = {
-    logTrace(s"Begin: index with revision ${indexStatus.revision}")
+    logTrace(s"Begin: Index with revision ${indexStatus.revision}")
     // Analyze the data and compute weight and estimated weight map of the result
     val (weightedDataFrame, tc) =
       DoublePassOTreeDataAnalyzer.analyze(dataFrame, indexStatus, isReplication)
