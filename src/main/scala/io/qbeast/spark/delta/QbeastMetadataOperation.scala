@@ -36,7 +36,7 @@ import org.apache.spark.sql.SparkSession
 /**
  * Qbeast metadata changes on a Delta Table.
  */
-private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation with StagingUtils {
+private[delta] trait QbeastMetadataOperation extends ImplicitMetadataOperation with StagingUtils {
 
   type Configuration = Map[String, String]
 
@@ -159,7 +159,7 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
         (updateQbeastRevision(baseConfiguration, latestRevision), true)
       else (baseConfiguration, false)
 
-    if (txn.readVersion == -1) {
+    if (!txn.deltaLog.tableExists) {
       super.updateMetadata(
         spark,
         txn,
@@ -203,6 +203,6 @@ private[delta] class QbeastMetadataOperation extends ImplicitMetadataOperation w
     }
   }
 
-  override protected val canMergeSchema: Boolean = true
-  override protected val canOverwriteSchema: Boolean = true
+  override protected val canMergeSchema: Boolean
+  override protected val canOverwriteSchema: Boolean
 }

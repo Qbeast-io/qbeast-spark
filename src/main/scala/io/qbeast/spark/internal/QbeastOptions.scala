@@ -17,6 +17,8 @@ package io.qbeast.spark.internal
 
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.index.ColumnsToIndex
+import io.qbeast.spark.internal.QbeastOptions.COLUMNS_TO_INDEX
+import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
 import org.apache.spark.sql.delta.DeltaOptions
 import org.apache.spark.sql.AnalysisExceptionFactory
@@ -38,6 +40,10 @@ import org.apache.spark.sql.SparkSession
  *   the application identifier
  * @param userMetadata
  *   user-provided metadata for each CommitInfo
+ * @param mergeSchema
+ *   whether to merge the schema
+ * @param overwriteSchema
+ *   whether to overwrite the schema
  */
 case class QbeastOptions(
     columnsToIndex: Seq[String],
@@ -45,7 +51,33 @@ case class QbeastOptions(
     stats: Option[DataFrame],
     txnAppId: Option[String],
     txnVersion: Option[String],
-    userMetadata: Option[String])
+    userMetadata: Option[String],
+    mergeSchema: Option[String],
+    overwriteSchema: Option[String]) {
+
+  def toMap(): Map[String, String] = {
+    val options = Map.newBuilder[String, String]
+    for (txnAppId <- txnAppId; txnVersion <- txnVersion) {
+      options += DeltaOptions.TXN_APP_ID -> txnAppId
+      options += DeltaOptions.TXN_VERSION -> txnVersion
+    }
+    if (userMetadata.nonEmpty) {
+      options += DeltaOptions.USER_METADATA_OPTION -> userMetadata.get
+    }
+    if (mergeSchema.nonEmpty) {
+      options += DeltaOptions.MERGE_SCHEMA_OPTION -> mergeSchema.get
+    }
+    if (overwriteSchema.nonEmpty) {
+      options += DeltaOptions.OVERWRITE_SCHEMA_OPTION -> overwriteSchema.get
+    }
+    options += COLUMNS_TO_INDEX -> columnsToIndex.mkString(",")
+    options += CUBE_SIZE -> cubeSize.toString
+
+    options.result()
+
+  }
+
+}
 
 /**
  * Options available when trying to write in qbeast format
@@ -59,6 +91,8 @@ object QbeastOptions {
   val TXN_APP_ID: String = DeltaOptions.TXN_APP_ID
   val TXN_VERSION: String = DeltaOptions.TXN_VERSION
   val USER_METADATA: String = DeltaOptions.USER_METADATA_OPTION
+  val MERGE_SCHEMA: String = DeltaOptions.MERGE_SCHEMA_OPTION
+  val OVERWRITE_SCHEMA: String = DeltaOptions.OVERWRITE_SCHEMA_OPTION
 
   /**
    * Gets the columns to index from the options
@@ -121,6 +155,12 @@ object QbeastOptions {
   private def getUserMetadata(options: Map[String, String]): Option[String] =
     options.get(USER_METADATA)
 
+  private def getMergeSchema(options: Map[String, String]): Option[String] =
+    options.get(MERGE_SCHEMA)
+
+  private def getOverwriteSchema(options: Map[String, String]): Option[String] =
+    options.get(OVERWRITE_SCHEMA)
+
   /**
    * Create QbeastOptions object from options map
    * @param options
@@ -135,14 +175,24 @@ object QbeastOptions {
     val txnAppId = getTxnAppId(options)
     val txnVersion = getTxnVersion(options)
     val userMetadata = getUserMetadata(options)
-    QbeastOptions(columnsToIndex, desiredCubeSize, stats, txnAppId, txnVersion, userMetadata)
+    val mergeSchema = getMergeSchema(options)
+    val overwriteSchema = getOverwriteSchema(options)
+    QbeastOptions(
+      columnsToIndex,
+      desiredCubeSize,
+      stats,
+      txnAppId,
+      txnVersion,
+      userMetadata,
+      mergeSchema,
+      overwriteSchema)
   }
 
   /**
    * The empty options to be used as a placeholder.
    */
   lazy val empty: QbeastOptions =
-    QbeastOptions(Seq.empty, DEFAULT_CUBE_SIZE, None, None, None, None)
+    QbeastOptions(Seq.empty, DEFAULT_CUBE_SIZE, None, None, None, None, None, None)
 
   def loadTableIDFromParameters(parameters: Map[String, String]): QTableID = {
     new QTableID(

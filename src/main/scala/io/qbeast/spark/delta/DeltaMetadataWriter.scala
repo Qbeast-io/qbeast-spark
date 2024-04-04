@@ -66,6 +66,11 @@ private[delta] case class DeltaMetadataWriter(
 
   private def isOverwriteOperation: Boolean = mode == SaveMode.Overwrite
 
+  override protected val canMergeSchema: Boolean = options.canMergeSchema
+
+  override protected val canOverwriteSchema: Boolean =
+    options.canOverwriteSchema && isOverwriteOperation && options.replaceWhere.isEmpty
+
   private val sparkSession = SparkSession.active
 
   private val deltaOperation = {
