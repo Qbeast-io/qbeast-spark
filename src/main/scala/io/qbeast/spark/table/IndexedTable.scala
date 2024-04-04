@@ -381,7 +381,7 @@ private[table] class IndexedTableImpl(
         (IndexStatus(revision), options)
       }
     val result = write(data, indexStatus, options, append)
-    logTrace(s"End: save table ${tableID}")
+    logTrace(s"End: Save table ${tableID}")
     result
   }
 

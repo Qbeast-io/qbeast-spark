@@ -95,7 +95,7 @@ object SparkOTreeManager extends IndexManager[DataFrame] with Serializable with 
       weightedDataFrame.transform(pointWeightIndexer.buildIndex)
 
     val result = (indexedDataFrame, tc)
-    logTrace(s"End: index with revision ${indexStatus.revision}")
+    logTrace(s"End: Index with revision ${indexStatus.revision}")
     result
   }
 
