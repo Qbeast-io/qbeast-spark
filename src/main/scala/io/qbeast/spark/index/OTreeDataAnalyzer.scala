@@ -145,13 +145,22 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable {
       val numPartitions: Int = weightedDataFrame.rdd.getNumPartitions
       val bufferCapacity: Long = CUBE_WEIGHTS_BUFFER_CAPACITY
 
+      // Broadcast large objects for CubeDomainsBuilder
+      val broadcastExistingCubeWeights =
+        spark.sparkContext.broadcast(
+          indexStatus.cubesStatuses.mapValues(_.maxWeight).map(identity))
+      val broadcastReplicatedOrAnnouncedSet =
+        spark.sparkContext.broadcast(indexStatus.replicatedOrAnnouncedSet)
+
       val selected = weightedDataFrame.select(cols.map(col): _*)
       val weightIndex = selected.schema.fieldIndex(weightColumnName)
 
       selected
         .mapPartitions(rows => {
           val domains = CubeDomainsBuilder(
-            indexStatus = indexStatus,
+            existingCubeWeights = broadcastExistingCubeWeights.value,
+            replicatedOrAnnouncedSet = broadcastReplicatedOrAnnouncedSet.value,
+            desiredCubeSize = revision.desiredCubeSize,
             numPartitions = numPartitions,
             numElements = numElements,
             bufferCapacity = bufferCapacity)
