@@ -25,6 +25,7 @@ import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
 import io.qbeast.spark.internal.QbeastOptions.COLUMNS_TO_INDEX
 import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
+import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.COLUMN_SELECTOR_ENABLED
 import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
 import org.apache.spark.sql.delta.actions.FileAction
@@ -214,7 +215,8 @@ private[table] class IndexedTableImpl(
     private val revisionFactory: RevisionFactory[StructType, QbeastOptions],
     private val columnSelector: ColumnsToIndexSelector[DataFrame])
     extends IndexedTable
-    with StagingUtils {
+    with StagingUtils
+    with Logging {
   private var snapshotCache: Option[QbeastSnapshot] = None
 
   /**
@@ -325,11 +327,13 @@ private[table] class IndexedTableImpl(
       data: DataFrame,
       parameters: Map[String, String],
       append: Boolean): BaseRelation = {
+    logTrace(s"Begin: save table ${tableID}")
     val (indexStatus, options) =
       if (exists && append) {
         // If the table exists and we are appending new data
         // 1. Load existing IndexStatus
         val options = QbeastOptions(verifyAndMergeProperties(parameters))
+        logDebug(s"Appending data to table ${tableID} with revision=${latestRevision.revisionID}")
         if (isStaging(latestRevision)) { // If the existing Revision is Staging
           val revision = revisionFactory.createNewRevision(tableID, data.schema, options)
           (IndexStatus(revision), options)
@@ -340,6 +344,8 @@ private[table] class IndexedTableImpl(
               .createNewRevision(tableID, data.schema, options)
             val newRevisionCubeSize = newPotentialRevision.desiredCubeSize
             // Merge new Revision Transformations with old Revision Transformations
+            logDebug(
+              s"Merging transformations for table ${tableID} with cubeSize=${newRevisionCubeSize}")
             val newRevisionTransformations =
               latestRevision.transformations.zip(newPotentialRevision.transformations).map {
                 case (oldTransformation, newTransformation)
@@ -354,12 +360,16 @@ private[table] class IndexedTableImpl(
               timestamp = System.currentTimeMillis(),
               desiredCubeSizeChange = Some(newRevisionCubeSize),
               transformationsChanges = newRevisionTransformations)
+            logDebug(
+              s"Creating new revision changes for table ${tableID} with revisionChanges=${revisionChanges})")
 
             // Output the New Revision into the IndexStatus
             (IndexStatus(revisionChanges.createNewRevision), options)
           } else {
             // If the new parameters does not create a different revision,
             // load the latest IndexStatus
+            logDebug(
+              s"Loading latest revision for table ${tableID} with revision=${latestRevision.revisionID}")
             (snapshot.loadIndexStatus(latestRevision.revisionID), options)
           }
         }
@@ -370,7 +380,9 @@ private[table] class IndexedTableImpl(
         val revision = revisionFactory.createNewRevision(tableID, data.schema, options)
         (IndexStatus(revision), options)
       }
-    write(data, indexStatus, options, append)
+    val result = write(data, indexStatus, options, append)
+    logTrace(s"End: Save table ${tableID}")
+    result
   }
 
   override def load(): BaseRelation = {
@@ -403,7 +415,9 @@ private[table] class IndexedTableImpl(
       indexStatus: IndexStatus,
       options: QbeastOptions,
       append: Boolean): BaseRelation = {
+    logTrace(s"Begin: Writing data to table ${tableID}")
     val revision = indexStatus.revision
+    logDebug(s"Writing data to table ${tableID} with revision ${revision.revisionID}")
     keeper.withWrite(tableID, revision.revisionID) { write =>
       var tries = DEFAULT_NUMBER_OF_RETRIES
       while (tries > 0) {
@@ -431,7 +445,9 @@ private[table] class IndexedTableImpl(
       }
     }
     clearCaches()
-    createQbeastBaseRelation()
+    val result = createQbeastBaseRelation()
+    logTrace(s"End: Done writing data to table ${tableID}")
+    result
   }
 
   private def doWrite(
@@ -439,6 +455,7 @@ private[table] class IndexedTableImpl(
       indexStatus: IndexStatus,
       options: QbeastOptions,
       append: Boolean): Unit = {
+    logTrace(s"Begin: Writing data to table ${tableID}")
     val stagingDataManager: StagingDataManager = new StagingDataManager(tableID)
     stagingDataManager.updateWithStagedData(data) match {
       case r: StagingResolution if r.sendToStaging =>
@@ -452,6 +469,7 @@ private[table] class IndexedTableImpl(
           (tableChanges, fileActions ++ removeFiles)
         }
     }
+    logTrace(s"End: Writing data to table ${tableID}")
   }
 
   override def analyze(revisionID: RevisionID): Seq[String] = {
