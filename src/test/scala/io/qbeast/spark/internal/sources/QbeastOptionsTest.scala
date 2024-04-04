@@ -3,6 +3,7 @@ package io.qbeast.spark.internal.sources
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.qbeast.config
+import org.apache.spark.sql.delta.DeltaOptions
 import org.apache.spark.sql.AnalysisException
 
 class QbeastOptionsTest extends QbeastIntegrationTestSpec {
@@ -59,6 +60,24 @@ class QbeastOptionsTest extends QbeastIntegrationTestSpec {
 
   it should "throw exception if checking missing columnsToIndex" in {
     an[AnalysisException] shouldBe thrownBy(QbeastOptions.checkQbeastProperties(Map.empty))
+  }
+
+  it should "return a map with all the configurations including Delta specifics" in withSpark {
+    _ =>
+      // Initial optionsMap
+      val optionsMap = Map(
+        QbeastOptions.COLUMNS_TO_INDEX -> "id",
+        QbeastOptions.CUBE_SIZE -> "10",
+        QbeastOptions.TXN_APP_ID -> "app",
+        QbeastOptions.TXN_VERSION -> "1",
+        DeltaOptions.USER_METADATA_OPTION -> "metadata",
+        DeltaOptions.MERGE_SCHEMA_OPTION -> "true",
+        DeltaOptions.OVERWRITE_SCHEMA_OPTION -> "true")
+
+      // Qbeast Options
+      val options = QbeastOptions(optionsMap)
+      // toMap method testing
+      options.toMap shouldBe optionsMap
   }
 
 }
