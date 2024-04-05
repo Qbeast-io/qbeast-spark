@@ -98,7 +98,7 @@ private[delta] case class DeltaMetadataWriter(
     val oldTransactions = deltaLog.unsafeVolatileSnapshot.setTransactions
     // If the transaction was completed before then no operation
     for (txn <- oldTransactions; version <- options.txnVersion; appId <- options.txnAppId) {
-      if (txn.appId == appId && txn.version == version) {
+      if (txn.appId == appId && version <= txn.version) {
         val message = s"Transaction ${version} from application ${appId} is already completed," +
           " the requested write is ignored"
         logWarning(message)
