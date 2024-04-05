@@ -147,6 +147,29 @@ sbt publishM2
 
 <br/>
 
+# Versioning
+
+Here are some rules on versioning the qbeast-spark project that must be applied before a new version is released.
+
+## post 0.6.0 release
+
+If the current version is 0.y.z, these rules must be applied for a new release:
+- 0.y.z+1 for a bugfix only release
+- 0.z+1.0 for a new feature(s) release
+- 0.y.z-rcN for release candidates, N being a positive integer
+
+## post 1.0.0 release
+
+We'll apply Semantic Versioning rules as defined at (semver.org)[https://semver.org].
+
+## Snapshots
+
+Snapshots can be made available for internal and test purposes.
+In this case the versioning to be applied is: <new-version-number>-SNAPSHOT-<short-commit-sha>
+
+Example: 0.6.2-SNAPSHOT-badfbadf
+
+
 # Community Values
 
 The following are the refined values that our community has developed in order to promote continuous improvement of our projects and peers.
