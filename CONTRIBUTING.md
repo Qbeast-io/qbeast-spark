@@ -165,9 +165,9 @@ We'll apply Semantic Versioning rules as defined at (semver.org)[https://semver.
 ## Snapshots
 
 Snapshots can be made available for internal and test purposes.
-In this case the versioning to be applied is: <new-version-number>-SNAPSHOT-<short-commit-sha>
+In this case the versioning to be applied is: <new-version-number>-<short-commit-sha>-SNAPSHOT
 
-Example: 0.6.2-SNAPSHOT-badfbadf
+Example: 0.6.2-badfbadf-SNAPSHOT
 
 
 # Community Values
