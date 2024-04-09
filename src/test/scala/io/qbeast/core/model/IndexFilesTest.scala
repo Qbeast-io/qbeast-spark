@@ -1,5 +1,6 @@
 package io.qbeast.core.model
 
+import com.fasterxml.jackson.core.JsonParseException
 import io.qbeast.spark.delta.IndexFiles
 import io.qbeast.spark.utils.TagUtils
 import io.qbeast.spark.QbeastIntegrationTestSpec
@@ -61,6 +62,42 @@ class IndexFilesTest extends QbeastIntegrationTestSpec {
     removeFile.path shouldBe "path"
     removeFile.dataChange shouldBe false
     removeFile.getTag(TagUtils.blocks) shouldBe None
+  }
+
+  it should "throw error when trying to create an IndexFile with a wrong block format start" in withSpark {
+    _ =>
+      val addFile = AddFile(
+        path = "path",
+        partitionValues = Map(),
+        size = 2L,
+        modificationTime = 0L,
+        dataChange = true,
+        stats = null,
+        tags = Map(
+          TagUtils.revision -> "1",
+          TagUtils.blocks -> // WRONG BLOCK START
+            """{"cubeId":"","minWeight":2147483647,
+              |"maxWeight":2147483647,"elementCount":1,"replicated":false}]""".stripMargin))
+
+      an[JsonParseException] shouldBe thrownBy(IndexFiles.fromAddFile(2)(addFile))
+  }
+
+  it should "throw error when trying to create an IndexFile with a wrong block format end" in withSpark {
+    _ =>
+      val addFile = AddFile(
+        path = "path",
+        partitionValues = Map(),
+        size = 2L,
+        modificationTime = 0L,
+        dataChange = true,
+        stats = null,
+        tags = Map(
+          TagUtils.revision -> "wrong_revision",
+          TagUtils.blocks ->
+            """[{"cubeId":"","minWeight":2147483647,
+              |"maxWeight":2147483647,"elementCount":1,"replicated":false}""".stripMargin))
+
+      an[NumberFormatException] shouldBe thrownBy(IndexFiles.fromAddFile(2)(addFile))
   }
 
 }
