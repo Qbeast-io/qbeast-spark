@@ -52,6 +52,37 @@ All contributed code, docs, and other materials are considered licensed under th
   ```bash
   sbt doc
   ```
+  
+## Logging Documentation
+
+- We use the [Spark Logging interface](https://spark.apache.org/docs/1.5.2/api/java/org/apache/spark/Logging.html#:~:text=Interface%20Logging&text=Creates%20a%20SLF4J%20logger%20for,intended%20as%20an%20internal%20utility).
+- Spark uses `log4j` for logging. You can configure it by adding a `log4j2.properties` file in the conf directory. One way to start is to copy the existing `log4j2.properties.template` located there.
+
+An example of using logging on a class is:
+
+```scala
+import org.apache.spark.internal.Logging
+
+case class MyClass() extends Logging {
+
+  def myMethod(): Unit = {
+    logInfo("This is an info message")
+    logWarn("This is a warning message")
+    logError("This is an error message")
+    logTrace("This is a trace message")
+    logDebug("This is a debug message")
+  }
+}
+
+```
+
+The following log levels are used to track code behaviour:
+- `WARN` level is supposed to be critical and actionable. If the user sees a WARN, then something bad happened and it might require user intervention. 
+- `INFO` level provides information about the execution, but not necessarily actionable and it avoids being verbose. It is not uncommon to see INFO level on in production, so it is expected to be lightweight with respect to the volume of messages generated. 
+- `DEBUG` provides debug level info when debugging the code. It can be verbose as it is not expected to be on in production. 
+- `TRACE` provides further detail to DEBUG on execution paths, and in particular, it indicates critical the methods that been executed.
+
+> We should enforce **all the Pull Request**, specially those containing critical code, **to have logging messages** that are meaningful and informative.
 
 ## Step-by-step guide
   #### 1 - Click `Fork` on Github, and name it as `yourname/projectname`
@@ -160,14 +191,14 @@ If the current version is 0.y.z, these rules must be applied for a new release:
 
 ## post 1.0.0 release
 
-We'll apply Semantic Versioning rules as defined at (semver.org)[https://semver.org].
+We'll apply Semantic Versioning rules as defined at [semver.org](https://semver.org).
 
 ## Snapshots
 
 Snapshots can be made available for internal and test purposes.
-In this case the versioning to be applied is: <new-version-number>-<short-commit-sha>-SNAPSHOT
+In this case the versioning to be applied is: `<new-version-number>-<short-commit-sha>-SNAPSHOT`
 
-Example: 0.6.2-badfbadf-SNAPSHOT
+Example: `0.6.2-badfbadf-SNAPSHOT`
 
 
 # Community Values
