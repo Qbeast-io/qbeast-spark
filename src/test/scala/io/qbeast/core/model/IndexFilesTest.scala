@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonParseException
 import io.qbeast.spark.delta.IndexFiles
 import io.qbeast.spark.utils.TagUtils
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.actions.AddFile
 
 class IndexFilesTest extends QbeastIntegrationTestSpec {
@@ -62,6 +63,45 @@ class IndexFilesTest extends QbeastIntegrationTestSpec {
     removeFile.path shouldBe "path"
     removeFile.dataChange shouldBe false
     removeFile.getTag(TagUtils.blocks) shouldBe None
+  }
+
+  it should "be able to create a FileStatus from an IndexFile" in withSpark { _ =>
+    val indexFile = new IndexFile(
+      path = "path",
+      size = 2L,
+      modificationTime = 0L,
+      revisionId = 1L,
+      blocks =
+        Seq(new Block(None, CubeId.root(2), Weight(1L), Weight(2L), 1L, false)).toIndexedSeq)
+
+    val indexPath = new Path("/absolute/")
+    val indexStatus = IndexFiles.toFileStatus(indexPath)(indexFile)
+
+    indexStatus.isFile shouldBe true
+    indexStatus.getPath shouldBe new Path("/absolute/path")
+    indexStatus.getLen shouldBe 2L
+    indexStatus.getModificationTime shouldBe 0L
+
+  }
+
+  it should "be able to create a FileStatusWithMetadata from IndexFile" in withSpark { _ =>
+    val indexFile = new IndexFile(
+      path = "path",
+      size = 2L,
+      modificationTime = 0L,
+      revisionId = 1L,
+      blocks =
+        Seq(new Block(None, CubeId.root(2), Weight(1L), Weight(2L), 1L, false)).toIndexedSeq)
+
+    val indexPath = new Path("/absolute/")
+    val indexStatus =
+      IndexFiles.toFileStatusWithMetadata(indexPath, Map("key" -> "value"))(indexFile)
+
+    indexStatus.getPath shouldBe new Path("/absolute/path")
+    indexStatus.getLen shouldBe 2L
+    indexStatus.getModificationTime shouldBe 0L
+    indexStatus.metadata shouldBe Map("key" -> "value")
+
   }
 
   it should "throw error when trying to create an IndexFile with a wrong block format start" in withSpark {
