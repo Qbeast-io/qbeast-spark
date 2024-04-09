@@ -22,6 +22,7 @@ Describe the change you're making: how it affects the API, user experience...
 Here is the list of things you should do before submitting this pull request:
 
 - [ ] New feature / bug fix has been committed following the [Contribution guide](https://github.com/Qbeast-io/qbeast-spark/blob/main/CONTRIBUTING.md).
+- [ ] Add logging to the code following the [Contribution guide](https://github.com/Qbeast-io/qbeast-spark/blob/main/CONTRIBUTING.md).
 - [ ] Add comments to the code (make it easier for the community!).
 - [ ] Change the documentation.
 - [ ] Add tests.
