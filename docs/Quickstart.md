@@ -15,7 +15,7 @@ Inside the project folder, launch a spark-shell with the required **dependencies
 
 ```bash
 $SPARK_HOME/bin/spark-shell \
---packages io.qbeast:qbeast-spark_2.12:0.4.0,io.delta:delta-core_2.12:2.1.0 \
+--packages io.qbeast:qbeast-spark_2.12:0.6.0,io.delta:delta-spark_2.12:3.1.0 \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
 --conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
 ```
@@ -111,8 +111,10 @@ spark.sql("SELECT avg(price) FROM ecommerce_qbeast TABLESAMPLE(10 PERCENT)").sho
 
 Analyze and optimize the index to **announce** and **replicate** cubes respectively to maintain the tree's structure in an optimal state.
 
+> WARNING: ISSUE #[282](https://github.com/Qbeast-io/qbeast-spark/issues/282) Replication not enabled on Multiblock Format (from v.0.6.0). We don't encourage to use this method since it can impact index consistency.
+
 ```scala
-import io.qbeast.spark.table._
+import io.qbeast.spark.QbeastTable
 
 val qbeastTable = QbeastTable.forPath(spark, qbeastTablePath)
 
@@ -130,7 +132,7 @@ Based on [Delta Lake command](https://docs.delta.io/2.0.0/optimizations-oss.html
 This operation is **beneficial when we have a lot of WRITE** operation into a table, because each one will create a set of new added files depending on the size of the data. You can set up a **Compaction** task to read those small files and write them out into new, bigger ones, without corrupting any on-going operation.
 
 ```scala
-import io.qbeast.spark.table._
+import io.qbeast.spark.QbeastTable
 
 val qbeastTable = QbeastTable.forPath(spark, qbeastTablePath)
 

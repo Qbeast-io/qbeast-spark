@@ -120,14 +120,29 @@ spark.sql(
 Use **`INSERT INTO`** to add records to the new table. It will update the index in a **dynamic** fashion when new data is inserted.
 
 ```scala
+val studentsDF = Seq((1, "Alice", 34), (2, "Bob", 36)).toDF("id", "name", "age")
 
+studentsDF.write.mode("overwrite").saveAsTable("visitor_students")
+
+// AS SELECT FROM
 spark.sql("INSERT INTO table student SELECT * FROM visitor_students")
 
+// VALUES
+spark.sql("INSERT INTO table student VALUES (3, 'Charlie', 37)")
+
+// SHOW
+spark.sql("SELECT * FROM student").show()
++---+-------+---+
+| id|   name|age|
++---+-------+---+
+|  1|  Alice| 34| 
+|  2|    Bob| 36|
+|  3|Charlie| 37|
++---+-------+---+
 ```
 
 ###  3. Load the dataset
 Load the newly indexed dataset.
-
 ```scala
 val qbeastDF =
   spark.
@@ -147,6 +162,8 @@ Go to the [Quickstart](./docs/Quickstart.md) or [notebook](docs/sampleopushdown_
 ### 5. Interact with the format
 
 Get **insights** or execute **operations** to the data using the `QbeastTable` interface!
+
+> WARNING: ISSUE #[282](https://github.com/Qbeast-io/qbeast-spark/issues/282) Replication not enabled on Multiblock Format (from v.0.6.0). We don't encourage to use this method since it can impact index consistency.
 
 ```scala
 import io.qbeast.spark.QbeastTable
