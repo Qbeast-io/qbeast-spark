@@ -80,7 +80,7 @@ The following log levels are used to track code behaviour:
 - `WARN` level is supposed to be critical and actionable. If the user sees a WARN, then something bad happened and it might require user intervention. 
 - `INFO` level provides information about the execution, but not necessarily actionable and it avoids being verbose. It is not uncommon to see INFO level on in production, so it is expected to be lightweight with respect to the volume of messages generated. 
 - `DEBUG` provides debug level info when debugging the code. It can be verbose as it is not expected to be on in production. 
-- `TRACE` provides further detail to DEBUG on execution paths, and in particular, it indicates critical the methods that been executed.
+- `TRACE` provides further detail to DEBUG on execution paths, and in particular, it indicates the execution of critical methods.
 
 > We should enforce **all the Pull Request**, specially those containing critical code, **to have logging messages** that are meaningful and informative.
 
