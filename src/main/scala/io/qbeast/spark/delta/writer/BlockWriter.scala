@@ -74,7 +74,7 @@ case class BlockWriter(
   /**
    * Writes rows in corresponding files
    *
-   * @param iter
+   * @param rows
    *   iterator of rows
    * @return
    *   the sequence of files added
@@ -128,9 +128,9 @@ case class BlockWriter(
 
       val file = context.builder
         .endBlock()
-        .setPath(path.getName())
-        .setSize(fileStatus.getLen())
-        .setModificationTime(fileStatus.getModificationTime())
+        .setPath(path.getName)
+        .setSize(fileStatus.getLen)
+        .setModificationTime(fileStatus.getModificationTime)
         .setRevisionId(revision.revisionID)
         .result()
 
@@ -140,16 +140,20 @@ case class BlockWriter(
               |size=${file.size},
               |modificationTime=${file.modificationTime},
               |revision=${file.revisionId}""".stripMargin.replaceAll("\n", " "))
-      val addFile = IndexFiles.toAddFile()(file)
+      val addFile = IndexFiles.toAddFile(dataChange = true)(file)
 
       (addFile, taskStats)
     }.iterator
   }
 
-  /*
+  /**
    * Creates the context to write a new cube in a new file and collect stats
-   * @param cubeId a cube identifier
-   * @param state the status of cube
+   * @param cubeId
+   *   a cube identifier
+   * @param state
+   *   the status of cube
+   * @param maxWeight
+   *   the maximum weight of the cube
    * @return
    */
   private def buildWriter(cubeId: CubeId, state: String, maxWeight: Weight): BlockContext = {
@@ -170,12 +174,17 @@ case class BlockWriter(
     new BlockContext(builder, writer, writtenPath, blockStatsTracker)
   }
 
-  /*
-   * Container class that keeps all the mutable information we need to update a
-   * block when iterating over a partition.
-   * @param stats the current version of the block's stats
-   * @param writer an instance of the file writer
-   * @param path the path of the written file
+  /**
+   * Container class that keeps all the mutable information we need to update a block when
+   * iterating over a partition.
+   * @param builder
+   *   an instance of the block builder
+   * @param writer
+   *   an instance of the file writer
+   * @param path
+   *   the path of the written file
+   * @param blockStatsTracker
+   *   the stats tracker for the block
    */
   private class BlockContext(
       val builder: BlockBuilder,

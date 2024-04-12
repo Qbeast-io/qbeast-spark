@@ -21,7 +21,13 @@ import io.qbeast.spark.delta.SparkDeltaMetadataManager
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.QbeastTable
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.delta.actions.Action
+import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.actions.CommitInfo
+import org.apache.spark.sql.delta.actions.RemoveFile
+import org.apache.spark.sql.delta.util.FileNames
 import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.delta.SnapshotIsolation
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.DataFrame
@@ -219,5 +225,37 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec with Log
     val snapshot = DeltaQbeastSnapshot(deltaLog.unsafeVolatileSnapshot)
     snapshot.loadLatestIndexFiles.size
   }
+
+  "An optimization execution" should "not change data and use SnapshotIsolation" in
+    withQbeastContextSparkAndTmpDir((spark, tmpDir) => {
+      // This test makes sure that FileActions from optimization have 'dataChange=false'
+      // and the isolation level is set to SnapshotIsolation to pass the following check:
+      // checkForAddedFilesThatShouldHaveBeenReadByCurrentTxn.
+      // This is to ensure that Optimization processes can be executed concurrently with
+      // other transactions.
+      val data = loadTestData(spark).limit(100)
+      writeTestData(data, Seq("user_id", "product_id"), 100, tmpDir)
+
+      val qt = QbeastTable.forPath(spark, tmpDir)
+      val m = qt.getIndexMetrics()
+      val filePath = m.cubeStatuses.values.flatMap(_.blocks.map(_.file)).head.path
+      qt.optimize(Seq(filePath))
+
+      val deltaLog = DeltaLog.forTable(spark, tmpDir)
+      val snapshot = deltaLog.update()
+      val conf = deltaLog.newDeltaHadoopConf()
+
+      deltaLog.store
+        .read(FileNames.deltaFile(deltaLog.logPath, snapshot.version), conf)
+        .map(Action.fromJson)
+        .foreach {
+          case commitInfo: CommitInfo =>
+            // It should be using the Snapshot Isolation level
+            commitInfo.isolationLevel shouldBe Some(SnapshotIsolation.toString())
+          case add: AddFile => add.dataChange shouldBe false
+          case remove: RemoveFile => remove.dataChange shouldBe false
+          case _ =>
+        }
+    })
 
 }

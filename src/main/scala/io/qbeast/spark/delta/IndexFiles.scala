@@ -73,13 +73,13 @@ object IndexFiles {
    * Converts a given IndexFile instance to an AddFile instance.
    *
    * @param dataChange
-   *   the index file represents a data change
+   *   whether this index file represents a data change
    * @param indexFile
    *   the IndexFile instance
    * @return
    *   an AddFile instance
    */
-  def toAddFile(dataChange: Boolean = true)(indexFile: IndexFile): AddFile = {
+  def toAddFile(dataChange: Boolean)(indexFile: IndexFile): AddFile = {
     val tags = Map(
       TagUtils.revision -> indexFile.revisionId.toString,
       TagUtils.blocks -> encodeBlocks(indexFile.blocks))
@@ -96,13 +96,11 @@ object IndexFiles {
    * Converts a given IndexFile instance to a RemoveFile instance.
    *
    * @param dataChange
-   *   file removal implies data change
+   *   whether this file removal implies data change
    * @param indexFile
    *   the IndexFile instance
-   * @param a
-   *   RemoveFile instance
    */
-  def toRemoveFile(dataChange: Boolean = false)(indexFile: IndexFile): RemoveFile =
+  def toRemoveFile(dataChange: Boolean)(indexFile: IndexFile): RemoveFile =
     RemoveFile(
       path = indexFile.path,
       deletionTimestamp = Some(System.currentTimeMillis()),
@@ -122,7 +120,7 @@ object IndexFiles {
    */
   def toFileStatus(indexPath: Path)(indexFile: IndexFile): FileStatus = {
     var path = new Path(new URI(indexFile.path))
-    if (!path.isAbsolute()) {
+    if (!path.isAbsolute) {
       path = new Path(indexPath, path)
     }
     new FileStatus(indexFile.size, false, 0, 0, indexFile.modificationTime, path)
@@ -149,7 +147,7 @@ object IndexFiles {
     generator.writeEndArray()
     generator.close()
     writer.close()
-    writer.toString()
+    writer.toString
   }
 
   private def decodeBlocks(json: String, dimensionCount: Int, builder: IndexFileBuilder): Unit = {
@@ -186,7 +184,7 @@ object IndexFiles {
         case "maxWeight" => builder.setMaxWeight(Weight(parser.getValueAsInt()))
         case "elementCount" => builder.setElementCount(parser.getValueAsLong())
         case "replicated" => builder.setReplicated(parser.getValueAsBoolean())
-        case name => throw new JsonParseException(parser, s"Unexpected field '${name}'")
+        case name => throw new JsonParseException(parser, s"Unexpected field '$name'")
       }
       parser.nextToken()
     }
