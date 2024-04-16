@@ -92,7 +92,7 @@ object RollupDataWriter
     processStats(stats, statsTrackers, fileStatsTracker)
     filesAndStats
       .map(_._1)
-      .map(IndexFiles.toAddFile())
+      .map(IndexFiles.toAddFile(dataChange = true))
       .map(correctAddFileStats(fileStatsTracker))
   }
 
@@ -131,12 +131,11 @@ object RollupDataWriter
   private def getExtract(extendedData: DataFrame, revision: Revision): Extract = {
     val schema = extendedData.schema
     val qbeastColumns = QbeastColumns(extendedData)
-    val extractors = (0 until schema.fields.length)
+    val extractors = schema.fields.indices
       .filterNot(qbeastColumns.contains)
       .map { i => row: InternalRow =>
         row.get(i, schema(i).dataType)
       }
-      .toSeq
     extendedRow => {
       val row = InternalRow.fromSeq(extractors.map(_.apply(extendedRow)))
       val weight = Weight(extendedRow.getInt(qbeastColumns.weightColumnIndex))
@@ -157,7 +156,7 @@ object RollupDataWriter
     val session = extendedData.sparkSession
     val job = Job.getInstance(session.sparkContext.hadoopConfiguration)
     val outputFactory = new ParquetFileFormat().prepareWrite(session, job, Map.empty, schema)
-    val config = new SerializableConfiguration(job.getConfiguration())
+    val config = new SerializableConfiguration(job.getConfiguration)
     new IndexFileWriterFactory(tableId, schema, revisionId, outputFactory, trackers, config)
   }
 
@@ -266,17 +265,18 @@ object RollupDataWriter
       .toIndexedSeq
     val stats = filesAndStats.map(_._2)
     processStats(stats, statsTrackers, fileStatsTracker)
-    val removeFiles = indexFiles.iterator.map(IndexFiles.toRemoveFile(false)).toIndexedSeq
+    val removeFiles =
+      indexFiles.iterator.map(IndexFiles.toRemoveFile(dataChange = false)).toIndexedSeq
     val addFiles = filesAndStats
       .map(_._1)
-      .map(IndexFiles.toAddFile())
+      .map(IndexFiles.toAddFile(dataChange = false))
       .map(correctAddFileStats(fileStatsTracker))
     removeFiles ++ addFiles
   }
 
   private def loadDataFromIndexFiles(tableId: QTableID, indexFiles: Seq[IndexFile]): DataFrame = {
     val paths = indexFiles.iterator
-      .map(file => new Path(tableId.id, file.path).toString())
+      .map(file => new Path(tableId.id, file.path).toString)
       .toSet
       .toSeq
     SparkSession.active.read.parquet(paths: _*)
