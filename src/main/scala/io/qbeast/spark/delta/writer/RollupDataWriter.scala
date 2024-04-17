@@ -246,7 +246,7 @@ object RollupDataWriter
     val data = loadDataFromIndexFiles(tableId, indexFiles)
     var extendedData = extendDataWithWeight(data, revision)
     extendedData = extendDataWithCube(extendedData, revision, indexStatus)
-    extendedData = extendDataWithCubeToRollup(extendedData, revision, indexFiles)
+    extendedData = extendDataWithCubeToRollup(extendedData, revision)
     val getCubeMaxWeight = { cubeId: CubeId =>
       indexStatus.cubesStatuses.get(cubeId).map(_.maxWeight).getOrElse(Weight.MaxValue)
     }
@@ -314,22 +314,28 @@ object RollupDataWriter
 
   private def extendDataWithCubeToRollup(
       extendedData: DataFrame,
-      revision: Revision,
-      indexFiles: Seq[IndexFile]): DataFrame = {
-    val rollup = computeRollup(revision, indexFiles)
+      revision: Revision): DataFrame = {
+    val rollup = computeRollup(revision, extendedData)
     extendedData.withColumn(
       QbeastColumns.cubeToRollupColumnName,
       getRollupCubeIdUDF(revision, rollup)(col(QbeastColumns.cubeColumnName)))
   }
 
-  private def computeRollup(
-      revision: Revision,
-      indexFiles: Seq[IndexFile]): Map[CubeId, CubeId] = {
+  private def computeRollup(revision: Revision, extendedData: DataFrame): Map[CubeId, CubeId] = {
+    import extendedData.sparkSession.implicits._
+
     val desiredFileSize = revision.desiredCubeSize
     val rollup = new Rollup(desiredFileSize)
-    indexFiles
-      .flatMap(_.blocks)
-      .foreach(block => rollup.populate(block.cubeId, block.elementCount.toDouble))
+    extendedData
+      .groupBy(QbeastColumns.cubeColumnName)
+      .count()
+      .map { row =>
+        val cubeId = revision.createCubeId(row.getAs[Array[Byte]](0))
+        val cnt = row.getLong(1)
+        (cubeId, cnt)
+      }
+      .collect()
+      .foreach { case (cubeId, cnt) => rollup.populate(cubeId, cnt.toDouble) }
     rollup.compute()
   }
 
