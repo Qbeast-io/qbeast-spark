@@ -293,7 +293,10 @@ object RollupDataWriter
       indexStatus: IndexStatus): DataFrame = {
     val spark = extendedData.sparkSession
     val cubeMaxWeightsBroadcast =
-      spark.sparkContext.broadcast(indexStatus.cubesStatuses.mapValues(_.maxWeight))
+      spark.sparkContext.broadcast(
+        indexStatus.cubesStatuses
+          .mapValues(_.maxWeight)
+          .map(identity))
     val columns = revision.columnTransformers.map(_.columnName)
     extendedData
       .withColumn(
