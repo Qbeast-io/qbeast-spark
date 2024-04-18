@@ -291,21 +291,29 @@ object RollupDataWriter
       extendedData: DataFrame,
       revision: Revision,
       indexStatus: IndexStatus): DataFrame = {
+    val spark = extendedData.sparkSession
+    val cubeMaxWeightsBroadcast =
+      spark.sparkContext.broadcast(
+        indexStatus.cubesStatuses
+          .mapValues(_.maxWeight)
+          .map(identity))
     val columns = revision.columnTransformers.map(_.columnName)
     extendedData
       .withColumn(
         QbeastColumns.cubeColumnName,
-        getCubeIdUDF(revision, indexStatus)(
+        getCubeIdUDF(revision, cubeMaxWeightsBroadcast.value)(
           struct(columns.map(col): _*),
           col(QbeastColumns.weightColumnName)))
   }
 
-  private def getCubeIdUDF(revision: Revision, indexStatus: IndexStatus): UserDefinedFunction =
+  private def getCubeIdUDF(
+      revision: Revision,
+      cubeMaxWeights: Map[CubeId, Weight]): UserDefinedFunction =
     udf { (row: Row, weight: Int) =>
       val point = RowUtils.rowValuesToPoint(row, revision)
       val cubeId = CubeId.containers(point).find { cubeId =>
-        indexStatus.cubesStatuses.get(cubeId) match {
-          case Some(status) => weight <= status.maxWeight.value
+        cubeMaxWeights.get(cubeId) match {
+          case Some(maxWeight) => weight <= maxWeight.value
           case None => true
         }
       }
@@ -315,10 +323,11 @@ object RollupDataWriter
   private def extendDataWithCubeToRollup(
       extendedData: DataFrame,
       revision: Revision): DataFrame = {
-    val rollup = computeRollup(revision, extendedData)
+    val spark = extendedData.sparkSession
+    val rollupBroadcast = spark.sparkContext.broadcast(computeRollup(revision, extendedData))
     extendedData.withColumn(
       QbeastColumns.cubeToRollupColumnName,
-      getRollupCubeIdUDF(revision, rollup)(col(QbeastColumns.cubeColumnName)))
+      getRollupCubeIdUDF(revision, rollupBroadcast.value)(col(QbeastColumns.cubeColumnName)))
   }
 
   private def computeRollup(revision: Revision, extendedData: DataFrame): Map[CubeId, CubeId] = {
