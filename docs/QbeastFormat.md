@@ -18,12 +18,12 @@ Following each write transaction is the creation of a new log file. **Table-leve
 
 ## Qbeast-spark on Delta
 
-Qbeast format extends the Delta Lake Format, so the data is stored in Parquet
+Qbeast format **extends the Delta Lake Format**, so the data is stored in Parquet
 files and the Index Metadata is stored in the Delta log. 
 
 In more details:
 
-* the schema, index columns, data transformations, revisions and other
+* the `schema`, `index columns`, data transformations, `revisions` and other
   information which is common for all the blocks is stored in the `metaData`
   attribute of the Delta log header.
 * the information about individual blocks of index data is stored in the `tags`
@@ -63,15 +63,15 @@ Here you can see the changes on the `AddFile` **`tags`** information
 }
 ```
 
-| Term           | Description                                                                                                                                  |
-|----------------|----------------------------------------------------------------------------------------------------------------------------------------------|
-| `revision`     | The metadata of the tree. Locates the particular tree in the space, which includes the min/max values for each column indexed and timestamp. |
-| `blocks`       | A list of the blocks that are stored inside the file. Can belong to different cubes.                                                         |
-| `cube`         | The serialized representation of the Cube.                                                                                                   |
-| `minWeight`    | The minimum weight of the block.                                                                                                             |
-| `maxWeight`    | The maximum weight of the block.                                                                                                             |
-| `elementCount` | The number of elements in the block.                                                                                                         |
-| `replicated`   | A flag that indicates if the block is replicated. Replication is **not available** from v0.6.0.                                                  |
+| Term           | Description                                                                                                    |
+|----------------|----------------------------------------------------------------------------------------------------------------|
+| `revision`     | **Locates a particular `min`-`max` range of the columns** in the space, and includes a Timestamp of the creation time. |
+| `blocks`       | A **list of the blocks** that are stored inside the file. Can belong to different cubes.                           |
+| `cube`         | The **serialized representation of the Cube**.                                                                     |
+| `minWeight`    | The minimum weight of the block.                                                                               |
+| `maxWeight`    | The maximum weight of the block.                                                                               |
+| `elementCount` | The number of elements in the block.                                                                           |
+| `replicated`   | A flag that indicates **if the block is replicated**. Replication is **not available** from v0.6.0.                |
 
 
 
@@ -96,10 +96,10 @@ And here the changes on `Metadata` `configuration` map
 We store two different values:
 
 
-| Term                    | Description                                         |
-|-------------------------|-----------------------------------------------------|
-| `qbeast.lastRevisionID` | A pointer to the last revision available.           |
-| `qb.revision.$number`   | The characteristics of the Revision, in JSON style. |
+| Term                    | Description                                                                                                     |
+|-------------------------|-----------------------------------------------------------------------------------------------------------------|
+| `qbeast.lastRevisionID` | A pointer to the last revision available. This last revision's min-max includes the space for the whole dataset. |
+| `qb.revision.$number`   | The metadata of the Revision, in `JSON` style.                                                                    |
 
 ### Revision
 
@@ -145,19 +145,19 @@ A closer look to the `qb.revision.$number`:
 
 In Revision, you can find different information about the tree status and configuration:
 
-| Term                            | Description                                                                                     |
-|---------------------------------|-------------------------------------------------------------------------------------------------|
-| `timestamp`                     | The time when the revision was created.                                                         |
-| `tableID`                       | The identifier of the table that the revision belongs to.                                       |
-| `desiredCubeSize`               | The cube size from the option `cubeSize`.                                                       |
-| `columnTransformers`            | The metadata of the different columns indexed with the option `columnsToIndex`.                 |
-| `columnTransformers.columnName` | The name of the column.                                                                         |
-| `columnTransformers.dataType`   | The data type of the column.                                                                    |
-| `transformations`               | Contains information about the **space** of the data indexed by column.                         |
-| `transformations.className`     | The name of the class that implements the transformation.                                       |
-| `transformations.minNumber`     | The minimum value.                                                                              |
-| `transformations.maxNumber`     | The maximum value.                                                                              |
-| `transformations.nullValue`     | The value that represents the null in the space.                                                |
+| Term                            | Description                                                                     |
+|---------------------------------|---------------------------------------------------------------------------------|
+| `timestamp`                     | The time when the revision was created.                                         |
+| `tableID`                       | The identifier of the table that the revision belongs to.                       |
+| `desiredCubeSize`               | The cube size from the option `cubeSize`.                                       |
+| `columnTransformers`            | The metadata of the different columns indexed with the option `columnsToIndex`. |
+| `columnTransformers.columnName` | The **name of the column**.                                                     |
+| `columnTransformers.dataType`   | The **data type of the column**.                                                |
+| `transformations`               | Contains information about the **space mapping** of the data indexed by column. |
+| `transformations.className`     | The type of transformation (could be Linear, Hash...).                          |
+| `transformations.minNumber`     | The **minimum value of the data in the revision**.                              |
+| `transformations.maxNumber`     | The **maximum value of the data in the revision**.                              |
+| `transformations.nullValue`     | The **value that represents the `null`** in the space.                                |
 
 
 In this case, we index columns `user_id` and `product_id` (which are both `Integers`) with a linear transformation. This means that they will not suffer any transformation besides the normalization.

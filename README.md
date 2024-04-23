@@ -161,9 +161,7 @@ Go to the [Quickstart](./docs/Quickstart.md) or [notebook](docs/sampleopushdown_
 
 ### 5. Interact with the format
 
-Get **insights** or execute **operations** to the data using the `QbeastTable` interface!
-
-> WARNING: ISSUE #[282](https://github.com/Qbeast-io/qbeast-spark/issues/282) Replication not enabled on Multiblock Format (from v.0.6.0). We don't encourage to use this method since it can impact index consistency.
+Get **insights** to the data using the `QbeastTable` interface!
 
 ```scala
 import io.qbeast.spark.QbeastTable
@@ -172,12 +170,44 @@ val qbeastTable = QbeastTable.forPath(spark, tmpDir)
 
 qbeastTable.getIndexMetrics()
 
-qbeastTable.analyze()
+```
+
+### 6. Optimize the table
+
+**Optimize** is a very expensive operation that consist on **rewriting part of the files to accomplish an even distribution of the records withing files**.
+
+To minimize the write amplification of this command, **we execute it based on subsets of the table**, like `Revision ID's` or specific files.
+
+`Revisions` determine the area of the index. **The last Revision would contain the whole dataset area**, while previous Revisions would contain a _subset_ of the area written before. It can be useful to optimize by specific Revision ID's when we have an incremental appends scenario. 
+
+As an example, imagine you start writting a Dataset with the data from France, and the second time you append records from Germany. The first Revision would contain only the French countries, while the second would enlarge the space to also include Germany. If you are querying only French data, you would be interested in optimizing only the first Revision.
+
+
+These are the 3 ways of executing the `optimize` operation:
+
+```scala
+
+qbeastTable.optimize() // Optimizes the last Revision Available.
+// This does NOT include previous Revision's optimizations.
+
+qbeastTable.optimize(2L) // Optimizes the Revision number 2.
+
+qbeastTable.optimize(Seq("file1", "file2")) // Optimizes the specific files
+
+```
+
+**If you want to optimize the full table, you must loop through `revisions`**:
+
+```scala
+val revisions = qbeastTable.revisionsIDs() // Get all the Revision ID's available in the table.
+revisions.foreach(revision => 
+  qbeastTable.optimize(revision)
+)
 ```
 
 Go to [QbeastTable documentation](./docs/QbeastTable.md) for more detailed information.
 
-### 6. Visualize index
+### 7. Visualize index
 Use [Python index visualizer](./utils/visualizer/README.md) for your indexed table to visually examine index structure and gather sampling metrics.
 
 # Dependencies and Version Compatibility
