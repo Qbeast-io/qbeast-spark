@@ -59,9 +59,10 @@ class IndexFilesTest extends QbeastIntegrationTestSpec {
       blocks =
         Seq(new Block(None, CubeId.root(2), Weight(1L), Weight(2L), 1L, false)).toIndexedSeq)
 
-    val removeFile = IndexFiles.toRemoveFile(dataChange = false)(indexFile)
+    val dataChange = false
+    val removeFile = IndexFiles.toRemoveFile(dataChange = dataChange)(indexFile)
     removeFile.path shouldBe "path"
-    removeFile.dataChange shouldBe false
+    removeFile.dataChange shouldBe dataChange
     removeFile.getTag(TagUtils.blocks) shouldBe None
   }
 

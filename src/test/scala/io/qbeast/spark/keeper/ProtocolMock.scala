@@ -20,11 +20,11 @@ import io.qbeast.core.model._
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.delta.MetadataWriterTest
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
+import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.delta.DeltaOperations
-import org.apache.spark.sql.delta.DeltaOptions
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
@@ -146,9 +146,7 @@ class WritingProcess(context: ProtoTestContext)(implicit keeper: Keeper) extends
 
     val deltaLog = SparkDeltaMetadataManager.loadDeltaQbeastLog(tableID).deltaLog
     val mode = SaveMode.Append
-    val options =
-      new DeltaOptions(Map("path" -> tableID.id), SparkSession.active.sessionState.conf)
-    val metadataWriter = MetadataWriterTest(tableID, mode, deltaLog, options, schema)
+    val metadataWriter = MetadataWriterTest(tableID, mode, deltaLog, QbeastOptions.empty, schema)
 
     var tries = 2
     try {
@@ -199,9 +197,7 @@ class OptimizingProcessGood(context: ProtoTestContext)(implicit keeper: Keeper)
     val deltaLog = SparkDeltaMetadataManager.loadDeltaQbeastLog(tableID).deltaLog
     val deltaSnapshot = deltaLog.update()
     val mode = SaveMode.Append
-    val options =
-      new DeltaOptions(Map("path" -> tableID.id), SparkSession.active.sessionState.conf)
-    val metadataWriter = MetadataWriterTest(tableID, mode, deltaLog, options, schema)
+    val metadataWriter = MetadataWriterTest(tableID, mode, deltaLog, QbeastOptions.empty, schema)
     val cubesToOptimize = bo.cubesToOptimize.map(rev.createCubeId)
 
     try {
@@ -233,9 +229,7 @@ class OptimizingProcessBad(context: ProtoTestContext, args: Seq[String])(implici
     val deltaLog = SparkDeltaMetadataManager.loadDeltaQbeastLog(tableID).deltaLog
     val deltaSnapshot = deltaLog.update()
     val mode = SaveMode.Append
-    val options =
-      new DeltaOptions(Map("path" -> tableID.id), SparkSession.active.sessionState.conf)
-    val metadataWriter = MetadataWriterTest(tableID, mode, deltaLog, options, schema)
+    val metadataWriter = MetadataWriterTest(tableID, mode, deltaLog, QbeastOptions.empty, schema)
 
     val cubesToOptimize = args.toSet
 

@@ -19,6 +19,8 @@ import io.qbeast.core.model.QTableID
 import io.qbeast.spark.index.ColumnsToIndex
 import io.qbeast.spark.internal.QbeastOptions.COLUMNS_TO_INDEX
 import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
+import io.qbeast.spark.internal.QbeastOptions.HOOK_ARGUMENT
+import io.qbeast.spark.internal.QbeastOptions.HOOK_CLASS_NAME
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
 import org.apache.spark.sql.delta.DeltaOptions
 import org.apache.spark.sql.AnalysisExceptionFactory
@@ -53,9 +55,11 @@ case class QbeastOptions(
     txnVersion: Option[String],
     userMetadata: Option[String],
     mergeSchema: Option[String],
-    overwriteSchema: Option[String]) {
+    overwriteSchema: Option[String],
+    hookClassName: Option[String],
+    hookArgument: Option[String]) {
 
-  def toMap(): Map[String, String] = {
+  def toMap: Map[String, String] = {
     val options = Map.newBuilder[String, String]
     for (txnAppId <- txnAppId; txnVersion <- txnVersion) {
       options += DeltaOptions.TXN_APP_ID -> txnAppId
@@ -70,6 +74,13 @@ case class QbeastOptions(
     if (overwriteSchema.nonEmpty) {
       options += DeltaOptions.OVERWRITE_SCHEMA_OPTION -> overwriteSchema.get
     }
+    if (hookClassName.nonEmpty) {
+      options += HOOK_CLASS_NAME -> hookClassName.get
+    }
+    if (hookArgument.nonEmpty) {
+      options += HOOK_ARGUMENT -> hookArgument.get
+    }
+
     options += COLUMNS_TO_INDEX -> columnsToIndex.mkString(",")
     options += CUBE_SIZE -> cubeSize.toString
 
@@ -93,6 +104,8 @@ object QbeastOptions {
   val USER_METADATA: String = DeltaOptions.USER_METADATA_OPTION
   val MERGE_SCHEMA: String = DeltaOptions.MERGE_SCHEMA_OPTION
   val OVERWRITE_SCHEMA: String = DeltaOptions.OVERWRITE_SCHEMA_OPTION
+  val HOOK_CLASS_NAME: String = "hookClassName"
+  val HOOK_ARGUMENT: String = "hookArgument"
 
   /**
    * Gets the columns to index from the options
@@ -161,6 +174,12 @@ object QbeastOptions {
   private def getOverwriteSchema(options: Map[String, String]): Option[String] =
     options.get(OVERWRITE_SCHEMA)
 
+  private def getHookClassName(options: Map[String, String]): Option[String] =
+    options.get(HOOK_CLASS_NAME)
+
+  private def getHookArgument(options: Map[String, String]): Option[String] =
+    options.get(HOOK_ARGUMENT)
+
   /**
    * Create QbeastOptions object from options map
    * @param options
@@ -177,6 +196,9 @@ object QbeastOptions {
     val userMetadata = getUserMetadata(options)
     val mergeSchema = getMergeSchema(options)
     val overwriteSchema = getOverwriteSchema(options)
+    val hookClassName = getHookClassName(options)
+    val hookArgument = getHookArgument(options)
+
     QbeastOptions(
       columnsToIndex,
       desiredCubeSize,
@@ -185,14 +207,16 @@ object QbeastOptions {
       txnVersion,
       userMetadata,
       mergeSchema,
-      overwriteSchema)
+      overwriteSchema,
+      hookClassName,
+      hookArgument)
   }
 
   /**
    * The empty options to be used as a placeholder.
    */
   lazy val empty: QbeastOptions =
-    QbeastOptions(Seq.empty, DEFAULT_CUBE_SIZE, None, None, None, None, None, None)
+    QbeastOptions(Seq.empty, DEFAULT_CUBE_SIZE, None, None, None, None, None, None, None, None)
 
   def loadTableIDFromParameters(parameters: Map[String, String]): QTableID = {
     new QTableID(

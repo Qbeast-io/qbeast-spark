@@ -18,7 +18,10 @@ package io.qbeast.spark.delta
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.RevisionID
 import io.qbeast.core.model.TableChanges
+import io.qbeast.spark.delta.hook.QbeastHookLoader
+import io.qbeast.spark.delta.hook.QbeastPreCommitHook
 import io.qbeast.spark.delta.writer.StatsTracker.registerStatsTrackers
+import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
 import io.qbeast.spark.utils.TagColumns
 import org.apache.spark.internal.Logging
@@ -49,7 +52,7 @@ import scala.collection.mutable.ListBuffer
  *   SaveMode of the writeMetadata
  * @param deltaLog
  *   deltaLog associated to the table
- * @param options
+ * @param qbeastOptions
  *   options for writeMetadata operation
  * @param schema
  *   the schema of the table
@@ -58,11 +61,16 @@ private[delta] case class DeltaMetadataWriter(
     tableID: QTableID,
     mode: SaveMode,
     deltaLog: DeltaLog,
-    options: DeltaOptions,
+    qbeastOptions: QbeastOptions,
     schema: StructType)
     extends QbeastMetadataOperation
     with DeltaCommand
     with Logging {
+
+  private val options = {
+    val optionsMap = qbeastOptions.toMap ++ Map("path" -> tableID.id)
+    new DeltaOptions(optionsMap, SparkSession.active.sessionState.conf)
+  }
 
   private def isOverwriteOperation: Boolean = mode == SaveMode.Overwrite
 
@@ -73,13 +81,10 @@ private[delta] case class DeltaMetadataWriter(
 
   private val sparkSession = SparkSession.active
 
-  private val deltaOperation = {
-    DeltaOperations.Write(mode, None, options.replaceWhere, options.userMetadata)
-  }
-
   /**
    * Creates an instance of basic stats tracker on the desired transaction
    * @param txn
+   *   the transaction
    * @return
    */
   private def createStatsTrackers(txn: OptimisticTransaction): Seq[WriteJobStatsTracker] = {
@@ -94,12 +99,25 @@ private[delta] case class DeltaMetadataWriter(
     statsTrackers
   }
 
+  private val preCommitHooks: Seq[Option[QbeastPreCommitHook]] = loadPreCommitHooks()
+
+  private def loadPreCommitHooks(): Seq[Option[QbeastPreCommitHook]] = {
+    QbeastHookLoader.loadHook(qbeastOptions) :: Nil
+  }
+
+  private def runPreCommitHooks(actions: Seq[Action]): Unit = {
+    preCommitHooks.foreach {
+      case Some(hook) => hook.run(actions)
+      case _ =>
+    }
+  }
+
   def writeWithTransaction(writer: => (TableChanges, Seq[FileAction])): Unit = {
     val oldTransactions = deltaLog.unsafeVolatileSnapshot.setTransactions
     // If the transaction was completed before then no operation
     for (txn <- oldTransactions; version <- options.txnVersion; appId <- options.txnAppId) {
       if (txn.appId == appId && version <= txn.version) {
-        val message = s"Transaction ${version} from application ${appId} is already completed," +
+        val message = s"Transaction $version from application $appId is already completed," +
           " the requested write is ignored"
         logWarning(message)
         return
@@ -117,8 +135,14 @@ private[delta] case class DeltaMetadataWriter(
       for (txnVersion <- options.txnVersion; txnAppId <- options.txnAppId) {
         actions +:= SetTransaction(txnAppId, txnVersion, Some(System.currentTimeMillis()))
       }
+
+      // Run pre-commit hooks
+      runPreCommitHooks(actions)
+
       // Commit the information to the DeltaLog
-      txn.commit(actions, deltaOperation)
+      val op =
+        DeltaOperations.Write(mode, None, options.replaceWhere, options.userMetadata)
+      txn.commit(actions, op)
     }
   }
 
@@ -151,7 +175,7 @@ private[delta] case class DeltaMetadataWriter(
       .collect()
       .map(IndexFiles.fromAddFile(dimensionCount))
       .flatMap(_.tryReplicateBlocks(deltaReplicatedSet))
-      .map(IndexFiles.toAddFile(false))
+      .map(IndexFiles.toAddFile(dataChange = false))
       .toSeq
   }
 
