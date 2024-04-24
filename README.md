@@ -174,26 +174,22 @@ qbeastTable.getIndexMetrics()
 
 ### 6. Optimize the table
 
-**Optimize** is a very expensive operation that consist on **rewriting part of the files to accomplish an even distribution of the records withing files**.
+**Optimize** is an expensive operation that consist on **rewriting part of the files** to accomplish **better layout** and **improving query performance**.
 
-To minimize the write amplification of this command, **we execute it based on subsets of the table**, like `Revision ID's` or specific files.
+To minimize write amplification of this command, **we execute it based on subsets of the table**, like `Revision ID's` or specific files.
 
-`Revisions` determine the area of the index. **The last Revision would contain the whole dataset area**, while previous Revisions would contain a _subset_ of the area written before. It can be useful to optimize by specific Revision ID's when we have an incremental appends scenario. 
+> Read more about `Revision` and find an example [here](./docs/QbeastFormat.md).
 
-As an example, imagine you start writting a Dataset with the data from France, and the second time you append records from Germany. The first Revision would contain only the French countries, while the second would enlarge the space to also include Germany. If you are querying only French data, you would be interested in optimizing only the first Revision.
-
-
+#### Optimize API
 These are the 3 ways of executing the `optimize` operation:
 
 ```scala
-
 qbeastTable.optimize() // Optimizes the last Revision Available.
 // This does NOT include previous Revision's optimizations.
 
 qbeastTable.optimize(2L) // Optimizes the Revision number 2.
 
 qbeastTable.optimize(Seq("file1", "file2")) // Optimizes the specific files
-
 ```
 
 **If you want to optimize the full table, you must loop through `revisions`**:
