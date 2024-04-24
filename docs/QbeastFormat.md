@@ -104,15 +104,15 @@ Here you can see the changes on the `AddFile` **`tags`** information
 }
 ```
 
-| Term           | Description                                                                                                    |
-|----------------|----------------------------------------------------------------------------------------------------------------|
-| `revision`     | **Locates a particular `min`-`max` range of the columns** in the space, and includes a Timestamp of the creation time. |
-| `blocks`       | A **list of the blocks** that are stored inside the file. Can belong to different cubes.                           |
-| `cube`         | The **serialized representation of the Cube**.                                                                     |
-| `minWeight`    | The minimum weight of the block.                                                                               |
-| `maxWeight`    | The maximum weight of the block.                                                                               |
-| `elementCount` | The number of elements in the block.                                                                           |
-| `replicated`   | A flag that indicates **if the block is replicated**. Replication is [**not available** from v0.6.0](https://github.com/Qbeast-io/qbeast-spark/issues/282).                |
+| Term           | Description                                                                                                                                                 |
+|----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `revision`     | **Locates a particular `min`-`max` range of the columns** in the space, and includes a Timestamp of the creation time.                                      |
+| `blocks`       | A **list of the blocks** that are stored inside the file. Can belong to different cubes.                                                                    |
+| `cube`         | The **String representation of the Cube ID**.                                                                                                               |
+| `minWeight`    | The minimum weight of the block.                                                                                                                            |
+| `maxWeight`    | The maximum weight of the block.                                                                                                                            |
+| `elementCount` | The number of elements in the block.                                                                                                                        |
+| `replicated`   | A flag that indicates **if the block is replicated**. Replication is [**not available** from v0.6.0](https://github.com/Qbeast-io/qbeast-spark/issues/282). |
 
 
 
