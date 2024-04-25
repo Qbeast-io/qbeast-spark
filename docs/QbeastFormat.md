@@ -72,7 +72,7 @@ Let's take a look to the Index metadata to understand what is written in the Del
 
 On a high level:
 
-- the index consists of one or more `Otree` (search trees) that contain `cubes` (or nodes). 
+- the index consists of one or more `Otree` instances (search trees) that contain `cubes` (or nodes). 
 - Each cube is made of `blocks` that contain the actual data written by the user. 
 
 >All records from the log are of **file-level** information.
@@ -106,15 +106,15 @@ Here you can see the changes on the `AddFile` **`tags`** information
 
 | Term           | Description                                                                                                                                                 |
 |----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `revision`     | **Locates a particular `min`-`max` range of the columns** in the space, and includes a Timestamp of the creation time.                                      |
-| `blocks`       | A **list of the blocks** that are stored inside the file. Can belong to different cubes.                                                                    |
+| `revision`     | A revision establishes the min-max range for each indexed column, amongst other metadata of the index.                                                      |
+| `blocks`       | A **list of the blocks** that are stored inside the file. Can belong to different cubes.*                                                                   |
 | `cube`         | The **String representation of the Cube ID**.                                                                                                               |
 | `minWeight`    | The minimum weight of the block.                                                                                                                            |
 | `maxWeight`    | The maximum weight of the block.                                                                                                                            |
 | `elementCount` | The number of elements in the block.                                                                                                                        |
 | `replicated`   | A flag that indicates **if the block is replicated**. Replication is [**not available** from v0.6.0](https://github.com/Qbeast-io/qbeast-spark/issues/282). |
 
-
+> *Blocks are not directly addressed from the file reader. Check issue [#322](https://github.com/Qbeast-io/qbeast-spark/issues/322) for more info
 
 ## MetaData changes
 
@@ -231,8 +231,8 @@ By doing so, we also enable subsequent appends using either delta or qbeast.
 ## Optimization
 
 **Optimize** is an expensive operation that consist on:
-- moving offsets to their legitimate cubes (files).
-- rolling-up small files into their parents, creating new files with a size closer to the `desiredCubeSize`.
+- moving offsets to their descendent cubes (files).
+- rolling-up small cubes (files) into their parents, creating new files with a size closer to the `desiredCubeSize`.
 
 Thus accomplishing a **better file layout and query performance**.
 
@@ -256,6 +256,7 @@ This commit adds another four files F4, F5, F6 and F7.
 Revision `R2` is necessary because it expands the cardinality of the city name dimension, and this expansion impacts the index as the range of values changes.
 
 Optimizing consequently **can be performed over either revision**.
+
 > Running optimize over R1 would rewrite (only rearranging data) files F1, F2 and F3.
 
 ### Optimize API
@@ -280,9 +281,21 @@ revisions.foreach(revision =>
 ```
 > Note that **Revision ID number 0 is reserved for Stagin Area** (non-indexed files). This ensures compatibility with underlying table formats.
 
-## Compaction
+## Compaction (<v0.6.0)
 
-`Compaction` can be performed on the staging revision to group small delta files:
+> Compaction is **NOT available from version 0.6.0**. Although it is present, it calls the `optimize` command underneath.
+> Read all the reasoning and changes on the [Qbeast Format 0.6.0](./QbeastFormat0.6.0.md) document and check the issue [#294](https://github.com/Qbeast-io/qbeast-spark/issues/294) for more info.
+
+From [Delta Lake's documentation](https://docs.delta.io/latest/best-practices.html):
+
+If you continuously write data to a table, it will over time accumulate a large number of files, especially if you add data in small batches. 
+This can have an adverse effect on the efficiency of table reads, and it can also affect the performance of your file system
+
+Ideally, **a large number of small files should be rewritten into a smaller number of larger files** on a regular basis. 
+This is known as `compaction`.
+
+
+`Compaction` can be performed on the staging revision (subset of non-indexed files) to group small delta files following the [Bin-Packing strategy](https://docs.databricks.com/en/delta/optimize.html):
 ```scala
 import io.qbeast.spark.QbeastTable
 
