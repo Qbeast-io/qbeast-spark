@@ -78,9 +78,53 @@ case class MyClass() extends Logging {
 
 The following log levels are used to track code behaviour:
 - `WARN` level is supposed to be critical and actionable. If the user sees a WARN, then something bad happened and it might require user intervention. 
+  
+  **Example on `DeltaMetadataWriter` class:**
+   ```scala
+     def writeWithTransaction(writer: => (TableChanges, Seq[FileAction])): Unit = {
+      // [...] Code to write the transaction [...]
+      if (txn.appId == appId && version <= txn.version) {
+        val message = s"Transaction ${version} from application ${appId} is already completed," +
+          " the requested write is ignored"
+        logWarn(message)
+        return
+      }
+    }
+   ```
 - `INFO` level provides information about the execution, but not necessarily actionable and it avoids being verbose. It is not uncommon to see INFO level on in production, so it is expected to be lightweight with respect to the volume of messages generated. 
-- `DEBUG` provides debug level info when debugging the code. It can be verbose as it is not expected to be on in production. 
+  
+  **Example on `BlockWriter` class:**
+   ```scala
+  def writeRow(rows: Iterator[InternalRow]): Iterator[(AddFile, TaskStats)] = {
+     // [...] Code to write the rows [...]
+     logInfo(s"Adding file ${file.path}") 
+  }
+   ```
+- `DEBUG` provides debug level info when debugging the code. It can be verbose as it is not expected to be on in production.
+  
+  **Example on `IndexedTable` class:**
+   ```scala
+  if (isNewRevision(options)) {
+    // Merging revisions code
+    logDebug(
+      s"Merging transformations for table ${tableID} with cubeSize=${newRevisionCubeSize}")
+    // Code to merge revisions
+   }
+   ```
 - `TRACE` provides further detail to DEBUG on execution paths, and in particular, it indicates the execution of critical methods.
+  
+  **Example on `IndexedTable` class:**
+     ```scala
+     def doWrite(
+        data: DataFrame,
+        indexStatus: IndexStatus,
+        options: QbeastOptions,
+        append: Boolean): Unit = {
+      logTrace(s"Begin: Writing data to table ${tableID}")
+      // [...] Code to write the data [...]
+      logTrace(s"End: Writing data to table ${tableID}")
+     }
+     ```
 
 > We should enforce **all the Pull Request**, specially those containing critical code, **to have logging messages** that are meaningful and informative.
 
