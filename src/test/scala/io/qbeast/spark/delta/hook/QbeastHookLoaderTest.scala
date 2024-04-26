@@ -15,6 +15,7 @@
  */
 package io.qbeast.spark.delta.hook
 
+import io.qbeast.spark.delta.hook.PreCommitHook.PreCommitHookOutput
 import io.qbeast.spark.delta.hook.StatefulTestHook.StatefulTestHookState
 import io.qbeast.spark.internal.QbeastOptions
 import org.apache.spark.sql.delta.actions.Action
@@ -24,18 +25,19 @@ import org.scalatest.matchers.should.Matchers
 
 import java.util.UUID
 
-class SimpleTestHook extends QbeastPreCommitHook {
+class SimpleTestHook extends PreCommitHook {
   override val name: String = "SimpleTestHook"
 
   var args: Seq[Action] = Seq.empty
 
-  override def run(args: Seq[Action]): Unit = {
+  override def run(args: Seq[Action]): PreCommitHookOutput = {
     this.args = args
+    Map.empty
   }
 
 }
 
-class StatefulTestHook(val stateId: String) extends QbeastPreCommitHook {
+class StatefulTestHook(val stateId: String) extends PreCommitHook {
 
   val state: StatefulTestHookState = StatefulTestHook.stateMap(stateId)
 
@@ -43,8 +45,9 @@ class StatefulTestHook(val stateId: String) extends QbeastPreCommitHook {
 
   override val name: String = "StatefulTestHook"
 
-  override def run(actions: Seq[Action]): Unit = {
+  override def run(actions: Seq[Action]): PreCommitHookOutput = {
     this.args = actions
+    Map.empty
   }
 
 }
@@ -65,55 +68,46 @@ object StatefulTestHook {
 
 class QbeastHookLoaderTest extends AnyFlatSpec with Matchers {
 
-  "loadHook" should "create a simple hook when only the 'hookClassName' is provided" in {
+  "loadHook" should "create a simple hook when only the hook class name is provided" in {
     val qbeastOptions = mock(classOf[QbeastOptions])
-    when(qbeastOptions.hookClassName).thenReturn(Some(classOf[SimpleTestHook].getCanonicalName))
-    when(qbeastOptions.hookArgument).thenReturn(None)
+    when(qbeastOptions.hookInfo).thenReturn(
+      HookInfo(classOf[SimpleTestHook].getCanonicalName, None) :: Nil)
 
-    val hookOpt = QbeastHookLoader.loadHook(qbeastOptions)
-    hookOpt.isDefined shouldBe true
-    hookOpt.get shouldBe a[QbeastPreCommitHook]
+    val hookOpts = qbeastOptions.hookInfo.map(QbeastHookLoader.loadHook)
+    hookOpts.size shouldBe 1
+    hookOpts.head shouldBe a[PreCommitHook]
 
     val mockActions = mock(classOf[List[Action]])
-    hookOpt.get.run(mockActions)
-    hookOpt.get.asInstanceOf[SimpleTestHook].args shouldBe mockActions
+    hookOpts.head.run(mockActions)
+    hookOpts.head.asInstanceOf[SimpleTestHook].args shouldBe mockActions
   }
 
-  it should "create a stateful hook when both the 'hookClassName' and 'hookArgument' are provided" in {
+  it should
+    "create a stateful hook when both hook class name and arg are provided" in {
+      val callingTimestamp = System.currentTimeMillis()
+      val argument = StatefulTestHook.createNewState(callingTimestamp, Seq.empty)
+      val qbeastOptions = mock(classOf[QbeastOptions])
+      when(qbeastOptions.hookInfo).thenReturn(
+        HookInfo(classOf[StatefulTestHook].getCanonicalName, Some(argument)) :: Nil)
+
+      val hooks = qbeastOptions.hookInfo.map(QbeastHookLoader.loadHook)
+      hooks.size shouldBe 1
+      hooks.head shouldBe a[PreCommitHook]
+
+      val mockActions = mock(classOf[List[Action]])
+      hooks.head.run(mockActions)
+      val sth = hooks.head.asInstanceOf[StatefulTestHook]
+      sth.args shouldBe mockActions
+      sth.stateId shouldBe argument
+      sth.state.timestamp shouldBe callingTimestamp
+    }
+
+  it should "return an empty sequence when no hook information is provided" in {
     val qbeastOptions = mock(classOf[QbeastOptions])
+    when(qbeastOptions.hookInfo).thenReturn(Nil)
 
-    when(qbeastOptions.hookClassName).thenReturn(Some(classOf[StatefulTestHook].getCanonicalName))
-    val callingTimestamp = System.currentTimeMillis()
-    val argument = StatefulTestHook.createNewState(callingTimestamp, Seq.empty)
-    when(qbeastOptions.hookArgument).thenReturn(Some(argument))
-
-    val hookOpt = QbeastHookLoader.loadHook(qbeastOptions)
-    hookOpt.isDefined shouldBe true
-    hookOpt.get shouldBe a[QbeastPreCommitHook]
-    val mockActions = mock(classOf[List[Action]])
-    hookOpt.get.run(mockActions)
-    val sth = hookOpt.get.asInstanceOf[StatefulTestHook]
-    sth.args shouldBe mockActions
-    sth.stateId shouldBe argument
-    sth.state.timestamp shouldBe callingTimestamp
-
-  }
-
-  it should "return None when neither hookClassName nor hookStateId are provided" in {
-    val qbeastOptions = mock(classOf[QbeastOptions])
-    when(qbeastOptions.hookClassName).thenReturn(None)
-    when(qbeastOptions.hookArgument).thenReturn(None)
-
-    val result = QbeastHookLoader.loadHook(qbeastOptions)
-    result.isDefined shouldBe false
-  }
-
-  it should "throw ClassNotFoundException when an invalid hookClassName is provided" in {
-    val qbeastOptions = mock(classOf[QbeastOptions])
-    when(qbeastOptions.hookClassName).thenReturn(Some("invalid.ClassName"))
-    when(qbeastOptions.hookArgument).thenReturn(None)
-
-    assertThrows[ClassNotFoundException] { QbeastHookLoader.loadHook(qbeastOptions) }
+    val hookOpts = qbeastOptions.hookInfo.map(QbeastHookLoader.loadHook)
+    hookOpts.size shouldBe 0
   }
 
 }

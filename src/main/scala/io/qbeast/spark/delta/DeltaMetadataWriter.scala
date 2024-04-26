@@ -18,8 +18,9 @@ package io.qbeast.spark.delta
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.RevisionID
 import io.qbeast.core.model.TableChanges
+import io.qbeast.spark.delta.hook.PreCommitHook
 import io.qbeast.spark.delta.hook.QbeastHookLoader
-import io.qbeast.spark.delta.hook.QbeastPreCommitHook
+import io.qbeast.spark.delta.hook.PreCommitHook.PreCommitHookOutput
 import io.qbeast.spark.delta.writer.StatsTracker.registerStatsTrackers
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
@@ -99,17 +100,57 @@ private[delta] case class DeltaMetadataWriter(
     statsTrackers
   }
 
-  private val preCommitHooks: Seq[Option[QbeastPreCommitHook]] = loadPreCommitHooks()
+  private val preCommitHooks = new ListBuffer[PreCommitHook]()
 
-  private def loadPreCommitHooks(): Seq[Option[QbeastPreCommitHook]] = {
-    QbeastHookLoader.loadHook(qbeastOptions) :: Nil
+  // Load the pre-commit hooks
+  loadPreCommitHooks().foreach(registerPreCommitHooks)
+
+  /**
+   * Register a pre-commit hook
+   * @param preCommitHook
+   *   the hook to register
+   */
+  private def registerPreCommitHooks(preCommitHook: PreCommitHook): Unit = {
+    if (!preCommitHooks.contains(preCommitHook)) {
+      preCommitHooks.append(preCommitHook)
+    }
   }
 
-  private def runPreCommitHooks(actions: Seq[Action]): Unit = {
-    preCommitHooks.foreach {
-      case Some(hook) => hook.run(actions)
-      case _ =>
-    }
+  /**
+   * Load the pre-commit hooks from the options
+   * @return
+   *   the loaded hooks
+   */
+  private def loadPreCommitHooks(): Seq[PreCommitHook] =
+    qbeastOptions.hookInfo.map(QbeastHookLoader.loadHook)
+
+  /**
+   * Executes all registered pre-commit hooks.
+   *
+   * This function iterates over all pre-commit hooks registered in the `preCommitHooks`
+   * ArrayBuffer. For each hook, it calls the `run` method of the hook, passing the provided
+   * actions as an argument. The `run` method of a hook is expected to return a Map[String,
+   * String] which represents the output of the hook. The outputs of all hooks are combined into a
+   * single Map[String, String] which is returned as the result of this function.
+   *
+   * It's important to note that if two or more hooks return a map with the same key, the value of
+   * the key in the resulting map will be the value from the last hook that returned that key.
+   * This is because the `++` operation on maps in Scala is a right-biased union operation, which
+   * means that if there are duplicate keys, the value from the right operand (in this case, the
+   * later hook) will overwrite the value from the left operand.
+   *
+   * Therefore, to avoid unexpected behavior, it's crucial to ensure that the outputs of different
+   * hooks have unique keys. If there's a possibility of key overlap, the hooks should be designed
+   * to handle this appropriately, for example by prefixing each key with a unique identifier for
+   * the hook.
+   *
+   * @param actions
+   *   The actions to be passed to the `run` method of each hook.
+   * @return
+   *   A Map[String, String] representing the combined outputs of all hooks.
+   */
+  private def runPreCommitHooks(actions: Seq[Action]): PreCommitHookOutput = {
+    preCommitHooks.foldLeft(Map.empty[String, String]) { (acc, hook) => acc ++ hook.run(actions) }
   }
 
   def writeWithTransaction(writer: => (TableChanges, Seq[FileAction])): Unit = {
@@ -137,12 +178,12 @@ private[delta] case class DeltaMetadataWriter(
       }
 
       // Run pre-commit hooks
-      runPreCommitHooks(actions)
+      val tags = runPreCommitHooks(actions)
 
       // Commit the information to the DeltaLog
       val op =
         DeltaOperations.Write(mode, None, options.replaceWhere, options.userMetadata)
-      txn.commit(actions, op)
+      txn.commit(actions = actions, op = op, tags = tags)
     }
   }
 

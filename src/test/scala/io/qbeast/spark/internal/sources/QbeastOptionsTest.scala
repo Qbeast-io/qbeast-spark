@@ -1,6 +1,8 @@
 package io.qbeast.spark.internal.sources
 
+import io.qbeast.spark.delta.hook.HookInfo
 import io.qbeast.spark.internal.QbeastOptions
+import io.qbeast.spark.internal.QbeastOptions.PRE_COMMIT_HOOKS
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.qbeast.config
 import org.apache.spark.sql.delta.DeltaOptions
@@ -78,6 +80,21 @@ class QbeastOptionsTest extends QbeastIntegrationTestSpec {
       val options = QbeastOptions(optionsMap)
       // toMap method testing
       options.toMap shouldBe optionsMap
+  }
+
+  it should "initialize hookInfo correctly" in withSpark { _ =>
+    val options = QbeastOptions(
+      Map(
+        "columnsToIndex" -> "id",
+        "qbeastPreCommitHooks.hook1" -> "HookClass1",
+        "qbeastPreCommitHooks.hook2" -> "HookClass2",
+        "qbeastPreCommitHooks.hook2.arg" -> "HookClass2Arg"))
+
+    options.hookInfo shouldBe Seq(
+      HookInfo("HookClass1", None),
+      HookInfo("HookClass2", Some("HookClass2Arg")))
+
+    options.toMap.get(PRE_COMMIT_HOOKS) shouldBe Some("HookClass1,HookClass2:HookClass2Arg")
   }
 
 }
