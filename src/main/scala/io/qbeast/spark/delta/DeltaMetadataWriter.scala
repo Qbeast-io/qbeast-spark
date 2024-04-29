@@ -19,8 +19,8 @@ import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.RevisionID
 import io.qbeast.core.model.TableChanges
 import io.qbeast.spark.delta.hook.PreCommitHook
-import io.qbeast.spark.delta.hook.QbeastHookLoader
 import io.qbeast.spark.delta.hook.PreCommitHook.PreCommitHookOutput
+import io.qbeast.spark.delta.hook.QbeastHookLoader
 import io.qbeast.spark.delta.writer.StatsTracker.registerStatsTrackers
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
