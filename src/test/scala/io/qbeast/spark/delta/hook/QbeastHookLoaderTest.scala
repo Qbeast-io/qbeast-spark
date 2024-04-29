@@ -25,7 +25,7 @@ import org.scalatest.matchers.should.Matchers
 
 import java.util.UUID
 
-class SimpleTestHook extends PreCommitHook {
+private class SimpleTestHook extends PreCommitHook {
   override val name: String = "SimpleTestHook"
 
   var args: Seq[Action] = Seq.empty
@@ -37,7 +37,7 @@ class SimpleTestHook extends PreCommitHook {
 
 }
 
-class StatefulTestHook(val stateId: String) extends PreCommitHook {
+private class StatefulTestHook(val stateId: String) extends PreCommitHook {
 
   val state: StatefulTestHookState = StatefulTestHook.stateMap(stateId)
 

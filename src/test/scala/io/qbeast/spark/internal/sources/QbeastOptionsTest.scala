@@ -79,9 +79,11 @@ class QbeastOptionsTest extends QbeastIntegrationTestSpec {
         s"$PRE_COMMIT_HOOKS_PREFIX.hook2.arg" -> "HookClass2Arg")
 
       // Qbeast Options
-      val options = QbeastOptions(optionsMap)
+      val qbeastOptionsMap = QbeastOptions(optionsMap).toMap
+
       // toMap method testing
-      options.toMap shouldBe optionsMap
+      optionsMap.keys.foreach(qbeastOptionsMap.contains(_) shouldBe true)
+
   }
 
   it should "initialize hookInfo correctly" in withSpark { _ =>

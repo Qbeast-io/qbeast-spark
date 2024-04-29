@@ -64,7 +64,7 @@ case class QbeastOptions(
     overwriteSchema: Option[String],
     hookInfo: Seq[HookInfo] = Nil) {
 
-  def toMap: CaseInsensitiveMap[Map[String, String]] = {
+  def toMap: CaseInsensitiveMap[String] = {
     val options = Map.newBuilder[String, String]
     for (txnAppId <- txnAppId; txnVersion <- txnVersion) {
       options += DeltaOptions.TXN_APP_ID -> txnAppId
