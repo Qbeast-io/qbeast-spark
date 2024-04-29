@@ -70,7 +70,7 @@ Let's take a look to the Index metadata to understand what is written in the Del
 
 ## Index Metadata
 
-On a high level:
+At a high level:
 
 - the index consists of one or more `Otree` instances (search trees) that contain `cubes` (or nodes). 
 - Each cube is made of `blocks` that contain the actual data written by the user. 
@@ -106,7 +106,7 @@ Here you can see the changes on the `AddFile` **`tags`** information
 
 | Term           | Description                                                                                                                                                 |
 |----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `revision`     | A revision establishes the min-max range for each indexed column, amongst other metadata of the index.                                                      |
+| `revision`     | A revision establishes the min-max range for each indexed column, amongst other metadata (creation timestamp, cube size...).                                |
 | `blocks`       | A **list of the blocks** that are stored inside the file. Can belong to different cubes.*                                                                   |
 | `cube`         | The **String representation of the Cube ID**.                                                                                                               |
 | `minWeight`    | The minimum weight of the block.                                                                                                                            |
@@ -230,7 +230,7 @@ By doing so, we also enable subsequent appends using either delta or qbeast.
 
 ## Optimization
 
-**Optimize** is an expensive operation that consist on:
+**Optimize** is an expensive operation that consist of:
 - moving offsets to their descendent cubes (files).
 - rolling-up small cubes (files) into their parents, creating new files with a size closer to the `desiredCubeSize`.
 
