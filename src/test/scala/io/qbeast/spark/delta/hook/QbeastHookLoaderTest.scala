@@ -71,7 +71,7 @@ class QbeastHookLoaderTest extends AnyFlatSpec with Matchers {
   "loadHook" should "create a simple hook when only the hook class name is provided" in {
     val qbeastOptions = mock(classOf[QbeastOptions])
     when(qbeastOptions.hookInfo).thenReturn(
-      HookInfo(classOf[SimpleTestHook].getCanonicalName, None) :: Nil)
+      HookInfo("", classOf[SimpleTestHook].getCanonicalName, None) :: Nil)
 
     val hookOpts = qbeastOptions.hookInfo.map(QbeastHookLoader.loadHook)
     hookOpts.size shouldBe 1
@@ -88,7 +88,7 @@ class QbeastHookLoaderTest extends AnyFlatSpec with Matchers {
       val argument = StatefulTestHook.createNewState(callingTimestamp, Seq.empty)
       val qbeastOptions = mock(classOf[QbeastOptions])
       when(qbeastOptions.hookInfo).thenReturn(
-        HookInfo(classOf[StatefulTestHook].getCanonicalName, Some(argument)) :: Nil)
+        HookInfo("", classOf[StatefulTestHook].getCanonicalName, Some(argument)) :: Nil)
 
       val hooks = qbeastOptions.hookInfo.map(QbeastHookLoader.loadHook)
       hooks.size shouldBe 1

@@ -15,6 +15,8 @@
  */
 package io.qbeast.spark.delta.hook
 
+import io.qbeast.spark.delta.hook.PreCommitHook.getHookArgName
+import io.qbeast.spark.delta.hook.PreCommitHook.getHookName
 import io.qbeast.spark.delta.hook.PreCommitHook.PreCommitHookOutput
 import org.apache.spark.sql.delta.actions.Action
 
@@ -58,6 +60,17 @@ object PreCommitHook {
    */
   type PreCommitHookOutput = Map[String, String]
 
+  val PRE_COMMIT_HOOKS_PREFIX = "qbeastPreCommitHook"
+
+  /**
+   * The argument name for hooks.
+   */
+  private val argName: String = "arg"
+
+  def getHookName(hookName: String): String = s"$PRE_COMMIT_HOOKS_PREFIX.$hookName"
+
+  def getHookArgName(hookName: String): String = s"${getHookName(hookName)}.$argName"
+
 }
 
 /**
@@ -76,7 +89,7 @@ object QbeastHookLoader {
    *   The loaded `PreCommitHook` instance.
    */
   def loadHook(hookInfo: HookInfo): PreCommitHook = hookInfo match {
-    case HookInfo(clsFullName, argOpt) =>
+    case HookInfo(_, clsFullName, argOpt) =>
       val cls = Class.forName(clsFullName)
       val instance =
         if (argOpt.isDefined)
@@ -98,13 +111,21 @@ object QbeastHookLoader {
  * @param arg
  *   An optional argument to be passed to the hook.
  */
-case class HookInfo(clsFullName: String, arg: Option[String]) {
+case class HookInfo(name: String, clsFullName: String, arg: Option[String]) {
 
-  override def toString: String = {
-    arg match {
-      case Some(value) => s"$clsFullName:$value"
-      case None => clsFullName
-    }
+  /**
+   * Converts the `HookInfo` object to a map.
+   *
+   * This method converts the `HookInfo` object to a map where the key is the hook name and the
+   * value is the full class name of the hook. If an argument is present, it is added to the map
+   * with the key being the hook name followed by ".arg".
+   * @return
+   *   The `HookInfo` object as a map.
+   */
+  def toMap: Map[String, String] = {
+    val hookName = getHookName(name)
+    if (arg.isEmpty) Map(hookName -> clsFullName)
+    else Map(hookName -> clsFullName, getHookArgName(name) -> arg.get)
   }
 
 }

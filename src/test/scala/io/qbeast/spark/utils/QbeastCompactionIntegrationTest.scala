@@ -193,7 +193,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec with Log
 
     // Compact the table
     val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-    qbeastTable.compact(1)
+    qbeastTable.compact(1, Map.empty)
 
     // Count files compacted for each revision
     val newAllFiles = DeltaLog.forTable(spark, tmpDir).unsafeVolatileSnapshot.allFiles
@@ -216,7 +216,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec with Log
 
       // Try to compact the table with non-existing revision ID
       val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-      a[AnalysisException] shouldBe thrownBy(qbeastTable.compact(3))
+      a[AnalysisException] shouldBe thrownBy(qbeastTable.compact(3, Map.empty))
 
     })
 
@@ -239,7 +239,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec with Log
       val qt = QbeastTable.forPath(spark, tmpDir)
       val m = qt.getIndexMetrics()
       val filePath = m.cubeStatuses.values.flatMap(_.blocks.map(_.file)).head.path
-      qt.optimize(Seq(filePath))
+      qt.optimize(Seq(filePath), Map.empty[String, String])
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
       val snapshot = deltaLog.update()

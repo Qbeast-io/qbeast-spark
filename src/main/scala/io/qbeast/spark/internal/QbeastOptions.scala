@@ -17,10 +17,11 @@ package io.qbeast.spark.internal
 
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.delta.hook.HookInfo
+import io.qbeast.spark.delta.hook.PreCommitHook.getHookArgName
+import io.qbeast.spark.delta.hook.PreCommitHook.PRE_COMMIT_HOOKS_PREFIX
 import io.qbeast.spark.index.ColumnsToIndex
 import io.qbeast.spark.internal.QbeastOptions.COLUMNS_TO_INDEX
 import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
-import io.qbeast.spark.internal.QbeastOptions.PRE_COMMIT_HOOKS
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
 import org.apache.spark.sql.delta.DeltaOptions
@@ -63,7 +64,7 @@ case class QbeastOptions(
     overwriteSchema: Option[String],
     hookInfo: Seq[HookInfo] = Nil) {
 
-  def toMap: Map[String, String] = {
+  def toMap: CaseInsensitiveMap[Map[String, String]] = {
     val options = Map.newBuilder[String, String]
     for (txnAppId <- txnAppId; txnVersion <- txnVersion) {
       options += DeltaOptions.TXN_APP_ID -> txnAppId
@@ -79,14 +80,13 @@ case class QbeastOptions(
       options += DeltaOptions.OVERWRITE_SCHEMA_OPTION -> overwriteSchema.get
     }
     if (hookInfo.nonEmpty) {
-      options += PRE_COMMIT_HOOKS -> hookInfo.map(_.toString).mkString(",")
+      hookInfo.foreach { options ++= _.toMap }
     }
 
     options += COLUMNS_TO_INDEX -> columnsToIndex.mkString(",")
     options += CUBE_SIZE -> cubeSize.toString
 
-    options.result()
-
+    CaseInsensitiveMap(options.result())
   }
 
 }
@@ -105,7 +105,6 @@ object QbeastOptions {
   val USER_METADATA: String = DeltaOptions.USER_METADATA_OPTION
   val MERGE_SCHEMA: String = DeltaOptions.MERGE_SCHEMA_OPTION
   val OVERWRITE_SCHEMA: String = DeltaOptions.OVERWRITE_SCHEMA_OPTION
-  val PRE_COMMIT_HOOKS: String = "qbeastPreCommitHooks"
 
   /**
    * Gets the columns to index from the options
@@ -175,36 +174,33 @@ object QbeastOptions {
     options.get(OVERWRITE_SCHEMA)
 
   /**
-   * Extracts hook information from the provided options map.
-   *
-   * This function parses the options map to extract information about hooks. It uses a regular
-   * expression to match keys in the format "qbeastPreCommitHooks.hookName" or
-   * "qbeastPreCommitHooks.hookName.paramName". For each matched key, it creates a HookInfo object
-   * with the value of the key as the class name and the paramName (if present) as the argument.
-   * The resulting HookInfo objects are returned as a sequence.
+   * This function is used to extract the information about hooks from the provided options. A
+   * hook in this context is a piece of code that is executed before a commit.
    *
    * @param options
-   *   The options map from which to extract hook information.
+   *   A Map[String, String] that represents the options passed to the function. The options map
+   *   should contain keys that match the pattern "${PRE_COMMIT_HOOKS_PREFIX.toLowerCase}.(\\w+)",
+   *   where "\\w+" is the name of the hook. The corresponding value should be the full class name
+   *   of the hook. Optionally, there can be another key for each hook with the pattern
+   *   "${PRE_COMMIT_HOOKS_PREFIX.toLowerCase}.(\\w+).arg", where "\\w+" is the name of the hook.
+   *   The corresponding value should be the argument for the hook.
+   *
    * @return
-   *   A sequence of HookInfo objects representing the hooks specified in the options.
+   *   A Seq[HookInfo] that contains the information about each hook. Each HookInfo object
+   *   contains the name of the hook, the full class name of the hook, and optionally the argument
+   *   for the hook.
    */
   private def getHookInfo(options: Map[String, String]): Seq[HookInfo] = {
-    val hookNameAndArgPattern: Regex = s"${PRE_COMMIT_HOOKS.toLowerCase}.(\\w+)(?:.(\\w+))?".r
-    var hooks = Map.empty[String, HookInfo]
-
-    options.toSeq
-      .sortBy(_._1.length)
-      .foreach { case (key, value) =>
-        key match {
-          case hookNameAndArgPattern(name, null) =>
-            hooks += (name -> HookInfo(value, None))
-          case hookNameAndArgPattern(name, _) if hooks.contains(name) =>
-            val clsFullName = hooks(name).clsFullName
-            hooks += (name -> HookInfo(clsFullName, Some(value)))
-          case _ =>
-        }
+    val hookNamePattern: Regex = s"${PRE_COMMIT_HOOKS_PREFIX.toLowerCase}.(\\w+)".r
+    options
+      .map {
+        case (hookNamePattern(hookName), clsFullName) =>
+          val hookArgName = getHookArgName(hookName)
+          Some(HookInfo(hookName, clsFullName, options.get(hookArgName)))
+        case _ => None
       }
-    hooks.values.toSeq
+      .collect { case Some(hookInfo) => hookInfo }
+      .toSeq
   }
 
   /**
@@ -245,6 +241,19 @@ object QbeastOptions {
    *   the QbeastOptions
    */
   def apply(options: Map[String, String]): QbeastOptions = apply(CaseInsensitiveMap(options))
+
+  /**
+   * Create QbeastOptions object from options map for optimization
+   * @param options
+   *   the options map
+   * @return
+   */
+  def optimizationOptions(options: Map[String, String]): QbeastOptions = {
+    val caseInsensitiveMap = CaseInsensitiveMap(options)
+    val userMetadata = getUserMetadata(caseInsensitiveMap)
+    val hookInfo = getHookInfo(caseInsensitiveMap)
+    QbeastOptions(Seq.empty, 0, None, None, None, userMetadata, None, None, hookInfo)
+  }
 
   /**
    * The empty options to be used as a placeholder.

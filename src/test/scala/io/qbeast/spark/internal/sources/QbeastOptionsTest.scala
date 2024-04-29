@@ -1,8 +1,8 @@
 package io.qbeast.spark.internal.sources
 
 import io.qbeast.spark.delta.hook.HookInfo
+import io.qbeast.spark.delta.hook.PreCommitHook.PRE_COMMIT_HOOKS_PREFIX
 import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.spark.internal.QbeastOptions.PRE_COMMIT_HOOKS
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.qbeast.config
 import org.apache.spark.sql.delta.DeltaOptions
@@ -74,7 +74,9 @@ class QbeastOptionsTest extends QbeastIntegrationTestSpec {
         QbeastOptions.TXN_VERSION -> "1",
         DeltaOptions.USER_METADATA_OPTION -> "metadata",
         DeltaOptions.MERGE_SCHEMA_OPTION -> "true",
-        DeltaOptions.OVERWRITE_SCHEMA_OPTION -> "true")
+        DeltaOptions.OVERWRITE_SCHEMA_OPTION -> "true",
+        s"$PRE_COMMIT_HOOKS_PREFIX.hook2" -> "HookClass2",
+        s"$PRE_COMMIT_HOOKS_PREFIX.hook2.arg" -> "HookClass2Arg")
 
       // Qbeast Options
       val options = QbeastOptions(optionsMap)
@@ -86,15 +88,23 @@ class QbeastOptionsTest extends QbeastIntegrationTestSpec {
     val options = QbeastOptions(
       Map(
         "columnsToIndex" -> "id",
-        "qbeastPreCommitHooks.hook1" -> "HookClass1",
-        "qbeastPreCommitHooks.hook2" -> "HookClass2",
-        "qbeastPreCommitHooks.hook2.arg" -> "HookClass2Arg"))
+        s"$PRE_COMMIT_HOOKS_PREFIX.hook1" -> "HookClass1",
+        s"$PRE_COMMIT_HOOKS_PREFIX.hook2" -> "HookClass2",
+        s"$PRE_COMMIT_HOOKS_PREFIX.hook2.arg" -> "HookClass2Arg"))
 
     options.hookInfo shouldBe Seq(
-      HookInfo("HookClass1", None),
-      HookInfo("HookClass2", Some("HookClass2Arg")))
+      HookInfo("hook1", "HookClass1", None),
+      HookInfo("hook2", "HookClass2", Some("HookClass2Arg")))
+  }
 
-    options.toMap.get(PRE_COMMIT_HOOKS) shouldBe Some("HookClass1,HookClass2:HookClass2Arg")
+  "optimizationOptions" should "return a QbeastOption with proper settings" in {
+    val options = Map(
+      DeltaOptions.USER_METADATA_OPTION -> "metadata",
+      s"$PRE_COMMIT_HOOKS_PREFIX.hook" -> "HookClass",
+      s"$PRE_COMMIT_HOOKS_PREFIX.hook.arg" -> "HookClassArg")
+    val qo = QbeastOptions.optimizationOptions(options)
+    qo.userMetadata shouldBe Some("metadata")
+    qo.hookInfo shouldBe Seq(HookInfo("hook", "HookClass", Some("HookClassArg")))
   }
 
 }

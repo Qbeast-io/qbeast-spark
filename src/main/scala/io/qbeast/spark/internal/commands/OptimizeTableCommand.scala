@@ -29,11 +29,14 @@ import org.apache.spark.sql.SparkSession
  * @param indexedTable
  *   indexed table to optimize
  */
-case class OptimizeTableCommand(revisionID: RevisionID, indexedTable: IndexedTable)
+case class OptimizeTableCommand(
+    revisionID: RevisionID,
+    indexedTable: IndexedTable,
+    options: Map[String, String])
     extends LeafRunnableCommand {
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
-    indexedTable.optimize(revisionID)
+    indexedTable.optimize(revisionID, options)
     Seq.empty[Row]
   }
 
