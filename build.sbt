@@ -1,7 +1,7 @@
 import xerial.sbt.Sonatype._
 import Dependencies._
 
-val mainVersion = "0.6.0-SNAPSHOT"
+val mainVersion = "0.7.0-SNAPSHOT"
 
 lazy val qbeastCore = (project in file("core"))
   .settings(
