@@ -18,9 +18,9 @@
 
 **Qbeast Spark** is an extension for [**Data Lakehouses**](http://cidrdb.org/cidr2021/papers/cidr2021_paper17.pdf) that enables **multi-dimensional filtering** and **sampling** directly on the storage
 
-[![apache-spark](https://img.shields.io/badge/apache--spark-3.4.x-blue)](https://spark.apache.org/releases/spark-release-3-4-1.html) 
+[![apache-spark](https://img.shields.io/badge/apache--spark-3.5.x-blue)](https://spark.apache.org/releases/spark-release-3-5-0.html) 
 [![apache-hadoop](https://img.shields.io/badge/apache--hadoop-3.3.x-blue)](https://hadoop.apache.org/release/3.3.1.html)
-[![delta-core](https://img.shields.io/badge/delta--core-2.4.0-blue)](https://github.com/delta-io/delta/releases/tag/v2.4.0)
+[![delta-core](https://img.shields.io/badge/delta--core-3.1.0-blue)](https://github.com/delta-io/delta/releases/tag/v2.4.0)
 [![codecov](https://codecov.io/gh/Qbeast-io/qbeast-spark/branch/main/graph/badge.svg?token=8WO7HGZ4MW)](https://codecov.io/gh/Qbeast-io/qbeast-spark)
 
 </div>
@@ -62,16 +62,16 @@ You can run the qbeast-spark application locally on your computer, or using a Do
 You can find it in the [Packages section](https://github.com/orgs/Qbeast-io/packages?repo_name=qbeast-spark).
 
 ### Pre: Install **Spark**
-Download **Spark 3.4.1 with Hadoop 3.3.4**, unzip it, and create the `SPARK_HOME` environment variable:<br />
+Download **Spark 3.5.0 with Hadoop 3.3.4**, unzip it, and create the `SPARK_HOME` environment variable:<br />
 
 >:information_source: **Note**: You can use Hadoop 2.7 if desired, but you could have some troubles with different cloud providers' storage, read more about it [here](docs/CloudStorages.md).
 
 ```bash
-wget https://archive.apache.org/dist/spark/spark-3.4.1/spark-3.4.1-bin-hadoop3.tgz
+wget https://archive.apache.org/dist/spark/spark-3.5.0/spark-3.5.0-bin-hadoop3.tgz
 
-tar -xzvf spark-3.4.1-bin-hadoop3.tgz
+tar -xzvf spark-3.5.0-bin-hadoop3.tgz
 
-export SPARK_HOME=$PWD/spark-3.4.1-bin-hadoop3
+export SPARK_HOME=$PWD/spark-3.5.0-bin-hadoop3
  ```
 ### 1. Launch a spark-shell
 
@@ -79,7 +79,7 @@ export SPARK_HOME=$PWD/spark-3.4.1-bin-hadoop3
 
 ```bash
 $SPARK_HOME/bin/spark-shell \
---packages io.qbeast:qbeast-spark_2.12:0.5.0,io.delta:delta-core_2.12:2.4.0 \
+--packages io.qbeast:qbeast-spark_2.12:0.6.0,io.delta:delta-spark_2.12:3.1.0 \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
 --conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
 ```
@@ -120,14 +120,29 @@ spark.sql(
 Use **`INSERT INTO`** to add records to the new table. It will update the index in a **dynamic** fashion when new data is inserted.
 
 ```scala
+val studentsDF = Seq((1, "Alice", 34), (2, "Bob", 36)).toDF("id", "name", "age")
 
+studentsDF.write.mode("overwrite").saveAsTable("visitor_students")
+
+// AS SELECT FROM
 spark.sql("INSERT INTO table student SELECT * FROM visitor_students")
 
+// VALUES
+spark.sql("INSERT INTO table student VALUES (3, 'Charlie', 37)")
+
+// SHOW
+spark.sql("SELECT * FROM student").show()
++---+-------+---+
+| id|   name|age|
++---+-------+---+
+|  1|  Alice| 34| 
+|  2|    Bob| 36|
+|  3|Charlie| 37|
++---+-------+---+
 ```
 
 ###  3. Load the dataset
 Load the newly indexed dataset.
-
 ```scala
 val qbeastDF =
   spark.
@@ -146,7 +161,7 @@ Go to the [Quickstart](./docs/Quickstart.md) or [notebook](docs/sampleopushdown_
 
 ### 5. Interact with the format
 
-Get **insights** or execute **operations** to the data using the `QbeastTable` interface!
+Get **insights** to the data using the `QbeastTable` interface!
 
 ```scala
 import io.qbeast.spark.QbeastTable
@@ -155,31 +170,53 @@ val qbeastTable = QbeastTable.forPath(spark, tmpDir)
 
 qbeastTable.getIndexMetrics()
 
-qbeastTable.analyze()
+```
+
+### 6. Optimize the table
+
+**Optimize** is an expensive operation that consist on **rewriting part of the files** to accomplish **better layout** and **improving query performance**.
+
+To minimize write amplification of this command, **we execute it based on subsets of the table**, like `Revision ID's` or specific files.
+
+> Read more about `Revision` and find an example [here](./docs/QbeastFormat.md).
+
+#### Optimize API
+These are the 3 ways of executing the `optimize` operation:
+
+```scala
+qbeastTable.optimize() // Optimizes the last Revision Available.
+// This does NOT include previous Revision's optimizations.
+
+qbeastTable.optimize(2L) // Optimizes the Revision number 2.
+
+qbeastTable.optimize(Seq("file1", "file2")) // Optimizes the specific files
+```
+
+**If you want to optimize the full table, you must loop through `revisions`**:
+
+```scala
+val revisions = qbeastTable.revisionsIDs() // Get all the Revision ID's available in the table.
+revisions.foreach(revision => 
+  qbeastTable.optimize(revision)
+)
 ```
 
 Go to [QbeastTable documentation](./docs/QbeastTable.md) for more detailed information.
 
-### 6. Visualize index
+### 7. Visualize index
 Use [Python index visualizer](./utils/visualizer/README.md) for your indexed table to visually examine index structure and gather sampling metrics.
 
 # Dependencies and Version Compatibility
 | Version | Spark | Hadoop | Delta Lake |
-|---------|:-----:|:------:|:----------:|
-| 0.1.0   | 3.0.0 | 3.2.0  |   0.8.0    |
-| 0.2.0   | 3.1.x | 3.2.0  |   1.0.0    |
-| 0.3.x   | 3.2.x | 3.3.x  |   1.2.x    |
-| 0.4.x   | 3.3.x | 3.3.x  |   2.1.x    |
-| 0.5.x   | 3.4.x | 3.3.x  |   2.4.x    |
+|---------|:-----:|:------:|:---------:|
+| 0.1.0   | 3.0.0 | 3.2.0  |   0.8.0   |
+| 0.2.0   | 3.1.x | 3.2.0  |   1.0.0   |
+| 0.3.x   | 3.2.x | 3.3.x  |   1.2.x   |
+| 0.4.x   | 3.3.x | 3.3.x  |   2.1.x   |
+| 0.5.x   | 3.4.x | 3.3.x  |   2.4.x   |
+| **0.6.x**   | **3.5.x** | **3.3.x**  |   **3.1.x**   |
 
-Check [here](https://docs.delta.io/latest/releases.html) for **Delta Lake** and **Apache Spark** version compatibility.  
-
-## Format changes
-
-Version 1.0.0 introduced changes in the index metadata format which are
-incompatible with the previous versions. However it is possible to migrate the
-existing tables without reindexing the data. Please find the details
-[here](./docs/IndexMetadataChangesInVersion1.0.0.md)
+Check [here](https://docs.delta.io/latest/releases.html) for **Delta Lake** and **Apache Spark** version compatibility.
 
 # Contribution Guide
 

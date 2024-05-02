@@ -26,17 +26,19 @@ qbeatsTable.lastRevisionID() // the last Revision identifier
 ```
 
 ## Table Operations
-Through QbeastTable you can also execute `Analyze`, `Optimize` and `Compact` operations, which are **currently experimental**.
+Through `QbeastTable` you can also execute `Optimize` operation. This command is used to **optimize the files in the table**, merging those small blocks into bigger ones to maintain an even distribution.
 
-- **`Analyze`**: analyzes the index **searching for possible optimizations**.
-- **`Optimize`**: optimize the index parts analyzed in the previous operation. The goal is to **improve reading performance** by accessing the less amount of data possible.
-- **`Compact`**: **rearranges** index information that is stored into **small files**. Compaction will **reduce the number of files** when you have many writing operations on the table.
+These are the 3 ways of executing the `optimize` operation:
+
 ```scala
-qbeastTable.analyze() // returns the Serialized cube ID's to optimize
 
-qbeastTable.optimize() // optimizes the cubes
+qbeastTable.optimize() // Optimizes the last Revision Available.
+// This does NOT include previous Revision's optimizations.
 
-qbeastTable.compact() // compacts small files into bigger ones
+qbeastTable.optimize(2L) // Optimizes the Revision number 2.
+
+qbeastTable.optimize(Seq("file1", "file2")) // Optimizes the specific files
+
 ```
 
 ## Index Metrics
