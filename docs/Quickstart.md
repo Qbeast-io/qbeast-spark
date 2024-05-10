@@ -139,8 +139,32 @@ val qbeastTable = QbeastTable.forPath(spark, qbeastTablePath)
 // compacts the small files into bigger ones
 qbeastTable.compact()
 ```
-
 See [OTreeAlgorithm](OTreeAlgorithm.md) and [QbeastFormat](QbeastFormat.md) for more details.
+
+# Other DML Operations
+
+DML is a Data Manipulation Language that is used to manipulate data itself. For example: insert, update, and delete are instructions in SQL.
+
+## Deletes
+
+> WARNING: **Deletes are supported in Qbeast library as part of the Delta Lake Protocol**, but it can break the index structure. We don't recommend to use it unless you are aware of the consequences. See issue #[327](https://github.com/Qbeast-io/qbeast-spark/issues/327)
+
+You can delete rows from a table using the `DeltaTable` API.
+
+```scala
+import io.delta.tables._
+
+val deltaTable = DeltaTable.forPath(spark, "/tmp/qbeast/people-10m")
+
+// Declare the predicate by using a SQL-formatted string.
+deltaTable.delete("birthDate < '1955-01-01'")
+
+import org.apache.spark.sql.functions._
+import spark.implicits._
+
+// Declare the predicate by using Spark SQL functions and implicits.
+deltaTable.delete(col("birthDate") < "1955-01-01")
+```
 
 ## Table Tolerance (Work In Progress)
 
