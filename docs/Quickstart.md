@@ -147,7 +147,7 @@ DML is a Data Manipulation Language that is used to manipulate data itself. For 
 
 ## Deletes
 
-> WARNING: Data can be removed from a Qbeast table with Delta Lake API, but, as currently constructed, **it will leave the index in an inconsistent state.** See issue #[327](https://github.com/Qbeast-io/qbeast-spark/issues/327). We don't recommend to use it unless you are aware of the consequences. See issue #[327](https://github.com/Qbeast-io/qbeast-spark/issues/327)
+> WARNING: Data can be removed from a Qbeast table with Delta Lake API, but, as currently constructed, **it will leave the index in an inconsistent state.** See issue #[327](https://github.com/Qbeast-io/qbeast-spark/issues/327).
 
 You can delete rows from a table using the `DeltaTable` API; then **the table should only be read using `delta`**.
 
