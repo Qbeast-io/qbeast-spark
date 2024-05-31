@@ -139,7 +139,6 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
 
         // If the tree has any inner node, avgFanout cannot be < 1.0
         metrics.avgFanout shouldBe >=(1d)
-        metrics.depthOnBalance shouldBe >(0d)
 
         val blocks = metrics.cubeStatuses.values.toSeq.flatMap(_.blocks)
 
@@ -210,7 +209,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
       metrics.blockCountPerFileStats.count shouldBe numFiles
   }
 
-  "IndexMetrics" should "work correctly with empty cubeStatuses" in withQbeastContextSparkAndTmpDir {
+  "IndexMetrics" should "handle empty cubeStatuses correctly" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
       // Add 10 file to the staging revision
       createDF(spark).repartition(10).write.mode("append").format("delta").save(tmpDir)
@@ -235,6 +234,16 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
       metrics.blockCountPerCubeStats.count shouldBe 0
       metrics.blockCountPerFileStats.count shouldBe 0
 
+  }
+
+  "Tabulator" should "format data correctly" in {
+    val input = Seq(Seq("1", "2", "3", "4"), Seq("1", "22", "333", "4444"))
+    val expected = Seq(
+      Seq("1", "2 ", "3  ", "4   ").mkString(" "),
+      Seq("1", "22", "333", "4444").mkString(" ")).mkString("\n")
+
+    Tabulator.format(input) shouldBe expected
+    Tabulator.format(Seq.empty) shouldBe ""
   }
 
 }
