@@ -167,7 +167,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
 
       // The tree has only one cube
       metrics.height shouldBe 1
-      metrics.avgFanout.isNaN shouldBe true
+      metrics.avgFanout shouldBe 0d
 
       // There is no inner cube
       val blocks = metrics.cubeStatuses.values.toSeq.flatMap(_.blocks)
@@ -200,7 +200,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
       metrics.desiredCubeSize shouldBe 100
       metrics.indexingColumns shouldBe "age:empty,val2:empty"
       metrics.height shouldBe 1
-      metrics.avgFanout.isNaN shouldBe true
+      metrics.avgFanout shouldBe 0d
 
       metrics.cubeElementCountStats.count shouldBe 1
       metrics.blockElementCountStats.count shouldBe numFiles
@@ -223,10 +223,14 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
       val metrics = IndexMetrics(qs.loadLatestRevision, SortedMap.empty[CubeId, CubeStatus])
 
       metrics.cubeStatuses.isEmpty shouldBe true
+
       metrics.revisionId shouldBe 0L
-      metrics.height shouldBe -1
       metrics.elementCount shouldBe 0
+      metrics.dimensionCount shouldBe 2
+      metrics.desiredCubeSize shouldBe 100
       metrics.indexingColumns shouldBe "age:empty,val2:empty"
+      metrics.height shouldBe -1
+      metrics.avgFanout shouldBe 0d
 
       metrics.cubeElementCountStats.count shouldBe 0
       metrics.blockElementCountStats.count shouldBe 0
