@@ -178,7 +178,7 @@ This can be addressed by introducing a custom **String** histogram in the form o
 
 The following code snippet demonstrates the extraction of a **String** histogram from the source data:
 ```scala
- import io.qbeast.spark.utils.QbeastUtils
+import io.qbeast.spark.utils.QbeastUtils
 
 val brandStats = QbeastUtils.computeHistogramForColumn(df, "brand", 50)
 val statsStr = s"""{"brand_histogram":$brandStats}"""
