@@ -178,31 +178,9 @@ This can be addressed by introducing a custom **String** histogram in the form o
 
 The following code snippet demonstrates the extraction of a **String** histogram from the source data:
 ```scala
- import org.apache.spark.sql.delta.skipping.MultiDimClusteringFunctions
- import org.apache.spark.sql.DataFrame
- import org.apache.spark.sql.functions.{col, min}
+import io.qbeast.spark.utils.QbeastUtils
 
- def getStringHistogramStr(columnName: String, numBins: Int, df: DataFrame): String = {
-   val binStarts = "__bin_starts"
-   val stringPartitionColumn =
-     MultiDimClusteringFunctions.range_partition_id(col(columnName), numBins)
-   df
-     .select(columnName)
-     .distinct()
-     .na.drop()
-     .groupBy(stringPartitionColumn)
-     .agg(min(columnName).alias(binStarts))
-     .select(binStarts)
-     .orderBy(binStarts)
-     .collect()
-     .map { r =>
-       val s = r.getAs[String](0)
-       s"'$s'"
-     }
-     .mkString("[", ",", "]")
- }
-
-val brandStats = getStringHistogramStr("brand", 50, df)
+val brandStats = QbeastUtils.computeHistogramForColumn(df, "brand", 50)
 val statsStr = s"""{"brand_histogram":$brandStats}"""
 
 (df
