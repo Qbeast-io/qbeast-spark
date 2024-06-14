@@ -238,7 +238,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec with Log
 
       val qt = QbeastTable.forPath(spark, tmpDir)
       val m = qt.getIndexMetrics()
-      val filePath = m.cubeStatuses.values.flatMap(_.blocks.map(_.file)).head.path
+      val filePath = m.cubeStatuses.values.flatMap(_.blocks.map(_.filePath)).head
       qt.optimize(Seq(filePath))
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)

@@ -122,7 +122,7 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
 
   override def loadLatestIndexFiles: IISeq[IndexFile] = loadIndexFiles(lastRevisionID)
 
-  override def loadIndexFiles(revisionId: RevisionID): IISeq[IndexFile] = {
+  override def loadIndexFiles(revisionId: RevisionID): Dataset[IndexFile] = {
     val revision = loadRevision(revisionId)
     val dimensionCount = revision.transformations.size
     val addFiles = if (isStaging(revision)) {
@@ -130,7 +130,8 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
     } else {
       loadRevisionBlocks(revisionId)
     }
-    addFiles.toLocalIterator().asScala.map(IndexFiles.fromAddFile(dimensionCount)).toIndexedSeq
+    import addFiles.sparkSession._
+    addFiles.map(IndexFiles.fromAddFile(dimensionCount)).toIndexedSeq
   }
 
   /**

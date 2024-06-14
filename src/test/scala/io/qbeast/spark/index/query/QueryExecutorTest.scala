@@ -55,13 +55,13 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val allDeltaFiles = deltaLog.update().allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.file.path).toSet
+    val matchFiles = queryExecutor.execute().map(_.path).toSet
 
-    val diff = allFiles.toSet -- matchFiles.toSet
+    val diff = allFiles.toSet -- matchFiles
 
     diff.size shouldBe 0
     matchFiles.size shouldBe allFiles.length
-    matchFiles.toSet shouldBe allFiles.toSet
+    matchFiles shouldBe allFiles.toSet
 
   })
 
@@ -80,7 +80,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val allDeltaFiles = deltaLog.update().allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.file.path).toSet
+    val matchFiles = queryExecutor.execute().map(_.path).toSet
 
     matchFiles.size shouldBe <(allFiles.length)
     matchFiles.foreach(file => allFiles should contain(file))
@@ -102,7 +102,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val allDeltaFiles = deltaLog.update().allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.file.path).toSet
+    val matchFiles = queryExecutor.execute().map(_.path).toSet
 
     matchFiles.size shouldBe <(allFiles.length)
     matchFiles.foreach(file => allFiles should contain(file))
@@ -135,7 +135,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val allDeltaFiles = deltaLog.update().allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.file.path)
+    val matchFiles = queryExecutor.execute().map(_.path)
 
     val diff = allFiles.toSet -- matchFiles.toSet
     diff.size shouldBe 0
@@ -193,7 +193,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val queryExecutor = new QueryExecutor(querySpecBuilder, qbeastSnapshot)
     val matchFiles = queryExecutor
       .executeRevision(querySpec, faultyIndexStatus)
-      .map(_.file.path)
+      .map(_.filePath)
 
     val allFiles = deltaLog.update().allFiles.collect().map(_.path)
 

@@ -99,7 +99,7 @@ class BlockTest extends AnyFlatSpec with Matchers {
 
     val block = file.blocks(0)
     val replicatedBlock = block.replicate()
-    replicatedBlock.file shouldBe block.file
+    replicatedBlock.filePath shouldBe block.filePath
     replicatedBlock.cubeId shouldBe block.cubeId
     replicatedBlock.elementCount shouldBe block.elementCount
     replicatedBlock.minWeight shouldBe block.minWeight

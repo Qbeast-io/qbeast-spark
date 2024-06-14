@@ -32,25 +32,27 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
    * @return
    *   the final sequence of blocks that match the query
    */
-  def execute(): Iterable[Block] = {
+  def execute(): Iterable[IndexFile] = {
 
-    qbeastSnapshot.loadAllRevisions.flatMap { revision =>
+    qbeastSnapshot.loadAllRevisions.filter(_.revisionID > 0).flatMap { revision =>
+      val indexes = qbeastSnapshot.loadIndexFiles(revision.revisionID).map(a => (a.path, a)).toMap
+      val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
       val querySpecs = querySpecBuilder.build(revision)
-      querySpecs.flatMap { querySpec =>
+      val files = querySpecs.flatMap { querySpec =>
         (querySpec.isSampling, querySpec.querySpace) match {
           case (_, _: QuerySpaceFromTo) | (true, _: AllSpace) =>
-            val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
             val matchingBlocks = executeRevision(querySpec, indexStatus)
-            matchingBlocks
+            matchingBlocks.map(_.filePath)
           case (false, _: AllSpace) =>
-            val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
             indexStatus.cubesStatuses.values.flatMap { status =>
-              status.blocks.filterNot(_.replicated)
+              status.blocks.filterNot(_.replicated).map(_.filePath)
             }
-          case _ => Seq.empty[Block]
+          case _ => Seq.empty[String]
         }
-      }
-    }.toSet
+      }.toSet
+      files.map(indexes)
+
+    }
   }
 
   private[query] def executeRevision(

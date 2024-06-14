@@ -36,6 +36,7 @@ final class IndexFile private[model] (
     val revisionId: RevisionID,
     val blocks: IISeq[Block])
     extends Serializable {
+  assert(blocks.nonEmpty)
 
   /**
    * The number of elements in the file

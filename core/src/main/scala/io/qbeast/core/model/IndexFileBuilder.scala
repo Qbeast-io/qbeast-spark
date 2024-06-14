@@ -25,7 +25,7 @@ final class IndexFileBuilder {
   private var size: Long = 0L
   private var modificationTime: Long = 0L
   private var revisionId: RevisionID = 0L
-  private val blocks = immutable.Seq.newBuilder[Block]
+  private val blocks = immutable.Seq.newBuilder[VolatileBlock]
 
   /**
    * Sets the path.
@@ -87,7 +87,7 @@ final class IndexFileBuilder {
    */
   def beginBlock(): IndexFileBuilder.BlockBuilder = new IndexFileBuilder.BlockBuilder(this)
 
-  private def addBlock(block: Block): IndexFileBuilder = {
+  private def addBlock(block: VolatileBlock): IndexFileBuilder = {
     blocks += block
     this
   }
@@ -99,9 +99,13 @@ final class IndexFileBuilder {
    *   the index file
    */
   def result(): IndexFile = {
-    val file = new IndexFile(path.get, size, modificationTime, revisionId, blocks.result())
-    file.blocks.foreach(_.owner = Some(file))
-    file
+    val filePath = path.get
+    new IndexFile(
+      filePath,
+      size,
+      modificationTime,
+      revisionId,
+      blocks.result().map(_.toBlock(filePath)))
   }
 
 }
@@ -112,7 +116,7 @@ final class IndexFileBuilder {
 object IndexFileBuilder {
 
   /**
-   * Builder for creating Blockk instances.
+   * Builder for creating Block instances.
    */
   final class BlockBuilder private[IndexFileBuilder] (owner: IndexFileBuilder) {
     private var cubeId: Option[CubeId] = None
@@ -216,14 +220,26 @@ object IndexFileBuilder {
      *   the IndexFileBuilder instance
      */
     def endBlock(): IndexFileBuilder = owner.addBlock(
-      new Block(
-        None,
+      VolatileBlock(
         cubeId.get,
         minWeight.getOrElse(Weight.MinValue),
         maxWeight.getOrElse(Weight.MaxValue),
         elementCount,
         replicated))
 
+  }
+
+}
+
+case class VolatileBlock(
+    cubeId: CubeId,
+    minWeight: Weight,
+    maxWeight: Weight,
+    elementCount: Long,
+    replicated: Boolean) {
+
+  def toBlock(filePath: String): Block = {
+    Block(filePath, cubeId, minWeight, maxWeight, elementCount, replicated)
   }
 
 }

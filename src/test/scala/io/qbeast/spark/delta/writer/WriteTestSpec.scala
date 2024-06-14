@@ -133,7 +133,7 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
       cubeStatus.blocks.foreach { i =>
         // Write data in parquetFile
         val dataCube = indexed.where(s"$cubeColumnName == '${cubeId.string}'")
-        dataCube.coalesce(1).write.format("parquet").save(tmpDir + "/" + i.file.path)
+        dataCube.coalesce(1).write.format("parquet").save(tmpDir + "/" + i.filePath)
       }
 
     }
