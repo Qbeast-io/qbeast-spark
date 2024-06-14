@@ -56,13 +56,16 @@ case class ConvertToQbeastCommand(
     with Logging
     with StagingUtils {
 
-  private def resolveTableFormat(spark: SparkSession): (String, TableIdentifier) =
-    identifier.split("\\.") match {
-      case Array(f, p) if f.nonEmpty && p.nonEmpty =>
-        (f.toLowerCase(Locale.ROOT), spark.sessionState.sqlParser.parseTableIdentifier(p))
+  private val Identifier = "^([A-z]+)\\.(.*)$".r
+
+  private def resolveTableFormat(spark: SparkSession): (String, TableIdentifier) = {
+    identifier match {
+      case Identifier(format, path) if format.nonEmpty && path.nonEmpty =>
+        (format.toLowerCase(Locale.ROOT), spark.sessionState.sqlParser.parseTableIdentifier(path))
       case _ =>
         throw AnalysisExceptionFactory.create(incorrectIdentifierFormat(identifier))
     }
+  }
 
   override def run(spark: SparkSession): Seq[Row] = {
     val (fileFormat, tableId) = resolveTableFormat(spark)
