@@ -16,6 +16,7 @@
 package io.qbeast.core.model
 
 import io.qbeast.IISeq
+import org.apache.spark.sql.Dataset
 
 /**
  * A snapshot of the Qbeast table state.
@@ -54,7 +55,7 @@ trait QbeastSnapshot {
    * @return
    *   the index files of the lates revision
    */
-  def loadLatestIndexFiles: IISeq[IndexFile]
+  def loadLatestIndexFiles: Dataset[IndexFile]
 
   /**
    * Loads the index files of the specified revision.
@@ -64,7 +65,7 @@ trait QbeastSnapshot {
    * @return
    *   the index files of the specified revision
    */
-  def loadIndexFiles(revisionId: RevisionID): IISeq[IndexFile]
+  def loadIndexFiles(revisionId: RevisionID): Dataset[IndexFile]
 
   /**
    * Obtains all Revisions

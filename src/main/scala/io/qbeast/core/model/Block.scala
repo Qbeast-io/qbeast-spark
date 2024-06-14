@@ -33,7 +33,7 @@ package io.qbeast.core.model
  * @param replicated
  *   the block is replicated
  */
-final case class Block private[model] (
+case class Block(
     filePath: String,
     cubeId: CubeId,
     minWeight: Weight,
@@ -41,7 +41,6 @@ final case class Block private[model] (
     elementCount: Long,
     replicated: Boolean)
     extends Serializable {
-  assert(elementCount > 0)
 
   /**
    * Replicates the block.
@@ -52,7 +51,7 @@ final case class Block private[model] (
   def replicate(): Block =
     if (replicated) this else Block(filePath, cubeId, minWeight, maxWeight, elementCount, true)
 
-  override def toString(): String = {
+  override def toString: String = {
     s"Block($filePath, $cubeId, $minWeight, $maxWeight, $elementCount, $replicated)"
   }
 

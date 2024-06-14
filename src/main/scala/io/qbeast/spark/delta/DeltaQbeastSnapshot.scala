@@ -24,8 +24,7 @@ import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.Dataset
-
-import scala.collection.JavaConverters._
+import org.apache.spark.sql.SparkSession
 
 /**
  * Qbeast Snapshot that provides information about the current index state.
@@ -120,7 +119,7 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
     new IndexStatusBuilder(this, revision).build()
   }
 
-  override def loadLatestIndexFiles: IISeq[IndexFile] = loadIndexFiles(lastRevisionID)
+  override def loadLatestIndexFiles: Dataset[IndexFile] = loadIndexFiles(lastRevisionID)
 
   override def loadIndexFiles(revisionId: RevisionID): Dataset[IndexFile] = {
     val revision = loadRevision(revisionId)
@@ -130,8 +129,10 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
     } else {
       loadRevisionBlocks(revisionId)
     }
-    import addFiles.sparkSession._
-    addFiles.map(IndexFiles.fromAddFile(dimensionCount)).toIndexedSeq
+    // implicit val a: Encoder[IndexFile] = Encoders.kryo[IndexFile]
+    val spark = SparkSession.active
+    import spark.implicits._
+    addFiles.map(IndexFiles.fromAddFile(dimensionCount))
   }
 
   /**

@@ -35,7 +35,10 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
   def execute(): Iterable[IndexFile] = {
 
     qbeastSnapshot.loadAllRevisions.filter(_.revisionID > 0).flatMap { revision =>
-      val indexes = qbeastSnapshot.loadIndexFiles(revision.revisionID).map(a => (a.path, a)).toMap
+      val indexFiles = qbeastSnapshot.loadIndexFiles(revision.revisionID)
+      import indexFiles.sparkSession.implicits._
+      val indexes =
+        qbeastSnapshot.loadIndexFiles(revision.revisionID).map(a => (a.path, a)).collect().toMap
       val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
       val querySpecs = querySpecBuilder.build(revision)
       val files = querySpecs.flatMap { querySpec =>

@@ -250,7 +250,7 @@ class ConvertToQbeastTest
       val qs = getQbeastSnapshot(spark, tmpDir)
       val stagingCs = qs.loadLatestIndexFiles
 
-      stagingCs.size shouldBe 1
+      stagingCs.count() shouldBe 1L
       stagingCs.head.blocks.size shouldBe <(numSparkPartitions)
     })
 

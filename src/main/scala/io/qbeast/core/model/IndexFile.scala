@@ -29,14 +29,13 @@ import io.qbeast.IISeq
  * @param blocks
  *   the blocks
  */
-final class IndexFile private[model] (
-    val path: String,
-    val size: Long,
-    val modificationTime: Long,
-    val revisionId: RevisionID,
-    val blocks: IISeq[Block])
+case class IndexFile(
+    path: String,
+    size: Long,
+    modificationTime: Long,
+    revisionId: RevisionID,
+    blocks: IISeq[Block])
     extends Serializable {
-  assert(blocks.nonEmpty)
 
   /**
    * The number of elements in the file
@@ -72,10 +71,11 @@ final class IndexFile private[model] (
     val newBlocks = blocks.map { block =>
       if (cubeIds.contains(block.cubeId)) block.replicate() else block
     }
-    Some(new IndexFile(path, size, newModificationTime, revisionId, newBlocks))
+    Some(IndexFile(path, size, newModificationTime, revisionId, newBlocks))
   }
 
-  override def toString(): String =
-    s"IndexFile(${path}, ${size}, ${modificationTime}, ${revisionId}, ${blocks})"
+  override def toString: String = {
+    s"IndexFile($path, $size, $modificationTime, $revisionId, $blocks)"
+  }
 
 }
