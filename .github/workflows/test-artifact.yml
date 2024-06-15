@@ -22,7 +22,6 @@ jobs:
     - name: Test
       run: |
         sbt coverage 'test' coverageReport
-        sbt "project qbeastCore" coverage 'test' coverageReport
     - name: Upload to Codecov
       run: |
         curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import # One-time step
