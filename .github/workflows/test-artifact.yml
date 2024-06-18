@@ -15,6 +15,15 @@ jobs:
       uses: actions/setup-java@v1
       with:
         java-version: 1.8
+    - name: Clear previous builds
+      run: |
+        sbt clean
+        rm -rf ~/.ivy2/cache
+        rm -rf ~/.sbt/1.0
+    - name: Clean previous builds
+      run: sbt clean
+    - name: Package
+      run: sbt package
     - name: Assembly
       run: sbt assembly
     - name: Lint
