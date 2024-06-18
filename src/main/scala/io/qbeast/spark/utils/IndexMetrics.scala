@@ -17,167 +17,238 @@ package io.qbeast.spark.utils
 
 import io.qbeast.core.model.CubeId
 import io.qbeast.core.model.CubeStatus
-import io.qbeast.spark.utils.MathOps.l1Deviation
-import io.qbeast.spark.utils.MathOps.l2Deviation
-import io.qbeast.spark.utils.MathOps.roundToPrecision
-import io.qbeast.spark.utils.MathOps.std
+import io.qbeast.core.model.Revision
+import io.qbeast.core.model.RevisionID
 
 import scala.collection.immutable.SortedMap
 
-/**
- * Metrics that aim to provide an overview for a given index revision
- * @param cubeStatuses
- *   cube-wise metadata
- * @param dimensionCount
- *   the number of indexing columns
- * @param elementCount
- *   the total number of records
- * @param depth
- *   the largest cube depth
- * @param cubeCount
- *   the number of cubes
- * @param desiredCubeSize
- *   the target cube size for all inner cubes
- * @param indexingColumns
- *   columns on which the index is built
- * @param avgFanout
- *   the average number of child cubes for all inner cubes
- * @param depthOnBalance
- *   measurement for tree imbalance
- * @param innerCubeSizeMetrics
- *   stats on inner cube sizes
- */
 case class IndexMetrics(
-    cubeStatuses: SortedMap[CubeId, CubeStatus],
-    dimensionCount: Int,
+    revisionId: RevisionID,
     elementCount: Long,
-    depth: Int,
-    cubeCount: Int,
+    dimensionCount: Int,
     desiredCubeSize: Int,
     indexingColumns: String,
+    height: Int,
     avgFanout: Double,
-    depthOnBalance: Double,
-    innerCubeSizeMetrics: CubeSizeMetrics) {
+    cubeElementCountStats: SizeStats,
+    blockElementCountStats: SizeStats,
+    fileBytesStats: SizeStats,
+    blockCountPerCubeStats: SizeStats,
+    blockCountPerFileStats: SizeStats,
+    innerCubeStats: String,
+    leafCubeStats: String,
+    cubeStatuses: SortedMap[CubeId, CubeStatus]) {
 
-  /**
-   * Stats on leaf cube sizes.
-   */
-  lazy val leafCubeSizeMetrics: CubeSizeMetrics = {
-    val leafCs = cubeStatuses.filterKeys(!_.children.exists(cubeStatuses.contains))
-    CubeSizeMetrics(leafCs, desiredCubeSize)
-  }
+  def cubeCount: Int = cubeElementCountStats.count
+
+  def blockCount: Int = blockElementCountStats.count
+
+  def fileCount: Int = fileBytesStats.count
+
+  def bytes: Long = fileBytesStats.avg * fileCount
+
+  val minHeight: Int = IndexMathOps.minHeight(elementCount, desiredCubeSize, dimensionCount)
+
+  val theoreticalFanout: Double = math.pow(2, dimensionCount)
 
   override def toString: String = {
+    val multiBlockFilesStats =
+      s"""cubeElementCountStats: $cubeElementCountStats
+         |blockElementCountStats: $blockElementCountStats
+         |fileBytesStats: $fileBytesStats
+         |blockCountPerCubeStats: $blockCountPerCubeStats
+         |blockCountPerFileStats: $blockCountPerFileStats""".stripMargin
+
     s"""OTree Index Metrics:
-       |dimensionCount: $dimensionCount
+       |revisionId: $revisionId
        |elementCount: $elementCount
-       |depth: $depth
-       |cubeCount: $cubeCount
+       |dimensionCount: $dimensionCount
        |desiredCubeSize: $desiredCubeSize
        |indexingColumns: $indexingColumns
-       |avgFanout: $avgFanout
-       |depthOnBalance: $depthOnBalance
-       |\n$innerCubeSizeMetrics
+       |height: $height ($minHeight)
+       |avgFanout: $avgFanout ($theoreticalFanout)
+       |cubeCount: $cubeCount
+       |blockCount: $blockCount
+       |fileCount: $fileCount
+       |bytes: $bytes
+       |\nMulti-block files stats:
+       |$multiBlockFilesStats
+       |\nInner cubes depth-wise stats:\n$innerCubeStats
+       |\nLeaf cubes depth-wise stats:\n$leafCubeStats
        |""".stripMargin
   }
 
 }
 
-case class CubeSizeMetrics(
-    min: Long,
-    firstQuartile: Long,
-    secondQuartile: Long,
-    thirdQuartile: Long,
-    max: Long,
+object IndexMetrics {
+
+  def apply(revision: Revision, cubeStatuses: SortedMap[CubeId, CubeStatus]): IndexMetrics = {
+    val dimensionCount = revision.columnTransformers.size
+    val desiredCubeSize = revision.desiredCubeSize
+
+    val blocks = cubeStatuses.values.toList.flatMap(_.blocks)
+    val cubes = cubeStatuses.keys.toSeq
+    val files = blocks.map(_.file).distinct
+    val cubeSizes = cubeStatuses.values.toList.map(_.blocks.map(_.elementCount).sum)
+
+    val height = if (cubes.nonEmpty) cubes.maxBy(_.depth).depth + 1 else -1
+
+    val innerCs = cubeStatuses.filterKeys(_.children.exists(cubeStatuses.contains))
+    val leafCs = cubeStatuses -- innerCs.keys
+
+    val avgFanout = IndexMathOps.averageFanout(cubeStatuses.keys.toSet)
+
+    val elementCount = files.map(_.elementCount).sum
+
+    IndexMetrics(
+      revisionId = revision.revisionID,
+      elementCount = elementCount,
+      dimensionCount = dimensionCount,
+      desiredCubeSize = desiredCubeSize,
+      indexingColumns = revision.columnTransformers.map(_.spec).mkString(","),
+      height = height,
+      avgFanout = avgFanout,
+      cubeElementCountStats = SizeStats.fromLongs(cubeSizes),
+      blockElementCountStats = SizeStats.fromLongs(blocks.map(_.elementCount)),
+      fileBytesStats = SizeStats.fromLongs(files.map(_.size)),
+      blockCountPerCubeStats =
+        SizeStats.fromIntegers(cubeStatuses.values.toList.map(_.blocks.size)),
+      blockCountPerFileStats = SizeStats.fromIntegers(files.map(_.blocks.size)),
+      innerCubeStats = computeCubeStats(innerCs),
+      leafCubeStats = computeCubeStats(leafCs),
+      cubeStatuses = cubeStatuses)
+  }
+
+  private def computeCubeStats(cubeStatuses: SortedMap[CubeId, CubeStatus]): String = {
+    val cubeElementCountStats =
+      SizeStats.fromLongs(cubeStatuses.values.toSeq.map(_.blocks.map(_.elementCount).sum))
+    val blockElementCounts =
+      SizeStats.fromLongs(cubeStatuses.values.toSeq.flatMap(_.blocks).map(_.elementCount))
+
+    val depthWiseStats = cubeStatuses
+      .groupBy(_._1.depth)
+      .toSeq
+      .sortBy(_._1)
+      .map { case (depth, csMap) =>
+        var blockCount = 0
+        val cubeElementCountStats =
+          SizeStats.fromLongs(csMap.values.toSeq.map { cs =>
+            blockCount += cs.blocks.size
+            cs.blocks.foldLeft(0L)((acc, b) => acc + b.elementCount)
+          })
+        val avgWeights = csMap.values.map(_.normalizedWeight).sum / csMap.size
+        Seq(
+          depth.toString,
+          cubeElementCountStats.avg.toString,
+          cubeElementCountStats.count.toString,
+          blockCount.toString,
+          cubeElementCountStats.std.toString,
+          cubeElementCountStats.quartiles.toString,
+          avgWeights.toString)
+      }
+
+    val columnNames = Seq(
+      "depth",
+      "avgCubeElementCount",
+      "cubeCount",
+      "blockCount",
+      "cubeElementCountStd",
+      "cubeElementCountQuartiles",
+      "avgWeight")
+    "cubeElementCountStats: " + cubeElementCountStats.toString + "\n" +
+      "blockElementCountStats: " + blockElementCounts.toString + "\n" +
+      Tabulator.format(columnNames +: depthWiseStats)
+  }
+
+}
+
+case class SizeStats(
     count: Int,
-    l1_dev: Double,
-    l2_dev: Double,
-    levelStats: String) {
+    avg: Long,
+    std: Long,
+    quartiles: (Long, Long, Long, Long, Long)) {
 
   override def toString: String = {
-    s"""Stats on cube sizes:
-       |Quartiles:
-       |- min: $min
-       |- 1stQ: $firstQuartile
-       |- 2ndQ: $secondQuartile
-       |- 3rdQ: $thirdQuartile
-       |- max: $max
-       |Stats:
-       |- count: $count
-       |- l1_dev: $l1_dev
-       |- l2_dev: $l2_dev
-       |Level-wise stats:
-       |$levelStats
-       |""".stripMargin
+    s"(count: $count, avg: $avg, std: $std, quartiles: $quartiles)"
   }
 
 }
 
-object CubeSizeMetrics {
+object SizeStats {
 
-  def apply(cubeStatuses: Map[CubeId, CubeStatus], desiredCubeSize: Int): CubeSizeMetrics = {
-    if (cubeStatuses.isEmpty) CubeSizeMetrics(-1, -1, -1, -1, -1, 0, -1, -1, "")
+  def fromLongs(nums: Seq[Long]): SizeStats = {
+    if (nums.isEmpty) SizeStats(0, -1, -1, computeQuartiles(Seq.empty))
     else {
-      val cubeSizes = cubeStatuses.values.map(_.blocks.map(_.elementCount).sum).toSeq.sorted
-      val cubeCount = cubeStatuses.size.toDouble
+      val avg = nums.sum / nums.size
+      val std = IndexMathOps.std(nums, avg)
+      SizeStats(nums.size, avg, std, computeQuartiles(nums))
+    }
+  }
 
-      val l1_dev = l1Deviation(cubeSizes, desiredCubeSize)
-      val l2_dev = l2Deviation(cubeSizes, desiredCubeSize)
+  def fromIntegers(nums: Seq[Int]): SizeStats = fromLongs(nums.map(_.toLong))
 
-      val columns = Seq("level", "avgCubeSize", "stdCubeSize", "cubeCount", "avgWeight")
-      val levelStats =
-        cubeStatuses
-          .groupBy(cs => cs._1.depth)
-          .toSeq
-          .sortBy(_._1)
-          .map { case (level, m) =>
-            val cnt = m.size
-            val avgWeight = m.values.map(_.normalizedWeight).sum / cnt
-            val levelCubeSizes = m.values.toSeq.map(_.blocks.map(_.elementCount).sum)
-            val avgCubeSize = levelCubeSizes.sum / cnt
-            Seq(
-              level.toString,
-              avgCubeSize.toString,
-              std(levelCubeSizes, avgCubeSize).toString,
-              cnt.toString,
-              roundToPrecision(avgWeight).toString)
-          }
-
-      CubeSizeMetrics(
-        cubeSizes.min,
-        cubeSizes((cubeCount * 0.25).toInt),
-        cubeSizes((cubeCount * 0.50).toInt),
-        cubeSizes((cubeCount * 0.75).toInt),
-        cubeSizes.max,
-        cubeStatuses.size,
-        l1_dev,
-        l2_dev,
-        Tabulator.format(columns +: levelStats))
+  def computeQuartiles(nums: Seq[Long]): (Long, Long, Long, Long, Long) = {
+    if (nums.isEmpty) (-1, -1, -1, -1, -1)
+    else {
+      val sorted = nums.sorted
+      (
+        sorted.head,
+        sorted((sorted.size * 0.25).toInt),
+        sorted((sorted.size * 0.50).toInt),
+        sorted((sorted.size * 0.75).toInt),
+        sorted.last)
     }
   }
 
 }
 
-object MathOps {
+object IndexMathOps {
 
   /**
-   * Compute the relation between the actual depth over the theoretical depth of an index assuming
-   * full fanout for all inner cubes. The result can be used to measure tree imbalance.
-   * @param depth
-   *   actual depth of the index
-   * @param cubeCount
-   *   the number of actual cubes
+   * Compute the theoretical height of an index assuming a balanced tree. The result can be used
+   * to measure tree imbalance, where a value close to 1 indicates a balanced tree.
+   *
+   * @param elementCount
+   *   the number of elements in the index
+   * @param desiredCubeSize
+   *   the desired cube size
    * @param dimensionCount
-   *   the number of dimensions
+   *   the number of dimensions in the index
    * @return
+   *   the theoretical height of the index assuming a balanced tree
    */
-  def depthOnBalance(depth: Int, cubeCount: Int, dimensionCount: Int): Double = {
-    val c = math.pow(2, dimensionCount).toInt
-    val theoreticalDepth = logOfBase(c, 1 - cubeCount * (1 - c)) - 1
-    depth / theoreticalDepth
+  def minHeight(elementCount: Long, desiredCubeSize: Int, dimensionCount: Int): Int = {
+    // Geometric sum: Sn = a(1-pow(r, n)/(1-r) = a + ar + ar^2 + ... + ar^(n-1)
+    // Sn: cube count, a: 2, r: pow(2, dimensionCount), n: h
+    val sn = math.ceil(elementCount / desiredCubeSize.toDouble)
+    val r = math.pow(2, dimensionCount).toInt
+    val v = 1 - (sn / 2 * (1 - r))
+    val h = math.ceil(logOfBase(v, r)).toInt
+    h
   }
 
-  def logOfBase(base: Int, value: Double): Double = {
+  /**
+   * Compute the average fanout of a set of cubes
+   * @param cubeIds
+   *   the set of cube identifiers
+   * @return
+   */
+  def averageFanout(cubeIds: Set[CubeId]): Double = {
+    val innerCubes = cubeIds.filter(_.children.exists(cubeIds.contains))
+    val avgFanout =
+      innerCubes.toSeq.map(_.children.count(cubeIds.contains)).sum / innerCubes.size.toDouble
+    round(avgFanout, decimals = 2)
+  }
+
+  /**
+   * Compute the logarithm of a value in a given base
+   * @param value
+   *   the value
+   * @param base
+   *   the base
+   * @return
+   */
+  def logOfBase(value: Double, base: Int): Double = {
     math.log10(value) / math.log10(base)
   }
 
@@ -193,11 +264,20 @@ object MathOps {
         .sum) / nums.size.toDouble / target
 
   def std(nums: Seq[Long], mean: Long): Long = {
-    math.sqrt(nums.map(n => (n - mean) * (n - mean)).sum / nums.size.toDouble).toLong
+    val squared_dev = nums.map(n => (n - mean) * (n - mean)).sum / nums.size.toDouble
+    math.sqrt(squared_dev).toLong
   }
 
-  def roundToPrecision(value: Double, digits: Int = 5): Double = {
-    val precision = math.pow(10, digits)
+  /**
+   * Round a double value to a given number of decimals
+   * @param value
+   *   the value to round
+   * @param decimals
+   *   the number of decimals
+   * @return
+   */
+  def round(value: Double, decimals: Int): Double = {
+    val precision = math.pow(10, decimals)
     (value * precision).toLong.toDouble / precision
   }
 
@@ -205,23 +285,29 @@ object MathOps {
 
 object Tabulator {
 
-  def format(table: Seq[Seq[Any]]): String = table match {
+  /**
+   * Format a table by pre padding each cell to the size of the longest cell in the column
+   * @param table
+   *   the table to format
+   * @return
+   */
+  def format(table: Seq[Seq[String]]): String = table match {
     case Seq() => ""
     case _ =>
       val columnSizes =
         table
-          .map(row => row.map(cell => if (cell == null) 0 else cell.toString.length))
+          .map(row => row.map(cell => if (cell == null) 0 else cell.length))
           .transpose
           .map(_.max)
       val rows = table.map(row => formatRow(row, columnSizes))
       (rows.head :: rows.tail.toList ::: Nil).mkString("\n")
   }
 
-  def formatRow(row: Seq[Any], columnSizes: Seq[Int]): String = {
+  def formatRow(row: Seq[String], columnSizes: Seq[Int]): String = {
     row
       .zip(columnSizes)
       .map { case (cell, size) =>
-        if (size == 0) "" else ("%" + size + "s").format(cell)
+        if (size == 0) "" else ("%-" + size + "s").format(cell)
       }
       .mkString(" ")
   }

@@ -24,9 +24,7 @@ import io.qbeast.spark.internal.commands.AnalyzeTableCommand
 import io.qbeast.spark.internal.commands.CompactTableCommand
 import io.qbeast.spark.internal.commands.OptimizeTableCommand
 import io.qbeast.spark.table._
-import io.qbeast.spark.utils.CubeSizeMetrics
 import io.qbeast.spark.utils.IndexMetrics
-import io.qbeast.spark.utils.MathOps.depthOnBalance
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.SparkSession
@@ -205,33 +203,7 @@ class QbeastTable private (
     val revision = indexStatus.revision
     val cubeStatuses = indexStatus.cubesStatuses
 
-    val cubeCount = cubeStatuses.size
-    val depth = if (cubeCount == 0) -1 else cubeStatuses.map(_._1.depth).max + 1
-    val elementCount = cubeStatuses.flatMap(_._2.blocks.map(_.elementCount)).sum
-
-    val indexingColumns = revision.columnTransformers.map(_.columnName)
-    val dimensionCount = indexingColumns.size
-    val desiredCubeSize = revision.desiredCubeSize
-
-    val innerCs = cubeStatuses.filterKeys(_.children.exists(cubeStatuses.contains))
-
-    val avgFanout = if (innerCs.nonEmpty) {
-      innerCs.keys.toSeq
-        .map(_.children.count(cubeStatuses.contains))
-        .sum / innerCs.size.toDouble
-    } else 0d
-
-    IndexMetrics(
-      cubeStatuses,
-      dimensionCount,
-      elementCount,
-      depth,
-      cubeCount,
-      desiredCubeSize,
-      indexingColumns.mkString(","),
-      avgFanout,
-      depthOnBalance(depth, cubeCount, dimensionCount),
-      CubeSizeMetrics(innerCs, desiredCubeSize))
+    IndexMetrics(revision, cubeStatuses)
   }
 
 }
