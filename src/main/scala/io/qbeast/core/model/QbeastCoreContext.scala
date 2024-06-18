@@ -17,8 +17,6 @@ package io.qbeast.core.model
 
 import io.qbeast.core.keeper.Keeper
 
-import scala.reflect.ClassTag
-
 /**
  * Qbeast Core main components
  * @tparam DATA
@@ -34,7 +32,6 @@ trait QbeastCoreContext[DATA, DataSchema, QbeastOptions, FileDescriptor] {
   def metadataManager: MetadataManager[DataSchema, FileDescriptor, QbeastOptions]
   def dataWriter: DataWriter[DATA, DataSchema, FileDescriptor]
   def indexManager: IndexManager[DATA]
-  def queryManager[QUERY: ClassTag]: QueryManager[QUERY, DATA]
   def revisionBuilder: RevisionFactory[DataSchema, QbeastOptions]
   def columnSelector: ColumnsToIndexSelector[DATA]
   def keeper: Keeper

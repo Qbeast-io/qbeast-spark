@@ -15,8 +15,7 @@ class IndexFilesTest extends QbeastIntegrationTestSpec {
       size = 2L,
       modificationTime = 0L,
       revisionId = 1L,
-      blocks =
-        Seq(new Block(None, CubeId.root(2), Weight(1L), Weight(2L), 1L, false)).toIndexedSeq)
+      blocks = Seq(Block("path", CubeId.root(2), Weight(1L), Weight(2L), 1L, false)).toIndexedSeq)
 
     val addFile = IndexFiles.toAddFile(dataChange = true)(indexFile)
     addFile.path shouldBe "path"
@@ -56,8 +55,7 @@ class IndexFilesTest extends QbeastIntegrationTestSpec {
       size = 2L,
       modificationTime = 0L,
       revisionId = 1L,
-      blocks =
-        Seq(new Block(None, CubeId.root(2), Weight(1L), Weight(2L), 1L, false)).toIndexedSeq)
+      blocks = Seq(Block("path", CubeId.root(2), Weight(1L), Weight(2L), 1L, false)).toIndexedSeq)
 
     val removeFile = IndexFiles.toRemoveFile(dataChange = false)(indexFile)
     removeFile.path shouldBe "path"
@@ -71,8 +69,7 @@ class IndexFilesTest extends QbeastIntegrationTestSpec {
       size = 2L,
       modificationTime = 0L,
       revisionId = 1L,
-      blocks =
-        Seq(new Block(None, CubeId.root(2), Weight(1L), Weight(2L), 1L, false)).toIndexedSeq)
+      blocks = Seq(Block("path", CubeId.root(2), Weight(1L), Weight(2L), 1L, false)).toIndexedSeq)
 
     val indexPath = new Path("/absolute/")
     val indexStatus = IndexFiles.toFileStatus(indexPath)(indexFile)
@@ -90,8 +87,7 @@ class IndexFilesTest extends QbeastIntegrationTestSpec {
       size = 2L,
       modificationTime = 0L,
       revisionId = 1L,
-      blocks =
-        Seq(new Block(None, CubeId.root(2), Weight(1L), Weight(2L), 1L, false)).toIndexedSeq)
+      blocks = Seq(Block("path", CubeId.root(2), Weight(1L), Weight(2L), 1L, false)).toIndexedSeq)
 
     val indexPath = new Path("/absolute/")
     val indexStatus =

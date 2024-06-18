@@ -481,7 +481,9 @@ private[table] class IndexedTableImpl(
   }
 
   override def optimize(revisionID: RevisionID): Unit = {
-    val files = snapshot.loadIndexFiles(revisionID).map(_.path)
+    val indexFiles = snapshot.loadIndexFiles(revisionID)
+    import indexFiles.sparkSession.implicits._
+    val files = snapshot.loadIndexFiles(revisionID).map(_.path).as[String].collect()
     optimize(files)
   }
 
@@ -492,8 +494,7 @@ private[table] class IndexedTableImpl(
       val indexFiles = snapshot
         .loadIndexFiles(revision.revisionID)
         .filter(file => paths.contains(file.path))
-        .toIndexedSeq
-      if (indexFiles.nonEmpty) {
+      if (!indexFiles.isEmpty) {
         val indexStatus = snapshot.loadIndexStatus(revision.revisionID)
         metadataManager.updateWithTransaction(
           tableID,

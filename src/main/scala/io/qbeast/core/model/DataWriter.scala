@@ -16,6 +16,7 @@
 package io.qbeast.core.model
 
 import io.qbeast.IISeq
+import org.apache.spark.sql.Dataset
 
 /**
  * Data Writer template
@@ -67,6 +68,6 @@ trait DataWriter[DATA, DataSchema, FileDescriptor] {
       schema: DataSchema,
       revision: Revision,
       indexStatus: IndexStatus,
-      indexFiles: Seq[IndexFile]): IISeq[FileDescriptor]
+      indexFiles: Dataset[IndexFile]): IISeq[FileDescriptor]
 
 }
