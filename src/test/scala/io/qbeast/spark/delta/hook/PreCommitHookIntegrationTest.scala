@@ -4,38 +4,40 @@ import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.delta.hook.PreCommitHook.PRE_COMMIT_HOOKS_PREFIX
 import io.qbeast.spark.delta.hook.PreCommitHook.PreCommitHookOutput
-import io.qbeast.spark.delta.hook.SimpleHook.testOutput
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.delta.actions.Action
 import org.apache.spark.sql.delta.actions.CommitInfo
 import org.apache.spark.sql.delta.util.FileNames
 import org.apache.spark.sql.delta.DeltaLog
 
-private class SimpleHook extends PreCommitHook {
+private class SimpleHook(kv: String) extends PreCommitHook {
   override val name: String = "SimpleHook"
 
   override def run(args: Seq[Action]): PreCommitHookOutput = {
-    testOutput
+    kv.split(":") match {
+      case Array(k, v) => Map(k -> v)
+      case _ => Map.empty
+    }
   }
 
 }
 
-private object SimpleHook {
-  val testOutput: Map[String, String] = Map("clsName" -> "SimpleHook")
-}
-
 class PreCommitHookIntegrationTest extends QbeastIntegrationTestSpec {
 
-  "PreCommitHook" should "run a simple hook and save its outputs to CommitInfo during writes" in
+  "PreCommitHook" should "run simple hooks and save their outputs to CommitInfo during writes" in
     withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
       import spark.implicits._
 
       val df = spark.sparkContext.range(0, 10).toDF("id")
+
       df.write
         .mode("append")
         .format("qbeast")
         .option("columnsToIndex", "id")
-        .option(s"$PRE_COMMIT_HOOKS_PREFIX.hook", classOf[SimpleHook].getCanonicalName)
+        .option(s"$PRE_COMMIT_HOOKS_PREFIX.hook_1", classOf[SimpleHook].getCanonicalName)
+        .option(s"$PRE_COMMIT_HOOKS_PREFIX.hook_1.arg", "k1:v1")
+        .option(s"$PRE_COMMIT_HOOKS_PREFIX.hook_2", classOf[SimpleHook].getCanonicalName)
+        .option(s"$PRE_COMMIT_HOOKS_PREFIX.hook_2.arg", "k2:v2")
         .save(tmpDir)
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
@@ -45,14 +47,9 @@ class PreCommitHookIntegrationTest extends QbeastIntegrationTestSpec {
       val infoTags = deltaLog.store
         .read(FileNames.deltaFile(deltaLog.logPath, snapshot.version), conf)
         .map(Action.fromJson)
-        .collect { case commitInfo: CommitInfo =>
-          println(commitInfo)
-          commitInfo.tags
-        }
+        .collect { case commitInfo: CommitInfo => commitInfo.tags }
 
-      infoTags.size shouldBe 1
-      infoTags.head.isDefined shouldBe true
-      infoTags.head.get shouldBe SimpleHook.testOutput
+      infoTags shouldBe Some(Map("k1" -> "v1", "k2" -> "v2")) :: Nil
     }
 
   it should "run a simple hook and save its outputs to CommitInfo during an optimization" in
@@ -69,7 +66,11 @@ class PreCommitHookIntegrationTest extends QbeastIntegrationTestSpec {
       val indexedTable = QbeastContext.indexedTableFactory.getIndexedTable(QTableID(tmpDir))
       indexedTable.optimize(
         1L,
-        Map(s"$PRE_COMMIT_HOOKS_PREFIX.hook" -> classOf[SimpleHook].getCanonicalName))
+        Map(
+          s"$PRE_COMMIT_HOOKS_PREFIX.hook_1" -> classOf[SimpleHook].getCanonicalName,
+          s"$PRE_COMMIT_HOOKS_PREFIX.hook_1.arg" -> "k1:v1",
+          s"$PRE_COMMIT_HOOKS_PREFIX.hook_2" -> classOf[SimpleHook].getCanonicalName,
+          s"$PRE_COMMIT_HOOKS_PREFIX.hook_2.arg" -> "k2:v2"))
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
       val snapshot = deltaLog.update()
@@ -80,9 +81,7 @@ class PreCommitHookIntegrationTest extends QbeastIntegrationTestSpec {
         .map(Action.fromJson)
         .collect { case commitInfo: CommitInfo => commitInfo.tags }
 
-      infoTags.size shouldBe 1
-      infoTags.head.isDefined shouldBe true
-      infoTags.head.get shouldBe SimpleHook.testOutput
+      infoTags shouldBe Some(Map("k1" -> "v1", "k2" -> "v2")) :: Nil
     }
 
 }
