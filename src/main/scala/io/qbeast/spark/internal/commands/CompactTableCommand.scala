@@ -21,11 +21,14 @@ import org.apache.spark.sql.execution.command.LeafRunnableCommand
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
 
-case class CompactTableCommand(revisionID: RevisionID, indexedTable: IndexedTable)
+case class CompactTableCommand(
+    revisionID: RevisionID,
+    indexedTable: IndexedTable,
+    options: Map[String, String])
     extends LeafRunnableCommand {
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
-    indexedTable.compact(revisionID)
+    indexedTable.compact(revisionID, options)
     Seq.empty
   }
 

@@ -17,10 +17,10 @@ package io.qbeast.spark.delta
 
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.TableChanges
+import io.qbeast.spark.internal.QbeastOptions
 import org.apache.spark.sql.delta.actions.Action
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.delta.DeltaOptions
 import org.apache.spark.sql.delta.OptimisticTransaction
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.SaveMode
@@ -29,7 +29,7 @@ class MetadataWriterTest(
     tableID: QTableID,
     mode: SaveMode,
     deltaLog: DeltaLog,
-    options: DeltaOptions,
+    options: QbeastOptions,
     schema: StructType)
     extends DeltaMetadataWriter(tableID, mode, deltaLog, options, schema) {
 
@@ -47,7 +47,7 @@ object MetadataWriterTest {
       tableID: QTableID,
       mode: SaveMode,
       deltaLog: DeltaLog,
-      options: DeltaOptions,
+      options: QbeastOptions,
       schema: StructType): MetadataWriterTest = {
     new MetadataWriterTest(tableID, mode, deltaLog, options, schema)
   }
