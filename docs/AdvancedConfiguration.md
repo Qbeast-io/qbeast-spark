@@ -291,8 +291,22 @@ We can empty the staging area with a given write by setting the staging size to 
 ## Pre-commit Hooks
 **Pre-commit hooks** enable the execution of custom code just before a write or optimization is committed.
 
-To implement such hooks, extend `io.qbeast.spark.delta.hook.PreCommitHook` by overriding its `run` method, which has access to the sequence of `Action`s created by the operation.
-The same method returns a `Map[String, String],` which will be used as `tags` for the transaction's `CommitInfo`.
+To implement such hooks, extend `io.qbeast.spark.delta.hook.PreCommitHook` by implementing its `run` method, which has access to the sequence of `Action`s created by the operation.
+The same method returns a `Map[String, String],` which will be used as `tags` for the transaction's `CommitInfo`:
+
+```json
+{
+  "commitInfo": {
+    "timestamp": 1718787341410,
+    "operation": "WRITE",
+    ...
+    "tags": {
+      "HookOutputKey": "HookOutputValue"
+    },
+    ...
+  }
+}
+```
 
 
 1. You can use more than one hook, as shown in the case below: `myHook1`, and `myHook2.`
