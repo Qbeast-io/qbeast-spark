@@ -15,6 +15,7 @@
  */
 package io.qbeast.core.transform
 
+import io.qbeast.core.model.OrderedDataType
 import io.qbeast.core.model.QDataType
 import io.qbeast.core.model.StringDataType
 
@@ -23,30 +24,30 @@ object HistogramTransformer extends TransformerType {
 
   override def apply(columnName: String, dataType: QDataType): Transformer = dataType match {
     case StringDataType => StringHistogramTransformer(columnName, dataType)
-    case dt => throw new Exception(s"DataType not supported for HistogramTransformers: $dt")
+    case _ => HistogramTransformer(columnName, dataType)
   }
 
   // "a" to "z"
   def defaultStringHistogram: IndexedSeq[String] = (97 to 122).map(_.toChar.toString)
+
 }
 
-trait HistogramTransformer extends Transformer {
+case class HistogramTransformer(columnName: String, dataType: QDataType) extends Transformer {
+
+  private val columnHistogram = s"${columnName}_histogram"
 
   override protected def transformerType: TransformerType = HistogramTransformer
-
-  /**
-   * Returns the name of the column
-   *
-   * @return
-   */
-  override def columnName: String
 
   /**
    * Returns the stats
    *
    * @return
    */
-  override def stats: ColumnStats
+  override def stats: ColumnStats = {
+    val names = columnHistogram :: Nil
+    val sqlPredicates = s"approx_histogram($columnName) AS $columnHistogram" :: Nil
+    ColumnStats(names, sqlPredicates)
+  }
 
   /**
    * Returns the Transformation given a row representation of the values
@@ -56,6 +57,18 @@ trait HistogramTransformer extends Transformer {
    * @return
    *   the transformation
    */
-  override def makeTransformation(row: String => Any): Transformation
+  override def makeTransformation(row: String => Any): Transformation = {
+
+    dataType match {
+      case ord: OrderedDataType =>
+        val hist = row(columnHistogram) match {
+          case h: Seq[_] => h.toIndexedSeq
+          case _ => ord.defaultHistogram
+        }
+        HistogramTransformation(hist, ord)
+      case _ => throw new IllegalArgumentException(s"Invalid data type: $dataType")
+    }
+
+  }
 
 }

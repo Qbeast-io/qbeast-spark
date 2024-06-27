@@ -18,8 +18,12 @@ package io.qbeast.core.transform
 import io.qbeast.core.model.QDataType
 import io.qbeast.core.transform.HistogramTransformer.defaultStringHistogram
 
+object StringHistogramTransformer extends TransformerType {
+  override def transformerSimpleName: String = "histogram"
+}
+
 case class StringHistogramTransformer(columnName: String, dataType: QDataType)
-    extends HistogramTransformer {
+    extends Transformer {
   private val columnHistogram = s"${columnName}_histogram"
 
   /**
@@ -51,4 +55,5 @@ case class StringHistogramTransformer(columnName: String, dataType: QDataType)
     StringHistogramTransformation(hist)
   }
 
+  override protected def transformerType: TransformerType = StringHistogramTransformer
 }

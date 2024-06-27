@@ -35,13 +35,12 @@ import scala.collection.Searching._
 
 @JsonSerialize(using = classOf[StringHistogramTransformationSerializer])
 @JsonDeserialize(using = classOf[StringHistogramTransformationDeserializer])
-case class StringHistogramTransformation(histogram: IndexedSeq[String])
-    extends HistogramTransformation {
+case class StringHistogramTransformation(histogram: IndexedSeq[String]) extends Transformation {
   require(histogram.length > 1, s"Histogram length has to be > 1: ${histogram.length}")
 
-  override val dataType: QDataType = StringDataType
+  val dataType: QDataType = StringDataType
 
-  override def isDefault: Boolean = histogram == defaultStringHistogram
+  def isDefault: Boolean = histogram == defaultStringHistogram
 
   /**
    * Converts a real number to a normalized value.

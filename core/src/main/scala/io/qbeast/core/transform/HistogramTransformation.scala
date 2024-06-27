@@ -15,30 +15,54 @@
  */
 package io.qbeast.core.transform
 
-import io.qbeast.core.model.QDataType
+import io.qbeast.core.model.OrderedDataType
 
-trait HistogramTransformation extends Transformation {
+import scala.collection.Searching._
+
+case class HistogramTransformation(histogram: IndexedSeq[Any], orderedDataType: OrderedDataType)
+    extends Transformation {
+
+  private implicit val ord = orderedDataType.ordering
+
+  private def isDefault: Boolean = histogram == orderedDataType.defaultHistogram
+
+  override def transform(value: Any): Double = {
+    histogram.search(value) match {
+      case Found(foundIndex) => foundIndex.toDouble / (histogram.length - 1)
+      case InsertionPoint(insertionPoint) =>
+        if (insertionPoint == 0) 0d
+        else if (insertionPoint == histogram.length + 1) 1d
+        else (insertionPoint - 1).toDouble / (histogram.length - 1)
+    }
+  }
 
   /**
-   * QDataType for the associated column.
-   */
-  def dataType: QDataType
-
-  /**
-   * Histogram of the associated column that reflects the distribution of the column values.
+   * This method should determine if the new data will cause the creation of a new revision.
+   *
+   * @param newTransformation
+   *   the new transformation created with statistics over the new data
    * @return
+   *   true if the domain of the newTransformation is not fully contained in this one.
    */
-  def histogram: IndexedSeq[Any]
+  override def isSupersededBy(newTransformation: Transformation): Boolean =
+    newTransformation match {
+      case nt @ StringHistogramTransformation(hist) =>
+        if (isDefault) !nt.isDefault
+        else if (nt.isDefault) false
+        else !(histogram == hist)
+      case _ => false
+    }
 
   /**
-   * Determines whether the associated histogram is the default one
+   * Merges two transformations. The domain of the resulting transformation is the union of this
+   *
+   * @param other
    * @return
+   *   a new Transformation that contains both this and other.
    */
-  def isDefault: Boolean
+  override def merge(other: Transformation): Transformation = other match {
+    case _: HistogramTransformation => other
+    case _ => this
+  }
 
-  override def transform(value: Any): Double
-
-  override def isSupersededBy(newTransformation: Transformation): Boolean
-
-  override def merge(other: Transformation): Transformation
 }
