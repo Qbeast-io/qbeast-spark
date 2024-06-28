@@ -228,6 +228,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec with Log
 
   "An optimization execution" should "not change data and use SnapshotIsolation" in
     withQbeastContextSparkAndTmpDir((spark, tmpDir) => {
+      import spark.implicits._
       // This test makes sure that FileActions from optimization have 'dataChange=false'
       // and the isolation level is set to SnapshotIsolation to pass the following check:
       // checkForAddedFilesThatShouldHaveBeenReadByCurrentTxn.
@@ -238,7 +239,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec with Log
 
       val qt = QbeastTable.forPath(spark, tmpDir)
       val m = qt.getIndexMetrics()
-      val filePath = m.cubeStatuses.values.flatMap(_.blocks.map(_.filePath)).head
+      val filePath = m.denormalizedBlocks.map(_.filePath).first()
       qt.optimize(Seq(filePath))
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
