@@ -19,6 +19,8 @@ lazy val qbeastSpark = (project in file("."))
       hadoopCommons % Test,
       hadoopAws % Test),
     Test / parallelExecution := false,
+    Test / javaOptions ++= Seq("-Xmx10G", "-XX:+UseG1GC"),
+    Test / fork := true,
     assembly / test := {},
     assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false))
   .settings(noWarningInConsole)

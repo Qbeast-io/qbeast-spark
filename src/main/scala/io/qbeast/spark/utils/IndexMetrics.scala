@@ -15,14 +15,9 @@
  */
 package io.qbeast.spark.utils
 
-import io.qbeast.core.model.CubeId
-import io.qbeast.core.model.CubeStatus
-import io.qbeast.core.model.IndexFile
-import io.qbeast.core.model.Revision
-import io.qbeast.core.model.RevisionID
-import io.qbeast.core.model.Weight
-import org.apache.spark.sql.expressions.Window
+import io.qbeast.core.model._
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.LongType
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.Dataset
 
@@ -45,13 +40,13 @@ case class IndexMetrics(
     leafCubeStats: String,
     denormalizedBlocks: Dataset[DenormalizedBlock]) {
 
-  def cubeCount: Int = cubeElementCountStats.count
+  def cubeCount: Long = cubeElementCountStats.count
 
-  def blockCount: Int = blockElementCountStats.count
+  def blockCount: Long = blockElementCountStats.count
 
-  def fileCount: Int = fileBytesStats.count
+  def fileCount: Long = fileBytesStats.count
 
-  def bytes: Long = fileBytesStats.avg * fileCount
+  def bytes: Long = (fileBytesStats.avg * fileCount).toLong
 
   val minHeight: Int = IndexMathOps.minHeight(elementCount, desiredCubeSize, dimensionCount)
 
@@ -98,16 +93,15 @@ case class IndexMetrics(
  *   The size of the file, in bytes and including other blocks.
  * @param fileModificationTime
  *   The last modification time of the file
- * @param blockMinWeight
- *   the block minimum weight
- * @param blockMaxWeight
- *   the block maximum weight
+ * @param minWeight
+ *   The block minimum weight
+ * @param maxWeight
+ *   The block maximum weight
  * @param blockElementCount
- *   the number of elements in the block
+ *   The number of elements in the block
  * @param blockReplicated
- *   a boolean, representing if the block is replicated
+ *   Whether the block is replicated or not
  */
-
 case class DenormalizedBlock(
     cubeId: CubeId,
     isLeaf: Boolean,
@@ -122,51 +116,121 @@ case class DenormalizedBlock(
 
 object IndexMetrics {
 
-  def denormalizedBlock(
+  def isLeaf(cubeStatuses: SortedMap[CubeId, CubeStatus])(cubeId: CubeId): Boolean = {
+    val cubesIter = cubeStatuses.iteratorFrom(cubeId)
+    cubesIter.take(2).toList match {
+      // cubeId is the smaller than any cube from cubeStatuses and does not belong to the map
+      case Nil => true
+      // cubeId is in the map but has no children
+      case List((cube, _)) => cube == cubeId
+      case List((cube, _), (nextCube, _)) =>
+        // cubeId is in the map and check the next cube
+        if (cube == cubeId) !cubeId.isAncestorOf(nextCube)
+        // cubeId is not in the map and check the cube after it
+        else !cubeId.isAncestorOf(cube)
+    }
+  }
+
+  def denormalizedBlocks(
       revision: Revision,
       cubeStatuses: SortedMap[CubeId, CubeStatus],
-      fileStatus: Dataset[IndexFile]): Dataset[DenormalizedBlock] = {
-    // this must be external to the lambda, to avoid SerializationErrors
-    ???
+      indexFilesDs: Dataset[IndexFile]): Dataset[DenormalizedBlock] = {
+    val spark = indexFilesDs.sparkSession
+    import spark.implicits._
+
+    val broadcastCubeStatuses = spark.sparkContext.broadcast(cubeStatuses)
+    val isLeafUDF = udf((cubeId: CubeId) => isLeaf(broadcastCubeStatuses.value)(cubeId))
+
+    indexFilesDs
+      .withColumn("block", explode(col("blocks")))
+      .select(
+        $"block.cubeId".as("cubeId"),
+        isLeafUDF($"block.cubeId").as("isLeaf"),
+        $"path".as("filePath"),
+        lit(revision.revisionID).as("revisionId"),
+        $"size".as("fileSize"),
+        $"modificationTime".as("fileModificationTime"),
+        $"block.minWeight".as("minWeight"),
+        $"block.maxWeight".as("maxWeight"),
+        $"block.elementCount".as("blockElementCount"),
+        $"block.replicated".as("blockReplicated"))
+      .as[DenormalizedBlock]
   }
 
   def apply(
       revision: Revision,
       cubeStatuses: SortedMap[CubeId, CubeStatus],
-      fileStatus: Dataset[IndexFile]): IndexMetrics = {
+      indexFilesDs: Dataset[IndexFile]): IndexMetrics = {
 
-    IndexMetrics(revision: Revision, denormalizedBlock(revision, cubeStatuses, fileStatus))
+    IndexMetrics(revision: Revision, denormalizedBlocks(revision, cubeStatuses, indexFilesDs))
   }
 
   def apply(revision: Revision, denormalizedBlocks: Dataset[DenormalizedBlock]): IndexMetrics = {
     import denormalizedBlocks.sparkSession.implicits._
+
     val dimensionCount = revision.columnTransformers.size
     val desiredCubeSize = revision.desiredCubeSize
 
-    val avgFanout = IndexMathOps.averageFanout(denormalizedBlocks.map(_.cubeId))
+    val avgFanout = IndexMathOps
+      .averageFanout(denormalizedBlocks.select("cubeId").distinct().as[CubeId])
+      .withColumn("id", lit(1))
 
-    val cubeWindow = Window.partitionBy("cubeId")
-    val fileWindow = Window.partitionBy("fileName")
+    val miscDS =
+      denormalizedBlocks
+        .select(
+          sum("blockElementCount").as("elementCount"),
+          (max("cubeId.depth") + 1).as("height"),
+          SizeStats.forColumn($"blockElementCount").as("blockElementCountStats"),
+          lit(1).as("id"))
+
+    val cubeElementCountStatsDS =
+      denormalizedBlocks
+        .groupBy("cubeId")
+        .agg(sum("blockElementCount").as("cubeElementCount"))
+        .select(
+          SizeStats.forColumn($"cubeElementCount").as("cubeElementCountStats"),
+          lit(1).as("id"))
+
+    val fileBytesStatsDS =
+      denormalizedBlocks
+        .select("filePath", "fileSize")
+        .distinct()
+        .select(SizeStats.forColumn($"fileSize").as("fileSizeStats"), lit(1).as("id"))
+
+    val blockCountPerCubeStatsDS =
+      denormalizedBlocks
+        .groupBy("cubeId")
+        .agg(count("*").as("blockCountPerCube"))
+        .select(
+          SizeStats.forColumn($"blockCountPerCube").as("blockCountPerCubeStats"),
+          lit(1).as("id"))
+
+    val blockCountPerFileStatsDS =
+      denormalizedBlocks
+        .groupBy("filePath")
+        .agg(count("*").as("blockCountPerFile"))
+        .select(
+          SizeStats.forColumn($"blockCountPerFile").as("blockCountPerFileStats"),
+          lit(1).as("id"))
+
     val (
       elementCount,
       height,
-      cubeElementCountStats,
       blockElementCountStats,
-      blockCountPerCubeStats,
+      avgFanoutOpt,
+      cubeElementCountStats,
       fileBytesStats,
-      blockCountPerFileStats) = denormalizedBlocks
-      .select(
-        sum("blockElementCount").as("elementCount"),
-        (max("cubeId.depth") + lit(1)).as("height"),
-        SizeStats
-          .forColumn(sum(col("blockElementCount").over(cubeWindow)))
-          .as("cubeElementCountStats"),
-        SizeStats.forColumn(sum(col("blockElementCount"))).as("blockElementCountStats"),
-        SizeStats.forColumn(sum(col("blockElementCount"))).as("blockCountPerCubeStats"),
-        SizeStats.forColumn(sum(col("fileSize"))).as("blockCountPerCubeStats"),
-        SizeStats.forColumn(sum(col("fileSize").over(fileWindow))).as("blockCountPerFileStats"))
-      .as[(Long, Int, SizeStats, SizeStats, SizeStats, SizeStats, SizeStats)]
-      .first()
+      blockCountPerCubeStats,
+      blockCountPerFileStats) =
+      miscDS
+        .join(avgFanout, "id")
+        .join(cubeElementCountStatsDS, "id")
+        .join(fileBytesStatsDS, "id")
+        .join(blockCountPerCubeStatsDS, "id")
+        .join(blockCountPerFileStatsDS, "id")
+        .drop("id")
+        .as[(Long, Int, SizeStats, Option[Double], SizeStats, SizeStats, SizeStats, SizeStats)]
+        .first()
 
     IndexMetrics(
       revisionId = revision.revisionID,
@@ -175,105 +239,80 @@ object IndexMetrics {
       desiredCubeSize = desiredCubeSize,
       indexingColumns = revision.columnTransformers.map(_.spec).mkString(","),
       height = height,
-      avgFanout = avgFanout,
+      avgFanout = IndexMathOps.round(avgFanoutOpt.getOrElse(0d), decimals = 2),
       cubeElementCountStats = cubeElementCountStats,
       blockElementCountStats = blockElementCountStats,
       fileBytesStats = fileBytesStats,
       blockCountPerCubeStats = blockCountPerCubeStats,
       blockCountPerFileStats = blockCountPerFileStats,
       innerCubeStats = computeCubeStats(denormalizedBlocks.filter(!_.isLeaf)),
-      leafCubeStats = computeCubeStats(denormalizedBlocks.filter(_.isLeaf)).toString,
+      leafCubeStats = computeCubeStats(denormalizedBlocks.filter(_.isLeaf)),
       denormalizedBlocks = denormalizedBlocks)
   }
 
-  private def computeCubeStats( denormalizedBlocks: Dataset[DenormalizedBlock]): String = {
+  private def computeCubeStats(denormalizedBlocks: Dataset[DenormalizedBlock]): String = {
+    ""
+//
+//    import denormalizedBlocks.sparkSession.implicits._
+//    val cubeElementCountStats =
+//      SizeStats.fromLongs(cubeStatuses.values.toSeq.map(_.blocks.map(_.elementCount).sum))
+//    val blockElementCounts =
+//      SizeStats.fromLongs(cubeStatuses.values.toSeq.flatMap(_.blocks).map(_.elementCount))
+//
+//    val depthWiseStats =
+//      denormalizedBlocks.groupByKey(_.cubeId.depth).reduceGroups().map { case (depth, csMap) =>
+//        var blockCount = 0
+//        val cubeElementCountStats = SizeStats.fromLongs(csMap.values.toSeq.map { cs =>
+//          blockCount += cs.blocks.size
+//          cs.blocks.foldLeft(0L)((acc, b) => acc + b.elementCount)
+//        })
+//
+//        val avgWeights = csMap.values.map(_.normalizedWeight).sum / csMap.size
+//        Seq(
+//          depth.toString,
+//          cubeElementCountStats.avg.toString,
+//          cubeElementCountStats.count.toString,
+//          blockCount.toString,
+//          cubeElementCountStats.std.toString,
+//          cubeElementCountStats.quartiles.toString,
+//          avgWeights.toString)
+//      }
+//
+//    val columnNames = Seq(
+//      "depth",
+//      "avgCubeElementCount",
+//      "cubeCount",
+//      "blockCount",
+//      "cubeElementCountStd",
+//      "cubeElementCountQuartiles",
+//      "avgWeight")
+//    "cubeElementCountStats: " + cubeElementCountStats.toString + "\n" + "blockElementCountStats: " +
+//      blockElementCounts.toString + "\n" + Tabulator.format(columnNames +: depthWiseStats)
 
-      ""
-  /**  import denormalizedBlocks.sparkSession.implicits._
-    val cubeElementCountStats =
-      SizeStats.fromLongs(cubeStatuses.values.toSeq.map(_.blocks.map(_.elementCount).sum))
-    val blockElementCounts =
-      SizeStats.fromLongs(cubeStatuses.values.toSeq.flatMap(_.blocks).map(_.elementCount))
-
-    val depthWiseStats = denormalizedBlocks
-      .groupByKey(_.cubeId.depth)
-      .reduceGroups()
-      .map { case (depth, csMap) =>
-        var blockCount = 0
-        val cubeElementCountStats =
-          SizeStats.fromLongs(csMap.values.toSeq.map { cs =>
-            blockCount += cs.blocks.size
-            cs.blocks.foldLeft(0L)((acc, b) => acc + b.elementCount)
-          })
-        val avgWeights = csMap.values.map(_.normalizedWeight).sum / csMap.size
-        Seq(
-          depth.toString,
-          cubeElementCountStats.avg.toString,
-          cubeElementCountStats.count.toString,
-          blockCount.toString,
-          cubeElementCountStats.std.toString,
-          cubeElementCountStats.quartiles.toString,
-          avgWeights.toString)
-      }
-
-    val columnNames = Seq(
-      "depth",
-      "avgCubeElementCount",
-      "cubeCount",
-      "blockCount",
-      "cubeElementCountStd",
-      "cubeElementCountQuartiles",
-      "avgWeight")
-    "cubeElementCountStats: " + cubeElementCountStats.toString + "\n" +
-      "blockElementCountStats: " + blockElementCounts.toString + "\n" +
-      Tabulator.format(columnNames +: depthWiseStats)
-  */
   }
 
 }
 
-case class SizeStats(count: Int, avg: Long, std: Long, quartiles: Array[Long]) {
+case class SizeStats(count: Long, avg: Long, stddev: Long, quartiles: Array[Long]) {
 
   override def toString: String = {
-    s"(count: $count, avg: $avg, std: $std, quartiles: ${quartiles.mkString(",")} "
+    s"(count: $count, avg: $avg, stddev: $stddev, quartiles: ${quartiles.mkString("[", ",", "]")})"
   }
 
 }
 
 object SizeStats {
 
-  def fromLongs(nums: Seq[Long]): SizeStats = {
-    if (nums.isEmpty) SizeStats(0, -1, -1, computeQuartiles(Seq.empty))
-    else {
-      val avg = nums.sum / nums.size
-      val std = IndexMathOps.std(nums, avg)
-      SizeStats(nums.size, avg, std, computeQuartiles(nums))
-    }
-  }
-
-  def forColumn(column: Column) = {
+  def forColumn(column: Column): Column = {
     struct(
       count(column).as("count"),
-      avg(column).as("avg"),
-      stddev(column).as("std"),
+      avg(column).cast(LongType).as("avg"),
+      when(stddev(column).isNull, lit(0d))
+        .otherwise(stddev(column))
+        .cast(LongType)
+        .as("stddev"),
       approx_percentile(column, array(lit(0), lit(0.25), lit(0.5), lit(0.75), lit(1)), lit(1000))
-        .as("quartile"))
-
-  }
-
-  def fromIntegers(nums: Seq[Int]): SizeStats = fromLongs(nums.map(_.toLong))
-
-  def computeQuartiles(nums: Seq[Long]): Array[Long] = {
-    if (nums.isEmpty) Array(-1, -1, -1, -1, -1)
-    else {
-      val sorted = nums.sorted
-      Array(
-        sorted.head,
-        sorted((sorted.size * 0.25).toInt),
-        sorted((sorted.size * 0.50).toInt),
-        sorted((sorted.size * 0.75).toInt),
-        sorted.last)
-    }
+        .as("quartiles"))
   }
 
 }
@@ -310,32 +349,23 @@ object IndexMathOps {
    * @return
    */
   def averageFanout(cubeIds: Set[CubeId]): Double = {
-    val innerCubes = cubeIds.filter(_.children.exists(cubeIds.contains))
-    val avgFanout =
-      innerCubes.toSeq.map(_.children.count(cubeIds.contains)).sum / innerCubes.size.toDouble
+    val numChildren = cubeIds
+      .filterNot(_.isRoot)
+      .groupBy(_.parent)
+      .mapValues(_.size)
+    val avgFanout = numChildren.values.sum / numChildren.size.toDouble
     round(avgFanout, decimals = 2)
   }
 
-  def averageFanout(cubeIdsDS: Dataset[CubeId]): Double = {
-    import cubeIdsDS.sparkSession.implicits._
-
-    // Create a DataFrame with two columns: cubeId and its children
-    val cubesDF =
-      cubeIdsDS.flatMap(cube => cube.children.map((cube, _))).toDF("parent", "children")
-
-    // Join the DataFrame with itself to find the inner cubes
-    val innerCubesDF =
-      cubesDF.as("df1").join(cubesDF.as("df2"), $"df1.children" === $"df2.parent")
-
-    // Compute the average fanout
-    val avgFanout = innerCubesDF
-      .groupBy($"df1.parent")
-      .agg(count($"df1.children").alias("fanout"))
-      .select(avg($"fanout"))
-      .as[Double]
-
-    // Collect the result to the driver node
-    avgFanout.first()
+  def averageFanout(cubeIds: Dataset[CubeId]): Dataset[Option[Double]] = {
+    import cubeIds.sparkSession.implicits._
+    cubeIds
+      .groupByKey(_.parent)
+      .count()
+      .toDF("parent", "fanout")
+      .filter("parent IS NOT NULL")
+      .agg(avg($"fanout").as("avgFanout"))
+      .as[Option[Double]]
   }
 
   /**
@@ -361,7 +391,7 @@ object IndexMathOps {
         .map(num => (num - target) * (num - target))
         .sum) / nums.size.toDouble / target
 
-  def std(nums: Seq[Long], mean: Long): Long = {
+  def stddev(nums: Seq[Long], mean: Long): Long = {
     val squared_dev = nums.map(n => (n - mean) * (n - mean)).sum / nums.size.toDouble
     math.sqrt(squared_dev).toLong
   }

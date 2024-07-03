@@ -30,8 +30,6 @@ import scala.collection.immutable.SortedMap
  *   the revision
  * @param announcedSet
  *   the announced set available for the revision
- * @param replicatedSet
- *   the replicated set available for the revision
  */
 private[delta] class IndexStatusBuilder(
     qbeastSnapshot: DeltaQbeastSnapshot,
@@ -66,9 +64,9 @@ private[delta] class IndexStatusBuilder(
 
   def stagingCubeStatuses: SortedMap[CubeId, CubeStatus] = {
     val root = revision.createCubeIdRoot()
-    val revs = revisionFiles
-    import revs.sparkSession.implicits._
-    val blocks = revs
+    val revisionAddFiles = revisionFiles
+    import revisionAddFiles.sparkSession.implicits._
+    val blocks = revisionAddFiles
       .flatMap(IndexFiles.fromAddFile(root.dimensionCount)(_).blocks)
       .collect()
       .toIndexedSeq
@@ -84,9 +82,32 @@ private[delta] class IndexStatusBuilder(
   def indexCubeStatuses: SortedMap[CubeId, CubeStatus] = {
     val dimensionCount = revision.transformations.size
     val desiredCubeSize = revision.desiredCubeSize
-    val revs = revisionFiles
-    import revs.sparkSession.implicits._
-    val items = revs
+
+//    import scala.collection.JavaConverters._
+//    val builder = SortedMap.newBuilder[CubeId, CubeStatus]
+//    revisionFiles
+//      .toLocalIterator()
+//      .asScala
+//      .map(IndexFiles.fromAddFile(dimensionCount))
+//      .flatMap(_.blocks)
+//      .toSeq
+//      .groupBy(_.cubeId)
+//      .iterator
+//      .map { case (cubeId, blocks) =>
+//        val maxWeight = blocks.map(_.maxWeight).min
+//        val cubeSize = blocks.map(_.elementCount).sum
+//        val normalizedWeight =
+//          if (maxWeight < Weight.MaxValue) maxWeight.fraction
+//          else NormalizedWeight(desiredCubeSize, cubeSize)
+//        val status = CubeStatus(cubeId, maxWeight, normalizedWeight, blocks.toIndexedSeq)
+//        cubeId -> status
+//      }
+//      .foreach(builder += _)
+//    builder.result()
+
+    val revisionAddFiles = revisionFiles
+    import revisionAddFiles.sparkSession.implicits._
+    val items = revisionAddFiles
       .flatMap(IndexFiles.fromAddFile(dimensionCount)(_).blocks)
       .groupByKey(_.cubeId)
       .mapGroups { case (cubeId, blocksIter) =>
@@ -97,11 +118,11 @@ private[delta] class IndexStatusBuilder(
           if (maxWeight < Weight.MaxValue) maxWeight.fraction
           else NormalizedWeight(desiredCubeSize, cubeSize)
         val status = CubeStatus(cubeId, maxWeight, normalizedWeight, blocks)
-        (cubeId, status)
+        cubeId -> status
       }
       .collect()
-    SortedMap(items: _*)
 
+    SortedMap(items: _*)
   }
 
 }

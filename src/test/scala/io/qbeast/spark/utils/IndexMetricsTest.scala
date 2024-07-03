@@ -1,19 +1,16 @@
 package io.qbeast.spark.utils
 
-import io.qbeast.core.model.CubeId
 import io.qbeast.spark.QbeastIntegrationTestSpec
 
 class IndexMetricsTest extends QbeastIntegrationTestSpec {
 
-  "IndexMetricsTest.averageFanout" should "return the same value with df or sets" in withSpark {
-    (spark) =>
-
+  "IndexMetrics.isLeaf" should "return correctly determine the leaf nodes" in withSpark { spark =>
+    fail("Not implemented")
   }
 
-  "IndexMetricsTest.denormalizedBlock" should "return a proper denormalized dataset " in withSpark {
-    (spark) =>
-
-
+  "IndexMetrics.denormalizedBlocks" should "return the denormalized blocks" in withSpark {
+    spark =>
+      fail("Not implemented")
   }
 
 }

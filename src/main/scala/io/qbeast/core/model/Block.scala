@@ -17,21 +17,18 @@ package io.qbeast.core.model
 
 /**
  * Block of elements stored in the physical index file.
- *
- * @constructor
- *   creates a new instance for given attributes.
- * @param owner
- *   the physical file the block belongs to
- * @param revisionId
- *   the revision identifier
+ * @param filePath
+ *   the path to the file containing the block
  * @param cubeId
  *   the cube identifier
  * @param minWeight
  *   the minimum element weight
  * @param maxWeight
  *   the maximum element weight
+ * @param elementCount
+ *   the number of elements in the block
  * @param replicated
- *   the block is replicated
+ *   boolean stating whether the block is replicated
  */
 case class Block(
     filePath: String,
@@ -49,7 +46,8 @@ case class Block(
    *   the copy of the block with the replicated attribute set to true
    */
   def replicate(): Block =
-    if (replicated) this else Block(filePath, cubeId, minWeight, maxWeight, elementCount, true)
+    if (replicated) this
+    else Block(filePath, cubeId, minWeight, maxWeight, elementCount, replicated = true)
 
   override def toString: String = {
     s"Block($filePath, $cubeId, $minWeight, $maxWeight, $elementCount, $replicated)"

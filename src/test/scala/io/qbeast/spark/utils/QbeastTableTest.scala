@@ -15,26 +15,29 @@
  */
 package io.qbeast.spark.utils
 
-import io.qbeast.core.model.CubeId
-import io.qbeast.core.model.CubeStatus
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.QbeastTable
 import io.qbeast.TestClasses.Client3
-import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
-
-import scala.collection.immutable.SortedMap
 
 class QbeastTableTest extends QbeastIntegrationTestSpec {
 
-  private def createDF(spark: SparkSession) = {
+  private def createDF(spark: SparkSession): DataFrame = {
     val rdd =
       spark.sparkContext.parallelize(
         0.to(1000)
           .map(i => Client3(i * i, s"student-$i", i, i * 1000 + 123, i * 2567.3432143)))
     spark.createDataFrame(rdd)
+  }
+
+  private def areEqual(thisStats: SizeStats, otherStats: SizeStats): Unit = {
+    thisStats.count shouldBe otherStats.count
+    thisStats.avg shouldBe otherStats.avg
+    thisStats.stddev shouldBe otherStats.stddev
+    thisStats.quartiles sameElements otherStats.quartiles shouldBe true
   }
 
   "IndexedColumns" should "output the indexed columns" in withQbeastContextSparkAndTmpDir {
@@ -123,12 +126,14 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
   "getIndexMetrics" should "return index metrics" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
       {
+        import spark.implicits._
         val data = createDF(spark)
         val columnsToIndex = Seq("age", "val2")
         val cubeSize = 100
         writeTestData(data, columnsToIndex, cubeSize, tmpDir)
 
-        val metrics = QbeastTable.forPath(spark, tmpDir).getIndexMetrics(Some(1L))
+        val qt = QbeastTable.forPath(spark, tmpDir)
+        val metrics = qt.getIndexMetrics(Some(1L))
 
         metrics.revisionId shouldBe 1L
         metrics.elementCount shouldBe 1001
@@ -140,13 +145,17 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
         // If the tree has any inner node, avgFanout cannot be < 1.0
         metrics.avgFanout shouldBe >=(1d)
 
-        val blocks = metrics.cubeStatuses.values.toSeq.flatMap(_.blocks)
+        val (cubeCount, fileCount, blockCount) =
+          metrics.denormalizedBlocks
+            .select(count_distinct($"cubeId"), count_distinct($"filePath"), count("*"))
+            .as[(Long, Long, Long)]
+            .first()
 
-        metrics.cubeElementCountStats.count shouldBe metrics.cubeStatuses.size
-        metrics.blockElementCountStats.count shouldBe blocks.size
-        metrics.fileBytesStats.count shouldBe blocks.map(_.file).distinct.size
-        metrics.blockCountPerCubeStats.count shouldBe metrics.cubeStatuses.size
-        metrics.blockCountPerFileStats.count shouldBe metrics.fileBytesStats.count
+        metrics.cubeElementCountStats.count shouldBe cubeCount
+        metrics.blockElementCountStats.count shouldBe blockCount
+        metrics.fileBytesStats.count shouldBe fileCount
+        metrics.blockCountPerCubeStats.count shouldBe blockCount
+        metrics.blockCountPerFileStats.count shouldBe fileCount
 
       }
   }
@@ -159,24 +168,24 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
       writeTestData(data, columnsToIndex, cubeSize, tmpDir)
 
       val metrics = QbeastTable.forPath(spark, tmpDir).getIndexMetrics(Some(1L))
+
       metrics.revisionId shouldBe 1L
       metrics.elementCount shouldBe 1001
       metrics.dimensionCount shouldBe columnsToIndex.size
       metrics.desiredCubeSize shouldBe cubeSize
       metrics.indexingColumns shouldBe "age:linear,val2:linear"
-
-      // The tree has only one cube
       metrics.height shouldBe 1
       metrics.avgFanout shouldBe 0d
 
-      // There is no inner cube
-      val blocks = metrics.cubeStatuses.values.toSeq.flatMap(_.blocks)
-
-      metrics.cubeElementCountStats.count shouldBe metrics.cubeStatuses.size
-      metrics.blockElementCountStats.count shouldBe blocks.size
-      metrics.fileBytesStats.count shouldBe blocks.map(_.file).distinct.size
-      metrics.blockCountPerCubeStats.count shouldBe metrics.cubeStatuses.size
-      metrics.blockCountPerFileStats.count shouldBe metrics.fileBytesStats.count
+      areEqual(
+        metrics.cubeElementCountStats,
+        SizeStats(1, 1001, 0, Array(1001, 1001, 1001, 1001, 1001)))
+      areEqual(
+        metrics.blockElementCountStats,
+        SizeStats(1, 1001, 0, Array(1001, 1001, 1001, 1001, 1001)))
+      metrics.fileBytesStats.count shouldBe 1L
+      areEqual(metrics.blockCountPerCubeStats, SizeStats(1, 1, 0, Array(1, 1, 1, 1, 1)))
+      areEqual(metrics.blockCountPerFileStats, SizeStats(1, 1, 0, Array(1, 1, 1, 1, 1)))
 
   }
 
@@ -192,53 +201,45 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
       ConvertToQbeastCommand(s"delta.`$tmpDir`", columnsToIndex, cubeSize).run(spark)
 
       val metrics = QbeastTable.forPath(spark, tmpDir).getIndexMetrics(Some(0L))
+
       metrics.revisionId shouldBe 0L
-
-      metrics.elementCount shouldBe 0
-
+      metrics.elementCount shouldBe 0L
       metrics.dimensionCount shouldBe 2
       metrics.desiredCubeSize shouldBe 100
       metrics.indexingColumns shouldBe "age:empty,val2:empty"
       metrics.height shouldBe 1
       metrics.avgFanout shouldBe 0d
 
-      metrics.cubeElementCountStats.count shouldBe 1
-      metrics.blockElementCountStats.count shouldBe numFiles
+      areEqual(metrics.cubeElementCountStats, SizeStats(1L, 0, 0, Array(0, 0, 0, 0, 0)))
+      areEqual(metrics.blockElementCountStats, SizeStats(10, 0, 0, Array(0, 0, 0, 0, 0)))
       metrics.fileBytesStats.count shouldBe numFiles
-      metrics.blockCountPerCubeStats.count shouldBe 1
-      metrics.blockCountPerFileStats.count shouldBe numFiles
+      areEqual(metrics.blockCountPerCubeStats, SizeStats(1, 10, 0, Array(10, 10, 10, 10, 10)))
+      areEqual(metrics.blockCountPerFileStats, SizeStats(10, 1, 0, Array(1, 1, 1, 1, 1)))
   }
 
-  "IndexMetrics" should "handle empty cubeStatuses correctly" in withQbeastContextSparkAndTmpDir {
-    (spark, tmpDir) =>
-      // Add 10 file to the staging revision
-      createDF(spark).repartition(10).write.mode("append").format("delta").save(tmpDir)
-      ConvertToQbeastCommand(s"delta.`$tmpDir`", Seq("age", "val2"), 100).run(spark)
+//  def time[A](f: => A): A = {
+//    val start = System.currentTimeMillis()
+//    val res = f
+//    val timeTaken = MILLISECONDS.toSeconds(System.currentTimeMillis() - start)
+//    println(s"timeTaken: $timeTaken")
+//    res
+//  }
 
-      import org.apache.spark.sql.delta.DeltaLog
-      val dl = DeltaLog.forTable(spark, tmpDir)
-      val qs = DeltaQbeastSnapshot(dl.update())
+//  it should "work" in withSparkAndTmpDir((spark, _) => {
+//    val path = "/Users/jiaweihu/Desktop/test-opt/e-commerce-bfs"
+//    val m = QbeastTable.forPath(spark, path).getIndexMetrics()
+//    println(m)
+//
+//  })
 
-      // Use an existing revision with empty cubeStatuses
-      val metrics = IndexMetrics(qs.loadLatestRevision, SortedMap.empty[CubeId, CubeStatus])
-
-      metrics.cubeStatuses.isEmpty shouldBe true
-
-      metrics.revisionId shouldBe 0L
-      metrics.elementCount shouldBe 0
-      metrics.dimensionCount shouldBe 2
-      metrics.desiredCubeSize shouldBe 100
-      metrics.indexingColumns shouldBe "age:empty,val2:empty"
-      metrics.height shouldBe -1
-      metrics.avgFanout shouldBe 0d
-
-      metrics.cubeElementCountStats.count shouldBe 0
-      metrics.blockElementCountStats.count shouldBe 0
-      metrics.fileBytesStats.count shouldBe 0
-      metrics.blockCountPerCubeStats.count shouldBe 0
-      metrics.blockCountPerFileStats.count shouldBe 0
-
-  }
+//  it should "also work" in withExtendedSpark(
+//    sparkConfWithSqlAndCatalog.set("spark.driver.memory", "12g")) { spark =>
+//    val path = "/Users/jiaweihu/Desktop/datadog-qbeast"
+//    val qt = QbeastTable.forPath(spark, path)
+//    val m = time { qt.getIndexMetrics() }
+//    println(m)
+//
+//  }
 
   "Tabulator" should "format data correctly" in {
     val input = Seq(Seq("1", "2", "3", "4"), Seq("1", "22", "333", "4444"))

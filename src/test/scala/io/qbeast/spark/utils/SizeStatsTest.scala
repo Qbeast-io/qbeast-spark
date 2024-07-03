@@ -5,12 +5,26 @@ import org.apache.spark.sql.functions.col
 
 class SizeStatsTest extends QbeastIntegrationTestSpec {
 
-  "SizeStatsTest" should "work with longs" in withSpark { (spark) =>
-    import spark.implicits._
-    val a = spark.range(1000)
-    val t = SizeStats.forColumn(col("id"))
+  def areEqual(thisStats: SizeStats, otherStats: SizeStats): Boolean =
+    thisStats.count == otherStats.count &&
+      thisStats.avg == otherStats.avg &&
+      thisStats.stddev == otherStats.stddev &&
+      (thisStats.quartiles sameElements otherStats.quartiles)
 
-    a.select(t).as[SizeStats].first() shouldBe SizeStats(1000, 5000, 288, Array(0.0,250.0,500.0,750.0,1000.0))
+  "SizeStatsTest" should "work with longs" in withSpark { spark =>
+    import spark.implicits._
+
+    val sizeStats = spark
+      .range(1001)
+      .select(SizeStats.forColumn(col("id")).as("stats"))
+      .select("stats.*")
+      .as[SizeStats]
+      .first()
+
+    sizeStats.count shouldBe 1001
+    sizeStats.avg shouldBe 500
+    sizeStats.stddev shouldBe 289
+    sizeStats.quartiles sameElements Array(0, 250, 500, 750, 1000) shouldBe true
   }
 
 }

@@ -58,7 +58,7 @@ case class IndexFile(
   /**
    * Tries to replicate the blocks that belong to the specified cubes
    *
-   * @param the
+   * @param cubeIds
    *   cube identifiers
    * @return
    *   an instance with corresponding blocks replicated or None if there are no such blocks

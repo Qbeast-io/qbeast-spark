@@ -309,7 +309,7 @@ case class CubeStatus(
     extends Serializable {
 
   /**
-   * The cube is fully replicated, i.e. all its blovks are replicated.
+   * The cube is fully replicated, i.e. all its blocks are replicated.
    */
   lazy val replicated: Boolean = blocks.forall(_.replicated)
 }

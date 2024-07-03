@@ -24,7 +24,6 @@ import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.SparkSession
 
 /**
  * Qbeast Snapshot that provides information about the current index state.
@@ -124,14 +123,11 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
   override def loadIndexFiles(revisionId: RevisionID): Dataset[IndexFile] = {
     val revision = loadRevision(revisionId)
     val dimensionCount = revision.transformations.size
-    val addFiles = if (isStaging(revision)) {
-      loadStagingBlocks()
-    } else {
-      loadRevisionBlocks(revisionId)
-    }
-    // implicit val a: Encoder[IndexFile] = Encoders.kryo[IndexFile]
-    val spark = SparkSession.active
-    import spark.implicits._
+    val addFiles =
+      if (isStaging(revision)) loadStagingBlocks()
+      else loadRevisionBlocks(revisionId)
+
+    import addFiles.sparkSession.implicits._
     addFiles.map(IndexFiles.fromAddFile(dimensionCount))
   }
 
@@ -139,7 +135,7 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
    * Obtain all Revisions for a given QTableID
    *
    * @return
-   *   an immutable Seq of Revision for qtable
+   *   an immutable Seq of Revision for qTable
    */
   override def loadAllRevisions: IISeq[Revision] =
     revisionsMap.values.toVector
@@ -148,7 +144,7 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
    * Obtain the last Revisions
    *
    * @return
-   *   an immutable Seq of Revision for qtable
+   *   an immutable Seq of Revision for qTable
    */
   override def loadLatestRevision: Revision = {
     getRevision(lastRevisionID)
