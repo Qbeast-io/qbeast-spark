@@ -217,30 +217,6 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
       areEqual(metrics.blockCountPerFileStats, SizeStats(10, 1, 0, Array(1, 1, 1, 1, 1)))
   }
 
-//  def time[A](f: => A): A = {
-//    val start = System.currentTimeMillis()
-//    val res = f
-//    val timeTaken = MILLISECONDS.toSeconds(System.currentTimeMillis() - start)
-//    println(s"timeTaken: $timeTaken")
-//    res
-//  }
-
-  it should "work" in withSparkAndTmpDir((spark, _) => {
-    val path = "/Users/jiaweihu/Desktop/test-opt/e-commerce-bfs"
-    val m = QbeastTable.forPath(spark, path).getIndexMetrics()
-    println(m)
-
-  })
-
-//  it should "also work" in withExtendedSpark(
-//    sparkConfWithSqlAndCatalog.set("spark.driver.memory", "12g")) { spark =>
-//    val path = "/Users/jiaweihu/Desktop/datadog-qbeast"
-//    val qt = QbeastTable.forPath(spark, path)
-//    val m = time { qt.getIndexMetrics() }
-//    println(m)
-//
-//  }
-
   "Tabulator" should "format data correctly" in {
     val input = Seq(Seq("1", "2", "3", "4"), Seq("1", "22", "333", "4444"))
     val expected = Seq(
