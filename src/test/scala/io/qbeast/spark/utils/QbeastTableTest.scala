@@ -225,12 +225,12 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
 //    res
 //  }
 
-//  it should "work" in withSparkAndTmpDir((spark, _) => {
-//    val path = "/Users/jiaweihu/Desktop/test-opt/e-commerce-bfs"
-//    val m = QbeastTable.forPath(spark, path).getIndexMetrics()
-//    println(m)
-//
-//  })
+  it should "work" in withSparkAndTmpDir((spark, _) => {
+    val path = "/Users/jiaweihu/Desktop/test-opt/e-commerce-bfs"
+    val m = QbeastTable.forPath(spark, path).getIndexMetrics()
+    println(m)
+
+  })
 
 //  it should "also work" in withExtendedSpark(
 //    sparkConfWithSqlAndCatalog.set("spark.driver.memory", "12g")) { spark =>

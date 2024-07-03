@@ -171,9 +171,7 @@ object IndexMetrics {
     val dimensionCount = revision.columnTransformers.size
     val desiredCubeSize = revision.desiredCubeSize
 
-    val avgFanout = IndexMathOps
-      .averageFanout(denormalizedBlocks.select("cubeId").distinct().as[CubeId])
-      .withColumn("id", lit(1))
+    val avgFanout = IndexMathOps.averageFanout(denormalizedBlocks).withColumn("id", lit(1))
 
     val miscDS =
       denormalizedBlocks
@@ -357,10 +355,10 @@ object IndexMathOps {
     round(avgFanout, decimals = 2)
   }
 
-  def averageFanout(cubeIds: Dataset[CubeId]): Dataset[Option[Double]] = {
-    import cubeIds.sparkSession.implicits._
-    cubeIds
-      .groupByKey(_.parent)
+  def averageFanout(denormalizedBlocks: Dataset[DenormalizedBlock]): Dataset[Option[Double]] = {
+    import denormalizedBlocks.sparkSession.implicits._
+    denormalizedBlocks
+      .groupByKey(_.cubeId.parent)
       .count()
       .toDF("parent", "fanout")
       .filter("parent IS NOT NULL")

@@ -123,6 +123,29 @@ private[delta] class IndexStatusBuilder(
       .collect()
 
     SortedMap(items: _*)
+
+//    import scala.collection.JavaConverters._
+//    val builder = SortedMap.newBuilder[CubeId, CubeStatus]
+//    val revisionAddFiles = revisionFiles
+//    import revisionAddFiles.sparkSession.implicits._
+//    revisionAddFiles
+//      .flatMap(IndexFiles.fromAddFile(dimensionCount)(_).blocks)
+//      .groupByKey(_.cubeId)
+//      .mapGroups { case (cubeId, blocksIter) =>
+//        val blocks = blocksIter.toIndexedSeq
+//        val maxWeight = blocks.map(_.maxWeight).min
+//        val cubeSize = blocks.map(_.elementCount).sum
+//        val normalizedWeight =
+//          if (maxWeight < Weight.MaxValue) maxWeight.fraction
+//          else NormalizedWeight(desiredCubeSize, cubeSize)
+//        val status = CubeStatus(cubeId, maxWeight, normalizedWeight, blocks)
+//        cubeId -> status
+//      }
+//      .toLocalIterator()
+//      .asScala
+//      .foreach(builder += _)
+//
+//    builder.result()
   }
 
 }
