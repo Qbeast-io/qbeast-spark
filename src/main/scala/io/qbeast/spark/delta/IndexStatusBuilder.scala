@@ -17,6 +17,7 @@ package io.qbeast.spark.delta
 
 import io.qbeast.core.model._
 import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.functions._
 import org.apache.spark.sql.Dataset
 
 import scala.collection.immutable.SortedMap
@@ -105,47 +106,30 @@ private[delta] class IndexStatusBuilder(
 //      .foreach(builder += _)
 //    builder.result()
 
+    import scala.collection.JavaConverters._
+    val builder = SortedMap.newBuilder[CubeId, CubeStatus]
     val revisionAddFiles = revisionFiles
     import revisionAddFiles.sparkSession.implicits._
-    val items = revisionAddFiles
+    revisionAddFiles
       .flatMap(IndexFiles.fromAddFile(dimensionCount)(_).blocks)
-      .groupByKey(_.cubeId)
-      .mapGroups { case (cubeId, blocksIter) =>
-        val blocks = blocksIter.toIndexedSeq
-        val maxWeight = blocks.map(_.maxWeight).min
-        val cubeSize = blocks.map(_.elementCount).sum
-        val normalizedWeight =
-          if (maxWeight < Weight.MaxValue) maxWeight.fraction
-          else NormalizedWeight(desiredCubeSize, cubeSize)
-        val status = CubeStatus(cubeId, maxWeight, normalizedWeight, blocks)
-        cubeId -> status
-      }
-      .collect()
+      .groupBy("cubeId")
+      .agg(
+        min(col("maxWeight.value")).as("maxWeightInt"),
+        sum(col("elementCount")).as("cubeSize"),
+        collect_list(struct("*")).as("blocks"))
+      .withColumn(
+        "normalizedWeight",
+        when(col("maxWeightInt") < Weight.MaxValueCol, col("maxWeightInt").cast("double"))
+          .otherwise(
+            NormalizedWeight.fromColumns(lit(desiredCubeSize), col("cubeSize")).cast("double")))
+      .withColumn("maxWeight", struct(col("maxWeightInt").as("value")))
+      .drop("maxWeightInt", "cubeSize")
+      .as[CubeStatus]
+      .toLocalIterator()
+      .asScala
+      .foreach(cs => builder += (cs.cubeId -> cs))
 
-    SortedMap(items: _*)
-
-//    import scala.collection.JavaConverters._
-//    val builder = SortedMap.newBuilder[CubeId, CubeStatus]
-//    val revisionAddFiles = revisionFiles
-//    import revisionAddFiles.sparkSession.implicits._
-//    revisionAddFiles
-//      .flatMap(IndexFiles.fromAddFile(dimensionCount)(_).blocks)
-//      .groupByKey(_.cubeId)
-//      .mapGroups { case (cubeId, blocksIter) =>
-//        val blocks = blocksIter.toIndexedSeq
-//        val maxWeight = blocks.map(_.maxWeight).min
-//        val cubeSize = blocks.map(_.elementCount).sum
-//        val normalizedWeight =
-//          if (maxWeight < Weight.MaxValue) maxWeight.fraction
-//          else NormalizedWeight(desiredCubeSize, cubeSize)
-//        val status = CubeStatus(cubeId, maxWeight, normalizedWeight, blocks)
-//        cubeId -> status
-//      }
-//      .toLocalIterator()
-//      .asScala
-//      .foreach(builder += _)
-//
-//    builder.result()
+    builder.result()
   }
 
 }

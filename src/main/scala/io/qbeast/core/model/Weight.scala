@@ -19,6 +19,8 @@ import io.qbeast.core.model.Weight.offset
 import io.qbeast.core.model.Weight.range
 import io.qbeast.core.model.Weight.MaxValue
 import io.qbeast.core.model.Weight.MinValue
+import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.Column
 
 /**
  * Weight companion object.
@@ -29,6 +31,8 @@ object Weight {
    * The maximum value.
    */
   val MaxValue: Weight = Weight(Int.MaxValue)
+
+  def MaxValueCol: Column = lit(Int.MaxValue)
 
   /**
    * The minimum value.

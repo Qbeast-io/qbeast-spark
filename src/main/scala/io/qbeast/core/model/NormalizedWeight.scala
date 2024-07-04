@@ -15,10 +15,17 @@
  */
 package io.qbeast.core.model
 
+import org.apache.spark.sql.types.DoubleType
+import org.apache.spark.sql.Column
+
 /**
  * Normalized weight companion object.
  */
 object NormalizedWeight {
+
+  def fromColumns(desiredCubeSize: Column, cubeSize: Column): Column = {
+    desiredCubeSize.cast(DoubleType) / cubeSize
+  }
 
   /**
    * Creates a normalized weight from a given simple weight.
