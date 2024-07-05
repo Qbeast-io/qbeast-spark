@@ -33,13 +33,6 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
     spark.createDataFrame(rdd)
   }
 
-  private def areEqual(thisStats: SizeStats, otherStats: SizeStats): Unit = {
-    thisStats.count shouldBe otherStats.count
-    thisStats.avg shouldBe otherStats.avg
-    thisStats.stddev shouldBe otherStats.stddev
-    thisStats.quartiles sameElements otherStats.quartiles shouldBe true
-  }
-
   "IndexedColumns" should "output the indexed columns" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
       {
@@ -177,15 +170,13 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
       metrics.height shouldBe 1
       metrics.avgFanout shouldBe 0d
 
-      areEqual(
-        metrics.cubeElementCountStats,
-        SizeStats(1, 1001, 0, Array(1001, 1001, 1001, 1001, 1001)))
-      areEqual(
-        metrics.blockElementCountStats,
-        SizeStats(1, 1001, 0, Array(1001, 1001, 1001, 1001, 1001)))
+      metrics.cubeElementCountStats shouldBe
+        SizeStats(1, 1001, 0, Seq(1001, 1001, 1001, 1001, 1001))
+      metrics.blockElementCountStats shouldBe
+        SizeStats(1, 1001, 0, Seq(1001, 1001, 1001, 1001, 1001))
       metrics.fileBytesStats.count shouldBe 1L
-      areEqual(metrics.blockCountPerCubeStats, SizeStats(1, 1, 0, Array(1, 1, 1, 1, 1)))
-      areEqual(metrics.blockCountPerFileStats, SizeStats(1, 1, 0, Array(1, 1, 1, 1, 1)))
+      metrics.blockCountPerCubeStats shouldBe SizeStats(1, 1, 0, Seq(1, 1, 1, 1, 1))
+      metrics.blockCountPerFileStats shouldBe SizeStats(1, 1, 0, Seq(1, 1, 1, 1, 1))
 
   }
 
@@ -210,11 +201,11 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
       metrics.height shouldBe 1
       metrics.avgFanout shouldBe 0d
 
-      areEqual(metrics.cubeElementCountStats, SizeStats(1L, 0, 0, Array(0, 0, 0, 0, 0)))
-      areEqual(metrics.blockElementCountStats, SizeStats(10, 0, 0, Array(0, 0, 0, 0, 0)))
+      metrics.cubeElementCountStats shouldBe SizeStats(1L, 0, 0, Seq(0, 0, 0, 0, 0))
+      metrics.blockElementCountStats shouldBe SizeStats(10, 0, 0, Seq(0, 0, 0, 0, 0))
       metrics.fileBytesStats.count shouldBe numFiles
-      areEqual(metrics.blockCountPerCubeStats, SizeStats(1, 10, 0, Array(10, 10, 10, 10, 10)))
-      areEqual(metrics.blockCountPerFileStats, SizeStats(10, 1, 0, Array(1, 1, 1, 1, 1)))
+      metrics.blockCountPerCubeStats shouldBe SizeStats(1, 10, 0, Seq(10, 10, 10, 10, 10))
+      metrics.blockCountPerFileStats shouldBe SizeStats(10, 1, 0, Seq(1, 1, 1, 1, 1))
   }
 
   "Tabulator" should "format data correctly" in {

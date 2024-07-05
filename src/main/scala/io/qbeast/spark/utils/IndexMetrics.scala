@@ -291,7 +291,7 @@ object IndexMetrics {
 
 }
 
-case class SizeStats(count: Long, avg: Long, stddev: Long, quartiles: Array[Long]) {
+case class SizeStats(count: Long, avg: Long, stddev: Long, quartiles: Seq[Long]) {
 
   override def toString: String = {
     s"(count: $count, avg: $avg, stddev: $stddev, quartiles: ${quartiles.mkString("[", ",", "]")})"
