@@ -117,17 +117,23 @@ case class DenormalizedBlock(
 object IndexMetrics {
 
   def isLeaf(cubeStatuses: SortedMap[CubeId, CubeStatus])(cubeId: CubeId): Boolean = {
+    // cubeStatuses are stored in a SortedMap with CubeIds ordered as if they were accessed
+    // in a pre-order, DFS fashion.
     val cubesIter = cubeStatuses.iteratorFrom(cubeId)
     cubesIter.take(2).toList match {
-      // cubeId is the smaller than any cube from cubeStatuses and does not belong to the map
-      case Nil => true
-      // cubeId is in the map but has no children
-      case List((cube, _)) => cube == cubeId
       case List((cube, _), (nextCube, _)) =>
-        // cubeId is in the map and check the next cube
+        // cubeId is in the tree and check the next cube
         if (cube == cubeId) !cubeId.isAncestorOf(nextCube)
-        // cubeId is not in the map and check the cube after it
+        // cubeId is not in the tree, check the cube after it
         else !cubeId.isAncestorOf(cube)
+      case List((cube, _)) =>
+        // only one cube is larger than or equal to cubeId and it is the cubeId itself
+        if (cube == cubeId) true
+        // cubeId is not in the map, check the cube after it
+        else !cubeId.isAncestorOf(cube)
+      case Nil =>
+        // cubeId is the smaller than any existing cube and does not belong to the map
+        true
     }
   }
 
