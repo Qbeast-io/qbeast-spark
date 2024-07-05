@@ -15,13 +15,12 @@
  */
 package io.qbeast.core.model
 
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import io.qbeast.spark.QbeastIntegrationTestSpec
 
 /**
  * Tests for [[Weight]].
  */
-class WeightTest extends AnyFlatSpec with Matchers {
+class WeightTest extends QbeastIntegrationTestSpec {
 
   "Weight" should "compute fraction correctly" in {
     Weight.MinValue.fraction shouldBe 0.0
@@ -61,5 +60,10 @@ class WeightTest extends AnyFlatSpec with Matchers {
   it should "implement compare correctly" in {
     Weight(1) should be <= Weight(2)
   }
+
+  it should "implement MaxValueColumn correctly" in withSpark(spark => {
+    import spark.implicits._
+    spark.emptyDataFrame.select(Weight.MaxValueColumn).as[Int].first() shouldBe Int.MaxValue
+  })
 
 }

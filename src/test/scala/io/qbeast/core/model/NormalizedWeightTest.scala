@@ -15,13 +15,12 @@
  */
 package io.qbeast.core.model
 
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import io.qbeast.spark.QbeastIntegrationTestSpec
 
 /**
  * Tests of NormalizedWeight.
  */
-class NormalizedWeightTest extends AnyFlatSpec with Matchers {
+class NormalizedWeightTest extends QbeastIntegrationTestSpec {
 
   "NormalizedWeight" should "support merge with other maxWeight" in {
     NormalizedWeight.merge(2.0, 3.0) shouldBe 1.2
@@ -45,21 +44,43 @@ class NormalizedWeightTest extends AnyFlatSpec with Matchers {
 
   it should "estimate correctly unbalanced distribution actual" in {
 
-    def testDistrib(unbalancedDistribution: List[Int], desiredSize: Int = 10): Unit = {
+    def testDistribution(unbalancedDistribution: List[Int], desiredSize: Int = 10): Unit = {
       val total = unbalancedDistribution.sum
       val idealLoad = desiredSize.toDouble / total
       unbalancedDistribution
         .map(NormalizedWeight(desiredSize, _))
         .reduce(NormalizedWeight.merge) shouldBe idealLoad +- (0.01 * idealLoad)
     }
-    testDistrib(List(10, 10, 10, 2, 1, 10, 10, 1))
-    testDistrib(List(10, 10, 10, 2, 1, 10, 10, 1), desiredSize = 1000)
+    testDistribution(List(10, 10, 10, 2, 1, 10, 10, 1))
+    testDistribution(List(10, 10, 10, 2, 1, 10, 10, 1), desiredSize = 1000)
 
-    testDistrib(List(1000), desiredSize = 10)
+    testDistribution(List(1000), desiredSize = 10)
 
-    testDistrib(List(1000), desiredSize = 10000)
-    testDistrib(List(1000, 1), desiredSize = 100)
+    testDistribution(List(1000), desiredSize = 10000)
+    testDistribution(List(1000, 1), desiredSize = 100)
 
   }
+
+  it should "compute NormalizedWeight from MaxWeight Column" in withSpark(spark => {
+    import spark.implicits._
+    val maxWeightIntegers = Seq(1, 100, 200)
+    val df = maxWeightIntegers.toDF("maxWeightInt")
+    val result =
+      df.select(NormalizedWeight.fromWeightColumn($"maxWeightInt")).as[NormalizedWeight].collect()
+    result should contain theSameElementsAs maxWeightIntegers.map(Weight(_).fraction)
+  })
+
+  it should "compute NormalizedWeight from the desiredCubeSize and the actual cube size columns" in
+    withSpark(spark => {
+      import spark.implicits._
+      val desiredCubeSize = 100
+      val cubeSize = 10
+      val df = Seq((desiredCubeSize, cubeSize)).toDF("desiredCubeSize", "cubeSize")
+      val result = df
+        .select(NormalizedWeight.fromColumns($"desiredCubeSize", $"cubeSize"))
+        .as[Double]
+        .collect()
+      result should contain theSameElementsAs Seq(NormalizedWeight(desiredCubeSize, cubeSize))
+    })
 
 }

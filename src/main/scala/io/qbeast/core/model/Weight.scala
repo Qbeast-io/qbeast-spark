@@ -32,7 +32,7 @@ object Weight {
    */
   val MaxValue: Weight = Weight(Int.MaxValue)
 
-  def MaxValueCol: Column = lit(Int.MaxValue)
+  def MaxValueColumn: Column = lit(Int.MaxValue)
 
   /**
    * The minimum value.

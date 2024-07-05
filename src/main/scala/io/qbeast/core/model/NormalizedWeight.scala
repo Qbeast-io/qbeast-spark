@@ -15,6 +15,7 @@
  */
 package io.qbeast.core.model
 
+import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.Column
 
@@ -25,6 +26,12 @@ object NormalizedWeight {
 
   def fromColumns(desiredCubeSize: Column, cubeSize: Column): Column = {
     desiredCubeSize.cast(DoubleType) / cubeSize
+  }
+
+  def fromWeightColumn(weight: Column): Column = {
+    val offset = lit(Weight.offset).cast(DoubleType)
+    val range = lit(Weight.range).cast(DoubleType)
+    (weight - offset) / range
   }
 
   /**

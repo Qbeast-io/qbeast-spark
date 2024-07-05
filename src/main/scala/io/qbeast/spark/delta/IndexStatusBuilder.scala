@@ -83,53 +83,27 @@ private[delta] class IndexStatusBuilder(
   def indexCubeStatuses: SortedMap[CubeId, CubeStatus] = {
     val dimensionCount = revision.transformations.size
     val desiredCubeSize = revision.desiredCubeSize
-
-//    import scala.collection.JavaConverters._
-//    val builder = SortedMap.newBuilder[CubeId, CubeStatus]
-//    revisionFiles
-//      .toLocalIterator()
-//      .asScala
-//      .map(IndexFiles.fromAddFile(dimensionCount))
-//      .flatMap(_.blocks)
-//      .toSeq
-//      .groupBy(_.cubeId)
-//      .iterator
-//      .map { case (cubeId, blocks) =>
-//        val maxWeight = blocks.map(_.maxWeight).min
-//        val cubeSize = blocks.map(_.elementCount).sum
-//        val normalizedWeight =
-//          if (maxWeight < Weight.MaxValue) maxWeight.fraction
-//          else NormalizedWeight(desiredCubeSize, cubeSize)
-//        val status = CubeStatus(cubeId, maxWeight, normalizedWeight, blocks.toIndexedSeq)
-//        cubeId -> status
-//      }
-//      .foreach(builder += _)
-//    builder.result()
-
-    import scala.collection.JavaConverters._
-    val builder = SortedMap.newBuilder[CubeId, CubeStatus]
     val revisionAddFiles = revisionFiles
     import revisionAddFiles.sparkSession.implicits._
-    revisionAddFiles
+    val items = revisionAddFiles
       .flatMap(IndexFiles.fromAddFile(dimensionCount)(_).blocks)
-      .groupBy("cubeId")
+      .groupBy($"cubeId")
       .agg(
-        min(col("maxWeight.value")).as("maxWeightInt"),
-        sum(col("elementCount")).as("cubeSize"),
+        min($"maxWeight.value").as("maxWeightInt"),
+        sum($"elementCount").as("cubeSize"),
         collect_list(struct("*")).as("blocks"))
       .withColumn(
         "normalizedWeight",
-        when(col("maxWeightInt") < Weight.MaxValueCol, col("maxWeightInt").cast("double"))
-          .otherwise(
-            NormalizedWeight.fromColumns(lit(desiredCubeSize), col("cubeSize")).cast("double")))
-      .withColumn("maxWeight", struct(col("maxWeightInt").as("value")))
-      .drop("maxWeightInt", "cubeSize")
-      .as[CubeStatus]
-      .toLocalIterator()
-      .asScala
-      .foreach(cs => builder += (cs.cubeId -> cs))
-
-    builder.result()
+        when(
+          $"maxWeightInt" < Weight.MaxValueColumn,
+          NormalizedWeight.fromWeightColumn($"maxWeightInt"))
+          .otherwise(NormalizedWeight.fromColumns(lit(desiredCubeSize), $"cubeSize")))
+      .withColumn("maxWeight", struct($"maxWeightInt".as("value")))
+      .drop($"maxWeightInt", $"cubeSize")
+      .select($"cubeId", struct($"*").as("cubeStatus"))
+      .as[(CubeId, CubeStatus)]
+      .collect()
+    SortedMap(items: _*)
   }
 
 }
