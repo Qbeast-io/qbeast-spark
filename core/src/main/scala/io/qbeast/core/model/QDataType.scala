@@ -81,7 +81,7 @@ object DoubleDataType extends OrderedDataType {
   override val ordering: Numeric[Any] = implicitly[Numeric[Double]].asInstanceOf[Numeric[Any]]
 
   override val defaultHistogram: IndexedSeq[Any] =
-    Double.MinValue.toInt.to(Double.MaxValue.toInt).map(_.doubleValue())
+    BigDecimal(Double.MinValue).to(BigDecimal(Double.MaxValue), BigDecimal(1e307)).map(_.toDouble)
 
 }
 
@@ -102,14 +102,19 @@ object FloatDataType extends OrderedDataType {
   override val ordering: Numeric[Any] = implicitly[Numeric[Float]].asInstanceOf[Numeric[Any]]
 
   override val defaultHistogram: IndexedSeq[Any] =
-    Float.MinValue.toInt.to(Float.MaxValue.toInt).map(_.floatValue())
+    BigDecimal(Float.MinValue.toDouble)
+      .to(BigDecimal(Float.MaxValue.toDouble), BigDecimal(1e37))
+      .map(_.toFloat)
 
 }
 
 object DecimalDataType extends OrderedDataType {
   override def name: String = "DecimalDataType"
-  override val ordering: Numeric[Any] = implicitly[Numeric[Double]].asInstanceOf[Numeric[Any]
-  override val defaultHistogram: IndexedSeq[Any] = Double.MinValue.toInt.to(Double.MaxValue.toInt).map(_.doubleValue())
+  override val ordering: Numeric[Any] = implicitly[Numeric[Double]].asInstanceOf[Numeric[Any]]
+
+  override val defaultHistogram: IndexedSeq[Any] =
+    BigDecimal(Double.MinValue).to(BigDecimal(Double.MaxValue), BigDecimal(1e307)).map(_.toDouble)
+
 }
 
 object StringDataType extends QDataType {

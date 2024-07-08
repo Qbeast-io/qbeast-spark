@@ -33,6 +33,7 @@ case class HistogramTransformation(histogram: IndexedSeq[Any], orderedDataType: 
         if (insertionPoint == 0) 0d
         else if (insertionPoint == histogram.length + 1) 1d
         else (insertionPoint - 1).toDouble / (histogram.length - 1)
+      case _ => throw new IllegalArgumentException(s"Value $value not found in histogram")
     }
   }
 
@@ -46,7 +47,7 @@ case class HistogramTransformation(histogram: IndexedSeq[Any], orderedDataType: 
    */
   override def isSupersededBy(newTransformation: Transformation): Boolean =
     newTransformation match {
-      case nt @ StringHistogramTransformation(hist) =>
+      case nt @ HistogramTransformation(hist, _) =>
         if (isDefault) !nt.isDefault
         else if (nt.isDefault) false
         else !(histogram == hist)
