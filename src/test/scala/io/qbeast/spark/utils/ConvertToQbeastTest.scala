@@ -165,6 +165,18 @@ class ConvertToQbeastTest
       thrown.getMessage shouldBe incorrectIdentifierFormat(identifier)
     })
 
+  it should "convert if the path contains '.'" in withSparkAndTmpDir((spark, tmpDir) => {
+    val location = s"$tmpDir/test.db/table"
+    val identifier = s"parquet.`$location`"
+    loadTestData(spark)
+      .limit(dataSize)
+      .write
+      .format("delta")
+      .save(location)
+    ConvertToQbeastCommand(identifier, columnsToIndex, dcs).run(spark)
+    getQbeastSnapshot(spark, location).loadAllRevisions.size shouldBe 1
+  })
+
   it should "preserve sampling accuracy" in withSparkAndTmpDir((spark, tmpDir) => {
     convertFromFormat(spark, "parquet", tmpDir)
 
