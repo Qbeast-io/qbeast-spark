@@ -63,7 +63,7 @@ class WeightTest extends QbeastIntegrationTestSpec {
 
   it should "implement MaxValueColumn correctly" in withSpark(spark => {
     import spark.implicits._
-    spark.emptyDataFrame.select(Weight.MaxValueColumn).as[Int].first() shouldBe Int.MaxValue
+    spark.range(1).select(Weight.MaxValueColumn).as[Int].first() shouldBe Int.MaxValue
   })
 
 }
