@@ -21,6 +21,7 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.Dataset
 
 import scala.collection.immutable.SortedMap
+import scala.collection.JavaConverters._
 
 /**
  * Builds the index status from a given snapshot and revision
@@ -68,24 +69,29 @@ private[delta] class IndexStatusBuilder(
     val revisionAddFiles = revisionFiles
     import revisionAddFiles.sparkSession.implicits._
     val blocks = revisionAddFiles
-      .flatMap(IndexFiles.fromAddFile(root.dimensionCount)(_).blocks)
-      .collect()
+      .map(IndexFiles.fromAddFile(root.dimensionCount))
+      .flatMap(_.blocks)
+      .as[Block]
+      .toLocalIterator()
+      .asScala
       .toIndexedSeq
+
     SortedMap(root -> CubeStatus(root, Weight.MaxValue, Weight.MaxValue.fraction, blocks))
   }
 
   /**
    * Returns the index state for the given space revision
-   *
    * @return
    *   Dataset containing cube information
    */
   def indexCubeStatuses: SortedMap[CubeId, CubeStatus] = {
+    val builder = SortedMap.newBuilder[CubeId, CubeStatus]
     val dimensionCount = revision.transformations.size
     val desiredCubeSize = revision.desiredCubeSize
     val revisionAddFiles = revisionFiles
+
     import revisionAddFiles.sparkSession.implicits._
-    val items = revisionAddFiles
+    revisionAddFiles
       .flatMap(IndexFiles.fromAddFile(dimensionCount)(_).blocks)
       .groupBy($"cubeId")
       .agg(
@@ -100,10 +106,12 @@ private[delta] class IndexStatusBuilder(
           .otherwise(NormalizedWeight.fromColumns(lit(desiredCubeSize), $"cubeSize")))
       .withColumn("maxWeight", struct($"maxWeightInt".as("value")))
       .drop($"maxWeightInt", $"cubeSize")
-      .select($"cubeId", struct($"*").as("cubeStatus"))
-      .as[(CubeId, CubeStatus)]
-      .collect()
-    SortedMap(items: _*)
+      .as[CubeStatus]
+      .toLocalIterator()
+      .asScala
+      .foreach(cs => builder += (cs.cubeId -> cs))
+
+    builder.result()
   }
 
 }
