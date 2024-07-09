@@ -126,6 +126,37 @@ class IndexMetricsTest extends QbeastIntegrationTestSpec {
           blockReplicated = false))
   }
 
+  "IndexMetrics.computeAverageFanout" should
+    "return the right avg fanout from a Dataset[CubeId]" in withSpark { spark =>
+      import spark.implicits._
+      val root = CubeId.root(2)
+      // root -> c1, c2, c3, c4
+      val rootChildren = root.children.toSeq
+      // c1 => c11, c12, c13
+      val c1Children = rootChildren.head.children.take(3).toSeq
+      // c4 => c41, c42
+      val c4Children = rootChildren.last.children.take(2).toSeq
+      val fanout = (rootChildren.size + c1Children.size + c4Children.size) / 3d
+      val cubes = ((root +: rootChildren) ++ c1Children ++ c4Children).toDS
+      cubes.transform(IndexMetrics.computeAverageFanout).first() shouldBe Some(fanout)
+    }
+
+  "IndexMathOps.computeMinHeight" should "return the right min height" in {
+    val desiredCubeSize = 100
+    val dimensionCount = 2
+    an[AssertionError] shouldBe thrownBy(
+      IndexMetrics.computeMinHeight(-1, desiredCubeSize, dimensionCount) shouldBe 0)
+    IndexMetrics.computeMinHeight(0, desiredCubeSize, dimensionCount) shouldBe 0
+    IndexMetrics.computeMinHeight(1, desiredCubeSize, dimensionCount) shouldBe 1
+    IndexMetrics.computeMinHeight(desiredCubeSize, desiredCubeSize, dimensionCount) shouldBe 1
+    IndexMetrics.computeMinHeight(desiredCubeSize + 1, desiredCubeSize, dimensionCount) shouldBe 2
+    IndexMetrics.computeMinHeight(desiredCubeSize * 6, desiredCubeSize, dimensionCount) shouldBe 3
+    IndexMetrics.computeMinHeight(
+      desiredCubeSize * 21 + 1,
+      desiredCubeSize,
+      dimensionCount) shouldBe 4
+  }
+
   "computeCubeStats" should "compute cube stats strings correctly" in {
     fail("Not implemented")
   }

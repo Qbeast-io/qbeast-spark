@@ -199,7 +199,7 @@ class QbeastTable private (
       case Some(id) => qbeastSnapshot.loadIndexStatus(id)
       case None => qbeastSnapshot.loadLatestIndexStatus
     }
-    val fileStatus = revisionID match {
+    val indexFiles = revisionID match {
       case Some(id) => qbeastSnapshot.loadIndexFiles(id)
       case None => qbeastSnapshot.loadLatestIndexFiles
     }
@@ -207,7 +207,7 @@ class QbeastTable private (
     val revision = indexStatus.revision
     val cubeStatuses = indexStatus.cubesStatuses
 
-    IndexMetrics(revision, cubeStatuses, fileStatus)
+    IndexMetrics(revision, cubeStatuses, indexFiles)
   }
 
 }

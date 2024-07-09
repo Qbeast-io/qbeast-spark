@@ -128,6 +128,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
         val qt = QbeastTable.forPath(spark, tmpDir)
         val metrics = qt.getIndexMetrics(Some(1L))
 
+        println(metrics)
         metrics.revisionId shouldBe 1L
         metrics.elementCount shouldBe 1001
         metrics.dimensionCount shouldBe columnsToIndex.size
