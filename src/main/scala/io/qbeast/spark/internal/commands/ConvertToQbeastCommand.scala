@@ -56,15 +56,24 @@ case class ConvertToQbeastCommand(
     with StagingUtils {
 
   private def resolveTableFormat(spark: SparkSession): (String, TableIdentifier) = {
-    val tableIdentifier = spark.sessionState.sqlParser.parseTableIdentifier(identifier)
+
+    val tableIdentifier =
+      try {
+        spark.sessionState.sqlParser.parseTableIdentifier(identifier)
+      } catch {
+        case _: AnalysisException =>
+          throw AnalysisExceptionFactory.create(incorrectIdentifierFormat(identifier))
+      }
+    // If the table is a path table, it is a parquet or delta/qbeast table
     val provider = tableIdentifier.database.getOrElse("")
-    // If the table is a path table, it is a parquet or delta table
     val isPathTable = new Path(tableIdentifier.table).isAbsolute
-    val isCorrectFormat = provider == "parquet" || provider == "delta"
+    val isCorrectFormat = provider == "parquet" || provider == "delta" || provider == "qbeast"
+
     if (isPathTable && isCorrectFormat) (provider, tableIdentifier)
-    else {
+    else if (!isCorrectFormat)
+      throw AnalysisExceptionFactory.create(unsupportedFormatExceptionMsg(provider))
+    else
       throw AnalysisExceptionFactory.create(incorrectIdentifierFormat(identifier))
-    }
   }
 
   override def run(spark: SparkSession): Seq[Row] = {
