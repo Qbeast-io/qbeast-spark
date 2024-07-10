@@ -20,6 +20,7 @@ import io.qbeast.spark.utils.IndexMetrics.computeMinHeight
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.LongType
 import org.apache.spark.sql.Column
+import org.apache.spark.sql.DataframeUtils
 import org.apache.spark.sql.Dataset
 
 case class IndexMetrics(
@@ -171,7 +172,7 @@ object IndexMetrics {
       denormalizedBlocks = denormalizedBlocks)
   }
 
-  private def computeCubeStats(denormalizedBlocks: Dataset[DenormalizedBlock]): String = {
+  private[qbeast] def computeCubeStats(denormalizedBlocks: Dataset[DenormalizedBlock]): String = {
     import denormalizedBlocks.sparkSession.implicits._
     val blockElementCountStatsDF = denormalizedBlocks
       .select(
@@ -207,13 +208,10 @@ object IndexMetrics {
       .sum("blockCount")
       .toDF("depth", "blockCount")
 
-//    val (cubeElementCountStats, blockElementCountStats) =
     val elementCountStats =
       cubeElementCountStatsDF
         .join(blockElementCountStatsDF, "id")
         .drop("id")
-        .as[(SizeStats, SizeStats)]
-    elementCountStats.show(false)
 
     val levelWiseStats = levelWiseCubeElementCountStats
       .join(levelWiseBlockCounts, "depth")
@@ -227,10 +225,10 @@ object IndexMetrics {
         $"cubeElementCountStats.stddev".as("cubeElementCountStddev"),
         $"cubeElementCountStats.quartiles".as("cubeElementCountQuartiles"),
         $"avgWeight")
-      .as[(Int, Long, Long, Long, Long, Seq[Long], Double)]
-    levelWiseStats.show(false)
 
-    ""
+    DataframeUtils.showString(elementCountStats) + "\n" + DataframeUtils.showString(
+      levelWiseStats)
+
   }
 
   /**
@@ -311,15 +309,15 @@ object Tabulator {
    *   the table to format
    * @return
    */
-  def format(table: Seq[Seq[String]]): String = table match {
+  def format(table: Seq[Seq[Any]]): String = table match {
     case Seq() => ""
     case _ =>
       val columnSizes =
         table
-          .map(row => row.map(cell => if (cell == null) 0 else cell.length))
+          .map(row => row.map(cell => if (cell == null) 0 else cell.toString.length))
           .transpose
           .map(_.max)
-      val rows = table.map(row => formatRow(row, columnSizes))
+      val rows = table.map(row => formatRow(row.map(_.toString), columnSizes))
       (rows.head :: rows.tail.toList ::: Nil).mkString("\n")
   }
 
