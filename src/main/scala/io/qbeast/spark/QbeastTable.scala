@@ -74,17 +74,17 @@ class QbeastTable private (
    *   the identifier of the revision to optimize. If doesn't exist or none is specified, would be
    *   the last available
    */
-  def optimize(revisionID: RevisionID): Unit = {
+  def optimize(revisionID: RevisionID, options: Map[String, String]): Unit = {
     if (!isStaging(revisionID)) {
       checkRevisionAvailable(revisionID)
-      OptimizeTableCommand(revisionID, indexedTable)
+      OptimizeTableCommand(revisionID, indexedTable, options)
         .run(sparkSession)
     }
   }
 
-  def optimize(): Unit = {
+  def optimize(options: Map[String, String] = Map.empty): Unit = {
     if (!isStaging(latestRevisionAvailableID)) {
-      optimize(latestRevisionAvailableID)
+      optimize(latestRevisionAvailableID, options)
     }
   }
 
@@ -95,7 +95,8 @@ class QbeastTable private (
    * @param files
    *   the index files to optimize
    */
-  def optimize(files: Seq[String]): Unit = indexedTable.optimize(files)
+  def optimize(files: Seq[String], options: Map[String, String]): Unit =
+    indexedTable.optimize(files, options)
 
   /**
    * The analyze operation should analyze the index structure and find the cubes that need
@@ -127,15 +128,15 @@ class QbeastTable private (
    *   the identifier of the revision to optimize. If doesn't exist or none is specified, would be
    *   the last available
    */
-  def compact(revisionID: RevisionID): Unit = {
+  def compact(revisionID: RevisionID, options: Map[String, String]): Unit = {
     checkRevisionAvailable(revisionID)
-    CompactTableCommand(revisionID, indexedTable)
+    CompactTableCommand(revisionID, indexedTable, options)
       .run(sparkSession)
       .map(_.getString(0))
   }
 
-  def compact(): Unit = {
-    compact(latestRevisionAvailableID)
+  def compact(options: Map[String, String] = Map.empty): Unit = {
+    compact(latestRevisionAvailableID, options)
   }
 
   /**

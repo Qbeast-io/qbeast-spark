@@ -23,6 +23,7 @@ import io.qbeast.spark.delta.StagingResolution
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
+import io.qbeast.spark.internal.QbeastOptions.optimizationOptions
 import io.qbeast.spark.internal.QbeastOptions.COLUMNS_TO_INDEX
 import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
 import org.apache.spark.internal.Logging
@@ -121,7 +122,7 @@ trait IndexedTable {
    * @param revisionID
    *   the identifier of revision to optimize
    */
-  def optimize(revisionID: RevisionID): Unit
+  def optimize(revisionID: RevisionID, options: Map[String, String]): Unit
 
   /**
    * Optimizes the table by optimizing the data stored in the specified index files.
@@ -129,12 +130,12 @@ trait IndexedTable {
    * @param files
    *   the index files to optimize
    */
-  def optimize(files: Seq[String]): Unit
+  def optimize(files: Seq[String], options: Map[String, String]): Unit
 
   /**
    * Compacts the small files for a given table
    */
-  def compact(revisionID: RevisionID): Unit
+  def compact(revisionID: RevisionID, options: Map[String, String]): Unit
 }
 
 /**
@@ -480,14 +481,14 @@ private[table] class IndexedTableImpl(
 
   }
 
-  override def optimize(revisionID: RevisionID): Unit = {
+  override def optimize(revisionID: RevisionID, options: Map[String, String]): Unit = {
     val indexFiles = snapshot.loadIndexFiles(revisionID)
     import indexFiles.sparkSession.implicits._
     val files = snapshot.loadIndexFiles(revisionID).map(_.path).as[String].collect()
-    optimize(files)
+    optimize(files, options)
   }
 
-  override def optimize(files: Seq[String]): Unit = {
+  override def optimize(files: Seq[String], options: Map[String, String]): Unit = {
     val paths = files.toSet
     val schema = metadataManager.loadCurrentSchema(tableID)
     snapshot.loadAllRevisions.foreach { revision =>
@@ -499,7 +500,7 @@ private[table] class IndexedTableImpl(
         metadataManager.updateWithTransaction(
           tableID,
           schema,
-          QbeastOptions.empty,
+          optimizationOptions(options),
           append = true) {
           val tableChanges = BroadcastedTableChanges(None, indexStatus, Map.empty, Map.empty)
           val fileActions =
@@ -510,6 +511,7 @@ private[table] class IndexedTableImpl(
     }
   }
 
-  override def compact(revisionID: RevisionID): Unit = optimize(revisionID)
+  override def compact(revisionID: RevisionID, options: Map[String, String]): Unit =
+    optimize(revisionID, options)
 
 }

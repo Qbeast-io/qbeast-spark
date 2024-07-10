@@ -73,7 +73,7 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
       // Analyze and Optimize the staging revision
       val table = QbeastTable.forPath(spark, tmpDir)
       table.analyze(stagingID)
-      table.optimize(stagingID)
+      table.optimize(stagingID, Map.empty[String, String])
 
       // DataFrame should not change by optimizing the staging revision
       val qbeastDf = spark.read.format("qbeast").load(tmpDir)
@@ -100,7 +100,7 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
 
     // Perform compaction
     val table = QbeastTable.forPath(spark, tmpDir)
-    table.compact(stagingID)
+    table.compact(stagingID, Map.empty[String, String])
 
     // Number of delta files after compaction
     val qsAfter = DeltaQbeastSnapshot(deltaLog.update())

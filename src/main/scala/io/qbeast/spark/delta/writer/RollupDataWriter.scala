@@ -245,11 +245,16 @@ object RollupDataWriter
       indexStatus: IndexStatus,
       indexFiles: Dataset[IndexFile]): IISeq[FileAction] = {
     val data = loadDataFromIndexFiles(tableId, indexFiles)
+    val cubeMaxWeightsBroadcast =
+      data.sparkSession.sparkContext.broadcast(
+        indexStatus.cubesStatuses
+          .mapValues(_.maxWeight)
+          .map(identity))
     var extendedData = extendDataWithWeight(data, revision)
-    extendedData = extendDataWithCube(extendedData, revision, indexStatus)
+    extendedData = extendDataWithCube(extendedData, revision, cubeMaxWeightsBroadcast.value)
     extendedData = extendDataWithCubeToRollup(extendedData, revision)
     val getCubeMaxWeight = { cubeId: CubeId =>
-      indexStatus.cubesStatuses.get(cubeId).map(_.maxWeight).getOrElse(Weight.MaxValue)
+      cubeMaxWeightsBroadcast.value.getOrElse(cubeId, Weight.MaxValue)
     }
     val statsTrackers = StatsTracker.getStatsTrackers()
     val fileStatsTracker = getFileStatsTracker(tableId, data)
@@ -297,18 +302,12 @@ object RollupDataWriter
   private def extendDataWithCube(
       extendedData: DataFrame,
       revision: Revision,
-      indexStatus: IndexStatus): DataFrame = {
-    val spark = extendedData.sparkSession
-    val cubeMaxWeightsBroadcast =
-      spark.sparkContext.broadcast(
-        indexStatus.cubesStatuses
-          .mapValues(_.maxWeight)
-          .map(identity))
+      cubeMaxWeights: Map[CubeId, Weight]): DataFrame = {
     val columns = revision.columnTransformers.map(_.columnName)
     extendedData
       .withColumn(
         QbeastColumns.cubeColumnName,
-        getCubeIdUDF(revision, cubeMaxWeightsBroadcast.value)(
+        getCubeIdUDF(revision, cubeMaxWeights)(
           struct(columns.map(col): _*),
           col(QbeastColumns.weightColumnName)))
   }

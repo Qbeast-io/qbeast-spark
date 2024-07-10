@@ -16,34 +16,42 @@
 package io.qbeast.spark.internal
 
 import io.qbeast.core.model.QTableID
+import io.qbeast.spark.delta.hook.HookInfo
+import io.qbeast.spark.delta.hook.PreCommitHook.getHookArgName
+import io.qbeast.spark.delta.hook.PreCommitHook.PRE_COMMIT_HOOKS_PREFIX
 import io.qbeast.spark.index.ColumnsToIndex
 import io.qbeast.spark.internal.QbeastOptions.COLUMNS_TO_INDEX
 import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
+import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
 import org.apache.spark.sql.delta.DeltaOptions
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
 
+import scala.util.matching.Regex
+
 /**
- * Container for Qbeast options.
+ * QbeastOptions is a case class that encapsulates various options for Qbeast.
  *
  * @param columnsToIndex
- *   value of columnsToIndex option
+ *   A sequence of column names to index.
  * @param cubeSize
- *   value of cubeSize option
+ *   The number of desired elements per cube.
  * @param stats
- *   the stats if available
- * @param txnVersion
- *   the transaction identifier
+ *   Optional DataFrame containing statistics for the indexing columns.
  * @param txnAppId
- *   the application identifier
+ *   Optional transaction application ID.
+ * @param txnVersion
+ *   Optional transaction version.
  * @param userMetadata
- *   user-provided metadata for each CommitInfo
+ *   Optional user-provided metadata for each CommitInfo.
  * @param mergeSchema
- *   whether to merge the schema
+ *   Optional flag indicating whether to merge the schema.
  * @param overwriteSchema
- *   whether to overwrite the schema
+ *   Optional flag indicating whether to overwrite the schema.
+ * @param hookInfo
+ *   A sequence of HookInfo objects representing the hooks to be executed.
  */
 case class QbeastOptions(
     columnsToIndex: Seq[String],
@@ -53,9 +61,10 @@ case class QbeastOptions(
     txnVersion: Option[String],
     userMetadata: Option[String],
     mergeSchema: Option[String],
-    overwriteSchema: Option[String]) {
+    overwriteSchema: Option[String],
+    hookInfo: Seq[HookInfo] = Nil) {
 
-  def toMap(): Map[String, String] = {
+  def toMap: CaseInsensitiveMap[String] = {
     val options = Map.newBuilder[String, String]
     for (txnAppId <- txnAppId; txnVersion <- txnVersion) {
       options += DeltaOptions.TXN_APP_ID -> txnAppId
@@ -70,11 +79,14 @@ case class QbeastOptions(
     if (overwriteSchema.nonEmpty) {
       options += DeltaOptions.OVERWRITE_SCHEMA_OPTION -> overwriteSchema.get
     }
+    if (hookInfo.nonEmpty) {
+      hookInfo.foreach { options ++= _.toMap }
+    }
+
     options += COLUMNS_TO_INDEX -> columnsToIndex.mkString(",")
     options += CUBE_SIZE -> cubeSize.toString
 
-    options.result()
-
+    CaseInsensitiveMap(options.result())
   }
 
 }
@@ -162,13 +174,43 @@ object QbeastOptions {
     options.get(OVERWRITE_SCHEMA)
 
   /**
+   * This function is used to extract the information about hooks from the provided options. A
+   * hook in this context is a piece of code that is executed before a commit.
+   *
+   * @param options
+   *   A Map[String, String] that represents the options passed to the function. The options map
+   *   should contain keys that match the pattern "${PRE_COMMIT_HOOKS_PREFIX.toLowerCase}.(\\w+)",
+   *   where "\\w+" is the name of the hook. The corresponding value should be the full class name
+   *   of the hook. Optionally, there can be another key for each hook with the pattern
+   *   "${PRE_COMMIT_HOOKS_PREFIX.toLowerCase}.(\\w+).arg", where "\\w+" is the name of the hook.
+   *   The corresponding value should be the argument for the hook.
+   *
+   * @return
+   *   A Seq[HookInfo] that contains the information about each hook. Each HookInfo object
+   *   contains the name of the hook, the full class name of the hook, and optionally the argument
+   *   for the hook.
+   */
+  private def getHookInfo(options: Map[String, String]): Seq[HookInfo] = {
+    val hookNamePattern: Regex = s"${PRE_COMMIT_HOOKS_PREFIX.toLowerCase}.(\\w+)".r
+    options
+      .map {
+        case (hookNamePattern(hookName), clsFullName) =>
+          val hookArgName = getHookArgName(hookName)
+          Some(HookInfo(hookName, clsFullName, options.get(hookArgName)))
+        case _ => None
+      }
+      .collect { case Some(hookInfo) => hookInfo }
+      .toSeq
+  }
+
+  /**
    * Create QbeastOptions object from options map
    * @param options
    *   the options map
    * @return
    *   the QbeastOptions
    */
-  def apply(options: Map[String, String]): QbeastOptions = {
+  def apply(options: CaseInsensitiveMap[String]): QbeastOptions = {
     val columnsToIndex = getColumnsToIndex(options)
     val desiredCubeSize = getDesiredCubeSize(options)
     val stats = getStats(options)
@@ -177,6 +219,8 @@ object QbeastOptions {
     val userMetadata = getUserMetadata(options)
     val mergeSchema = getMergeSchema(options)
     val overwriteSchema = getOverwriteSchema(options)
+    val hookInfo = getHookInfo(options)
+
     QbeastOptions(
       columnsToIndex,
       desiredCubeSize,
@@ -185,7 +229,30 @@ object QbeastOptions {
       txnVersion,
       userMetadata,
       mergeSchema,
-      overwriteSchema)
+      overwriteSchema,
+      hookInfo)
+  }
+
+  /**
+   * Create QbeastOptions object from options map
+   * @param options
+   *   the options map
+   * @return
+   *   the QbeastOptions
+   */
+  def apply(options: Map[String, String]): QbeastOptions = apply(CaseInsensitiveMap(options))
+
+  /**
+   * Create QbeastOptions object from options map for optimization
+   * @param options
+   *   the options map
+   * @return
+   */
+  def optimizationOptions(options: Map[String, String]): QbeastOptions = {
+    val caseInsensitiveMap = CaseInsensitiveMap(options)
+    val userMetadata = getUserMetadata(caseInsensitiveMap)
+    val hookInfo = getHookInfo(caseInsensitiveMap)
+    QbeastOptions(Seq.empty, 0, None, None, None, userMetadata, None, None, hookInfo)
   }
 
   /**

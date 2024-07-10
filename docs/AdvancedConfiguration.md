@@ -265,3 +265,50 @@ We can empty the staging area with a given write by setting the staging size to 
 ```scala
 --conf spark.qbeast.index.stagingSizeInBytes=0
 ```
+
+## Pre-commit Hooks
+**Pre-commit hooks** enable the execution of custom code just before a write or optimization is committed.
+
+To implement such hooks, extend `io.qbeast.spark.delta.hook.PreCommitHook` by implementing its `run` method, which has access to the sequence of `Action`s created by the operation.
+The same method returns a `Map[String, String],` which will be used as `tags` for the transaction's `CommitInfo`:
+
+```json
+{
+  "commitInfo": {
+    "timestamp": 1718787341410,
+    "operation": "WRITE",
+    ...
+    "tags": {
+      "HookOutputKey": "HookOutputValue"
+    },
+    ...
+  }
+}
+```
+
+
+1. You can use more than one hook, as shown in the case below: `myHook1`, and `myHook2.`
+2. For each hook you want to use, provide their class names with the option name: `qbeastPreCommitHook.<custom-hook-name>.`
+3. Add an option with the name `qbeastPreCommitHook.<custom-hook-name>.arg` for the ones that take initiation arguments. Currently, only one `String` argument is allowed for each hook.
+
+```scala
+// Hooks for Writes
+df
+  .write
+  .format("qbeast")
+  .option("qbeastPreCommitHook.myHook1", classOf[SimpleHook].getCanonicalName)
+  .option("qbeastPreCommitHook.myHook2", classOf[StatefulHook].getCanonicalName)
+  .option("qbeastPreCommitHook.myHook2.arg", myStringHookArg)
+  .save(pathToTable)
+```
+
+```scala
+// Hooks for Optimizations
+val qt = QbeastTable.forPath(spark, tablePath)
+val options = Map(
+  "qbeastPreCommitHook.myHook1" -> classOf[SimpleHook].getCanonicalName,
+  "qbeastPreCommitHook.myHook2" -> classOf[StatefulHook].getCanonicalName,
+  "qbeastPreCommitHook.myHook2.arg" -> "myStringHookArg"
+)
+qt.optimize(filesToOptimize, options)
+```
