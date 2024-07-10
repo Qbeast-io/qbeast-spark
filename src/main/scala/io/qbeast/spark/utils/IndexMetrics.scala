@@ -309,15 +309,15 @@ object Tabulator {
    *   the table to format
    * @return
    */
-  def format(table: Seq[Seq[Any]]): String = table match {
+  def format(table: Seq[Seq[String]]): String = table match {
     case Seq() => ""
     case _ =>
       val columnSizes =
         table
-          .map(row => row.map(cell => if (cell == null) 0 else cell.toString.length))
+          .map(row => row.map(cell => if (cell == null) 0 else cell.length))
           .transpose
           .map(_.max)
-      val rows = table.map(row => formatRow(row.map(_.toString), columnSizes))
+      val rows = table.map(row => formatRow(row, columnSizes))
       (rows.head :: rows.tail.toList ::: Nil).mkString("\n")
   }
 
