@@ -17,6 +17,7 @@ package io.qbeast.spark.utils
 
 import io.qbeast.core.model._
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import org.apache.spark.sql.Dataset
 
 class IndexMetricsTest extends QbeastIntegrationTestSpec {
 
@@ -51,8 +52,77 @@ class IndexMetricsTest extends QbeastIntegrationTestSpec {
       dimensionCount) shouldBe 4
   }
 
-  "computeCubeStats" should "compute cube stats strings correctly" in {
-    fail("Not implemented")
+  "computeCubeStats" should "compute cube stats strings correctly" in withSpark { spark =>
+    import spark.implicits._
+
+    val dimensionCount = 2 // Example dimension count
+
+    // Creating the root CubeId
+    val rootCubeId = CubeId.root(dimensionCount)
+
+    // Assuming the first child of the root can be determined and so on for simplicity
+    // This part is hypothetical and might need adjustment based on actual CubeId usage
+    val child1CubeId = rootCubeId.firstChild
+    val child2CubeId = rootCubeId.children.drop(1).next()
+
+    val denormalizedBlocks: Dataset[DenormalizedBlock] = Seq(
+      DenormalizedBlock(
+        rootCubeId,
+        isLeaf = true,
+        "path1",
+        1,
+        1000,
+        23456789L,
+        Weight.MaxValue,
+        Weight.MaxValue,
+        100,
+        blockReplicated = false),
+      DenormalizedBlock(
+        rootCubeId,
+        true,
+        "path2",
+        1,
+        1500,
+        23456789L,
+        Weight.MaxValue,
+        Weight.MaxValue,
+        150,
+        blockReplicated = false),
+      DenormalizedBlock(
+        child1CubeId,
+        isLeaf = false,
+        "path3",
+        1,
+        2000,
+        23456789L,
+        Weight.MaxValue,
+        Weight.MaxValue,
+        200,
+        blockReplicated = true),
+      DenormalizedBlock(
+        child2CubeId,
+        isLeaf = false,
+        "path4",
+        1,
+        2500,
+        23456789L,
+        Weight.MaxValue,
+        Weight.MaxValue,
+        250,
+        blockReplicated = true)).toDS()
+
+    // Assuming computeCubeStats is accessible and correctly implemented
+    val statsString = IndexMetrics.computeCubeStats(denormalizedBlocks)
+
+    print(statsString)
+    // Example assertion
+    statsString should include("avgCubeElementCount")
+    statsString should include("cubeCount")
+    statsString should include("blockCount")
+    statsString should include("cubeElementCountStddev")
+    statsString should include("cubeElementCountQuartiles")
+    statsString should include("avgWeight")
+
   }
 
 }
