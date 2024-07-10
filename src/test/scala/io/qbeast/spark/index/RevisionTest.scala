@@ -20,6 +20,8 @@ import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
 import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.functions.max
+import org.apache.spark.sql.functions.min
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
@@ -54,8 +56,9 @@ class RevisionTest
   def getMaxMinFromRevision(revision: Revision, spark: SparkSession): Seq[Seq[Any]] = {
     for (t <- revision.columnTransformers)
       yield spark
-        .sql("SELECT max(%s), min(%s) FROM dfqbeast".format(t.columnName, t.columnName))
-        .collect()(0)
+        .table("dfqbeast")
+        .select(max(t.columnName), min(t.columnName))
+        .first()
         .toSeq
         .toVector
   }
