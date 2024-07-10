@@ -21,7 +21,6 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.Dataset
 
 import scala.collection.immutable.SortedMap
-import scala.collection.JavaConverters._
 
 /**
  * Builds the index status from a given snapshot and revision
@@ -90,7 +89,7 @@ private[delta] class IndexStatusBuilder(
     val revisionAddFiles: Dataset[AddFile] = revisionFiles
 
     import revisionAddFiles.sparkSession.implicits._
-    revisionAddFiles
+    val data = revisionAddFiles
       .flatMap(IndexFiles.fromAddFile(dimensionCount)(_).blocks)
       .groupBy($"cubeId")
       .agg(
@@ -106,9 +105,9 @@ private[delta] class IndexStatusBuilder(
       .withColumn("maxWeight", struct($"maxWeightInt".as("value")))
       .drop($"maxWeightInt")
       .as[CubeStatus]
-      .toLocalIterator()
-      .asScala
-      .foreach(cs => builder += (cs.cubeId -> cs))
+      .collect()
+
+    data.foreach(cs => builder += (cs.cubeId -> cs))
 
     builder.result()
   }
