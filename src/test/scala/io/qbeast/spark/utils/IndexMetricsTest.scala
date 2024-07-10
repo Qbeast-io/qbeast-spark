@@ -36,7 +36,7 @@ class IndexMetricsTest extends QbeastIntegrationTestSpec {
       cubes.transform(IndexMetrics.computeAverageFanout).first() shouldBe Some(fanout)
     }
 
-  "IndexMathOps.computeMinHeight" should "return the right min height" in {
+  "IndexMetrics.computeMinHeight" should "return the right min height" in {
     val desiredCubeSize = 100
     val dimensionCount = 2
     an[AssertionError] shouldBe thrownBy(
@@ -114,7 +114,6 @@ class IndexMetricsTest extends QbeastIntegrationTestSpec {
     // Assuming computeCubeStats is accessible and correctly implemented
     val statsString = IndexMetrics.computeCubeStats(denormalizedBlocks)
 
-    print(statsString)
     // Example assertion
     statsString should include("avgCubeElementCount")
     statsString should include("cubeCount")
