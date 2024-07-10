@@ -19,6 +19,7 @@ import io.qbeast.core.model.AllSpace
 import io.qbeast.core.model.Block
 import io.qbeast.core.model.CubeId
 import io.qbeast.core.model.CubeStatus
+import io.qbeast.core.model.DenormalizedBlock
 import io.qbeast.core.model.IndexStatus
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.Revision
@@ -28,11 +29,13 @@ import io.qbeast.core.transform.EmptyTransformer
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.delta.IndexFiles
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastTable
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.expr
+import org.apache.spark.sql.Dataset
 
 import scala.collection.immutable.SortedMap
 
@@ -165,7 +168,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
       val matchingBlocks = queryExecutor.execute()
 
       allBlocks.filter(_.maxWeight < weightRange.from).foreach { block =>
-        matchingBlocks should not contain (block)
+        matchingBlocks should not contain block
       }
     })
 
@@ -191,10 +194,16 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val querySpecBuilder = new QuerySpecBuilder(Seq.empty)
     val querySpec = querySpecBuilder.build(revision).head
     val queryExecutor = new QueryExecutor(querySpecBuilder, qbeastSnapshot)
-    val matchFiles = queryExecutor
+    val matchCubes = queryExecutor
       .executeRevision(querySpec, faultyIndexStatus)
-      .map(_.filePath)
-
+    val indexFiles: Dataset[DenormalizedBlock] =
+      QbeastTable.forPath(spark, tmpdir).getIndexDenormalizedBlock(Some(revision.revisionID))
+    import spark.implicits._
+    val matchFiles = indexFiles
+      .join(matchCubes.toList.toDF("cubeId"), "cubeId")
+      .select("filePath")
+      .as[String]
+      .collect()
     val allFiles = deltaLog.update().allFiles.collect().map(_.path)
 
     val diff = allFiles.toSet -- matchFiles.toSet

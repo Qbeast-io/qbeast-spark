@@ -32,8 +32,8 @@ class LinearTransformationTest extends AnyFlatSpec with Matchers {
     while (i > 0) {
       i -= 1
       val t = linearT.transform(i)
-      t should be >= (min.toDouble)
-      t should be <= (max.toDouble)
+      t should be >= min.toDouble
+      t should be <= max.toDouble
 
     }
   }
@@ -54,8 +54,8 @@ class LinearTransformationTest extends AnyFlatSpec with Matchers {
 
   it should "create null value between min and max" in {
     val linearT = LinearTransformation(0, 10000, IntegerDataType)
-    linearT.nullValue.asInstanceOf[Int] should be > (0)
-    linearT.nullValue.asInstanceOf[Int] should be <= (10000)
+    linearT.nullValue.asInstanceOf[Int] should be > 0
+    linearT.nullValue.asInstanceOf[Int] should be <= 10000
   }
 
   it should "merge transformations correctly" in {

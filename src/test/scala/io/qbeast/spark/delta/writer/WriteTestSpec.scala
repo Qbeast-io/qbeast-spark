@@ -117,7 +117,7 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
       deltaNormalizedCubeWeights = weightMap,
       Map.empty)
 
-  val writer: BlockWriter = new BlockWriter(
+  val writer: BlockWriter = BlockWriter(
     dataPath = tmpDir,
     schema = data.schema,
     schemaIndex = indexed.schema,
@@ -126,17 +126,5 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
     statsTrackers = Seq.empty,
     qbeastColumns = qbeastColumns,
     tableChanges = tableChanges)
-
-  def writeData(): Unit = {
-
-    cubeStatuses.foreach { case (cubeId: CubeId, cubeStatus: CubeStatus) =>
-      cubeStatus.blocks.foreach { i =>
-        // Write data in parquetFile
-        val dataCube = indexed.where(s"$cubeColumnName == '${cubeId.string}'")
-        dataCube.coalesce(1).write.format("parquet").save(tmpDir + "/" + i.filePath)
-      }
-
-    }
-  }
 
 }

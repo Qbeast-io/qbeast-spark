@@ -25,12 +25,19 @@ import org.apache.spark.sql.delta.actions.AddFile
 class IndexFilesTest extends QbeastIntegrationTestSpec {
 
   "IndexFiles" should "be able to create an AddFile instance from IndexFile" in withSpark { _ =>
-    val indexFile = new IndexFile(
+    val indexFile = IndexFile(
       path = "path",
       size = 2L,
       modificationTime = 0L,
       revisionId = 1L,
-      blocks = Seq(Block("path", CubeId.root(2), Weight(1L), Weight(2L), 1L, false)).toIndexedSeq)
+      blocks = Seq(
+        Block(
+          "path",
+          CubeId.root(2),
+          Weight(1L),
+          Weight(2L),
+          1L,
+          replicated = false)).toIndexedSeq)
 
     val addFile = IndexFiles.toAddFile(dataChange = true)(indexFile)
     addFile.path shouldBe "path"
@@ -65,12 +72,19 @@ class IndexFilesTest extends QbeastIntegrationTestSpec {
   }
 
   it should "transform the AddFile to a Remove File" in withSpark { _ =>
-    val indexFile = new IndexFile(
+    val indexFile = IndexFile(
       path = "path",
       size = 2L,
       modificationTime = 0L,
       revisionId = 1L,
-      blocks = Seq(Block("path", CubeId.root(2), Weight(1L), Weight(2L), 1L, false)).toIndexedSeq)
+      blocks = Seq(
+        Block(
+          "path",
+          CubeId.root(2),
+          Weight(1L),
+          Weight(2L),
+          1L,
+          replicated = false)).toIndexedSeq)
 
     val removeFile = IndexFiles.toRemoveFile(dataChange = false)(indexFile)
     removeFile.path shouldBe "path"
@@ -79,12 +93,19 @@ class IndexFilesTest extends QbeastIntegrationTestSpec {
   }
 
   it should "be able to create a FileStatus from an IndexFile" in withSpark { _ =>
-    val indexFile = new IndexFile(
+    val indexFile = IndexFile(
       path = "path",
       size = 2L,
       modificationTime = 0L,
       revisionId = 1L,
-      blocks = Seq(Block("path", CubeId.root(2), Weight(1L), Weight(2L), 1L, false)).toIndexedSeq)
+      blocks = Seq(
+        Block(
+          "path",
+          CubeId.root(2),
+          Weight(1L),
+          Weight(2L),
+          1L,
+          replicated = false)).toIndexedSeq)
 
     val indexPath = new Path("/absolute/")
     val indexStatus = IndexFiles.toFileStatus(indexPath)(indexFile)
@@ -97,12 +118,19 @@ class IndexFilesTest extends QbeastIntegrationTestSpec {
   }
 
   it should "be able to create a FileStatusWithMetadata from IndexFile" in withSpark { _ =>
-    val indexFile = new IndexFile(
+    val indexFile = IndexFile(
       path = "path",
       size = 2L,
       modificationTime = 0L,
       revisionId = 1L,
-      blocks = Seq(Block("path", CubeId.root(2), Weight(1L), Weight(2L), 1L, false)).toIndexedSeq)
+      blocks = Seq(
+        Block(
+          "path",
+          CubeId.root(2),
+          Weight(1L),
+          Weight(2L),
+          1L,
+          replicated = false)).toIndexedSeq)
 
     val indexPath = new Path("/absolute/")
     val indexStatus =

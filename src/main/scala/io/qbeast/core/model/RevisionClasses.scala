@@ -292,27 +292,41 @@ case class IndexStatus(
 
 }
 
+object CubeStatus {
+
+  def apply(
+      cubeId: CubeId,
+      maxWeight: Weight,
+      normalizedWeight: NormalizedWeight,
+      blocks: IISeq[Block]): CubeStatus = {
+    new CubeStatus(
+      cubeId,
+      maxWeight,
+      normalizedWeight,
+      blocks.forall(_.replicated),
+      blocks.map(_.elementCount).sum)
+  }
+
+}
+
 /**
  * Container for the status information of a cube
  * @param maxWeight
  *   the max weight of the cube
  * @param normalizedWeight
  *   the normalized weight of the cube
- * @param blocks
- *   the blocks belonging to the cube
+ * @param replicated
+ *   whether the cube is replicated
+ * @param elementCount
+ *   the number of elements in the cube
  */
 case class CubeStatus(
     cubeId: CubeId,
     maxWeight: Weight,
     normalizedWeight: NormalizedWeight,
-    blocks: IISeq[Block])
-    extends Serializable {
-
-  /**
-   * The cube is fully replicated, i.e. all its blocks are replicated.
-   */
-  lazy val replicated: Boolean = blocks.forall(_.replicated)
-}
+    replicated: Boolean,
+    elementCount: Long)
+    extends Serializable {}
 
 /**
  * Companion object for the IndexStatus

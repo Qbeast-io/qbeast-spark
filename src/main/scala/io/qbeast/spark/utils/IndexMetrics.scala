@@ -22,8 +22,6 @@ import org.apache.spark.sql.types.LongType
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.Dataset
 
-import scala.collection.immutable.SortedMap
-
 case class IndexMetrics(
     revisionId: RevisionID,
     elementCount: Long,
@@ -82,95 +80,7 @@ case class IndexMetrics(
 
 }
 
-/**
- * * This utility case class represent a block, with all the related denormalized information.
- * @param cubeId
- *   The identifier of the cube the block belongs to
- * @param filePath
- *   The path of the file the block belongs to
- * @param revisionId
- *   The revision number
- * @param fileSize
- *   The size of the file, in bytes and including other blocks.
- * @param fileModificationTime
- *   The last modification time of the file
- * @param minWeight
- *   The block minimum weight
- * @param maxWeight
- *   The block maximum weight
- * @param blockElementCount
- *   The number of elements in the block
- * @param blockReplicated
- *   Whether the block is replicated or not
- */
-case class DenormalizedBlock(
-    cubeId: CubeId,
-    isLeaf: Boolean,
-    filePath: String,
-    revisionId: RevisionID,
-    fileSize: Long,
-    fileModificationTime: Long,
-    minWeight: Weight,
-    maxWeight: Weight,
-    blockElementCount: Long,
-    blockReplicated: Boolean)
-
 object IndexMetrics {
-
-  def isLeaf(cubeStatuses: SortedMap[CubeId, CubeStatus])(cubeId: CubeId): Boolean = {
-    // cubeStatuses are stored in a SortedMap with CubeIds ordered as if they were accessed
-    // in a pre-order, DFS fashion.
-    val cubesIter = cubeStatuses.iteratorFrom(cubeId)
-    cubesIter.take(2).toList match {
-      case List((cube, _), (nextCube, _)) =>
-        // cubeId is in the tree and check the next cube
-        if (cube == cubeId) !cubeId.isAncestorOf(nextCube)
-        // cubeId is not in the tree, check the cube after it
-        else !cubeId.isAncestorOf(cube)
-      case List((cube, _)) =>
-        // only one cube is larger than or equal to cubeId and it is the cubeId itself
-        if (cube == cubeId) true
-        // cubeId is not in the map, check the cube after it
-        else !cubeId.isAncestorOf(cube)
-      case Nil =>
-        // cubeId is the smaller than any existing cube and does not belong to the map
-        true
-    }
-  }
-
-  def denormalizedBlocks(
-      revision: Revision,
-      cubeStatuses: SortedMap[CubeId, CubeStatus],
-      indexFilesDs: Dataset[IndexFile]): Dataset[DenormalizedBlock] = {
-    val spark = indexFilesDs.sparkSession
-    import spark.implicits._
-
-    val broadcastCubeStatuses = spark.sparkContext.broadcast(cubeStatuses)
-    val isLeafUDF = udf((cubeId: CubeId) => isLeaf(broadcastCubeStatuses.value)(cubeId))
-
-    indexFilesDs
-      .withColumn("block", explode(col("blocks")))
-      .select(
-        $"block.cubeId".as("cubeId"),
-        isLeafUDF($"block.cubeId").as("isLeaf"),
-        $"path".as("filePath"),
-        lit(revision.revisionID).as("revisionId"),
-        $"size".as("fileSize"),
-        $"modificationTime".as("fileModificationTime"),
-        $"block.minWeight".as("minWeight"),
-        $"block.maxWeight".as("maxWeight"),
-        $"block.elementCount".as("blockElementCount"),
-        $"block.replicated".as("blockReplicated"))
-      .as[DenormalizedBlock]
-  }
-
-  def apply(
-      revision: Revision,
-      cubeStatuses: SortedMap[CubeId, CubeStatus],
-      indexFilesDs: Dataset[IndexFile]): IndexMetrics = {
-
-    IndexMetrics(revision: Revision, denormalizedBlocks(revision, cubeStatuses, indexFilesDs))
-  }
 
   def apply(revision: Revision, denormalizedBlocks: Dataset[DenormalizedBlock]): IndexMetrics = {
     import denormalizedBlocks.sparkSession.implicits._

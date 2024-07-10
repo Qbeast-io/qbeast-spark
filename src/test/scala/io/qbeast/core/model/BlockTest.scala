@@ -64,7 +64,7 @@ class BlockTest extends AnyFlatSpec with Matchers {
       .endBlock()
       .result()
 
-    val block1 = file1.blocks(0)
+    val block1 = file1.blocks.head
     val block2 = file1.blocks(1)
     val block3 = file1.blocks(2)
     val block4 = file1.blocks(3)
@@ -84,7 +84,7 @@ class BlockTest extends AnyFlatSpec with Matchers {
       .endBlock()
       .result()
 
-    val block5 = file2.blocks(0)
+    val block5 = file2.blocks.head
 
     block1.equals(block1) shouldBe true
     block1.equals(block2) shouldBe true
@@ -109,7 +109,7 @@ class BlockTest extends AnyFlatSpec with Matchers {
       .endBlock()
       .result()
 
-    val block = file.blocks(0)
+    val block = file.blocks.head
     val replicatedBlock = block.replicate()
     replicatedBlock.filePath shouldBe block.filePath
     replicatedBlock.cubeId shouldBe block.cubeId
@@ -138,7 +138,7 @@ class BlockTest extends AnyFlatSpec with Matchers {
       .endBlock()
       .result()
 
-    val block = file.blocks(0)
+    val block = file.blocks.head
     block.toString() shouldNot be("")
   }
 

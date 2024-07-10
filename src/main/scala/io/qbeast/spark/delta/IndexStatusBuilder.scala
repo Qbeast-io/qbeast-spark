@@ -72,8 +72,7 @@ private[delta] class IndexStatusBuilder(
       .map(IndexFiles.fromAddFile(root.dimensionCount))
       .flatMap(_.blocks)
       .as[Block]
-      .toLocalIterator()
-      .asScala
+      .collect()
       .toIndexedSeq
 
     SortedMap(root -> CubeStatus(root, Weight.MaxValue, Weight.MaxValue.fraction, blocks))
@@ -88,7 +87,7 @@ private[delta] class IndexStatusBuilder(
     val builder = SortedMap.newBuilder[CubeId, CubeStatus]
     val dimensionCount = revision.transformations.size
     val desiredCubeSize = revision.desiredCubeSize
-    val revisionAddFiles = revisionFiles
+    val revisionAddFiles: Dataset[AddFile] = revisionFiles
 
     import revisionAddFiles.sparkSession.implicits._
     revisionAddFiles
@@ -96,16 +95,16 @@ private[delta] class IndexStatusBuilder(
       .groupBy($"cubeId")
       .agg(
         min($"maxWeight.value").as("maxWeightInt"),
-        sum($"elementCount").as("cubeSize"),
-        collect_list(struct("*")).as("blocks"))
+        sum($"elementCount").as("elementCount"),
+        min(col("replicated")).as("replicated"))
       .withColumn(
         "normalizedWeight",
         when(
           $"maxWeightInt" < Weight.MaxValueColumn,
           NormalizedWeight.fromWeightColumn($"maxWeightInt"))
-          .otherwise(NormalizedWeight.fromColumns(lit(desiredCubeSize), $"cubeSize")))
+          .otherwise(NormalizedWeight.fromColumns(lit(desiredCubeSize), $"elementCount")))
       .withColumn("maxWeight", struct($"maxWeightInt".as("value")))
-      .drop($"maxWeightInt", $"cubeSize")
+      .drop($"maxWeightInt")
       .as[CubeStatus]
       .toLocalIterator()
       .asScala

@@ -99,8 +99,8 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
       LinearTransformation(minTimestamp, maxTimestamp, nullTimestamp, TimestampDataType)
     val ser =
       """{"className":"io.qbeast.core.transform.LinearTransformation",""" +
-        s""""minNumber":${minTimestamp},"maxNumber":${maxTimestamp},""" +
-        s""""nullValue":${nullTimestamp},"orderedDataType":"TimestampDataType"}""".stripMargin
+        s""""minNumber":$minTimestamp,"maxNumber":$maxTimestamp,""" +
+        s""""nullValue":$nullTimestamp,"orderedDataType":"TimestampDataType"}""".stripMargin
     mapper.writeValueAsString(tr) shouldBe ser
     mapper.readValue[Transformation](ser, classOf[Transformation]) shouldBe tr
 
@@ -114,8 +114,8 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
       LinearTransformation(minTimestamp, maxTimestamp, nullTimestamp, DateDataType)
     val ser =
       """{"className":"io.qbeast.core.transform.LinearTransformation",""" +
-        s""""minNumber":${minTimestamp},"maxNumber":${maxTimestamp},""" +
-        s""""nullValue":${nullTimestamp},"orderedDataType":"DateDataType"}""".stripMargin
+        s""""minNumber":$minTimestamp,"maxNumber":$maxTimestamp,""" +
+        s""""nullValue":$nullTimestamp,"orderedDataType":"DateDataType"}""".stripMargin
     mapper.writeValueAsString(tr) shouldBe ser
     mapper.readValue[Transformation](ser, classOf[Transformation]) shouldBe tr
 

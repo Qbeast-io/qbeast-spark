@@ -84,7 +84,6 @@ class ConvertToQbeastTest
     // directly into the staging revision(RevisionID = 0)
     val indexStatus = getQbeastSnapshot(spark, tmpDir).loadIndexStatus(stagingID)
     indexStatus.cubesStatuses.size shouldBe 1
-    indexStatus.cubesStatuses.head._2.blocks.size shouldBe numSparkPartitions
 
     val valuesToTransform = Vector(544496263, 76.96, "view")
     indexStatus.revision.transform(valuesToTransform) shouldBe Vector(0d, 0d, 0d)
@@ -104,7 +103,6 @@ class ConvertToQbeastTest
     // directly into the staging revision(RevisionID = 0)
     val indexStatus = getQbeastSnapshot(spark, tmpDir).loadIndexStatus(stagingID)
     indexStatus.cubesStatuses.size shouldBe 1
-    indexStatus.cubesStatuses.head._2.blocks.size shouldBe numSparkPartitions
   })
 
   it should "fail to convert a PARTITIONED delta table" in withSparkAndTmpDir((spark, tmpDir) => {
