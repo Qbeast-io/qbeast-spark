@@ -56,14 +56,16 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
               case _ => Seq.empty[CubeId]
             }
             val cubes = cubesIter
-              .toDF("cubeId")
+              .toDS()
               .distinct()
+              .select(struct(col("*")).as("cubeId"))
 
             indexFiles
               .select(struct(col("*")).as("indexFile"), explode(col("blocks")))
+              .select("indexFile", "col.*")
               .join(cubes, "cubeId")
-              .where(lit(querySpec.weightRange.from) <= col("maxWeight")
-                && lit(querySpec.weightRange.to) > col("minWeight"))
+              .where(lit(querySpec.weightRange.from.value) <= col("maxWeight.value")
+                && lit(querySpec.weightRange.to.value) > col("minWeight.value"))
               .select("indexFile.*")
               .distinct()
               .as[IndexFile]
