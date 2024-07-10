@@ -26,7 +26,7 @@ class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {
   "IndexBuilder" should "build cube information from DeltaLog" in withSparkAndTmpDir(
     (spark, tmpDir) => {
       import spark.implicits._
-      val data = 0.to(100000).toDF("id")
+      val data = 0.until(100000).toDF("id")
 
       // Append data x times
       data.write
@@ -40,7 +40,7 @@ class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {
         DeltaQbeastSnapshot(deltaLog.update()).loadLatestIndexStatus
 
       indexStatus.revision.revisionID shouldBe 1
-      indexStatus.cubesStatuses.foreach(_._2.elementCount shouldBe 1)
+      indexStatus.cubesStatuses.map(_._2.elementCount).sum shouldBe 100000L
 
       indexStatus.replicatedSet shouldBe Set.empty
       indexStatus.announcedSet shouldBe Set.empty

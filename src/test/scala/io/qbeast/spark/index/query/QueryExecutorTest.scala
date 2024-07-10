@@ -35,6 +35,7 @@ import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.expr
+import org.apache.spark.sql.functions.struct
 import org.apache.spark.sql.Dataset
 
 import scala.collection.immutable.SortedMap
@@ -194,13 +195,16 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val querySpecBuilder = new QuerySpecBuilder(Seq.empty)
     val querySpec = querySpecBuilder.build(revision).head
     val queryExecutor = new QueryExecutor(querySpecBuilder, qbeastSnapshot)
+    import spark.implicits._
     val matchCubes = queryExecutor
       .executeRevision(querySpec, faultyIndexStatus)
+      .toList
+      .toDS()
+      .select(struct("*").as("cubeId"))
     val indexFiles: Dataset[DenormalizedBlock] =
       QbeastTable.forPath(spark, tmpdir).getIndexDenormalizedBlock(Some(revision.revisionID))
-    import spark.implicits._
     val matchFiles = indexFiles
-      .join(matchCubes.toList.toDF("cubeId"), "cubeId")
+      .join(matchCubes, "cubeId")
       .select("filePath")
       .as[String]
       .collect()
