@@ -311,12 +311,11 @@ private[table] class IndexedTableImpl(
           " as .option(columnsToIndex, ...) or enable auto indexing with spark.qbeast.index.autoIndexingEnabled=true")
     } else if (!optionalColumnsToIndex && COLUMN_SELECTOR_ENABLED) {
       data match {
-        case Some(df) => {
+        case Some(df) =>
           // If columnsToIndex is NOT present, the column selector is ENABLED and DATA is AVAILABLE
           // We can automatically choose the columnsToIndex based on dataFrame
           val columnsToIndex = columnSelector.selectColumnsToIndex(df)
           parameters + (COLUMNS_TO_INDEX -> columnsToIndex.mkString(","))
-        }
         case None =>
           throw AnalysisExceptionFactory.create(
             "Auto indexing is enabled but no data is available to select columns to index")
@@ -346,7 +345,7 @@ private[table] class IndexedTableImpl(
             val newRevisionCubeSize = newPotentialRevision.desiredCubeSize
             // Merge new Revision Transformations with old Revision Transformations
             logDebug(
-              s"Merging transformations for table ${tableID} with cubeSize=${newRevisionCubeSize}")
+              s"Merging transformations for table $tableID with cubeSize=$newRevisionCubeSize")
             val newRevisionTransformations =
               latestRevision.transformations.zip(newPotentialRevision.transformations).map {
                 case (oldTransformation, newTransformation)
@@ -362,7 +361,7 @@ private[table] class IndexedTableImpl(
               desiredCubeSizeChange = Some(newRevisionCubeSize),
               transformationsChanges = newRevisionTransformations)
             logDebug(
-              s"Creating new revision changes for table ${tableID} with revisionChanges=${revisionChanges})")
+              s"Creating new revision changes for table $tableID with revisionChanges=$revisionChanges)")
 
             // Output the New Revision into the IndexStatus
             (IndexStatus(revisionChanges.createNewRevision), options)
@@ -370,7 +369,7 @@ private[table] class IndexedTableImpl(
             // If the new parameters does not create a different revision,
             // load the latest IndexStatus
             logDebug(
-              s"Loading latest revision for table ${tableID} with revision=${latestRevision.revisionID}")
+              s"Loading latest revision for table $tableID with revision=${latestRevision.revisionID}")
             (snapshot.loadIndexStatus(latestRevision.revisionID), options)
           }
         }
@@ -382,7 +381,7 @@ private[table] class IndexedTableImpl(
         (IndexStatus(revision), options)
       }
     val result = write(data, indexStatus, options, append)
-    logTrace(s"End: Save table ${tableID}")
+    logTrace(s"End: Save table $tableID")
     result
   }
 
@@ -416,9 +415,9 @@ private[table] class IndexedTableImpl(
       indexStatus: IndexStatus,
       options: QbeastOptions,
       append: Boolean): BaseRelation = {
-    logTrace(s"Begin: Writing data to table ${tableID}")
+    logTrace(s"Begin: Writing data to table $tableID")
     val revision = indexStatus.revision
-    logDebug(s"Writing data to table ${tableID} with revision ${revision.revisionID}")
+    logDebug(s"Writing data to table $tableID with revision ${revision.revisionID}")
     keeper.withWrite(tableID, revision.revisionID) { write =>
       var tries = DEFAULT_NUMBER_OF_RETRIES
       while (tries > 0) {
@@ -447,7 +446,7 @@ private[table] class IndexedTableImpl(
     }
     clearCaches()
     val result = createQbeastBaseRelation()
-    logTrace(s"End: Done writing data to table ${tableID}")
+    logTrace(s"End: Done writing data to table $tableID")
     result
   }
 
@@ -456,7 +455,7 @@ private[table] class IndexedTableImpl(
       indexStatus: IndexStatus,
       options: QbeastOptions,
       append: Boolean): Unit = {
-    logTrace(s"Begin: Writing data to table ${tableID}")
+    logTrace(s"Begin: Writing data to table $tableID")
     val stagingDataManager: StagingDataManager = new StagingDataManager(tableID)
     stagingDataManager.updateWithStagedData(data) match {
       case r: StagingResolution if r.sendToStaging =>
@@ -470,7 +469,7 @@ private[table] class IndexedTableImpl(
           (tableChanges, fileActions ++ removeFiles)
         }
     }
-    logTrace(s"End: Writing data to table ${tableID}")
+    logTrace(s"End: Writing data to table $tableID")
   }
 
   override def analyze(revisionID: RevisionID): Seq[String] = {

@@ -219,8 +219,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
     val source = spark
       .range(100001)
       .map(_.toInt)
-      .map(i => TestInt((i * i), i, i * 2))
-      .as[TestInt]
+      .map(i => TestInt(i * i, i, i * 2))
 
     val indexed = writeAndReadDF(source, tmpDir, spark).as[TestInt]
 

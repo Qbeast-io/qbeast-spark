@@ -39,10 +39,10 @@ class AnalyzeAndOptimizeTest
         .range(100000)
         .flatMap(i =>
           Seq(
-            Client3(i, s"student-${i}", i.intValue(), (i + 123) * multiplier, i * 4),
+            Client3(i, s"student-$i", i.intValue(), (i + 123) * multiplier, i * 4),
             Client3(
               i * i,
-              s"student-${i}",
+              s"student-$i",
               i.intValue(),
               (i * 1000 + 123) * multiplier,
               i * 2567.3432143)))

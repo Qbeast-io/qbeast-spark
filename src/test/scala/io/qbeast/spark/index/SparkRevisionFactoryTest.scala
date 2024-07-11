@@ -271,7 +271,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
         LinearTransformer("b", DoubleDataType))
       revision.transformations.size shouldBe 2
 
-      val a_transformation = revision.transformations(0)
+      val a_transformation = revision.transformations.head
       a_transformation should not be null
       a_transformation shouldBe a[LinearTransformation]
       a_transformation.asInstanceOf[LinearTransformation].minNumber shouldBe 0
