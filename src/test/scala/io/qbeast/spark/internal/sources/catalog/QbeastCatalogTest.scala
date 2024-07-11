@@ -126,7 +126,7 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
       .columns() shouldBe modifiedColumns
   })
 
-  it should "alter table in the DeltaLog" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
+  it should "set properties" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
     val qbeastCatalog = createQbeastCatalog(spark)
     val tableIdentifier = Identifier.of(defaultNamespace, "student")
     qbeastCatalog.createTable(
@@ -135,17 +135,14 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
       Array.empty[Transform],
       Map.empty[String, String].asJava)
 
-
+    val setPropertiesChange = TableChange.setProperty("newProperty", "newValue")
     // Alter table with new information
-    qbeastCatalog.alterTable(
-      tableIdentifier,
-      TableChange.addColumn(Array("x"), IntegerType, false))
+    qbeastCatalog.alterTable(tableIdentifier, setPropertiesChange)
 
-    val modifiedSchema = StructType(schema.fields ++ Seq(StructField("x", IntegerType, false)))
-    val modifiedColumns = SparkCatalogV2Util.structTypeToV2Columns(modifiedSchema)
     qbeastCatalog
       .loadTable(Identifier.of(defaultNamespace, "student"))
-      .columns() shouldBe modifiedColumns
+      .properties()
+      .asScala should contain("newProperty" -> "newValue")
   })
 
   it should "drop table" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
