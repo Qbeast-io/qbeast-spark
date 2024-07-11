@@ -23,6 +23,7 @@ import io.qbeast.spark.utils.MetadataConfig.revision
 import io.qbeast.spark.utils.QbeastExceptionMessages.incorrectIdentifierFormat
 import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
 import io.qbeast.spark.utils.QbeastExceptionMessages.unsupportedFormatExceptionMsg
+import org.apache.hadoop.fs.Path
 import org.apache.http.annotation.Experimental
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
@@ -33,8 +34,6 @@ import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
-
-import java.util.Locale
 
 /**
  * Command to convert a parquet or a delta table into a qbeast table. The command creates the an
@@ -56,13 +55,26 @@ case class ConvertToQbeastCommand(
     with Logging
     with StagingUtils {
 
-  private def resolveTableFormat(spark: SparkSession): (String, TableIdentifier) =
-    identifier.split("\\.") match {
-      case Array(f, p) if f.nonEmpty && p.nonEmpty =>
-        (f.toLowerCase(Locale.ROOT), spark.sessionState.sqlParser.parseTableIdentifier(p))
-      case _ =>
-        throw AnalysisExceptionFactory.create(incorrectIdentifierFormat(identifier))
-    }
+  private def resolveTableFormat(spark: SparkSession): (String, TableIdentifier) = {
+
+    val tableIdentifier =
+      try {
+        spark.sessionState.sqlParser.parseTableIdentifier(identifier)
+      } catch {
+        case _: AnalysisException =>
+          throw AnalysisExceptionFactory.create(incorrectIdentifierFormat(identifier))
+      }
+    // If the table is a path table, it is a parquet or delta/qbeast table
+    val provider = tableIdentifier.database.getOrElse("")
+    val isPathTable = new Path(tableIdentifier.table).isAbsolute
+    val isCorrectFormat = provider == "parquet" || provider == "delta" || provider == "qbeast"
+
+    if (isPathTable && isCorrectFormat) (provider, tableIdentifier)
+    else if (!isCorrectFormat)
+      throw AnalysisExceptionFactory.create(unsupportedFormatExceptionMsg(provider))
+    else
+      throw AnalysisExceptionFactory.create(incorrectIdentifierFormat(identifier))
+  }
 
   override def run(spark: SparkSession): Seq[Row] = {
     val (fileFormat, tableId) = resolveTableFormat(spark)
