@@ -33,7 +33,6 @@ import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-
 class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec {
 
   /**
@@ -406,7 +405,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
       import spark.implicits._
       val source = spark
         .range(200000)
-        .map(i => TestNull(None, None, Some(i %4)))
+        .map(i => TestNull(None, None, Some(i % 4)))
 
       source.write
         .format("qbeast")
