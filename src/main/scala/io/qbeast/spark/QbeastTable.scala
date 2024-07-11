@@ -222,7 +222,7 @@ class QbeastTable private (
    *   optional RevisionID
    * @return
    */
-  def getIndexDenormalizedBlock(
+  def getDenormalizedBlocks(
       revisionID: Option[RevisionID] = None): Dataset[DenormalizedBlock] = {
     val indexStatus = revisionID match {
       case Some(id) => qbeastSnapshot.loadIndexStatus(id)
