@@ -100,7 +100,7 @@ final class IndexFileBuilder {
    */
   def result(): IndexFile = {
     val filePath = path.get
-    new IndexFile(
+    IndexFile(
       filePath,
       size,
       modificationTime,
