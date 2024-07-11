@@ -16,6 +16,7 @@
 package io.qbeast.spark.internal.commands
 
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.plans.logical.IgnoreCachedData
 import org.apache.spark.sql.delta.catalog.DeltaTableV2
 import org.apache.spark.sql.delta.commands.AlterTableSetPropertiesDeltaCommand
@@ -28,7 +29,8 @@ import org.apache.spark.sql.SparkSession
 case class AlterTableSetPropertiesQbeastCommand(
     qbeastTable: QbeastTableImpl,
     configuration: Map[String, String])
-    extends LeafRunnableCommand {
+    extends LeafRunnableCommand
+    with Logging {
 
   override def run(spark: SparkSession): Seq[Row] = {
     val deltaTable =
@@ -39,6 +41,7 @@ case class AlterTableSetPropertiesQbeastCommand(
         Some(qbeastTable.tableIdentifier.toString),
         None,
         qbeastTable.options)
+    log.info(s"Setting new properties $configuration for table ${qbeastTable.tableIdentifier}")
     AlterTableSetPropertiesDeltaCommand(
       deltaTable,
       DeltaConfigs.validateConfigurations(configuration))
@@ -52,7 +55,8 @@ case class AlterTableUnsetPropertiesQbeastCommand(
     propKeys: Seq[String],
     ifExists: Boolean)
     extends LeafRunnableCommand
-    with IgnoreCachedData {
+    with IgnoreCachedData
+    with Logging {
 
   override def run(spark: SparkSession): Seq[Row] = {
     val deltaTable =
@@ -63,6 +67,7 @@ case class AlterTableUnsetPropertiesQbeastCommand(
         Some(qbeastTable.tableIdentifier.toString),
         None,
         qbeastTable.options)
+    log.info(s"Unsetting properties $propKeys for table ${qbeastTable.tableIdentifier}")
     AlterTableUnsetPropertiesDeltaCommand(
       deltaTable,
       propKeys,
