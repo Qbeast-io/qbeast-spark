@@ -369,7 +369,8 @@ object QbeastCatalogUtils {
           catalogTable.location.toString
         }
 
-        new QbeastTableImpl(
+        println("Returning qbeastTableImpl")
+        QbeastTableImpl(
           catalogTable.identifier,
           new Path(path),
           prop.asScala.toMap,

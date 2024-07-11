@@ -41,18 +41,18 @@ import scala.collection.JavaConverters._
  *   the Path of the table
  * @param options
  *   the write options
- * @param schema
+ * @param optionSchema
  *   the schema of the table
  * @param catalogTable
  *   the underlying Catalog Table, if any
  * @param tableFactory
  *   the IndexedTable Factory
  */
-class QbeastTableImpl private[sources] (
+case class QbeastTableImpl(
     tableIdentifier: TableIdentifier,
     path: Path,
     options: Map[String, String] = Map.empty,
-    schema: Option[StructType] = None,
+    optionSchema: Option[StructType] = None,
     catalogTable: Option[CatalogTable] = None,
     private val tableFactory: IndexedTableFactory)
     extends Table
@@ -75,7 +75,8 @@ class QbeastTableImpl private[sources] (
 
   override def name(): String = tableIdentifier.identifier
 
-  override def schema(): StructType = if (schema.isDefined) schema.get else table.schema
+  override def schema(): StructType =
+    if (optionSchema.isDefined) optionSchema.get else table.schema
 
   override def capabilities(): util.Set[TableCapability] =
     Set(ACCEPT_ANY_SCHEMA, BATCH_READ, V1_BATCH_WRITE, OVERWRITE_BY_FILTER, TRUNCATE).asJava
