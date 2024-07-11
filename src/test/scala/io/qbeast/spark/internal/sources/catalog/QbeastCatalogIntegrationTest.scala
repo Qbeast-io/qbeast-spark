@@ -16,6 +16,7 @@
 package io.qbeast.spark.internal.sources.catalog
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.SparkConf
 
@@ -231,6 +232,24 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
       an[AnalysisException] shouldBe thrownBy(
         spark.sql("CREATE OR REPLACE TABLE student (id INT, name STRING, age INT)" +
           " USING qbeast OPTIONS ('columnsToIndex'='id') PARTITIONED BY (id)"))
+
+    })
+
+  it should "persist altered properties on the _delta_log" in withQbeastContextSparkAndTmpWarehouse(
+    (spark, tmpDir) => {
+
+      val df = loadTestData(spark)
+      df.write.format("qbeast").option("columnsToIndex", "user_id,price").save(tmpDir)
+      spark.sql(s"CREATE TABLE t1 USING qbeast LOCATION '$tmpDir'")
+      spark.sql("ALTER TABLE t1 SET TBLPROPERTIES ('k' = 'v')")
+
+      // Check the delta log info
+      val deltaLog = DeltaLog.forTable(spark, tmpDir)
+      val snapshot = deltaLog.update()
+      val properties = snapshot.getProperties
+
+      properties should contain key "k"
+      properties("k") shouldBe "v"
 
     })
 

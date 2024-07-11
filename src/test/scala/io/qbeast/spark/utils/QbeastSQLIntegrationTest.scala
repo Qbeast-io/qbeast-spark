@@ -218,4 +218,23 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
       }
   }
 
+  it should "work with other namespaces" in withQbeastContextSparkAndTmpWarehouse {
+    (spark, tmpDir) =>
+      {
+        spark.sql("CREATE DATABASE IF NOT EXISTS test")
+        spark.sql(
+          "CREATE TABLE IF NOT EXISTS test.students(id INT, name STRING, age INT) " +
+            "USING qbeast OPTIONS ('columnsToIndex'='id')")
+
+        val data = createTestData(spark)
+        data.write.format("qbeast").mode("append").insertInto("test.students")
+
+        assertSmallDatasetEquality(
+          spark.sql("SELECT * FROM test.students"),
+          data,
+          ignoreNullable = true)
+
+      }
+  }
+
 }

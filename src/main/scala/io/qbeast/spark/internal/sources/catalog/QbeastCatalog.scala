@@ -16,6 +16,8 @@
 package io.qbeast.spark.internal.sources.catalog
 
 import io.qbeast.context.QbeastContext
+import io.qbeast.spark.internal.commands.AlterTableSetPropertiesQbeastCommand
+import io.qbeast.spark.internal.commands.AlterTableUnsetPropertiesQbeastCommand
 import io.qbeast.spark.internal.sources.v2.QbeastStagedTableImpl
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
 import org.apache.hadoop.fs.Path
@@ -25,6 +27,8 @@ import org.apache.spark.sql.catalyst.analysis.NoSuchTableException
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.catalog.functions.UnboundFunction
+import org.apache.spark.sql.connector.catalog.TableChange.RemoveProperty
+import org.apache.spark.sql.connector.catalog.TableChange.SetProperty
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.delta.catalog.DeltaCatalog
 import org.apache.spark.sql.types.StructType
@@ -98,7 +102,7 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
     } catch {
       case _: NoSuchDatabaseException | _: NoSuchNamespaceException | _: NoSuchTableException
           if QbeastCatalogUtils.isPathTable(ident) =>
-        new QbeastTableImpl(
+        QbeastTableImpl(
           TableIdentifier(ident.name(), ident.namespace().headOption),
           new Path(ident.name()),
           Map.empty,
@@ -247,8 +251,54 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
   override def listTables(namespace: Array[String]): Array[Identifier] =
     getSessionCatalog().listTables(namespace)
 
-  override def alterTable(ident: Identifier, changes: TableChange*): Table =
-    getSessionCatalog().alterTable(ident, changes.head)
+  /**
+   * Code extracted from DeltaCatalog alterTable operation
+   * @param ident
+   * @param changes
+   * @return
+   */
+  override def alterTable(ident: Identifier, changes: TableChange*): Table = {
+
+    // Group the TableChanges by class
+    // The SetLocation class is used to group all the SetProperty changes that are related to the
+    // changing of location.
+    // We are still not handling them as part of the Qbeast Table Operations
+    class SetLocation {}
+    val grouped = changes.groupBy {
+      case s: SetProperty if s.property() == "location" => classOf[SetLocation]
+      case c => c.getClass
+    }
+    // Load qbeast table (if exists and is qbeast provider)
+    val qbeastTable = loadTable(ident) match {
+      case q: QbeastTableImpl => q
+      case _ => return getSessionCatalog().alterTable(ident, changes: _*)
+    }
+
+    grouped.foreach {
+      case (t, changes) if t == classOf[SetProperty] =>
+        AlterTableSetPropertiesQbeastCommand(
+          qbeastTable,
+          changes
+            .asInstanceOf[Seq[SetProperty]]
+            .map { prop =>
+              prop.property() -> prop.value()
+            }
+            .toMap).run(spark)
+
+      case (t, oldProperties) if t == classOf[RemoveProperty] =>
+        AlterTableUnsetPropertiesQbeastCommand(
+          qbeastTable,
+          oldProperties.asInstanceOf[Seq[RemoveProperty]].map(_.property()),
+          // Data source V2 REMOVE PROPERTY is always IF EXISTS.
+          ifExists = true).run(spark)
+
+      // Other cases not handled yet
+      case _ => return getSessionCatalog().alterTable(ident, changes: _*)
+    }
+
+    loadTable(ident)
+
+  }
 
   override def dropTable(ident: Identifier): Boolean = getSessionCatalog().dropTable(ident)
 
