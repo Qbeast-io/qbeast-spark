@@ -328,13 +328,13 @@ private[table] class IndexedTableImpl(
       data: DataFrame,
       parameters: Map[String, String],
       append: Boolean): BaseRelation = {
-    logTrace(s"Begin: save table ${tableID}")
+    logTrace(s"Begin: save table $tableID")
     val (indexStatus, options) =
       if (exists && append) {
         // If the table exists and we are appending new data
         // 1. Load existing IndexStatus
         val options = QbeastOptions(verifyAndMergeProperties(parameters))
-        logDebug(s"Appending data to table ${tableID} with revision=${latestRevision.revisionID}")
+        logDebug(s"Appending data to table $tableID with revision=${latestRevision.revisionID}")
         if (isStaging(latestRevision)) { // If the existing Revision is Staging
           val revision = revisionFactory.createNewRevision(tableID, data.schema, options)
           (IndexStatus(revision), options)

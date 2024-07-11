@@ -15,19 +15,15 @@
  */
 package io.qbeast.spark.delta.writer
 
-import io.qbeast.core.model._
-import io.qbeast.spark.index.NormalizedWeight
-import io.qbeast.spark.index.QbeastColumns
-import io.qbeast.spark.index.QbeastColumns._
-import io.qbeast.spark.index.SparkRevisionFactory
-import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.TestClasses.IndexData
+import io.qbeast.core.model._
+import io.qbeast.spark.index.QbeastColumns._
+import io.qbeast.spark.index.{NormalizedWeight, QbeastColumns, SparkRevisionFactory}
+import io.qbeast.spark.internal.QbeastOptions
 import org.apache.hadoop.mapreduce.Job
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.execution.datasources.OutputWriterFactory
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.util.SerializableConfiguration
 
 import java.util.UUID
@@ -61,11 +57,8 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
     weightMap.toIndexedSeq.map(ids =>
       IndexData(Random.nextInt(), ids._1.bytes, ids._2, "FLOODED"))
 
-  val rdd: RDD[IndexData] =
-    spark.sparkContext.parallelize(indexData)
-
-  val indexed: DataFrame =
-    spark.createDataFrame(rdd).toDF("id", cubeColumnName, weightColumnName, stateColumnName)
+  import spark.implicits._
+  val indexed: DataFrame = indexData.toDF("id", cubeColumnName, weightColumnName, stateColumnName)
 
   val data: DataFrame = indexed.select("id")
 

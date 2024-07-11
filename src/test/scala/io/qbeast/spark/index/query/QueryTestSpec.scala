@@ -46,8 +46,7 @@ trait QueryTestSpec extends AnyFlatSpec with Matchers with PrivateMethodTester {
 
     spark
       .range(size)
-      .map(i => T2(i.toInt, i.toDouble))
-      .as[T2]
+      .map(i => T2(i, i.toDouble))
 
   }
 

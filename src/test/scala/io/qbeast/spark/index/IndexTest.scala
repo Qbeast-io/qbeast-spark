@@ -39,25 +39,24 @@ class IndexTest
 
   // TEST CONFIGURATIONS
   private val options = Map("columnsToIndex" -> "age,val2", "cubeSize" -> "10000")
-  private val qbeastOptions = QbeastOptions(options)
+  private def qbeastOptions = QbeastOptions(options)
 
-  private def createDF(): DataFrame = {
-    val spark = SparkSession.active
-
+  private def createDF(spark: SparkSession): DataFrame = {
+    import spark.implicits._
     val rdd =
-      spark.sparkContext.parallelize(
-        0.to(100000)
-          .map(i => Client3(i * i, s"student-$i", i, i * 1000 + 123, i * 2567.3432143)))
+      spark
+        .range(100000)
+        .map(i => Client3(i * i, s"student-$i", i.intValue(), i * 1000 + 123, i * 2567.3432143))
 
-    spark.createDataFrame(rdd)
+    rdd.toDF()
   }
 
   // Check correctness
 
-  "Indexing method" should "respect the size of the data" in withSpark { _ =>
+  "Indexing method" should "respect the size of the data" in withSpark { spark =>
     withOTreeAlgorithm { oTreeAlgorithm =>
       {
-        val df = createDF()
+        val df = createDF(spark)
         val rev =
           SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, qbeastOptions)
 
@@ -68,10 +67,10 @@ class IndexTest
     }
   }
 
-  it should "not miss any cube" in withSpark { _ =>
+  it should "not miss any cube" in withSpark { spark =>
     withOTreeAlgorithm { oTreeAlgorithm =>
       {
-        val df = createDF()
+        val df = createDF(spark)
         val rev =
           SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, qbeastOptions)
 
@@ -82,10 +81,10 @@ class IndexTest
     }
   }
 
-  it should "respect the weight of the fathers" in withSpark { _ =>
+  it should "respect the weight of the fathers" in withSpark { spark =>
     withOTreeAlgorithm { oTreeAlgorithm =>
       {
-        val df = createDF()
+        val df = createDF(spark)
         val rev =
           SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, qbeastOptions)
 
@@ -96,10 +95,10 @@ class IndexTest
     }
   }
 
-  it should "add only leaves to indexed data" in withSpark { _ =>
+  it should "add only leaves to indexed data" in withSpark { spark =>
     withOTreeAlgorithm { oTreeAlgorithm =>
       {
-        val df = createDF()
+        val df = createDF(spark)
         val rev =
           SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, qbeastOptions)
 
@@ -141,7 +140,7 @@ class IndexTest
   it should "maintain correctness on append" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
       withOTreeAlgorithm { oTreeAlgorithm =>
-        val df = createDF()
+        val df = createDF(spark)
 
         df.write
           .format("qbeast")
@@ -201,7 +200,7 @@ class IndexTest
   it should "follow the rule of children's minWeight >= parent's maxWeight" in
     withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
       withOTreeAlgorithm { oTreeAlgorithm =>
-        val df = createDF()
+        val df = createDF(spark)
         val rev =
           SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, qbeastOptions)
         val (_, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
@@ -233,12 +232,13 @@ class IndexTest
 
   it should "index correctly when a small cubeSize is given" in withSpark { spark =>
     withOTreeAlgorithm { oTreeAlgorithm =>
-      val rdd =
-        spark.sparkContext.parallelize(
-          0.to(1000)
-            .map(i => Client3(i * i, s"student-$i", i, i * 1000 + 123, i * 2567.3432143)))
+      import spark.implicits._
+      val df =
+        spark
+          .range(1000)
+          .map(i => Client3(i * i, s"student-$i", i.intValue(), i * 1000 + 123, i * 2567.3432143))
+          .toDF()
 
-      val df = spark.createDataFrame(rdd)
       val smallCubeSize = 10
       val rev = SparkRevisionFactory.createNewRevision(
         QTableID("test"),

@@ -33,10 +33,10 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
     val spark = SparkSession.active
     import spark.implicits._
 
-    1.to(size)
-      .map(i => Client3(i * i, s"student-$i", i, i * 2, i * i))
-      .toDF()
-      .as[Client3]
+    spark
+      .range(size)
+      .map(i => Client3(i * i, s"student-$i", i.intValue(), i * 2, i * i))
+
   }
 
   "QbeastSnapshot" should

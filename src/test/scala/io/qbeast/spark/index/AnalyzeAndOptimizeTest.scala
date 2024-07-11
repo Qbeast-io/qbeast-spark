@@ -33,16 +33,20 @@ class AnalyzeAndOptimizeTest
     with QbeastIntegrationTestSpec {
 
   def appendNewRevision(spark: SparkSession, tmpDir: String, multiplier: Int): Int = {
-
-    val rdd =
-      spark.sparkContext.parallelize(0
-        .to(100000)
+    import spark.implicits._
+    val df =
+      spark
+        .range(100000)
         .flatMap(i =>
           Seq(
-            Client3(i, s"student-${i}", i, (i + 123) * multiplier, i * 4),
-            Client3(i * i, s"student-${i}", i, (i * 1000 + 123) * multiplier, i * 2567.3432143))))
+            Client3(i, s"student-${i}", i.intValue(), (i + 123) * multiplier, i * 4),
+            Client3(
+              i * i,
+              s"student-${i}",
+              i.intValue(),
+              (i * 1000 + 123) * multiplier,
+              i * 2567.3432143)))
 
-    val df = spark.createDataFrame(rdd)
     val names = List("age", "val2")
     df.write
       .format("qbeast")

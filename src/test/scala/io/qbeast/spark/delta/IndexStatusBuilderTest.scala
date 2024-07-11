@@ -25,8 +25,7 @@ class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {
 
   "IndexBuilder" should "build cube information from DeltaLog" in withSparkAndTmpDir(
     (spark, tmpDir) => {
-      import spark.implicits._
-      val data = 0.until(100000).toDF("id")
+      val data = spark.range(100000).toDF("id")
 
       // Append data x times
       data.write
@@ -48,8 +47,7 @@ class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {
 
   it should "work well on appending the same revision" in withSparkAndTmpDir((spark, tmpDir) => {
 
-    import spark.implicits._
-    val data = 0.to(100000).toDF("id")
+    val data = spark.range(100000).toDF("id")
 
     // Append data x times
     data.write
