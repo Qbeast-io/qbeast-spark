@@ -128,8 +128,8 @@ object IndexFileBuilder {
     /**
      * Sets the cube identifier.
      *
-     * @param the
-     *   cube identifier to set
+     * @param cubeId
+     *   identifier to set
      * @return
      *   this instance
      */
@@ -184,8 +184,8 @@ object IndexFileBuilder {
     /**
      * Sets the element count.
      *
-     * @param elemenCount
-     *   the elemenCount to set
+     * @param elementCount
+     *   the elementCount to set
      * @return
      *   this instance
      */

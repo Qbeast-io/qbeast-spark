@@ -142,10 +142,10 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
 
     val matchFiles = queryExecutor.execute(new Path(tmpdir)).map(_.getPath.getName).toSet
 
-    val diff = allFiles.toSet -- matchFiles.toSet
+    val diff = allFiles.toSet -- matchFiles
     diff.size shouldBe 0
     matchFiles.size shouldBe allFiles.length
-    matchFiles.toSet shouldBe allFiles.toSet
+    matchFiles shouldBe allFiles.toSet
 
   })
 
