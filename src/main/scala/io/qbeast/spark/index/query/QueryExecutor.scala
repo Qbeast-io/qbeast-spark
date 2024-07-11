@@ -41,7 +41,7 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
    * @return
    *   the final sequence of blocks that match the query
    */
-  def execute(tablePath: Path): Array[FileStatusWithMetadata] = {
+  def execute(tablePath: Path): Seq[FileStatusWithMetadata] = {
 
     qbeastSnapshot.loadAllRevisions
       .filter(_.revisionID > 0)
@@ -81,8 +81,7 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
             }
           }
       }
-      .reduce(_ union _)
-      .collect()
+      .flatMap(_.collect())
       .map { case (filePath: String, size: Long, modificationTime: Long) =>
         var path = new Path(new URI(filePath))
         if (!path.isAbsolute) {

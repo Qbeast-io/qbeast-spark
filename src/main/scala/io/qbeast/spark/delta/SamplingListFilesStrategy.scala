@@ -89,7 +89,6 @@ private[delta] object SamplingListFilesStrategy
     val queryExecutor = new QueryExecutor(querySpecBuilder, DeltaQbeastSnapshot(snapshot))
     queryExecutor
       .execute(path)
-      .toSeq
   }
 
   private def logFilteredFiles(
