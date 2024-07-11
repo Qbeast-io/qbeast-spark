@@ -30,6 +30,7 @@ import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.delta.IndexFiles
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.QbeastTable
+import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.DeltaLog
@@ -59,7 +60,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val allDeltaFiles = deltaLog.update().allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.path).toSet
+    val matchFiles = queryExecutor.execute(new Path(tmpdir)).map(_.getPath.getName).toSet
 
     val diff = allFiles.toSet -- matchFiles
 
@@ -84,7 +85,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val allDeltaFiles = deltaLog.update().allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.path).toSet
+    val matchFiles = queryExecutor.execute(new Path(tmpdir)).map(_.getPath.getName).toSet
 
     matchFiles.size shouldBe <(allFiles.length)
     matchFiles.foreach(file => allFiles should contain(file))
@@ -106,7 +107,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val allDeltaFiles = deltaLog.update().allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.path).toSet
+    val matchFiles = queryExecutor.execute(new Path(tmpdir)).map(_.getPath.getName).toSet
 
     matchFiles.size shouldBe <(allFiles.length)
     matchFiles.foreach(file => allFiles should contain(file))
@@ -139,7 +140,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val allDeltaFiles = deltaLog.update().allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.path)
+    val matchFiles = queryExecutor.execute(new Path(tmpdir)).map(_.getPath.getName).toSet
 
     val diff = allFiles.toSet -- matchFiles.toSet
     diff.size shouldBe 0
@@ -166,11 +167,12 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
       val allBlocks =
         deltaLog.update().allFiles.collect().map(IndexFiles.fromAddFile(2)).flatMap(_.blocks)
 
-      val matchingBlocks = queryExecutor.execute()
+      val matchingBlocks = queryExecutor.execute(new Path(tmpDir)).map(_.getPath.getName).toSet
 
-      allBlocks.filter(_.maxWeight < weightRange.from).foreach { block =>
-        matchingBlocks should not contain block
-      }
+      matchingBlocks shouldBe allBlocks
+        .filter(_.maxWeight >= weightRange.from)
+        .map(_.filePath)
+        .toSet
     })
 
   it should "handle index with a missing inner cube" in withSparkAndTmpDir((spark, tmpdir) => {

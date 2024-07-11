@@ -17,14 +17,17 @@ package io.qbeast.spark.index.query
 
 import io.qbeast.core.model._
 import io.qbeast.IISeq
+import org.apache.hadoop.fs.FileStatus
+import org.apache.hadoop.fs.Path
+import org.apache.spark.sql.execution.datasources.FileStatusWithMetadata
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.explode
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.functions.struct
 import org.apache.spark.sql.Dataset
 
+import java.net.URI
 import scala.collection.mutable
-import scala.collection.JavaConverters._
 
 /**
  * Executes a query against a Qbeast snapshot
@@ -38,44 +41,56 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
    * @return
    *   the final sequence of blocks that match the query
    */
-  def execute(): Iterable[IndexFile] = {
+  def execute(tablePath: Path): Array[FileStatusWithMetadata] = {
 
-    qbeastSnapshot.loadAllRevisions.filter(_.revisionID > 0).flatMap { revision =>
-      val indexFiles: Dataset[IndexFile] = qbeastSnapshot.loadIndexFiles(revision.revisionID)
-      import indexFiles.sparkSession.implicits._
-      val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
-      val querySpecs = querySpecBuilder.build(revision)
-      querySpecs
-        .map { querySpec =>
-          {
-            val cubesIter = (querySpec.isSampling, querySpec.querySpace) match {
-              case (_, _: QuerySpaceFromTo) | (true, _: AllSpace) =>
-                executeRevision(querySpec, indexStatus)
-              case (false, _: AllSpace) =>
-                indexStatus.cubesStatuses.keys.toSeq
-              case _ => Seq.empty[CubeId]
+    qbeastSnapshot.loadAllRevisions
+      .filter(_.revisionID > 0)
+      .flatMap { revision =>
+        val indexFiles: Dataset[IndexFile] = qbeastSnapshot.loadIndexFiles(revision.revisionID)
+        import indexFiles.sparkSession.implicits._
+        val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
+        val querySpecs = querySpecBuilder.build(revision)
+        querySpecs
+          .map { querySpec =>
+            {
+              val cubesIter = (querySpec.isSampling, querySpec.querySpace) match {
+                case (_, _: QuerySpaceFromTo) | (true, _: AllSpace) =>
+                  executeRevision(querySpec, indexStatus)
+                case (false, _: AllSpace) =>
+                  indexStatus.cubesStatuses.keys.toSeq
+                case _ => Seq.empty[CubeId]
+              }
+              val cubes = cubesIter
+                .toDS()
+                .distinct()
+                .select(struct(col("*")).as("cubeId"))
+
+              indexFiles
+                .select(struct(col("*")).as("indexFile"), explode(col("blocks")))
+                .select("indexFile", "col.*")
+                .join(cubes, "cubeId")
+                .where(lit(querySpec.weightRange.from.value) <= col("maxWeight.value")
+                  && lit(querySpec.weightRange.to.value) > col("minWeight.value"))
+                .select(
+                  col("indexFile.path"),
+                  col("indexFile.size"),
+                  col("indexFile.modificationTime"))
+                .distinct()
+                .as[(String, Long, Long)]
+
             }
-            val cubes = cubesIter
-              .toDS()
-              .distinct()
-              .select(struct(col("*")).as("cubeId"))
-
-            indexFiles
-              .select(struct(col("*")).as("indexFile"), explode(col("blocks")))
-              .select("indexFile", "col.*")
-              .join(cubes, "cubeId")
-              .where(lit(querySpec.weightRange.from.value) <= col("maxWeight.value")
-                && lit(querySpec.weightRange.to.value) > col("minWeight.value"))
-              .select("indexFile.*")
-              .distinct()
-              .as[IndexFile]
           }
+      }
+      .reduce(_ union _)
+      .collect()
+      .map { case (filePath: String, size: Long, modificationTime: Long) =>
+        var path = new Path(new URI(filePath))
+        if (!path.isAbsolute) {
+          path = new Path(tablePath, path)
         }
-        .reduce(_ union _)
-        .toLocalIterator()
-        .asScala
+        FileStatusWithMetadata(new FileStatus(size, false, 0, 0, modificationTime, path))
 
-    }
+      }
   }
 
   private[query] def executeRevision(

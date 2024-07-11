@@ -88,8 +88,7 @@ private[delta] object SamplingListFilesStrategy
     val querySpecBuilder = new QuerySpecBuilder(dataFilters ++ partitionFilters)
     val queryExecutor = new QueryExecutor(querySpecBuilder, DeltaQbeastSnapshot(snapshot))
     queryExecutor
-      .execute()
-      .map(IndexFiles.toFileStatusWithMetadata(path))
+      .execute(path)
       .toSeq
   }
 
