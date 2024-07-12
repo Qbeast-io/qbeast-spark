@@ -53,14 +53,14 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
         querySpecs
           .map { querySpec =>
             {
-              val cubesIter = (querySpec.isSampling, querySpec.querySpace) match {
+              val cubesList = (querySpec.isSampling, querySpec.querySpace) match {
                 case (_, _: QuerySpaceFromTo) | (true, _: AllSpace) =>
                   executeRevision(querySpec, indexStatus)
                 case (false, _: AllSpace) =>
                   indexStatus.cubesStatuses.keys.toSeq
                 case _ => Seq.empty[CubeId]
               }
-              val cubes = cubesIter
+              val cubes = cubesList
                 .toDS()
                 .distinct()
                 .select(struct(col("*")).as("cubeId"))
@@ -96,7 +96,7 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
       querySpec: QuerySpec,
       indexStatus: IndexStatus): IISeq[CubeId] = {
 
-    val outputBlocks = Vector.newBuilder[CubeId]
+    val outputCubeIds = Vector.newBuilder[CubeId]
     val stack = mutable.Stack(indexStatus.revision.createCubeIdRoot())
     while (stack.nonEmpty) {
       val currentCube = stack.pop()
@@ -114,7 +114,7 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
               // cube maxWeight is larger than or equal to the sample fraction (weightRange.to),
               // that currentCube is the last cube to visit from the current branch - all blocks
               // are to be retrieved and no more cubes from the branch should be visited.
-              outputBlocks += cube
+              outputCubeIds += cube
             } else {
               // Otherwise,
               // 1. if the currentCube is REPLICATED, we skip the cube
@@ -123,7 +123,7 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
               val isReplicated = indexStatus.replicatedSet.contains(cube)
 
               if (!isReplicated) {
-                outputBlocks += cube
+                outputCubeIds += cube
               }
               val nextLevel = cube.children
                 .filter(querySpec.querySpace.intersectsWith)
@@ -142,7 +142,7 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
         }
       }
     }
-    outputBlocks.result()
+    outputCubeIds.result()
   }
 
 }
