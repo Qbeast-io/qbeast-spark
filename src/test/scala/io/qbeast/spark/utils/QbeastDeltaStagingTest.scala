@@ -34,7 +34,7 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
     import spark.implicits._
 
     // Write qbeast data
-    val qdf = (0 until qDataSize).map(i => T2(i, i)).toDF("a", "b")
+    val qdf = spark.range(qDataSize).map(i => T2(i, i.toDouble)).toDF("a", "b")
     qdf.write
       .format("qbeast")
       .option("columnsToIndex", columnsToIndex.mkString(","))
@@ -96,7 +96,7 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
     // Number of delta files before compaction
     val deltaLog = DeltaLog.forTable(spark, tmpDir)
     val qsBefore = DeltaQbeastSnapshot(deltaLog.update())
-    val numFilesBefore = qsBefore.loadIndexFiles(stagingID).size
+    val numFilesBefore = qsBefore.loadIndexFiles(stagingID).count()
 
     // Perform compaction
     val table = QbeastTable.forPath(spark, tmpDir)
@@ -104,7 +104,7 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
 
     // Number of delta files after compaction
     val qsAfter = DeltaQbeastSnapshot(deltaLog.update())
-    val numFilesAfter = qsAfter.loadIndexFiles(stagingID).size
+    val numFilesAfter = qsAfter.loadIndexFiles(stagingID).count()
 
     numFilesAfter shouldBe <(numFilesBefore)
 

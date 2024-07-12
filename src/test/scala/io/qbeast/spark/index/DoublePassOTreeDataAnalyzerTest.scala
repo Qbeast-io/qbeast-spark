@@ -37,10 +37,9 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
   private def createDF(size: Int, spark: SparkSession): Dataset[T3] = {
     import spark.implicits._
 
-    0.to(size)
+    spark
+      .range(size)
       .map(i => T3(i, i.toDouble, i.toString, i.toFloat))
-      .toDF()
-      .as[T3]
 
   }
 
@@ -88,11 +87,9 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
   it should "calculateRevisionChanges correctly on hashing types" in withSpark { spark =>
     import spark.implicits._
 
-    val dataFrame = 0
-      .to(10000)
+    val dataFrame = spark
+      .range(10000)
       .map(i => TestStrings(s"$i", s"${i * i}", s"${i * 2}"))
-      .toDF()
-      .as[TestStrings]
 
     val columnsToIndex = Seq("a", "b", "c")
     val columnsSchema = dataFrame.schema.filter(f => columnsToIndex.contains(f.name))
@@ -110,7 +107,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
   }
 
   it should "calculateRevisionChanges correctly on different types" in withSpark { spark =>
-    val dataFrame = createDF(10000, spark).toDF()
+    val dataFrame = createDF(10001, spark).toDF()
     val columnsToIndex = dataFrame.columns
     val columnsSchema = dataFrame.schema.filter(f => columnsToIndex.contains(f.name))
     val columnTransformers = createTransformers(columnsSchema)
@@ -139,7 +136,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val two = revision.transformations(2)
     val three = revision.transformations(3)
 
-    zero should matchPattern { case LinearTransformation(0, 10000, _, IntegerDataType) => }
+    zero should matchPattern { case LinearTransformation(0, 10000, _, LongDataType) => }
     one should matchPattern { case LinearTransformation(0.0, 10000.0, _, DoubleDataType) => }
     two should matchPattern { case HashTransformation(_) => }
     three should matchPattern { case LinearTransformation(0.0f, 10000.0f, _, FloatDataType) => }
@@ -149,7 +146,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
   it should "calculateRevisionChanges when the space gets bigger" in withSpark { spark =>
     import spark.implicits._
 
-    val data = createDF(10000, spark)
+    val data = createDF(10001, spark)
     val columnsToIndex = data.columns
     val columnsSchema = data.schema.filter(f => columnsToIndex.contains(f.name))
     val columnTransformers = createTransformers(columnsSchema)
@@ -184,7 +181,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val two = newRevision.transformations(2)
     val three = newRevision.transformations(3)
 
-    zero should matchPattern { case LinearTransformation(0, 20000, _, IntegerDataType) => }
+    zero should matchPattern { case LinearTransformation(0, 20000, _, LongDataType) => }
     one should matchPattern { case LinearTransformation(0.0, 20000.0, _, DoubleDataType) => }
     two should matchPattern { case HashTransformation(_) => }
     three should matchPattern { case LinearTransformation(0.0f, 20000.0f, _, FloatDataType) =>

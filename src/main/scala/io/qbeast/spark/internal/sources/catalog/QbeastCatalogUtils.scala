@@ -369,7 +369,6 @@ object QbeastCatalogUtils {
           catalogTable.location.toString
         }
 
-        println("Returning qbeastTableImpl")
         QbeastTableImpl(
           catalogTable.identifier,
           new Path(path),

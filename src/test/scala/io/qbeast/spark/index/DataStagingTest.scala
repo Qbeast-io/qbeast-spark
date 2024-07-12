@@ -35,7 +35,7 @@ class DataStagingTest
 
   def createDF(spark: SparkSession): DataFrame = {
     import spark.implicits._
-    (0 until 10000).map(i => T2(i, i)).toDF()
+    spark.range(10000).map(i => T2(i, i.toDouble)).toDF()
   }
 
   def getQbeastSnapshot(spark: SparkSession, dir: String): DeltaQbeastSnapshot = {
@@ -92,7 +92,7 @@ class DataStagingTest
         .loadIndexStatus(1)
         .cubesStatuses
         .values
-        .flatMap(_.blocks.map(_.elementCount))
+        .map(_.elementCount)
         .sum
 
       stagingDataManager invokePrivate getCurrentStagingSize() shouldBe 0L
@@ -133,7 +133,7 @@ class DataStagingTest
         .loadIndexStatus(1)
         .cubesStatuses
         .values
-        .flatMap(_.blocks.map(_.elementCount))
+        .map(_.elementCount)
         .sum
 
       stagingDataManager invokePrivate getCurrentStagingSize() shouldBe 0L

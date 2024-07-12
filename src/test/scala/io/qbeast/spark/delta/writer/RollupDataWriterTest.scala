@@ -36,10 +36,17 @@ class RollupDataWriterTest extends QbeastIntegrationTestSpec with PrivateMethodT
     withSparkAndTmpDir { (spark, tmpDir) =>
       val cubeSize = 1000
       val size = 10000
-      val df = spark.createDataFrame(spark.sparkContext.parallelize(0
-        .to(size)
+      import spark.implicits._
+      val df = spark
+        .range(size)
         .map(i =>
-          Client4(i * i, s"student-$i", Some(i), Some(i * 1000 + 123), Some(i * 2567.3432143)))))
+          Client4(
+            i * i,
+            s"student-$i",
+            Some(i.toInt),
+            Some(i * 1000 + 123),
+            Some(i * 2567.3432143)))
+        .toDF()
 
       val tableID = QTableID(tmpDir)
       val parameters: Map[String, String] =

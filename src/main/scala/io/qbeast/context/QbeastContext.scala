@@ -34,8 +34,6 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.SparkConf
 
-import scala.reflect.ClassTag
-
 /**
  * Qbeast context provides access to internal mechanisms of the Qbeast index implementation.
  */
@@ -90,9 +88,6 @@ object QbeastContext
   override def indexedTableFactory: IndexedTableFactory = current.indexedTableFactory
 
   // Override methods from QbeastCoreContext
-
-  // TODO : Add query manager implementation
-  override def queryManager[SparkPlan: ClassTag]: QueryManager[SparkPlan, DataFrame] = null
 
   override def indexManager: IndexManager[DataFrame] = SparkOTreeManager
 

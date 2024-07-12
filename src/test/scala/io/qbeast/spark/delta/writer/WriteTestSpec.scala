@@ -23,7 +23,6 @@ import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.TestClasses.IndexData
 import org.apache.hadoop.mapreduce.Job
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.OutputWriterFactory
 import org.apache.spark.sql.DataFrame
@@ -61,11 +60,8 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
     weightMap.toIndexedSeq.map(ids =>
       IndexData(Random.nextInt(), ids._1.bytes, ids._2, "FLOODED"))
 
-  val rdd: RDD[IndexData] =
-    spark.sparkContext.parallelize(indexData)
-
-  val indexed: DataFrame =
-    spark.createDataFrame(rdd).toDF("id", cubeColumnName, weightColumnName, stateColumnName)
+  import spark.implicits._
+  val indexed: DataFrame = indexData.toDF("id", cubeColumnName, weightColumnName, stateColumnName)
 
   val data: DataFrame = indexed.select("id")
 
@@ -117,7 +113,7 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
       deltaNormalizedCubeWeights = weightMap,
       Map.empty)
 
-  val writer: BlockWriter = new BlockWriter(
+  val writer: BlockWriter = BlockWriter(
     dataPath = tmpDir,
     schema = data.schema,
     schemaIndex = indexed.schema,
@@ -126,17 +122,5 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
     statsTrackers = Seq.empty,
     qbeastColumns = qbeastColumns,
     tableChanges = tableChanges)
-
-  def writeData(): Unit = {
-
-    cubeStatuses.foreach { case (cubeId: CubeId, cubeStatus: CubeStatus) =>
-      cubeStatus.blocks.foreach { i =>
-        // Write data in parquetFile
-        val dataCube = indexed.where(s"$cubeColumnName == '${cubeId.string}'")
-        dataCube.coalesce(1).write.format("parquet").save(tmpDir + "/" + i.file.path)
-      }
-
-    }
-  }
 
 }

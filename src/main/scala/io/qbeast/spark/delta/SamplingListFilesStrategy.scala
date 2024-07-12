@@ -65,7 +65,7 @@ private[delta] object SamplingListFilesStrategy
           1,
           file.modificationTime,
           getAbsolutePath(target, file)))
-      .map(file => new FileStatusWithMetadata(file, Map.empty))
+      .map(file => FileStatusWithMetadata(file, Map.empty))
   }
 
   private def isStagingAreaFile(file: AddFile): Boolean = file.getTag(TagUtils.revision) match {
@@ -76,7 +76,7 @@ private[delta] object SamplingListFilesStrategy
 
   private def getAbsolutePath(target: TahoeLogFileIndex, file: AddFile): Path = {
     val path = file.toPath
-    if (path.isAbsolute()) path else new Path(target.path, path)
+    if (path.isAbsolute) path else new Path(target.path, path)
   }
 
   private def listIndexFiles(
@@ -84,16 +84,11 @@ private[delta] object SamplingListFilesStrategy
       path: Path,
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[FileStatusWithMetadata] = {
+
     val querySpecBuilder = new QuerySpecBuilder(dataFilters ++ partitionFilters)
     val queryExecutor = new QueryExecutor(querySpecBuilder, DeltaQbeastSnapshot(snapshot))
     queryExecutor
-      .execute()
-      .map(block => (block.file))
-      .map(file => (file.path, file))
-      .toMap
-      .values
-      .map(IndexFiles.toFileStatusWithMetadata(path))
-      .toSeq
+      .execute(path)
   }
 
   private def logFilteredFiles(
@@ -105,8 +100,8 @@ private[delta] object SamplingListFilesStrategy
     val count = snapshot.allFiles.count
     val filteredCount = count - files.length
     val filteredPercent = (filteredCount.toDouble / count) * 100.0
-    val info = f"${filteredCount} of ${count} (${filteredPercent}%.2f%%)"
-    logInfo(s"Sampling filtered files (exec id ${execId}): ${info}")
+    val info = f"$filteredCount of $count ($filteredPercent%.2f%%)"
+    logInfo(s"Sampling filtered files (exec id $execId): $info")
   }
 
 }

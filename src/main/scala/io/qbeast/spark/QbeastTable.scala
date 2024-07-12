@@ -16,6 +16,7 @@
 package io.qbeast.spark
 
 import io.qbeast.context.QbeastContext
+import io.qbeast.core.model.DenormalizedBlock
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.RevisionID
 import io.qbeast.core.model.StagingUtils
@@ -27,6 +28,7 @@ import io.qbeast.spark.table._
 import io.qbeast.spark.utils.IndexMetrics
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 
 /**
@@ -196,15 +198,44 @@ class QbeastTable private (
    * @return
    */
   def getIndexMetrics(revisionID: Option[RevisionID] = None): IndexMetrics = {
+
     val indexStatus = revisionID match {
       case Some(id) => qbeastSnapshot.loadIndexStatus(id)
       case None => qbeastSnapshot.loadLatestIndexStatus
     }
+    val indexFiles = revisionID match {
+      case Some(id) => qbeastSnapshot.loadIndexFiles(id)
+      case None => qbeastSnapshot.loadLatestIndexFiles
+    }
 
     val revision = indexStatus.revision
     val cubeStatuses = indexStatus.cubesStatuses
+    val denormalizedBlock = DenormalizedBlock.buildDataset(revision, cubeStatuses, indexFiles)
 
-    IndexMetrics(revision, cubeStatuses)
+    IndexMetrics(revision, denormalizedBlock)
+  }
+
+  /**
+   * Gather an dataset containing all the important information about the index structure.
+   *
+   * @param revisionID
+   *   optional RevisionID
+   * @return
+   */
+  def getDenormalizedBlocks(revisionID: Option[RevisionID] = None): Dataset[DenormalizedBlock] = {
+    val indexStatus = revisionID match {
+      case Some(id) => qbeastSnapshot.loadIndexStatus(id)
+      case None => qbeastSnapshot.loadLatestIndexStatus
+    }
+    val indexFiles = revisionID match {
+      case Some(id) => qbeastSnapshot.loadIndexFiles(id)
+      case None => qbeastSnapshot.loadLatestIndexFiles
+    }
+
+    val revision = indexStatus.revision
+    val cubeStatuses = indexStatus.cubesStatuses
+    DenormalizedBlock.buildDataset(revision, cubeStatuses, indexFiles)
+
   }
 
 }

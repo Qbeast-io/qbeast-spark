@@ -223,11 +223,12 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec with Log
   private def getRootCubeFileCount(spark: SparkSession, directory: String): Long = {
     val deltaLog = DeltaLog.forTable(spark, directory)
     val snapshot = DeltaQbeastSnapshot(deltaLog.unsafeVolatileSnapshot)
-    snapshot.loadLatestIndexFiles.size
+    snapshot.loadLatestIndexFiles.count()
   }
 
   "An optimization execution" should "not change data and use SnapshotIsolation" in
     withQbeastContextSparkAndTmpDir((spark, tmpDir) => {
+      import spark.implicits._
       // This test makes sure that FileActions from optimization have 'dataChange=false'
       // and the isolation level is set to SnapshotIsolation to pass the following check:
       // checkForAddedFilesThatShouldHaveBeenReadByCurrentTxn.
@@ -238,7 +239,7 @@ class QbeastCompactionIntegrationTest extends QbeastIntegrationTestSpec with Log
 
       val qt = QbeastTable.forPath(spark, tmpDir)
       val m = qt.getIndexMetrics()
-      val filePath = m.cubeStatuses.values.flatMap(_.blocks.map(_.file)).head.path
+      val filePath = m.denormalizedBlocks.map(_.filePath).first()
       qt.optimize(Seq(filePath), Map.empty[String, String])
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)

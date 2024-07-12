@@ -3,21 +3,9 @@ import Dependencies._
 
 val mainVersion = "0.7.0-SNAPSHOT"
 
-lazy val qbeastCore = (project in file("core"))
-  .settings(
-    name := "qbeast-core",
-    version := mainVersion,
-    libraryDependencies ++= Seq(apacheCommons % Test),
-    licenses := Seq("APL2" -> url("https://www.apache.org/licenses/LICENSE-2.0.txt")),
-    homepage := Some(url("https://qbeast.io/")),
-    headerLicense := Some(HeaderLicense.ALv2("2021", "Qbeast Analytics, S.L.")),
-    headerEmptyLine := false,
-    Compile / compile := (Compile / compile).dependsOn(Compile / headerCheck).value)
-
 // Projects
 lazy val qbeastSpark = (project in file("."))
   .enablePlugins(ScalaUnidocPlugin)
-  .dependsOn(qbeastCore)
   .settings(
     name := "qbeast-spark",
     libraryDependencies ++= Seq(
@@ -26,6 +14,7 @@ lazy val qbeastSpark = (project in file("."))
       hadoopClient % Provided,
       deltaSpark % Provided,
       sparkml % Provided,
+      apacheCommons % Test,
       amazonAws % Test,
       hadoopCommons % Test,
       hadoopAws % Test),
@@ -55,7 +44,7 @@ ThisBuild / libraryDependencies ++= Seq(
   scalaTest % Test,
   mockito % Test)
 
-Test / javaOptions += "-Xmx2G"
+Test / javaOptions ++= Seq("-Xmx10G", "-XX:+UseG1GC")
 Test / fork := true
 
 // Scala compiler settings

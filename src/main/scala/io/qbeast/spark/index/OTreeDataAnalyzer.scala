@@ -208,10 +208,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
    */
   private[index] def computeExistingCubeDomains(
       cubesStatuses: Map[CubeId, CubeStatus]): Map[CubeId, Double] = {
-    var treeSizes = cubesStatuses.map { case (cube, cs) =>
-      val elementCount = cs.blocks.map(_.elementCount).sum
-      cube -> elementCount.toDouble
-    }
+    var treeSizes = cubesStatuses.mapValues(cs => cs.elementCount.toDouble)
 
     val levelCubes = treeSizes.keys.groupBy(_.depth)
     val (minLevel, maxLevel) = (levelCubes.keys.min, levelCubes.keys.max)

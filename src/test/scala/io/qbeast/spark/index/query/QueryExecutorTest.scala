@@ -19,6 +19,7 @@ import io.qbeast.core.model.AllSpace
 import io.qbeast.core.model.Block
 import io.qbeast.core.model.CubeId
 import io.qbeast.core.model.CubeStatus
+import io.qbeast.core.model.DenormalizedBlock
 import io.qbeast.core.model.IndexStatus
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.Revision
@@ -28,11 +29,15 @@ import io.qbeast.core.transform.EmptyTransformer
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.delta.IndexFiles
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastTable
+import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.expr
+import org.apache.spark.sql.functions.struct
+import org.apache.spark.sql.Dataset
 
 import scala.collection.immutable.SortedMap
 
@@ -55,13 +60,13 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val allDeltaFiles = deltaLog.update().allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.file.path).toSet
+    val matchFiles = queryExecutor.execute(new Path(tmpdir)).map(_.getPath.getName).toSet
 
-    val diff = allFiles.toSet -- matchFiles.toSet
+    val diff = allFiles.toSet -- matchFiles
 
     diff.size shouldBe 0
     matchFiles.size shouldBe allFiles.length
-    matchFiles.toSet shouldBe allFiles.toSet
+    matchFiles shouldBe allFiles.toSet
 
   })
 
@@ -80,7 +85,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val allDeltaFiles = deltaLog.update().allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.file.path).toSet
+    val matchFiles = queryExecutor.execute(new Path(tmpdir)).map(_.getPath.getName).toSet
 
     matchFiles.size shouldBe <(allFiles.length)
     matchFiles.foreach(file => allFiles should contain(file))
@@ -102,7 +107,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val allDeltaFiles = deltaLog.update().allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.file.path).toSet
+    val matchFiles = queryExecutor.execute(new Path(tmpdir)).map(_.getPath.getName).toSet
 
     matchFiles.size shouldBe <(allFiles.length)
     matchFiles.foreach(file => allFiles should contain(file))
@@ -135,12 +140,12 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val allDeltaFiles = deltaLog.update().allFiles.collect()
     val allFiles = allDeltaFiles.map(_.path)
 
-    val matchFiles = queryExecutor.execute().map(_.file.path)
+    val matchFiles = queryExecutor.execute(new Path(tmpdir)).map(_.getPath.getName).toSet
 
-    val diff = allFiles.toSet -- matchFiles.toSet
+    val diff = allFiles.toSet -- matchFiles
     diff.size shouldBe 0
     matchFiles.size shouldBe allFiles.length
-    matchFiles.toSet shouldBe allFiles.toSet
+    matchFiles shouldBe allFiles.toSet
 
   })
 
@@ -162,11 +167,12 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
       val allBlocks =
         deltaLog.update().allFiles.collect().map(IndexFiles.fromAddFile(2)).flatMap(_.blocks)
 
-      val matchingBlocks = queryExecutor.execute()
+      val matchingBlocks = queryExecutor.execute(new Path(tmpDir)).map(_.getPath.getName).toSet
 
-      allBlocks.filter(_.maxWeight < weightRange.from).foreach { block =>
-        matchingBlocks should not contain (block)
-      }
+      matchingBlocks shouldBe allBlocks
+        .filter(_.maxWeight >= weightRange.from)
+        .map(_.filePath)
+        .toSet
     })
 
   it should "handle index with a missing inner cube" in withSparkAndTmpDir((spark, tmpdir) => {
@@ -191,10 +197,19 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     val querySpecBuilder = new QuerySpecBuilder(Seq.empty)
     val querySpec = querySpecBuilder.build(revision).head
     val queryExecutor = new QueryExecutor(querySpecBuilder, qbeastSnapshot)
-    val matchFiles = queryExecutor
+    import spark.implicits._
+    val matchCubes = queryExecutor
       .executeRevision(querySpec, faultyIndexStatus)
-      .map(_.file.path)
-
+      .toList
+      .toDS()
+      .select(struct("*").as("cubeId"))
+    val indexFiles: Dataset[DenormalizedBlock] =
+      QbeastTable.forPath(spark, tmpdir).getDenormalizedBlocks(Some(revision.revisionID))
+    val matchFiles = indexFiles
+      .join(matchCubes, "cubeId")
+      .select("filePath")
+      .as[String]
+      .collect()
     val allFiles = deltaLog.update().allFiles.collect().map(_.path)
 
     val diff = allFiles.toSet -- matchFiles.toSet
@@ -208,8 +223,8 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
 
     val indexed = spark.read.format("qbeast").load(tmpdir)
 
-    indexed.where("a == 50000").count shouldBe 1
-    indexed.where("c == 50000.0").count shouldBe 1
+    indexed.where("a == 49999").count shouldBe 1
+    indexed.where("c == 49999.0").count shouldBe 1
   })
 
   it should "filter correctly using GreaterThan and LessThanOrEqual" in withSparkAndTmpDir(
@@ -220,8 +235,8 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
 
       val indexed = spark.read.format("qbeast").load(tmpdir)
 
-      indexed.where("a > 1").count shouldBe 49999
-      indexed.where("a > 49999").count shouldBe 1
+      indexed.where("a > 1").count shouldBe 49998
+      indexed.where("a > 49998").count shouldBe 1
 
       indexed.where("a <= 1").count shouldBe 2
       indexed.where("a <= 49999").count shouldBe 50000

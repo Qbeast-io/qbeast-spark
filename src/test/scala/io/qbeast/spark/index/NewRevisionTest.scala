@@ -33,17 +33,23 @@ class NewRevisionTest
 
   def appendNewRevision(spark: SparkSession, tmpDir: String, multiplier: Int): Unit = {
 
-    val rdd =
-      spark.sparkContext.parallelize(
-        0.to(100000)
-          .map(i =>
-            Client3(i * i, s"student-$i", i, (i * 1000 + 123) * multiplier, i * 2567.3432143)))
-    val df = spark.createDataFrame(rdd)
+    import spark.implicits._
+    val df =
+      spark
+        .range(1000)
+        .map(i =>
+          Client3(
+            i * i,
+            s"student-$i",
+            i.intValue(),
+            (i * 1000 + 123) * multiplier,
+            i * 2567.3432143))
+
     val names = List("age", "val2")
     df.write
       .format("qbeast")
       .mode("append")
-      .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> "10000"))
+      .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> "100"))
       .save(tmpDir)
   }
 
