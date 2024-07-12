@@ -124,7 +124,7 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
     val revision = loadRevision(revisionId)
     val dimensionCount = revision.transformations.size
     val addFiles =
-      if (isStaging(revision)) loadStagingBlocks()
+      if (isStaging(revision)) loadStagingFiles()
       else loadRevisionBlocks(revisionId)
 
     import addFiles.sparkSession.implicits._
@@ -187,12 +187,12 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
    *   the Dataset of QbeastBlocks
    */
   def loadRevisionBlocks(revisionID: RevisionID): Dataset[AddFile] = {
-    if (isStaging(revisionID)) loadStagingBlocks()
+    if (isStaging(revisionID)) loadStagingFiles()
     else snapshot.allFiles.where(TagColumns.revision === lit(revisionID.toString))
   }
 
   /**
    * Loads Staging AddFiles
    */
-  def loadStagingBlocks(): Dataset[AddFile] = stagingFiles()
+  def loadStagingFiles(): Dataset[AddFile] = stagingFiles()
 }
