@@ -46,7 +46,7 @@ private[delta] class IndexStatusBuilder(
    */
   def revisionFiles: Dataset[AddFile] =
     // this must be external to the lambda, to avoid SerializationErrors
-    qbeastSnapshot.loadRevisionBlocks(revision.revisionID)
+    qbeastSnapshot.loadRevisionFiles(revision.revisionID)
 
   def build(): IndexStatus = {
     val cubeStatus =
@@ -64,6 +64,8 @@ private[delta] class IndexStatusBuilder(
   }
 
   def stagingCubeStatuses: SortedMap[CubeId, CubeStatus] = {
+    // Staging files should not be replicated, and all files belong to the root.
+    // All staging blocks have elementCount=0 as no qbeast tags are present.
     val root = revision.createCubeIdRoot()
     SortedMap(
       root -> CubeStatus(root, Weight.MaxValue, Weight.MaxValue.fraction, replicated = false, 0L))
@@ -81,7 +83,7 @@ private[delta] class IndexStatusBuilder(
     val revisionAddFiles: Dataset[AddFile] = revisionFiles
 
     import revisionAddFiles.sparkSession.implicits._
-    val data = revisionAddFiles
+    val cubeStatuses = revisionAddFiles
       .flatMap(IndexFiles.fromAddFile(dimensionCount)(_).blocks)
       .groupBy($"cubeId")
       .agg(
@@ -99,7 +101,7 @@ private[delta] class IndexStatusBuilder(
       .as[CubeStatus]
       .collect()
 
-    data.foreach(cs => builder += (cs.cubeId -> cs))
+    cubeStatuses.foreach(cs => builder += (cs.cubeId -> cs))
 
     builder.result()
   }

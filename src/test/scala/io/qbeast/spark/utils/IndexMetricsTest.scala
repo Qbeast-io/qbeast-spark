@@ -79,7 +79,7 @@ class IndexMetricsTest extends QbeastIntegrationTestSpec {
         blockReplicated = false),
       DenormalizedBlock(
         rootCubeId,
-        true,
+        isLeaf = true,
         "path2",
         1,
         1500,
