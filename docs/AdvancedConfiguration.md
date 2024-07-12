@@ -304,6 +304,7 @@ df
 
 ```scala
 // Hooks for Optimizations
+import io.qbeast.spark.QbeastTable
 val qt = QbeastTable.forPath(spark, tablePath)
 val options = Map(
   "qbeastPreCommitHook.myHook1" -> classOf[SimpleHook].getCanonicalName,
@@ -311,4 +312,18 @@ val options = Map(
   "qbeastPreCommitHook.myHook2.arg" -> "myStringHookArg"
 )
 qt.optimize(filesToOptimize, options)
+```
+## Advanced Index metadata analysis
+In addition to the IndexMetrics class, we provide handy access to the low-level details of the Qbeast index through the  
+QbeastTable.forTable(sparkSession, tablePath) methods that returns a Dataset[DenormalizedBlock] which
+contains all indexed metadata in an easy-to-analyze format.
+
+```scala
+import io.qbeast.spark.QbeastTable
+val qt = QbeastTable.forTable(spark, tablePath)
+val dnb = qt.denormalizedBlocks
+dnb.select("filePath").distinct.count() // number of files
+dnb.count() // number of blocks
+dnb.groupBy("filePath").count().orderBy(col("count").desc).show() // Show the files with the most blocks
+dnb.groupBy("cubeId").count().orderBy(col("count").desc).show()  // Show the cubeId with the most blocks
 ```
