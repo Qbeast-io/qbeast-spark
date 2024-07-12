@@ -65,16 +65,8 @@ private[delta] class IndexStatusBuilder(
 
   def stagingCubeStatuses: SortedMap[CubeId, CubeStatus] = {
     val root = revision.createCubeIdRoot()
-    val revisionAddFiles = revisionFiles
-    import revisionAddFiles.sparkSession.implicits._
-    val blocks = revisionAddFiles
-      .map(IndexFiles.fromAddFile(root.dimensionCount))
-      .flatMap(_.blocks)
-      .as[Block]
-      .collect()
-      .toIndexedSeq
-
-    SortedMap(root -> CubeStatus(root, Weight.MaxValue, Weight.MaxValue.fraction, blocks))
+    SortedMap(
+      root -> CubeStatus(root, Weight.MaxValue, Weight.MaxValue.fraction, replicated = false, 0L))
   }
 
   /**
