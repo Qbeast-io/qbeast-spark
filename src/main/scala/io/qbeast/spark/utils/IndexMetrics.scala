@@ -20,7 +20,7 @@ import io.qbeast.spark.utils.IndexMetrics.computeMinHeight
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.LongType
 import org.apache.spark.sql.Column
-import org.apache.spark.sql.DataframeUtils
+import org.apache.spark.sql.DataFrameUtils
 import org.apache.spark.sql.Dataset
 
 case class IndexMetrics(
@@ -226,7 +226,7 @@ object IndexMetrics {
         $"cubeElementCountStats.quartiles".as("cubeElementCountQuartiles"),
         $"avgWeight")
 
-    DataframeUtils.showString(elementCountStats) + "\n" + DataframeUtils.showString(
+    DataFrameUtils.showString(elementCountStats) + "\n" + DataFrameUtils.showString(
       levelWiseStats)
 
   }
