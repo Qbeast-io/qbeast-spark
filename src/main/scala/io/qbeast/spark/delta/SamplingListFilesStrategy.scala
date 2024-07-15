@@ -94,14 +94,16 @@ private[delta] object SamplingListFilesStrategy
   private def logFilteredFiles(
       target: TahoeLogFileIndex,
       snapshot: Snapshot,
-      files: Seq[FileStatusWithMetadata]): Unit = {
-    val context = target.spark.sparkContext
-    val execId = context.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
-    val count = snapshot.allFiles.count
-    val filteredCount = count - files.length
-    val filteredPercent = (filteredCount.toDouble / count) * 100.0
-    val info = f"$filteredCount of $count ($filteredPercent%.2f%%)"
-    logInfo(s"Sampling filtered files (exec id $execId): $info")
+      files: Seq[FileStatusWithMetadata]): Unit = logDebug {
+    {
+      val context = target.spark.sparkContext
+      val execId = context.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
+      val count = snapshot.allFiles.count
+      val filteredCount = count - files.length
+      val filteredPercent = (filteredCount.toDouble / count) * 100.0
+      val info = f"$filteredCount of $count ($filteredPercent%.2f%%)"
+      s"Sampling filtered files (exec id $execId): $info"
+    }
   }
 
 }
