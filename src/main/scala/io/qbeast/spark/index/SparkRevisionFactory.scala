@@ -35,7 +35,7 @@ object SparkRevisionFactory extends RevisionFactory[StructType, QbeastOptions] {
       options: QbeastOptions): Revision = {
 
     val desiredCubeSize = options.cubeSize
-    val columnsToIndex = options.columnsToIndexDecoded
+    val columnsToIndex = options.columnsToIndexParsed
     val transformers = columnsToIndex.map(_.toTransformer(schema)).toVector
 
     options.stats match {

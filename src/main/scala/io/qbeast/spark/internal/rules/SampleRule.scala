@@ -121,7 +121,7 @@ object QbeastRelation {
           _,
           _) =>
       val qbeastOptions = QbeastOptions(parameters)
-      val columnsToIndex = qbeastOptions.columnsToIndexDecoded.map(_.columnName)
+      val columnsToIndex = qbeastOptions.columnsToIndexParsed.map(_.columnName)
       Some((l, columnsToIndex))
     case _ => None
   }
