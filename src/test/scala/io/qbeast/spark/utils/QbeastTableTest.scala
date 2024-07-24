@@ -15,6 +15,7 @@
  */
 package io.qbeast.spark.utils
 
+import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.QbeastTable
@@ -113,6 +114,41 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
         // Including the staging revision
         qbeastTable.revisionsIDs().size shouldBe 4
         qbeastTable.revisionsIDs() == Seq(0L, 1L, 2L, 3L)
+      }
+  }
+
+  it should "output all information from Revision" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      {
+        val revision1 = createDF(spark)
+        val columnsToIndex = Seq("age", "val2")
+        val cubeSize = 100
+        // WRITE SOME DATA, adds revisionIDs 0 and 1
+        writeTestData(revision1, columnsToIndex, cubeSize, tmpDir)
+
+        val revision2 = revision1.withColumn("age", col("age") * 2)
+        writeTestData(revision2, columnsToIndex, cubeSize, tmpDir, "append")
+
+        val revision3 = revision1.withColumn("val2", col("val2") * 2)
+        writeTestData(revision3, columnsToIndex, cubeSize, tmpDir, "append")
+
+        val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+        val revisions = qbeastTable.allRevisions()
+        revisions.size shouldBe 4
+
+        val latestRevision = qbeastTable.latestRevision
+        latestRevision.revisionID shouldBe 3L
+        latestRevision.columnTransformers.map(_.columnName) shouldBe columnsToIndex
+        latestRevision.desiredCubeSize shouldBe cubeSize
+
+        val revision1Metadata = qbeastTable.revision(1L)
+        revision1Metadata.revisionID shouldBe 1L
+        revision1Metadata.columnTransformers.map(_.columnName) shouldBe columnsToIndex
+        revision1Metadata.transformations.map(t =>
+          t.asInstanceOf[LinearTransformation].maxNumber) shouldBe Seq(1000, 1000123)
+        revision1Metadata.transformations.map(t =>
+          t.asInstanceOf[LinearTransformation].minNumber) shouldBe Seq(0, 123)
+
       }
   }
 
