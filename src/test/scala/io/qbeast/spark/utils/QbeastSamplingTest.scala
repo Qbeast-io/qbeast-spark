@@ -156,10 +156,11 @@ class QbeastSamplingTest extends QbeastIntegrationTestSpec {
         val dataSize = data.count()
 
         val precision = 0.1
+        val precisionPercent = precision * 100
         val tolerance = 0.01
         // We allow a 1% of tolerance in the sampling
         spark
-          .sql(s"SELECT * FROM table TABLESAMPLE($precision PERCENT)")
+          .sql(s"SELECT * FROM table TABLESAMPLE($precisionPercent PERCENT)")
           .count()
           .toDouble shouldBe (dataSize * precision) +- dataSize * precision * tolerance
 

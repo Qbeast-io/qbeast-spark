@@ -120,7 +120,8 @@ object QbeastRelation {
           _,
           _,
           _) =>
-      val columnsToIndex = QbeastOptions(parameters).columnsToIndex
+      val qbeastOptions = QbeastOptions(parameters)
+      val columnsToIndex = qbeastOptions.columnsToIndexDecoded.map(_.columnName)
       Some((l, columnsToIndex))
     case _ => None
   }

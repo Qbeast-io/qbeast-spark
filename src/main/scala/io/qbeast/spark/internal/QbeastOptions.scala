@@ -15,6 +15,7 @@
  */
 package io.qbeast.spark.internal
 
+import io.qbeast.core.model.ColumnToIndex
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.delta.hook.HookInfo
 import io.qbeast.spark.delta.hook.PreCommitHook.getHookArgName
@@ -36,6 +37,8 @@ import scala.util.matching.Regex
  *
  * @param columnsToIndex
  *   A sequence of column names to index.
+ * @param columnsToIndexDecoded
+ *   A sequence of ColumnToIndex objects representing the columns to index.
  * @param cubeSize
  *   The number of desired elements per cube.
  * @param stats
@@ -55,6 +58,7 @@ import scala.util.matching.Regex
  */
 case class QbeastOptions(
     columnsToIndex: Seq[String],
+    columnsToIndexDecoded: Seq[ColumnToIndex],
     cubeSize: Int,
     stats: Option[DataFrame],
     txnAppId: Option[String],
@@ -212,6 +216,7 @@ object QbeastOptions {
    */
   def apply(options: CaseInsensitiveMap[String]): QbeastOptions = {
     val columnsToIndex = getColumnsToIndex(options)
+    val columnsToIndexDecoded = columnsToIndex.map(ColumnToIndex(_))
     val desiredCubeSize = getDesiredCubeSize(options)
     val stats = getStats(options)
     val txnAppId = getTxnAppId(options)
@@ -223,6 +228,7 @@ object QbeastOptions {
 
     QbeastOptions(
       columnsToIndex,
+      columnsToIndexDecoded,
       desiredCubeSize,
       stats,
       txnAppId,
@@ -252,14 +258,14 @@ object QbeastOptions {
     val caseInsensitiveMap = CaseInsensitiveMap(options)
     val userMetadata = getUserMetadata(caseInsensitiveMap)
     val hookInfo = getHookInfo(caseInsensitiveMap)
-    QbeastOptions(Seq.empty, 0, None, None, None, userMetadata, None, None, hookInfo)
+    QbeastOptions(Seq.empty, Seq.empty, 0, None, None, None, userMetadata, None, None, hookInfo)
   }
 
   /**
    * The empty options to be used as a placeholder.
    */
   lazy val empty: QbeastOptions =
-    QbeastOptions(Seq.empty, DEFAULT_CUBE_SIZE, None, None, None, None, None, None)
+    QbeastOptions(Seq.empty, Seq.empty, DEFAULT_CUBE_SIZE, None, None, None, None, None, None)
 
   def loadTableIDFromParameters(parameters: Map[String, String]): QTableID = {
     new QTableID(

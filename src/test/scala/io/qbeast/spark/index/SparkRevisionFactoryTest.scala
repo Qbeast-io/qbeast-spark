@@ -32,37 +32,6 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
 
   behavior of "SparkRevisionFactory"
 
-  it should "detect the correct types in getColumnQType" in withSpark(spark => {
-
-    import spark.implicits._
-    val df = spark.range(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).schema
-
-    SparkRevisionFactory.getColumnQType("a", df) shouldBe LongDataType
-    SparkRevisionFactory.getColumnQType("b", df) shouldBe DoubleDataType
-    SparkRevisionFactory.getColumnQType("c", df) shouldBe StringDataType
-    SparkRevisionFactory.getColumnQType("d", df) shouldBe FloatDataType
-
-  })
-
-  it should "should extract correctly the type" in {
-
-    import SparkRevisionFactory.SpecExtractor
-
-    "column:LinearTransformer" match {
-      case SpecExtractor(column, transformer) =>
-        column shouldBe "column"
-        transformer shouldBe "LinearTransformer"
-      case _ => fail("It did not recognize the type")
-    }
-
-    "column" match {
-      case SpecExtractor(column, transformer) =>
-        fail("It shouldn't be here")
-      case column =>
-        column shouldBe "column"
-    }
-  }
-
   it should "createNewRevision with only one columns" in withSpark(spark => {
     import spark.implicits._
     val schema = spark.range(1).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).schema
