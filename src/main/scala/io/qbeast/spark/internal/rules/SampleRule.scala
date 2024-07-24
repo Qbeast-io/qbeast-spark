@@ -19,6 +19,7 @@ import io.qbeast.core.model.Weight
 import io.qbeast.core.model.WeightRange
 import io.qbeast.spark.delta.DefaultFileIndex
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
+import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.IndexedColumns
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.And
@@ -119,8 +120,8 @@ object QbeastRelation {
           _,
           _,
           _) =>
-      val columnsToIndex = parameters("columnsToIndex")
-      Some((l, columnsToIndex.split(",")))
+      val columnsToIndex = QbeastOptions(parameters).columnsToIndex
+      Some((l, columnsToIndex))
     case _ => None
   }
 
