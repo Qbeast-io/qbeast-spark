@@ -8,7 +8,7 @@ A **transaction log** in Delta Lake holds information about what objects compris
 
 
 <p align="center">
-  <img src="./images/delta.png" width=600 height=500>
+  <img src="./images/delta.png" width="600" height="500" />
 </p>
 
 
@@ -281,7 +281,7 @@ revisions.foreach(revision =>
 ```
 > Note that **Revision ID number 0 is reserved for Stagin Area** (non-indexed files). This ensures compatibility with underlying table formats.
 
-## Compaction (<v0.6.0)
+## Compaction (&lt;v0.6.0)
 
 > Compaction is **NOT available from version 0.6.0**. Although it is present, it calls the `optimize` command underneath.
 > Read all the reasoning and changes on the [Qbeast Format 0.6.0](./QbeastFormat0.6.0.md) document and check the issue [#294](https://github.com/Qbeast-io/qbeast-spark/issues/294) for more info.
@@ -304,7 +304,7 @@ table.compact(0)
 ```
 
 
-## Index Replication (<v0.6.0)
+## Index Replication (&lt;v0.6.0)
 
 
 > Analyze and Replication operations are **NOT available from version 0.6.0**. Read all the reasoning and changes on the [Qbeast Format 0.6.0](./QbeastFormat0.6.0.md) document.
