@@ -206,7 +206,8 @@ class QbeastTable private (
 
   /**
    * Outputs the revision information for a given identifier
-   * @param revisionID the identifier of the revision
+   * @param revisionID
+   *   the identifier of the revision
    * @return
    */
   def revision(revisionID: RevisionID): Revision = {
