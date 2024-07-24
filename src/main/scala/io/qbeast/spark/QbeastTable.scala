@@ -18,6 +18,7 @@ package io.qbeast.spark
 import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.DenormalizedBlock
 import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.Revision
 import io.qbeast.core.model.RevisionID
 import io.qbeast.core.model.StagingUtils
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
@@ -155,6 +156,10 @@ class QbeastTable private (
       .map(_.columnName)
   }
 
+  /**
+   * Outputs the indexed columns of the table
+   * @return
+   */
   def indexedColumns(): Seq[String] = {
     latestRevisionAvailable.columnTransformers.map(_.columnName)
   }
@@ -181,6 +186,33 @@ class QbeastTable private (
    */
   def revisionsIDs(): Seq[RevisionID] = {
     qbeastSnapshot.loadAllRevisions.map(_.revisionID)
+  }
+
+  /**
+   * Outputs all the revision information available for the table
+   * @return
+   */
+  def allRevisions(): Seq[Revision] = {
+    qbeastSnapshot.loadAllRevisions
+  }
+
+  /**
+   * Outputs the revision information for the latest revision available
+   * @return
+   */
+  def latestRevision: Revision = {
+    latestRevisionAvailable
+  }
+
+  /**
+   * Outputs the revision information for a given identifier
+   * @param revisionID
+   *   the identifier of the revision
+   * @return
+   */
+  def revision(revisionID: RevisionID): Revision = {
+    checkRevisionAvailable(revisionID)
+    qbeastSnapshot.loadRevision(revisionID)
   }
 
   /**
