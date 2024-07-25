@@ -16,7 +16,7 @@
 
 ---
 
-**Qbeast Spark** is an extension for [**Data Lakehouses**](http://cidrdb.org/cidr2021/papers/cidr2021_paper17.pdf) that enables **multi-dimensional filtering** and **sampling** directly on the storage
+**Qbeast Spark** is an Apache Spark extension that enhances data processing in [**Data Lakehouses**](http://cidrdb.org/cidr2021/papers/cidr2021_paper17.pdf). It provides advanced **multi-dimensional filtering** and **efficient data sampling**, enabling faster and more accurate queries. The extension also maintains ACID properties for data integrity and reliability, making it ideal for handling large-scale data efficiently.
 
 [![apache-spark](https://img.shields.io/badge/apache--spark-3.5.x-blue)](https://spark.apache.org/releases/spark-release-3-5-0.html) 
 [![apache-hadoop](https://img.shields.io/badge/apache--hadoop-3.3.x-blue)](https://hadoop.apache.org/release/3.3.1.html)
@@ -56,6 +56,17 @@ As you can see above, the Qbeast Spark extension allows **faster** queries with 
 
 In this example, **1% sampling** provides the result **x22 times faster** compared to using Delta format, with an **error of 0,034%**.
 
+## Documentation
+Explore the [documentation](https://github.com/Qbeast-io/qbeast-spark/tree/main/docs) for more details:
+- [Quickstart for Qbeast-Spark](https://github.com/Qbeast-io/qbeast-spark/blob/main/docs/Quickstart.md)
+- [Data Lakehouse with Qbeast Format](https://github.com/Qbeast-io/qbeast-spark/blob/main/docs/QbeastFormat.md)
+- [OTree Algorithm](https://github.com/Qbeast-io/qbeast-spark/blob/main/docs/OTreeAlgorithm.md)
+- [QbeastTable](https://github.com/Qbeast-io/qbeast-spark/blob/main/docs/QbeastTable.md)
+- [Columns To Index Selector](https://github.com/Qbeast-io/qbeast-spark/blob/main/docs/ColumnsToIndexSelector.md)
+- [Recommendations for different Cloud Storage systems](https://github.com/Qbeast-io/qbeast-spark/blob/main/docs/CloudStorages.md)
+- [Advanced configurations](https://github.com/Qbeast-io/qbeast-spark/blob/main/docs/AdvancedConfiguration.md)
+- [QbeastFormat 0.6.0](https://github.com/Qbeast-io/qbeast-spark/blob/main/docs/QbeastFormat0.6.0.md)
+- [FAQ: Frequently Asked Questions](https://github.com/Qbeast-io/qbeast-spark/blob/main/docs/FAQ.md)
 
 # Quickstart
 You can run the qbeast-spark application locally on your computer, or using a Docker image we already prepared with the dependencies.
