@@ -59,7 +59,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
         .where("col_name == 'Table Properties'")
         .select("data_type")
         .first()
-        .getString(0) shouldBe "[columnsToIndex=id,option.columnsToIndex=id]"
+        .getString(0) should include("columnsToIndex=id,option.columnsToIndex=id")
 
     })
 

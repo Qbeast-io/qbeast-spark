@@ -101,6 +101,10 @@ case class QbeastTableImpl(
   override def properties(): util.Map[String, String] = {
     val description = initialSnapshot.loadDescription
     val base = initialSnapshot.loadProperties
+    options.foreach {
+      case (key, value) if !base.contains(key) =>
+        base.put(key, value)
+    }
     base.put(TableCatalog.PROP_PROVIDER, "qbeast")
     base.put(TableCatalog.PROP_LOCATION, CatalogUtils.URIToString(path.toUri))
     catalogTable.foreach { table =>

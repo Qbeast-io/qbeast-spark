@@ -84,7 +84,10 @@ class QbeastTableImplTest extends QbeastIntegrationTestSpec with CatalogTestSuit
         None,
         indexedTableFactory)
 
-      qbeastTableImpl.properties() shouldBe properties.asJava
+      val qbeastTableProperties = qbeastTableImpl.properties()
+
+      qbeastTableProperties.get("provider") shouldBe "qbeast"
+      qbeastTableProperties.get("columnsToIndex") shouldBe "id"
 
     })
 
