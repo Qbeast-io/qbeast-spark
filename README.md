@@ -168,7 +168,7 @@ val qbeastDF =
 ```scala
 qbeastDF.sample(0.1).explain(true)
 ```
-Go to the [Quickstart](./docs/Quickstart.md) or [notebook](docs/sampleopushdown_demo.ipynb) for more details.
+Go to the [Quickstart](./docs/Quickstart.md) or [notebook](docs/sample_pushdown_demo.ipynb) for more details.
 
 ### 5. Interact with the format
 
