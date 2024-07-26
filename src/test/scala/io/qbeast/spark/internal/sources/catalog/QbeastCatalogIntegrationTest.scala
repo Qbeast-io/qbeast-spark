@@ -239,7 +239,7 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
   it should "persist altered properties on the _delta_log" in withQbeastContextSparkAndTmpWarehouse(
     (spark, tmpDir) => {
 
-      spark.sql(s"CREATE TABLE t1(id INT) USING qbeast TBLPROPERTIES ('columnsToIndex'= 'id')")
+      spark.sql("CREATE TABLE t1(id INT) USING qbeast TBLPROPERTIES ('columnsToIndex'= 'id')")
       spark.sql("ALTER TABLE t1 SET TBLPROPERTIES ('k' = 'v')")
 
       // Check the delta log info
@@ -256,9 +256,9 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
     (spark, _) => {
 
       spark.sql(
-        s"CREATE TABLE t1(id INT) " +
-          s"USING qbeast " +
-          s"TBLPROPERTIES ('columnsToIndex'= 'id')")
+        "CREATE TABLE t1(id INT) " +
+          "USING qbeast " +
+          "TBLPROPERTIES ('columnsToIndex'= 'id')")
 
       spark.sql("ALTER TABLE t1 SET TBLPROPERTIES ('k' = 'v')")
 
@@ -282,9 +282,9 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
       import spark.implicits._
 
       spark.sql(
-        s"CREATE TABLE t1(id INT) " +
-          s"USING qbeast " +
-          s"TBLPROPERTIES ('columnsToIndex'= 'id')")
+        "CREATE TABLE t1(id INT) " +
+          "USING qbeast " +
+          "TBLPROPERTIES ('columnsToIndex'= 'id')")
       spark.sql("ALTER TABLE t1 SET TBLPROPERTIES ('k' = 'v')")
       // Check the delta log info
       val deltaLog = DeltaLog.forTable(spark, TableIdentifier("t1"))
