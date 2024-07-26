@@ -55,7 +55,7 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
 
   /**
    * The current table description.
-   *  @return
+   * @return
    */
   override def loadDescription: String = snapshot.metadata.description
 

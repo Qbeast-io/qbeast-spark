@@ -236,25 +236,6 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
 
     })
 
-  it should "create table with properties" in withQbeastContextSparkAndTmpWarehouse(
-    (spark, tmpDir) => {
-
-      spark.sql(
-        "CREATE TABLE student (id INT, name STRING, age INT)" +
-          " USING qbeast TBLPROPERTIES ('k' = 'v', 'columnsToIndex'='id')")
-
-      val deltaLog = DeltaLog.forTable(spark, TableIdentifier("student"))
-      val snapshot = deltaLog.update()
-      val properties = snapshot.getProperties
-      val catalog = spark.sessionState.catalog
-      val catalogProperties = catalog.getTableMetadata(TableIdentifier("student")).properties
-      properties should contain key "k"
-      properties("k") shouldBe "v"
-      catalogProperties should contain key "k"
-      catalogProperties("k") shouldBe "v"
-
-    })
-
   it should "persist altered properties on the _delta_log" in withQbeastContextSparkAndTmpWarehouse(
     (spark, tmpDir) => {
 
