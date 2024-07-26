@@ -231,11 +231,11 @@ Check [here](https://docs.delta.io/latest/releases.html) for **Delta Lake** and 
 
 # Contribution Guide
 
-See [Contribution Guide](/CONTRIBUTING.md) for more information. 
+See [Contribution Guide](./CONTRIBUTING.md) for more information. 
 
 # License
-See [LICENSE](/LICENSE).
+See [LICENSE](./LICENSE).
 
 # Code of conduct
 
-See [Code of conduct](/CODE_OF_CONDUCT.md)
+See [Code of conduct](./CODE_OF_CONDUCT.md)
