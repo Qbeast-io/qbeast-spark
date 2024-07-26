@@ -100,20 +100,21 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
     qbeastCatalog.loadTable(tableIdentifier).columns() shouldBe newColumns
   })
 
-  it should "create table with properties" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
-    val qbeastCatalog = createQbeastCatalog(spark)
-    val tableIdentifier = Identifier.of(defaultNamespace, "student")
-    qbeastCatalog.createTable(
-      tableIdentifier,
-      columns,
-      Array.empty[Transform],
-      Map("newProperty" -> "newValue").asJava)
+  it should "create table with properties" in withQbeastContextSparkAndTmpWarehouse(
+    (spark, _) => {
+      val qbeastCatalog = createQbeastCatalog(spark)
+      val tableIdentifier = Identifier.of(defaultNamespace, "student")
+      qbeastCatalog.createTable(
+        tableIdentifier,
+        columns,
+        Array.empty[Transform],
+        Map("newProperty" -> "newValue").asJava)
 
-    qbeastCatalog
-      .loadTable(Identifier.of(defaultNamespace, "student"))
-      .properties()
-      .asScala should contain("newProperty" -> "newValue")
-  })
+      qbeastCatalog
+        .loadTable(Identifier.of(defaultNamespace, "student"))
+        .properties()
+        .asScala should contain("newProperty" -> "newValue")
+    })
 
   it should "list tables" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
     val qbeastCatalog = createQbeastCatalog(spark)
