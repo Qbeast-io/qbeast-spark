@@ -16,6 +16,7 @@
 package io.qbeast.spark.internal.sources.catalog
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.SparkConf
@@ -235,22 +236,100 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
 
     })
 
+  it should "create table with properties" in withQbeastContextSparkAndTmpWarehouse(
+    (spark, tmpDir) => {
+
+      spark.sql(
+        "CREATE TABLE student (id INT, name STRING, age INT)" +
+          " USING qbeast TBLPROPERTIES ('k' = 'v', 'columnsToIndex'='id')")
+
+      val deltaLog = DeltaLog.forTable(spark, TableIdentifier("student"))
+      val snapshot = deltaLog.update()
+      val properties = snapshot.getProperties
+      val catalog = spark.sessionState.catalog
+      val catalogProperties = catalog.getTableMetadata(TableIdentifier("student")).properties
+      properties should contain key "k"
+      properties("k") shouldBe "v"
+      catalogProperties should contain key "k"
+      catalogProperties("k") shouldBe "v"
+
+    })
+
   it should "persist altered properties on the _delta_log" in withQbeastContextSparkAndTmpWarehouse(
     (spark, tmpDir) => {
 
-      val df = loadTestData(spark)
-      df.write.format("qbeast").option("columnsToIndex", "user_id,price").save(tmpDir)
-      spark.sql(s"CREATE TABLE t1 USING qbeast LOCATION '$tmpDir'")
+      spark.sql(s"CREATE TABLE t1(id INT) USING qbeast TBLPROPERTIES ('columnsToIndex'= 'id')")
       spark.sql("ALTER TABLE t1 SET TBLPROPERTIES ('k' = 'v')")
 
       // Check the delta log info
-      val deltaLog = DeltaLog.forTable(spark, tmpDir)
+      val deltaLog = DeltaLog.forTable(spark, TableIdentifier("t1"))
       val snapshot = deltaLog.update()
       val properties = snapshot.getProperties
 
       properties should contain key "k"
       properties("k") shouldBe "v"
 
+    })
+
+  it should "persist UNSET properties in _delta_catalog" in withQbeastContextSparkAndTmpWarehouse(
+    (spark, _) => {
+
+      spark.sql(
+        s"CREATE TABLE t1(id INT) " +
+          s"USING qbeast " +
+          s"TBLPROPERTIES ('columnsToIndex'= 'id')")
+
+      spark.sql("ALTER TABLE t1 SET TBLPROPERTIES ('k' = 'v')")
+
+      val deltaLog = DeltaLog.forTable(spark, TableIdentifier("t1"))
+      val snapshot = deltaLog.update()
+      val properties = snapshot.getProperties
+
+      properties should contain key "k"
+      properties("k") shouldBe "v"
+
+      spark.sql("ALTER TABLE t1 UNSET TBLPROPERTIES ('k')")
+
+      // Check the delta log info
+      val updatedProperties = deltaLog.update().getProperties
+      updatedProperties should not contain key("k")
+    })
+
+  it should "ensure consistency with the session catalog" in withQbeastContextSparkAndTmpWarehouse(
+    (spark, tmpDir) => {
+
+      import spark.implicits._
+
+      spark.sql(
+        s"CREATE TABLE t1(id INT) " +
+          s"USING qbeast " +
+          s"TBLPROPERTIES ('columnsToIndex'= 'id')")
+      spark.sql("ALTER TABLE t1 SET TBLPROPERTIES ('k' = 'v')")
+      // Check the delta log info
+      val deltaLog = DeltaLog.forTable(spark, TableIdentifier("t1"))
+      val catalog = spark.sessionState.catalog
+      val showProperties = spark.sql("SHOW TBLPROPERTIES t1").as[(String, String)].collect().toMap
+
+      val snapshot = deltaLog.update()
+      val properties = snapshot.getProperties
+      val catalogProperties =
+        catalog.getTableMetadata(TableIdentifier("t1")).properties
+      properties should contain key "k"
+      catalogProperties should contain key ("k")
+      showProperties should contain key ("k")
+
+      spark.sql("ALTER TABLE t1 UNSET TBLPROPERTIES ('k')")
+      // Check the delta log info
+      val updatedSnapshot = deltaLog.update()
+      val updatedProperties = updatedSnapshot.getProperties
+      val updatedCatalogProperties =
+        catalog.getTableMetadata(TableIdentifier("t1")).properties
+      val updatedShowProperties =
+        spark.sql("SHOW TBLPROPERTIES t1").as[(String, String)].collect().toMap
+
+      updatedProperties should not contain key("k")
+      updatedCatalogProperties should not contain key("k")
+      updatedShowProperties should not contain key("k")
     })
 
 }

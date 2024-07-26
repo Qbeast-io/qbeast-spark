@@ -15,16 +15,20 @@
  */
 package io.qbeast.spark.internal.sources.v2
 
+import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.catalog.CatalogTable
+import org.apache.spark.sql.catalyst.catalog.CatalogTableType
+import org.apache.spark.sql.catalyst.catalog.CatalogUtils
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.connector.catalog.SupportsWrite
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.catalog.TableCapability
 import org.apache.spark.sql.connector.catalog.TableCapability._
+import org.apache.spark.sql.connector.catalog.TableCatalog
 import org.apache.spark.sql.connector.write.LogicalWriteInfo
 import org.apache.spark.sql.connector.write.WriteBuilder
 import org.apache.spark.sql.sources.BaseRelation
@@ -65,11 +69,15 @@ case class QbeastTableImpl(
 
   private val indexedTable = tableFactory.getIndexedTable(tableId)
 
+  private lazy val spark = SparkSession.active
+
+  private lazy val initialSnapshot = QbeastContext.metadataManager.loadSnapshot(tableId)
+
   private lazy val table: CatalogTable =
     if (catalogTable.isDefined) catalogTable.get
     else {
       // Get table Metadata if no catalog table is provided
-      SparkSession.active.sessionState.catalog
+      spark.sessionState.catalog
         .getTableMetadata(tableIdentifier)
     }
 
@@ -90,7 +98,25 @@ case class QbeastTableImpl(
     QbeastBaseRelation.forQbeastTableWithOptions(indexedTable, properties().asScala.toMap)
   }
 
-  override def properties(): util.Map[String, String] = options.asJava
+  override def properties(): util.Map[String, String] = {
+    val description = initialSnapshot.loadDescription
+    val base = initialSnapshot.loadProperties
+    base.put(TableCatalog.PROP_PROVIDER, "qbeast")
+    base.put(TableCatalog.PROP_LOCATION, CatalogUtils.URIToString(path.toUri))
+    catalogTable.foreach { table =>
+      if (table.owner != null && table.owner.nonEmpty) {
+        base.put(TableCatalog.PROP_OWNER, table.owner)
+      }
+      v1Table.storage.properties.foreach { case (key, value) =>
+        base.put(TableCatalog.OPTION_PREFIX + key, value)
+      }
+      if (v1Table.tableType == CatalogTableType.EXTERNAL) {
+        base.put(TableCatalog.PROP_EXTERNAL, "true")
+      }
+    }
+    Option(description).foreach(base.put(TableCatalog.PROP_COMMENT, _))
+    base.asJava
+  }
 
   override def v1Table: CatalogTable = table
 

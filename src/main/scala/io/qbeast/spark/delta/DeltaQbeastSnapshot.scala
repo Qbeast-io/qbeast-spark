@@ -25,6 +25,8 @@ import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.Dataset
 
+import scala.collection.mutable
+
 /**
  * Qbeast Snapshot that provides information about the current index state.
  *
@@ -43,6 +45,19 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
   override def isInitial: Boolean = snapshot.version == -1
 
   private val metadataMap: Map[String, String] = snapshot.metadata.configuration
+
+  /**
+   * The current table properties of the snapshot.
+   *
+   * @return
+   */
+  override def loadProperties: mutable.Map[String, String] = snapshot.getProperties
+
+  /**
+   * The current table description.
+   *  @return
+   */
+  override def loadDescription: String = snapshot.metadata.description
 
   /**
    * Constructs revision dictionary
@@ -195,4 +210,5 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
    * Loads Staging AddFiles
    */
   def loadStagingFiles(): Dataset[AddFile] = stagingFiles()
+
 }

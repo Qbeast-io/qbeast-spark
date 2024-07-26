@@ -18,6 +18,8 @@ package io.qbeast.core.model
 import io.qbeast.IISeq
 import org.apache.spark.sql.Dataset
 
+import scala.collection.mutable
+
 /**
  * A snapshot of the Qbeast table state.
  */
@@ -28,6 +30,18 @@ trait QbeastSnapshot {
    * @return
    */
   def isInitial: Boolean
+
+  /**
+   * The current table description.
+   * @return
+   */
+  def loadDescription: String
+
+  /**
+   * The current table properties of the snapshot.
+   * @return
+   */
+  def loadProperties: mutable.Map[String, String]
 
   /**
    * Load methods

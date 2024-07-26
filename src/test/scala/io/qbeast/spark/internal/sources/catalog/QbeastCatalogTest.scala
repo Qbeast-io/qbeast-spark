@@ -100,6 +100,21 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
     qbeastCatalog.loadTable(tableIdentifier).columns() shouldBe newColumns
   })
 
+  it should "create table with properties" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
+    val qbeastCatalog = createQbeastCatalog(spark)
+    val tableIdentifier = Identifier.of(defaultNamespace, "student")
+    qbeastCatalog.createTable(
+      tableIdentifier,
+      columns,
+      Array.empty[Transform],
+      Map("newProperty" -> "newValue").asJava)
+
+    qbeastCatalog
+      .loadTable(Identifier.of(defaultNamespace, "student"))
+      .properties()
+      .asScala should contain("newProperty" -> "newValue")
+  })
+
   it should "list tables" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
     val qbeastCatalog = createQbeastCatalog(spark)
     qbeastCatalog.listTables(defaultNamespace) shouldBe Array()
@@ -143,6 +158,25 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
       .loadTable(Identifier.of(defaultNamespace, "student"))
       .properties()
       .asScala should contain("newProperty" -> "newValue")
+  })
+
+  it should "unset properties" in withQbeastContextSparkAndTmpDir((spark, _) => {
+    val qbeastCatalog = createQbeastCatalog(spark)
+    val tableIdentifier = Identifier.of(defaultNamespace, "student")
+    qbeastCatalog.createTable(
+      tableIdentifier,
+      columns,
+      Array.empty[Transform],
+      Map("newProperty" -> "newValue").asJava)
+
+    val unsetPropertiesChange = TableChange.removeProperty("newProperty")
+    // Alter table with new information
+    qbeastCatalog.alterTable(tableIdentifier, unsetPropertiesChange)
+
+    qbeastCatalog
+      .loadTable(Identifier.of(defaultNamespace, "student"))
+      .properties()
+      .asScala should not contain ("newProperty" -> "newValue")
   })
 
   it should "drop table" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
