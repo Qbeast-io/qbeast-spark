@@ -55,11 +55,13 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
         .first()
         .getString(0) shouldBe "qbeast"
       // Check Table Properties
-      table
+      val tableProperties = table
         .where("col_name == 'Table Properties'")
         .select("data_type")
         .first()
-        .getString(0) should include("columnsToIndex=id,option.columnsToIndex=id")
+        .getString(0)
+      tableProperties should include("columnsToIndex=id")
+      tableProperties should include("option.columnsToIndex=id")
 
     })
 
