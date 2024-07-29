@@ -152,8 +152,6 @@ object QbeastCatalogUtils {
     }
   }
 
-  def createDeltaQbeastTable(): Unit = {}
-
   /**
    * Creates a Table on the Catalog
    * @param ident

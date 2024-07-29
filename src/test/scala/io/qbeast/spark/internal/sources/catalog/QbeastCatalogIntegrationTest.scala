@@ -253,11 +253,11 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
 
     })
 
-  it should "persist original properties of table" in withQbeastContextSparkAndTmpWarehouse(
+  it should "persist ALL original properties of table" in withQbeastContextSparkAndTmpWarehouse(
     (spark, tmpDir) => {
 
       spark.sql(
-        s"CREATE TABLE t1(id INT) USING qbeast TBLPROPERTIES('k' = 'v', 'columnsToInex' = 'id')")
+        s"CREATE TABLE t1(id INT) USING qbeast TBLPROPERTIES('k' = 'v', 'columnsToIndex' = 'id')")
 
       // Check the delta log info
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
