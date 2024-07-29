@@ -145,7 +145,7 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
       .asScala should contain("newProperty" -> "newValue")
   })
 
-  it should "unset properties" in withQbeastContextSparkAndTmpDir((spark, _) => {
+  it should "unset properties" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
     val qbeastCatalog = createQbeastCatalog(spark)
     val tableIdentifier = Identifier.of(defaultNamespace, "student")
     qbeastCatalog.createTable(
