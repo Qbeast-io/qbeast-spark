@@ -50,7 +50,8 @@ import org.apache.spark.sql.SparkSession
 case class ConvertToQbeastCommand(
     identifier: String,
     columnsToIndex: Seq[String],
-    cubeSize: Int = DEFAULT_CUBE_SIZE)
+    cubeSize: Int = DEFAULT_CUBE_SIZE,
+    tableOptions: Map[String, String] = Map.empty)
     extends LeafRunnableCommand
     with Logging
     with StagingUtils {
@@ -114,7 +115,7 @@ case class ConvertToQbeastCommand(
         // Add staging revision to Revision Map, set it as the latestRevision
         Map(
           lastRevisionID -> revisionID.toString,
-          s"$revision.$revisionID" -> mapper.writeValueAsString(convRevision))
+          s"$revision.$revisionID" -> mapper.writeValueAsString(convRevision)) ++ tableOptions
       }
     }
 
