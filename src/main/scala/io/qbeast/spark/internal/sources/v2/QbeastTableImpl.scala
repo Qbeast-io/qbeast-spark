@@ -104,6 +104,7 @@ case class QbeastTableImpl(
     options.foreach {
       case (key, value) if !base.contains(key) =>
         base.put(key, value)
+      case _ => // do nothing
     }
     base.put(TableCatalog.PROP_PROVIDER, "qbeast")
     base.put(TableCatalog.PROP_LOCATION, CatalogUtils.URIToString(path.toUri))
