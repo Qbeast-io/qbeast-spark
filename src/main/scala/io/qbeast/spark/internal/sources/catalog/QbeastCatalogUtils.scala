@@ -31,12 +31,13 @@ import org.apache.spark.sql.connector.catalog.Identifier
 import org.apache.spark.sql.connector.catalog.SparkCatalogV2Util
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
+import org.apache.spark.sql.delta.commands.CreateDeltaTableCommand
+import org.apache.spark.sql.delta.commands.TableCreationModes
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.datasources.DataSource
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.Row
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.V1TableQbeast
@@ -151,6 +152,8 @@ object QbeastCatalogUtils {
     }
   }
 
+  def createDeltaQbeastTable(): Unit = {}
+
   /**
    * Creates a Table on the Catalog
    * @param ident
@@ -246,6 +249,31 @@ object QbeastCatalogUtils {
     val fs = tableLocation.getFileSystem(hadoopConf)
     val table = verifySchema(spark, fs, tableLocation, t)
     val deltaTableExists = DeltaLog.forTable(spark, loc.toString).tableExists
+    // If the table does not exist, we create it
+    if (!deltaTableExists) {
+      val tableCreationModes = tableCreationMode match {
+        case TableCreationMode.CREATE_TABLE =>
+          TableCreationModes.Create
+        case TableCreationMode.REPLACE_TABLE =>
+          TableCreationModes.Replace
+        case TableCreationMode.CREATE_OR_REPLACE =>
+          TableCreationModes.CreateOrReplace
+      }
+      CreateDeltaTableCommand(
+        table,
+        existingTableOpt,
+        SaveMode.Append,
+        None,
+        operation = tableCreationModes,
+        tableByPath = isPathTable,
+        protocol = None).run(spark)
+      val convertToQbeastId = s"delta.`${loc.toString}`"
+      val qbeastOptions = QbeastOptions(allProperties)
+      val columnsToIndex = qbeastOptions.columnsToIndex
+      val cubeSize = qbeastOptions.cubeSize
+      ConvertToQbeastCommand(convertToQbeastId, columnsToIndex, cubeSize).run(spark)
+
+    }
 
     dataFrame match {
       case Some(df) =>
@@ -256,26 +284,7 @@ object QbeastCatalogUtils {
         val append = tableCreationMode.saveMode == SaveMode.Append
         tableFactory
           .getIndexedTable(QTableID(loc.toString))
-          .save(df, allTableProperties.asScala.toMap, append)
-
-      case None if !deltaTableExists =>
-        // If the table does not exist, we should create the table physically
-        val tablePropertiesMap = allTableProperties.asScala.toMap
-        val qbeastOptions = QbeastOptions(tablePropertiesMap)
-        val columnsToIndex = qbeastOptions.columnsToIndex
-        val cubeSize = qbeastOptions.cubeSize
-
-        // Write an empty DF to Delta
-        val emptyDFWithSchema = spark
-          .createDataFrame(spark.sharedState.sparkContext.emptyRDD[Row], schema)
-        emptyDFWithSchema.write
-          .format("delta")
-          .mode(SaveMode.Overwrite)
-          .options(tablePropertiesMap)
-          .save(tableLocation.toString)
-
-        val convertToQbeastId = s"delta.`${loc.toString}`"
-        ConvertToQbeastCommand(convertToQbeastId, columnsToIndex, cubeSize).run(spark)
+          .save(df, allProperties, append)
 
       case _ =>
       // do nothing: table exists in Location and there's no more data to write.
