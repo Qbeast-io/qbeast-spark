@@ -258,7 +258,7 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
 
       spark.sql(
         s"CREATE TABLE t1(id INT) USING qbeast LOCATION '$tmpDir' " +
-          s"TBLPROPERTIES('k' = 'v', 'columnsToIndex' = 'id')")
+          "TBLPROPERTIES('k' = 'v', 'columnsToIndex' = 'id')")
 
       // Check the delta log info
       val deltaLog = DeltaLog.forTable(spark, tmpDir)

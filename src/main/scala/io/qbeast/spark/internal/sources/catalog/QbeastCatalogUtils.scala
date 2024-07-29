@@ -152,7 +152,28 @@ object QbeastCatalogUtils extends Logging {
     }
   }
 
-  private def createDeltaQbeastTable(
+  /**
+   * Creates the Delta Log with Qbeast Metadata
+   *
+   * WARNING: Right now is made in two steps:
+   *   1. Creates an empty dataframe ans save it in @tableLocation 2. Converts the Delta Table to
+   *      Qbeast Table
+   *
+   * It is executed like that because we do not have access to methods in the
+   * CreateDeltaTableCommand, neither we can delegate the creation to that object Otherwise, the
+   * table would be created in the Catalog, and the whole operation would fail.
+   *
+   * The idea is to do both in the same transaction
+   * @param spark
+   *   the SparkSession
+   * @param schema
+   *   the schema of the table
+   * @param tableLocation
+   *   The location of the table
+   * @param allProperties
+   *   all the properties of the table
+   */
+  private def createDeltaQbeastLog(
       spark: SparkSession,
       schema: StructType,
       tableLocation: Path,
@@ -274,7 +295,7 @@ object QbeastCatalogUtils extends Logging {
     val table = verifySchema(spark, fs, tableLocation, t)
     val deltaTableExists = DeltaLog.forTable(spark, tableLocation).tableExists
     // If the table does not exist, we create it
-    if (!deltaTableExists) createDeltaQbeastTable(spark, schema, tableLocation, allProperties)
+    if (!deltaTableExists) createDeltaQbeastLog(spark, schema, tableLocation, allProperties)
 
     dataFrame match {
       case Some(df) =>
