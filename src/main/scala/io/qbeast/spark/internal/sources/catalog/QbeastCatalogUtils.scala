@@ -294,8 +294,6 @@ object QbeastCatalogUtils extends Logging {
     val fs = tableLocation.getFileSystem(hadoopConf)
     val table = verifySchema(spark, fs, tableLocation, t)
     val deltaTableExists = DeltaLog.forTable(spark, tableLocation).tableExists
-    // If the table does not exist, we create it
-    if (!deltaTableExists) createDeltaQbeastLog(spark, schema, tableLocation, allProperties)
 
     dataFrame match {
       case Some(df) =>
@@ -304,9 +302,11 @@ object QbeastCatalogUtils extends Logging {
         // and update the Catalog
 
         val append = tableCreationMode.saveMode == SaveMode.Append
-        tableFactory
-          .getIndexedTable(QTableID(loc.toString))
-          .save(df, allProperties, append)
+        indexedTable.save(df, allProperties, append)
+
+      case None if !deltaTableExists =>
+        // If the table does not exist, we create the Delta Table
+        createDeltaQbeastLog(spark, schema, tableLocation, allProperties)
 
       case _ =>
       // do nothing: table exists in Location and there's no more data to write.
