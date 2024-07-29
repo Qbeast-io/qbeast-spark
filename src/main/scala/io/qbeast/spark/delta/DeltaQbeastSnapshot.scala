@@ -49,11 +49,12 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
   /**
    * The current table properties of the snapshot.
    *
+   * We filter out the revision, leaving only Revision ID.
+   *
    * @return
    */
   override def loadProperties: mutable.Map[String, String] =
-    snapshot.getProperties.filter(prop =>
-      !(prop._1.startsWith(MetadataConfig.revision) || prop._1.startsWith("delta")))
+    snapshot.getProperties.filter(prop => !prop._1.startsWith(MetadataConfig.revision))
 
   /**
    * The current table description.
