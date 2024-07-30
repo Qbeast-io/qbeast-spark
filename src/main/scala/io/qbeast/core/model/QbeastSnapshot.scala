@@ -18,8 +18,6 @@ package io.qbeast.core.model
 import io.qbeast.IISeq
 import org.apache.spark.sql.Dataset
 
-import scala.collection.mutable
-
 /**
  * A snapshot of the Qbeast table state.
  */

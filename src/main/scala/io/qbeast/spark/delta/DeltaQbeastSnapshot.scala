@@ -25,8 +25,6 @@ import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.Dataset
 
-import scala.collection.mutable
-
 /**
  * Qbeast Snapshot that provides information about the current index state.
  *
