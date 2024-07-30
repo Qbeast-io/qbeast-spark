@@ -45,6 +45,22 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
   private val metadataMap: Map[String, String] = snapshot.metadata.configuration
 
   /**
+   * The current table properties of the snapshot.
+   *
+   * We filter out the revision, leaving only Revision ID.
+   *
+   * @return
+   */
+  override def loadProperties: Map[String, String] =
+    snapshot.getProperties.filterKeys(k => !k.startsWith(MetadataConfig.revision)).toMap
+
+  /**
+   * The current table description.
+   * @return
+   */
+  override def loadDescription: String = snapshot.metadata.description
+
+  /**
    * Constructs revision dictionary
    *
    * @return
@@ -195,4 +211,5 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
    * Loads Staging AddFiles
    */
   def loadStagingFiles(): Dataset[AddFile] = stagingFiles()
+
 }

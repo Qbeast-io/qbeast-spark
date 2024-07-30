@@ -30,6 +30,18 @@ trait QbeastSnapshot {
   def isInitial: Boolean
 
   /**
+   * The current table description.
+   * @return
+   */
+  def loadDescription: String
+
+  /**
+   * The current table properties of the snapshot.
+   * @return
+   */
+  def loadProperties: Map[String, String]
+
+  /**
    * Load methods
    */
 

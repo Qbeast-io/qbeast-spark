@@ -168,7 +168,7 @@ val qbeastDF =
 ```scala
 qbeastDF.sample(0.1).explain(true)
 ```
-Go to the [Quickstart](./docs/Quickstart.md) or [notebook](docs/sampleopushdown_demo.ipynb) for more details.
+Go to the [Quickstart](./docs/Quickstart.md) or [notebook](docs/sample_pushdown_demo.ipynb) for more details.
 
 ### 5. Interact with the format
 
@@ -231,11 +231,11 @@ Check [here](https://docs.delta.io/latest/releases.html) for **Delta Lake** and 
 
 # Contribution Guide
 
-See [Contribution Guide](/CONTRIBUTING.md) for more information. 
+See [Contribution Guide](./CONTRIBUTING.md) for more information. 
 
 # License
-See [LICENSE](/LICENSE).
+See [LICENSE](./LICENSE).
 
 # Code of conduct
 
-See [Code of conduct](/CODE_OF_CONDUCT.md)
+See [Code of conduct](./CODE_OF_CONDUCT.md)
