@@ -53,8 +53,8 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
    *
    * @return
    */
-  override def loadProperties: mutable.Map[String, String] =
-    snapshot.getProperties.filter(prop => !prop._1.startsWith(MetadataConfig.revision))
+  override def loadProperties: Map[String, String] =
+    snapshot.getProperties.filterKeys(k => !k.startsWith(MetadataConfig.revision)).toMap
 
   /**
    * The current table description.

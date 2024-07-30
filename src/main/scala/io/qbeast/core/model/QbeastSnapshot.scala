@@ -41,7 +41,7 @@ trait QbeastSnapshot {
    * The current table properties of the snapshot.
    * @return
    */
-  def loadProperties: mutable.Map[String, String]
+  def loadProperties: Map[String, String]
 
   /**
    * Load methods

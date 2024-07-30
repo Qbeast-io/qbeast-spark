@@ -37,6 +37,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.V2toV1Fallback
 
 import java.util
+import scala.collection.mutable
 import scala.collection.JavaConverters._
 
 /**
@@ -100,7 +101,7 @@ case class QbeastTableImpl(
 
   override def properties(): util.Map[String, String] = {
     val description = initialSnapshot.loadDescription
-    val base = initialSnapshot.loadProperties
+    val base = mutable.Map() ++ initialSnapshot.loadProperties
     options.foreach {
       case (key, value) if !base.contains(key) =>
         base.put(key, value)
