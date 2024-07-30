@@ -1,8 +1,6 @@
 <p align="center">
-	<img src="./docs/images/Qbeast-spark.png" alt="Qbeast spark project"/>
+	<img src="docs/images/Qbeast-spark.png" alt="Qbeast spark project"/>
 </p>
-
-<div align="center">
 
 [![Users Documentation](https://img.shields.io/badge/-Users_Docs-lightgreen?style=for-the-badge&logo=readthedocs)](./docs)
 [![Developers Documentation](https://img.shields.io/badge/_-Developer's_docs_(docs.qbeast.io)-ff7?style=for-the-badge&logo=readthedocs)](https://docs.qbeast.io/)
@@ -42,9 +40,9 @@
 ## Query example with Qbeast
 
 <div>
-<img src="./docs/images/spark_delta_demo.gif" width="49%" alt="Demo for Delta format GIF" />
+<img src="docs/images/spark_delta_demo.gif" width="49%" alt="Demo for Delta format GIF" />
 
-<img src="./docs/images/spark_qbeast_demo.gif" width="49%" alt="Demo for Qbeast format GIF" />
+<img src="docs/images/spark_qbeast_demo.gif" width="49%" alt="Demo for Qbeast format GIF" />
 </div>
 
 As you can see above, the Qbeast Spark extension allows **faster** queries with statistically **accurate** sampling.
