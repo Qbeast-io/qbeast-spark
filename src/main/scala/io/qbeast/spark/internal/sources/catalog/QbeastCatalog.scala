@@ -293,9 +293,11 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
           ifExists = true).run(spark)
 
       // Other cases not handled yet
-      case _ => return getSessionCatalog().alterTable(ident, changes: _*)
+      case _ =>
     }
 
+    // Update session catalog with changes
+    getSessionCatalog().alterTable(ident, changes: _*)
     loadTable(ident)
 
   }
