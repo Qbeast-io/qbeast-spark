@@ -155,15 +155,18 @@ object QbeastCatalogUtils extends Logging {
   /**
    * Creates the Delta Log with Qbeast Metadata
    *
-   * WARNING: Right now is made in two steps:
-   *   1. Creates an empty dataframe ans save it in @tableLocation 2. Converts the Delta Table to
+   * TODO: Right now is made in two steps:
+   *   1. Creates an empty dataframe and save it in @tableLocation 2. Converts the Delta Table to
    *      Qbeast Table
    *
    * It is executed like that because we do not have access to methods in the
    * CreateDeltaTableCommand, neither we can delegate the creation to that object Otherwise, the
    * table would be created in the Catalog, and the whole operation would fail.
    *
-   * The idea is to do both in the same transaction
+   * The idea is to do both in the same transaction.
+   *
+   * SEE ISSUE: https://github.com/Qbeast-io/qbeast-spark/issues/371
+   *
    * @param spark
    *   the SparkSession
    * @param schema
@@ -180,7 +183,7 @@ object QbeastCatalogUtils extends Logging {
       allProperties: Map[String, String]): Unit = {
 
     val location = tableLocation.toString
-    log.info(s"Saving empty delta dataset at $tableLocation")
+    log.info(s"Saving empty delta Dataframe at $tableLocation")
     // Write an empty DF to Delta
     val emptyDFWithSchema = spark
       .createDataFrame(spark.sharedState.sparkContext.emptyRDD[Row], schema)
