@@ -38,11 +38,8 @@
 
 ## Query example with Qbeast
 
-<div>
-<img src="docs/images/spark_delta_demo.gif" width="49%" alt="Demo for Delta format GIF" />
-
-<img src="docs/images/spark_qbeast_demo.gif" width="49%" alt="Demo for Qbeast format GIF" />
-</div>
+![gif1](docs/images/spark_delta_demo.gif)
+![gif2](docs/images/spark_qbeast_demo.gif)
 
 As you can see above, the Qbeast Spark extension allows **faster** queries with statistically **accurate** sampling.
 
