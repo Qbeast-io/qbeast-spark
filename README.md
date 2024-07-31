@@ -1,4 +1,6 @@
+<p align="center">
 ![Qbeast-spark](./docs/images/Qbeast-spark.png)
+</p>
 
 
 [![Users Documentation](https://img.shields.io/badge/-Users_Docs-lightgreen?style=for-the-badge&logo=readthedocs)](./docs)
@@ -38,8 +40,12 @@
 
 ## Query example with Qbeast
 
+<p align="center">
 ![gif1](docs/images/spark_delta_demo.gif)
+</p>
+<p align="center">
 ![gif2](docs/images/spark_qbeast_demo.gif)
+</p>
 
 As you can see above, the Qbeast Spark extension allows **faster** queries with statistically **accurate** sampling.
 
