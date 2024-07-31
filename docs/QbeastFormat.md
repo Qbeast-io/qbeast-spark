@@ -8,7 +8,7 @@ A **transaction log** in Delta Lake holds information about what objects compris
 
 
 <p align="center">
-  <img src="images/delta.png" width="600" height="500" />
+  ![delta.png](./images/delta.png)
 </p>
 
 

@@ -92,7 +92,7 @@ The rest of the page describes the theoretical details about the OTree, includin
 
 
 <p align="center">
-  <img src="./images/proper-cube.png" />
+  ![proper-cube](./images/proper-cube.png)
 </p>
 
 
@@ -113,7 +113,7 @@ The following image depicts the three possible states, and whether a cube is of 
 
 
 <p align="center">
-  <img src="./images/states-and-transitions.png" />
+  ![](./images/states-and-transitions.png)
 </p>
 
 

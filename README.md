@@ -1,5 +1,5 @@
 <p align="center">
-	<img src="docs/images/Qbeast-spark.png" alt="Qbeast spark project"/>
+	![Qbeast-spark](./docs/images/Qbeast-spark.png)
 </p>
 
 [![Users Documentation](https://img.shields.io/badge/-Users_Docs-lightgreen?style=for-the-badge&logo=readthedocs)](./docs)
@@ -21,7 +21,7 @@
 [![delta-core](https://img.shields.io/badge/delta--core-3.1.0-blue)](https://github.com/delta-io/delta/releases/tag/v2.4.0)
 [![codecov](https://codecov.io/gh/Qbeast-io/qbeast-spark/branch/main/graph/badge.svg?token=8WO7HGZ4MW)](https://codecov.io/gh/Qbeast-io/qbeast-spark)
 
-</div>
+---
 
 ## Features
 
@@ -55,7 +55,7 @@ As you can see above, the Qbeast Spark extension allows **faster** queries with 
 In this example, **1% sampling** provides the result **x22 times faster** compared to using Delta format, with an **error of 0,034%**.
 
 ## Documentation
-Explore the [documentation](./docs) for more details:
+Explore the documentation for more details:
 - [Quickstart for Qbeast-Spark](./docs/Quickstart.md)
 - [Data Lakehouse with Qbeast Format](./docs/QbeastFormat.md)
 - [OTree Algorithm](./docs/OTreeAlgorithm.md)
