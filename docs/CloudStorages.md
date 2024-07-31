@@ -5,7 +5,7 @@ In this document you will find recommendations on versions and configurations fo
 Note that some of them may have different requirements of libraries or configurations, so here we provide the ones
 we use and we know they work.
 
-###Hadoop versions
+### Hadoop versions
 We currently support Hadoop 2.7 and 3.2 (recommended), so feel free to use any of them.
 Nevertheless, if you use Hadoop 2.7 you'll need to add some **extra** configurations depending on the provider, which you can find below.
 Note that some versions may not work for a cloud provider, so please read carefully.
