@@ -1,6 +1,5 @@
-<p align="center">
-	![Qbeast-spark](./docs/images/Qbeast-spark.png)
-</p>
+![Qbeast-spark](./docs/images/Qbeast-spark.png)
+
 
 [![Users Documentation](https://img.shields.io/badge/-Users_Docs-lightgreen?style=for-the-badge&logo=readthedocs)](./docs)
 [![Developers Documentation](https://img.shields.io/badge/_-Developer's_docs_(docs.qbeast.io)-ff7?style=for-the-badge&logo=readthedocs)](https://docs.qbeast.io/)

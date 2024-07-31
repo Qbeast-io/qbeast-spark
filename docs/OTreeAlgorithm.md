@@ -91,9 +91,7 @@ The rest of the page describes the theoretical details about the OTree, includin
 - From the **root**, find the proper cube among `cube 0`, `cube 1`, `cube 2`, and `cube 3` for `E` according to its values `(a, b)`. Say that columns `x`, and `y` both have the range [0.0, 1.0], and `(a, b) = (0.1, 0.2)`. In this case, `cube 0` is the cube of choice.
 
 
-<p align="center">
   ![proper-cube](./images/proper-cube.png)
-</p>
 
 
 - Proceed to conduct the WRITE according to the WRITE protocol of the cube:
@@ -112,9 +110,7 @@ The following image depicts the three possible states, and whether a cube is of 
   - whether `analyze()` or `optimize()` is called
 
 
-<p align="center">
   ![](./images/states-and-transitions.png)
-</p>
 
 
 - FLOODED
