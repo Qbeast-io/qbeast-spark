@@ -28,6 +28,7 @@ import io.qbeast.spark.delta.IndexFiles
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.index.RowUtils
 import io.qbeast.spark.internal.QbeastFunctions
+import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.IISeq
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.Job
@@ -69,9 +70,12 @@ object RollupDataWriter
   override def write(
       tableId: QTableID,
       schema: StructType,
+      options: QbeastOptions,
       data: DataFrame,
       tableChanges: TableChanges): IISeq[FileAction] = {
-    val extendedData = extendDataWithCubeToRollup(data, tableChanges)
+    val rollupCubeSize =
+      options.rollupCubeSize.getOrElse(tableChanges.updatedRevision.desiredCubeSize)
+    val extendedData = extendDataWithCubeToRollup(data, tableChanges, rollupCubeSize)
     val revision = tableChanges.updatedRevision
     val getCubeMaxWeight = { cubeId: CubeId =>
       tableChanges.cubeWeight(cubeId).getOrElse(Weight.MaxValue)
@@ -163,17 +167,18 @@ object RollupDataWriter
 
   private def extendDataWithCubeToRollup(
       data: DataFrame,
-      tableChanges: TableChanges): DataFrame = {
-    val rollup = computeRollup(tableChanges)
+      tableChanges: TableChanges,
+      rollupCubeSize: Int): DataFrame = {
+    val rollup = computeRollup(tableChanges, rollupCubeSize)
     data.withColumn(
       QbeastColumns.cubeToRollupColumnName,
       getRollupCubeIdUDF(tableChanges.updatedRevision, rollup)(col(QbeastColumns.cubeColumnName)))
   }
 
-  private def computeRollup(tableChanges: TableChanges): Map[CubeId, CubeId] = {
-    // TODO introduce desiredFileSize in Revision and parameters
-    val desiredFileSize = tableChanges.updatedRevision.desiredCubeSize
-    val rollup = new Rollup(desiredFileSize.toDouble)
+  private def computeRollup(
+      tableChanges: TableChanges,
+      rollupCubeSize: Int): Map[CubeId, CubeId] = {
+    val rollup = new Rollup(rollupCubeSize.toDouble)
     tableChanges.cubeDomains.foreach { case (cubeId, domain) =>
       val minWeight = getMinWeight(tableChanges, cubeId).fraction
       val maxWeight = getMaxWeight(tableChanges, cubeId).fraction
@@ -241,6 +246,7 @@ object RollupDataWriter
   override def compact(
       tableId: QTableID,
       schema: StructType,
+      options: QbeastOptions,
       revision: Revision,
       indexStatus: IndexStatus,
       indexFiles: Dataset[IndexFile]): IISeq[FileAction] = {
@@ -250,9 +256,10 @@ object RollupDataWriter
         indexStatus.cubesStatuses
           .mapValues(_.maxWeight)
           .map(identity))
+    val rollupCubeSize = options.rollupCubeSize.getOrElse(revision.desiredCubeSize)
     var extendedData = extendDataWithWeight(data, revision)
     extendedData = extendDataWithCube(extendedData, revision, cubeMaxWeightsBroadcast.value)
-    extendedData = extendDataWithCubeToRollup(extendedData, revision)
+    extendedData = extendDataWithCubeToRollup(extendedData, revision, rollupCubeSize)
     val getCubeMaxWeight = { cubeId: CubeId =>
       cubeMaxWeightsBroadcast.value.getOrElse(cubeId, Weight.MaxValue)
     }
@@ -328,19 +335,22 @@ object RollupDataWriter
 
   private def extendDataWithCubeToRollup(
       extendedData: DataFrame,
-      revision: Revision): DataFrame = {
+      revision: Revision,
+      rollupCubeSize: Int): DataFrame = {
     val spark = extendedData.sparkSession
-    val rollupBroadcast = spark.sparkContext.broadcast(computeRollup(revision, extendedData))
+    val rollup = computeRollup(revision, extendedData, rollupCubeSize)
+    val rollupBroadcast = spark.sparkContext.broadcast(rollup)
     extendedData.withColumn(
       QbeastColumns.cubeToRollupColumnName,
       getRollupCubeIdUDF(revision, rollupBroadcast.value)(col(QbeastColumns.cubeColumnName)))
   }
 
-  private def computeRollup(revision: Revision, extendedData: DataFrame): Map[CubeId, CubeId] = {
+  private def computeRollup(
+      revision: Revision,
+      extendedData: DataFrame,
+      rollupCubeSize: Int): Map[CubeId, CubeId] = {
     import extendedData.sparkSession.implicits._
-
-    val desiredFileSize = revision.desiredCubeSize
-    val rollup = new Rollup(desiredFileSize)
+    val rollup = new Rollup(rollupCubeSize.toDouble)
     extendedData
       .groupBy(QbeastColumns.cubeColumnName)
       .count()

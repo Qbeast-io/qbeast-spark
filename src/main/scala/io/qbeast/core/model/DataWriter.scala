@@ -15,6 +15,7 @@
  */
 package io.qbeast.core.model
 
+import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.IISeq
 import org.apache.spark.sql.Dataset
 
@@ -35,6 +36,8 @@ trait DataWriter[DATA, DataSchema, FileDescriptor] {
    *   the table identifier
    * @param schema
    *   the schema of the data
+   * @param qbeastOptions
+   *   the qbeast options
    * @param data
    *   the data to write
    * @param tableChanges
@@ -45,6 +48,7 @@ trait DataWriter[DATA, DataSchema, FileDescriptor] {
   def write(
       tableID: QTableID,
       schema: DataSchema,
+      qbeastOptions: QbeastOptions,
       data: DATA,
       tableChanges: TableChanges): IISeq[FileDescriptor]
 
@@ -54,6 +58,8 @@ trait DataWriter[DATA, DataSchema, FileDescriptor] {
    *   the table identifier
    * @param schema
    *   the schema of the data
+   * @param qbeastOptions
+   *   the qbeast options
    * @param revision
    *   the revision of the index
    * @param indexStatus
@@ -66,6 +72,7 @@ trait DataWriter[DATA, DataSchema, FileDescriptor] {
   def compact(
       tableID: QTableID,
       schema: DataSchema,
+      qbeastOptions: QbeastOptions,
       revision: Revision,
       indexStatus: IndexStatus,
       indexFiles: Dataset[IndexFile]): IISeq[FileDescriptor]

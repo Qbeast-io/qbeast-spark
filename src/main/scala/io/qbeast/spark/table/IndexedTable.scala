@@ -465,7 +465,7 @@ private[table] class IndexedTableImpl(
         val schema = dataToWrite.schema
         metadataManager.updateWithTransaction(tableID, schema, options, append) {
           val (qbeastData, tableChanges) = indexManager.index(dataToWrite, indexStatus)
-          val fileActions = dataWriter.write(tableID, schema, qbeastData, tableChanges)
+          val fileActions = dataWriter.write(tableID, schema, options, qbeastData, tableChanges)
           (tableChanges, fileActions ++ removeFiles)
         }
     }
@@ -496,14 +496,11 @@ private[table] class IndexedTableImpl(
         .filter(file => paths.contains(file.path))
       if (!indexFiles.isEmpty) {
         val indexStatus = snapshot.loadIndexStatus(revision.revisionID)
-        metadataManager.updateWithTransaction(
-          tableID,
-          schema,
-          optimizationOptions(options),
-          append = true) {
+        val qbeastOptions = optimizationOptions(options)
+        metadataManager.updateWithTransaction(tableID, schema, qbeastOptions, append = true) {
           val tableChanges = BroadcastedTableChanges(None, indexStatus, Map.empty, Map.empty)
           val fileActions =
-            dataWriter.compact(tableID, schema, revision, indexStatus, indexFiles)
+            dataWriter.compact(tableID, schema, qbeastOptions, revision, indexStatus, indexFiles)
           (tableChanges, fileActions)
         }
       }

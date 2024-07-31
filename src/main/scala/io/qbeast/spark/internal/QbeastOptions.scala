@@ -37,10 +37,10 @@ import scala.util.matching.Regex
  *
  * @param columnsToIndex
  *   A sequence of column names to index.
- * @param columnsToIndexDecoded
- *   A sequence of ColumnToIndex objects representing the columns to index.
  * @param cubeSize
  *   The number of desired elements per cube.
+ * @param rollupCubeSize
+ *   The minimum number of elements to have before merging a cube with its parent.
  * @param stats
  *   Optional DataFrame containing statistics for the indexing columns.
  * @param txnAppId
@@ -59,6 +59,7 @@ import scala.util.matching.Regex
 case class QbeastOptions(
     columnsToIndex: Seq[String],
     cubeSize: Int,
+    rollupCubeSize: Option[Int],
     stats: Option[DataFrame],
     txnAppId: Option[String],
     txnVersion: Option[String],
@@ -107,6 +108,7 @@ case class QbeastOptions(
 object QbeastOptions {
   val COLUMNS_TO_INDEX: String = "columnsToIndex"
   val CUBE_SIZE: String = "cubeSize"
+  val ROLLUP_CUBE_SIZE: String = "rollupCubeSize"
   val PATH: String = "path"
   val STATS: String = "columnStats"
   val TXN_APP_ID: String = DeltaOptions.TXN_APP_ID
@@ -142,6 +144,13 @@ object QbeastOptions {
     options.get(CUBE_SIZE) match {
       case Some(value) => value.toInt
       case None => DEFAULT_CUBE_SIZE
+    }
+  }
+
+  private def getRollupCubeSize(options: Map[String, String]): Option[Int] = {
+    options.get(ROLLUP_CUBE_SIZE) match {
+      case Some(value) => Some(value.toInt)
+      case None => None
     }
   }
 
@@ -222,6 +231,7 @@ object QbeastOptions {
   def apply(options: CaseInsensitiveMap[String]): QbeastOptions = {
     val columnsToIndex = getColumnsToIndex(options)
     val desiredCubeSize = getDesiredCubeSize(options)
+    val rollupCubeSize = getRollupCubeSize(options)
     val stats = getStats(options)
     val txnAppId = getTxnAppId(options)
     val txnVersion = getTxnVersion(options)
@@ -233,6 +243,7 @@ object QbeastOptions {
     QbeastOptions(
       columnsToIndex,
       desiredCubeSize,
+      rollupCubeSize,
       stats,
       txnAppId,
       txnVersion,
@@ -261,14 +272,25 @@ object QbeastOptions {
     val caseInsensitiveMap = CaseInsensitiveMap(options)
     val userMetadata = getUserMetadata(caseInsensitiveMap)
     val hookInfo = getHookInfo(caseInsensitiveMap)
-    QbeastOptions(Seq.empty, 0, None, None, None, userMetadata, None, None, hookInfo)
+    val rollupCubeSize = getRollupCubeSize(caseInsensitiveMap)
+    QbeastOptions(
+      Seq.empty,
+      0,
+      rollupCubeSize,
+      None,
+      None,
+      None,
+      userMetadata,
+      None,
+      None,
+      hookInfo)
   }
 
   /**
    * The empty options to be used as a placeholder.
    */
   lazy val empty: QbeastOptions =
-    QbeastOptions(Seq.empty, DEFAULT_CUBE_SIZE, None, None, None, None, None, None)
+    QbeastOptions(Seq.empty, DEFAULT_CUBE_SIZE, None, None, None, None, None, None, None)
 
   def loadTableIDFromParameters(parameters: Map[String, String]): QTableID = {
     new QTableID(
