@@ -55,16 +55,16 @@ As you can see above, the Qbeast Spark extension allows **faster** queries with 
 In this example, **1% sampling** provides the result **x22 times faster** compared to using Delta format, with an **error of 0,034%**.
 
 ## Documentation
-Explore the [documentation](https://github.com/Qbeast-io/qbeast-spark/tree/main/docs) for more details:
-- [Quickstart for Qbeast-Spark](https://github.com/Qbeast-io/qbeast-spark/blob/main/docs/Quickstart.md)
-- [Data Lakehouse with Qbeast Format](https://github.com/Qbeast-io/qbeast-spark/blob/main/docs/QbeastFormat.md)
-- [OTree Algorithm](https://github.com/Qbeast-io/qbeast-spark/blob/main/docs/OTreeAlgorithm.md)
-- [QbeastTable](https://github.com/Qbeast-io/qbeast-spark/blob/main/docs/QbeastTable.md)
-- [Columns To Index Selector](https://github.com/Qbeast-io/qbeast-spark/blob/main/docs/ColumnsToIndexSelector.md)
-- [Recommendations for different Cloud Storage systems](https://github.com/Qbeast-io/qbeast-spark/blob/main/docs/CloudStorages.md)
-- [Advanced configurations](https://github.com/Qbeast-io/qbeast-spark/blob/main/docs/AdvancedConfiguration.md)
-- [QbeastFormat 0.6.0](https://github.com/Qbeast-io/qbeast-spark/blob/main/docs/QbeastFormat0.6.0.md)
-- [FAQ: Frequently Asked Questions](https://github.com/Qbeast-io/qbeast-spark/blob/main/docs/FAQ.md)
+Explore the [documentation](./docs) for more details:
+- [Quickstart for Qbeast-Spark](./docs/Quickstart.md)
+- [Data Lakehouse with Qbeast Format](./docs/QbeastFormat.md)
+- [OTree Algorithm](./docs/OTreeAlgorithm.md)
+- [QbeastTable](./docs/QbeastTable.md)
+- [Columns To Index Selector](./docs/ColumnsToIndexSelector.md)
+- [Recommendations for different Cloud Storage systems](./docs/CloudStorages.md)
+- [Advanced configurations](./docs/AdvancedConfiguration.md)
+- [QbeastFormat 0.6.0](./docs/QbeastFormat0.6.0.md)
+- [FAQ: Frequently Asked Questions](./docs/FAQ.md)
 
 # Quickstart
 You can run the qbeast-spark application locally on your computer, or using a Docker image we already prepared with the dependencies.
