@@ -109,8 +109,9 @@ The following image depicts the three possible states, and whether a cube is of 
   - the state of its ancestors
   - whether `analyze()` or `optimize()` is called
 
-
-  ![](./images/states-and-transitions.png)
+<p align="center">
+![states](./images/states-and-transitions.png)
+</p>
 
 
 - FLOODED
