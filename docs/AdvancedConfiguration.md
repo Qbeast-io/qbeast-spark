@@ -238,15 +238,6 @@ You can change the number of retries for the LocalKeeper in order to test it.
 --conf spark.qbeast.index.numberOfRetries=10000
 ```
 
-## Min/Max file size for compaction
-
-You can set the minimum and maximum size of your files for the compaction process.
-
-```shell
---conf spark.qbeast.compact.minFileSizeInBytes=1 \
---conf spark.qbeast.compact.maxFileSizeInBytes=10000
-```
-
 ## Data Staging
 You can set up the `SparkSession` with a **data staging area** for all your Qbeast table writes.
 
