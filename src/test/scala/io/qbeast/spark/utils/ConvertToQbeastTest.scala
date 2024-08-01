@@ -242,14 +242,14 @@ class ConvertToQbeastTest
       assertLargeDatasetEquality(qbeastDf, sourceDf, orderedComparison = false)
     })
 
-  "Compacting the staging revision" should "reduce the number of delta AddFiles" in
+  "Optimizing the staging revision" should "reduce the number of delta AddFiles" in
     withSparkAndTmpDir((spark, tmpDir) => {
       val fileFormat = "delta"
       convertFromFormat(spark, fileFormat, tmpDir)
 
       // Perform compaction
       val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-      qbeastTable.compact()
+      qbeastTable.optimize()
 
       // Compare DataFrames
       val sourceDf = spark.read.format(fileFormat).load(tmpDir)
