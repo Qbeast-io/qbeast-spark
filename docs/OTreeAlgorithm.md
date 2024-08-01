@@ -90,11 +90,9 @@ The rest of the page describes the theoretical details about the OTree, includin
 
 - From the **root**, find the proper cube among `cube 0`, `cube 1`, `cube 2`, and `cube 3` for `E` according to its values `(a, b)`. Say that columns `x`, and `y` both have the range [0.0, 1.0], and `(a, b) = (0.1, 0.2)`. In this case, `cube 0` is the cube of choice.
 
-
 <p align="center">
-  <img src="./images/proper-cube.png" />
+	<img src="https://raw.githubusercontent.com/Qbeast-io/qbeast-spark/main/docs/images/proper-cube.png" alt="proper cube"/>
 </p>
-
 
 - Proceed to conduct the WRITE according to the WRITE protocol of the cube:
     - `maxWeight > w`: write `E` according to the WRITE protocol of the cube dictated by its state. The `maxWeight` defines the fraction of the dataset contained in the cube. Writing a new element to a full cube entails pushing the `maxElement` to the offset and update the `maxWeight`.
@@ -111,9 +109,8 @@ The following image depicts the three possible states, and whether a cube is of 
   - the state of its ancestors
   - whether `analyze()` or `optimize()` is called
 
-
 <p align="center">
-  <img src="./images/states-and-transitions.png" />
+	<img src="https://raw.githubusercontent.com/Qbeast-io/qbeast-spark/main/docs/images/states-and-transitions.png" alt="states"/>
 </p>
 
 
