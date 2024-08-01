@@ -6,9 +6,9 @@ To address many issues with a two-tier **data lake + warehouse** architecture, o
 
 A **transaction log** in Delta Lake holds information about what objects comprise a table and is stored in the same object store and named as `_delta_log/`. Actions such as `Add` and `Remove` are stored in `JSON` or `parquet` files in chronological order and are consulted before any I/O operation to **reconstruct the latest state of the table**. The actual data objects are stored in `parquet` format.
 
-
-  ![delta.png](./images/delta.png)
-
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Qbeast-io/qbeast-spark/main/docs/images/delta.png" width="600" height="500" />
+</p>
 
 Following each write transaction is the creation of a new log file. **Table-level transaction atomicity** is achieved by following the `put-if-absent` protocol for log file naming - only one client can create a log file with a particular name when attempted by multiple users. Each action record in the log has a field `modificationTime` as **timestamp**, which forms the basis for `snapshot isolation` for read transactions. Check [here](https://github.com/delta-io/delta/blob/master/PROTOCOL.md) for more details about Delta Lake logs.
 
