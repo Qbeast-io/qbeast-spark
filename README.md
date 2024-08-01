@@ -17,6 +17,8 @@
 
 </div>
 
+---
+
 **Qbeast Spark** is an Apache Spark extension that enhances data processing in [**Data Lakehouses**](http://cidrdb.org/cidr2021/papers/cidr2021_paper17.pdf). It provides advanced **multi-dimensional filtering** and **efficient data sampling**, enabling faster and more accurate queries. The extension also maintains ACID properties for data integrity and reliability, making it ideal for handling large-scale data efficiently.
 
 [![apache-spark](https://img.shields.io/badge/apache--spark-3.5.x-blue)](https://spark.apache.org/releases/spark-release-3-5-0.html) 
@@ -24,7 +26,6 @@
 [![delta-core](https://img.shields.io/badge/delta--core-3.1.0-blue)](https://github.com/delta-io/delta/releases/tag/v2.4.0)
 [![codecov](https://codecov.io/gh/Qbeast-io/qbeast-spark/branch/main/graph/badge.svg?token=8WO7HGZ4MW)](https://codecov.io/gh/Qbeast-io/qbeast-spark)
 
----
 
 ## Features
 
