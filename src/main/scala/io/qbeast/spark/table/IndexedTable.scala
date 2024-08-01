@@ -498,7 +498,7 @@ private[table] class IndexedTableImpl(
           append = true) {
           val tableChanges = BroadcastedTableChanges(None, indexStatus, Map.empty, Map.empty)
           val fileActions =
-            dataWriter.compact(tableID, schema, revision, indexStatus, indexFiles)
+            dataWriter.optimize(tableID, schema, revision, indexStatus, indexFiles)
           (tableChanges, fileActions)
         }
       }

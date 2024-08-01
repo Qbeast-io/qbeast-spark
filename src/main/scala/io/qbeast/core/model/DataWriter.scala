@@ -63,7 +63,7 @@ trait DataWriter[DATA, DataSchema, FileDescriptor] {
    * @return
    *   the sequence of files written and deleted
    */
-  def compact(
+  def optimize(
       tableID: QTableID,
       schema: DataSchema,
       revision: Revision,
