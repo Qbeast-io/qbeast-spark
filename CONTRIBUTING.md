@@ -2,6 +2,24 @@
 
 Welcome to the Qbeast community! Nice to meet you :)
 
+Here's a summary of what you can find in this page:
+
+- [Introduction](#introduction)
+- [Version control branching](#version-control-branching)
+- [PRs and Issues](#prs-and-issues)
+- [Style and formatting](#style-and-formatting)
+- [Logging Documentation](#logging-documentation)
+- [Developing and contributing](#developing-and-contributing)
+  - [Development set up](#development-set-up)
+  - [Developer documentation](#developer-documentation)
+  - [Steps to contribute](#steps-to-contribute)
+- [Publishing Guide](#publishing-guide)
+- [Versioning](#versioning)
+- [Licensing of contributed material](#licensing-of-contributed-material)
+- [Community Values](#community-values)
+
+# Introduction
+
 Either you want to know more about our guidelines or open a Pull Request, this is your page. We are pleased to help you through the different steps for contributing to our (your) project.
 
 To find Qbeast issues that make good entry points:
@@ -10,17 +28,22 @@ To find Qbeast issues that make good entry points:
 
 - For issues that require deeper knowledge of one or more technical aspects, look at issues labelled [![help wanted label](https://img.shields.io/github/labels/Qbeast-io/qbeast-spark/help%20wanted)](https://github.com/Qbeast-io/qbeast-spark/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22).
 
-## Developer documentation
-You can find the developer documentation (Scala docs) in the [https://docs.qbeast.io/](https://docs.qbeast.io/).
-
-## Licensing of contributed material
-All contributed code, docs, and other materials are considered licensed under the same terms as the rest of the project. Check [LICENSE](./LICENCE) for more details.
-
 ## Version control branching
 - Always make a new branch for your work, no matter how small
 - Don´t submit unrelated changes to the same branch/pull request
 - Base your new branch off of the appropriate branch on the main repository
 - New features should branch off of the `main` branch
+
+## PRs and Issues
+
+To open and merge PRs, the following is to be respected:
+
+1. **Always open an issue for the PR you're working** with as much detail as possible.
+2. Every PR should have an issue that it is trying to address, ideally one.
+3. The **title of the PR** should follow the schema: Issue <issue-number>: <PR-title>
+4. Ideally, there should be **at least two reviewers per PR**
+5. The author of the PR never gets to merge the PR; **a PR can only be merged by a reviewer**.
+6. Do a **Squash and Merge instead of merge**, again, by a reviewer.
 
 ## Style and formatting
 - We follow [Scalastyle](http://www.scalastyle.org) for coding style in Scala. It runs at compile time, but you can check it manually with: 
@@ -128,40 +151,7 @@ The following log levels are used to track code behaviour:
 
 > We should enforce **all the Pull Request**, specially those containing critical code, **to have logging messages** that are meaningful and informative.
 
-## Step-by-step guide
-  #### 1 - Click `Fork` on Github, and name it as `yourname/projectname`
-
-  #### 2 - Clone the project: `git clone git@github.com:yourname/projectname`
-
-  #### 3 - Create a branch: `git checkout -b your-branch-name`
-
-  #### 4 - Open the project with your IDE, and install extensions for Scala and sbt
-
-  #### 5 - Make your changes
-
-  #### 6 - Write, run, and pass tests:  
-**Note**: You can run tests for different Spark and Hadoop versions specifying them with `-Dspark.version` and `-Dhadoop.version`.
-  Find an example in the _Setting Up_ section of [README.md](README.md)
-  - For all tests:
-    
-  ```bash
-  sbt test
-  ```
-    
-  - To run a particular test only:
-  
-  ```bash
-  sbt "testOnly io.qbeast.spark.index.writer.BlockWriterTest"
-  ```
-
-  #### 7 - Commit your changes: `git commit -m "mychanges"`
-
-  #### 8 - Push your commit to get it back up to your fork: `git push origin HEAD`
-
-  #### 9 - Go to Github and open a [![pull request](https://img.shields.io/badge/-pull--request-yellow)](https://github.com/Qbeast-io/qbeast-spark/compare) against the `main` branch of qbeast-spark. 
-Identify the committers and contributors who have worked on the code being changed, and ask for their review :+1: 
-
-  #### 10 - Wait for the maintainers to get back to you as soon as they can!
+# Developing and contributing
 
 ## Development set up
 
@@ -223,6 +213,102 @@ sbt publishM2
 
 <br/>
 
+## Developer documentation
+You can find the developer documentation (Scala docs) in the [https://docs.qbeast.io/](https://docs.qbeast.io/).
+
+## Steps to contribute
+#### 1 - Click `Fork` on Github, and name it as `yourname/projectname`
+
+#### 2 - Clone the project: `git clone git@github.com:yourname/projectname`
+
+#### 3 - Create a branch: `git checkout -b your-branch-name`
+
+#### 4 - Open the project with your IDE, and install extensions for Scala and sbt
+
+#### 5 - Make your changes
+
+#### 6 - Write, run, and pass tests:
+**Note**: You can run tests for different Spark and Hadoop versions specifying them with `-Dspark.version` and `-Dhadoop.version`.
+Find an example in the _Setting Up_ section of [README.md](README.md)
+- For all tests:
+
+  ```bash
+  sbt test
+  ```
+
+- To run a particular test only:
+
+  ```bash
+  sbt "testOnly io.qbeast.spark.index.writer.BlockWriterTest"
+  ```
+
+#### 7 - Commit your changes: `git commit -m "mychanges"`
+
+#### 8 - Push your commit to get it back up to your fork: `git push origin HEAD`
+
+#### 9 - Go to Github and open a [![pull request](https://img.shields.io/badge/-pull--request-yellow)](https://github.com/Qbeast-io/qbeast-spark/compare) against the `main` branch of qbeast-spark.
+Identify the committers and contributors who have worked on the code being changed, and ask for their review :+1:
+
+#### 10 - Wait for the maintainers to get back to you as soon as they can!
+
+# Publishing Guide
+
+To publish a new version of the qbeast-spark project, follow these steps:
+
+1. Update the version in the `build.sbt` file. 
+  ```scala
+  version := "0.6.0"
+  ```
+2. Check that all tests passed. 
+  ```bash
+  sbt test
+  ```
+3. Package the code with `sbt package` and run the code in the `README` for a quick test on spark-shell. 
+  ```bash
+  sbt package
+  ```
+4. Publish a `SNAPSHOT`.
+   - Change the version in the `build.sbt` file.
+     ```scala
+     version := "0.6.0-SNAPSHOT"
+     ```
+   - Publish the `SNAPSHOT` with the following command:
+     ```bash
+     sbt publishSigned
+     ```
+
+5. Try the same `README` code downloading the `SNAPSHOT` with `--packages` and `--repositories` configuration. If necessary, test it in different Cloud Provider environments.
+```bash
+export QBEAST_SPARK_VERSION=0.6.1-SNAPSHOT
+$SPARK_350/bin/spark-shell --repositories https://s01.oss.sonatype.org/content/repositories/snapshots \
+--packages io.delta:delta-spark_2.12:3.1.0,io.qbeast:qbeast-spark_2.12:$QBEAST_SPARK_VERSION \
+--conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
+--conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
+
+```
+6. If everything is ok, change the `build.sbt` with the corresponding version and publish the RC.
+  ```scala
+  version := "0.6.0-rc1"
+  ```
+  ```bash
+  sbt clean
+  # Separate commands for publishing
+  sbt publishSigned
+  sbt sonatypePrepare
+  sbt sonatypeBundleUpload
+  sbt sonatypeRelease
+  ```
+Or use one single command:
+  ```bash
+  sbt clean
+  sbt sonatypeBundleRelease
+  ```
+7. Tag the code and push it to Github to make it public.
+  ```bash
+  git tag -a v0.6.0-rc1 -m "Release Candidate 1"
+  ```
+
+Read all about **How to Publish an SBT Project into Maven Central** [here](https://qbeast.io/publish-your-sbt-project-to-the-central-repository/).
 # Versioning
 
 Here are some rules on versioning the qbeast-spark project that must be applied before a new version is released.
@@ -244,6 +330,10 @@ Snapshots can be made available for internal and test purposes.
 In this case the versioning to be applied is: `<new-version-number>-<short-commit-sha>-SNAPSHOT`
 
 Example: `0.6.2-badfbadf-SNAPSHOT`
+
+
+# Licensing of contributed material
+All contributed code, docs, and other materials are considered licensed under the same terms as the rest of the project. Check [LICENSE](./LICENCE) for more details.
 
 
 # Community Values
@@ -281,9 +371,6 @@ Individuals achieve status by their efforts, and businesses gain status via thei
 ## Distributing is Caring
 
 The scale of the Qbeast Spark project can only be achieved through highly reliable and highly visible assignments, including authorization, decision-making, technical design, code ownership, and documentation. Our global community is built on distributed asynchronous ownership, cooperation, communication, and decision-making.
-
-
-
 
 
 As Pablo Picasso once said:
