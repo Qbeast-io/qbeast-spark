@@ -125,22 +125,6 @@ qbeastTable.analyze()
 qbeastTable.optimize()
 ```
 
-## Compaction
-
-Based on [Delta Lake command](https://docs.delta.io/2.0.0/optimizations-oss.html#compaction-bin-packing), files can be arranged (compacted) into single, bigger ones in order to **avoid performance problems for reading a lot of small files**. 
-
-This operation is **beneficial when we have a lot of WRITE** operation into a table, because each one will create a set of new added files depending on the size of the data. You can set up a **Compaction** task to read those small files and write them out into new, bigger ones, without corrupting any on-going operation.
-
-```scala
-import io.qbeast.spark.QbeastTable
-
-val qbeastTable = QbeastTable.forPath(spark, qbeastTablePath)
-
-// compacts the small files into bigger ones
-qbeastTable.compact()
-```
-See [OTreeAlgorithm](OTreeAlgorithm.md) and [QbeastFormat](QbeastFormat.md) for more details.
-
 # Other DML Operations
 
 DML is a Data Manipulation Language that is used to manipulate data itself. For example: insert, update, and delete are instructions in SQL.

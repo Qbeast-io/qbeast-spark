@@ -23,7 +23,6 @@ import io.qbeast.core.model.RevisionID
 import io.qbeast.core.model.StagingUtils
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.commands.AnalyzeTableCommand
-import io.qbeast.spark.internal.commands.CompactTableCommand
 import io.qbeast.spark.internal.commands.OptimizeTableCommand
 import io.qbeast.spark.table._
 import io.qbeast.spark.utils.IndexMetrics
@@ -83,10 +82,16 @@ class QbeastTable private (
     }
   }
 
-  def optimize(options: Map[String, String] = Map.empty): Unit = {
-    if (!isStaging(latestRevisionAvailableID)) {
-      optimize(latestRevisionAvailableID, options)
-    }
+  def optimize(revisionID: RevisionID): Unit = {
+    optimize(revisionID, Map.empty[String, String])
+  }
+
+  def optimize(options: Map[String, String]): Unit = {
+    optimize(latestRevisionAvailableID, options)
+  }
+
+  def optimize(): Unit = {
+    optimize(Map.empty[String, String])
   }
 
   /**
@@ -98,6 +103,9 @@ class QbeastTable private (
    */
   def optimize(files: Seq[String], options: Map[String, String]): Unit =
     indexedTable.optimize(files, options)
+
+  def optimize(files: Seq[String]): Unit =
+    optimize(files, Map.empty[String, String])
 
   /**
    * The analyze operation should analyze the index structure and find the cubes that need
@@ -121,23 +129,6 @@ class QbeastTable private (
   def analyze(): Seq[String] = {
     if (isStaging(latestRevisionAvailableID)) Seq.empty
     else analyze(latestRevisionAvailableID)
-  }
-
-  /**
-   * The compact operation should compact the small files in the table
-   * @param revisionID
-   *   the identifier of the revision to optimize. If doesn't exist or none is specified, would be
-   *   the last available
-   */
-  def compact(revisionID: RevisionID, options: Map[String, String]): Unit = {
-    checkRevisionAvailable(revisionID)
-    CompactTableCommand(revisionID, indexedTable, options)
-      .run(sparkSession)
-      .map(_.getString(0))
-  }
-
-  def compact(options: Map[String, String] = Map.empty): Unit = {
-    compact(latestRevisionAvailableID, options)
   }
 
   /**
