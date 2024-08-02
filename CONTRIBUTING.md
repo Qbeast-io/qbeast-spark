@@ -40,7 +40,7 @@ To open and merge PRs, the following is to be respected:
 
 1. **Always open an issue for the PR you're working** with as much detail as possible.
 2. Every PR should have an issue that it is trying to address, ideally one.
-3. The **title of the PR** should follow the schema: Issue <issue-number>: <PR-title>
+3. The **title of the PR** should follow the schema: Issue &lt;issue-number&gt;: &lt;PR-title&gt;
 4. Ideally, there should be **at least two reviewers per PR**
 5. The author of the PR never gets to merge the PR; **a PR can only be merged by a reviewer**.
 6. Do a **Squash and Merge instead of merge**, again, by a reviewer.
