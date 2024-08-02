@@ -82,10 +82,12 @@ class QbeastTable private (
     }
   }
 
-  def optimize(options: Map[String, String] = Map.empty): Unit = {
-    if (!isStaging(latestRevisionAvailableID)) {
-      optimize(latestRevisionAvailableID, options)
-    }
+  def optimize(options: Map[String, String]): Unit = {
+    optimize(latestRevisionAvailableID, options)
+  }
+
+  def optimize(): Unit = {
+    optimize(Map.empty[String, String])
   }
 
   /**
