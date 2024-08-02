@@ -20,12 +20,14 @@ import io.qbeast.core.model.IndexStatus
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.Revision
 import io.qbeast.core.transform.EmptyTransformer
+import io.qbeast.spark.delta.IndexFiles
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
+import org.apache.spark.sql.delta.actions.AddFile
 import org.scalatest.PrivateMethodTester
 
 import scala.reflect.io.Path
@@ -49,14 +51,15 @@ class RollupDataWriterTest extends QbeastIntegrationTestSpec with PrivateMethodT
         .toDF()
 
       val tableID = QTableID(tmpDir)
-      val parameters: Map[String, String] =
-        Map("columnsToIndex" -> "age,val2", "cubeSize" -> cubeSize.toString)
+      val options =
+        QbeastOptions(Map("columnsToIndex" -> "age,val2", "cubeSize" -> cubeSize.toString))
       val revision =
-        SparkRevisionFactory.createNewRevision(tableID, df.schema, QbeastOptions(parameters))
+        SparkRevisionFactory.createNewRevision(tableID, df.schema, options)
       val indexStatus = IndexStatus(revision)
       val (qbeastData, tableChanges) = SparkOTreeManager.index(df, indexStatus)
 
-      val fileActions = RollupDataWriter.write(tableID, df.schema, qbeastData, tableChanges)
+      val fileActions =
+        RollupDataWriter.write(tableID, df.schema, options, qbeastData, tableChanges)
 
       for (fa <- fileActions) {
         Path(tmpDir + "/" + fa.path).exists shouldBe true
@@ -64,13 +67,85 @@ class RollupDataWriterTest extends QbeastIntegrationTestSpec with PrivateMethodT
       }
     }
 
+  it should "deactivate rollup when using a small rollupSize" in withSparkAndTmpDir {
+    (spark, tmpDir) =>
+      val cubeSize = 1000
+      val size = 10000
+      import spark.implicits._
+      val df = spark
+        .range(size)
+        .map(i =>
+          Client4(
+            i * i,
+            s"student-$i",
+            Some(i.toInt),
+            Some(i * 1000 + 123),
+            Some(i * 2567.3432143)))
+        .toDF()
+
+      val tableID = QTableID(tmpDir)
+      val options =
+        QbeastOptions(
+          Map(
+            "columnsToIndex" -> "age,val2",
+            "cubeSize" -> cubeSize.toString,
+            "rollupSize" -> "0"))
+      val revision =
+        SparkRevisionFactory.createNewRevision(tableID, df.schema, options)
+      val indexStatus = IndexStatus(revision)
+      val (qbeastData, tableChanges) = SparkOTreeManager.index(df, indexStatus)
+      val fileActions =
+        RollupDataWriter.write(tableID, df.schema, options, qbeastData, tableChanges)
+
+      val indexFiles = fileActions
+        .collect { case a: AddFile => a }
+        .map(IndexFiles.fromAddFile(2))
+
+      indexFiles.foreach(f => f.blocks.size shouldBe 1)
+  }
+
+  it should "group all blocks into one file when rollupSize is >= df.count" in withSparkAndTmpDir {
+    (spark, tmpDir) =>
+      val cubeSize = 1000
+      val size = 10000
+      import spark.implicits._
+      val df = spark
+        .range(size)
+        .map(i =>
+          Client4(
+            i * i,
+            s"student-$i",
+            Some(i.toInt),
+            Some(i * 1000 + 123),
+            Some(i * 2567.3432143)))
+        .toDF()
+
+      val tableID = QTableID(tmpDir)
+      val options =
+        QbeastOptions(
+          Map(
+            "columnsToIndex" -> "age,val2",
+            "cubeSize" -> cubeSize.toString,
+            "rollupSize" -> size.toString))
+      val revision =
+        SparkRevisionFactory.createNewRevision(tableID, df.schema, options)
+      val indexStatus = IndexStatus(revision)
+      val (qbeastData, tableChanges) = SparkOTreeManager.index(df, indexStatus)
+      val fileActions =
+        RollupDataWriter.write(tableID, df.schema, options, qbeastData, tableChanges)
+
+      val addFiles = fileActions.collect { case a: AddFile => a }
+      addFiles.size shouldBe 1
+  }
+
   it should "compute rollup correctly when optimizing" in
     withSparkAndTmpDir { (spark, tmpDir) =>
       import spark.implicits._
 
       val computeRollup = PrivateMethod[Map[CubeId, CubeId]]('computeRollup)
+      val dcs = 20
       val revision =
-        Revision(1L, 0, QTableID(tmpDir), 20, Vector(EmptyTransformer("col_1")), Vector.empty)
+        Revision(1L, 0, QTableID(tmpDir), dcs, Vector(EmptyTransformer("col_1")), Vector.empty)
 
       val root = revision.createCubeIdRoot()
       val c1 = root.children.next()
@@ -80,7 +155,7 @@ class RollupDataWriterTest extends QbeastIntegrationTestSpec with PrivateMethodT
         (1 to 1).map(_ => ("c1", c1.bytes)),
         (1 to 20).map(_ => ("c2", c2.bytes))).flatten.toDF("id", QbeastColumns.cubeColumnName)
 
-      val rollup = RollupDataWriter invokePrivate computeRollup(revision, extendedData)
+      val rollup = RollupDataWriter invokePrivate computeRollup(revision, extendedData, dcs)
       rollup shouldBe Map(root -> root, c1 -> root, c2 -> c2)
     }
 
