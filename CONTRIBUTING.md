@@ -44,6 +44,7 @@ To open and merge PRs, the following is to be respected:
 4. Ideally, there should be **at least two reviewers per PR**
 5. The author of the PR never gets to merge the PR; **a PR can only be merged by a reviewer**.
 6. Do a **Squash and Merge instead of merge**, again, by a reviewer.
+7. Make sure the commit messages in the Squash Merge are clear and concise and reflect all major changes introduced by the PR.
 
 ## Style and formatting
 - We follow [Scalastyle](http://www.scalastyle.org) for coding style in Scala. It runs at compile time, but you can check it manually with: 
