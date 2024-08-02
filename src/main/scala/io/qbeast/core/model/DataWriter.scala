@@ -53,7 +53,7 @@ trait DataWriter[DATA, DataSchema, FileDescriptor] {
       tableChanges: TableChanges): IISeq[FileDescriptor]
 
   /**
-   * Compact the files
+   * Optimize the files
    * @param tableID
    *   the table identifier
    * @param schema
@@ -69,7 +69,7 @@ trait DataWriter[DATA, DataSchema, FileDescriptor] {
    * @return
    *   the sequence of files written and deleted
    */
-  def compact(
+  def optimize(
       tableID: QTableID,
       schema: DataSchema,
       qbeastOptions: QbeastOptions,

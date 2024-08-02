@@ -90,30 +90,6 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
       stagingIndexStatus.replicatedOrAnnouncedSet.isEmpty shouldBe true
     })
 
-  it should "correctly compact the staging revision" in withSparkAndTmpDir((spark, tmpDir) => {
-    writeHybridTable(spark, tmpDir)
-
-    // Number of delta files before compaction
-    val deltaLog = DeltaLog.forTable(spark, tmpDir)
-    val qsBefore = DeltaQbeastSnapshot(deltaLog.update())
-    val numFilesBefore = qsBefore.loadIndexFiles(stagingID).count()
-
-    // Perform compaction
-    val table = QbeastTable.forPath(spark, tmpDir)
-    table.compact(stagingID, Map.empty[String, String])
-
-    // Number of delta files after compaction
-    val qsAfter = DeltaQbeastSnapshot(deltaLog.update())
-    val numFilesAfter = qsAfter.loadIndexFiles(stagingID).count()
-
-    numFilesAfter shouldBe <(numFilesBefore)
-
-    val deltaDf = spark.read.format("delta").load(tmpDir)
-    val qbeastDf = spark.read.format("qbeast").load(tmpDir)
-
-    assertLargeDatasetEquality(qbeastDf, deltaDf)
-  })
-
   it should "sample correctly" in withSparkAndTmpDir((spark, tmpDir) => {
     writeHybridTable(spark, tmpDir)
     val qdf = spark.read.format("qbeast").load(tmpDir)

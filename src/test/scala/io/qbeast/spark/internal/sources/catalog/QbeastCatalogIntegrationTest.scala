@@ -313,4 +313,23 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
       updatedShowProperties should not contain key("k")
     })
 
+  it should "persist ALL original properties of table" in withQbeastContextSparkAndTmpWarehouse(
+    (spark, tmpDir) => {
+
+      spark.sql(
+        s"CREATE TABLE t1(id INT) USING qbeast LOCATION '$tmpDir' " +
+          "TBLPROPERTIES('k' = 'v', 'columnsToIndex' = 'id')")
+
+      // Check the delta log info
+      val deltaLog = DeltaLog.forTable(spark, tmpDir)
+      val snapshot = deltaLog.update()
+      val properties = snapshot.getProperties
+
+      properties should contain key "columnsToIndex"
+      properties should contain key "k"
+      properties("columnsToIndex") shouldBe "id"
+      properties("k") shouldBe "v"
+
+    })
+
 }

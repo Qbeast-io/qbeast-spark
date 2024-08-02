@@ -56,12 +56,8 @@ trait IndexedTable {
   def hasQbeastMetadata: Boolean
 
   /**
-   * Adds the indexed columns to the parameter if:
-   *   - ColumnsToIndex is NOT present
-   *   - AutoIndexing is enabled
-   *   - Data is available
-   * @param parameters
-   * @param data
+   * Adds the indexed columns to the parameter if: ColumnsToIndex is NOT present, AutoIndexing is
+   * enabled, and, Data is available
    * @return
    */
   def selectColumnsToIndex(
@@ -131,11 +127,6 @@ trait IndexedTable {
    *   the index files to optimize
    */
   def optimize(files: Seq[String], options: Map[String, String]): Unit
-
-  /**
-   * Compacts the small files for a given table
-   */
-  def compact(revisionID: RevisionID, options: Map[String, String]): Unit
 }
 
 /**
@@ -500,14 +491,11 @@ private[table] class IndexedTableImpl(
         metadataManager.updateWithTransaction(tableID, schema, qbeastOptions, append = true) {
           val tableChanges = BroadcastedTableChanges(None, indexStatus, Map.empty, Map.empty)
           val fileActions =
-            dataWriter.compact(tableID, schema, qbeastOptions, revision, indexStatus, indexFiles)
+            dataWriter.optimize(tableID, schema, qbeastOptions, revision, indexStatus, indexFiles)
           (tableChanges, fileActions)
         }
       }
     }
   }
-
-  override def compact(revisionID: RevisionID, options: Map[String, String]): Unit =
-    optimize(revisionID, options)
 
 }

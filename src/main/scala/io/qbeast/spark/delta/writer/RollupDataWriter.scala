@@ -241,7 +241,7 @@ object RollupDataWriter
       .getOrElse(file)
   }
 
-  override def compact(
+  override def optimize(
       tableId: QTableID,
       schema: StructType,
       options: QbeastOptions,
