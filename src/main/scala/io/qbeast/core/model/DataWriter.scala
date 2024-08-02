@@ -49,7 +49,7 @@ trait DataWriter[DATA, DataSchema, FileDescriptor] {
       tableChanges: TableChanges): IISeq[FileDescriptor]
 
   /**
-   * Compact the files
+   * Optimize the files
    * @param tableID
    *   the table identifier
    * @param schema
