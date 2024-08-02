@@ -82,6 +82,10 @@ class QbeastTable private (
     }
   }
 
+  def optimize(revisionID: RevisionID): Unit = {
+    optimize(revisionID, Map.empty[String, String])
+  }
+
   def optimize(options: Map[String, String]): Unit = {
     optimize(latestRevisionAvailableID, options)
   }
@@ -99,6 +103,9 @@ class QbeastTable private (
    */
   def optimize(files: Seq[String], options: Map[String, String]): Unit =
     indexedTable.optimize(files, options)
+
+  def optimize(files: Seq[String]): Unit =
+    optimize(files, Map.empty[String, String])
 
   /**
    * The analyze operation should analyze the index structure and find the cubes that need
