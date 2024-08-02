@@ -14,7 +14,7 @@ To find Qbeast issues that make good entry points:
 You can find the developer documentation (Scala docs) in the [https://docs.qbeast.io/](https://docs.qbeast.io/).
 
 ## Licensing of contributed material
-All contributed code, docs, and other materials are considered licensed under the same terms as the rest of the project. Check [LICENSE](./LICENCE) for more details.
+All contributed code, docs, and other materials are considered licensed under the same terms as the rest of the project. Check [LICENSE](./LICENSE) for more details.
 
 ## Version control branching
 - Always make a new branch for your work, no matter how small
