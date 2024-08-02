@@ -131,11 +131,6 @@ trait IndexedTable {
    *   the index files to optimize
    */
   def optimize(files: Seq[String], options: Map[String, String]): Unit
-
-  /**
-   * Compacts the small files for a given table
-   */
-  def compact(revisionID: RevisionID, options: Map[String, String]): Unit
 }
 
 /**
@@ -503,14 +498,11 @@ private[table] class IndexedTableImpl(
           append = true) {
           val tableChanges = BroadcastedTableChanges(None, indexStatus, Map.empty, Map.empty)
           val fileActions =
-            dataWriter.compact(tableID, schema, revision, indexStatus, indexFiles)
+            dataWriter.optimize(tableID, schema, revision, indexStatus, indexFiles)
           (tableChanges, fileActions)
         }
       }
     }
   }
-
-  override def compact(revisionID: RevisionID, options: Map[String, String]): Unit =
-    optimize(revisionID, options)
 
 }
