@@ -15,8 +15,10 @@
  */
 package io.qbeast.spark.utils
 
+import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.QbeastTable
+import org.apache.spark.sql.delta.DeltaLog
 
 class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
 
@@ -29,6 +31,18 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
 
       val indexed = spark.read.format("delta").load(tmpDir)
       assertLargeDatasetEquality(indexed, data, orderedComparison = false)
+  }
+
+  it should "respect rollupSize" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
+    val data = loadTestData(spark)
+    writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
+    val options = Map("rollupSize" -> "100000")
+    val qt = QbeastTable.forPath(spark, tmpDir)
+    qt.optimize(options)
+
+    val s = DeltaLog.forTable(spark, tmpDir).update()
+    val qs = DeltaQbeastSnapshot(s)
+    qs.loadLatestIndexFiles.count shouldBe 1
   }
 
   "An optimized index" should "sample correctly" in withQbeastContextSparkAndTmpDir {
