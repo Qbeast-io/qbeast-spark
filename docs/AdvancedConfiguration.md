@@ -89,6 +89,31 @@ CubeSize option lets you specify the maximum size of the cube, in number of reco
 df.write.format("qbeast").option("cubeSize", "10000")
 ```
 
+## RollupSize
+
+Rollup groups small blocks from the same branch to write larger files in order to mitigate the small file problem.
+
+After data is indexed, it is possible that only a few records are assigned to each cube. Writing an output file per cube
+can create a large number of small files, which can be inefficient for reading.
+
+To address this, rollup iteratively merges a cube with its parent as long as their `elementCount` is under the threshold, i.e., `rollupSize`.
+
+Generally, one doesn't have to worry about the `rollupSize` since it defaults to the `cubeSize`.
+However, you can change it according to the specifics of your workflow.
+
+```scala
+// Specify the rollup size during writes
+df.write.format("qbeast").option("rollupSize", "10000").save("path/to/table")
+
+// Specify the rollup size during optimization
+val qt = QbeastTable.forPath(spark, tablePath)
+qt.optimize(filesToOptimize, Map("rollupSize" -> "10000"))
+```
+Be aware that the `rollupSize` is not persisted anywhere. If you want to use a value different from the `cubeSize`,
+you need to specify it every time you write or optimize.
+
+You can use set the `rollupSize` to `0` to disable the rollup feature.
+
 ## ColumnStats
 
 One feature of the Qbeast Format is the `Revision`. 
