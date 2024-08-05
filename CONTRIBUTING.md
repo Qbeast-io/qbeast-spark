@@ -334,7 +334,7 @@ Example: `0.6.2-badfbadf-SNAPSHOT`
 
 
 # Licensing of contributed material
-All contributed code, docs, and other materials are considered licensed under the same terms as the rest of the project. Check [LICENSE](./LICENCE) for more details.
+All contributed code, docs, and other materials are considered licensed under the same terms as the rest of the project. Check [LICENSE](./LICENSE) for more details.
 
 
 # Community Values

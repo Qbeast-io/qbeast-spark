@@ -8,7 +8,7 @@ The two primary goals of the **OTree algorithm** are
 ### Recursive Space Division
 One of the most important techniques used to build a **multi-dimensional index** is through **recursive space division**; a bounded vector space initially containing all the data is **recursively divided** into **equal-sized**, **non-overlapping** subspaces, as long as they exceed the predefined **capacity**.
 
-For a dataset indexed with `n` columns, the constructed index is an n-dimensional vector space composed of <img src="https://render.githubusercontent.com/render/math?math=2^n" /> subspaces, or what we call `cubes`, with **non-overlapping** boundaries. Each cube can contain a predefined number of element `cap`, and exceeding it would trigger **recursively dividing** a cube into child cubes by halving the ranges in all dimensions until the number of elements included no longer exceeds `cap`.
+For a dataset indexed with `n` columns, the constructed index is an n-dimensional vector space composed of $2^n$ subspaces, or what we call `cubes`, with **non-overlapping** boundaries. Each cube can contain a predefined number of element `cap`, and exceeding it would trigger **recursively dividing** a cube into child cubes by halving the ranges in all dimensions until the number of elements included no longer exceeds `cap`.
 
 Say that we use two columns, `x`, and `y` to build the index, and the parameter cap for each cube is 2. The first image in the figure below is the **root cube**, containing more than two elements. The cube is split into four **equal-sized**, **non-overlapping** child cubes with one space division step, as shown in the middle image. Three of the four cubes are in good condition as a result of the division.
 
