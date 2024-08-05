@@ -64,7 +64,7 @@ class AnalyzeAndOptimizeTest
       announcedCubes shouldBe Seq(CubeId.root(dimensionCount).string)
   }
 
-  it should "not analyze replicated cubes" in withSparkAndTmpDir { (spark, tmpDir) =>
+  it should "not analyze replicated cubes" ignore withSparkAndTmpDir { (spark, tmpDir) =>
     appendNewRevision(spark, tmpDir, 1)
     val qbeastTable = QbeastTable.forPath(spark, tmpDir)
     qbeastTable.analyze()

@@ -53,6 +53,12 @@ class QbeastOptionsTest extends QbeastIntegrationTestSpec {
     options.cubeSize shouldBe config.DEFAULT_CUBE_SIZE
   }
 
+  it should "initialize rollupSize" in withSpark { _ =>
+    val options =
+      QbeastOptions(Map("columnsToIndex" -> "id", QbeastOptions.ROLLUP_SIZE -> "1000"))
+    options.rollupSize shouldBe Some(1000)
+  }
+
   it should "initialize txnAppId and txnVersion" in withSpark { _ =>
     val options =
       QbeastOptions(Map("columnsToIndex" -> "id", "txnAppId" -> "app", "txnVersion" -> "version"))
@@ -87,6 +93,7 @@ class QbeastOptionsTest extends QbeastIntegrationTestSpec {
         QbeastOptions.CUBE_SIZE -> "10",
         QbeastOptions.TXN_APP_ID -> "app",
         QbeastOptions.TXN_VERSION -> "1",
+        QbeastOptions.ROLLUP_SIZE -> "1000",
         DeltaOptions.USER_METADATA_OPTION -> "metadata",
         DeltaOptions.MERGE_SCHEMA_OPTION -> "true",
         DeltaOptions.OVERWRITE_SCHEMA_OPTION -> "true",
@@ -117,11 +124,13 @@ class QbeastOptionsTest extends QbeastIntegrationTestSpec {
   "optimizationOptions" should "return a QbeastOption with proper settings" in {
     val options = Map(
       DeltaOptions.USER_METADATA_OPTION -> "metadata",
+      QbeastOptions.ROLLUP_SIZE -> "1000",
       s"$PRE_COMMIT_HOOKS_PREFIX.hook" -> "HookClass",
       s"$PRE_COMMIT_HOOKS_PREFIX.hook.arg" -> "HookClassArg")
     val qo = QbeastOptions.optimizationOptions(options)
     qo.userMetadata shouldBe Some("metadata")
     qo.hookInfo shouldBe Seq(HookInfo("hook", "HookClass", Some("HookClassArg")))
+    qo.rollupSize shouldBe Some(1000)
   }
 
 }
