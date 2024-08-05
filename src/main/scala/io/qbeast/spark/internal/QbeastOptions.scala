@@ -92,6 +92,9 @@ case class QbeastOptions(
     if (hookInfo.nonEmpty) {
       hookInfo.foreach { options ++= _.toMap }
     }
+    if (rollupSize.nonEmpty) {
+      options += QbeastOptions.ROLLUP_SIZE -> rollupSize.get.toString
+    }
 
     options += COLUMNS_TO_INDEX -> columnsToIndex.mkString(",")
     options += CUBE_SIZE -> cubeSize.toString
