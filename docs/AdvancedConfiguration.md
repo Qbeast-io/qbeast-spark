@@ -311,8 +311,8 @@ contains all indexed metadata in an easy-to-analyze format.
 
 ```scala
 import io.qbeast.spark.QbeastTable
-val qt = QbeastTable.forTable(spark, tablePath)
-val dnb = qt.denormalizedBlocks
+val qt = QbeastTable.forPath(spark, tablePath)
+val dnb = qt.getDenormalizedBlocks()
 dnb.select("filePath").distinct.count() // number of files
 dnb.count() // number of blocks
 dnb.groupBy("filePath").count().orderBy(col("count").desc).show() // Show the files with the most blocks
