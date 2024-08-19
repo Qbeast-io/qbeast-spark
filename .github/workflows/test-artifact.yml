@@ -6,7 +6,7 @@ on:
 
 jobs:
   test-artifact:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     env:
       GHPR_TOKEN: ${{ secrets.GHPR_TOKEN }}
     steps:
