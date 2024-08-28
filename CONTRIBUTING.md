@@ -296,11 +296,12 @@ $SPARK_350/bin/spark-shell --repositories https://s01.oss.sonatype.org/content/r
     sbt sonatypeBundleUpload
     sbt sonatypeRelease
     ```
-  Or use one single command:
+    Or use one single command:
     ```bash
     sbt clean
     sbt sonatypeBundleRelease
     ```
+   
 7. Tag the code and push it to Github to make it public.
     ```bash
     git tag -a v0.6.0-rc1 -m "Release Candidate 1"
