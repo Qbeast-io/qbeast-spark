@@ -191,7 +191,7 @@ For example:
 sbt assembly
 
 $SPARK_HOME/bin/spark-shell \
---jars ./target/scala-2.12/qbeast-spark-assembly-0.6.0.jar \
+--jars ./target/scala-2.12/qbeast-spark-assembly-0.8.0-SNAPSHOT.jar \
 --packages io.delta:delta-spark_2.12:3.1.0 \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
 --conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
@@ -229,7 +229,7 @@ You can find the developer documentation (Scala docs) in the [https://docs.qbeas
 #### 5 - Make your changes
 
 #### 6 - Write, run, and pass tests:
-**Note**: You can run tests for different Spark and Hadoop versions specifying them with `-Dspark.version` and `-Dhadoop.version`.
+> **Note**: You can run tests for different Spark and Hadoop versions specifying them with `-Dspark.version` and `-Dhadoop.version`.
 Find an example in the _Setting Up_ section of [README.md](README.md)
 - For all tests:
 
@@ -256,31 +256,28 @@ Identify the committers and contributors who have worked on the code being chang
 
 To publish a new version of the qbeast-spark project, follow these steps:
 
+> ℹ️ **Note**: This example is for a new version 0.6.0. The same steps can be applied to any new version.
+
 1. Update the version in the `build.sbt` file. 
-  ```scala
-  version := "0.6.0"
-  ```
+    ```scala
+    version := "0.6.0-SNAPSHOT"
+    ```
 2. Check that all tests passed. 
-  ```bash
-  sbt test
-  ```
+    ```bash
+    sbt test
+    ```
 3. Package the code with `sbt package` and run the code in the `README` for a quick test on spark-shell. 
-  ```bash
-  sbt package
-  ```
+    ```bash
+    sbt package
+    ```
 4. Publish a `SNAPSHOT`.
-   - Change the version in the `build.sbt` file.
-     ```scala
-     version := "0.6.0-SNAPSHOT"
-     ```
-   - Publish the `SNAPSHOT` with the following command:
-     ```bash
-     sbt publishSigned
-     ```
+   ```bash
+   sbt publishSigned
+   ```
 
 5. Try the same `README` code downloading the `SNAPSHOT` with `--packages` and `--repositories` configuration. If necessary, test it in different Cloud Provider environments.
 ```bash
-export QBEAST_SPARK_VERSION=0.6.1-SNAPSHOT
+export QBEAST_SPARK_VERSION=0.6.0-SNAPSHOT
 $SPARK_350/bin/spark-shell --repositories https://s01.oss.sonatype.org/content/repositories/snapshots \
 --packages io.delta:delta-spark_2.12:3.1.0,io.qbeast:qbeast-spark_2.12:$QBEAST_SPARK_VERSION \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
@@ -288,26 +285,31 @@ $SPARK_350/bin/spark-shell --repositories https://s01.oss.sonatype.org/content/r
 
 ```
 6. If everything is ok, change the `build.sbt` with the corresponding version and publish the RC.
-  ```scala
-  version := "0.6.0-rc1"
-  ```
-  ```bash
-  sbt clean
-  # Separate commands for publishing
-  sbt publishSigned
-  sbt sonatypePrepare
-  sbt sonatypeBundleUpload
-  sbt sonatypeRelease
-  ```
-Or use one single command:
-  ```bash
-  sbt clean
-  sbt sonatypeBundleRelease
-  ```
+    ```scala
+    version := "0.6.0-rc1"
+    ```
+    ```bash
+    sbt clean
+    # Separate commands for publishing
+    sbt publishSigned
+    sbt sonatypePrepare
+    sbt sonatypeBundleUpload
+    sbt sonatypeRelease
+    ```
+  Or use one single command:
+    ```bash
+    sbt clean
+    sbt sonatypeBundleRelease
+    ```
 7. Tag the code and push it to Github to make it public.
-  ```bash
-  git tag -a v0.6.0-rc1 -m "Release Candidate 1"
-  ```
+    ```bash
+    git tag -a v0.6.0-rc1 -m "Release Candidate 1"
+    git push origin v0.6.0-rc1
+    ```
+8. Set up the RC for approval. Make sure all users that had tested the version in their dev environments didn't experience any bug or performance drawback.
+
+9. If the RC is approved, go to step 1, change the version in the `build.sbt` file and publish the final version.
+
 
 Read all about **How to Publish an SBT Project into Maven Central** [here](https://qbeast.io/publish-your-sbt-project-to-the-central-repository/).
 # Versioning

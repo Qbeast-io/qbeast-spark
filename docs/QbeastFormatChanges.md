@@ -1,4 +1,4 @@
-# QbeastFormat 0.6.0
+# Qbeast Format Changes 
 
 **The version 0.6.0 introduces a new format for the Qbeast tables.** 
 
