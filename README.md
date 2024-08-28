@@ -63,7 +63,7 @@ Explore the documentation for more details:
 - [Columns To Index Selector](./docs/ColumnsToIndexSelector.md)
 - [Recommendations for different Cloud Storage systems](./docs/CloudStorages.md)
 - [Advanced configurations](./docs/AdvancedConfiguration.md)
-- [QbeastFormat 0.6.0](./docs/QbeastFormat0.6.0.md)
+- [Qbeast Metadata](./docs/QbeastFormat.md)
 - [FAQ: Frequently Asked Questions](./docs/FAQ.md)
 
 # Quickstart
@@ -88,7 +88,7 @@ export SPARK_HOME=$PWD/spark-3.5.0-bin-hadoop3
 
 ```bash
 $SPARK_HOME/bin/spark-shell \
---packages io.qbeast:qbeast-spark_2.12:0.6.0,io.delta:delta-spark_2.12:3.1.0 \
+--packages io.qbeast:qbeast-spark_2.12:0.7.0,io.delta:delta-spark_2.12:3.1.0 \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
 --conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
 ```
@@ -216,14 +216,16 @@ Go to [QbeastTable documentation](./docs/QbeastTable.md) for more detailed infor
 Use [Python index visualizer](./utils/visualizer/README.md) for your indexed table to visually examine index structure and gather sampling metrics.
 
 # Dependencies and Version Compatibility
-| Version | Spark | Hadoop | Delta Lake |
-|---------|:-----:|:------:|:---------:|
-| 0.1.0   | 3.0.0 | 3.2.0  |   0.8.0   |
-| 0.2.0   | 3.1.x | 3.2.0  |   1.0.0   |
-| 0.3.x   | 3.2.x | 3.3.x  |   1.2.x   |
-| 0.4.x   | 3.3.x | 3.3.x  |   2.1.x   |
-| 0.5.x   | 3.4.x | 3.3.x  |   2.4.x   |
-| **0.6.x**   | **3.5.x** | **3.3.x**  |   **3.1.x**   |
+| Version |   Spark   |  Hadoop   | Delta Lake |
+|-------|:---------:|:---------:|:----------:|
+| 0.1.0 |   3.0.0   |   3.2.0   |   0.8.0    |
+| 0.2.0 |   3.1.x   |   3.2.0   |   1.0.0    |
+| 0.3.x |   3.2.x   |   3.3.x   |   1.2.x    |
+| 0.4.x |   3.3.x   |   3.3.x   |   2.1.x    |
+| 0.5.x |   3.4.x   |   3.3.x   |   2.4.x    |
+| 0.6.x |   3.5.x   |   3.3.x   |   3.1.x    |
+| **0.7.x** | **3.5.x** | **3.3.x** | **3.1.x**  |
+
 
 Check [here](https://docs.delta.io/latest/releases.html) for **Delta Lake** and **Apache Spark** version compatibility.
 

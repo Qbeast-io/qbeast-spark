@@ -283,4 +283,4 @@ revisions.foreach(revision =>
 ## Index Replication (&lt;v0.6.0)
 
 
-> Analyze and Replication operations are **NOT available from version 0.6.0**. Read all the reasoning and changes on the [Qbeast Format 0.6.0](./QbeastFormat0.6.0.md) document.
+> Analyze and Replication operations are **NOT available from version 0.6.0**. Read all the reasoning and changes on the [Qbeast Format 0.6.0](./QbeastFormatChanges.md) document.
