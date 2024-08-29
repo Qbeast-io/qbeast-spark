@@ -118,17 +118,16 @@ $SPARK_HOME/bin/spark-sql \
 
 ### Advanced Spark Configuration
 
-Spark Configuration can help improving writing and reading performance
+Spark Configuration can help improving writing and reading performance. Here are a few configuration for qbeast. 
 
-1. The **default desired size** of the written files (100000)
-```
---conf spark.qbeast.index.defaultCubeSize=200000
-```
-2. The **default buffer capacity for intermediate results** (100000)
 
-```
---conf spark.qbeast.index.cubeWeightsBufferCapacity=200
-```
+| **Configuration**                               | **Definition**                                               | **Default** |
+|-------------------------------------------------|--------------------------------------------------------------|-------------|
+| `spark.qbeast.index.defaultCubeSize`            | Default cube size for all datasets written in the session.   | 5000000     |
+| `spark.qbeast.index.cubeWeightsBufferCapacity`  | Default buffer capacity for intermediate results.            | 100         |
+| `spark.qbeast.index.columnsToIndex.auto`        | Automatically select columns to index.                       | false       |
+| `spark.qbeast.index.columnsToIndex.auto.max`    | Maximum number of columns to index automatically.            | 10          |
+| `spark.qbeast.index.numberOfRetries`            | Number of retries for writing data.                          | 2           |
 
 Consult the [Qbeast-Spark advanced configuration](AdvancedConfiguration.md) for more information.
 
@@ -205,14 +204,11 @@ OPTIONS ('columnsToIndex'='id,age')
 
 There are different options to fine-tune the underlying index.
 
-| **Option** | **Definition** | **Example** |
-| --- | --- | --- |
-| `columnsToIndex` | Indicates the columns in the DataFrame used to index. 
-We recommend selecting the variables more commonly queried to maximize the layout efficiency. | `“id,age”` |
-| `cubeSize` | Maximum amount of elements a cube should contain. Default is 5 million. 
-It is a soft limit, which means that it can be exceeded. It is considered a bad sign that final sizes of the cubes duplicate or triplicate the `cubeSize`.  | `1000` |
-| `columnStats` | Min and maximum values of the columns to index in JSON string.
-The space is computed at writing time, but if you know the stats in advance, it would skip that step and provide a more relevant index for your data.  | `"""{"a_min":0,"a_max":10,"b_min":20.0,"b_max":70.0}"""` |
+| **Option**       | **Definition**                                                                                                                                                                                                                     | **Example**                                              |
+|------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------|
+| `columnsToIndex` | Indicates the columns in the DataFrame used to index. We recommend selecting the variables more commonly queried to maximize the layout efficiency.                                                                                | `“id,age”`                                               |                                                                                                                                                                                                                                                                                                                                                                    |
+| `cubeSize`       | Maximum amount of elements a cube should contain. Default is 5 million. It is a soft limit, which means that it can be exceeded. It is considered a bad sign that final sizes of the cubes duplicate or triplicate the `cubeSize`. | `1000`                                                   |                                                                                                                                                                                                          |
+| `columnStats`    | Min and maximum values of the columns to index in JSON string. The space is computed at writing time, but if you know the stats in advance, it would skip that step and provide a more relevant index for your data.               | `"""{"a_min":0,"a_max":10,"b_min":20.0,"b_max":70.0}"""` |
 
 ### 
 
@@ -302,17 +298,16 @@ val qbeastTable = QbeastTable.forPath(spark, "/tmp/qbeast_table")
 qbeastTable.getIndexMetrics()
 ```
 
-| **Method** | **Definition** |
-| --- | --- |
-| revisionIDs(): List[Long] | Returns a list with all the Revision ID’s present in the Table. |
-| latestRevision(): Revision | Returns the Latest Revision available in the Table. |
-| latestRevisionID(): Long | Returns the Latest Revision ID available in the Table. |
-| revision(revisionID: Option[Int]): Revision | Returns the `Revision` information of a particular Revision ID (if specified) or the latest one |
-| indexedColumns(revisionID: Option[Int]): Seq[String] | Returns the indexed column names of a particular Revision ID (if specified) or the latest one. |
-| cubeSize(revisionID: Option[Int]) | Returns the Cube Size of a particular Revision ID (if specified) or the latest one. |
-| getDenormalizedBlocks(revisionID: Option[Int]) | Get the Denormalized Blocks information of all files of a particular Revision ID (if specified) or the latest one. |
-| getIndexMetrics(revisionID: Option[Int]) | Output the `IndexMetrics` information a particular Revision ID (if specified) or the latest one available.
-It is useful to know the state of the different levels of the index and the respective cube sizes.  |
+| **Method**                                           | **Definition**                                                                                                                                                                                                |
+|------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| revisionIDs(): List[Long]                            | Returns a list with all the Revision ID’s present in the Table.                                                                                                                                               |
+| latestRevision(): Revision                           | Returns the Latest Revision available in the Table.                                                                                                                                                           |
+| latestRevisionID(): Long                             | Returns the Latest Revision ID available in the Table.                                                                                                                                                        |
+| revision(revisionID: Option[Int]): Revision          | Returns the `Revision` information of a particular Revision ID (if specified) or the latest one                                                                                                               |
+| indexedColumns(revisionID: Option[Int]): Seq[String] | Returns the indexed column names of a particular Revision ID (if specified) or the latest one.                                                                                                                |
+| cubeSize(revisionID: Option[Int])                    | Returns the Cube Size of a particular Revision ID (if specified) or the latest one.                                                                                                                           |
+| getDenormalizedBlocks(revisionID: Option[Int])       | Get the Denormalized Blocks information of all files of a particular Revision ID (if specified) or the latest one.                                                                                            |
+| getIndexMetrics(revisionID: Option[Int])             | Output the `IndexMetrics` information a particular Revision ID (if specified) or the latest one available. It is useful to know the state of the different levels of the index and the respective cube sizes. |
 
 ## Optimize
 
@@ -459,15 +454,15 @@ Use [Python index visualizer](https://github.com/Qbeast-io/qbeast-spark/blob/ma
 
 # Dependencies and Version Compatibility
 
-| Version | Spark | Hadoop | Delta Lake |
-| --- | --- | --- | --- |
-| 0.1.0 | 3.0.0 | 3.2.0 | 0.8.0 |
-| 0.2.0 | 3.1.x | 3.2.0 | 1.0.0 |
-| 0.3.x | 3.2.x | 3.3.x | 1.2.x |
-| 0.4.x | 3.3.x | 3.3.x | 2.1.x |
-| 0.5.x | 3.4.x | 3.3.x | 2.4.x |
-| **0.6.x** | **3.5.x** | **3.3.x** | **3.1.x** |
-| 0.7.x | 3.5.x | 3.3.x | 3.1.x |
+| Version   | Spark     | Hadoop    | Delta Lake |
+|-----------|-----------|-----------|------------|
+| 0.1.0     | 3.0.0     | 3.2.0     | 0.8.0      |
+| 0.2.0     | 3.1.x     | 3.2.0     | 1.0.0      |
+| 0.3.x     | 3.2.x     | 3.3.x     | 1.2.x      |
+| 0.4.x     | 3.3.x     | 3.3.x     | 2.1.x      |
+| 0.5.x     | 3.4.x     | 3.3.x     | 2.4.x      |
+| 0.6.x     | 3.5.x     | 3.3.x     | 3.1.x      |
+| **0.7.x** | **3.5.x** | **3.3.x** | **3.1.x**  |
 
 Check [here](https://docs.delta.io/latest/releases.html) for **Delta Lake** and **Apache Spark** version compatibility.
 
