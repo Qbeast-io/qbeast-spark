@@ -202,7 +202,16 @@ data.write.mode("overwrite").option("columnsToIndex", "id,age").saveAsTable("qbe
 ```sql
 CREATE TABLE qbeast_table (id INT, age STRING)
 USING qbeast
-OPTIONS ('columnsToIndex'='id,age')
+OPTIONS ('columnsToIndex'='id,age');
+```
+
+It is possible to specify the location through the SQL:
+
+```sql
+CREATE TABLE qbeast_table (id INT, age STRING)
+USING qbeast
+LOCATION '/tmp/qbeast_table'
+OPTIONS ('columnsToIndex'='id,age');
 ```
 
 ### Advanced Table Configuration
@@ -237,8 +246,8 @@ data.write.\
 ```scala
 // Save
 data.write.
-  mode("append").\
-  option("columnsToIndex", "id,age").\
+  mode("append").
+  option("columnsToIndex", "id,age").
   format("qbeast").
   save("/tmp/qbeast_table")
 ```
@@ -248,7 +257,7 @@ data.write.
 Use **`INSERT INTO`** to add records to the new table. It will update the index in a **dynamic** fashion when new data is inserted.
 
 ```sql
-INSERT INTO table qbeast_table VALUES (1, 'a'),(2, 'b')
+INSERT INTO table qbeast_table VALUES (1, 'a'),(2, 'b'),(3, 'c');
 ```
 
 ## Read
@@ -274,15 +283,16 @@ qbeastDF.sample(0.3).show()
 ### SQL
 
 ```sql
-SELECT * FROM qbeast_table
+SELECT * FROM qbeast_table;
 
-SELECT * FROM qbeast_table TABLESAMPLE(30 PERCENT)
+SELECT * FROM qbeast_table TABLESAMPLE(30 PERCENT);
 ```
 
 To check sampling perfomance, open your **Spark Web UI**, and observe how the sample operator is converted into a **filter** and pushed down to the source!
 ```scala
-qbeastDf.sample(0.1).explain()
+qbeastDf.sample(0.3).explain()
 ```
+
 ```
 == Physical Plan ==
 *(1) Filter ((qbeast_hash(ss_cdemo_sk#1091, ss_cdemo_sk#1091, 42) < -1717986918) AND (qbeast_hash(ss_cdemo_sk#1091, ss_cdemo_sk#1091, 42) >= -2147483648))
@@ -295,7 +305,7 @@ Notice that the sample operator is no longer present in the physical plan. It's 
 
 ## QbeastTable API
 
-Get **insights** into the data using the `QbeastTable` interface available in Scala.
+Get **insights** into the data using the `QbeastTable` interface available in Scala.
 
 ```scala
 import io.qbeast.spark.QbeastTable
