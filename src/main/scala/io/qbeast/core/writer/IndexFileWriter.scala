@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.delta.writer
+package io.qbeast.core.writer
 
 import io.qbeast.core.model.CubeId
 import io.qbeast.core.model.IndexFile
@@ -21,6 +21,8 @@ import io.qbeast.core.model.IndexFileBuilder
 import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
 import io.qbeast.core.model.RevisionID
 import io.qbeast.core.model.Weight
+import io.qbeast.core.stats.tracker.TaskStats
+
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.InternalRow

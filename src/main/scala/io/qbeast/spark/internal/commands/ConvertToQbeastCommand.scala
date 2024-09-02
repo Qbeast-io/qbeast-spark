@@ -16,8 +16,7 @@
 package io.qbeast.spark.internal.commands
 
 import io.qbeast.core.model._
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.delta.SparkDeltaMetadataManager
+import io.qbeast.spark.delta.{DeltaQbeastSnapshot, SparkDeltaMetadataManager}
 import io.qbeast.spark.utils.MetadataConfig.lastRevisionID
 import io.qbeast.spark.utils.MetadataConfig.revision
 import io.qbeast.spark.utils.QbeastExceptionMessages.incorrectIdentifierFormat

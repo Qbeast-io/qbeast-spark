@@ -26,6 +26,7 @@ import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
+import io.qbeast.spark.delta.RollupDataWriter
 import org.scalatest.PrivateMethodTester
 
 import scala.reflect.io.Path

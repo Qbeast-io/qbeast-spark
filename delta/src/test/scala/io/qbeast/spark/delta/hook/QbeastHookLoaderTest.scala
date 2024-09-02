@@ -15,7 +15,9 @@
  */
 package io.qbeast.spark.delta.hook
 
-import io.qbeast.spark.delta.hook.PreCommitHook.PreCommitHookOutput
+import io.qbeast.core.writer.HookInfo
+import io.qbeast.core.writer.PreCommitHook.PreCommitHookOutput
+import io.qbeast.spark.delta.{DeltaPreCommitHook, DeltaQbeastHookLoader}
 import io.qbeast.spark.delta.hook.StatefulTestHook.StatefulTestHookState
 import io.qbeast.spark.internal.QbeastOptions
 import org.apache.spark.sql.delta.actions.Action
@@ -25,7 +27,7 @@ import org.scalatest.matchers.should.Matchers
 
 import java.util.UUID
 
-private class SimpleTestHook extends PreCommitHook {
+private class SimpleTestHook extends DeltaPreCommitHook {
   override val name: String = "SimpleTestHook"
 
   var args: Seq[Action] = Seq.empty
@@ -37,7 +39,7 @@ private class SimpleTestHook extends PreCommitHook {
 
 }
 
-private class StatefulTestHook(val stateId: String) extends PreCommitHook {
+private class StatefulTestHook(val stateId: String) extends DeltaPreCommitHook {
 
   val state: StatefulTestHookState = StatefulTestHook.stateMap(stateId)
 
@@ -73,9 +75,9 @@ class QbeastHookLoaderTest extends AnyFlatSpec with Matchers {
     when(qbeastOptions.hookInfo).thenReturn(
       HookInfo("", classOf[SimpleTestHook].getCanonicalName, None) :: Nil)
 
-    val hookOpts = qbeastOptions.hookInfo.map(QbeastHookLoader.loadHook)
+    val hookOpts = qbeastOptions.hookInfo.map(DeltaQbeastHookLoader.loadHook)
     hookOpts.size shouldBe 1
-    hookOpts.head shouldBe a[PreCommitHook]
+    hookOpts.head shouldBe a[DeltaPreCommitHook]
 
     val mockActions = mock(classOf[List[Action]])
     hookOpts.head.run(mockActions)
@@ -90,9 +92,9 @@ class QbeastHookLoaderTest extends AnyFlatSpec with Matchers {
       when(qbeastOptions.hookInfo).thenReturn(
         HookInfo("", classOf[StatefulTestHook].getCanonicalName, Some(argument)) :: Nil)
 
-      val hooks = qbeastOptions.hookInfo.map(QbeastHookLoader.loadHook)
+      val hooks = qbeastOptions.hookInfo.map(DeltaQbeastHookLoader.loadHook)
       hooks.size shouldBe 1
-      hooks.head shouldBe a[PreCommitHook]
+      hooks.head shouldBe a[DeltaPreCommitHook]
 
       val mockActions = mock(classOf[List[Action]])
       hooks.head.run(mockActions)
@@ -106,7 +108,7 @@ class QbeastHookLoaderTest extends AnyFlatSpec with Matchers {
     val qbeastOptions = mock(classOf[QbeastOptions])
     when(qbeastOptions.hookInfo).thenReturn(Nil)
 
-    val hookOpts = qbeastOptions.hookInfo.map(QbeastHookLoader.loadHook)
+    val hookOpts = qbeastOptions.hookInfo.map(DeltaQbeastHookLoader.loadHook)
     hookOpts.size shouldBe 0
   }
 

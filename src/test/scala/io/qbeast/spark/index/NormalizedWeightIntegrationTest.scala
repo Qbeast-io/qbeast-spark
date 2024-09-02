@@ -15,8 +15,7 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.delta.IndexFiles
+import io.qbeast.spark.delta.{DeltaQbeastSnapshot, IndexFiles}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
 import org.apache.spark.sql.delta.DeltaLog

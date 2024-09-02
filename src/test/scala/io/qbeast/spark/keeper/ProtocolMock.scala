@@ -17,9 +17,7 @@ package io.qbeast.spark.keeper
 
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model._
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.delta.MetadataWriterTest
-import io.qbeast.spark.delta.SparkDeltaMetadataManager
+import io.qbeast.spark.delta.{DeltaQbeastSnapshot, MetadataWriterTest, SparkDeltaMetadataManager}
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.delta.actions.FileAction

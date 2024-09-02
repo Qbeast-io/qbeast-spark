@@ -16,9 +16,9 @@
 package io.qbeast.spark.index
 
 import io.qbeast.core.model.Revision
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
+import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.max
 import org.apache.spark.sql.functions.min

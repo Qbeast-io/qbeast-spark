@@ -22,6 +22,7 @@ import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.TestClasses.IndexData
+import io.qbeast.core.writer.BlockWriter
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.OutputWriterFactory

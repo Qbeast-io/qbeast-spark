@@ -15,10 +15,10 @@
  */
 package io.qbeast.spark.internal.sources
 
-import io.qbeast.spark.delta.hook.HookInfo
 import io.qbeast.spark.delta.hook.PreCommitHook.PRE_COMMIT_HOOKS_PREFIX
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.delta.hook.HookInfo
 import org.apache.spark.qbeast.config
 import org.apache.spark.sql.delta.DeltaOptions
 import org.apache.spark.sql.AnalysisException

@@ -26,8 +26,7 @@ import io.qbeast.core.model.Revision
 import io.qbeast.core.model.Weight
 import io.qbeast.core.model.WeightRange
 import io.qbeast.core.transform.EmptyTransformer
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.delta.IndexFiles
+import io.qbeast.spark.delta.{DeltaQbeastSnapshot, IndexFiles}
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.QbeastTable
 import org.apache.hadoop.fs.Path

@@ -16,6 +16,7 @@
 package io.qbeast.spark.delta.writer
 
 import io.qbeast.core.model.CubeId
+import io.qbeast.core.writer.Rollup
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 

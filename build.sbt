@@ -1,5 +1,5 @@
-import xerial.sbt.Sonatype._
-import Dependencies._
+import xerial.sbt.Sonatype.*
+import Dependencies.{avro, *}
 
 val mainVersion = "0.8.0-SNAPSHOT"
 
@@ -16,6 +16,25 @@ lazy val qbeastSpark = (project in file("."))
       sparkml % Provided,
       apacheCommons % Test,
       amazonAws % Test,
+      hadoopCommons % Test,
+      hadoopAws % Test),
+    Test / parallelExecution := false,
+    assembly / test := {},
+    assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false))
+  .settings(noWarningInConsole)
+
+lazy val qbeastDelta = (project in file("./delta"))
+  .dependsOn(qbeastSpark)
+  .settings(
+    name := "qbeast-delta",
+    libraryDependencies ++= Seq(
+      sparkCore % Provided,
+      hadoopClient % Provided,
+      avro % Provided,
+      sparkSql % Provided,
+      apacheCommons % Test,
+      amazonAws % Test,
+      deltaSpark,
       hadoopCommons % Test,
       hadoopAws % Test),
     Test / parallelExecution := false,

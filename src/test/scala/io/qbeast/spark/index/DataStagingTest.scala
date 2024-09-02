@@ -18,8 +18,7 @@ package io.qbeast.spark.index
 import io.delta.tables.DeltaTable
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.StagingUtils
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.delta.StagingDataManager
+import io.qbeast.spark.delta.{DeltaQbeastSnapshot, StagingDataManager}
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.T2

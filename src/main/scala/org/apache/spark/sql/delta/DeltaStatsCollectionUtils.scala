@@ -17,13 +17,13 @@ package org.apache.spark.sql.delta
 
 import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.QTableID
+import io.qbeast.core.stats.tracker.JobStatisticsTracker
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.logical.LocalRelation
 import org.apache.spark.sql.catalyst.types.DataTypeUtils.toAttributes
 import org.apache.spark.sql.delta.actions.Protocol
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
-import org.apache.spark.sql.delta.stats.DeltaJobStatisticsTracker
 import org.apache.spark.sql.delta.stats.DeltaStatsColumnSpec
 import org.apache.spark.sql.delta.stats.StatisticsCollection
 import org.apache.spark.sql.functions.to_json
@@ -83,7 +83,7 @@ trait DeltaStatsCollectionUtils {
   protected def getDeltaOptionalTrackers(
       data: DataFrame,
       sparkSession: SparkSession,
-      tableID: QTableID): Option[DeltaJobStatisticsTracker] = {
+      tableID: QTableID): Option[JobStatisticsTracker] = {
 
     if (QbeastContext.config.get(DeltaSQLConf.DELTA_COLLECT_STATS)) {
       val outputStatsAtrributes = data.queryExecution.analyzed.output
@@ -139,7 +139,7 @@ trait DeltaStatsCollectionUtils {
           .head
 
       Some(
-        new DeltaJobStatisticsTracker(
+        new JobStatisticsTracker(
           deltaLog.newDeltaHadoopConf(),
           outputPath,
           outputStatsCollectionSchema,

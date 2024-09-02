@@ -21,7 +21,7 @@ import io.qbeast.context.QbeastContextImpl
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.keeper.LocalKeeper
 import io.qbeast.core.model.IndexManager
-import io.qbeast.spark.delta.writer.RollupDataWriter
+import io.qbeast.core.writer.RollupDataWriter
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
 import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.spark.index.SparkOTreeManager

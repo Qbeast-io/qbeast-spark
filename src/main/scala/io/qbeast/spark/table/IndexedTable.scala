@@ -18,8 +18,7 @@ package io.qbeast.spark.table
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model._
 import io.qbeast.core.model.RevisionFactory
-import io.qbeast.spark.delta.StagingDataManager
-import io.qbeast.spark.delta.StagingResolution
+import io.qbeast.spark.delta.{StagingDataManager, StagingResolution}
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
