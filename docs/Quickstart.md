@@ -57,7 +57,7 @@ Before starting, ensure you have the following:
 
 As mentioned in the official Apache Spark installation instructions [here](https://spark.apache.org/docs/latest/index.html#downloading), make sure you have a valid Java version installed (8, 11, or 17) and that Java is configured correctly on your system using either the system `PATH` or `JAVA_HOME` environmental variable.
 
-Windows users should follow the instructions in this [blog](https://phoenixnap.com/kb/install-spark-on-windows-10), making sure to use the correct version of Apache Spark that is compatible with the latest versions of Delta Lake (3.2.0) and Qbeast Spark (0.6.0).
+Windows users should follow the instructions in this [blog](https://phoenixnap.com/kb/install-spark-on-windows-10), making sure to use the correct version of Apache Spark that is compatible with the latest versions of Delta Lake (3.2.0) and Qbeast Spark (0.7.0).
 
 ### Download Apache Spark
 
@@ -91,7 +91,7 @@ pip install pyspark==<compatible-spark-version>
 Run `pyspark` shell:
 
 ```bash
-pyspark --packages io.qbeast:qbeast-spark_2.12:0.6.0,io.delta:delta-spark_2.12:3.1.0 \
+pyspark --packages io.qbeast:qbeast-spark_2.12:0.7.0,io.delta:delta-spark_2.12:3.1.0 \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
 --conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
 ```
@@ -102,7 +102,7 @@ Run a `spark-shell` from the binaries:
 
 ```bash
 $SPARK_HOME/bin/spark-shell \
---packages io.qbeast:qbeast-spark_2.12:0.6.0,io.delta:delta-spark_2.12:3.1.0 \
+--packages io.qbeast:qbeast-spark_2.12:0.7.0,io.delta:delta-spark_2.12:3.1.0 \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
 --conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
 ```
@@ -111,7 +111,7 @@ $SPARK_HOME/bin/spark-shell \
 
 ```bash
 $SPARK_HOME/bin/spark-sql \
---packages io.qbeast:qbeast-spark_2.12:0.6.0,io.delta:delta-spark_2.12:3.1.0 \
+--packages io.qbeast:qbeast-spark_2.12:0.7.0,io.delta:delta-spark_2.12:3.1.0 \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
 --conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
 ```
@@ -143,7 +143,7 @@ You include Qbeast Spark in your Maven project by adding it as a dependency in y
 <dependency>
 	<groupId>io.qbeast</groupId>
 	<artifactId>qbeast-spark_2.12</artifactId>
-	<version>0.6.0</version>
+	<version>0.7.0</version>
 </dependency>
 ```
 
@@ -152,7 +152,7 @@ You include Qbeast Spark in your Maven project by adding it as a dependency in y
 You include Qbeast Spark in your SBT project by adding the following line to your `build.sbt` file:
 
 ```scala
-libraryDependencies += "io.qbeast" %% "qbeast-spark" % "0.6.0"
+libraryDependencies += "io.qbeast" %% "qbeast-spark" % "0.7.0"
 ```
 
 To use a `SNAPSHOT` (NOT RECOMMENDED), add the Snapshots URL to the list of repositories:
@@ -396,7 +396,7 @@ For setting up writes and reads on Amazon S3 service, it is possible to use both
     $SPARK_HOME/bin/spark-shell \
     --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
     --conf spark.hadoop.fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider \
-    --packages io.qbeast:qbeast-spark_2.12:0.6.0,\
+    --packages io.qbeast:qbeast-spark_2.12:0.7.0,\
     io.delta:delta-spark_2.12:3.1.0,\
     com.amazonaws:aws-java-sdk:1.12.20,\
     org.apache.hadoop:hadoop-common:3.2.0,\
@@ -412,7 +412,7 @@ For setting up writes and reads on Amazon S3 service, it is possible to use both
     --conf spark.hadoop.fs.s3a.access.key=${AWS_ACCESS_KEY_ID} \
     --conf spark.hadoop.fs.s3a.secret.key=${AWS_SECRET_ACCESS_KEY}\
     --conf spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem \
-    --packages io.qbeast:qbeast-spark_2.12:0.6.0,\
+    --packages io.qbeast:qbeast-spark_2.12:0.7.0,\
     io.delta:delta-spark_2.12:3.1.0,\
     com.amazonaws:aws-java-sdk:1.12.20,\
     org.apache.hadoop:hadoop-common:3.2.0,\
