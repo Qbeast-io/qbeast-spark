@@ -110,7 +110,7 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
       // CREATE A TABLE
       spark.sql(
         "CREATE TABLE qbeast_table (id INT, age STRING) USING qbeast OPTIONS (columnsToIndex 'id,age')")
-      
+
       // INSERT INTO A TABLE
       spark.sql("INSERT INTO qbeast_table VALUES (1, 'a'), (2, 'b'), (3, 'c')")
       val qbeast_df = spark.read.table("qbeast_table")
