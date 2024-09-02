@@ -199,6 +199,13 @@ data.write.mode("overwrite").option("columnsToIndex", "id,age").saveAsTable("qbe
 
 ### SQL
 
+```sql
+CREATE TABLE qbeast_table (id INT, age STRING)
+USING qbeast
+OPTIONS ('columnsToIndex'='id,age');
+```
+
+#### With Location
 It is possible to specify the location through the SQL:
 
 ```sql
@@ -228,18 +235,20 @@ Append data to a path using DataFrame API in “append” mode, or SQL Insert In
 
 #### Append to a Table
 ```python
-data = spark.createDataFrame([(4, "d"), (5, "e")], "id: int, age:string")
+append = spark.createDataFrame([(4, "d"), (5, "e")], "id: int, age:string")
 
 # Save
-data.write.\
+append.write.\
   mode("append").\
   insertInto("qbeast_table")
 ```
 
 #### Append to a Path
 ```python
+append = spark.createDataFrame([(4, "d"), (5, "e")], "id: int, age:string")
+
 # Save
-data.write.\
+append.write.\
   mode("append").\
   option("columnsToIndex", "id,age").\
   format("qbeast").\
@@ -260,7 +269,7 @@ append.write.
 
 #### Append to a Path
 ```scala
-val data = Seq((4, "d"), (5, "e")).toDF("id", "age")
+val append = Seq((4, "d"), (5, "e")).toDF("id", "age")
 
 // Save
 append.write.
