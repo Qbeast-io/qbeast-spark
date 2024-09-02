@@ -25,8 +25,6 @@ import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.Dataset
 
-import scala.collection.JavaConverters._
-
 /**
  * Qbeast Snapshot that provides information about the current index state.
  *
@@ -45,6 +43,22 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
   override def isInitial: Boolean = snapshot.version == -1
 
   private val metadataMap: Map[String, String] = snapshot.metadata.configuration
+
+  /**
+   * The current table properties of the snapshot.
+   *
+   * We filter out the revision, leaving only Revision ID.
+   *
+   * @return
+   */
+  override def loadProperties: Map[String, String] =
+    snapshot.getProperties.filterKeys(k => !k.startsWith(MetadataConfig.revision)).toMap
+
+  /**
+   * The current table description.
+   * @return
+   */
+  override def loadDescription: String = snapshot.metadata.description
 
   /**
    * Constructs revision dictionary
@@ -120,24 +134,24 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
     new IndexStatusBuilder(this, revision).build()
   }
 
-  override def loadLatestIndexFiles: IISeq[IndexFile] = loadIndexFiles(lastRevisionID)
+  override def loadLatestIndexFiles: Dataset[IndexFile] = loadIndexFiles(lastRevisionID)
 
-  override def loadIndexFiles(revisionId: RevisionID): IISeq[IndexFile] = {
+  override def loadIndexFiles(revisionId: RevisionID): Dataset[IndexFile] = {
     val revision = loadRevision(revisionId)
     val dimensionCount = revision.transformations.size
-    val addFiles = if (isStaging(revision)) {
-      loadStagingBlocks()
-    } else {
-      loadRevisionBlocks(revisionId)
-    }
-    addFiles.toLocalIterator().asScala.map(IndexFiles.fromAddFile(dimensionCount)).toIndexedSeq
+    val addFiles =
+      if (isStaging(revision)) loadStagingFiles()
+      else loadRevisionFiles(revisionId)
+
+    import addFiles.sparkSession.implicits._
+    addFiles.map(IndexFiles.fromAddFile(dimensionCount))
   }
 
   /**
    * Obtain all Revisions for a given QTableID
    *
    * @return
-   *   an immutable Seq of Revision for qtable
+   *   an immutable Seq of Revision for qTable
    */
   override def loadAllRevisions: IISeq[Revision] =
     revisionsMap.values.toVector
@@ -146,7 +160,7 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
    * Obtain the last Revisions
    *
    * @return
-   *   an immutable Seq of Revision for qtable
+   *   an immutable Seq of Revision for qTable
    */
   override def loadLatestRevision: Revision = {
     getRevision(lastRevisionID)
@@ -188,13 +202,14 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
    * @return
    *   the Dataset of QbeastBlocks
    */
-  def loadRevisionBlocks(revisionID: RevisionID): Dataset[AddFile] = {
-    if (isStaging(revisionID)) loadStagingBlocks()
+  def loadRevisionFiles(revisionID: RevisionID): Dataset[AddFile] = {
+    if (isStaging(revisionID)) loadStagingFiles()
     else snapshot.allFiles.where(TagColumns.revision === lit(revisionID.toString))
   }
 
   /**
    * Loads Staging AddFiles
    */
-  def loadStagingBlocks(): Dataset[AddFile] = stagingFiles()
+  def loadStagingFiles(): Dataset[AddFile] = stagingFiles()
+
 }

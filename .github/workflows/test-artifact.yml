@@ -11,6 +11,8 @@ jobs:
       GHPR_TOKEN: ${{ secrets.GHPR_TOKEN }}
     steps:
     - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
     - name: Set up JDK 1.8
       uses: actions/setup-java@v1
       with:
@@ -22,7 +24,6 @@ jobs:
     - name: Test
       run: |
         sbt coverage 'test' coverageReport
-        sbt "project qbeastCore" coverage 'test' coverageReport
     - name: Upload to Codecov
       run: |
         curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import # One-time step

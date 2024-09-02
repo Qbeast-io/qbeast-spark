@@ -15,6 +15,7 @@
  */
 package io.qbeast.spark.internal
 
+import io.qbeast.core.model.ColumnToIndex
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.delta.hook.HookInfo
 import io.qbeast.spark.delta.hook.PreCommitHook.getHookArgName
@@ -36,6 +37,8 @@ import scala.util.matching.Regex
  *
  * @param columnsToIndex
  *   A sequence of column names to index.
+ * @param columnsToIndexDecoded
+ *   A sequence of ColumnToIndex objects representing the columns to index.
  * @param cubeSize
  *   The number of desired elements per cube.
  * @param stats
@@ -63,6 +66,12 @@ case class QbeastOptions(
     mergeSchema: Option[String],
     overwriteSchema: Option[String],
     hookInfo: Seq[HookInfo] = Nil) {
+
+  /**
+   * Returns a sequence of ColumnToIndex objects representing the columns to index already parsed
+   * @return
+   */
+  def columnsToIndexParsed: Seq[ColumnToIndex] = columnsToIndex.map(ColumnToIndex(_))
 
   def toMap: CaseInsensitiveMap[String] = {
     val options = Map.newBuilder[String, String]

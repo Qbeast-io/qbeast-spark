@@ -8,7 +8,7 @@ The two primary goals of the **OTree algorithm** are
 ### Recursive Space Division
 One of the most important techniques used to build a **multi-dimensional index** is through **recursive space division**; a bounded vector space initially containing all the data is **recursively divided** into **equal-sized**, **non-overlapping** subspaces, as long as they exceed the predefined **capacity**.
 
-For a dataset indexed with `n` columns, the constructed index is an n-dimensional vector space composed of <img src="https://render.githubusercontent.com/render/math?math=2^n"> subspaces, or what we call `cubes`, with **non-overlapping** boundaries. Each cube can contain a predefined number of element `cap`, and exceeding it would trigger **recursively dividing** a cube into child cubes by halving the ranges in all dimensions until the number of elements included no longer exceeds `cap`.
+For a dataset indexed with `n` columns, the constructed index is an n-dimensional vector space composed of $2^n$ subspaces, or what we call `cubes`, with **non-overlapping** boundaries. Each cube can contain a predefined number of element `cap`, and exceeding it would trigger **recursively dividing** a cube into child cubes by halving the ranges in all dimensions until the number of elements included no longer exceeds `cap`.
 
 Say that we use two columns, `x`, and `y` to build the index, and the parameter cap for each cube is 2. The first image in the figure below is the **root cube**, containing more than two elements. The cube is split into four **equal-sized**, **non-overlapping** child cubes with one space division step, as shown in the middle image. Three of the four cubes are in good condition as a result of the division.
 
@@ -90,11 +90,9 @@ The rest of the page describes the theoretical details about the OTree, includin
 
 - From the **root**, find the proper cube among `cube 0`, `cube 1`, `cube 2`, and `cube 3` for `E` according to its values `(a, b)`. Say that columns `x`, and `y` both have the range [0.0, 1.0], and `(a, b) = (0.1, 0.2)`. In this case, `cube 0` is the cube of choice.
 
-
 <p align="center">
-  <img src="./images/proper-cube.png">
+	<img src="https://raw.githubusercontent.com/Qbeast-io/qbeast-spark/main/docs/images/proper-cube.png" alt="proper cube"/>
 </p>
-
 
 - Proceed to conduct the WRITE according to the WRITE protocol of the cube:
     - `maxWeight > w`: write `E` according to the WRITE protocol of the cube dictated by its state. The `maxWeight` defines the fraction of the dataset contained in the cube. Writing a new element to a full cube entails pushing the `maxElement` to the offset and update the `maxWeight`.
@@ -111,9 +109,8 @@ The following image depicts the three possible states, and whether a cube is of 
   - the state of its ancestors
   - whether `analyze()` or `optimize()` is called
 
-
 <p align="center">
-  <img src="./images/states-and-transitions.png">
+	<img src="https://raw.githubusercontent.com/Qbeast-io/qbeast-spark/main/docs/images/states-and-transitions.png" alt="states"/>
 </p>
 
 

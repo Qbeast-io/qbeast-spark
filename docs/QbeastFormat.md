@@ -6,11 +6,9 @@ To address many issues with a two-tier **data lake + warehouse** architecture, o
 
 A **transaction log** in Delta Lake holds information about what objects comprise a table and is stored in the same object store and named as `_delta_log/`. Actions such as `Add` and `Remove` are stored in `JSON` or `parquet` files in chronological order and are consulted before any I/O operation to **reconstruct the latest state of the table**. The actual data objects are stored in `parquet` format.
 
-
 <p align="center">
-  <img src="./images/delta.png" width=600 height=500>
+  <img src="https://raw.githubusercontent.com/Qbeast-io/qbeast-spark/main/docs/images/delta.png" width="600" height="500" />
 </p>
-
 
 Following each write transaction is the creation of a new log file. **Table-level transaction atomicity** is achieved by following the `put-if-absent` protocol for log file naming - only one client can create a log file with a particular name when attempted by multiple users. Each action record in the log has a field `modificationTime` as **timestamp**, which forms the basis for `snapshot isolation` for read transactions. Check [here](https://github.com/delta-io/delta/blob/master/PROTOCOL.md) for more details about Delta Lake logs.
 
@@ -281,30 +279,8 @@ revisions.foreach(revision =>
 ```
 > Note that **Revision ID number 0 is reserved for Stagin Area** (non-indexed files). This ensures compatibility with underlying table formats.
 
-## Compaction (<v0.6.0)
 
-> Compaction is **NOT available from version 0.6.0**. Although it is present, it calls the `optimize` command underneath.
-> Read all the reasoning and changes on the [Qbeast Format 0.6.0](./QbeastFormat0.6.0.md) document and check the issue [#294](https://github.com/Qbeast-io/qbeast-spark/issues/294) for more info.
-
-From [Delta Lake's documentation](https://docs.delta.io/latest/best-practices.html):
-
-If you continuously write data to a table, it will over time accumulate a large number of files, especially if you add data in small batches. 
-This can have an adverse effect on the efficiency of table reads, and it can also affect the performance of your file system
-
-Ideally, **a large number of small files should be rewritten into a smaller number of larger files** on a regular basis. 
-This is known as `compaction`.
+## Index Replication (&lt;v0.6.0)
 
 
-`Compaction` can be performed on the staging revision (subset of non-indexed files) to group small delta files following the [Bin-Packing strategy](https://docs.databricks.com/en/delta/optimize.html):
-```scala
-import io.qbeast.spark.QbeastTable
-
-val table = QbeastTable.forPath(spark, "/pathToTable/")
-table.compact(0)
-```
-
-
-## Index Replication (<v0.6.0)
-
-
-> Analyze and Replication operations are **NOT available from version 0.6.0**. Read all the reasoning and changes on the [Qbeast Format 0.6.0](./QbeastFormat0.6.0.md) document.
+> Analyze and Replication operations are **NOT available from version 0.6.0**. Read all the reasoning and changes on the [Qbeast Format 0.6.0](./QbeastFormatChanges.md) document.

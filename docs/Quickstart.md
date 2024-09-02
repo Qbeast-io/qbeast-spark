@@ -15,7 +15,7 @@ Inside the project folder, launch a spark-shell with the required **dependencies
 
 ```bash
 $SPARK_HOME/bin/spark-shell \
---packages io.qbeast:qbeast-spark_2.12:0.6.0,io.delta:delta-spark_2.12:3.1.0 \
+--packages io.qbeast:qbeast-spark_2.12:0.7.0,io.delta:delta-spark_2.12:3.1.0 \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
 --conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
 ```
@@ -106,6 +106,54 @@ Sampling has also an operator called `TABLESAMPLE`, which can be expressed in bo
 spark.sql("SELECT avg(price) FROM ecommerce_qbeast TABLESAMPLE(10 PERCENT)").show()
 ```
 
+## Python
+
+Similar to Scala and SQL, you can also use PySpark to operate on Qbeast tables. 
+Here, you can find an end-to-end example following the same operations demonstrated earlier on this page.
+
+```python
+from pyspark.sql import SparkSession
+
+# Initialize Spark session with Qbeast and Delta support, running locally
+spark = SparkSession.builder \
+    .appName("QbeastExample") \
+    .master("local[*]") \
+    .config("spark.jars.packages", "io.qbeast:qbeast-spark_2.12:0.7.0,io.delta:delta-spark_2.12:3.1.0") \
+    .getOrCreate()
+
+qbeast_table_path = "/tmp/qbeast-test-data/qtable"
+
+# Creating a temporary view for the ecommerce data of October
+ecommerce_october = spark.read \
+    .format("csv")\
+    .option("header", "true") \
+    .option("inferSchema", "true") \
+    .load("src/test/resources/ecommerce100K_2019_Oct.csv")
+
+# Creating a Qbeast table using PySpark
+ecommerce_october.write \
+    .format("qbeast") \
+    .mode("overwrite") \
+    .option("columnsToIndex", "user_id,product_id") \
+    .option("cubeSize", "500") \
+    .save(qbeast_table_path)
+
+# Reading the ecommerce data for November
+ecommerce_november = spark.read \
+    .format("csv") \
+    .option("header", "true") \
+    .option("inferSchema", "true") \
+    .load("src/test/resources/ecommerce300k_2019_Nov.csv")
+
+# Inserting data into the Qbeast table using PySpark
+ecommerce_november.write \
+    .format("qbeast") \
+    .mode("append") \
+    .save(qbeast_table_path)
+
+sampled_data = spark.read.format("qbeast").load(qbeast_table_path).sample(0.10)
+sampled_data.selectExpr("avg(price)").show()
+```
 
 ## Analyze and Optimize
 
@@ -124,22 +172,6 @@ qbeastTable.analyze()
 // optimize the index to improve read operations
 qbeastTable.optimize()
 ```
-
-## Compaction
-
-Based on [Delta Lake command](https://docs.delta.io/2.0.0/optimizations-oss.html#compaction-bin-packing), files can be arranged (compacted) into single, bigger ones in order to **avoid performance problems for reading a lot of small files**. 
-
-This operation is **beneficial when we have a lot of WRITE** operation into a table, because each one will create a set of new added files depending on the size of the data. You can set up a **Compaction** task to read those small files and write them out into new, bigger ones, without corrupting any on-going operation.
-
-```scala
-import io.qbeast.spark.QbeastTable
-
-val qbeastTable = QbeastTable.forPath(spark, qbeastTablePath)
-
-// compacts the small files into bigger ones
-qbeastTable.compact()
-```
-See [OTreeAlgorithm](OTreeAlgorithm.md) and [QbeastFormat](QbeastFormat.md) for more details.
 
 # Other DML Operations
 

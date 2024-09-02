@@ -32,40 +32,9 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
 
   behavior of "SparkRevisionFactory"
 
-  it should "detect the correct types in getColumnQType" in withSpark(spark => {
-
-    import spark.implicits._
-    val df = 0.to(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).toDF().schema
-
-    SparkRevisionFactory.getColumnQType("a", df) shouldBe IntegerDataType
-    SparkRevisionFactory.getColumnQType("b", df) shouldBe DoubleDataType
-    SparkRevisionFactory.getColumnQType("c", df) shouldBe StringDataType
-    SparkRevisionFactory.getColumnQType("d", df) shouldBe FloatDataType
-
-  })
-
-  it should "should extract correctly the type" in {
-
-    import SparkRevisionFactory.SpecExtractor
-
-    "column:LinearTransformer" match {
-      case SpecExtractor(column, transformer) =>
-        column shouldBe "column"
-        transformer shouldBe "LinearTransformer"
-      case _ => fail("It did not recognize the type")
-    }
-
-    "column" match {
-      case SpecExtractor(column, transformer) =>
-        fail("It shouldn't be here")
-      case column =>
-        column shouldBe "column"
-    }
-  }
-
   it should "createNewRevision with only one columns" in withSpark(spark => {
     import spark.implicits._
-    val schema = 0.to(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).toDF().schema
+    val schema = spark.range(1).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).schema
     val qid = QTableID("t")
     val revision =
       SparkRevisionFactory.createNewRevision(
@@ -77,14 +46,14 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
     revision.tableID shouldBe qid
     revision.revisionID shouldBe 0
     revision.desiredCubeSize shouldBe 10
-    revision.columnTransformers shouldBe Vector(LinearTransformer("a", IntegerDataType))
+    revision.columnTransformers shouldBe Vector(LinearTransformer("a", LongDataType))
     revision.transformations shouldBe Vector.empty
 
   })
 
   it should "createNewRevision with only indexed columns and no spec" in withSpark(spark => {
     import spark.implicits._
-    val schema = 0.to(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).toDF().schema
+    val schema = spark.range(1).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).schema
     val qid = QTableID("t")
     val revision =
       SparkRevisionFactory.createNewRevision(
@@ -97,7 +66,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
     revision.revisionID shouldBe 0
     revision.desiredCubeSize shouldBe 10
     revision.columnTransformers shouldBe Vector(
-      LinearTransformer("a", IntegerDataType),
+      LinearTransformer("a", LongDataType),
       LinearTransformer("b", DoubleDataType),
       HashTransformer("c", StringDataType),
       LinearTransformer("d", FloatDataType))
@@ -117,7 +86,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
 
   it should "createNewRevision with min max transformation" in withSpark(spark => {
     import spark.implicits._
-    val schema = 0.to(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).toDF().schema
+    val schema = spark.range(1).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).schema
     val qid = QTableID("t")
     val revision =
       SparkRevisionFactory.createNewRevision(
@@ -133,7 +102,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
     // the reason while it's 1 is because columnStats are provided here
     revision.revisionID shouldBe 1
     revision.desiredCubeSize shouldBe 10
-    revision.columnTransformers shouldBe Vector(LinearTransformer("a", IntegerDataType))
+    revision.columnTransformers shouldBe Vector(LinearTransformer("a", LongDataType))
 
     val transformation = revision.transformations.head
     transformation should not be null
@@ -145,7 +114,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
 
   it should "append with new columnStats" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
-    val df = 0.to(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).toDF()
+    val df = spark.range(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f))
     val columnStats = """{ "a_min": 0, "a_max": 20 }"""
 
     df.write
@@ -154,7 +123,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
       .option("columnStats", columnStats)
       .save(tmpDir)
 
-    val appendDf = 10.to(20).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).toDF()
+    val appendDf = spark.range(10, 21).map(i => T3(i, i * 2.0, s"$i", i * 1.2f))
     val appendColumnStats = """{ "a_min": 5, "a_max": 40 }"""
     appendDf.write
       .mode("append")
@@ -178,7 +147,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
   it should "createNewRevision with columnStats " +
     "even on APPEND mode" in withSparkAndTmpDir((spark, tmpDir) => {
       import spark.implicits._
-      val df = 0.to(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).toDF()
+      val df = spark.range(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f))
       val columnStats = """{ "a_min": 0, "a_max": 20 }"""
 
       // On append mode, it already expects a RevisionChange,
@@ -249,7 +218,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
   it should "createNewRevision with min max transformation in more than one column" in withSpark(
     spark => {
       import spark.implicits._
-      val schema = 0.to(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).toDF().schema
+      val schema = spark.range(1).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).schema
       val qid = QTableID("t")
       val revision =
         SparkRevisionFactory.createNewRevision(
@@ -267,11 +236,11 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
       revision.revisionID shouldBe 1
       revision.desiredCubeSize shouldBe 10
       revision.columnTransformers shouldBe Vector(
-        LinearTransformer("a", IntegerDataType),
+        LinearTransformer("a", LongDataType),
         LinearTransformer("b", DoubleDataType))
       revision.transformations.size shouldBe 2
 
-      val a_transformation = revision.transformations(0)
+      val a_transformation = revision.transformations.head
       a_transformation should not be null
       a_transformation shouldBe a[LinearTransformation]
       a_transformation.asInstanceOf[LinearTransformation].minNumber shouldBe 0
@@ -287,7 +256,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
 
   it should "createNewRevision with only indexed columns with all hash" in withSpark(spark => {
     import spark.implicits._
-    val schema = 0.to(10).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).toDF().schema
+    val schema = spark.range(1).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).schema
     val qid = QTableID("t")
     val revision =
       SparkRevisionFactory.createNewRevision(
@@ -302,7 +271,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
     revision.revisionID shouldBe 0
     revision.desiredCubeSize shouldBe 10
     revision.columnTransformers shouldBe Vector(
-      HashTransformer("a", IntegerDataType),
+      HashTransformer("a", LongDataType),
       HashTransformer("b", DoubleDataType),
       HashTransformer("c", StringDataType),
       HashTransformer("d", FloatDataType))

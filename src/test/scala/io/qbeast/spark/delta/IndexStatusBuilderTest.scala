@@ -25,8 +25,7 @@ class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {
 
   "IndexBuilder" should "build cube information from DeltaLog" in withSparkAndTmpDir(
     (spark, tmpDir) => {
-      import spark.implicits._
-      val data = 0.to(100000).toDF("id")
+      val data = spark.range(100000).toDF("id")
 
       // Append data x times
       data.write
@@ -40,18 +39,15 @@ class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {
         DeltaQbeastSnapshot(deltaLog.update()).loadLatestIndexStatus
 
       indexStatus.revision.revisionID shouldBe 1
-      indexStatus.cubesStatuses.foreach(_._2.blocks.size shouldBe 1)
-      indexStatus.cubesStatuses.foreach { case (cube: CubeId, cubeStatus: CubeStatus) =>
-        cubeStatus.blocks.foreach(block => block.cubeId shouldBe cube)
-      }
+      indexStatus.cubesStatuses.map(_._2.elementCount).sum shouldBe 100000L
+
       indexStatus.replicatedSet shouldBe Set.empty
       indexStatus.announcedSet shouldBe Set.empty
     })
 
   it should "work well on appending the same revision" in withSparkAndTmpDir((spark, tmpDir) => {
 
-    import spark.implicits._
-    val data = 0.to(100000).toDF("id")
+    val data = spark.range(100000).toDF("id")
 
     // Append data x times
     data.write
@@ -73,11 +69,9 @@ class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {
     secondIndexStatus.revision.revisionID shouldBe 1
     secondIndexStatus.announcedSet shouldBe Set.empty
     secondIndexStatus.replicatedSet shouldBe Set.empty
-    secondIndexStatus.cubesStatuses.foreach(_._2.blocks.size shouldBe <=(2))
     secondIndexStatus.cubesStatuses.foreach { case (cube: CubeId, cubeStatus: CubeStatus) =>
       if (cubeStatus.maxWeight < Weight.MaxValue) {
         firstIndexStatus.cubesStatuses.get(cube) shouldBe defined
-        cubeStatus.maxWeight shouldBe cubeStatus.blocks.map(_.maxWeight).min
         cubeStatus.maxWeight shouldBe <=(firstIndexStatus.cubesStatuses(cube).maxWeight)
       }
     }

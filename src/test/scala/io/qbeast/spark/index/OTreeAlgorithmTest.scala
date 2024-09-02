@@ -28,29 +28,34 @@ class OTreeAlgorithmTest extends QbeastIntegrationTestSpec {
   "addRandomWeight" should
     "be deterministic when a row have only nullable columns" in withQbeastAndSparkContext() {
       spark =>
-        val rdd = spark.sparkContext.parallelize(
-          0.to(1000).map(i => Client1(Some(i * i), Some(s"student-$i"), Some(i))))
-        val df = spark.createDataFrame(rdd)
+        import spark.implicits._
+        val df = spark
+          .range(1000)
+          .map(i => Client1(Some(i * i), Some(s"student-$i"), Some(i.intValue())))
+          .toDF()
         checkRDD(df)
 
     }
 
   it should "be deterministic when a row have only strings" in
     withQbeastAndSparkContext() { spark =>
-      val rdd = spark.sparkContext.parallelize(
-        0.to(1000).map(i => ClientString((i * i).toString, s"student-$i", i.toString)))
-      val df = spark.createDataFrame(rdd)
+      import spark.implicits._
+      val df = spark
+        .range(1000)
+        .map(i => ClientString((i * i).toString, s"student-$i", i.toString))
+        .toDF()
       checkRDD(df)
 
     }
 
   it should "be deterministic when a row have only optional strings" in
     withQbeastAndSparkContext() { spark =>
-      val rdd = spark.sparkContext.parallelize(
-        0.to(1000)
-          .map(i =>
-            ClientStringOption(Some((i * i).toString), Some(s"student-$i"), Some(i.toString))))
-      val df = spark.createDataFrame(rdd)
+      import spark.implicits._
+      val df = spark
+        .range(1000)
+        .map(i =>
+          ClientStringOption(Some((i * i).toString), Some(s"student-$i"), Some(i.toString)))
+        .toDF()
       checkRDD(df)
     }
 
@@ -68,23 +73,27 @@ class OTreeAlgorithmTest extends QbeastIntegrationTestSpec {
 
   it should "be deterministic when a row has only nullable columns" +
     " and null values" in withQbeastAndSparkContext() { spark =>
-      val rdd = spark.sparkContext.parallelize(0.to(1000).map {
-        case i if i % 3 == 0 => Client1(Some(i * i), None, Some(i))
-        case i if i % 5 == 0 => Client1(Some(i * i), Some(s"student-$i"), None)
-        case i if i % 7 == 0 => Client1(None, Some(s"student-$i"), Some(i))
-        case i if i % 11 == 0 => Client1(None, None, None)
-        case i => Client1(Some(i * i), Some(s"student-$i"), Some(i))
-      })
-      val df = spark.createDataFrame(rdd)
+      import spark.implicits._
+      val df = spark
+        .range(1000)
+        .map {
+          case i if i % 3 == 0 => Client1(Some(i * i), None, Some(i.intValue()))
+          case i if i % 5 == 0 => Client1(Some(i * i), Some(s"student-$i"), None)
+          case i if i % 7 == 0 => Client1(None, Some(s"student-$i"), Some(i.intValue()))
+          case i if i % 11 == 0 => Client1(None, None, None)
+          case i => Client1(Some(i * i), Some(s"student-$i"), Some(i.intValue()))
+        }
+        .toDF()
+
       checkRDD(df)
 
     }
 
   it should "be deterministic when a row have only NOT nullable columns" in
     withQbeastAndSparkContext() { spark =>
-      val rdd =
-        spark.sparkContext.parallelize(0.to(1000).map(i => Client2(i * i, s"student-$i", i)))
-      val df = spark.createDataFrame(rdd)
+      import spark.implicits._
+      val df =
+        spark.range(1000).map(i => Client2(i * i, s"student-$i", i.intValue())).toDF()
       checkRDD(df)
 
     }

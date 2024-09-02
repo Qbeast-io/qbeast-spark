@@ -15,12 +15,13 @@
  */
 package io.qbeast.spark.utils
 
-import io.qbeast.core.model.CubeId
-import io.qbeast.core.model.CubeStatus
-import io.qbeast.core.model.Revision
-import io.qbeast.core.model.RevisionID
-
-import scala.collection.immutable.SortedMap
+import io.qbeast.core.model._
+import io.qbeast.spark.utils.IndexMetrics.computeMinHeight
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.LongType
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.DataFrameUtils
+import org.apache.spark.sql.Dataset
 
 case class IndexMetrics(
     revisionId: RevisionID,
@@ -37,17 +38,17 @@ case class IndexMetrics(
     blockCountPerFileStats: SizeStats,
     innerCubeStats: String,
     leafCubeStats: String,
-    cubeStatuses: SortedMap[CubeId, CubeStatus]) {
+    denormalizedBlocks: Dataset[DenormalizedBlock]) {
 
-  def cubeCount: Int = cubeElementCountStats.count
+  def cubeCount: Long = cubeElementCountStats.count
 
-  def blockCount: Int = blockElementCountStats.count
+  def blockCount: Long = blockElementCountStats.count
 
-  def fileCount: Int = fileBytesStats.count
+  def fileCount: Long = fileBytesStats.count
 
   def bytes: Long = fileBytesStats.avg * fileCount
 
-  val minHeight: Int = IndexMathOps.minHeight(elementCount, desiredCubeSize, dimensionCount)
+  val minHeight: Int = computeMinHeight(elementCount, desiredCubeSize, dimensionCount)
 
   val theoreticalFanout: Double = math.pow(2, dimensionCount)
 
@@ -82,23 +83,76 @@ case class IndexMetrics(
 
 object IndexMetrics {
 
-  def apply(revision: Revision, cubeStatuses: SortedMap[CubeId, CubeStatus]): IndexMetrics = {
+  def apply(revision: Revision, denormalizedBlocks: Dataset[DenormalizedBlock]): IndexMetrics = {
+    import denormalizedBlocks.sparkSession.implicits._
+
     val dimensionCount = revision.columnTransformers.size
     val desiredCubeSize = revision.desiredCubeSize
 
-    val blocks = cubeStatuses.values.toList.flatMap(_.blocks)
-    val cubes = cubeStatuses.keys.toSeq
-    val files = blocks.map(_.file).distinct
-    val cubeSizes = cubeStatuses.values.toList.map(_.blocks.map(_.elementCount).sum)
+    val avgFanout =
+      denormalizedBlocks
+        .select("cubeId.*")
+        .as[CubeId]
+        .distinct()
+        .transform(computeAverageFanout)
+        .withColumn("id", lit(1))
 
-    val height = if (cubes.nonEmpty) cubes.maxBy(_.depth).depth + 1 else -1
+    val miscDS =
+      denormalizedBlocks
+        .select(
+          sum("blockElementCount").as("elementCount"),
+          (max("cubeId.depth") + 1).as("height"),
+          SizeStats.forColumn($"blockElementCount").as("blockElementCountStats"),
+          lit(1).as("id"))
 
-    val innerCs = cubeStatuses.filterKeys(_.children.exists(cubeStatuses.contains))
-    val leafCs = cubeStatuses -- innerCs.keys
+    val cubeElementCountStatsDS =
+      denormalizedBlocks
+        .groupBy("cubeId")
+        .agg(sum("blockElementCount").as("cubeElementCount"))
+        .select(
+          SizeStats.forColumn($"cubeElementCount").as("cubeElementCountStats"),
+          lit(1).as("id"))
 
-    val avgFanout = IndexMathOps.averageFanout(cubeStatuses.keys.toSet)
+    val fileBytesStatsDS =
+      denormalizedBlocks
+        .select("filePath", "fileSize")
+        .distinct()
+        .select(SizeStats.forColumn($"fileSize").as("fileSizeStats"), lit(1).as("id"))
 
-    val elementCount = files.map(_.elementCount).sum
+    val blockCountPerCubeStatsDS =
+      denormalizedBlocks
+        .groupBy("cubeId")
+        .agg(count("*").as("blockCountPerCube"))
+        .select(
+          SizeStats.forColumn($"blockCountPerCube").as("blockCountPerCubeStats"),
+          lit(1).as("id"))
+
+    val blockCountPerFileStatsDS =
+      denormalizedBlocks
+        .groupBy("filePath")
+        .agg(count("*").as("blockCountPerFile"))
+        .select(
+          SizeStats.forColumn($"blockCountPerFile").as("blockCountPerFileStats"),
+          lit(1).as("id"))
+
+    val (
+      elementCount,
+      height,
+      blockElementCountStats,
+      avgFanoutOpt,
+      cubeElementCountStats,
+      fileBytesStats,
+      blockCountPerCubeStats,
+      blockCountPerFileStats) =
+      miscDS
+        .join(avgFanout, "id")
+        .join(cubeElementCountStatsDS, "id")
+        .join(fileBytesStatsDS, "id")
+        .join(blockCountPerCubeStatsDS, "id")
+        .join(blockCountPerFileStatsDS, "id")
+        .drop("id")
+        .as[(Long, Int, SizeStats, Option[Double], SizeStats, SizeStats, SizeStats, SizeStats)]
+        .first()
 
     IndexMetrics(
       revisionId = revision.revisionID,
@@ -107,102 +161,75 @@ object IndexMetrics {
       desiredCubeSize = desiredCubeSize,
       indexingColumns = revision.columnTransformers.map(_.spec).mkString(","),
       height = height,
-      avgFanout = avgFanout,
-      cubeElementCountStats = SizeStats.fromLongs(cubeSizes),
-      blockElementCountStats = SizeStats.fromLongs(blocks.map(_.elementCount)),
-      fileBytesStats = SizeStats.fromLongs(files.map(_.size)),
-      blockCountPerCubeStats =
-        SizeStats.fromIntegers(cubeStatuses.values.toList.map(_.blocks.size)),
-      blockCountPerFileStats = SizeStats.fromIntegers(files.map(_.blocks.size)),
-      innerCubeStats = computeCubeStats(innerCs),
-      leafCubeStats = computeCubeStats(leafCs),
-      cubeStatuses = cubeStatuses)
+      avgFanout = round(avgFanoutOpt.getOrElse(0d), decimals = 2),
+      cubeElementCountStats = cubeElementCountStats,
+      blockElementCountStats = blockElementCountStats,
+      fileBytesStats = fileBytesStats,
+      blockCountPerCubeStats = blockCountPerCubeStats,
+      blockCountPerFileStats = blockCountPerFileStats,
+      innerCubeStats = computeCubeStats(denormalizedBlocks.filter(!_.isLeaf)),
+      leafCubeStats = computeCubeStats(denormalizedBlocks.filter(_.isLeaf)),
+      denormalizedBlocks = denormalizedBlocks)
   }
 
-  private def computeCubeStats(cubeStatuses: SortedMap[CubeId, CubeStatus]): String = {
-    val cubeElementCountStats =
-      SizeStats.fromLongs(cubeStatuses.values.toSeq.map(_.blocks.map(_.elementCount).sum))
-    val blockElementCounts =
-      SizeStats.fromLongs(cubeStatuses.values.toSeq.flatMap(_.blocks).map(_.elementCount))
+  private[qbeast] def computeCubeStats(denormalizedBlocks: Dataset[DenormalizedBlock]): String = {
+    import denormalizedBlocks.sparkSession.implicits._
+    val blockElementCountStatsDF = denormalizedBlocks
+      .select(
+        SizeStats.forColumn($"blockElementCount").as("blockElementCountStats"),
+        lit(1).as("id"))
 
-    val depthWiseStats = cubeStatuses
-      .groupBy(_._1.depth)
-      .toSeq
-      .sortBy(_._1)
-      .map { case (depth, csMap) =>
-        var blockCount = 0
-        val cubeElementCountStats =
-          SizeStats.fromLongs(csMap.values.toSeq.map { cs =>
-            blockCount += cs.blocks.size
-            cs.blocks.foldLeft(0L)((acc, b) => acc + b.elementCount)
-          })
-        val avgWeights = csMap.values.map(_.normalizedWeight).sum / csMap.size
-        Seq(
-          depth.toString,
-          cubeElementCountStats.avg.toString,
-          cubeElementCountStats.count.toString,
-          blockCount.toString,
-          cubeElementCountStats.std.toString,
-          cubeElementCountStats.quartiles.toString,
-          avgWeights.toString)
-      }
+    val cubes = denormalizedBlocks
+      .groupBy("cubeId")
+      .agg(
+        sum("blockElementCount").as("cubeElementCount"),
+        min("maxWeight.value").as("maxWeightInt"),
+        count("*").as("blockCount"))
+      .toDF("cubeId", "cubeElementCount", "maxWeightInt", "blockCount")
 
-    val columnNames = Seq(
-      "depth",
-      "avgCubeElementCount",
-      "cubeCount",
-      "blockCount",
-      "cubeElementCountStd",
-      "cubeElementCountQuartiles",
-      "avgWeight")
-    "cubeElementCountStats: " + cubeElementCountStats.toString + "\n" +
-      "blockElementCountStats: " + blockElementCounts.toString + "\n" +
-      Tabulator.format(columnNames +: depthWiseStats)
+    val cubeElementCountStatsDF =
+      cubes.select(
+        SizeStats.forColumn($"cubeElementCount").as("cubeElementCountStats"),
+        lit(1).as("id"))
+
+    val levelWiseCubeElementCountStats = cubes
+      .groupBy("cubeId.depth")
+      .agg(SizeStats.forColumn($"cubeElementCount").as("cubeElementCountStats"))
+      .toDF("depth", "cubeElementCountStats")
+
+    val levelWiseAverageWeight = cubes
+      .withColumn("normalizedWeight", NormalizedWeight.fromWeightColumn($"maxWeightInt"))
+      .groupBy("cubeId.depth")
+      .agg(avg("normalizedWeight"))
+      .toDF("depth", "avgWeight")
+
+    val levelWiseBlockCounts = cubes
+      .groupBy("cubeId.depth")
+      .sum("blockCount")
+      .toDF("depth", "blockCount")
+
+    val elementCountStats =
+      cubeElementCountStatsDF
+        .join(blockElementCountStatsDF, "id")
+        .drop("id")
+
+    val levelWiseStats = levelWiseCubeElementCountStats
+      .join(levelWiseBlockCounts, "depth")
+      .join(levelWiseAverageWeight, "depth")
+      .orderBy("depth")
+      .select(
+        $"depth",
+        $"cubeElementCountStats.avg".as("avgCubeElementCount"),
+        $"cubeElementCountStats.count".as("cubeCount"),
+        $"blockCount",
+        $"cubeElementCountStats.stddev".as("cubeElementCountStddev"),
+        $"cubeElementCountStats.quartiles".as("cubeElementCountQuartiles"),
+        $"avgWeight")
+
+    DataFrameUtils.showString(elementCountStats) + "\n" + DataFrameUtils.showString(
+      levelWiseStats)
+
   }
-
-}
-
-case class SizeStats(
-    count: Int,
-    avg: Long,
-    std: Long,
-    quartiles: (Long, Long, Long, Long, Long)) {
-
-  override def toString: String = {
-    s"(count: $count, avg: $avg, std: $std, quartiles: $quartiles)"
-  }
-
-}
-
-object SizeStats {
-
-  def fromLongs(nums: Seq[Long]): SizeStats = {
-    if (nums.isEmpty) SizeStats(0, -1, -1, computeQuartiles(Seq.empty))
-    else {
-      val avg = nums.sum / nums.size
-      val std = IndexMathOps.std(nums, avg)
-      SizeStats(nums.size, avg, std, computeQuartiles(nums))
-    }
-  }
-
-  def fromIntegers(nums: Seq[Int]): SizeStats = fromLongs(nums.map(_.toLong))
-
-  def computeQuartiles(nums: Seq[Long]): (Long, Long, Long, Long, Long) = {
-    if (nums.isEmpty) (-1, -1, -1, -1, -1)
-    else {
-      val sorted = nums.sorted
-      (
-        sorted.head,
-        sorted((sorted.size * 0.25).toInt),
-        sorted((sorted.size * 0.50).toInt),
-        sorted((sorted.size * 0.75).toInt),
-        sorted.last)
-    }
-  }
-
-}
-
-object IndexMathOps {
 
   /**
    * Compute the theoretical height of an index assuming a balanced tree. The result can be used
@@ -217,68 +244,59 @@ object IndexMathOps {
    * @return
    *   the theoretical height of the index assuming a balanced tree
    */
-  def minHeight(elementCount: Long, desiredCubeSize: Int, dimensionCount: Int): Int = {
-    // Geometric sum: Sn = a(1-pow(r, n)/(1-r) = a + ar + ar^2 + ... + ar^(n-1)
-    // Sn: cube count, a: 2, r: pow(2, dimensionCount), n: h
+  def computeMinHeight(elementCount: Long, desiredCubeSize: Int, dimensionCount: Int): Int = {
+    // Geometric sum: Sn = a * (1 - r^n)/(1 - r) = a + ar + ar^2 + ... + ar^(n-1)
+    // Sn: cube count, a: 1, r: 2^dimensionCount, n: h
+    // h = log(Sn * (r - 1) / a + 1) / log(r)
+    assert(elementCount >= 0, "elementCount must be non-negative")
     val sn = math.ceil(elementCount / desiredCubeSize.toDouble)
     val r = math.pow(2, dimensionCount).toInt
-    val v = 1 - (sn / 2 * (1 - r))
-    val h = math.ceil(logOfBase(v, r)).toInt
+    val a = 1
+    val h = math.ceil(math.log(sn * (r - 1) / a + 1) / math.log(r)).toInt
     h
   }
 
   /**
-   * Compute the average fanout of a set of cubes
-   * @param cubeIds
-   *   the set of cube identifiers
-   * @return
+   * Compute the average fanout of a set of cubes, i.e., the average number of children per cube.
    */
-  def averageFanout(cubeIds: Set[CubeId]): Double = {
-    val innerCubes = cubeIds.filter(_.children.exists(cubeIds.contains))
-    val avgFanout =
-      innerCubes.toSeq.map(_.children.count(cubeIds.contains)).sum / innerCubes.size.toDouble
-    round(avgFanout, decimals = 2)
+  def computeAverageFanout: Dataset[CubeId] => Dataset[Option[Double]] = { cubesDS =>
+    import cubesDS.sparkSession.implicits._
+    cubesDS
+      .groupByKey(_.parent)
+      .count()
+      .toDF("parent", "fanout")
+      .filter("parent IS NOT NULL")
+      .agg(avg($"fanout").as("avgFanout"))
+      .as[Option[Double]]
   }
 
-  /**
-   * Compute the logarithm of a value in a given base
-   * @param value
-   *   the value
-   * @param base
-   *   the base
-   * @return
-   */
-  def logOfBase(value: Double, base: Int): Double = {
-    math.log10(value) / math.log10(base)
-  }
-
-  def l1Deviation(nums: Seq[Long], target: Int): Double =
-    nums
-      .map(num => math.abs(num - target))
-      .sum / nums.size.toDouble / target
-
-  def l2Deviation(nums: Seq[Long], target: Int): Double =
-    math.sqrt(
-      nums
-        .map(num => (num - target) * (num - target))
-        .sum) / nums.size.toDouble / target
-
-  def std(nums: Seq[Long], mean: Long): Long = {
-    val squared_dev = nums.map(n => (n - mean) * (n - mean)).sum / nums.size.toDouble
-    math.sqrt(squared_dev).toLong
-  }
-
-  /**
-   * Round a double value to a given number of decimals
-   * @param value
-   *   the value to round
-   * @param decimals
-   *   the number of decimals
-   * @return
-   */
   def round(value: Double, decimals: Int): Double = {
     val precision = math.pow(10, decimals)
     (value * precision).toLong.toDouble / precision
+  }
+
+}
+
+case class SizeStats(count: Long, avg: Long, stddev: Long, quartiles: Seq[Long]) {
+
+  override def toString: String = {
+    s"(count: $count, avg: $avg, stddev: $stddev, quartiles: ${quartiles.mkString("[", ",", "]")})"
+  }
+
+}
+
+object SizeStats {
+
+  def forColumn(column: Column): Column = {
+    struct(
+      count(column).as("count"),
+      avg(column).cast(LongType).as("avg"),
+      when(stddev(column).isNull, lit(0d))
+        .otherwise(stddev(column))
+        .cast(LongType)
+        .as("stddev"),
+      approx_percentile(column, array(lit(0), lit(0.25), lit(0.5), lit(0.75), lit(1)), lit(1000))
+        .as("quartiles"))
   }
 
 }

@@ -40,18 +40,6 @@ package object config {
       .intConf
       .createWithDefault(2)
 
-  private[config] val minCompactionFileSizeInBytes: ConfigEntry[Int] =
-    ConfigBuilder("spark.qbeast.compact.minFileSizeInBytes")
-      .version("0.2.0")
-      .intConf
-      .createWithDefault(1024 * 1024 * 1024)
-
-  private[config] val maxCompactionFileSizeInBytes: ConfigEntry[Int] =
-    ConfigBuilder("spark.qbeast.compact.maxFileSizeInBytes")
-      .version("0.2.0")
-      .intConf
-      .createWithDefault(1024 * 1024 * 1024)
-
   private[config] val stagingSizeInBytes: OptionalConfigEntry[Long] =
     ConfigBuilder("spark.qbeast.index.stagingSizeInBytes")
       .version("0.2.0")
@@ -78,12 +66,6 @@ package object config {
 
   def CUBE_WEIGHTS_BUFFER_CAPACITY: Long = QbeastContext.config
     .get(cubeWeightsBufferCapacity)
-
-  def MIN_COMPACTION_FILE_SIZE_IN_BYTES: Int =
-    QbeastContext.config.get(minCompactionFileSizeInBytes)
-
-  def MAX_COMPACTION_FILE_SIZE_IN_BYTES: Int =
-    QbeastContext.config.get(maxCompactionFileSizeInBytes)
 
   def STAGING_SIZE_IN_BYTES: Option[Long] = QbeastContext.config.get(stagingSizeInBytes)
 

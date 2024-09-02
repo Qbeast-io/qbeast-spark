@@ -24,8 +24,6 @@ import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import scala.util.Random
-
 class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec {
 
   // Write source data indexing all columns and read it back
@@ -44,10 +42,9 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
   "Qbeast spark" should "Index tables with string" in withSparkAndTmpDir((spark, tmpDir) => {
 
     import spark.implicits._
-    val source = 0
-      .to(100000)
+    val source = spark
+      .range(100001)
       .map(i => T1(i, s"$i", i.toDouble))
-      .toDF()
       .as[T1]
 
     source.write
@@ -71,12 +68,39 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   })
 
+  it should
+    "index tables with hashing configuration" in withSparkAndTmpDir((spark, tmpDir) => {
+      import spark.implicits._
+      val source = spark
+        .range(100001)
+        .map(i => T2(i, i.toDouble))
+
+      source.write
+        .format("qbeast")
+        .option("columnsToIndex", "a:hashing,c:hashing")
+        .option("cubeSize", 10000)
+        .save(tmpDir)
+
+      val indexed = spark.read
+        .format("qbeast")
+        .load(tmpDir)
+        .as[T2]
+
+      indexed.count() shouldBe source.count()
+
+      assertSmallDatasetEquality(
+        source,
+        indexed,
+        ignoreNullable = true,
+        orderedComparison = false)
+
+    })
+
   it should "index tables with all String" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
-    val source = 0
-      .to(100000)
+    val source = spark
+      .range(100001)
       .map(i => TestStrings(s"${i * 2}", s"$i", s"$i$i"))
-      .toDF()
       .as[TestStrings]
     val indexed = writeAndReadDF(source, tmpDir, spark).as[TestStrings]
 
@@ -89,10 +113,9 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
   it should "index tables with non-numeric string" in withSparkAndTmpDir((spark, tmpDir) => {
 
     import spark.implicits._
-    val source = 0
-      .to(100000)
+    val source = spark
+      .range(100001)
       .map(i => TestStrings(s"some_string$i", s"some_other_string$i", i.toString))
-      .toDF()
       .as[TestStrings]
 
     val indexed = writeAndReadDF(source, tmpDir, spark).as[TestStrings]
@@ -105,10 +128,9 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   it should "index tables with all Double" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
-    val source = 0
-      .to(100000)
+    val source = spark
+      .range(100001)
       .map(i => TestDouble((i * i).toDouble, i.toDouble, (i * 2).toDouble))
-      .toDF()
       .as[TestDouble]
 
     val indexed = writeAndReadDF(source, tmpDir, spark).as[TestDouble]
@@ -121,11 +143,10 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   it should "index tables with all Int" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
-    val source = 0
-      .to(100000)
+    val source = spark
+      .range(100001)
+      .map(_.toInt)
       .map(i => TestInt(i * i, i, i * 2))
-      .toDF()
-      .as[TestInt]
 
     val indexed = writeAndReadDF(source, tmpDir, spark).as[TestInt]
 
@@ -137,10 +158,9 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   it should "index tables with BigDecimal" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
-    val source = 0
-      .to(100000)
-      .map(i => TestBigDecimal(i * i, i, i * 2))
-      .toDF()
+    val source = spark
+      .range(100001)
+      .map(i => TestBigDecimal(BigDecimal(i * i), BigDecimal(i), BigDecimal(i * 2)))
       .as[TestBigDecimal]
 
     val indexed = writeAndReadDF(source, tmpDir, spark).as[TestBigDecimal]
@@ -153,10 +173,9 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   it should "index tables with all Float" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
-    val source = 0
-      .to(100000)
-      .map(i => TestFloat(i * i, i, i * 2))
-      .toDF()
+    val source = spark
+      .range(100001)
+      .map(i => TestFloat(i * i, i.toInt, i * 2))
       .as[TestFloat]
 
     val indexed = writeAndReadDF(source, tmpDir, spark).as[TestFloat]
@@ -169,10 +188,9 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   it should "index tables with all Long" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
-    val source = 0
-      .to(100000)
+    val source = spark
+      .range(100001)
       .map(i => TestLong(i * i, i, i * 2))
-      .toDF()
       .as[TestLong]
 
     val indexed = writeAndReadDF(source, tmpDir, spark).as[TestLong]
@@ -259,12 +277,12 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   it should "index tables with null values" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
-    val source = 0
-      .to(100000)
+    val source = spark
+      .range(100001)
+      .map(_.toInt)
       .map(i =>
         if (i % 2 == 0) TestNull(Some(s"student$i"), None, Some(i * 2))
         else TestNull(Some(s"student$i"), Some(i), Some(i * 2)))
-      .toDF()
       .as[TestNull]
 
     val indexed = writeAndReadDF(source, tmpDir, spark).as[TestNull]
@@ -277,10 +295,9 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   it should "index tables with ALL null values" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
-    val source = 0
-      .to(100000)
+    val source = spark
+      .range(100001)
       .map(i => TestNull(Some(s"student$i"), None, Some(i * 2)))
-      .toDF()
       .as[TestNull]
 
     val indexed = writeAndReadDF(source, tmpDir, spark).as[TestNull]
@@ -294,11 +311,9 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
   it should "index tables with the same value in all rows" in withSparkAndTmpDir(
     (spark, tmpDir) => {
       import spark.implicits._
-      val source = 0
-        .to(100000)
+      val source = spark
+        .range(100000)
         .map(i => TestNull(Some(s"student$i"), Some(10), Some(i)))
-        .toDF()
-        .as[TestNull]
 
       val indexed = writeAndReadDF(source, tmpDir, spark).as[TestNull]
 
@@ -314,11 +329,9 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
       // with all null values in one column
       // and poor cardinality (4 groups) in the other
       import spark.implicits._
-      val source = 1
-        .to(200000)
-        .map(i => TestNull(None, None, Some(Random.nextInt(4))))
-        .toDF()
-        .as[TestNull]
+      val source = spark
+        .range(200000)
+        .map(i => TestNull(None, None, Some(i % 4)))
 
       source.write
         .format("qbeast")
@@ -336,6 +349,37 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
         indexed.where(filter).count() shouldBe source.where(filter).count()
       })
 
+    })
+
+  it should "create better file-level min-max with a String histogram" in withSparkAndTmpDir(
+    (spark, tmpDir) => {
+      val histPath = tmpDir + "/string_hist/"
+      val hashPath = tmpDir + "/string_hash/"
+      val colName = "brand"
+
+      val df = loadTestData(spark)
+
+      val colHistStr = getStringHistogramStr(colName, 50, df)
+      val statsStr = s"""{"${colName}_histogram":$colHistStr}"""
+
+      df.write
+        .mode("overwrite")
+        .format("qbeast")
+        .option("cubeSize", "30000")
+        .option("columnsToIndex", s"$colName:histogram")
+        .option("columnStats", statsStr)
+        .save(histPath)
+      val histDist = computeColumnEncodingDist(spark, histPath, colName)
+
+      df.write
+        .mode("overwrite")
+        .format("qbeast")
+        .option("columnsToIndex", colName)
+        .option("cubeSize", "30000")
+        .save(hashPath)
+      val hashDist = computeColumnEncodingDist(spark, hashPath, colName)
+
+      histDist should be < hashDist
     })
 
 }

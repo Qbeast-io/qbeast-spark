@@ -1,3 +1,18 @@
+/*
+ * Copyright 2021 Qbeast Analytics, S.L.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.qbeast.core.model
 
 import com.fasterxml.jackson.core.JsonParseException
@@ -10,13 +25,19 @@ import org.apache.spark.sql.delta.actions.AddFile
 class IndexFilesTest extends QbeastIntegrationTestSpec {
 
   "IndexFiles" should "be able to create an AddFile instance from IndexFile" in withSpark { _ =>
-    val indexFile = new IndexFile(
+    val indexFile = IndexFile(
       path = "path",
       size = 2L,
       modificationTime = 0L,
       revisionId = 1L,
-      blocks =
-        Seq(new Block(None, CubeId.root(2), Weight(1L), Weight(2L), 1L, false)).toIndexedSeq)
+      blocks = Seq(
+        Block(
+          "path",
+          CubeId.root(2),
+          Weight(1L),
+          Weight(2L),
+          1L,
+          replicated = false)).toIndexedSeq)
 
     val addFile = IndexFiles.toAddFile(dataChange = true)(indexFile)
     addFile.path shouldBe "path"
@@ -51,13 +72,19 @@ class IndexFilesTest extends QbeastIntegrationTestSpec {
   }
 
   it should "transform the AddFile to a Remove File" in withSpark { _ =>
-    val indexFile = new IndexFile(
+    val indexFile = IndexFile(
       path = "path",
       size = 2L,
       modificationTime = 0L,
       revisionId = 1L,
-      blocks =
-        Seq(new Block(None, CubeId.root(2), Weight(1L), Weight(2L), 1L, false)).toIndexedSeq)
+      blocks = Seq(
+        Block(
+          "path",
+          CubeId.root(2),
+          Weight(1L),
+          Weight(2L),
+          1L,
+          replicated = false)).toIndexedSeq)
 
     val dataChange = false
     val removeFile = IndexFiles.toRemoveFile(dataChange = dataChange)(indexFile)
@@ -67,13 +94,19 @@ class IndexFilesTest extends QbeastIntegrationTestSpec {
   }
 
   it should "be able to create a FileStatus from an IndexFile" in withSpark { _ =>
-    val indexFile = new IndexFile(
+    val indexFile = IndexFile(
       path = "path",
       size = 2L,
       modificationTime = 0L,
       revisionId = 1L,
-      blocks =
-        Seq(new Block(None, CubeId.root(2), Weight(1L), Weight(2L), 1L, false)).toIndexedSeq)
+      blocks = Seq(
+        Block(
+          "path",
+          CubeId.root(2),
+          Weight(1L),
+          Weight(2L),
+          1L,
+          replicated = false)).toIndexedSeq)
 
     val indexPath = new Path("/absolute/")
     val indexStatus = IndexFiles.toFileStatus(indexPath)(indexFile)
@@ -86,13 +119,19 @@ class IndexFilesTest extends QbeastIntegrationTestSpec {
   }
 
   it should "be able to create a FileStatusWithMetadata from IndexFile" in withSpark { _ =>
-    val indexFile = new IndexFile(
+    val indexFile = IndexFile(
       path = "path",
       size = 2L,
       modificationTime = 0L,
       revisionId = 1L,
-      blocks =
-        Seq(new Block(None, CubeId.root(2), Weight(1L), Weight(2L), 1L, false)).toIndexedSeq)
+      blocks = Seq(
+        Block(
+          "path",
+          CubeId.root(2),
+          Weight(1L),
+          Weight(2L),
+          1L,
+          replicated = false)).toIndexedSeq)
 
     val indexPath = new Path("/absolute/")
     val indexStatus =

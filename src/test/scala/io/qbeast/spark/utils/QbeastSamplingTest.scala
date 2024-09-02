@@ -141,4 +141,30 @@ class QbeastSamplingTest extends QbeastIntegrationTestSpec {
       }
   }
 
+  it should "sample with different column types in SQL" in withQbeastContextSparkAndTmpWarehouse {
+    (spark, _) =>
+      {
+        val data = loadTestData(spark)
+        val cubeSize = 10000
+        data.write
+          .mode("append")
+          .format("qbeast")
+          .options(
+            Map("columnsToIndex" -> "user_id,brand:histogram", "cubeSize" -> cubeSize.toString))
+          .saveAsTable("table")
+
+        val dataSize = data.count()
+
+        val precision = 0.1
+        val precisionPercent = precision * 100
+        val tolerance = 0.01
+        // We allow a 1% of tolerance in the sampling
+        spark
+          .sql(s"SELECT * FROM table TABLESAMPLE($precisionPercent PERCENT)")
+          .count()
+          .toDouble shouldBe (dataSize * precision) +- dataSize * precision * tolerance
+
+      }
+  }
+
 }

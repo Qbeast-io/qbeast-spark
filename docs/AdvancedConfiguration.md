@@ -238,15 +238,6 @@ You can change the number of retries for the LocalKeeper in order to test it.
 --conf spark.qbeast.index.numberOfRetries=10000
 ```
 
-## Min/Max file size for compaction
-
-You can set the minimum and maximum size of your files for the compaction process.
-
-```shell
---conf spark.qbeast.compact.minFileSizeInBytes=1 \
---conf spark.qbeast.compact.maxFileSizeInBytes=10000
-```
-
 ## Data Staging
 You can set up the `SparkSession` with a **data staging area** for all your Qbeast table writes.
 
@@ -304,6 +295,7 @@ df
 
 ```scala
 // Hooks for Optimizations
+import io.qbeast.spark.QbeastTable
 val qt = QbeastTable.forPath(spark, tablePath)
 val options = Map(
   "qbeastPreCommitHook.myHook1" -> classOf[SimpleHook].getCanonicalName,
@@ -311,4 +303,18 @@ val options = Map(
   "qbeastPreCommitHook.myHook2.arg" -> "myStringHookArg"
 )
 qt.optimize(filesToOptimize, options)
+```
+## Advanced Index metadata analysis
+In addition to the IndexMetrics class, we provide handy access to the low-level details of the Qbeast index through the  
+QbeastTable.forTable(sparkSession, tablePath) methods that returns a Dataset[DenormalizedBlock] which
+contains all indexed metadata in an easy-to-analyze format.
+
+```scala
+import io.qbeast.spark.QbeastTable
+val qt = QbeastTable.forPath(spark, tablePath)
+val dnb = qt.getDenormalizedBlocks()
+dnb.select("filePath").distinct.count() // number of files
+dnb.count() // number of blocks
+dnb.groupBy("filePath").count().orderBy(col("count").desc).show() // Show the files with the most blocks
+dnb.groupBy("cubeId").count().orderBy(col("count").desc).show()  // Show the cubeId with the most blocks
 ```

@@ -47,6 +47,7 @@ import org.apache.spark.sql.functions.struct
 import org.apache.spark.sql.functions.udf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.util.SerializableConfiguration
@@ -237,18 +238,23 @@ object RollupDataWriter
       .getOrElse(file)
   }
 
-  override def compact(
+  override def optimize(
       tableId: QTableID,
       schema: StructType,
       revision: Revision,
       indexStatus: IndexStatus,
-      indexFiles: Seq[IndexFile]): IISeq[FileAction] = {
+      indexFiles: Dataset[IndexFile]): IISeq[FileAction] = {
     val data = loadDataFromIndexFiles(tableId, indexFiles)
+    val cubeMaxWeightsBroadcast =
+      data.sparkSession.sparkContext.broadcast(
+        indexStatus.cubesStatuses
+          .mapValues(_.maxWeight)
+          .map(identity))
     var extendedData = extendDataWithWeight(data, revision)
-    extendedData = extendDataWithCube(extendedData, revision, indexStatus)
+    extendedData = extendDataWithCube(extendedData, revision, cubeMaxWeightsBroadcast.value)
     extendedData = extendDataWithCubeToRollup(extendedData, revision)
     val getCubeMaxWeight = { cubeId: CubeId =>
-      indexStatus.cubesStatuses.get(cubeId).map(_.maxWeight).getOrElse(Weight.MaxValue)
+      cubeMaxWeightsBroadcast.value.getOrElse(cubeId, Weight.MaxValue)
     }
     val statsTrackers = StatsTracker.getStatsTrackers()
     val fileStatsTracker = getFileStatsTracker(tableId, data)
@@ -265,8 +271,9 @@ object RollupDataWriter
       .toIndexedSeq
     val stats = filesAndStats.map(_._2)
     processStats(stats, statsTrackers, fileStatsTracker)
+    import indexFiles.sparkSession.implicits._
     val removeFiles =
-      indexFiles.iterator.map(IndexFiles.toRemoveFile(dataChange = false)).toIndexedSeq
+      indexFiles.map(IndexFiles.toRemoveFile(dataChange = false)).collect().toIndexedSeq
     val addFiles = filesAndStats
       .map(_._1)
       .map(IndexFiles.toAddFile(dataChange = false))
@@ -274,10 +281,15 @@ object RollupDataWriter
     removeFiles ++ addFiles
   }
 
-  private def loadDataFromIndexFiles(tableId: QTableID, indexFiles: Seq[IndexFile]): DataFrame = {
-    val paths = indexFiles.iterator
+  private def loadDataFromIndexFiles(
+      tableId: QTableID,
+      indexFiles: Dataset[IndexFile]): DataFrame = {
+    import indexFiles.sparkSession.implicits._
+    val paths = indexFiles
       .map(file => new Path(tableId.id, file.path).toString)
-      .toSet
+      .distinct()
+      .as[String]
+      .collect()
       .toSeq
     SparkSession.active.read.parquet(paths: _*)
   }
@@ -290,18 +302,12 @@ object RollupDataWriter
   private def extendDataWithCube(
       extendedData: DataFrame,
       revision: Revision,
-      indexStatus: IndexStatus): DataFrame = {
-    val spark = extendedData.sparkSession
-    val cubeMaxWeightsBroadcast =
-      spark.sparkContext.broadcast(
-        indexStatus.cubesStatuses
-          .mapValues(_.maxWeight)
-          .map(identity))
+      cubeMaxWeights: Map[CubeId, Weight]): DataFrame = {
     val columns = revision.columnTransformers.map(_.columnName)
     extendedData
       .withColumn(
         QbeastColumns.cubeColumnName,
-        getCubeIdUDF(revision, cubeMaxWeightsBroadcast.value)(
+        getCubeIdUDF(revision, cubeMaxWeights)(
           struct(columns.map(col): _*),
           col(QbeastColumns.weightColumnName)))
   }

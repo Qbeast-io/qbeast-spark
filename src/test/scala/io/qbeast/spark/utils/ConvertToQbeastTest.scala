@@ -84,7 +84,6 @@ class ConvertToQbeastTest
     // directly into the staging revision(RevisionID = 0)
     val indexStatus = getQbeastSnapshot(spark, tmpDir).loadIndexStatus(stagingID)
     indexStatus.cubesStatuses.size shouldBe 1
-    indexStatus.cubesStatuses.head._2.blocks.size shouldBe numSparkPartitions
 
     val valuesToTransform = Vector(544496263, 76.96, "view")
     indexStatus.revision.transform(valuesToTransform) shouldBe Vector(0d, 0d, 0d)
@@ -104,7 +103,6 @@ class ConvertToQbeastTest
     // directly into the staging revision(RevisionID = 0)
     val indexStatus = getQbeastSnapshot(spark, tmpDir).loadIndexStatus(stagingID)
     indexStatus.cubesStatuses.size shouldBe 1
-    indexStatus.cubesStatuses.head._2.blocks.size shouldBe numSparkPartitions
   })
 
   it should "fail to convert a PARTITIONED delta table" in withSparkAndTmpDir((spark, tmpDir) => {
@@ -164,6 +162,18 @@ class ConvertToQbeastTest
 
       thrown.getMessage shouldBe incorrectIdentifierFormat(identifier)
     })
+
+  it should "convert if the path contains '.'" in withSparkAndTmpDir((spark, tmpDir) => {
+    val location = s"$tmpDir/test.db/table"
+    val identifier = s"parquet.`$location`"
+    loadTestData(spark)
+      .limit(dataSize)
+      .write
+      .format("delta")
+      .save(location)
+    ConvertToQbeastCommand(identifier, columnsToIndex, dcs).run(spark)
+    getQbeastSnapshot(spark, location).loadAllRevisions.size shouldBe 1
+  })
 
   it should "preserve sampling accuracy" in withSparkAndTmpDir((spark, tmpDir) => {
     convertFromFormat(spark, "parquet", tmpDir)
@@ -230,28 +240,6 @@ class ConvertToQbeastTest
       val sourceDf = spark.read.format(fileFormat).load(tmpDir)
       val qbeastDf = spark.read.format("qbeast").load(tmpDir)
       assertLargeDatasetEquality(qbeastDf, sourceDf, orderedComparison = false)
-    })
-
-  "Compacting the staging revision" should "reduce the number of delta AddFiles" in
-    withSparkAndTmpDir((spark, tmpDir) => {
-      val fileFormat = "delta"
-      convertFromFormat(spark, fileFormat, tmpDir)
-
-      // Perform compaction
-      val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-      qbeastTable.compact()
-
-      // Compare DataFrames
-      val sourceDf = spark.read.format(fileFormat).load(tmpDir)
-      val qbeastDf = spark.read.format("qbeast").load(tmpDir)
-      assertLargeDatasetEquality(qbeastDf, sourceDf, orderedComparison = false)
-
-      // Standard staging revision behavior
-      val qs = getQbeastSnapshot(spark, tmpDir)
-      val stagingCs = qs.loadLatestIndexFiles
-
-      stagingCs.size shouldBe 1
-      stagingCs.head.blocks.size shouldBe <(numSparkPartitions)
     })
 
 }

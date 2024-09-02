@@ -20,6 +20,8 @@ import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
 import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.functions.max
+import org.apache.spark.sql.functions.min
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
@@ -54,8 +56,9 @@ class RevisionTest
   def getMaxMinFromRevision(revision: Revision, spark: SparkSession): Seq[Seq[Any]] = {
     for (t <- revision.columnTransformers)
       yield spark
-        .sql("SELECT max(%s), min(%s) FROM dfqbeast".format(t.columnName, t.columnName))
-        .collect()(0)
+        .table("dfqbeast")
+        .select(max(t.columnName), min(t.columnName))
+        .first()
         .toSeq
         .toVector
   }
@@ -63,8 +66,11 @@ class RevisionTest
   "LinearTransformer" should
     "get correct values with no nullable numbers" in withQbeastContextSparkAndTmpDir {
       (spark, tmpDir) =>
-        val df = spark.createDataFrame(spark.sparkContext.parallelize(
-          0.to(100).map(i => Client3(i * i, s"student-$i", i, i * 1000 + 123, i * 2567.3432143))))
+        import spark.implicits._
+        val df = spark
+          .range(101)
+          .map(i => Client3(i * i, s"student-$i", i.intValue(), i * 1000 + 123, i * 2567.3432143))
+          .toDF()
 
         val cols = "age,val2,val3"
         val lastRevision = writeAndLoadDF(df, cols, tmpDir, spark)
@@ -77,10 +83,17 @@ class RevisionTest
 
   it should "get correct values with nullable numbers" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
-      val df = spark.createDataFrame(spark.sparkContext.parallelize(0
-        .to(100)
+      import spark.implicits._
+      val df = spark
+        .range(101)
         .map(i =>
-          Client4(i * i, s"student-$i", Some(i), Some(i * 1000 + 123), Some(i * 2567.3432143)))))
+          Client4(
+            i * i,
+            s"student-$i",
+            Some(i.intValue()),
+            Some(i * 1000 + 123),
+            Some(i * 2567.3432143)))
+        .toDF()
 
       val cols = "age,val2,val3"
       val lastRevision = writeAndLoadDF(df, cols, tmpDir, spark)

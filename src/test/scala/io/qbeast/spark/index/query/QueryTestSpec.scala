@@ -44,10 +44,9 @@ trait QueryTestSpec extends AnyFlatSpec with Matchers with PrivateMethodTester {
   def createDF(size: Int, spark: SparkSession): Dataset[T2] = {
     import spark.implicits._
 
-    0.to(size)
+    spark
+      .range(size)
       .map(i => T2(i, i.toDouble))
-      .toDF()
-      .as[T2]
 
   }
 

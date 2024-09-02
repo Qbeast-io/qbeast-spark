@@ -1,8 +1,9 @@
 <p align="center">
-	<img src="./docs/images/Qbeast-spark.png" alt="Qbeast spark project"/>
+	<img src="https://raw.githubusercontent.com/Qbeast-io/qbeast-spark/main/docs/images/Qbeast-spark.png" alt="Qbeast spark project"/>
 </p>
 
 <div align="center">
+
 
 [![Users Documentation](https://img.shields.io/badge/-Users_Docs-lightgreen?style=for-the-badge&logo=readthedocs)](./docs)
 [![Developers Documentation](https://img.shields.io/badge/_-Developer's_docs_(docs.qbeast.io)-ff7?style=for-the-badge&logo=readthedocs)](https://docs.qbeast.io/)
@@ -16,7 +17,7 @@
 
 ---
 
-**Qbeast Spark** is an extension for [**Data Lakehouses**](http://cidrdb.org/cidr2021/papers/cidr2021_paper17.pdf) that enables **multi-dimensional filtering** and **sampling** directly on the storage
+**Qbeast Spark** is an Apache Spark extension that enhances data processing in [**Data Lakehouses**](http://cidrdb.org/cidr2021/papers/cidr2021_paper17.pdf). It provides advanced **multi-dimensional filtering** and **efficient data sampling**, enabling faster and more accurate queries. The extension also maintains ACID properties for data integrity and reliability, making it ideal for handling large-scale data efficiently.
 
 [![apache-spark](https://img.shields.io/badge/apache--spark-3.5.x-blue)](https://spark.apache.org/releases/spark-release-3-5-0.html) 
 [![apache-hadoop](https://img.shields.io/badge/apache--hadoop-3.3.x-blue)](https://hadoop.apache.org/release/3.3.1.html)
@@ -41,11 +42,8 @@
 
 ## Query example with Qbeast
 
-<div>
-<img src="./docs/images/spark_delta_demo.gif" width="49%" alt="Demo for Delta format GIF" />
-
-<img src="./docs/images/spark_qbeast_demo.gif" width="49%" alt="Demo for Qbeast format GIF" />
-</div>
+| ![Demo for Delta format GIF](docs/images/spark_delta_demo.gif) | ![Demo for Qbeast format GIF](docs/images/spark_qbeast_demo.gif) |
+|:---------------------------------------------------------------:|:---------------------------------------------------------------:|
 
 As you can see above, the Qbeast Spark extension allows **faster** queries with statistically **accurate** sampling.
 
@@ -56,6 +54,17 @@ As you can see above, the Qbeast Spark extension allows **faster** queries with 
 
 In this example, **1% sampling** provides the result **x22 times faster** compared to using Delta format, with an **error of 0,034%**.
 
+## Documentation
+Explore the documentation for more details:
+- [Quickstart for Qbeast-Spark](./docs/Quickstart.md)
+- [Data Lakehouse with Qbeast Format](./docs/QbeastFormat.md)
+- [OTree Algorithm](./docs/OTreeAlgorithm.md)
+- [QbeastTable](./docs/QbeastTable.md)
+- [Columns To Index Selector](./docs/ColumnsToIndexSelector.md)
+- [Recommendations for different Cloud Storage systems](./docs/CloudStorages.md)
+- [Advanced configurations](./docs/AdvancedConfiguration.md)
+- [Qbeast Metadata](./docs/QbeastFormat.md)
+- [FAQ: Frequently Asked Questions](./docs/FAQ.md)
 
 # Quickstart
 You can run the qbeast-spark application locally on your computer, or using a Docker image we already prepared with the dependencies.
@@ -79,7 +88,7 @@ export SPARK_HOME=$PWD/spark-3.5.0-bin-hadoop3
 
 ```bash
 $SPARK_HOME/bin/spark-shell \
---packages io.qbeast:qbeast-spark_2.12:0.6.0,io.delta:delta-spark_2.12:3.1.0 \
+--packages io.qbeast:qbeast-spark_2.12:0.7.0,io.delta:delta-spark_2.12:3.1.0 \
 --conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
 --conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
 ```
@@ -157,7 +166,7 @@ val qbeastDF =
 ```scala
 qbeastDF.sample(0.1).explain(true)
 ```
-Go to the [Quickstart](./docs/Quickstart.md) or [notebook](docs/sampleopushdown_demo.ipynb) for more details.
+Go to the [Quickstart](./docs/Quickstart.md) or [notebook](docs/sample_pushdown_demo.ipynb) for more details.
 
 ### 5. Interact with the format
 
@@ -207,24 +216,26 @@ Go to [QbeastTable documentation](./docs/QbeastTable.md) for more detailed infor
 Use [Python index visualizer](./utils/visualizer/README.md) for your indexed table to visually examine index structure and gather sampling metrics.
 
 # Dependencies and Version Compatibility
-| Version | Spark | Hadoop | Delta Lake |
-|---------|:-----:|:------:|:---------:|
-| 0.1.0   | 3.0.0 | 3.2.0  |   0.8.0   |
-| 0.2.0   | 3.1.x | 3.2.0  |   1.0.0   |
-| 0.3.x   | 3.2.x | 3.3.x  |   1.2.x   |
-| 0.4.x   | 3.3.x | 3.3.x  |   2.1.x   |
-| 0.5.x   | 3.4.x | 3.3.x  |   2.4.x   |
-| **0.6.x**   | **3.5.x** | **3.3.x**  |   **3.1.x**   |
+| Version |   Spark   |  Hadoop   | Delta Lake |
+|-------|:---------:|:---------:|:----------:|
+| 0.1.0 |   3.0.0   |   3.2.0   |   0.8.0    |
+| 0.2.0 |   3.1.x   |   3.2.0   |   1.0.0    |
+| 0.3.x |   3.2.x   |   3.3.x   |   1.2.x    |
+| 0.4.x |   3.3.x   |   3.3.x   |   2.1.x    |
+| 0.5.x |   3.4.x   |   3.3.x   |   2.4.x    |
+| 0.6.x |   3.5.x   |   3.3.x   |   3.1.x    |
+| **0.7.x** | **3.5.x** | **3.3.x** | **3.1.x**  |
+
 
 Check [here](https://docs.delta.io/latest/releases.html) for **Delta Lake** and **Apache Spark** version compatibility.
 
 # Contribution Guide
 
-See [Contribution Guide](/CONTRIBUTING.md) for more information. 
+See [Contribution Guide](./CONTRIBUTING.md) for more information. 
 
 # License
-See [LICENSE](/LICENSE).
+See [LICENSE](./LICENSE).
 
 # Code of conduct
 
-See [Code of conduct](/CODE_OF_CONDUCT.md)
+See [Code of conduct](./CODE_OF_CONDUCT.md)

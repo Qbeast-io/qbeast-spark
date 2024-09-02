@@ -55,11 +55,13 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
         .first()
         .getString(0) shouldBe "qbeast"
       // Check Table Properties
-      table
+      val tableProperties = table
         .where("col_name == 'Table Properties'")
         .select("data_type")
         .first()
-        .getString(0) shouldBe "[columnsToIndex=id,option.columnsToIndex=id]"
+        .getString(0)
+      tableProperties should include("columnsToIndex=id")
+      tableProperties should include("option.columnsToIndex=id")
 
     })
 
@@ -214,6 +216,25 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
         qbeastTable.indexedColumns() shouldBe autoColumnsToIndex
         qbeastTable.latestRevisionID() shouldBe 1L
+
+      }
+  }
+
+  it should "work with other namespaces" in withQbeastContextSparkAndTmpWarehouse {
+    (spark, tmpDir) =>
+      {
+        spark.sql("CREATE DATABASE IF NOT EXISTS test")
+        spark.sql(
+          "CREATE TABLE IF NOT EXISTS test.students(id INT, name STRING, age INT) " +
+            "USING qbeast OPTIONS ('columnsToIndex'='id')")
+
+        val data = createTestData(spark)
+        data.write.format("qbeast").mode("append").insertInto("test.students")
+
+        assertSmallDatasetEquality(
+          spark.sql("SELECT * FROM test.students"),
+          data,
+          ignoreNullable = true)
 
       }
   }
