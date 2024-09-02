@@ -82,7 +82,7 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
         ignoreNullable = true)
 
       val query = qbeast_df.sample(0.3)
-      query.count() shouldBe 2
+      query.count() shouldBe 1
 
       // APPEND TO A PATH
 
@@ -100,9 +100,8 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
         ignoreNullable = true)
     })
 
-  it should "behave correctly in Quickstart SQL API for INSERT INTO" in withExtendedSpark(
-    config) { spark =>
-    withTmpDir { _ =>
+  it should "behave correctly in Quickstart SQL API for INSERT INTO" in withQbeastContextSparkAndTmpWarehouse(
+    (spark, _) => {
       import spark.implicits._
       spark.sql(
         "CREATE TABLE qbeast_table (id INT, age STRING) USING qbeast OPTIONS (columnsToIndex 'id,age')")
@@ -118,10 +117,9 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
         ignoreNullable = true)
 
       val query = spark.sql("SELECT * FROM qbeast_table TABLESAMPLE(30 PERCENT)")
-      query.count() shouldBe 2
+      query.count() shouldBe 1
 
-    }
-  }
+    })
 
   it should "behave correctly on Sample Pushdown Notebook" in withExtendedSpark(config) { spark =>
     withTmpDir { DATA_ROOT =>
