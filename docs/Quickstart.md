@@ -199,12 +199,6 @@ data.write.mode("overwrite").option("columnsToIndex", "id,age").saveAsTable("qbe
 
 ### SQL
 
-```sql
-CREATE TABLE qbeast_table (id INT, age STRING)
-USING qbeast
-OPTIONS ('columnsToIndex'='id,age');
-```
-
 It is possible to specify the location through the SQL:
 
 ```sql
@@ -228,10 +222,21 @@ There are different options to fine-tune the underlying index.
 
 ## Append
 
-Append data to a table using DataFrame API in “append” mode, or SQL Insert Into clause.
+Append data to a path using DataFrame API in “append” mode, or SQL Insert Into clause.
 
 ### Python
 
+#### Append to a Table
+```python
+data = spark.createDataFrame([(4, "d"), (5, "e")], "id: int, age:string")
+
+# Save
+data.write.\
+  mode("append").\
+  insertInto("qbeast_table")
+```
+
+#### Append to a Path
 ```python
 # Save
 data.write.\
@@ -243,9 +248,22 @@ data.write.\
 
 ### Scala
 
+#### Append to a Table
 ```scala
+val append = Seq((4, "d"), (5, "e")).toDF("id", "age")
+
 // Save
-data.write.
+append.write.
+  mode("append").
+  insertInto("qbeast_table")
+```
+
+#### Append to a Path
+```scala
+val data = Seq((4, "d"), (5, "e")).toDF("id", "age")
+
+// Save
+append.write.
   mode("append").
   option("columnsToIndex", "id,age").
   format("qbeast").
@@ -257,7 +275,7 @@ data.write.
 Use **`INSERT INTO`** to add records to the new table. It will update the index in a **dynamic** fashion when new data is inserted.
 
 ```sql
-INSERT INTO table qbeast_table VALUES (1, 'a'),(2, 'b'),(3, 'c');
+INSERT INTO table qbeast_table VALUES (4, "d"), (5, "e");
 ```
 
 ## Read
