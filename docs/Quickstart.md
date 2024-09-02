@@ -168,6 +168,11 @@ To set up a Python project (for example, for unit testing), you can configure th
 ```python
 import pyspark
 
+# Already configured session
+
+spark = pyspark.sql.SparkSession.builder.appName("MyApp").getOrCreate()
+
+# Session with Configuration
 pyspark.sql.SparkSession.builder.appName("MyApp") \
     .config("spark.sql.extensions", "io.qbeast.spark.internal.QbeastSparkSessionExtension") \
     .config("spark.sql.catalog.spark_catalog", "io.qbeast.spark.internal.sources.catalog.QbeastCatalog").getOrCreate()
@@ -181,15 +186,15 @@ You can create a Table using Qbeast Layout with plain Spark APIs.
 ### Python
 
 ```python
-data = [(1, "a"), (2, "b"), (3, "c")].toDF("id", "age")
-data.write.mode("overwrite").options("columnsToIndex", "id,age").saveAsTable("qbeast_table")
+data = spark.createDataFrame([(1, "a"), (2, "b"), (3, "c")], "id: int, age:string")
+data.write.mode("overwrite").option("columnsToIndex", "id,age").saveAsTable("qbeast_table")
 ```
 
 ### Scala
 
 ```scala
 val data = Seq((1, "a"), (2, "b"), (3, "c")).toDF("id", "age")
-data.write.mode("overwrite").options("columnsToIndex", "id,age").saveAsTable("qbeast_table")
+data.write.mode("overwrite").option("columnsToIndex", "id,age").saveAsTable("qbeast_table")
 ```
 
 ### SQL
@@ -220,9 +225,10 @@ Append data to a table using DataFrame API in “append” mode, or SQL Insert I
 
 ```python
 # Save
-df.write.
-  mode("append").
-  format("qbeast").
+data.write.\
+  mode("append").\
+  option("columnsToIndex", "id,age").\
+  format("qbeast").\
   save("/tmp/qbeast_table")
 ```
 
@@ -230,8 +236,9 @@ df.write.
 
 ```scala
 // Save
-df.write.
-  mode("append").
+data.write.
+  mode("append").\
+  option("columnsToIndex", "id,age").\
   format("qbeast").
   save("/tmp/qbeast_table")
 ```
@@ -253,7 +260,7 @@ Read data from a Qbeast Table by specifying the paths or the table name.
 ```python
 qbeast_df = spark.read.format("qbeast").load("/tmp/qbeast_table")
 
-qbeast_df.sample(0.01).show()
+qbeast_df.sample(0.3).show()
 ```
 
 ### Scala
@@ -261,7 +268,7 @@ qbeast_df.sample(0.01).show()
 ```python
 val qbeastDF = spark.read.format("qbeast").load("/tmp/qbeast_table")
 
-qbeastDF.sample(0.01).show()
+qbeastDF.sample(0.3).show()
 ```
 
 ### SQL
@@ -269,7 +276,7 @@ qbeastDF.sample(0.01).show()
 ```sql
 SELECT * FROM qbeast_table
 
-SELECT * FROM qbeast_table TABLESAMPLE(10 PERCENT)
+SELECT * FROM qbeast_table TABLESAMPLE(30 PERCENT)
 ```
 
 To check sampling perfomance, open your **Spark Web UI**, and observe how the sample operator is converted into a **filter** and pushed down to the source!
