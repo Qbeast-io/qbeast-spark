@@ -157,8 +157,8 @@ libraryDependencies += "io.qbeast" %% "qbeast-spark" % "0.6.0"
 
 To use a `SNAPSHOT` (NOT RECOMMENDED), add the Snapshots URL to the list of repositories:
 
-```bash
-
+```scala
+ThisBuild / resolvers += "Sonatype OSS Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots"
 ```
 
 ### **Python**
@@ -381,8 +381,7 @@ qbeastDf.agg(avg("user_id")).tolerance(0.1).show()
 
 For setting up writes and reads on Amazon S3 service, it is possible to use both private and public repositories.
 
-<aside>
-🚧 Amazon Web Services S3 does not work with Hadoop 2.7. For this provider, you'll need Hadoop 3.2.
+> 🚧 Amazon Web Services S3 does not work with Hadoop 2.7. For this provider, you'll need Hadoop 3.2.
 
 - If you are using a **public** bucket:
 
@@ -413,8 +412,6 @@ For setting up writes and reads on Amazon S3 service, it is possible to use both
     org.apache.hadoop:hadoop-client:3.2.0,\
     org.apache.hadoop:hadoop-aws:3.2.0
     ```
-
-</aside>
 
 ## GCP
 
