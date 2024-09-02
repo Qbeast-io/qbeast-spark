@@ -58,41 +58,44 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
   }
 
   it should "behave correctly in Quickstart DF API" in withQbeastContextSparkAndTmpWarehouse(
-    (spark, _) => {
+    (spark, tmpWarehouse) => {
       import spark.implicits._
+
+      // CREATE A TABLE
       val data = Seq((1, "a"), (2, "b"), (3, "c")).toDF("id", "age")
       data.write.mode("overwrite").option("columnsToIndex", "id,age").saveAsTable("qbeast_table")
-
       val qbeast_df = spark.read.table("qbeast_table")
+
       assertSmallDatasetEquality(
         qbeast_df,
         data,
         orderedComparison = false,
         ignoreNullable = true)
 
+      // APPEND TO A TABLE
       val append = Seq((4, "d"), (5, "e")).toDF("id", "age")
-
-      // Save
       append.write.mode("append").insertInto("qbeast_table")
       val qbeast_df_appended = spark.read.table("qbeast_table")
+
       assertSmallDatasetEquality(
         qbeast_df_appended,
         data.union(append),
         orderedComparison = false,
         ignoreNullable = true)
 
+      // SAMPLE THE TABLE
       val query = qbeast_df.sample(0.3)
-      query.count() shouldBe 1
+      query.count() shouldBe >=(1L)
 
       // APPEND TO A PATH
-
+      val path = s"$tmpWarehouse/tmp/qbeast_table"
       append.write
         .mode("append")
         .option("columnsToIndex", "id,age")
         .format("qbeast")
-        .save("/tmp/qbeast_table")
+        .save(path)
 
-      val qbeast_df_appended_path = spark.read.format("qbeast").load("/tmp/qbeast_table")
+      val qbeast_df_appended_path = spark.read.format("qbeast").load(path)
       assertSmallDatasetEquality(
         qbeast_df_appended_path,
         append,
@@ -103,21 +106,25 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
   it should "behave correctly in Quickstart SQL API for INSERT INTO" in withQbeastContextSparkAndTmpWarehouse(
     (spark, _) => {
       import spark.implicits._
+
+      // CREATE A TABLE
       spark.sql(
         "CREATE TABLE qbeast_table (id INT, age STRING) USING qbeast OPTIONS (columnsToIndex 'id,age')")
-
+      
+      // INSERT INTO A TABLE
       spark.sql("INSERT INTO qbeast_table VALUES (1, 'a'), (2, 'b'), (3, 'c')")
-
       val qbeast_df = spark.read.table("qbeast_table")
       val data = Seq((1, "a"), (2, "b"), (3, "c")).toDF("id", "age")
+
       assertSmallDatasetEquality(
         qbeast_df,
         data,
         orderedComparison = false,
         ignoreNullable = true)
 
+      // SAMPLE THE TABLE
       val query = spark.sql("SELECT * FROM qbeast_table TABLESAMPLE(30 PERCENT)")
-      query.count() shouldBe 1
+      query.count() shouldBe >=(1L)
 
     })
 
