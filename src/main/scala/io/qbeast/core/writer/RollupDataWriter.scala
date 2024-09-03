@@ -15,20 +15,12 @@
  */
 package io.qbeast.core.writer
 
-import io.qbeast.core.model.CubeId
-import io.qbeast.core.model.DataWriter
-import io.qbeast.core.model.IndexFile
-import io.qbeast.core.model.QTableID
-import io.qbeast.core.model.Revision
-import io.qbeast.core.model.RevisionID
-import io.qbeast.core.model.TableChanges
-import io.qbeast.core.model.Weight
+import io.qbeast.core.model.{CubeId, DataWriter, IndexFile, IndexStatus, QTableID, Revision, RevisionID, TableChanges, Weight}
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.index.RowUtils
 import io.qbeast.spark.internal.QbeastFunctions
-import io.qbeast.core.stats.tracker.{FileStatistics, JobStatisticsTracker, TaskStats}
+import io.qbeast.core.stats.tracker.{QbeastFileStatistics, JobStatisticsTracker, StatsTracker, TaskStats}
 import io.qbeast.IISeq
-
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.sql.catalyst.InternalRow
@@ -46,7 +38,9 @@ import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.util.SerializableConfiguration
+import org.apache.hadoop.fs.Path
 
+import java.net.URI
 import scala.collection.mutable
 
 /**
@@ -82,7 +76,87 @@ abstract class RollupDataWriter[T]
     }
   }
 
-  def getExtract(extendedData: DataFrame, revision: Revision): Extract = {
+  /**
+   * Write the index data to the files
+   *
+   * @param tableID
+   * the table identifier
+   * @param schema
+   * the schema of the data
+   * @param data
+   * the data to write
+   * @param tableChanges
+   * the changes of the index
+   * @return
+   * the sequence of files written
+   */
+   protected def internalWrite(tableId: QTableID, schema: StructType, data: DataFrame,
+                               tableChanges: TableChanges, trackers:Seq[WriteJobStatsTracker]): IISeq[(IndexFile,TaskStats)] = {
+    val extendedData = extendDataWithCubeToRollup(data, tableChanges)
+    val revision = tableChanges.updatedRevision
+    val getCubeMaxWeight = { cubeId: CubeId =>
+      tableChanges.cubeWeight(cubeId).getOrElse(Weight.MaxValue)
+    }
+
+    val writeRows =
+      getWriteRows(tableId, schema, extendedData, revision, getCubeMaxWeight, trackers)
+    extendedData
+      .repartition(col(QbeastColumns.cubeToRollupColumnName))
+      .queryExecution
+      .executedPlan
+      .execute()
+      .mapPartitions(writeRows)
+      .collect()
+      .toIndexedSeq
+
+  }
+
+  private def correctAddFileStats(fileStatsTracker: Option[JobStatisticsTracker])(
+    file: IndexFile): IndexFile = {
+    val path = new Path(new URI(file.path)).toString
+    fileStatsTracker
+      .map(_.recordedStats(path))
+      .map(stats => file.copy(stats = stats))
+      .getOrElse(file)
+  }
+
+
+
+  def internalOptimize(
+                         tableId: QTableID,
+                         schema: StructType,
+                         revision: Revision,
+                         indexStatus: IndexStatus,
+                         indexFiles: Dataset[IndexFile],
+                         data:DataFrame,
+                         trackers:Seq[WriteJobStatsTracker]): IISeq[(IndexFile,TaskStats)] = {
+
+
+    val cubeMaxWeightsBroadcast =
+      indexFiles.sparkSession.sparkContext.broadcast(
+        indexStatus.cubesStatuses
+          .mapValues(_.maxWeight)
+          .map(identity))
+    var extendedData = extendDataWithWeight(data, revision)
+    extendedData = extendDataWithCube(extendedData, revision, cubeMaxWeightsBroadcast.value)
+    extendedData = extendDataWithCubeToRollup(extendedData, revision)
+    val getCubeMaxWeight = { cubeId: CubeId =>
+      cubeMaxWeightsBroadcast.value.getOrElse(cubeId, Weight.MaxValue)
+    }
+
+    val writeRows =
+      getWriteRows(tableId, schema, extendedData, revision, getCubeMaxWeight, trackers)
+   extendedData
+      .repartition(col(QbeastColumns.cubeToRollupColumnName))
+      .queryExecution
+      .executedPlan
+      .execute()
+      .mapPartitions(writeRows)
+      .collect()
+      .toIndexedSeq
+  }
+
+def getExtract(extendedData: DataFrame, revision: Revision): Extract = {
     val schema = extendedData.schema
     val qbeastColumns = QbeastColumns(extendedData)
     val extractors = schema.fields.indices
@@ -164,23 +238,6 @@ abstract class RollupDataWriter[T]
     rollupCubeId.get.bytes
   })
 
-  def processStats(
-      stats: IISeq[TaskStats],
-      statsTrackers: Seq[WriteJobStatsTracker],
-      fileStatsTracker: Option[JobStatisticsTracker]): Unit = {
-    val basicStatsBuilder = Seq.newBuilder[WriteTaskStats]
-    val fileStatsBuilder = Seq.newBuilder[WriteTaskStats]
-    var endTime = 0L
-    stats.foreach(stats => {
-      fileStatsBuilder ++= stats.writeTaskStats.filter(_.isInstanceOf[FileStatistics])
-      basicStatsBuilder ++= stats.writeTaskStats.filter(_.isInstanceOf[BasicWriteTaskStats])
-      endTime = math.max(endTime, stats.endTime)
-    })
-    val basicStats = basicStatsBuilder.result()
-    val fileStats = fileStatsBuilder.result()
-    statsTrackers.foreach(_.processStats(basicStats, endTime))
-    fileStatsTracker.foreach(_.processStats(fileStats, endTime))
-  }
 
   def loadDataFromIndexFiles(
       tableId: QTableID,

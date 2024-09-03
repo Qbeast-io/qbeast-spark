@@ -1,5 +1,5 @@
 import xerial.sbt.Sonatype._
-import Dependencies.*
+import Dependencies._
 
 val mainVersion = "0.8.0-SNAPSHOT"
 
@@ -30,7 +30,6 @@ lazy val qbeastDelta = (project in file("./delta"))
     libraryDependencies ++= Seq(
       sparkCore % Provided,
       hadoopClient % Provided,
-      avro % Provided,
       sparkSql % Provided,
       apacheCommons % Test,
       amazonAws % Test,

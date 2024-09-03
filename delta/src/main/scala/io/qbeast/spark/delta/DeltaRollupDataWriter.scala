@@ -15,22 +15,20 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model._
+import io.delta.tables.DeltaTable
 import io.qbeast.IISeq
-import io.qbeast.spark.index.QbeastColumns
+import io.qbeast.core.model._
+import io.qbeast.core.stats.tracker.{StatsTracker, TaskStats}
 import io.qbeast.core.writer.RollupDataWriter
-import io.qbeast.core.stats.tracker.TaskStats
-import io.qbeast.core.stats.tracker.StatsTracker
-import io.qbeast.core.stats.tracker.JobStatisticsTracker
-
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.delta.actions.AddFile
-import org.apache.spark.sql.delta.actions.FileAction
-import org.apache.spark.sql.{DataFrame, Dataset}
-import org.apache.spark.sql.delta.DeltaStatsCollectionUtils
-import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.types.StructType
+import io.qbeast.spark.index.QbeastColumns
 import org.apache.hadoop.fs.Path
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.delta.DeltaStatsCollectionUtils
+import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
+import org.apache.spark.sql.delta.stats.{DeltaFileStatistics, DeltaJobStatisticsTracker}
+import org.apache.spark.sql.execution.datasources.{BasicWriteTaskStats, WriteJobStatsTracker, WriteTaskStats}
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.{DataFrame, Dataset}
 
 import java.net.URI
 
@@ -49,24 +47,13 @@ object DeltaRollupDataWriter extends RollupDataWriter[FileAction]
                       schema: StructType,
                       data: DataFrame,
                       tableChanges: TableChanges): IISeq[FileAction] = {
-    val extendedData = extendDataWithCubeToRollup(data, tableChanges)
-    val revision = tableChanges.updatedRevision
-    val getCubeMaxWeight = { cubeId: CubeId =>
-      tableChanges.cubeWeight(cubeId).getOrElse(Weight.MaxValue)
-    }
+
     val statsTrackers = StatsTracker.getStatsTrackers()
     val fileStatsTracker = getFileStatsTracker(tableId, data)
     val trackers = statsTrackers ++ fileStatsTracker
-    val writeRows =
-      getWriteRows(tableId, schema, extendedData, revision, getCubeMaxWeight, trackers)
-    val filesAndStats = extendedData
-      .repartition(col(QbeastColumns.cubeToRollupColumnName))
-      .queryExecution
-      .executedPlan
-      .execute()
-      .mapPartitions(writeRows)
-      .collect()
-      .toIndexedSeq
+
+
+    val filesAndStats = internalWrite(tableId,schema,data,tableChanges,trackers)
     val stats = filesAndStats.map(_._2)
     processStats(stats, statsTrackers, fileStatsTracker)
     filesAndStats
@@ -75,16 +62,34 @@ object DeltaRollupDataWriter extends RollupDataWriter[FileAction]
       .map(correctAddFileStats(fileStatsTracker))
   }
 
+  private def processStats(
+                            stats: IISeq[TaskStats],
+                            statsTrackers: Seq[WriteJobStatsTracker],
+                            fileStatsTracker: Option[DeltaJobStatisticsTracker]): Unit = {
+    val basicStatsBuilder = Seq.newBuilder[WriteTaskStats]
+    val fileStatsBuilder = Seq.newBuilder[WriteTaskStats]
+    var endTime = 0L
+    stats.foreach(stats => {
+      fileStatsBuilder ++= stats.writeTaskStats.filter(_.isInstanceOf[DeltaFileStatistics])
+      basicStatsBuilder ++= stats.writeTaskStats.filter(_.isInstanceOf[BasicWriteTaskStats])
+      endTime = math.max(endTime, stats.endTime)
+    })
+    val basicStats = basicStatsBuilder.result()
+    val fileStats = fileStatsBuilder.result()
+    statsTrackers.foreach(_.processStats(basicStats, endTime))
+    fileStatsTracker.foreach(_.processStats(fileStats, endTime))
+  }
+
   private def getFileStatsTracker(
                                    tableId: QTableID,
-                                   data: DataFrame): Option[JobStatisticsTracker] = {
+                                   data: DataFrame): Option[DeltaJobStatisticsTracker] = {
     val spark = data.sparkSession
     val originalColumns = data.schema.map(_.name).filterNot(QbeastColumns.contains)
     val originalData = data.selectExpr(originalColumns: _*)
     getDeltaOptionalTrackers(originalData, spark, tableId)
   }
 
-  private def correctAddFileStats(fileStatsTracker: Option[JobStatisticsTracker])(
+  private def correctAddFileStats(fileStatsTracker: Option[DeltaJobStatisticsTracker])(
       file: AddFile): AddFile = {
     val path = new Path(new URI(file.path)).toString
     fileStatsTracker
@@ -99,31 +104,22 @@ object DeltaRollupDataWriter extends RollupDataWriter[FileAction]
       revision: Revision,
       indexStatus: IndexStatus,
       indexFiles: Dataset[IndexFile]): IISeq[FileAction] = {
-    val data = loadDataFromIndexFiles(tableId, indexFiles)
-    val cubeMaxWeightsBroadcast =
-      data.sparkSession.sparkContext.broadcast(
-        indexStatus.cubesStatuses
-          .mapValues(_.maxWeight)
-          .map(identity))
-    var extendedData = extendDataWithWeight(data, revision)
-    extendedData = extendDataWithCube(extendedData, revision, cubeMaxWeightsBroadcast.value)
-    extendedData = extendDataWithCubeToRollup(extendedData, revision)
-    val getCubeMaxWeight = { cubeId: CubeId =>
-      cubeMaxWeightsBroadcast.value.getOrElse(cubeId, Weight.MaxValue)
-    }
+
+
+    val data = DeltaTable.forName(tableId.id).toDF //TODO check why we are not considering the schema in the QTableId
+
     val statsTrackers = StatsTracker.getStatsTrackers()
     val fileStatsTracker = getFileStatsTracker(tableId, data)
     val trackers = statsTrackers ++ fileStatsTracker
-    val writeRows =
-      getWriteRows(tableId, schema, extendedData, revision, getCubeMaxWeight, trackers)
-    val filesAndStats = extendedData
-      .repartition(col(QbeastColumns.cubeToRollupColumnName))
-      .queryExecution
-      .executedPlan
-      .execute()
-      .mapPartitions(writeRows)
-      .collect()
-      .toIndexedSeq
+
+
+    val filesAndStats = internalOptimize(tableId,
+      schema,
+      revision,
+      indexStatus,
+      indexFiles,
+      data,
+      trackers)
     val stats = filesAndStats.map(_._2)
     processStats(stats, statsTrackers, fileStatsTracker)
     import indexFiles.sparkSession.implicits._

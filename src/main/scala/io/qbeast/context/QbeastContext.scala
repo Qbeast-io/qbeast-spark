@@ -164,12 +164,12 @@ object QbeastContext
   }
 
   private def createMetadataManager(config: SparkConf): MetadataManager[StructType, IndexFile, QbeastOptions] = {
-    val configMetadataManager = config.getAll.filter(_._1.startsWith("spark.qbeast.format")).toMap
+    val configMetadataManager = config.getAll.filter(_._1.startsWith("spark.qbeast.metadataManager")).toMap
     MetadataManager[StructType, IndexFile, QbeastOptions](configMetadataManager)
   }
 
   private def createDataWriter(config: SparkConf): DataWriter[DataFrame, StructType, IndexFile] = {
-    val configDataWriter = config.getAll.filter(_._1.startsWith("spark.qbeast.format")).toMap
+    val configDataWriter = config.getAll.filter(_._1.startsWith("spark.qbeast.dataWriter")).toMap
     DataWriter[DataFrame, StructType, IndexFile](configDataWriter)
   }
 

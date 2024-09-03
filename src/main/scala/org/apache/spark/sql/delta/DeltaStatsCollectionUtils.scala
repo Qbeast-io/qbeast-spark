@@ -15,17 +15,14 @@
  */
 package org.apache.spark.sql.delta
 
-import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.QTableID
-import io.qbeast.core.stats.tracker.JobStatisticsTracker
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.logical.LocalRelation
 import org.apache.spark.sql.catalyst.types.DataTypeUtils.toAttributes
 import org.apache.spark.sql.delta.actions.Protocol
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
-import org.apache.spark.sql.delta.stats.DeltaStatsColumnSpec
-import org.apache.spark.sql.delta.stats.StatisticsCollection
+import org.apache.spark.sql.delta.stats.{DeltaJobStatisticsTracker, DeltaStatsColumnSpec, StatisticsCollection}
 import org.apache.spark.sql.functions.to_json
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.DataFrame
@@ -83,9 +80,9 @@ trait DeltaStatsCollectionUtils {
   protected def getDeltaOptionalTrackers(
       data: DataFrame,
       sparkSession: SparkSession,
-      tableID: QTableID): Option[JobStatisticsTracker] = {
+      tableID: QTableID): Option[DeltaJobStatisticsTracker] = {
 
-    if (QbeastContext.config.get(DeltaSQLConf.DELTA_COLLECT_STATS)) {
+
       val outputStatsAtrributes = data.queryExecution.analyzed.output
       val outputSchema = data.schema
 
@@ -94,7 +91,7 @@ trait DeltaStatsCollectionUtils {
       val deltaMetadata = deltaSnapshot.metadata
       val outputPath = deltaLog.dataPath
 
-      val (outputStatsCollectionSchema, tableStatsCollectionSchema) =
+      val (outputStatsCollectionSchema: Seq[Attribute], tableStatsCollectionSchema) =
         getStatsSchema(
           deltaSnapshot,
           outputSchema,
@@ -139,14 +136,11 @@ trait DeltaStatsCollectionUtils {
           .head
 
       Some(
-        new JobStatisticsTracker(
+        new DeltaJobStatisticsTracker(
           deltaLog.newDeltaHadoopConf(),
           outputPath,
           outputStatsCollectionSchema,
           statsColExpr))
-    } else {
-      None
-    }
   }
 
 }
