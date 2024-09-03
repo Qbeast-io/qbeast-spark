@@ -14,8 +14,8 @@ jobs:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
-    - name: Show modified files in the latest commit
-      run: git show --name-only --oneline HEAD
+    - name: Show modified files in this PR
+      run: git diff --name-only origin/main...HEAD
 
     - name: Show initial value of run_tests
       run: |
@@ -23,16 +23,15 @@ jobs:
     - name: Check if only .md files were changed
       id: check_md_files
       run: |
-          if git show --name-only --oneline HEAD | grep -qv '\.md$'; then
+          if git diff --name-only origin/main...HEAD | grep -qv '\.md$'; then
             echo "run_tests=true" >> $GITHUB_ENV
           else
             echo "Only markdown files were changed. Skipping steps."
           fi
-    - name: Show value of run_tests after checking .md files
+    - name: Show value of run_tests after checking changed files
       run: |
           echo "Value of run_tests after check: ${{ env.run_tests }}"
     - name: Set up JDK 1.8
-      if: env.run_tests == 'true'
       uses: actions/setup-java@v1
       with:
         java-version: 1.8
