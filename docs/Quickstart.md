@@ -51,7 +51,7 @@ Before starting, ensure you have the following:
 
 - **Java 8+**: Ensure that Java is installed and properly configured.
 - **SBT/Gradle/Maven**: This is for managing dependencies if running in a development environment.
-- **Apache Spark 3.0+**: A Spark installation with support for Scala 2.12
+- **Apache Spark 3.5+**: A Spark installation with support for Scala 2.12
 
 ### Download JAVA
 
@@ -295,26 +295,43 @@ Read data from a Qbeast Table by specifying the paths or the table name.
 
 ```python
 qbeast_df = spark.read.format("qbeast").load("/tmp/qbeast_table")
-
-qbeast_df.sample(0.3).show()
 ```
 
 ### Scala
 
-```python
+```scala
 val qbeastDF = spark.read.format("qbeast").load("/tmp/qbeast_table")
-
-qbeastDF.sample(0.3).show()
 ```
 
 ### SQL
 
 ```sql
 SELECT * FROM qbeast_table;
+```
+## Sampling
 
-SELECT * FROM qbeast_table TABLESAMPLE(30 PERCENT);
+Sampling is the process of selecting a subset of data from a larger dataset to analyze and make inferences. It is beneficial because it **reduces computational costs**, **speeds up analysis**, and simplifies data handling while still **providing accurate and reliable insights** if the sample is representative.
+
+Thanks to the [Qbeast Metadata](./QbeastFormat.md), it is possible to use the `sample` and `TABLESAMPLE` (in SQL) methods to **select a fraction of the data directly from storage** instead of loading and computing the results in memory with all the records. 
+### Python
+
+```python
+qbeast_df.sample(0.3).show()
 ```
 
+### Scala
+
+```scala
+qbeast_df.sample(0.3).show()
+```
+
+### SQL
+
+```sql
+SELECT * FROM qbeast_table TABLESAMPLE (30 PERCENT);
+```
+
+### Sampling Under The Hood
 To check sampling perfomance, open your **Spark Web UI**, and observe how the sample operator is converted into a **filter** and pushed down to the source!
 ```scala
 qbeastDf.sample(0.3).explain()
