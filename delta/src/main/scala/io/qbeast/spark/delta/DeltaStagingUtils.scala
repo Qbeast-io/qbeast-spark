@@ -15,7 +15,7 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.StagingUtils
+import io.qbeast.core.utils.StagingUtils
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.functions.col

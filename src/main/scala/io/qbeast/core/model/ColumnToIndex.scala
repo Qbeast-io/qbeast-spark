@@ -16,6 +16,7 @@
 package io.qbeast.core.model
 
 import io.qbeast.core.transform.Transformer
+import io.qbeast.core.utils.ColumnToIndexUtils
 import org.apache.spark.sql.types.StructType
 
 /**

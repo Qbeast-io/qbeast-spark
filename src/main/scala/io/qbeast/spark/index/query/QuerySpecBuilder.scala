@@ -16,6 +16,7 @@
 package io.qbeast.spark.index.query
 
 import io.qbeast.core.model._
+import io.qbeast.core.utils.StagingUtils
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.expressions.EqualTo
 import org.apache.spark.sql.catalyst.expressions.Expression

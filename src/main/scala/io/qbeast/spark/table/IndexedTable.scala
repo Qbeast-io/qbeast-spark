@@ -19,6 +19,7 @@ import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model._
 import io.qbeast.core.metadata.MetadataManager
 import io.qbeast.core.model.RevisionFactory
+import io.qbeast.core.utils.StagingUtils
 import io.qbeast.spark.delta.{StagingDataManager, StagingResolution}
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import io.qbeast.spark.internal.QbeastOptions
@@ -29,7 +30,6 @@ import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.COLUMN_SELECTOR_ENABLED
 import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
-
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory

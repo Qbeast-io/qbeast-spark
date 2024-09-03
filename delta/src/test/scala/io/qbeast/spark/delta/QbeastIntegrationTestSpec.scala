@@ -13,25 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark
+package io.qbeast.spark.delta
 
 import com.github.mrpowers.spark.fast.tests.DatasetComparer
-import io.qbeast.context.QbeastContext
-import io.qbeast.context.QbeastContextImpl
-import io.qbeast.core.keeper.Keeper
-import io.qbeast.core.keeper.LocalKeeper
+import io.qbeast.context.{QbeastContext, QbeastContextImpl}
+import io.qbeast.core.keeper.{Keeper, LocalKeeper}
 import io.qbeast.core.model.IndexManager
-import io.qbeast.spark.delta.RollupDataWriter
-import io.qbeast.spark.delta.SparkDeltaMetadataManager
-import io.qbeast.spark.index.SparkColumnsToIndexSelector
-import io.qbeast.spark.index.SparkOTreeManager
-import io.qbeast.spark.index.SparkRevisionFactory
+import io.qbeast.spark.index.{SparkColumnsToIndexSelector, SparkOTreeManager, SparkRevisionFactory}
 import io.qbeast.spark.table.IndexedTableFactoryImpl
 import org.apache.log4j.Level
-import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -161,8 +154,8 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
       val indexedTableFactory = new IndexedTableFactoryImpl(
         keeper,
         SparkOTreeManager,
-        SparkDeltaMetadataManager,
-        RollupDataWriter,
+        DeltaSparkMetadataManager,
+        DeltaRollupDataWriter,
         SparkRevisionFactory,
         SparkColumnsToIndexSelector)
       val context = new QbeastContextImpl(spark.sparkContext.getConf, keeper, indexedTableFactory)

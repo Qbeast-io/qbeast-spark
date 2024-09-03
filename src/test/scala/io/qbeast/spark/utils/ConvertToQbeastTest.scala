@@ -15,7 +15,7 @@
  */
 package io.qbeast.spark.utils
 
-import io.qbeast.core.model.StagingUtils
+import io.qbeast.core.utils.StagingUtils
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.utils.QbeastExceptionMessages.incorrectIdentifierFormat
 import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg

@@ -20,7 +20,7 @@ import io.qbeast.core.model.DenormalizedBlock
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.Revision
 import io.qbeast.core.model.RevisionID
-import io.qbeast.core.model.StagingUtils
+import io.qbeast.core.utils.StagingUtils
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.commands.AnalyzeTableCommand
 import io.qbeast.spark.internal.commands.OptimizeTableCommand

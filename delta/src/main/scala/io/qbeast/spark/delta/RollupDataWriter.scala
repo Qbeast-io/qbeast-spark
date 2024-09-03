@@ -37,7 +37,7 @@ import java.net.URI
 /**
  * Delta implementation of DataWriter that applies rollup to compact the files.
  */
-object RollupDataWriter extends RollupDataWriter[FileAction]
+object DeltaRollupDataWriter extends RollupDataWriter[FileAction]
   with DeltaStatsCollectionUtils {
 
   override type GetCubeMaxWeight = CubeId => Weight

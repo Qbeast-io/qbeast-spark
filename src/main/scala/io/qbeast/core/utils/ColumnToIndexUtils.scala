@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.core.model
+package io.qbeast.core.utils
 
+import io.qbeast.core.model.QDataType
 import io.qbeast.spark.utils.SparkToQTypesUtils
 import org.apache.spark.sql.types.StructType
 

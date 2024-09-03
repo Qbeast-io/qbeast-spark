@@ -17,8 +17,8 @@ package io.qbeast.spark.delta
 
 import io.qbeast.core.model.mapper
 import io.qbeast.core.model.Revision
-import io.qbeast.core.model.StagingUtils
 import io.qbeast.core.model.TableChanges
+import io.qbeast.core.utils.StagingUtils
 import io.qbeast.spark.utils.MetadataConfig
 import io.qbeast.spark.utils.MetadataConfig.lastRevisionID
 import io.qbeast.spark.utils.MetadataConfig.revision
