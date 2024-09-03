@@ -17,26 +17,19 @@ package io.qbeast.core.transform
 
 import io.qbeast.core.model.OrderedDataType
 import io.qbeast.core.model.QDataType
-import io.qbeast.core.model.StringDataType
 
-object HistogramTransformer extends TransformerType {
+object OrderedHistogramTransformer extends TransformerType {
   override def transformerSimpleName: String = "histogram"
 
-  override def apply(columnName: String, dataType: QDataType): Transformer = dataType match {
-    case StringDataType => StringHistogramTransformer(columnName, dataType)
-    case _ => HistogramTransformer(columnName, dataType)
-  }
 
-  // "a" to "z"
-  def defaultStringHistogram: IndexedSeq[String] = (97 to 122).map(_.toChar.toString)
 
 }
 
-case class HistogramTransformer(columnName: String, dataType: QDataType) extends Transformer {
+case class OrderedHistogramTransformer(columnName: String, dataType: QDataType) extends Transformer {
 
   private val columnHistogram = s"${columnName}_histogram"
 
-  override protected def transformerType: TransformerType = HistogramTransformer
+  override protected def transformerType: TransformerType = OrderedHistogramTransformer
 
   /**
    * Returns the stats
@@ -65,7 +58,7 @@ case class HistogramTransformer(columnName: String, dataType: QDataType) extends
           case h: Seq[_] => h.toIndexedSeq
           case _ => ord.defaultHistogram
         }
-        HistogramTransformation(hist, ord)
+        OrderedHistogramTransformation(hist, ord)
       case _ => throw new IllegalArgumentException(s"Invalid data type: $dataType")
     }
 

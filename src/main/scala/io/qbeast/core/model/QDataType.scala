@@ -40,6 +40,8 @@ trait QDataType extends Serializable {
   @JsonValue
   def name: String
 
+  val defaultHistogram: IndexedSeq[Any]
+
 }
 
 /**
@@ -71,8 +73,6 @@ trait OrderedDataType extends QDataType {
 
   @JsonIgnore
   val ordering: Numeric[Any]
-
-  val defaultHistogram: IndexedSeq[Any]
 
 }
 
@@ -119,6 +119,7 @@ object DecimalDataType extends OrderedDataType {
 
 object StringDataType extends QDataType {
   override def name: String = "StringDataType"
+  override val defaultHistogram: IndexedSeq[Any] = (97 to 122).map(_.toChar.toString)
 }
 
 object TimestampDataType extends OrderedDataType {

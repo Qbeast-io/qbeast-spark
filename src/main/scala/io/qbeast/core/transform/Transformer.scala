@@ -28,7 +28,7 @@ import java.util.Locale
 object Transformer {
 
   private val transformersRegistry: Map[String, TransformerType] =
-    Seq(LinearTransformer, HashTransformer, HistogramTransformer)
+    Seq(LinearTransformer, HashTransformer, OrderedHistogramTransformer)
       .map(a => (a.transformerSimpleName, a))
       .toMap
 

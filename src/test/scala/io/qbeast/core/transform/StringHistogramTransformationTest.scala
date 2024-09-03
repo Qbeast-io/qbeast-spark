@@ -15,7 +15,7 @@
  */
 package io.qbeast.core.transform
 
-import io.qbeast.core.transform.HistogramTransformer.defaultStringHistogram
+import io.qbeast.core.transform.OrderedHistogramTransformer.defaultStringHistogram
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 

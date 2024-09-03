@@ -19,10 +19,10 @@ import io.qbeast.core.model.OrderedDataType
 
 import scala.collection.Searching._
 
-case class HistogramTransformation(histogram: IndexedSeq[Any], orderedDataType: OrderedDataType)
+case class OrderedHistogramTransformation(histogram: IndexedSeq[Any], orderedDataType: OrderedDataType)
     extends Transformation {
 
-  private implicit val ord = orderedDataType.ordering
+  private implicit val ord: Numeric[Any] = orderedDataType.ordering
 
   private def isDefault: Boolean = histogram == orderedDataType.defaultHistogram
 
@@ -47,7 +47,7 @@ case class HistogramTransformation(histogram: IndexedSeq[Any], orderedDataType: 
    */
   override def isSupersededBy(newTransformation: Transformation): Boolean =
     newTransformation match {
-      case nt @ HistogramTransformation(hist, _) =>
+      case nt @ OrderedHistogramTransformation(hist, _) =>
         if (isDefault) !nt.isDefault
         else if (nt.isDefault) false
         else !(histogram == hist)
@@ -57,12 +57,12 @@ case class HistogramTransformation(histogram: IndexedSeq[Any], orderedDataType: 
   /**
    * Merges two transformations. The domain of the resulting transformation is the union of this
    *
-   * @param other
+   * @param other the other transformation
    * @return
    *   a new Transformation that contains both this and other.
    */
   override def merge(other: Transformation): Transformation = other match {
-    case _: HistogramTransformation => other
+    case _: OrderedHistogramTransformation => other
     case _ => this
   }
 

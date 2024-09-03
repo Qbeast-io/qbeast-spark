@@ -16,7 +16,7 @@
 package io.qbeast.core.transform
 
 import io.qbeast.core.model.QDataType
-import io.qbeast.core.transform.HistogramTransformer.defaultStringHistogram
+import io.qbeast.core.transform.OrderedHistogramTransformer.defaultStringHistogram
 
 object StringHistogramTransformer extends TransformerType {
   override def transformerSimpleName: String = "histogram"
