@@ -15,7 +15,7 @@ jobs:
       with:
         fetch-depth: 0
     - name: Show modified files in the latest commit
-      run: git diff-tree --no-commit-id --name-only -r HEAD
+      run: git show --name-only --oneline HEAD
 
     - name: Show initial value of run_tests
       run: |
@@ -23,7 +23,7 @@ jobs:
     - name: Check if only .md files were changed
       id: check_md_files
       run: |
-          if git diff-tree --no-commit-id --name-only -r HEAD | grep -qv '\.md$'; then
+          if git show --name-only --oneline HEAD | grep -qv '\.md$'; then
             echo "run_tests=true" >> $GITHUB_ENV
           else
             echo "Only markdown files were changed. Skipping steps."
