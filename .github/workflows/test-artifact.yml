@@ -2,11 +2,15 @@ name: Test artifact
 on:
   push:
     branches: [ main ]
-    paths-ignore:
-      - '**/*.md'
+    paths:
+      - 'src/**'
+      - 'build.sbt'
+      - 'project/**'
   pull_request:
-    paths-ignore:
-      - '**/*.md'
+    paths:
+      - 'src/**'
+      - 'build.sbt'
+      - 'project/**'
 
 jobs:
   test-artifact:
