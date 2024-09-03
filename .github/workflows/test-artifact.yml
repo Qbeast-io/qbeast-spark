@@ -27,7 +27,6 @@ jobs:
       with:
         java-version: 1.8
     - name: Assembly
-      if: env.run_tests == 'true'
       run: sbt assembly
     - name: Lint
       if: env.run_tests == 'true'
