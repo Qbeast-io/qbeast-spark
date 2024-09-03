@@ -18,6 +18,8 @@ package io.qbeast.core.model
 import io.qbeast.IISeq
 import org.apache.spark.sql.Dataset
 
+import java.util.ServiceLoader
+
 /**
  * Data Writer template
  * @tparam DATA
@@ -70,4 +72,47 @@ trait DataWriter[DATA, DataSchema, FileDescriptor] {
       indexStatus: IndexStatus,
       indexFiles: Dataset[IndexFile]): IISeq[FileDescriptor]
 
+}
+
+object DataWriter {
+
+  /**
+   * Creates a DataWriter instance for a given configuration.
+   *
+   * @param config
+   *   the configuration
+   * @return
+   *   a DataWriter instance
+   */
+  def apply[DATA, DataSchema, FileDescriptor](config: Map[String, String]):
+  DataWriter[DATA, DataSchema, FileDescriptor] = {
+    val loader = ServiceLoader.load(classOf[DataWriterFactory[DATA, DataSchema, FileDescriptor]])
+    val iterator = loader.iterator()
+    if (iterator.hasNext) {
+      iterator.next().createDataWriter(config)
+    } else {
+      throw new IllegalStateException("No DataWriterFactory found for the given configuration")
+    }
+  }
+}
+
+/**
+ * Factory for creating DataWriter instances. This interface should be implemented and deployed by
+ * external libraries as follows: <ul> <li>Implement this interface in a class which has public
+ * no-argument constructor</li> <li>Register the implementation according to ServiceLoader
+ * specification</li> <li>Add the jar with the implementation to the application classpath</li>
+ * </ul>
+ */
+trait DataWriterFactory[DATA, DataSchema, FileDescriptor]{
+
+  /**
+   * Creates a new DataWriter for a given configuration.
+   *
+   * @param config
+   *   the configuration
+   * @return
+   *   a new DataWriter
+   */
+  def createDataWriter(config: Map[String, String]):
+  DataWriter[DATA, DataSchema, FileDescriptor]
 }

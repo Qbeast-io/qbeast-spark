@@ -1,5 +1,5 @@
-import xerial.sbt.Sonatype.*
-import Dependencies.{avro, *}
+import xerial.sbt.Sonatype._
+import Dependencies.*
 
 val mainVersion = "0.8.0-SNAPSHOT"
 

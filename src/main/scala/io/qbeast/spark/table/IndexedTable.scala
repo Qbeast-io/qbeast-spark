@@ -17,6 +17,7 @@ package io.qbeast.spark.table
 
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model._
+import io.qbeast.core.metadata.MetadataManager
 import io.qbeast.core.model.RevisionFactory
 import io.qbeast.spark.delta.{StagingDataManager, StagingResolution}
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
@@ -28,7 +29,7 @@ import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.COLUMN_SELECTOR_ENABLED
 import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
-import org.apache.spark.sql.delta.actions.FileAction
+
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
@@ -165,8 +166,8 @@ trait IndexedTableFactory {
 final class IndexedTableFactoryImpl(
     private val keeper: Keeper,
     private val indexManager: IndexManager[DataFrame],
-    private val metadataManager: MetadataManager[StructType, FileAction, QbeastOptions],
-    private val dataWriter: DataWriter[DataFrame, StructType, FileAction],
+    private val metadataManager: MetadataManager[StructType, IndexFile, QbeastOptions],
+    private val dataWriter: DataWriter[DataFrame, StructType, IndexFile],
     private val revisionFactory: RevisionFactory[StructType, QbeastOptions],
     private val columnSelector: ColumnsToIndexSelector[DataFrame])
     extends IndexedTableFactory {
@@ -205,8 +206,8 @@ private[table] class IndexedTableImpl(
     val tableID: QTableID,
     private val keeper: Keeper,
     private val indexManager: IndexManager[DataFrame],
-    private val metadataManager: MetadataManager[StructType, FileAction, QbeastOptions],
-    private val dataWriter: DataWriter[DataFrame, StructType, FileAction],
+    private val metadataManager: MetadataManager[StructType, IndexFile, QbeastOptions],
+    private val dataWriter: DataWriter[DataFrame, StructType, IndexFile],
     private val revisionFactory: RevisionFactory[StructType, QbeastOptions],
     private val columnSelector: ColumnsToIndexSelector[DataFrame])
     extends IndexedTable

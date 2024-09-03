@@ -18,8 +18,7 @@ package io.qbeast.context
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.keeper.LocalKeeper
 import io.qbeast.core.model._
-import io.qbeast.core.writer.RollupDataWriter
-import io.qbeast.spark.delta.SparkDeltaMetadataManager
+import io.qbeast.core.metadata.MetadataManager
 import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.index.SparkRevisionFactory
@@ -28,7 +27,6 @@ import io.qbeast.spark.table.IndexedTableFactory
 import io.qbeast.spark.table.IndexedTableFactoryImpl
 import org.apache.spark.scheduler.SparkListener
 import org.apache.spark.scheduler.SparkListenerApplicationEnd
-import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
@@ -62,6 +60,22 @@ trait QbeastContext {
    *   the IndexedTableFactory instance
    */
   def indexedTableFactory: IndexedTableFactory
+
+  /**
+   * Returns the metadata manager.
+   *
+   * @return
+   *   the metadata manager
+   */
+  def metadataManager: MetadataManager[StructType, IndexFile, QbeastOptions]
+
+  /**
+   * Returns the data writer.
+   *
+   * @return
+   *   the data writer
+   */
+  def dataWriter: DataWriter[DataFrame, StructType, IndexFile]
 }
 
 /**
@@ -75,7 +89,7 @@ trait QbeastContext {
  */
 object QbeastContext
     extends QbeastContext
-    with QbeastCoreContext[DataFrame, StructType, QbeastOptions, FileAction] {
+    with QbeastCoreContext[DataFrame, StructType, QbeastOptions, IndexFile] {
   private var managedOption: Option[QbeastContext] = None
   private var unmanagedOption: Option[QbeastContext] = None
 
@@ -91,11 +105,9 @@ object QbeastContext
 
   override def indexManager: IndexManager[DataFrame] = SparkOTreeManager
 
-  override def metadataManager: MetadataManager[StructType, FileAction, QbeastOptions] =
-    SparkDeltaMetadataManager
+  override def metadataManager: MetadataManager[StructType, IndexFile, QbeastOptions] = current.metadataManager
 
-  override def dataWriter: DataWriter[DataFrame, StructType, FileAction] =
-    RollupDataWriter
+  override def dataWriter: DataWriter[DataFrame, StructType, IndexFile] = current.dataWriter
 
   override def revisionBuilder: RevisionFactory[StructType, QbeastOptions] =
     SparkRevisionFactory
@@ -138,9 +150,10 @@ object QbeastContext
   private def createManaged(): QbeastContext = {
     val config = SparkSession.active.sparkContext.getConf
     val keeper = createKeeper(config)
-    val indexedTableFactory =
-      createIndexedTableFactory(keeper)
-    new QbeastContextImpl(config, keeper, indexedTableFactory)
+    val metadataManager= createMetadataManager(config)
+    val dataWriter= createDataWriter(config)
+    val indexedTableFactory = createIndexedTableFactory(keeper)
+    new QbeastContextImpl(config, keeper, indexedTableFactory, metadataManager, dataWriter)
   }
 
   private def createKeeper(config: SparkConf): Keeper = {
@@ -148,6 +161,16 @@ object QbeastContext
     if (configKeeper.isEmpty) {
       LocalKeeper
     } else Keeper(configKeeper)
+  }
+
+  private def createMetadataManager(config: SparkConf): MetadataManager[StructType, IndexFile, QbeastOptions] = {
+    val configMetadataManager = config.getAll.filter(_._1.startsWith("spark.qbeast.metadataManager")).toMap
+    MetadataManager[StructType, IndexFile, QbeastOptions](configMetadataManager)
+  }
+
+  private def createDataWriter(config: SparkConf): DataWriter[DataFrame, StructType, IndexFile] = {
+    val configDataWriter = config.getAll.filter(_._1.startsWith("spark.qbeast.dataWriter")).toMap
+    DataWriter[DataFrame, StructType, IndexFile](configDataWriter)
   }
 
   private def createIndexedTableFactory(keeper: Keeper): IndexedTableFactory =
@@ -179,5 +202,8 @@ object QbeastContext
 class QbeastContextImpl(
     val config: SparkConf,
     val keeper: Keeper,
-    val indexedTableFactory: IndexedTableFactory)
-    extends QbeastContext {}
+    val indexedTableFactory: IndexedTableFactory,
+    val metadataManager: MetadataManager[StructType, IndexFile, QbeastOptions],
+    val dataWriter: DataWriter[DataFrame, StructType, IndexFile])
+    extends QbeastContext {
+}
