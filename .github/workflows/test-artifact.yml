@@ -2,35 +2,21 @@ name: Test artifact
 on:
   push:
     branches: [ main ]
+    paths-ignore:
+      - '**/*.md'
   pull_request:
+    paths-ignore:
+      - '**/*.md'
 
 jobs:
   test-artifact:
     runs-on: ubuntu-latest
     env:
       GHPR_TOKEN: ${{ secrets.GHPR_TOKEN }}
-      run_tests: 'false'
     steps:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
-    - name: Show modified files in this PR
-      run: git diff --name-only origin/main...HEAD
-
-    - name: Show initial value of run_tests
-      run: |
-          echo "Initial value of run_tests: ${{ env.run_tests }}"
-    - name: Check if only .md files were changed
-      id: check_md_files
-      run: |
-          if git diff --name-only origin/main...HEAD | grep -qv '\.md$'; then
-            echo "run_tests=true" >> $GITHUB_ENV
-          else
-            echo "Only markdown files were changed. Skipping steps."
-          fi
-    - name: Show value of run_tests after checking changed files
-      run: |
-          echo "Value of run_tests after check: ${{ env.run_tests }}"
     - name: Set up JDK 1.8
       uses: actions/setup-java@v1
       with:
@@ -38,14 +24,11 @@ jobs:
     - name: Assembly
       run: sbt assembly
     - name: Lint
-      if: env.run_tests == 'true'
       run: sbt "scalafixAll --check"
     - name: Test
-      if: env.run_tests == 'true'
       run: |
         sbt coverage 'test' coverageReport
     - name: Upload to Codecov
-      if: env.run_tests == 'true'
       run: |
         curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import # One-time step
         curl -Os https://uploader.codecov.io/latest/linux/codecov
@@ -56,5 +39,4 @@ jobs:
         chmod +x codecov
         ./codecov -t ${{ secrets.CODECOV_TOKEN }}
     - name: Formatting of code and Scaladocs
-      if: env.run_tests == 'true'
       run: sbt scalafmtSbtCheck doc
