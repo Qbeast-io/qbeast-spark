@@ -1,7 +1,7 @@
 package io.qbeast.core.metadata
 
 import io.qbeast.core.model.{CubeId, QTableID, QbeastSnapshot, ReplicatedSet, RevisionChange, RevisionID, TableChanges}
-import java.util.ServiceLoader
+import java.util.{ServiceConfigurationError, ServiceLoader}
 import io.qbeast.IISeq
 
 /**
@@ -125,20 +125,34 @@ object MetadataManager {
   /**
    * Creates a MetadataManager instance for a given configuration.
    *
-   * @param config
-   *   the configuration
+   * @param format
+   * the storage format
    * @return
-   *   a MetadataManager instance
+   * a MetadataManager instance
    */
-  def apply[DataSchema, FileDescriptor, QbeastOptions](config: Map[String, String]):
+  def apply[DataSchema, FileDescriptor, QbeastOptions](format: String):
       MetadataManager[DataSchema, FileDescriptor, QbeastOptions] = {
+
     val loader = ServiceLoader.load(classOf[MetadataManagerFactory[DataSchema, FileDescriptor, QbeastOptions]])
     val iterator = loader.iterator()
-    if (iterator.hasNext) {
-      iterator.next().createMetadataManager(config)
-    } else {
-      throw new IllegalStateException("No MetadataManagerFactory found for the given configuration")
+
+    while (iterator.hasNext) {
+      val factory = try {
+        Some(iterator.next())
+      } catch {
+        case _: ServiceConfigurationError =>
+          None
+      }
+
+      factory match {
+        case Some(f) if f.format.equalsIgnoreCase(format) =>
+          return f.createMetadataManager()
+        case _ => // continue to the next factory
+      }
     }
+
+    throw new IllegalArgumentException(s"No MetadataManagerFactory found for format: $format")
+
   }
 }
 
@@ -149,16 +163,15 @@ object MetadataManager {
  * specification</li> <li>Add the jar with the implementation to the application classpath</li>
  * </ul>
  */
-trait MetadataManagerFactory[DataSchema, FileDescriptor, QbeastOptions] {
+private trait MetadataManagerFactory[DataSchema, FileDescriptor, QbeastOptions] {
 
   /**
    * Creates a new MetadataManager for a given configuration.
    *
-   * @param config
-   *   the configuration
    * @return
    *   a new MetadataManager
    */
-  def createMetadataManager(config: Map[String, String]):
-      MetadataManager[DataSchema, FileDescriptor, QbeastOptions]
+  def createMetadataManager(): MetadataManager[DataSchema, FileDescriptor, QbeastOptions]
+
+  val format: String = ???
 }

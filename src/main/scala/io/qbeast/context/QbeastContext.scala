@@ -90,8 +90,17 @@ trait QbeastContext {
 object QbeastContext
     extends QbeastContext
     with QbeastCoreContext[DataFrame, StructType, QbeastOptions, IndexFile] {
+
   private var managedOption: Option[QbeastContext] = None
   private var unmanagedOption: Option[QbeastContext] = None
+
+  private lazy val storageFormat: String = {
+    try {
+      current.config.get("spark.qbeast.format")
+    } catch {
+      case _: NoSuchElementException => "delta"
+    }
+  }
 
   // Override methods from QbeastContext
 
@@ -109,8 +118,7 @@ object QbeastContext
 
   override def dataWriter: DataWriter[DataFrame, StructType, IndexFile] = current.dataWriter
 
-  override def revisionBuilder: RevisionFactory[StructType, QbeastOptions] =
-    SparkRevisionFactory
+  override def revisionBuilder: RevisionFactory[StructType, QbeastOptions] = SparkRevisionFactory
 
   override def columnSelector: ColumnsToIndexSelector[DataFrame] = SparkColumnsToIndexSelector
 
@@ -150,8 +158,8 @@ object QbeastContext
   private def createManaged(): QbeastContext = {
     val config = SparkSession.active.sparkContext.getConf
     val keeper = createKeeper(config)
-    val metadataManager= createMetadataManager(config)
-    val dataWriter= createDataWriter(config)
+    val metadataManager = MetadataManager[StructType, IndexFile, QbeastOptions](storageFormat)
+    val dataWriter = DataWriter[DataFrame, StructType, IndexFile](storageFormat)
     val indexedTableFactory = createIndexedTableFactory(keeper)
     new QbeastContextImpl(config, keeper, indexedTableFactory, metadataManager, dataWriter)
   }
@@ -161,16 +169,6 @@ object QbeastContext
     if (configKeeper.isEmpty) {
       LocalKeeper
     } else Keeper(configKeeper)
-  }
-
-  private def createMetadataManager(config: SparkConf): MetadataManager[StructType, IndexFile, QbeastOptions] = {
-    val configMetadataManager = config.getAll.filter(_._1.startsWith("spark.qbeast.metadataManager")).toMap
-    MetadataManager[StructType, IndexFile, QbeastOptions](configMetadataManager)
-  }
-
-  private def createDataWriter(config: SparkConf): DataWriter[DataFrame, StructType, IndexFile] = {
-    val configDataWriter = config.getAll.filter(_._1.startsWith("spark.qbeast.dataWriter")).toMap
-    DataWriter[DataFrame, StructType, IndexFile](configDataWriter)
   }
 
   private def createIndexedTableFactory(keeper: Keeper): IndexedTableFactory =
