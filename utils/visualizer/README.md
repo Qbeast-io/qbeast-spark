@@ -6,17 +6,18 @@ With a given qbeast table path and a target `RevisionID`, it scans the `_delta_l
 One can also provide a sampling fraction and the selected nodes will be highlighted with a different color. Details about on the sampling efficiency will be shown in the terminal. 
 
 ### Installation
-```
+
+First of all, you need to make sure you have python installed in your pc and then install poetry in order to download all the dependencies.
+
+```bash
+python --version
+pip install poetry 
+
 git clone git@github.com:Qbeast-io/qbeast-spark.git
 
-virtualenv ~/.envs/index-viz
-
-source ~/.envs/index-viz/bin/activate
-
-cd ./qbeast-spark/utils/visualizer/
-
-make install
+poetry install --no-root
 ```
+
 ### Usage
 
 Launch a `Flask` serve with the following command and open the link with a browser: 
