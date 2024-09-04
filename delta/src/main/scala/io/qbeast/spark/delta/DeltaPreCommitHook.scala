@@ -15,10 +15,9 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.writer.PreCommitHook
 import io.qbeast.core.writer.HookInfo
+import io.qbeast.core.writer.PreCommitHook
 import org.apache.spark.sql.delta.actions.Action
-
 
 trait DeltaPreCommitHook extends PreCommitHook[Action]
 

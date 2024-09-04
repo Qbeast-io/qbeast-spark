@@ -15,11 +15,16 @@
  */
 package io.qbeast.core.writer
 
+import io.qbeast.core.model.IndexFile
+import io.qbeast.core.model.IndexStatus
+import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.Revision
+import io.qbeast.core.model.TableChanges
 import io.qbeast.IISeq
-import io.qbeast.core.model.{IndexFile, IndexStatus, QTableID, Revision, TableChanges}
 import org.apache.spark.sql.Dataset
 
-import java.util.{ServiceConfigurationError, ServiceLoader}
+import java.util.ServiceConfigurationError
+import java.util.ServiceLoader
 
 /**
  * Data Writer template
@@ -85,18 +90,19 @@ object DataWriter {
    * @return
    *   a DataWriter instance
    */
-  def apply[DATA, DataSchema, FileDescriptor](format: String):
-      DataWriter[DATA, DataSchema, FileDescriptor] = {
+  def apply[DATA, DataSchema, FileDescriptor](
+      format: String): DataWriter[DATA, DataSchema, FileDescriptor] = {
 
     val loader = ServiceLoader.load(classOf[DataWriterFactory[DATA, DataSchema, FileDescriptor]])
     val iterator = loader.iterator()
 
     while (iterator.hasNext) {
-      val factory = try {
-        Some(iterator.next())
-      } catch {
-        case _: ServiceConfigurationError => None
-      }
+      val factory =
+        try {
+          Some(iterator.next())
+        } catch {
+          case _: ServiceConfigurationError => None
+        }
 
       factory match {
         case Some(f) if f.format.equalsIgnoreCase(format) =>
@@ -108,6 +114,7 @@ object DataWriter {
     throw new IllegalArgumentException(s"No MetadataManagerFactory found for format: $format")
 
   }
+
 }
 
 /**
@@ -117,7 +124,7 @@ object DataWriter {
  * specification</li> <li>Add the jar with the implementation to the application classpath</li>
  * </ul>
  */
-trait DataWriterFactory[DATA, DataSchema, FileDescriptor]{
+trait DataWriterFactory[DATA, DataSchema, FileDescriptor] {
 
   /**
    * Creates a new DataWriter for a given configuration.

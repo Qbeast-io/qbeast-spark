@@ -15,11 +15,12 @@
  */
 package io.qbeast.spark.delta
 
+import io.qbeast.core.metadata.MetadataManager
+import io.qbeast.core.metadata.MetadataManagerFactory
 import io.qbeast.core.model._
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.IISeq
-import io.qbeast.core.metadata.{MetadataManager, MetadataManagerFactory}
-import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
+import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.SaveMode
@@ -113,10 +114,10 @@ class DeltaSparkMetadataManager extends MetadataManager[StructType, FileAction, 
 
 }
 
+class DeltaSparkMetadataManagerFactory
+    extends MetadataManagerFactory[StructType, FileAction, QbeastOptions] {
 
-class DeltaSparkMetadataManagerFactory extends MetadataManagerFactory[StructType, FileAction, QbeastOptions] {
-  override def createMetadataManager():
-  MetadataManager[StructType, FileAction, QbeastOptions] = {
+  override def createMetadataManager(): MetadataManager[StructType, FileAction, QbeastOptions] = {
     new DeltaSparkMetadataManager()
   }
 

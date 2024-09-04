@@ -22,7 +22,6 @@ import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
 import io.qbeast.core.model.RevisionID
 import io.qbeast.core.model.Weight
 import io.qbeast.core.stats.tracker.TaskStats
-
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.InternalRow

@@ -16,44 +16,50 @@
 package io.qbeast.spark.delta
 
 import io.delta.tables.DeltaTable
-import io.qbeast.IISeq
 import io.qbeast.core.model._
-import io.qbeast.core.stats.tracker.{StatsTracker, TaskStats}
-import io.qbeast.core.writer.{DataWriter, DataWriterFactory, RollupDataWriter}
+import io.qbeast.core.stats.tracker.StatsTracker
+import io.qbeast.core.stats.tracker.TaskStats
+import io.qbeast.core.writer.DataWriter
+import io.qbeast.core.writer.DataWriterFactory
+import io.qbeast.core.writer.RollupDataWriter
 import io.qbeast.spark.index.QbeastColumns
+import io.qbeast.IISeq
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.actions.FileAction
+import org.apache.spark.sql.delta.stats.DeltaFileStatistics
+import org.apache.spark.sql.delta.stats.DeltaJobStatisticsTracker
 import org.apache.spark.sql.delta.DeltaStatsCollectionUtils
-import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
-import org.apache.spark.sql.delta.stats.{DeltaFileStatistics, DeltaJobStatisticsTracker}
-import org.apache.spark.sql.execution.datasources.{BasicWriteTaskStats, WriteJobStatsTracker, WriteTaskStats}
+import org.apache.spark.sql.execution.datasources.BasicWriteTaskStats
+import org.apache.spark.sql.execution.datasources.WriteJobStatsTracker
+import org.apache.spark.sql.execution.datasources.WriteTaskStats
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{DataFrame, Dataset}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Dataset
 
 import java.net.URI
 
 /**
  * Delta implementation of DataWriter that applies rollup to compact the files.
  */
-class DeltaRollupDataWriter extends RollupDataWriter[FileAction]
-  with DeltaStatsCollectionUtils {
+class DeltaRollupDataWriter extends RollupDataWriter[FileAction] with DeltaStatsCollectionUtils {
 
   override type GetCubeMaxWeight = CubeId => Weight
   override type Extract = InternalRow => (InternalRow, Weight, CubeId, CubeId)
   override type WriteRows = Iterator[InternalRow] => Iterator[(IndexFile, TaskStats)]
 
   override def write(
-                      tableId: QTableID,
-                      schema: StructType,
-                      data: DataFrame,
-                      tableChanges: TableChanges): IISeq[FileAction] = {
+      tableId: QTableID,
+      schema: StructType,
+      data: DataFrame,
+      tableChanges: TableChanges): IISeq[FileAction] = {
 
     val statsTrackers = StatsTracker.getStatsTrackers()
     val fileStatsTracker = getFileStatsTracker(tableId, data)
     val trackers = statsTrackers ++ fileStatsTracker
 
-
-    val filesAndStats = internalWrite(tableId,schema,data,tableChanges,trackers)
+    val filesAndStats = internalWrite(tableId, schema, data, tableChanges, trackers)
     val stats = filesAndStats.map(_._2)
     processStats(stats, statsTrackers, fileStatsTracker)
     filesAndStats
@@ -63,9 +69,9 @@ class DeltaRollupDataWriter extends RollupDataWriter[FileAction]
   }
 
   private def processStats(
-                            stats: IISeq[TaskStats],
-                            statsTrackers: Seq[WriteJobStatsTracker],
-                            fileStatsTracker: Option[DeltaJobStatisticsTracker]): Unit = {
+      stats: IISeq[TaskStats],
+      statsTrackers: Seq[WriteJobStatsTracker],
+      fileStatsTracker: Option[DeltaJobStatisticsTracker]): Unit = {
     val basicStatsBuilder = Seq.newBuilder[WriteTaskStats]
     val fileStatsBuilder = Seq.newBuilder[WriteTaskStats]
     var endTime = 0L
@@ -81,8 +87,8 @@ class DeltaRollupDataWriter extends RollupDataWriter[FileAction]
   }
 
   private def getFileStatsTracker(
-                                   tableId: QTableID,
-                                   data: DataFrame): Option[DeltaJobStatisticsTracker] = {
+      tableId: QTableID,
+      data: DataFrame): Option[DeltaJobStatisticsTracker] = {
     val spark = data.sparkSession
     val originalColumns = data.schema.map(_.name).filterNot(QbeastColumns.contains)
     val originalData = data.selectExpr(originalColumns: _*)
@@ -105,21 +111,17 @@ class DeltaRollupDataWriter extends RollupDataWriter[FileAction]
       indexStatus: IndexStatus,
       indexFiles: Dataset[IndexFile]): IISeq[FileAction] = {
 
-
-    val data = DeltaTable.forName(tableId.id).toDF //TODO check why we are not considering the schema in the QTableId
+    val data =
+      DeltaTable
+        .forName(tableId.id)
+        .toDF // TODO check why we are not considering the schema in the QTableId
 
     val statsTrackers = StatsTracker.getStatsTrackers()
     val fileStatsTracker = getFileStatsTracker(tableId, data)
     val trackers = statsTrackers ++ fileStatsTracker
 
-
-    val filesAndStats = internalOptimize(tableId,
-      schema,
-      revision,
-      indexStatus,
-      indexFiles,
-      data,
-      trackers)
+    val filesAndStats =
+      internalOptimize(tableId, schema, revision, indexStatus, indexFiles, data, trackers)
     val stats = filesAndStats.map(_._2)
     processStats(stats, statsTrackers, fileStatsTracker)
     import indexFiles.sparkSession.implicits._
@@ -131,11 +133,12 @@ class DeltaRollupDataWriter extends RollupDataWriter[FileAction]
       .map(correctAddFileStats(fileStatsTracker))
     removeFiles ++ addFiles
   }
+
 }
 
 class DeltaRollupDataWriterFactory extends DataWriterFactory[DataFrame, StructType, FileAction] {
-  override def createDataWriter():
-  DataWriter[DataFrame, StructType, FileAction] = {
+
+  override def createDataWriter(): DataWriter[DataFrame, StructType, FileAction] = {
     new DeltaRollupDataWriter()
   }
 

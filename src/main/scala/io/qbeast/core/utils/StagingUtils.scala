@@ -15,7 +15,9 @@
  */
 package io.qbeast.core.utils
 
-import io.qbeast.core.model.{QTableID, Revision, RevisionID}
+import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.Revision
+import io.qbeast.core.model.RevisionID
 import io.qbeast.core.transform.EmptyTransformer
 
 trait StagingUtils {

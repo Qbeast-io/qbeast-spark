@@ -15,12 +15,17 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.{IndexStatus, QTableID, StagingDataManager, StagingResolution}
+import io.qbeast.core.model.IndexStatus
+import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.StagingDataManager
+import io.qbeast.core.model.StagingDataManagerFactory
+import io.qbeast.core.model.StagingResolution
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.internal.QbeastOptions
 import org.apache.hadoop.fs.Path
 import org.apache.spark.qbeast.config.STAGING_SIZE_IN_BYTES
-import org.apache.spark.sql.delta.actions.{FileAction, RemoveFile}
+import org.apache.spark.sql.delta.actions.FileAction
+import org.apache.spark.sql.delta.actions.RemoveFile
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.delta.DeltaOptions
 import org.apache.spark.sql.delta.Snapshot
@@ -32,7 +37,7 @@ import org.apache.spark.sql.SparkSession
  * Access point for staged data
  */
 private[spark] class DeltaStagingDataManager(tableID: QTableID)
-  extends DeltaStagingUtils
+    extends DeltaStagingUtils
     with StagingDataManager[FileAction] {
 
   private val spark = SparkSession.active
@@ -109,10 +114,10 @@ private[spark] class DeltaStagingDataManager(tableID: QTableID)
    *   the operation appends data
    */
   override def stageData(
-                          data: DataFrame,
-                          indexStatus: IndexStatus,
-                          options: QbeastOptions,
-                          append: Boolean): Unit = {
+      data: DataFrame,
+      indexStatus: IndexStatus,
+      options: QbeastOptions,
+      append: Boolean): Unit = {
     // Write data to the staging area in the delta format
     var writer = data.write
       .format("delta")
@@ -138,4 +143,11 @@ private[spark] class DeltaStagingDataManager(tableID: QTableID)
 
 }
 
+class DeltaStagingDataManagerFactory extends StagingDataManagerFactory[FileAction] {
 
+  override def createStagingDataManager(tableID: QTableID): StagingDataManager[FileAction] = {
+    new DeltaStagingDataManager(tableID)
+  }
+
+  override val format: String = "delta"
+}

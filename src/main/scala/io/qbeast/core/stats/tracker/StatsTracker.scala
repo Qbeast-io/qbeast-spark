@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Qbeast Analytics, S.L.
+ * Copyright 2021 Qbeast Analytics, S.L.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
  */
 package io.qbeast.core.stats.tracker
 
-import org.apache.spark.sql.execution.datasources.{WriteJobStatsTracker, WriteTaskStats}
-
+import org.apache.spark.sql.execution.datasources.WriteJobStatsTracker
+import org.apache.spark.sql.execution.datasources.WriteTaskStats
 
 case class TaskStats(writeTaskStats: Seq[WriteTaskStats], endTime: Long)
 

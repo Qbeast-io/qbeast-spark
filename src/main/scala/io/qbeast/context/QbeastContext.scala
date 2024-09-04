@@ -17,9 +17,9 @@ package io.qbeast.context
 
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.keeper.LocalKeeper
+import io.qbeast.core.metadata.MetadataManager
 import io.qbeast.core.model._
 import io.qbeast.core.writer.DataWriter
-import io.qbeast.core.metadata.MetadataManager
 import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.index.SparkRevisionFactory
@@ -115,7 +115,8 @@ object QbeastContext
 
   override def indexManager: IndexManager[DataFrame] = SparkOTreeManager
 
-  override def metadataManager: MetadataManager[StructType, IndexFile, QbeastOptions] = current.metadataManager
+  override def metadataManager: MetadataManager[StructType, IndexFile, QbeastOptions] =
+    current.metadataManager
 
   override def dataWriter: DataWriter[DataFrame, StructType, IndexFile] = current.dataWriter
 
@@ -204,5 +205,4 @@ class QbeastContextImpl(
     val indexedTableFactory: IndexedTableFactory,
     val metadataManager: MetadataManager[StructType, IndexFile, QbeastOptions],
     val dataWriter: DataWriter[DataFrame, StructType, IndexFile])
-    extends QbeastContext {
-}
+    extends QbeastContext {}

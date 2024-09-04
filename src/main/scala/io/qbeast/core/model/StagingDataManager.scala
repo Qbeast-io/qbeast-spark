@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Qbeast Analytics, S.L.
+ * Copyright 2021 Qbeast Analytics, S.L.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import io.qbeast.spark.internal.QbeastOptions
 import org.apache.spark.sql.DataFrame
 
 import java.util.ServiceLoader
+
 /**
  * Metadata Manager template
  * @tparam DataSchema
@@ -66,13 +67,18 @@ trait StagingDataManager[T] extends StagingUtils {
    * @param append
    *   Whether the operation appends data or overwrites.
    */
-  def stageData(data: DataFrame, indexStatus: IndexStatus, options: QbeastOptions, append: Boolean): Unit
+  def stageData(
+      data: DataFrame,
+      indexStatus: IndexStatus,
+      options: QbeastOptions,
+      append: Boolean): Unit
+
 }
 
 case class StagingResolution[T](
-            dataToWrite: DataFrame,
-            removeFiles: Seq[T],
-            sendToStaging: Boolean)
+    dataToWrite: DataFrame,
+    removeFiles: Seq[T],
+    sendToStaging: Boolean)
 
 object StagingDataManager {
 
@@ -84,26 +90,27 @@ object StagingDataManager {
    * @return
    *   a StagingDataManager instance
    */
-  def apply[FileDescriptor](tableID: QTableID, config: Map[String, String]):
-        StagingDataManager[FileDescriptor] = {
-    val loader = ServiceLoader.load(classOf[StagingDataManagerFactory])
+  def apply[FileDescriptor](tableID: QTableID): StagingDataManager[FileDescriptor] = {
+    val loader = ServiceLoader.load(classOf[StagingDataManagerFactory[FileDescriptor]])
     val iterator = loader.iterator()
     if (iterator.hasNext) {
-      iterator.next().createStagingDataManager(tableID, config)
+      iterator.next().createStagingDataManager(tableID)
     } else {
-      throw new IllegalStateException("No StagingDataManagerFactory found for the given configuration")
+      throw new IllegalStateException(
+        "No StagingDataManagerFactory found for the given configuration")
     }
   }
+
 }
 
 /**
- * Factory for creating StagingDataManager instances. This interface should be implemented and deployed by
- * external libraries as follows: <ul> <li>Implement this interface in a class which has a public
- * no-argument constructor</li> <li>Register the implementation according to the ServiceLoader
- * specification</li> <li>Add the jar with the implementation to the application classpath</li>
- * </ul>
+ * Factory for creating StagingDataManager instances. This interface should be implemented and
+ * deployed by external libraries as follows: <ul> <li>Implement this interface in a class which
+ * has a public no-argument constructor</li> <li>Register the implementation according to the
+ * ServiceLoader specification</li> <li>Add the jar with the implementation to the application
+ * classpath</li> </ul>
  */
-trait StagingDataManagerFactory {
+trait StagingDataManagerFactory[FileDescriptor] {
 
   /**
    * Creates a new StagingDataManager for a given configuration.
@@ -115,6 +122,7 @@ trait StagingDataManagerFactory {
    * @return
    *   a new StagingDataManager
    */
-  def createStagingDataManager[FileDescriptor](tableID: QTableID, config: Map[String, String]):
-        StagingDataManager[FileDescriptor]
+  def createStagingDataManager(tableID: QTableID): StagingDataManager[FileDescriptor]
+
+  val format: String = ???
 }

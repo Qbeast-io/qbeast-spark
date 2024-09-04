@@ -18,8 +18,8 @@ package io.qbeast.spark.delta
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.RevisionID
 import io.qbeast.core.model.TableChanges
-import io.qbeast.core.writer.PreCommitHook.PreCommitHookOutput
 import io.qbeast.core.stats.tracker.StatsTracker.registerStatsTrackers
+import io.qbeast.core.writer.PreCommitHook.PreCommitHookOutput
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
 import io.qbeast.spark.utils.TagColumns

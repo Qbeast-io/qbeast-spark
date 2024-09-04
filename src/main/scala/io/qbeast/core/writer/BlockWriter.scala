@@ -20,6 +20,7 @@ import io.qbeast.core.model.IndexFileBuilder
 import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
 import io.qbeast.core.model.TableChanges
 import io.qbeast.core.model.Weight
+import io.qbeast.core.stats.tracker.TaskStats
 import io.qbeast.spark.delta.IndexFiles
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.utils.State

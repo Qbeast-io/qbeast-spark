@@ -16,13 +16,13 @@
 package io.qbeast.spark.table
 
 import io.qbeast.core.keeper.Keeper
-import io.qbeast.core.model._
 import io.qbeast.core.metadata.MetadataManager
+import io.qbeast.core.model._
 import io.qbeast.core.model.RevisionFactory
 import io.qbeast.core.utils.StagingUtils
-import io.qbeast.core.model.StagingDataManager
-import io.qbeast.core.model.StagingResolution
 import io.qbeast.core.writer.DataWriter
+import io.qbeast.spark.delta.DeltaStagingDataManager2
+import io.qbeast.spark.delta.StagingResolution2
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
@@ -208,8 +208,8 @@ private[table] class IndexedTableImpl(
     val tableID: QTableID,
     private val keeper: Keeper,
     private val indexManager: IndexManager[DataFrame],
-    private val metadataManager: MetadataManager[_, _, _],
-    private val dataWriter: DataWriter[_, _, _],
+    private val metadataManager: MetadataManager[StructType, IndexFile, QbeastOptions],
+    private val dataWriter: DataWriter[DataFrame, StructType, IndexFile],
     private val revisionFactory: RevisionFactory[StructType, QbeastOptions],
     private val columnSelector: ColumnsToIndexSelector[DataFrame])
     extends IndexedTable
@@ -453,17 +453,20 @@ private[table] class IndexedTableImpl(
       options: QbeastOptions,
       append: Boolean): Unit = {
     logTrace(s"Begin: Writing data to table $tableID")
-    val stagingDataManager: StagingDataManager = new StagingDataManager(tableID)
+
+    val stagingDataManager: DeltaStagingDataManager2 = new DeltaStagingDataManager2(tableID)
+
     stagingDataManager.updateWithStagedData(data) match {
-      case r: StagingResolution if r.sendToStaging =>
+      case r: StagingResolution2 if r.sendToStaging =>
         stagingDataManager.stageData(data, indexStatus, options, append)
 
-      case StagingResolution(dataToWrite, removeFiles, false) =>
+      case StagingResolution2(dataToWrite, removeFiles, false) =>
         val schema = dataToWrite.schema
         metadataManager.updateWithTransaction(tableID, schema, options, append) {
           val (qbeastData, tableChanges) = indexManager.index(dataToWrite, indexStatus)
           val fileActions = dataWriter.write(tableID, schema, qbeastData, tableChanges)
-          (tableChanges, fileActions ++ removeFiles)
+          // (tableChanges, fileActions ++ removeFiles) // TODO: revert this
+          (tableChanges, fileActions)
         }
     }
     logTrace(s"End: Writing data to table $tableID")

@@ -17,6 +17,7 @@ package io.qbeast.core.model
 
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.metadata.MetadataManager
+import io.qbeast.core.writer.DataWriter
 
 /**
  * Qbeast Core main components

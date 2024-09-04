@@ -15,13 +15,18 @@
  */
 package io.qbeast.spark.delta
 
-import com.fasterxml.jackson.core.{JsonFactory, JsonParseException, JsonParser, JsonToken}
-import io.qbeast.IISeq
-import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
+import com.fasterxml.jackson.core.JsonFactory
+import com.fasterxml.jackson.core.JsonParseException
+import com.fasterxml.jackson.core.JsonParser
+import com.fasterxml.jackson.core.JsonToken
 import io.qbeast.core.model._
+import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
 import io.qbeast.spark.utils.TagUtils
-import org.apache.hadoop.fs.{FileStatus, Path}
-import org.apache.spark.sql.delta.actions.{AddFile, RemoveFile}
+import io.qbeast.IISeq
+import org.apache.hadoop.fs.FileStatus
+import org.apache.hadoop.fs.Path
+import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.actions.RemoveFile
 import org.apache.spark.sql.execution.datasources.FileStatusWithMetadata
 
 import java.io.StringWriter

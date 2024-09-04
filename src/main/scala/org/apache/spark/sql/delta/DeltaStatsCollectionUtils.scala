@@ -22,7 +22,9 @@ import org.apache.spark.sql.catalyst.plans.logical.LocalRelation
 import org.apache.spark.sql.catalyst.types.DataTypeUtils.toAttributes
 import org.apache.spark.sql.delta.actions.Protocol
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
-import org.apache.spark.sql.delta.stats.{DeltaJobStatisticsTracker, DeltaStatsColumnSpec, StatisticsCollection}
+import org.apache.spark.sql.delta.stats.DeltaJobStatisticsTracker
+import org.apache.spark.sql.delta.stats.DeltaStatsColumnSpec
+import org.apache.spark.sql.delta.stats.StatisticsCollection
 import org.apache.spark.sql.functions.to_json
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.DataFrame
@@ -82,65 +84,64 @@ trait DeltaStatsCollectionUtils {
       sparkSession: SparkSession,
       tableID: QTableID): Option[DeltaJobStatisticsTracker] = {
 
+    val outputStatsAtrributes = data.queryExecution.analyzed.output
+    val outputSchema = data.schema
 
-      val outputStatsAtrributes = data.queryExecution.analyzed.output
-      val outputSchema = data.schema
+    val deltaLog = DeltaLog.forTable(sparkSession, tableID.id)
+    val deltaSnapshot = deltaLog.update()
+    val deltaMetadata = deltaSnapshot.metadata
+    val outputPath = deltaLog.dataPath
 
-      val deltaLog = DeltaLog.forTable(sparkSession, tableID.id)
-      val deltaSnapshot = deltaLog.update()
-      val deltaMetadata = deltaSnapshot.metadata
-      val outputPath = deltaLog.dataPath
+    val (outputStatsCollectionSchema: Seq[Attribute], tableStatsCollectionSchema) =
+      getStatsSchema(
+        deltaSnapshot,
+        outputSchema,
+        outputStatsAtrributes,
+        deltaMetadata.partitionSchema)
 
-      val (outputStatsCollectionSchema: Seq[Attribute], tableStatsCollectionSchema) =
-        getStatsSchema(
-          deltaSnapshot,
-          outputSchema,
-          outputStatsAtrributes,
-          deltaMetadata.partitionSchema)
+    val statsCollection = new StatisticsCollection {
 
-      val statsCollection = new StatisticsCollection {
+      override val spark: SparkSession = data.sparkSession
 
-        override val spark: SparkSession = data.sparkSession
+      override protected def protocol: Protocol = deltaSnapshot.protocol
 
-        override protected def protocol: Protocol = deltaSnapshot.protocol
+      override def tableSchema: StructType = deltaMetadata.schema
 
-        override def tableSchema: StructType = deltaMetadata.schema
-
-        override def outputTableStatsSchema: StructType = {
-          // If collecting stats uses the table schema, then we pass in tableStatsCollectionSchema;
-          // otherwise, pass in outputStatsCollectionSchema to collect stats using the DataFrame
-          // schema.
-          if (spark.sessionState.conf.getConf(
-              DeltaSQLConf.DELTA_COLLECT_STATS_USING_TABLE_SCHEMA)) {
-            tableStatsCollectionSchema.toStructType
-          } else {
-            outputStatsCollectionSchema.toStructType
-          }
+      override def outputTableStatsSchema: StructType = {
+        // If collecting stats uses the table schema, then we pass in tableStatsCollectionSchema;
+        // otherwise, pass in outputStatsCollectionSchema to collect stats using the DataFrame
+        // schema.
+        if (spark.sessionState.conf.getConf(
+            DeltaSQLConf.DELTA_COLLECT_STATS_USING_TABLE_SCHEMA)) {
+          tableStatsCollectionSchema.toStructType
+        } else {
+          outputStatsCollectionSchema.toStructType
         }
-
-        override def outputAttributeSchema: StructType = outputStatsCollectionSchema.toStructType
-
-        override val statsColumnSpec: DeltaStatsColumnSpec =
-          StatisticsCollection.configuredDeltaStatsColumnSpec(deltaMetadata)
-
-        override def columnMappingMode: DeltaColumnMappingMode = deltaSnapshot.columnMappingMode
       }
 
-      val statsColExpr: Expression =
-        Dataset
-          .ofRows(sparkSession, LocalRelation(outputStatsCollectionSchema))
-          .select(to_json(statsCollection.statsCollector))
-          .queryExecution
-          .analyzed
-          .expressions
-          .head
+      override def outputAttributeSchema: StructType = outputStatsCollectionSchema.toStructType
 
-      Some(
-        new DeltaJobStatisticsTracker(
-          deltaLog.newDeltaHadoopConf(),
-          outputPath,
-          outputStatsCollectionSchema,
-          statsColExpr))
+      override val statsColumnSpec: DeltaStatsColumnSpec =
+        StatisticsCollection.configuredDeltaStatsColumnSpec(deltaMetadata)
+
+      override def columnMappingMode: DeltaColumnMappingMode = deltaSnapshot.columnMappingMode
+    }
+
+    val statsColExpr: Expression =
+      Dataset
+        .ofRows(sparkSession, LocalRelation(outputStatsCollectionSchema))
+        .select(to_json(statsCollection.statsCollector))
+        .queryExecution
+        .analyzed
+        .expressions
+        .head
+
+    Some(
+      new DeltaJobStatisticsTracker(
+        deltaLog.newDeltaHadoopConf(),
+        outputPath,
+        outputStatsCollectionSchema,
+        statsColExpr))
   }
 
 }
