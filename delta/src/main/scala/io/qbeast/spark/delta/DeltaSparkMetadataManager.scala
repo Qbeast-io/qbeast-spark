@@ -17,6 +17,7 @@ package io.qbeast.spark.delta
 
 import io.qbeast.core.metadata.MetadataManager
 import io.qbeast.core.metadata.MetadataManagerFactory
+import io.qbeast.core.metadata.SparkMetadataManager
 import io.qbeast.core.model._
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.IISeq
@@ -29,7 +30,7 @@ import org.apache.spark.sql.SparkSession
 /**
  * Spark+Delta implementation of the MetadataManager interface
  */
-class DeltaSparkMetadataManager extends MetadataManager[StructType, FileAction, QbeastOptions] {
+class DeltaSparkMetadataManager extends SparkMetadataManager[FileAction] {
 
   override def updateWithTransaction(
       tableID: QTableID,

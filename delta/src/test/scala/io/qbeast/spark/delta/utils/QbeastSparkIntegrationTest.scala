@@ -15,7 +15,7 @@
  */
 package io.qbeast.spark.delta.utils
 
-import io.qbeast.spark.delta.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.QbeastTable
 import io.qbeast.TestClasses.Student
 import org.apache.spark.sql.DataFrame

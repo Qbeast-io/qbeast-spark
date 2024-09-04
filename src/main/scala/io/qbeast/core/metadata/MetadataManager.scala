@@ -37,6 +37,7 @@ import java.util.ServiceLoader
  *   type of the Qbeast options
  */
 trait MetadataManager[DataSchema, FileDescriptor, QbeastOptions] {
+
   type Configuration = Map[String, String]
 
   /**
