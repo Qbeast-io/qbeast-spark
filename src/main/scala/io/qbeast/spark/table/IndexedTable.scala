@@ -22,6 +22,7 @@ import io.qbeast.core.model.RevisionFactory
 import io.qbeast.core.utils.StagingUtils
 import io.qbeast.core.model.StagingDataManager
 import io.qbeast.core.model.StagingResolution
+import io.qbeast.core.writer.DataWriter
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
@@ -167,8 +168,8 @@ trait IndexedTableFactory {
 final class IndexedTableFactoryImpl(
     private val keeper: Keeper,
     private val indexManager: IndexManager[DataFrame],
-    private val metadataManager: MetadataManager[_, _, _],
-    private val dataWriter: DataWriter[_, _, _],
+    private val metadataManager: MetadataManager[StructType, IndexFile, QbeastOptions],
+    private val dataWriter: DataWriter[DataFrame, StructType, IndexFile],
     private val revisionFactory: RevisionFactory[StructType, QbeastOptions],
     private val columnSelector: ColumnsToIndexSelector[DataFrame])
     extends IndexedTableFactory {

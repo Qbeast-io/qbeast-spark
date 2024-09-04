@@ -163,7 +163,7 @@ object MetadataManager {
  * specification</li> <li>Add the jar with the implementation to the application classpath</li>
  * </ul>
  */
-private trait MetadataManagerFactory[DataSchema, FileDescriptor, QbeastOptions] {
+trait MetadataManagerFactory[DataSchema, FileDescriptor, QbeastOptions] {
 
   /**
    * Creates a new MetadataManager for a given configuration.

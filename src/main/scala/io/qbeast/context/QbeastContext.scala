@@ -18,6 +18,7 @@ package io.qbeast.context
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.keeper.LocalKeeper
 import io.qbeast.core.model._
+import io.qbeast.core.writer.DataWriter
 import io.qbeast.core.metadata.MetadataManager
 import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.spark.index.SparkOTreeManager

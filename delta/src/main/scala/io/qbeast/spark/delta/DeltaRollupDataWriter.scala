@@ -19,7 +19,7 @@ import io.delta.tables.DeltaTable
 import io.qbeast.IISeq
 import io.qbeast.core.model._
 import io.qbeast.core.stats.tracker.{StatsTracker, TaskStats}
-import io.qbeast.core.writer.RollupDataWriter
+import io.qbeast.core.writer.{DataWriter, DataWriterFactory, RollupDataWriter}
 import io.qbeast.spark.index.QbeastColumns
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.InternalRow
@@ -35,7 +35,7 @@ import java.net.URI
 /**
  * Delta implementation of DataWriter that applies rollup to compact the files.
  */
-object DeltaRollupDataWriter extends RollupDataWriter[FileAction]
+class DeltaRollupDataWriter extends RollupDataWriter[FileAction]
   with DeltaStatsCollectionUtils {
 
   override type GetCubeMaxWeight = CubeId => Weight
@@ -131,4 +131,13 @@ object DeltaRollupDataWriter extends RollupDataWriter[FileAction]
       .map(correctAddFileStats(fileStatsTracker))
     removeFiles ++ addFiles
   }
+}
+
+class DeltaRollupDataWriterFactory extends DataWriterFactory[DataFrame, StructType, FileAction] {
+  override def createDataWriter():
+  DataWriter[DataFrame, StructType, FileAction] = {
+    new DeltaRollupDataWriter()
+  }
+
+  override val format: String = "delta"
 }

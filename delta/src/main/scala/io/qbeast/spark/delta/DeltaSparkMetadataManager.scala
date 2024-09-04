@@ -18,8 +18,8 @@ package io.qbeast.spark.delta
 import io.qbeast.core.model._
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.IISeq
-import io.qbeast.core.metadata.MetadataManager
-import org.apache.spark.sql.delta.actions.FileAction
+import io.qbeast.core.metadata.{MetadataManager, MetadataManagerFactory}
+import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.SaveMode
@@ -28,7 +28,7 @@ import org.apache.spark.sql.SparkSession
 /**
  * Spark+Delta implementation of the MetadataManager interface
  */
-object DeltaSparkMetadataManager extends MetadataManager[StructType, FileAction, QbeastOptions] {
+class DeltaSparkMetadataManager extends MetadataManager[StructType, FileAction, QbeastOptions] {
 
   override def updateWithTransaction(
       tableID: QTableID,
@@ -111,4 +111,14 @@ object DeltaSparkMetadataManager extends MetadataManager[StructType, FileAction,
     loadDeltaQbeastLog(tableID).deltaLog.createLogDirectory()
   }
 
+}
+
+
+class DeltaSparkMetadataManagerFactory extends MetadataManagerFactory[StructType, FileAction, QbeastOptions] {
+  override def createMetadataManager():
+  MetadataManager[StructType, FileAction, QbeastOptions] = {
+    new DeltaSparkMetadataManager()
+  }
+
+  override val format: String = "delta"
 }

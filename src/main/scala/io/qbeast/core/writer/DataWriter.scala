@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.core.model
+package io.qbeast.core.writer
 
 import io.qbeast.IISeq
+import io.qbeast.core.model.{IndexFile, IndexStatus, QTableID, Revision, TableChanges}
 import org.apache.spark.sql.Dataset
+
 import java.util.{ServiceConfigurationError, ServiceLoader}
 
 /**

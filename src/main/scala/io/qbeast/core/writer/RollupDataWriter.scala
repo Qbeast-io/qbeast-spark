@@ -15,19 +15,17 @@
  */
 package io.qbeast.core.writer
 
-import io.qbeast.core.model.{CubeId, DataWriter, IndexFile, IndexStatus, QTableID, Revision, RevisionID, TableChanges, Weight}
+import io.qbeast.core.model.{CubeId, IndexFile, IndexStatus, QTableID, Revision, RevisionID, TableChanges, Weight}
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.index.RowUtils
 import io.qbeast.spark.internal.QbeastFunctions
-import io.qbeast.core.stats.tracker.{QbeastFileStatistics, JobStatisticsTracker, StatsTracker, TaskStats}
+import io.qbeast.core.stats.tracker.TaskStats
 import io.qbeast.IISeq
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
-import org.apache.spark.sql.execution.datasources.BasicWriteTaskStats
 import org.apache.spark.sql.execution.datasources.WriteJobStatsTracker
-import org.apache.spark.sql.execution.datasources.WriteTaskStats
 import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.struct
@@ -38,9 +36,7 @@ import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.util.SerializableConfiguration
-import org.apache.hadoop.fs.Path
 
-import java.net.URI
 import scala.collection.mutable
 
 /**
@@ -110,16 +106,6 @@ abstract class RollupDataWriter[T]
       .toIndexedSeq
 
   }
-
-  private def correctAddFileStats(fileStatsTracker: Option[JobStatisticsTracker])(
-    file: IndexFile): IndexFile = {
-    val path = new Path(new URI(file.path)).toString
-    fileStatsTracker
-      .map(_.recordedStats(path))
-      .map(stats => file.copy(stats = stats))
-      .getOrElse(file)
-  }
-
 
 
   def internalOptimize(
