@@ -14,7 +14,11 @@ python --version
 pip install poetry 
 
 git clone git@github.com:Qbeast-io/qbeast-spark.git
-
+# Create a poetry shell (remember to use command exit when you are done)
+poetry shell
+# Install qviz
+poetry run pip install -e .
+# Install all the required dependencies
 poetry install --no-root
 ```
 
