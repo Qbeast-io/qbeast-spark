@@ -15,6 +15,7 @@
  */
 package io.qbeast.spark.delta
 
+import io.qbeast.core.model.QTableID
 import io.qbeast.spark.index.query.QueryExecutor
 import io.qbeast.spark.index.query.QuerySpecBuilder
 import io.qbeast.spark.utils.TagUtils
@@ -86,7 +87,10 @@ private[delta] object SamplingListFilesStrategy
       dataFilters: Seq[Expression]): Seq[FileStatusWithMetadata] = {
 
     val querySpecBuilder = new QuerySpecBuilder(dataFilters ++ partitionFilters)
-    val queryExecutor = new QueryExecutor(querySpecBuilder, DeltaQbeastSnapshot(snapshot))
+
+    val tableId = new QTableID(path.toString)
+    val deltaQbeastSnapshot = new DeltaQbeastSnapshot(tableId)
+    val queryExecutor = new QueryExecutor(querySpecBuilder, deltaQbeastSnapshot)
     queryExecutor
       .execute(path)
   }

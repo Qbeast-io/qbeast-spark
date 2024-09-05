@@ -38,7 +38,7 @@ class DeltaSparkMetadataManager extends SparkMetadataManager[FileAction] {
       options: QbeastOptions,
       append: Boolean)(writer: => (TableChanges, IISeq[FileAction])): Unit = {
 
-    val deltaLog = loadDeltaQbeastLog(tableID).deltaLog
+    val deltaLog = loadDeltaLog(tableID)
     val mode = if (append) SaveMode.Append else SaveMode.Overwrite
 
     val metadataWriter =
@@ -48,7 +48,7 @@ class DeltaSparkMetadataManager extends SparkMetadataManager[FileAction] {
 
   override def updateMetadataWithTransaction(tableID: QTableID, schema: StructType)(
       update: => Configuration): Unit = {
-    val deltaLog = loadDeltaQbeastLog(tableID).deltaLog
+    val deltaLog = loadDeltaLog(tableID)
     val metadataWriter =
       DeltaMetadataWriter(tableID, mode = SaveMode.Append, deltaLog, QbeastOptions.empty, schema)
 
@@ -61,7 +61,7 @@ class DeltaSparkMetadataManager extends SparkMetadataManager[FileAction] {
   }
 
   override def loadCurrentSchema(tableID: QTableID): StructType = {
-    loadDeltaQbeastLog(tableID).deltaLog.update().schema
+    loadDeltaLog(tableID).update().schema
   }
 
   override def updateRevision(tableID: QTableID, revisionChange: RevisionChange): Unit = {}
@@ -69,13 +69,13 @@ class DeltaSparkMetadataManager extends SparkMetadataManager[FileAction] {
   override def updateTable(tableID: QTableID, tableChanges: TableChanges): Unit = {}
 
   /**
-   * Returns the DeltaQbeastLog for the table
+   * Returns the DeltaLog for the table
    * @param tableID
    *   the table ID
    * @return
    */
-  def loadDeltaQbeastLog(tableID: QTableID): DeltaQbeastLog = {
-    DeltaQbeastLog(DeltaLog.forTable(SparkSession.active, tableID.id))
+  def loadDeltaLog(tableID: QTableID): DeltaLog = {
+    DeltaLog.forTable(SparkSession.active, tableID.id)
   }
 
   override def hasConflicts(
@@ -101,7 +101,7 @@ class DeltaSparkMetadataManager extends SparkMetadataManager[FileAction] {
    * @return
    */
   override def existsLog(tableID: QTableID): Boolean = {
-    loadDeltaQbeastLog(tableID).deltaLog.tableExists
+    loadDeltaLog(tableID).tableExists
   }
 
   /**
@@ -110,7 +110,7 @@ class DeltaSparkMetadataManager extends SparkMetadataManager[FileAction] {
    * @param tableID
    */
   override def createLog(tableID: QTableID): Unit = {
-    loadDeltaQbeastLog(tableID).deltaLog.createLogDirectory()
+    loadDeltaLog(tableID).createLogDirectory()
   }
 
 }

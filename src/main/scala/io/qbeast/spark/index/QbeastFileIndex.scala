@@ -15,30 +15,35 @@
  */
 package io.qbeast.spark.index
 
+import io.qbeast.spark.index.query.QueryFiltersUtils
 import org.apache.hadoop.fs.Path
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.execution.datasources.FileIndex
 import org.apache.spark.sql.execution.datasources.PartitionDirectory
-import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
 
 /**
- * Implementation of FileIndex to be used for empty tables.
+ * Default implementation of the FileIndex.
+ *
+ * @param target
+ *   the target file index implemented by Delta
  */
-object EmptyFileIndex extends FileIndex with Serializable {
+trait QbeastFileIndex extends FileIndex with QueryFiltersUtils with Logging with Serializable {
 
-  override def rootPaths: Seq[Path] = Seq.empty
+  def rootPaths: Seq[Path]
 
-  override def listFiles(
+  def listFiles(
       partitionFilters: Seq[Expression],
-      dataFilters: Seq[Expression]): Seq[PartitionDirectory] = Seq.empty
+      dataFilters: Seq[Expression]): Seq[PartitionDirectory]
 
-  override def inputFiles: Array[String] = Array.empty
+  def logFilters(partitionFilters: Seq[Expression], dataFilters: Seq[Expression]): Unit
 
-  override def refresh(): Unit = ()
+  def inputFiles: Array[String]
 
-  override def sizeInBytes: Long = 0L
+  def refresh(): Unit
 
-  override def partitionSchema: StructType = StructType(Array.empty[StructField])
+  def sizeInBytes: Long
 
+  def partitionSchema: StructType
 }

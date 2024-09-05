@@ -34,7 +34,7 @@ import scala.collection.immutable.SortedMap
  *   the announced set available for the revision
  */
 private[delta] class IndexStatusBuilder(
-    qbeastSnapshot: DeltaQbeastSnapshot,
+    qbeastSnapshot: QbeastSnapshot,
     revision: Revision,
     announcedSet: Set[CubeId] = Set.empty)
     extends Serializable
@@ -47,7 +47,7 @@ private[delta] class IndexStatusBuilder(
    */
   def revisionFiles: Dataset[AddFile] =
     // this must be external to the lambda, to avoid SerializationErrors
-    qbeastSnapshot.loadRevisionFiles(revision.revisionID)
+    qbeastSnapshot.loadRevisionFiles(revision.revisionID).asInstanceOf[Dataset[AddFile]]
 
   def build(): IndexStatus = {
     val cubeStatus =

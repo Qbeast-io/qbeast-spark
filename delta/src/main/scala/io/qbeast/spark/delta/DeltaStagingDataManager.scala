@@ -38,7 +38,7 @@ import org.apache.spark.sql.SparkSession
  */
 private[spark] class DeltaStagingDataManager(tableID: QTableID)
     extends DeltaStagingUtils
-    with StagingDataManager[FileAction] {
+    with StagingDataManager {
 
   private val spark = SparkSession.active
 
@@ -59,10 +59,11 @@ private[spark] class DeltaStagingDataManager(tableID: QTableID)
   /**
    * Stack a given DataFrame with all staged data.
    */
-  override def mergeWithStagingData(data: DataFrame, stagedFiles: Seq[FileAction]): DataFrame = {
+  override def mergeWithStagingData(data: DataFrame, stagedFiles: Seq[Any]): DataFrame = {
     if (stagedFiles.isEmpty) data
     else {
-      val paths = stagedFiles.map(r => new Path(tableID.id, r.path).toString)
+      val fileActions = stagedFiles.asInstanceOf[Seq[FileAction]]
+      val paths = fileActions.map(r => new Path(tableID.id, r.path).toString)
       val stagingData = spark.read.parquet(paths: _*)
       data.unionByName(stagingData, allowMissingColumns = true)
     }
@@ -79,7 +80,7 @@ private[spark] class DeltaStagingDataManager(tableID: QTableID)
    *   a StagingResolution instance containing the data to write, the staging RemoveFiles, and a
    *   boolean denoting whether the data to write is to be staged or indexed.
    */
-  override def updateWithStagedData(data: DataFrame): StagingResolution[FileAction] = {
+  override def updateWithStagedData(data: DataFrame): StagingResolution = {
     STAGING_SIZE_IN_BYTES match {
       case None =>
         // Staging option deactivated, all staged data are ignored
@@ -143,9 +144,9 @@ private[spark] class DeltaStagingDataManager(tableID: QTableID)
 
 }
 
-class DeltaStagingDataManagerFactory extends StagingDataManagerFactory[FileAction] {
+class DeltaStagingDataManagerFactory extends StagingDataManagerFactory {
 
-  override def createStagingDataManager(tableID: QTableID): StagingDataManager[FileAction] = {
+  override def createStagingDataManager(tableID: QTableID): StagingDataManager = {
     new DeltaStagingDataManager(tableID)
   }
 

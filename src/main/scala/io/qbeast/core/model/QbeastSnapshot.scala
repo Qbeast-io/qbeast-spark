@@ -16,6 +16,7 @@
 package io.qbeast.core.model
 
 import io.qbeast.IISeq
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.Dataset
 
 import java.util.ServiceConfigurationError
@@ -26,11 +27,17 @@ import java.util.ServiceLoader
  */
 trait QbeastSnapshot {
 
+  def snapshot: Any
+
+  def allFilesCount: Long
+
   /**
    * The current state of the snapshot.
    * @return
    */
   def isInitial: Boolean
+
+  def schema: StructType
 
   /**
    * The current table description.
@@ -115,6 +122,15 @@ trait QbeastSnapshot {
    *   the revision
    */
   def loadRevisionAt(timestamp: Long): Revision
+
+  /**
+   * Loads the dataset of qbeast blocks for a given revision
+   * @param revisionID
+   *   the revision identifier
+   * @return
+   *   the Dataset of QbeastBlocks
+   */
+  def loadRevisionFiles(revisionID: RevisionID): Dataset[Any]
 
 }
 

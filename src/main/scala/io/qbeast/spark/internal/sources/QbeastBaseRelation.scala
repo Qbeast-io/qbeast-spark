@@ -16,8 +16,7 @@
 package io.qbeast.spark.internal.sources
 
 import io.qbeast.context.QbeastContext
-import io.qbeast.spark.delta.DefaultFileIndex
-import io.qbeast.spark.delta.EmptyFileIndex
+import io.qbeast.spark.index.EmptyFileIndex
 import io.qbeast.spark.table.IndexedTable
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.catalog.BucketSpec

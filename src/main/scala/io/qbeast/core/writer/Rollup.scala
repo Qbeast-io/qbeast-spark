@@ -27,7 +27,7 @@ import scala.collection.mutable
  * @param limit
  *   the limit for the sum of the cube sizes rolled up to the same cube
  */
-private[writer] class Rollup(limit: Double) {
+class Rollup(limit: Double) {
 
   private val groups = mutable.Map.empty[CubeId, Group]
 
@@ -87,7 +87,7 @@ private[writer] class Rollup(limit: Double) {
       size += other.size
     }
 
-    override def toString(): String = s"[Group: cubeIds: ${cubeIds}, size: ${size}]"
+    override def toString: String = s"[Group: cubeIds: ${cubeIds}, size: ${size}]"
 
   }
 

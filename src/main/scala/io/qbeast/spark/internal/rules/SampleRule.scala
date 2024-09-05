@@ -17,7 +17,7 @@ package io.qbeast.spark.internal.rules
 
 import io.qbeast.core.model.Weight
 import io.qbeast.core.model.WeightRange
-import io.qbeast.spark.delta.DefaultFileIndex
+import io.qbeast.spark.index.QbeastFileIndex
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.IndexedColumns
@@ -116,7 +116,7 @@ object QbeastRelation {
   def unapply(plan: LogicalPlan): Option[(LogicalRelation, IndexedColumns)] = plan match {
 
     case l @ LogicalRelation(
-          q @ HadoopFsRelation(o: DefaultFileIndex, _, _, _, _, parameters),
+          q @ HadoopFsRelation(o: QbeastFileIndex, _, _, _, _, parameters),
           _,
           _,
           _) =>

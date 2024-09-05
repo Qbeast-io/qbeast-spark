@@ -17,11 +17,11 @@ package io.qbeast.spark.delta
 
 import io.qbeast.core.model.CubeStatus
 import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QbeastSnapshot
 import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
@@ -51,8 +51,8 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
           .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> cubeSize.toString))
           .save(tmpDir)
 
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+        val tableId = new QTableID(tmpDir)
+        val qbeastSnapshot = QbeastSnapshot("delta", tableId)
         val indexStatus = qbeastSnapshot.loadLatestIndexStatus
         val revision = indexStatus.revision
 
@@ -77,8 +77,8 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
           .options(options)
           .save(tmpDir)
 
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+        val tableId = new QTableID(tmpDir)
+        val qbeastSnapshot = QbeastSnapshot("delta", tableId)
         val columnTransformers = SparkRevisionFactory
           .createNewRevision(QTableID(tmpDir), df.schema, QbeastOptions(options))
           .columnTransformers
@@ -107,8 +107,8 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
           .options(options)
           .save(tmpDir)
 
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+        val tableId = new QTableID(tmpDir)
+        val qbeastSnapshot = QbeastSnapshot("delta", tableId)
         val timestamp = System.currentTimeMillis()
         qbeastSnapshot.loadRevisionAt(timestamp) shouldBe qbeastSnapshot.loadLatestRevision
 
@@ -132,8 +132,8 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
           .options(options)
           .save(tmpDir)
 
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+        val tableId = new QTableID(tmpDir)
+        val qbeastSnapshot = QbeastSnapshot("delta", tableId)
         an[AnalysisException] shouldBe thrownBy(
           qbeastSnapshot.loadRevisionAt(invalidRevisionTimestamp))
 
@@ -155,8 +155,8 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
               Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> cubeSize.toString))
             .save(tmpDir)
 
-          val deltaLog = DeltaLog.forTable(spark, tmpDir)
-          val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+          val tableId = new QTableID(tmpDir)
+          val qbeastSnapshot = QbeastSnapshot("delta", tableId)
           val builder =
             new IndexStatusBuilder(
               qbeastSnapshot,

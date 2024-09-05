@@ -20,13 +20,13 @@ import io.qbeast.core.model.IndexStatus
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.Revision
 import io.qbeast.core.transform.EmptyTransformer
+import io.qbeast.spark.delta.DeltaRollupDataWriter
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
-import io.qbeast.spark.delta.RollupDataWriter
 import org.scalatest.PrivateMethodTester
 
 import scala.reflect.io.Path
@@ -57,7 +57,8 @@ class RollupDataWriterTest extends QbeastIntegrationTestSpec with PrivateMethodT
       val indexStatus = IndexStatus(revision)
       val (qbeastData, tableChanges) = SparkOTreeManager.index(df, indexStatus)
 
-      val fileActions = RollupDataWriter.write(tableID, df.schema, qbeastData, tableChanges)
+      val dataWriter = new DeltaRollupDataWriter
+      val fileActions = dataWriter.write(tableID, df.schema, qbeastData, tableChanges)
 
       for (fa <- fileActions) {
         Path(tmpDir + "/" + fa.path).exists shouldBe true
@@ -81,7 +82,7 @@ class RollupDataWriterTest extends QbeastIntegrationTestSpec with PrivateMethodT
         (1 to 1).map(_ => ("c1", c1.bytes)),
         (1 to 20).map(_ => ("c2", c2.bytes))).flatten.toDF("id", QbeastColumns.cubeColumnName)
 
-      val rollup = RollupDataWriter invokePrivate computeRollup(revision, extendedData)
+      val rollup = new DeltaRollupDataWriter invokePrivate computeRollup(revision, extendedData)
       rollup shouldBe Map(root -> root, c1 -> root, c2 -> c2)
     }
 

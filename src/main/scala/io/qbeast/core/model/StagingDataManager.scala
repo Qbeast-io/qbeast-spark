@@ -30,7 +30,7 @@ import java.util.ServiceLoader
  * @tparam QbeastOptions
  *   type of the Qbeast options
  */
-trait StagingDataManager[T] extends StagingUtils {
+trait StagingDataManager extends StagingUtils {
 
   /**
    * Stack a given DataFrame with all staged data.
@@ -42,7 +42,7 @@ trait StagingDataManager[T] extends StagingUtils {
    * @return
    *   The merged DataFrame.
    */
-  def mergeWithStagingData(data: DataFrame, stagedFiles: Seq[T]): DataFrame
+  def mergeWithStagingData(data: DataFrame, stagedFiles: Seq[Any]): DataFrame
 
   /**
    * Resolve write policy according to the current staging size and its desired value.
@@ -53,7 +53,7 @@ trait StagingDataManager[T] extends StagingUtils {
    *   A StagingResolution instance containing the data to write, the staging RemoveFiles, and a
    *   boolean denoting whether the data to write is to be staged or indexed.
    */
-  def updateWithStagedData(data: DataFrame): StagingResolution[T]
+  def updateWithStagedData(data: DataFrame): StagingResolution
 
   /**
    * Stage the data without indexing by writing it in the desired format.
@@ -75,9 +75,9 @@ trait StagingDataManager[T] extends StagingUtils {
 
 }
 
-case class StagingResolution[T](
+case class StagingResolution(
     dataToWrite: DataFrame,
-    removeFiles: Seq[T],
+    removeFiles: Seq[Any],
     sendToStaging: Boolean)
 
 object StagingDataManager {
@@ -90,8 +90,8 @@ object StagingDataManager {
    * @return
    *   a StagingDataManager instance
    */
-  def apply[FileDescriptor](tableID: QTableID): StagingDataManager[FileDescriptor] = {
-    val loader = ServiceLoader.load(classOf[StagingDataManagerFactory[FileDescriptor]])
+  def apply(tableID: QTableID): StagingDataManager = {
+    val loader = ServiceLoader.load(classOf[StagingDataManagerFactory])
     val iterator = loader.iterator()
     if (iterator.hasNext) {
       iterator.next().createStagingDataManager(tableID)
@@ -110,7 +110,7 @@ object StagingDataManager {
  * ServiceLoader specification</li> <li>Add the jar with the implementation to the application
  * classpath</li> </ul>
  */
-trait StagingDataManagerFactory[FileDescriptor] {
+trait StagingDataManagerFactory {
 
   /**
    * Creates a new StagingDataManager for a given configuration.
@@ -122,7 +122,7 @@ trait StagingDataManagerFactory[FileDescriptor] {
    * @return
    *   a new StagingDataManager
    */
-  def createStagingDataManager(tableID: QTableID): StagingDataManager[FileDescriptor]
+  def createStagingDataManager(tableID: QTableID): StagingDataManager
 
   val format: String = ???
 }

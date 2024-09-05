@@ -16,12 +16,12 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.spark.index.query.QueryFiltersUtils
+import io.qbeast.spark.index.QbeastFileIndex
 import org.apache.hadoop.fs.Path
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.delta.files.TahoeLogFileIndex
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.execution.datasources.FileIndex
 import org.apache.spark.sql.execution.datasources.PartitionDirectory
 import org.apache.spark.sql.execution.SQLExecution
 import org.apache.spark.sql.types.StructType
@@ -34,7 +34,7 @@ import org.apache.spark.sql.SparkSession
  *   the target file index implemented by Delta
  */
 class DefaultFileIndex private (target: TahoeLogFileIndex)
-    extends FileIndex
+    extends QbeastFileIndex
     with QueryFiltersUtils
     with Logging
     with Serializable {
@@ -53,7 +53,7 @@ class DefaultFileIndex private (target: TahoeLogFileIndex)
     strategy.listFiles(target, partitionFilters, dataFilters)
   }
 
-  private def logFilters(
+  override def logFilters(
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Unit = {
     val context = target.spark.sparkContext

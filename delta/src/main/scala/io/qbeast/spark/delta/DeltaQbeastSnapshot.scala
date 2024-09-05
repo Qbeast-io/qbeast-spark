@@ -23,6 +23,7 @@ import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
@@ -35,8 +36,7 @@ import org.apache.spark.sql.SparkSession
  */
 class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with DeltaStagingUtils {
 
-  override protected def snapshot: Snapshot =
-    DeltaLog.forTable(SparkSession.active, tableID.id).update()
+  override val snapshot: Snapshot = DeltaLog.forTable(SparkSession.active, tableID.id).update()
 
   /**
    * The current state of the snapshot.
@@ -44,6 +44,10 @@ class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with DeltaSt
    * @return
    */
   override def isInitial: Boolean = snapshot.version == -1
+
+  override val schema: StructType = snapshot.metadata.schema
+
+  override val allFilesCount: Long = snapshot.allFiles.count
 
   private val metadataMap: Map[String, String] = snapshot.metadata.configuration
 
@@ -144,7 +148,7 @@ class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with DeltaSt
     val dimensionCount = revision.transformations.size
     val addFiles =
       if (isStaging(revision)) loadStagingFiles()
-      else loadRevisionFiles(revisionId)
+      else loadRevisionFiles(revisionId).asInstanceOf[Dataset[AddFile]]
 
     import addFiles.sparkSession.implicits._
     addFiles.map(IndexFiles.fromAddFile(dimensionCount))
@@ -205,9 +209,12 @@ class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with DeltaSt
    * @return
    *   the Dataset of QbeastBlocks
    */
-  def loadRevisionFiles(revisionID: RevisionID): Dataset[AddFile] = {
-    if (isStaging(revisionID)) loadStagingFiles()
-    else snapshot.allFiles.where(TagColumns.revision === lit(revisionID.toString))
+  override def loadRevisionFiles(revisionID: RevisionID): Dataset[Any] = {
+    if (isStaging(revisionID)) loadStagingFiles().asInstanceOf[Dataset[Any]]
+    else
+      snapshot.allFiles
+        .where(TagColumns.revision === lit(revisionID.toString))
+        .asInstanceOf[Dataset[Any]]
   }
 
   /**

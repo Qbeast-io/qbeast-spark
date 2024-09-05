@@ -21,8 +21,6 @@ import io.qbeast.core.model._
 import io.qbeast.core.model.RevisionFactory
 import io.qbeast.core.utils.StagingUtils
 import io.qbeast.core.writer.DataWriter
-import io.qbeast.spark.delta.DeltaStagingDataManager2
-import io.qbeast.spark.delta.StagingResolution2
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
@@ -454,13 +452,13 @@ private[table] class IndexedTableImpl(
       append: Boolean): Unit = {
     logTrace(s"Begin: Writing data to table $tableID")
 
-    val stagingDataManager: DeltaStagingDataManager2 = new DeltaStagingDataManager2(tableID)
+    val stagingDataManager: StagingDataManager = StagingDataManager(tableID)
 
     stagingDataManager.updateWithStagedData(data) match {
-      case r: StagingResolution2 if r.sendToStaging =>
+      case r: StagingResolution if r.sendToStaging =>
         stagingDataManager.stageData(data, indexStatus, options, append)
 
-      case StagingResolution2(dataToWrite, removeFiles, false) =>
+      case StagingResolution(dataToWrite, removeFiles, false) =>
         val schema = dataToWrite.schema
         metadataManager.updateWithTransaction(tableID, schema, options, append) {
           val (qbeastData, tableChanges) = indexManager.index(dataToWrite, indexStatus)
