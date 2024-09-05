@@ -23,11 +23,12 @@ pip install poetry
 # Create a poetry shell (remember to use command exit when you are done with using this environment)
 poetry shell
 
+# Install all the required dependencies
+poetry install --no-root
+
 # Install qviz
 poetry run pip install -e .
 
-# Install all the required dependencies
-poetry install --no-root
 ```
 
 ### Usage
