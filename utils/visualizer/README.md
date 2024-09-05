@@ -10,36 +10,33 @@ One can also provide a sampling fraction and the selected nodes will be highligh
 First of all, you need to make sure you have python installed in your pc and then install poetry in order to download all the dependencies.
 
 ```bash
-# We will create a virtual environment in the visualization folder
+# Clone qbeast-spark repo
 git clone git@github.com:Qbeast-io/qbeast-spark.git
 cd your-path-to-qbeast-spark-repository/utils/visualizer
 
 # Pyhton version should be 3.12
 python3 --version
 
-# We will need poetry to create the environment
-pip install poetry 
-
-# Create a poetry shell (remember to use command exit when you are done with using this environment)
-poetry shell
-
-# Install all the required dependencies
+# Install tool and required dependencies
+brew install poetry
 poetry install --no-root
 
 # Install qviz
 poetry run pip install -e .
-
 ```
 
 ### Usage
 
-Launch a `Flask` serve with the following command and open the link with a browser: 
-```
-qviz ./docs/test_table/
+Launch a `Flask` serve with the following command and open the link with a browser:
+
+```bash
+# Run the tool on the test table
+poetry run qviz docs/test_table/
 
 # optionally, specify the index revision(defaulted to 1)
 # qviz <table-path> --revision-id=2
 ```
+
 - Visualize cubes retrieved for a given sampling fraction.
 ![](docs/images/sampling-fraction.png)
 - Sampling details: when a valid value for sampling fraction is given, a set of sampling metrics are displayed.
