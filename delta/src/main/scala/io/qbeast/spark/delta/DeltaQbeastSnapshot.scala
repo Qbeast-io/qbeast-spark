@@ -20,10 +20,12 @@ import io.qbeast.spark.utils.MetadataConfig
 import io.qbeast.spark.utils.TagColumns
 import io.qbeast.IISeq
 import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
 
 /**
  * Qbeast Snapshot that provides information about the current index state.
@@ -31,9 +33,10 @@ import org.apache.spark.sql.Dataset
  * @param snapshot
  *   the internal Delta Lakes log snapshot
  */
-case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
-    extends QbeastSnapshot
-    with DeltaStagingUtils {
+class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with DeltaStagingUtils {
+
+  override protected def snapshot: Snapshot =
+    DeltaLog.forTable(SparkSession.active, tableID.id).update()
 
   /**
    * The current state of the snapshot.
@@ -108,7 +111,7 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
    * @return
    *   boolean
    */
-  def existsRevision(revisionID: RevisionID): Boolean = {
+  override def existsRevision(revisionID: RevisionID): Boolean = {
     revisionsMap.contains(revisionID)
   }
 
@@ -212,4 +215,13 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
    */
   def loadStagingFiles(): Dataset[AddFile] = stagingFiles()
 
+}
+
+class DeltaQbeastSnapshotFactory extends QbeastSnapshotFactory {
+
+  override def createQbeastSnapshot(tableID: QTableID): QbeastSnapshot = {
+    new DeltaQbeastSnapshot(tableID)
+  }
+
+  override val format: String = "delta"
 }

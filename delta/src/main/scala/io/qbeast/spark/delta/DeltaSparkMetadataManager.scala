@@ -57,7 +57,7 @@ class DeltaSparkMetadataManager extends SparkMetadataManager[FileAction] {
   }
 
   override def loadSnapshot(tableID: QTableID): DeltaQbeastSnapshot = {
-    DeltaQbeastSnapshot(loadDeltaQbeastLog(tableID).deltaLog.update())
+    new DeltaQbeastSnapshot(tableID)
   }
 
   override def loadCurrentSchema(tableID: QTableID): StructType = {

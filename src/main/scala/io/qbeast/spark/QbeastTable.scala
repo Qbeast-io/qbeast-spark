@@ -18,15 +18,14 @@ package io.qbeast.spark
 import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.DenormalizedBlock
 import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QbeastSnapshot
 import io.qbeast.core.model.Revision
 import io.qbeast.core.model.RevisionID
 import io.qbeast.core.utils.StagingUtils
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.commands.AnalyzeTableCommand
 import io.qbeast.spark.internal.commands.OptimizeTableCommand
 import io.qbeast.spark.table._
 import io.qbeast.spark.utils.IndexMetrics
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
@@ -48,10 +47,7 @@ class QbeastTable private (
     extends Serializable
     with StagingUtils {
 
-  private def deltaLog: DeltaLog = DeltaLog.forTable(sparkSession, tableID.id)
-
-  private def qbeastSnapshot: DeltaQbeastSnapshot =
-    DeltaQbeastSnapshot(deltaLog.update())
+  private def qbeastSnapshot: QbeastSnapshot = QbeastSnapshot("delta", tableID)
 
   private def indexedTable: IndexedTable = indexedTableFactory.getIndexedTable(tableID)
 

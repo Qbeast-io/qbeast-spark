@@ -24,10 +24,11 @@ import org.apache.spark.sql.SparkSession
 import scala.util.Random
 
 class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
-
+  
   private val students = 1.to(10).map(i => Student(i, i.toString, Random.nextInt()))
 
   private def createStudentsTestData(spark: SparkSession): DataFrame = {
+    import spark.implicits._
     students.toDF()
   }
 

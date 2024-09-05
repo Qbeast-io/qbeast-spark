@@ -18,6 +18,9 @@ package io.qbeast.core.model
 import io.qbeast.IISeq
 import org.apache.spark.sql.Dataset
 
+import java.util.ServiceConfigurationError
+import java.util.ServiceLoader
+
 /**
  * A snapshot of the Qbeast table state.
  */
@@ -40,6 +43,8 @@ trait QbeastSnapshot {
    * @return
    */
   def loadProperties: Map[String, String]
+
+  def existsRevision(revisionID: RevisionID): Boolean
 
   /**
    * Load methods
@@ -111,4 +116,57 @@ trait QbeastSnapshot {
    */
   def loadRevisionAt(timestamp: Long): Revision
 
+}
+
+object QbeastSnapshot {
+
+  /**
+   * Creates a QbeastSnapshot instance for a given configuration.
+   *
+   * @param format
+   *   the storage format
+   * @param snapshot
+   *   the snapshot object, its type will be handled by the specific factory
+   * @return
+   *   a QbeastSnapshot instance
+   */
+  def apply(format: String, tableID: QTableID): QbeastSnapshot = {
+
+    val loader = ServiceLoader.load(classOf[QbeastSnapshotFactory])
+    val iterator = loader.iterator()
+
+    while (iterator.hasNext) {
+      val factory =
+        try {
+          Some(iterator.next())
+        } catch {
+          case _: ServiceConfigurationError =>
+            None
+        }
+
+      factory match {
+        case Some(f) if f.format.equalsIgnoreCase(format) =>
+          return f.createQbeastSnapshot(tableID)
+        case _ => // continue to the next factory
+      }
+    }
+
+    throw new IllegalArgumentException(s"No QbeastSnapshotFactory found for format: $format")
+  }
+
+}
+
+trait QbeastSnapshotFactory {
+
+  /**
+   * Creates a new QbeastSnapshot for a given snapshot configuration.
+   *
+   * @param snapshot
+   *   the snapshot object
+   * @return
+   *   a new QbeastSnapshot
+   */
+  def createQbeastSnapshot(tableID: QTableID): QbeastSnapshot
+
+  val format: String = ???
 }
