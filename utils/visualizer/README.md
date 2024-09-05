@@ -10,14 +10,22 @@ One can also provide a sampling fraction and the selected nodes will be highligh
 First of all, you need to make sure you have python installed in your pc and then install poetry in order to download all the dependencies.
 
 ```bash
-python --version
+# We will create a virtual environment in the visualization folder
+git clone git@github.com:Qbeast-io/qbeast-spark.git
+cd your-path-to-qbeast-spark-repository/utils/visualizer
+
+# Pyhton version should be 3.12
+python3 --version
+
+# We will need poetry to create the environment
 pip install poetry 
 
-git clone git@github.com:Qbeast-io/qbeast-spark.git
-# Create a poetry shell (remember to use command exit when you are done)
+# Create a poetry shell (remember to use command exit when you are done with using this environment)
 poetry shell
+
 # Install qviz
 poetry run pip install -e .
+
 # Install all the required dependencies
 poetry install --no-root
 ```
