@@ -47,7 +47,8 @@ class QbeastTable private (
     extends Serializable
     with StagingUtils {
 
-  private def qbeastSnapshot: QbeastSnapshot = QbeastSnapshot("delta", tableID)
+  private def qbeastSnapshot: QbeastSnapshot =
+    QbeastSnapshot(QbeastContext.storageFormat, tableID)
 
   private def indexedTable: IndexedTable = indexedTableFactory.getIndexedTable(tableID)
 

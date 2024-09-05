@@ -16,7 +16,8 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.spark.index.query.QueryFiltersUtils
-import io.qbeast.spark.index.QbeastFileIndex
+import io.qbeast.spark.index.DefaultFileIndex
+import io.qbeast.spark.index.DefaultFileIndexFactory
 import org.apache.hadoop.fs.Path
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Expression
@@ -33,8 +34,8 @@ import org.apache.spark.sql.SparkSession
  * @param target
  *   the target file index implemented by Delta
  */
-class DefaultFileIndex private (target: TahoeLogFileIndex)
-    extends QbeastFileIndex
+class DeltaDefaultFileIndex private (target: TahoeLogFileIndex)
+    extends DefaultFileIndex
     with QueryFiltersUtils
     with Logging
     with Serializable {
@@ -76,7 +77,7 @@ class DefaultFileIndex private (target: TahoeLogFileIndex)
 /**
  * QbeastFileIndex companion object.
  */
-object DefaultFileIndex {
+object DeltaDefaultFileIndex {
 
   /**
    * Creates a new instance from given spark session and path.
@@ -88,11 +89,20 @@ object DefaultFileIndex {
    * @return
    *   a new instance
    */
-  def apply(spark: SparkSession, path: Path): DefaultFileIndex = {
+  def apply(spark: SparkSession, path: Path): DeltaDefaultFileIndex = {
     val log = DeltaLog.forTable(spark, path)
     val snapshot = log.update()
     val target = TahoeLogFileIndex(spark, log, path, snapshot, Seq.empty, false)
-    new DefaultFileIndex(target)
+    new DeltaDefaultFileIndex(target)
   }
 
+}
+
+class DeltaDefaultFileIndexFactory extends DefaultFileIndexFactory {
+
+  override def createDefaultFileIndex(spark: SparkSession, path: Path): DeltaDefaultFileIndex = {
+    DeltaDefaultFileIndex(spark, path)
+  }
+
+  override val format: String = "delta"
 }

@@ -58,8 +58,8 @@ class DefaultFileIndexTest extends QbeastIntegrationTestSpec {
     }
   }
 
-  private def newDefaultFileIndex(spark: SparkSession, path: String): DefaultFileIndex = {
-    DefaultFileIndex(spark, new Path(path))
+  private def newDefaultFileIndex(spark: SparkSession, path: String): DeltaDefaultFileIndex = {
+    DeltaDefaultFileIndex(spark, new Path(path))
   }
 
   private def newTahoeLogFileIndex(spark: SparkSession, path: String): TahoeLogFileIndex = {

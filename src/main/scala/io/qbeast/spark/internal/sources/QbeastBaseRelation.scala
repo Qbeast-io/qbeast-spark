@@ -16,6 +16,7 @@
 package io.qbeast.spark.internal.sources
 
 import io.qbeast.context.QbeastContext
+import io.qbeast.spark.index.DefaultFileIndex
 import io.qbeast.spark.index.EmptyFileIndex
 import io.qbeast.spark.table.IndexedTable
 import org.apache.hadoop.fs.Path
@@ -73,7 +74,7 @@ object QbeastBaseRelation {
     } else {
       // If the table contains data, initialize it
       val path = new Path(tableID.id)
-      val fileIndex = DefaultFileIndex(spark, path)
+      val fileIndex = DefaultFileIndex(QbeastContext.storageFormat, spark, path)
       val bucketSpec: Option[BucketSpec] = None
       val file = new ParquetFileFormat()
 

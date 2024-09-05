@@ -95,7 +95,7 @@ object QbeastContext
   private var managedOption: Option[QbeastContext] = None
   private var unmanagedOption: Option[QbeastContext] = None
 
-  private lazy val storageFormat: String = {
+  val storageFormat: String = {
     try {
       current.config.get("spark.qbeast.format")
     } catch {
