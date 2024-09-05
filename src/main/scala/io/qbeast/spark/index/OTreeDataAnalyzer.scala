@@ -35,7 +35,8 @@ import org.apache.spark.sql.SparkSession
 trait OTreeDataAnalyzer {
 
   /**
-   * Analyze the data to process
+   * This method calculates the required indexes updates required after adding to the index the
+   * new data.
    * @param data
    *   the data to index
    * @param indexStatus
@@ -45,10 +46,12 @@ trait OTreeDataAnalyzer {
    * @return
    *   the changes to the index
    */
-  def analyze(
+  def analyzeAppend(
       data: DataFrame,
       indexStatus: IndexStatus,
       isReplication: Boolean): (DataFrame, TableChanges)
+
+  def analyzeOptimize(dataToOptimize: DataFrame, indexStatus: IndexStatus): TableChanges
 
 }
 
@@ -328,7 +331,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
     cubeNormalizedWeights
   }
 
-  override def analyze(
+  override def analyzeAppend(
       dataFrame: DataFrame,
       indexStatus: IndexStatus,
       isReplication: Boolean): (DataFrame, TableChanges) = {
@@ -385,18 +388,78 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
     val estimatedCubeWeights: Map[CubeId, NormalizedWeight] =
       estimateCubeWeights(mergedCubeDomains.toSeq, indexStatus, isReplication)
 
+    val deltaBlockSizes = globalCubeDomains.map { case (cubeId, domain) =>
+      val minWeight = getMinWeight(estimatedCubeWeights, cubeId).fraction
+      val maxWeight = getMaxWeight(estimatedCubeWeights, cubeId).fraction
+      val size = ((maxWeight - minWeight) * domain).toLong
+      cubeId -> size
+    }
     // Gather the new changes
     val tableChanges = BroadcastedTableChanges(
       spaceChanges,
       indexStatus,
       estimatedCubeWeights,
-      globalCubeDomains,
+      deltaBlockSizes,
       if (isReplication) indexStatus.cubesToOptimize
       else Set.empty[CubeId])
 
     val result = (weightedDataFrame, tableChanges)
     logTrace(s"End: analyze for index with revision $indexStatusRevision")
     result
+  }
+
+  private def getMinWeight(
+      estimatedCubeWeights: Map[CubeId, NormalizedWeight],
+      cubeId: CubeId): Weight = {
+    cubeId.parent match {
+      case Some(parentCubeId) => getMaxWeight(estimatedCubeWeights, parentCubeId)
+      case None => Weight.MinValue
+    }
+  }
+
+  private def getMaxWeight(
+      estimatedCubeWeights: Map[CubeId, NormalizedWeight],
+      cubeId: CubeId): Weight = {
+    estimatedCubeWeights.get(cubeId) match {
+      case Some(normalizedWeight) => NormalizedWeight.toWeight(normalizedWeight)
+      case None => Weight.MaxValue
+    }
+  }
+
+  def analyzeOptimize(dataToOptimize: DataFrame, indexStatus: IndexStatus): TableChanges = {
+
+    val indexStatusRevision = indexStatus.revision
+    logTrace(s"""Begin: Analyze Optimize for index with
+                |revision=$indexStatusRevision""".stripMargin.replaceAll("\n", " "))
+
+    // Add a random weight column
+    val weightedDataFrame = dataToOptimize.transform(addRandomWeight(indexStatus.revision))
+
+    val revision = indexStatus.revision
+    val cubeMaxWeights: Map[CubeId, Weight] = indexStatus.cubesStatuses.mapValues(_.maxWeight)
+    val weightPosition = weightedDataFrame.schema.fieldIndex(weightColumnName)
+    import weightedDataFrame.sparkSession.implicits._
+    // TODO there function should be rewritten to be faster.
+    val optimizedDataBlockSizes = weightedDataFrame
+      .map(row => {
+        val point = RowUtils.rowValuesToPoint(row, revision)
+        val weight = row.getAs[Int](weightPosition)
+        val cubeId: Option[CubeId] = CubeId.containers(point).find { cubeId =>
+          cubeMaxWeights.get(cubeId) match {
+            case Some(maxWeight) => weight <= maxWeight.value
+            case None => true
+          }
+        }
+
+        cubeId.get
+      })
+      .groupBy("value")
+      .count()
+      .as[(CubeId, Long)]
+      .collect()
+      .toMap
+
+    BroadcastedTableChanges(None, indexStatus, Map.empty, optimizedDataBlockSizes, Set.empty)
   }
 
 }

@@ -18,8 +18,10 @@ package io.qbeast.spark.table
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model._
 import io.qbeast.core.model.RevisionFactory
+import io.qbeast.spark.delta.IndexFiles
 import io.qbeast.spark.delta.StagingDataManager
 import io.qbeast.spark.delta.StagingResolution
+import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
@@ -496,10 +498,18 @@ private[table] class IndexedTableImpl(
           schema,
           optimizationOptions(options),
           append = true) {
-          val tableChanges = BroadcastedTableChanges(None, indexStatus, Map.empty, Map.empty)
-          val fileActions =
-            dataWriter.optimize(tableID, schema, revision, indexStatus, indexFiles)
-          (tableChanges, fileActions)
+
+          import indexFiles.sparkSession.implicits._
+          val removeFiles =
+            indexFiles.map(IndexFiles.toRemoveFile(dataChange = false)).collect().toIndexedSeq
+
+          val data = snapshot.loadDataframeFromData(indexFiles)
+
+          val tableChanges = DoublePassOTreeDataAnalyzer.analyzeOptimize(data, indexStatus)
+
+          val newFiles = dataWriter.write(tableID, schema, data, tableChanges)
+          dataWriter.optimize(tableID, schema, revision, indexStatus, indexFiles)
+          (tableChanges, newFiles ++ removeFiles)
         }
       }
     }

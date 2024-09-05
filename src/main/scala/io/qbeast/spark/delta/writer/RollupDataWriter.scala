@@ -173,25 +173,11 @@ object RollupDataWriter
   private def computeRollup(tableChanges: TableChanges): Map[CubeId, CubeId] = {
     // TODO introduce desiredFileSize in Revision and parameters
     val desiredFileSize = tableChanges.updatedRevision.desiredCubeSize
-    val rollup = new Rollup(desiredFileSize.toDouble)
-    tableChanges.cubeDomains.foreach { case (cubeId, domain) =>
-      val minWeight = getMinWeight(tableChanges, cubeId).fraction
-      val maxWeight = getMaxWeight(tableChanges, cubeId).fraction
-      val size = (maxWeight - minWeight) * domain
-      rollup.populate(cubeId, size)
+    val rollup = new Rollup(desiredFileSize)
+    tableChanges.deltaBlockElementCount.foreach { case (cubeId, blockSize) =>
+      rollup.populate(cubeId, blockSize)
     }
     rollup.compute()
-  }
-
-  private def getMinWeight(tableChanges: TableChanges, cubeId: CubeId): Weight = {
-    cubeId.parent match {
-      case Some(parentCubeId) => getMaxWeight(tableChanges, parentCubeId)
-      case None => Weight.MinValue
-    }
-  }
-
-  private def getMaxWeight(tableChanges: TableChanges, cubeId: CubeId): Weight = {
-    tableChanges.cubeWeight(cubeId).getOrElse(Weight.MaxValue)
   }
 
   private def getRollupCubeIdUDF(
@@ -350,7 +336,7 @@ object RollupDataWriter
         (cubeId, cnt)
       }
       .collect()
-      .foreach { case (cubeId, cnt) => rollup.populate(cubeId, cnt.toDouble) }
+      .foreach { case (cubeId, cnt) => rollup.populate(cubeId, cnt) }
     rollup.compute()
   }
 

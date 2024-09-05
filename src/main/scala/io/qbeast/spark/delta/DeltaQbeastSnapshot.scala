@@ -23,6 +23,7 @@ import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Dataset
 
 /**
@@ -211,5 +212,19 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
    * Loads Staging AddFiles
    */
   def loadStagingFiles(): Dataset[AddFile] = stagingFiles()
+
+  override def loadDataframeFromData(indexFile: Dataset[IndexFile]): DataFrame = {
+    if (snapshot.deletionVectorsSupported) {
+
+      // TODO find a cleaner version to get a subset of data from the parquet considering the deleted parts.
+      throw new UnsupportedOperationException("Deletion vectors are not supported yet")
+    } else {
+      import indexFile.sparkSession.implicits._
+      indexFile.sparkSession.read
+        .schema(snapshot.schema)
+        .parquet(indexFile.select("path").as[String].collect(): _*)
+
+    }
+  }
 
 }

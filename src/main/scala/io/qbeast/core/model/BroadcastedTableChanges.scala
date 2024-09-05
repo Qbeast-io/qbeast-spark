@@ -29,7 +29,7 @@ object BroadcastedTableChanges {
       revisionChanges: Option[RevisionChange],
       supersededIndexStatus: IndexStatus,
       deltaNormalizedCubeWeights: Map[CubeId, NormalizedWeight],
-      deltaCubeDomains: Map[CubeId, Double],
+      deltaBlockElementCount: Map[CubeId, Long],
       deltaReplicatedSet: Set[CubeId] = Set.empty,
       deltaAnnouncedSet: Set[CubeId] = Set.empty): TableChanges = {
 
@@ -60,15 +60,16 @@ object BroadcastedTableChanges {
     val cubeStates = replicatedSet.map(id => id -> State.REPLICATED) ++
       (announcedSet -- replicatedSet).map(id => id -> State.ANNOUNCED)
 
+    val sparkContext = SparkSession.active.sparkContext
     BroadcastedTableChanges(
       isNewRevision = revisionChanges.isDefined,
       isOptimizeOperation = deltaReplicatedSet.nonEmpty,
       updatedRevision = updatedRevision,
       deltaReplicatedSet = deltaReplicatedSet,
       announcedOrReplicatedSet = announcedSet ++ replicatedSet,
-      cubeStatesBroadcast = SparkSession.active.sparkContext.broadcast(cubeStates.toMap),
-      cubeWeightsBroadcast = SparkSession.active.sparkContext.broadcast(cubeWeights),
-      cubeDomainsBroadcast = SparkSession.active.sparkContext.broadcast(deltaCubeDomains))
+      cubeStatesBroadcast = sparkContext.broadcast(cubeStates.toMap),
+      cubeWeightsBroadcast = sparkContext.broadcast(cubeWeights),
+      deltaBlockElementCountBroadcast = sparkContext.broadcast(deltaBlockElementCount))
   }
 
 }
@@ -81,12 +82,12 @@ case class BroadcastedTableChanges(
     announcedOrReplicatedSet: Set[CubeId],
     cubeStatesBroadcast: Broadcast[Map[CubeId, String]],
     cubeWeightsBroadcast: Broadcast[Map[CubeId, Weight]],
-    cubeDomainsBroadcast: Broadcast[Map[CubeId, Double]])
+    deltaBlockElementCountBroadcast: Broadcast[Map[CubeId, Long]])
     extends TableChanges {
 
   override def cubeWeight(cubeId: CubeId): Option[Weight] = cubeWeightsBroadcast.value.get(cubeId)
 
   override def cubeState(cubeId: CubeId): Option[String] = cubeStatesBroadcast.value.get(cubeId)
 
-  override def cubeDomains: Map[CubeId, Double] = cubeDomainsBroadcast.value
+  override def deltaBlockElementCount: Map[CubeId, Long] = deltaBlockElementCountBroadcast.value
 }
