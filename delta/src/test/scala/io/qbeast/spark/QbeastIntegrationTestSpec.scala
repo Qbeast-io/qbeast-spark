@@ -17,16 +17,8 @@ package io.qbeast.spark
 
 import com.github.mrpowers.spark.fast.tests.DatasetComparer
 import io.qbeast.context.QbeastContext
-import io.qbeast.context.QbeastContextImpl
-import io.qbeast.core.keeper.Keeper
-import io.qbeast.core.keeper.LocalKeeper
 import io.qbeast.core.model.IndexManager
-import io.qbeast.spark.delta.DeltaRollupDataWriter
-import io.qbeast.spark.delta.DeltaSparkMetadataManager
-import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.spark.index.SparkOTreeManager
-import io.qbeast.spark.index.SparkRevisionFactory
-import io.qbeast.spark.table.IndexedTableFactoryImpl
 import org.apache.log4j.Level
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.DataFrame
@@ -146,8 +138,6 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
    * Runs a given test code with a QbeastContext instance. The specified Keeper instance is used
    * to customize the QbeastContext.
    *
-   * @param keeper
-   *   the keeper
    * @param testCode
    *   the test code
    * @tparam T
@@ -155,27 +145,9 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
    * @return
    *   the test result
    */
-  def withQbeastAndSparkContext[T](keeper: Keeper = LocalKeeper)(
-      testCode: SparkSession => T): T = {
+  def withQbeastAndSparkContext[T]()(testCode: SparkSession => T): T = {
     withSpark { spark =>
-      val metadatamanager = new DeltaSparkMetadataManager
-
-      val dataWritter = new DeltaRollupDataWriter
-
-      val indexedTableFactory = new IndexedTableFactoryImpl(
-        keeper,
-        SparkOTreeManager,
-        metadatamanager,
-        dataWritter,
-        SparkRevisionFactory,
-        SparkColumnsToIndexSelector)
-
-      val context = new QbeastContextImpl(
-        spark.sparkContext.getConf,
-        keeper,
-        indexedTableFactory,
-        metadatamanager,
-        dataWritter)
+      val context = QbeastContext.createManaged()
 
       try {
         QbeastContext.setUnmanaged(context)

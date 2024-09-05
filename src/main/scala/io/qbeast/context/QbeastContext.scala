@@ -147,6 +147,15 @@ object QbeastContext
     result
   }
 
+  def createManaged(): QbeastContext = {
+    val config = SparkSession.active.sparkContext.getConf
+    val keeper = createKeeper(config)
+    val metadataManager = MetadataManager[StructType, IndexFile, QbeastOptions](storageFormat)
+    val dataWriter = DataWriter[DataFrame, StructType, IndexFile](storageFormat)
+    val indexedTableFactory = createIndexedTableFactory(keeper)
+    new QbeastContextImpl(config, keeper, indexedTableFactory, metadataManager, dataWriter)
+  }
+
   private def current: QbeastContext = this.synchronized {
     unmanagedOption.getOrElse {
       managedOption.getOrElse {
@@ -155,15 +164,6 @@ object QbeastContext
         managedOption.get
       }
     }
-  }
-
-  private def createManaged(): QbeastContext = {
-    val config = SparkSession.active.sparkContext.getConf
-    val keeper = createKeeper(config)
-    val metadataManager = MetadataManager[StructType, IndexFile, QbeastOptions](storageFormat)
-    val dataWriter = DataWriter[DataFrame, StructType, IndexFile](storageFormat)
-    val indexedTableFactory = createIndexedTableFactory(keeper)
-    new QbeastContextImpl(config, keeper, indexedTableFactory, metadataManager, dataWriter)
   }
 
   private def createKeeper(config: SparkConf): Keeper = {
