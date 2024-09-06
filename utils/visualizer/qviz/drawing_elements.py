@@ -28,7 +28,7 @@ def process_add_files(add_files: list[dict], metadata: dict) -> list[Cube]:
 
     cubes = []
     for blocks in cube_blocks.values():
-        cube_string = blocks[0]['tags']['cube']
+        cube_string = blocks[0]['block']
         depth = len(cube_string) // symbol_count
 
         size = 0
