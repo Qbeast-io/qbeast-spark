@@ -102,7 +102,7 @@ ThisBuild / publishTo := {
 }
 
 // Sonatype settings
-ThisBuild / publishMavenStyle := true
+ThisBuild / publishMavenStyle.withRank(KeyRanks.Invisible) := true
 ThisBuild / sonatypeProfileName := "io.qbeast"
 
 ThisBuild / sonatypeProjectHosting := Some(
