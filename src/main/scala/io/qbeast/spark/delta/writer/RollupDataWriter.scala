@@ -15,22 +15,27 @@
  */
 package io.qbeast.spark.delta.writer
 
-import io.qbeast.IISeq
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.IndexFiles
 import io.qbeast.spark.index.QbeastColumns
+import io.qbeast.IISeq
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.Job
-import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.actions.FileAction
+import org.apache.spark.sql.delta.stats.DeltaFileStatistics
+import org.apache.spark.sql.delta.stats.DeltaJobStatisticsTracker
 import org.apache.spark.sql.delta.DeltaStatsCollectionUtils
-import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
-import org.apache.spark.sql.delta.stats.{DeltaFileStatistics, DeltaJobStatisticsTracker}
-import org.apache.spark.sql.execution.datasources.{BasicWriteTaskStats, WriteJobStatsTracker, WriteTaskStats}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.execution.datasources.BasicWriteTaskStats
+import org.apache.spark.sql.execution.datasources.WriteJobStatsTracker
+import org.apache.spark.sql.execution.datasources.WriteTaskStats
 import org.apache.spark.sql.expressions.UserDefinedFunction
-import org.apache.spark.sql.functions.{col, udf}
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.udf
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.util.SerializableConfiguration
 
 import java.net.URI

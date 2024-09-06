@@ -55,15 +55,16 @@ trait OTreeDataAnalyzer {
       isReplication: Boolean): (DataFrame, TableChanges)
 
   /**
-   * This method calculates that new cube id association of the provided
-   * data once it is optimized. It also calculates the new domains.
+   * This method calculates that new cube id association of the provided data once it is
+   * optimized. It also calculates the new domains.
    *
-   * @param dataToOptimize the data we want to optimize
-   * @param indexStatus the index changes in the domain after optimizing
-   * @return the dataframe with the new Cube and weight column.
-   *         This dataframe is cached, and should be unpersisted once is used.
-   *
-   *
+   * @param dataToOptimize
+   *   the data we want to optimize
+   * @param indexStatus
+   *   the index changes in the domain after optimizing
+   * @return
+   *   the dataframe with the new Cube and weight column. This dataframe is cached, and should be
+   *   unpersisted once is used.
    */
   def analyzeOptimize(
       dataToOptimize: DataFrame,
@@ -465,7 +466,8 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
         QbeastColumns.cubeColumnName,
         getCubeIdUDF(revision, cubeMaxWeightsB)(
           struct(indexedColumns.map(col): _*),
-          col(QbeastColumns.weightColumnName))).cache()
+          col(QbeastColumns.weightColumnName)))
+      .cache()
 
     import weightedDataFrame.sparkSession.implicits._
     val nColumns = indexedColumns.length
