@@ -97,21 +97,14 @@ object DataWriter {
     val iterator = loader.iterator()
 
     while (iterator.hasNext) {
-      val factory =
-        try {
-          Some(iterator.next())
-        } catch {
-          case _: ServiceConfigurationError => None
-        }
+      val factory = iterator.next()
 
-      factory match {
-        case Some(f) if f.format.equalsIgnoreCase(format) =>
-          return f.createDataWriter()
-        case _ => // continue to the next factory
+      if (factory.format.equalsIgnoreCase(format)) {
+        return factory.createDataWriter()
       }
     }
 
-    throw new IllegalArgumentException(s"No MetadataManagerFactory found for format: $format")
+    throw new IllegalArgumentException(s"No DataWriterFactory found for format: $format")
 
   }
 

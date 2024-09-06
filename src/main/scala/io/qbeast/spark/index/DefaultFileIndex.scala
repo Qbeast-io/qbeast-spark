@@ -68,22 +68,14 @@ object DefaultFileIndex {
     val iterator = loader.iterator()
 
     while (iterator.hasNext) {
-      val factory =
-        try {
-          Some(iterator.next())
-        } catch {
-          case _: ServiceConfigurationError =>
-            None
-        }
+      val factory = iterator.next()
 
-      factory match {
-        case Some(f) if f.format.equalsIgnoreCase(format) =>
-          return f.createDefaultFileIndex(spark, path)
-        case _ => // continue to the next factory
+      if (factory.format.equalsIgnoreCase(format)) {
+        return factory.createDefaultFileIndex(spark, path)
       }
     }
 
-    throw new IllegalArgumentException(s"No MetadataManagerFactory found for format: $format")
+    throw new IllegalArgumentException(s"No DefaultFileIndexFactory found for format: $format")
 
   }
 

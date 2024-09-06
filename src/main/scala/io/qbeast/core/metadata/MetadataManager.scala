@@ -24,7 +24,6 @@ import io.qbeast.core.model.RevisionID
 import io.qbeast.core.model.TableChanges
 import io.qbeast.IISeq
 
-import java.util.ServiceConfigurationError
 import java.util.ServiceLoader
 
 /**
@@ -161,18 +160,10 @@ object MetadataManager {
     val iterator = loader.iterator()
 
     while (iterator.hasNext) {
-      val factory =
-        try {
-          Some(iterator.next())
-        } catch {
-          case _: ServiceConfigurationError =>
-            None
-        }
+      val factory = iterator.next()
 
-      factory match {
-        case Some(f) if f.format.equalsIgnoreCase(format) =>
-          return f.createMetadataManager()
-        case _ => // continue to the next factory
+      if (factory.format.equalsIgnoreCase(format)) {
+        return factory.createMetadataManager()
       }
     }
 

@@ -152,18 +152,10 @@ object QbeastSnapshot {
     val iterator = loader.iterator()
 
     while (iterator.hasNext) {
-      val factory =
-        try {
-          Some(iterator.next())
-        } catch {
-          case _: ServiceConfigurationError =>
-            None
-        }
+      val factory = iterator.next()
 
-      factory match {
-        case Some(f) if f.format.equalsIgnoreCase(format) =>
-          return f.createQbeastSnapshot(tableID)
-        case _ => // continue to the next factory
+      if (factory.format.equalsIgnoreCase(format)) {
+        return factory.createQbeastSnapshot(tableID)
       }
     }
 
