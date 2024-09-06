@@ -19,6 +19,7 @@ import io.qbeast.core.model._
 import io.qbeast.spark.utils.MetadataConfig
 import io.qbeast.spark.utils.TagColumns
 import io.qbeast.IISeq
+import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.functions.lit
@@ -220,9 +221,12 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
       throw new UnsupportedOperationException("Deletion vectors are not supported yet")
     } else {
       import indexFile.sparkSession.implicits._
+      val rootPath = snapshot.path.getParent
+      val paths = indexFile.map(ifile => new Path(rootPath, ifile.path).toString).collect()
+
       indexFile.sparkSession.read
         .schema(snapshot.schema)
-        .parquet(indexFile.select("path").as[String].collect(): _*)
+        .parquet(paths: _*)
 
     }
   }
