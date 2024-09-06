@@ -19,10 +19,7 @@ python3 --version
 
 # Install tool and required dependencies
 brew install poetry
-poetry install --no-root
-
-# Install qviz
-poetry run pip install -e .
+poetry install 
 ```
 
 ### Usage
