@@ -29,6 +29,7 @@ import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.SerializerProvider
 import io.qbeast.core.model.QDataType
 import io.qbeast.core.model.StringDataType
+import io.qbeast.core.transform.StringHistogramTransformer.defaultStringHistogram
 
 import scala.collection.Searching._
 
@@ -39,7 +40,7 @@ case class StringHistogramTransformation(histogram: IndexedSeq[String]) extends 
 
   val dataType: QDataType = StringDataType
 
-  def isDefault: Boolean = histogram == dataType.defaultHistogram
+  def isDefault: Boolean = histogram == defaultStringHistogram
 
   /**
    * Converts a real number to a normalized value.

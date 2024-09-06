@@ -19,21 +19,24 @@ import io.qbeast.core.model.OrderedDataType
 
 import scala.collection.Searching._
 
-case class OrderedHistogramTransformation(histogram: IndexedSeq[Any], orderedDataType: OrderedDataType)
+case class NumericQuantilesTransformation(
+    approxQuantiles: IndexedSeq[Any],
+    orderedDataType: OrderedDataType)
     extends Transformation {
 
   private implicit val ord: Numeric[Any] = orderedDataType.ordering
 
-  private def isDefault: Boolean = histogram == orderedDataType.defaultHistogram
+  private def isDefault: Boolean = approxQuantiles == orderedDataType.defaultQuantiles
 
   override def transform(value: Any): Double = {
-    histogram.search(value) match {
-      case Found(foundIndex) => foundIndex.toDouble / (histogram.length - 1)
+    approxQuantiles.search(value) match {
+      case Found(foundIndex) => foundIndex.toDouble / (approxQuantiles.length - 1)
       case InsertionPoint(insertionPoint) =>
         if (insertionPoint == 0) 0d
-        else if (insertionPoint == histogram.length + 1) 1d
-        else (insertionPoint - 1).toDouble / (histogram.length - 1)
-      case _ => throw new IllegalArgumentException(s"Value $value not found in histogram")
+        else if (insertionPoint == approxQuantiles.length + 1) 1d
+        else (insertionPoint - 1).toDouble / (approxQuantiles.length - 1)
+      case _ =>
+        throw new IllegalArgumentException(s"Value $value not found in approximated quantiles")
     }
   }
 
@@ -47,22 +50,23 @@ case class OrderedHistogramTransformation(histogram: IndexedSeq[Any], orderedDat
    */
   override def isSupersededBy(newTransformation: Transformation): Boolean =
     newTransformation match {
-      case nt @ OrderedHistogramTransformation(hist, _) =>
+      case nt @ NumericQuantilesTransformation(hist, _) =>
         if (isDefault) !nt.isDefault
         else if (nt.isDefault) false
-        else !(histogram == hist)
+        else !(approxQuantiles == hist)
       case _ => false
     }
 
   /**
    * Merges two transformations. The domain of the resulting transformation is the union of this
    *
-   * @param other the other transformation
+   * @param other
+   *   the other transformation
    * @return
    *   a new Transformation that contains both this and other.
    */
   override def merge(other: Transformation): Transformation = other match {
-    case _: OrderedHistogramTransformation => other
+    case _: NumericQuantilesTransformation => other
     case _ => this
   }
 

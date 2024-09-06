@@ -40,8 +40,6 @@ trait QDataType extends Serializable {
   @JsonValue
   def name: String
 
-  val defaultHistogram: IndexedSeq[Any]
-
 }
 
 /**
@@ -74,13 +72,15 @@ trait OrderedDataType extends QDataType {
   @JsonIgnore
   val ordering: Numeric[Any]
 
+  val defaultQuantiles: IndexedSeq[Any]
+
 }
 
 object DoubleDataType extends OrderedDataType {
   override def name: String = "DoubleDataType"
   override val ordering: Numeric[Any] = implicitly[Numeric[Double]].asInstanceOf[Numeric[Any]]
 
-  override val defaultHistogram: IndexedSeq[Any] =
+  override val defaultQuantiles: IndexedSeq[Any] =
     BigDecimal(Double.MinValue).to(BigDecimal(Double.MaxValue), BigDecimal(1e307)).map(_.toDouble)
 
 }
@@ -88,20 +88,20 @@ object DoubleDataType extends OrderedDataType {
 object IntegerDataType extends OrderedDataType {
   override def name: String = "IntegerDataType"
   override val ordering: Numeric[Any] = implicitly[Numeric[Int]].asInstanceOf[Numeric[Any]]
-  override val defaultHistogram: IndexedSeq[Any] = Int.MinValue.to(Int.MaxValue)
+  override val defaultQuantiles: IndexedSeq[Any] = Int.MinValue.to(Int.MaxValue)
 }
 
 object LongDataType extends OrderedDataType {
   override def name: String = "LongDataType"
   override val ordering: Numeric[Any] = implicitly[Numeric[Long]].asInstanceOf[Numeric[Any]]
-  override val defaultHistogram: IndexedSeq[Any] = Long.MinValue.to(Long.MaxValue)
+  override val defaultQuantiles: IndexedSeq[Any] = Long.MinValue.to(Long.MaxValue)
 }
 
 object FloatDataType extends OrderedDataType {
   override def name: String = "FloatDataType"
   override val ordering: Numeric[Any] = implicitly[Numeric[Float]].asInstanceOf[Numeric[Any]]
 
-  override val defaultHistogram: IndexedSeq[Any] =
+  override val defaultQuantiles: IndexedSeq[Any] =
     BigDecimal(Float.MinValue.toDouble)
       .to(BigDecimal(Float.MaxValue.toDouble), BigDecimal(1e37))
       .map(_.toFloat)
@@ -112,26 +112,25 @@ object DecimalDataType extends OrderedDataType {
   override def name: String = "DecimalDataType"
   override val ordering: Numeric[Any] = implicitly[Numeric[Double]].asInstanceOf[Numeric[Any]]
 
-  override val defaultHistogram: IndexedSeq[Any] =
+  override val defaultQuantiles: IndexedSeq[Any] =
     BigDecimal(Double.MinValue).to(BigDecimal(Double.MaxValue), BigDecimal(1e307)).map(_.toDouble)
 
 }
 
 object StringDataType extends QDataType {
   override def name: String = "StringDataType"
-  override val defaultHistogram: IndexedSeq[Any] = (97 to 122).map(_.toChar.toString)
 }
 
 object TimestampDataType extends OrderedDataType {
   override def name: String = "TimestampDataType"
   override val ordering: Numeric[Any] = implicitly[Numeric[Long]].asInstanceOf[Numeric[Any]]
-  override val defaultHistogram: IndexedSeq[Any] = Long.MinValue.to(Long.MaxValue)
+  override val defaultQuantiles: IndexedSeq[Any] = Long.MinValue.to(Long.MaxValue)
 
 }
 
 object DateDataType extends OrderedDataType {
   override def name: String = "DateDataType"
   override val ordering: Numeric[Any] = implicitly[Numeric[Long]].asInstanceOf[Numeric[Any]]
-  override val defaultHistogram: IndexedSeq[Any] = Long.MinValue.to(Long.MaxValue)
+  override val defaultQuantiles: IndexedSeq[Any] = Long.MinValue.to(Long.MaxValue)
 
 }

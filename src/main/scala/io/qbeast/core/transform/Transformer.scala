@@ -28,7 +28,11 @@ import java.util.Locale
 object Transformer {
 
   private val transformersRegistry: Map[String, TransformerType] =
-    Seq(LinearTransformer, HashTransformer, OrderedHistogramTransformer)
+    Seq(
+      LinearTransformer,
+      HashTransformer,
+      NumericQuantilesTransformer,
+      StringHistogramTransformer)
       .map(a => (a.transformerSimpleName, a))
       .toMap
 
@@ -158,14 +162,4 @@ object NoColumnStats extends ColumnStats(Nil, Nil)
  *   the stats column predicates
  */
 case class ColumnStats(statsNames: Seq[String], statsSqlPredicates: Seq[String])
-    extends Serializable {
-
-  /**
-   * Gets the values of the stats
-   * @param row
-   *   the row of values
-   * @return
-   *   the stats values
-   */
-  def getValues(row: Map[String, Any]): Seq[Any] = statsNames.map(column => row(column))
-}
+    extends Serializable

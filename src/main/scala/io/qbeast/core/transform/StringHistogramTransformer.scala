@@ -16,10 +16,13 @@
 package io.qbeast.core.transform
 
 import io.qbeast.core.model.QDataType
-import io.qbeast.core.transform.OrderedHistogramTransformer.defaultStringHistogram
+import io.qbeast.core.transform.StringHistogramTransformer.defaultStringHistogram
 
 object StringHistogramTransformer extends TransformerType {
   override def transformerSimpleName: String = "histogram"
+
+  val defaultStringHistogram: IndexedSeq[String] = (97 to 122).map(_.toChar.toString)
+
 }
 
 case class StringHistogramTransformer(columnName: String, dataType: QDataType)

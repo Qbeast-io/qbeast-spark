@@ -18,18 +18,17 @@ package io.qbeast.core.transform
 import io.qbeast.core.model.OrderedDataType
 import io.qbeast.core.model.QDataType
 
-object OrderedHistogramTransformer extends TransformerType {
-  override def transformerSimpleName: String = "histogram"
-
-
+object NumericQuantilesTransformer extends TransformerType {
+  override def transformerSimpleName: String = "quantile"
 
 }
 
-case class OrderedHistogramTransformer(columnName: String, dataType: QDataType) extends Transformer {
+case class NumericQuantilesTransformer(columnName: String, dataType: QDataType)
+    extends Transformer {
 
-  private val columnHistogram = s"${columnName}_histogram"
+  private val columnQuantiles = s"${columnName}_quantiles"
 
-  override protected def transformerType: TransformerType = OrderedHistogramTransformer
+  override protected def transformerType: TransformerType = NumericQuantilesTransformer
 
   /**
    * Returns the stats
@@ -37,8 +36,8 @@ case class OrderedHistogramTransformer(columnName: String, dataType: QDataType) 
    * @return
    */
   override def stats: ColumnStats = {
-    val names = columnHistogram :: Nil
-    val sqlPredicates = s"approx_histogram($columnName) AS $columnHistogram" :: Nil
+    val names = columnQuantiles :: Nil
+    val sqlPredicates = s"approx_percentile($columnName) AS $columnQuantiles" :: Nil
     ColumnStats(names, sqlPredicates)
   }
 
@@ -54,11 +53,11 @@ case class OrderedHistogramTransformer(columnName: String, dataType: QDataType) 
 
     dataType match {
       case ord: OrderedDataType =>
-        val hist = row(columnHistogram) match {
+        val hist = row(columnQuantiles) match {
           case h: Seq[_] => h.toIndexedSeq
-          case _ => ord.defaultHistogram
+          case _ => ord.defaultQuantiles
         }
-        OrderedHistogramTransformation(hist, ord)
+        NumericQuantilesTransformation(hist, ord)
       case _ => throw new IllegalArgumentException(s"Invalid data type: $dataType")
     }
 
