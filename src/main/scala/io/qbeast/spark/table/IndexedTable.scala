@@ -505,10 +505,11 @@ private[table] class IndexedTableImpl(
 
           val data = snapshot.loadDataframeFromData(indexFiles)
 
-          val tableChanges = DoublePassOTreeDataAnalyzer.analyzeOptimize(data, indexStatus)
+          val (dataExtended, tableChanges) =
+            DoublePassOTreeDataAnalyzer.analyzeOptimize(data, indexStatus)
 
-          val newFiles = dataWriter.write(tableID, schema, data, tableChanges)
-          dataWriter.optimize(tableID, schema, revision, indexStatus, indexFiles)
+          val newFiles = dataWriter.write(tableID, schema, dataExtended, tableChanges)
+          dataExtended.unpersist()
           (tableChanges, newFiles ++ removeFiles)
         }
       }
