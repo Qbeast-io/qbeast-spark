@@ -12,7 +12,7 @@ First of all, you need to make sure you have python installed in your pc and the
 ```bash
 # Clone qbeast-spark repo
 git clone git@github.com:Qbeast-io/qbeast-spark.git
-cd your-path-to-qbeast-spark-repository/utils/visualizer
+cd qbeast-spark/utils/visualizer
 
 # Pyhton version should be 3.12
 python3 --version
