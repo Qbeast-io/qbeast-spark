@@ -23,7 +23,6 @@ import io.qbeast.core.model.TableChanges
 import io.qbeast.IISeq
 import org.apache.spark.sql.Dataset
 
-import java.util.ServiceConfigurationError
 import java.util.ServiceLoader
 
 /**

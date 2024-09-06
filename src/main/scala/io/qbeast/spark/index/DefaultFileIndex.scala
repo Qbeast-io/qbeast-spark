@@ -24,7 +24,6 @@ import org.apache.spark.sql.execution.datasources.PartitionDirectory
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.SparkSession
 
-import java.util.ServiceConfigurationError
 import java.util.ServiceLoader
 
 /**

@@ -19,7 +19,6 @@ import io.qbeast.IISeq
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.Dataset
 
-import java.util.ServiceConfigurationError
 import java.util.ServiceLoader
 
 /**
