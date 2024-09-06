@@ -15,8 +15,9 @@
  */
 package io.qbeast.spark.utils
 
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastTable
 import io.qbeast.TestUtils._
-import io.qbeast.spark.{QbeastIntegrationTestSpec, QbeastTable}
 import org.apache.spark.sql.SparkSession
 
 class QbeastSamplingTest extends QbeastIntegrationTestSpec {
@@ -95,7 +96,7 @@ class QbeastSamplingTest extends QbeastIntegrationTestSpec {
         val tolerance = 0.01
         List(0.1, 0.2, 0.5, 0.7, 0.99).foreach(precision => {
           val result = df
-            .sample(false, precision)
+            .sample(precision)
             .count()
             .toDouble
 

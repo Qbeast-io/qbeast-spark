@@ -15,15 +15,17 @@
  */
 package io.qbeast.spark.delta.writer
 
-import io.qbeast.TestClasses.IndexData
 import io.qbeast.core.model._
+import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.index.QbeastColumns._
-import io.qbeast.spark.index.{QbeastColumns, SparkRevisionFactory}
+import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.internal.QbeastOptions
+import io.qbeast.TestClasses.IndexData
 import org.apache.hadoop.mapreduce.Job
-import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.apache.spark.sql.execution.datasources.OutputWriterFactory
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.execution.datasources.OutputWriterFactory
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.util.SerializableConfiguration
 
 import java.util.UUID
@@ -75,26 +77,25 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
       QbeastOptions(Map("columnsToIndex" -> "id", "cubeSize" -> "10000")))
 
   val cubeStatuses: SortedMap[CubeId, CubeStatus] = {
-    val cubeStatusesSeq = weightMap.toIndexedSeq.map {
-      case (cubeId: CubeId, maxWeight: Weight) =>
-        val files = (1 to 4)
-          .map { i =>
-            // Create a Block under the revision
-            new IndexFileBuilder()
-              .setPath(UUID.randomUUID().toString)
-              .setSize(i * 1000L)
-              .setModificationTime(System.currentTimeMillis())
-              .setRevisionId(rev.revisionID)
-              .beginBlock()
-              .setCubeId(cubeId)
-              .setMaxWeight(maxWeight)
-              .setElementCount(i * 10L)
-              .setReplicated(false)
-              .endBlock()
-              .result()
-          }
-          .flatMap(_.blocks)
-        (cubeId, CubeStatus(cubeId, maxWeight, maxWeight.fraction, files))
+    val cubeStatusesSeq = weightMap.toIndexedSeq.map { case (cubeId: CubeId, maxWeight: Weight) =>
+      val files = (1 to 4)
+        .map { i =>
+          // Create a Block under the revision
+          new IndexFileBuilder()
+            .setPath(UUID.randomUUID().toString)
+            .setSize(i * 1000L)
+            .setModificationTime(System.currentTimeMillis())
+            .setRevisionId(rev.revisionID)
+            .beginBlock()
+            .setCubeId(cubeId)
+            .setMaxWeight(maxWeight)
+            .setElementCount(i * 10L)
+            .setReplicated(false)
+            .endBlock()
+            .result()
+        }
+        .flatMap(_.blocks)
+      (cubeId, CubeStatus(cubeId, maxWeight, maxWeight.fraction, files))
     }
 
     SortedMap(cubeStatusesSeq: _*)

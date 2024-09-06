@@ -339,7 +339,8 @@ private case class PointWeightAndParent(point: Point, weight: Weight, parent: Op
  * updated to the tree size during computation before being used.
  * @param weight
  *   NormalizedWeight
- * @param cubeSize the size of the cube what will be use to calculate the tree size
+ * @param cubeSize
+ *   the size of the cube what will be use to calculate the tree size
  */
 private class WeightAndTreeSize(val weight: NormalizedWeight, val cubeSize: Int) {
   var treeSize: Double = cubeSize

@@ -49,7 +49,7 @@ object BroadcastedTableChanges {
       supersededIndexStatus: IndexStatus,
       deltaNormalizedCubeWeightsBroadcast: Broadcast[Map[CubeId, Weight]],
       newBlocksElementCountBroadcast: Broadcast[Map[CubeId, Long]],
-      deltaReplicatedSet: Set[CubeId] ,
+      deltaReplicatedSet: Set[CubeId],
       deltaAnnouncedSet: Set[CubeId],
       revisionChanges: Option[RevisionChange]): TableChanges = {
 
