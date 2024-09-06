@@ -95,14 +95,6 @@ object QbeastContext
   private var managedOption: Option[QbeastContext] = None
   private var unmanagedOption: Option[QbeastContext] = None
 
-  val storageFormat: String = {
-    try {
-      current.config.get("spark.qbeast.format")
-    } catch {
-      case _: NoSuchElementException => "delta"
-    }
-  }
-
   // Override methods from QbeastContext
 
   override def config: SparkConf = current.config
@@ -110,6 +102,14 @@ object QbeastContext
   override def keeper: Keeper = current.keeper
 
   override def indexedTableFactory: IndexedTableFactory = current.indexedTableFactory
+
+  val storageFormat: String = {
+    try {
+      SparkSession.active.sparkContext.getConf.get("spark.qbeast.format")
+    } catch {
+      case _: NoSuchElementException => "delta"
+    }
+  }
 
   // Override methods from QbeastCoreContext
 

@@ -49,6 +49,14 @@ qbeastSpark / Compile / doc / scalacOptions ++= Seq(
   "-doc-footer",
   "Copyright 2022 Qbeast - Docs for version " + mainVersion + " of qbeast-spark")
 
+qbeastDelta / Compile / doc / scalacOptions ++= Seq(
+  "-doc-title",
+  "qbeast-delta",
+  "-doc-version",
+  mainVersion,
+  "-doc-footer",
+  "Copyright 2022 Qbeast - Docs for version " + mainVersion + " of qbeast-delta")
+
 // Common metadata
 ThisBuild / version := mainVersion
 ThisBuild / organization := "io.qbeast"

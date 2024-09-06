@@ -100,7 +100,7 @@ object DeltaDefaultFileIndex {
 
 class DeltaDefaultFileIndexFactory extends DefaultFileIndexFactory {
 
-  override def createDefaultFileIndex(spark: SparkSession, path: Path): DeltaDefaultFileIndex = {
+  override def createDefaultFileIndex(spark: SparkSession, path: Path): DefaultFileIndex = {
     DeltaDefaultFileIndex(spark, path)
   }
 
