@@ -175,5 +175,5 @@ trait QbeastSnapshotFactory {
    */
   def createQbeastSnapshot(tableID: QTableID): QbeastSnapshot
 
-  val format: String = ???
+  val format: String
 }

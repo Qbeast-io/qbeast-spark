@@ -35,7 +35,8 @@ lazy val qbeastDelta = (project in file("./delta"))
       amazonAws % Test,
       deltaSpark,
       hadoopCommons % Test,
-      hadoopAws % Test),
+      hadoopAws % Test,
+      "org.apache.spark" %% "spark-mllib" % sparkVersion % Test),
     Test / parallelExecution := false,
     assembly / test := {},
     assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false))

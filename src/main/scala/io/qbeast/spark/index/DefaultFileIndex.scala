@@ -97,5 +97,5 @@ trait DefaultFileIndexFactory {
    */
   def createDefaultFileIndex(spark: SparkSession, path: Path): DefaultFileIndex
 
-  val format: String = ???
+  val format: String
 }

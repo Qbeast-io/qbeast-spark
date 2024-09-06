@@ -26,8 +26,6 @@ import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.table.IndexedTableFactory
 import io.qbeast.spark.table.IndexedTableFactoryImpl
-import org.apache.spark.scheduler.SparkListener
-import org.apache.spark.scheduler.SparkListenerApplicationEnd
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
@@ -68,7 +66,7 @@ trait QbeastContext {
    * @return
    *   the metadata manager
    */
-  def metadataManager: MetadataManager[StructType, IndexFile, QbeastOptions]
+  def metadataManager: MetadataManager[StructType, Any, QbeastOptions]
 
   /**
    * Returns the data writer.
@@ -76,7 +74,7 @@ trait QbeastContext {
    * @return
    *   the data writer
    */
-  def dataWriter: DataWriter[DataFrame, StructType, IndexFile]
+  def dataWriter: DataWriter[DataFrame, StructType, Any]
 }
 
 /**
@@ -90,22 +88,22 @@ trait QbeastContext {
  */
 object QbeastContext
     extends QbeastContext
-    with QbeastCoreContext[DataFrame, StructType, QbeastOptions, IndexFile] {
+    with QbeastCoreContext[DataFrame, StructType, QbeastOptions, Any] {
 
-  private var managedOption: Option[QbeastContext] = None
+  // private var managedOption: Option[QbeastContext] = None
   private var unmanagedOption: Option[QbeastContext] = None
 
   // Override methods from QbeastContext
 
-  override def config: SparkConf = current.config
+  override def config: SparkConf = SparkSession.active.sparkContext.getConf
 
-  override def keeper: Keeper = current.keeper
+  override def keeper: Keeper = createKeeper()
 
-  override def indexedTableFactory: IndexedTableFactory = current.indexedTableFactory
+  override def indexedTableFactory: IndexedTableFactory = createIndexedTableFactory(keeper)
 
   val storageFormat: String = {
     try {
-      SparkSession.active.sparkContext.getConf.get("spark.qbeast.format")
+      config.get("spark.qbeast.format")
     } catch {
       case _: NoSuchElementException => "delta"
     }
@@ -115,10 +113,11 @@ object QbeastContext
 
   override def indexManager: IndexManager[DataFrame] = SparkOTreeManager
 
-  override def metadataManager: MetadataManager[StructType, IndexFile, QbeastOptions] =
-    current.metadataManager
+  override def metadataManager: MetadataManager[StructType, Any, QbeastOptions] =
+    MetadataManager[StructType, Any, QbeastOptions](storageFormat)
 
-  override def dataWriter: DataWriter[DataFrame, StructType, IndexFile] = current.dataWriter
+  override def dataWriter: DataWriter[DataFrame, StructType, Any] =
+    DataWriter[DataFrame, StructType, Any](storageFormat)
 
   override def revisionBuilder: RevisionFactory[StructType, QbeastOptions] = SparkRevisionFactory
 
@@ -149,24 +148,24 @@ object QbeastContext
 
   def createManaged(): QbeastContext = {
     val config = SparkSession.active.sparkContext.getConf
-    val keeper = createKeeper(config)
-    val metadataManager = MetadataManager[StructType, IndexFile, QbeastOptions](storageFormat)
-    val dataWriter = DataWriter[DataFrame, StructType, IndexFile](storageFormat)
+    val keeper = createKeeper()
+    val metadataManager = MetadataManager[StructType, Any, QbeastOptions](storageFormat)
+    val dataWriter = DataWriter[DataFrame, StructType, Any](storageFormat)
     val indexedTableFactory = createIndexedTableFactory(keeper)
     new QbeastContextImpl(config, keeper, indexedTableFactory, metadataManager, dataWriter)
   }
 
-  private def current: QbeastContext = this.synchronized {
-    unmanagedOption.getOrElse {
-      managedOption.getOrElse {
-        managedOption = Some(createManaged())
-        SparkSession.active.sparkContext.addSparkListener(SparkListenerAdapter)
-        managedOption.get
-      }
-    }
-  }
+//  private def current: QbeastContext = this.synchronized {
+//    unmanagedOption.getOrElse {
+//      managedOption.getOrElse {
+//        managedOption = Some(createManaged())
+//        SparkSession.active.sparkContext.addSparkListener(SparkListenerAdapter)
+//        managedOption.get
+//      }
+//    }
+//  }
 
-  private def createKeeper(config: SparkConf): Keeper = {
+  private def createKeeper(): Keeper = {
     val configKeeper = config.getAll.filter(_._1.startsWith("spark.qbeast.keeper")).toMap
     if (configKeeper.isEmpty) {
       LocalKeeper
@@ -182,17 +181,17 @@ object QbeastContext
       revisionBuilder,
       columnSelector)
 
-  private def destroyManaged(): Unit = this.synchronized {
-    managedOption.foreach(_.keeper.stop())
-    managedOption = None
-  }
+//  private def destroyManaged(): Unit = this.synchronized {
+//    managedOption.foreach(_.keeper.stop())
+//    managedOption = None
+//  }
 
-  private object SparkListenerAdapter extends SparkListener {
-
-    override def onApplicationEnd(applicationEnd: SparkListenerApplicationEnd): Unit =
-      destroyManaged()
-
-  }
+//  private object SparkListenerAdapter extends SparkListener {
+//
+//    override def onApplicationEnd(applicationEnd: SparkListenerApplicationEnd): Unit =
+//      destroyManaged()
+//
+//  }
 
 }
 
@@ -203,6 +202,6 @@ class QbeastContextImpl(
     val config: SparkConf,
     val keeper: Keeper,
     val indexedTableFactory: IndexedTableFactory,
-    val metadataManager: MetadataManager[StructType, IndexFile, QbeastOptions],
-    val dataWriter: DataWriter[DataFrame, StructType, IndexFile])
+    val metadataManager: MetadataManager[StructType, Any, QbeastOptions],
+    val dataWriter: DataWriter[DataFrame, StructType, Any])
     extends QbeastContext {}

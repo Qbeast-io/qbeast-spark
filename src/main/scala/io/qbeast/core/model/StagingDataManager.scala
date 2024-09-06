@@ -83,22 +83,28 @@ case class StagingResolution(
 object StagingDataManager {
 
   /**
-   * Creates a StagingDataManager instance for a given configuration.
+   * Creates a QbeastFileIndex instance for a given configuration.
    *
-   * @param config
-   *   the configuration
+   * @param format
+   *   the storage format
    * @return
-   *   a StagingDataManager instance
+   *   a MetadataManager instance
    */
-  def apply(tableID: QTableID): StagingDataManager = {
+  def apply(format: String, tableID: QTableID): StagingDataManager = {
+
     val loader = ServiceLoader.load(classOf[StagingDataManagerFactory])
     val iterator = loader.iterator()
-    if (iterator.hasNext) {
-      iterator.next().createStagingDataManager(tableID)
-    } else {
-      throw new IllegalStateException(
-        "No StagingDataManagerFactory found for the given configuration")
+
+    while (iterator.hasNext) {
+      val factory = iterator.next()
+
+      if (factory.format.equalsIgnoreCase(format)) {
+        return factory.createStagingDataManager(tableID)
+      }
     }
+
+    throw new IllegalArgumentException(s"No StagingDataManagerFactory found for format: $format")
+
   }
 
 }
@@ -124,5 +130,5 @@ trait StagingDataManagerFactory {
    */
   def createStagingDataManager(tableID: QTableID): StagingDataManager
 
-  val format: String = ???
+  val format: String
 }

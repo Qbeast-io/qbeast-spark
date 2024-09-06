@@ -190,5 +190,5 @@ trait MetadataManagerFactory[DataSchema, FileDescriptor, QbeastOptions] {
    */
   def createMetadataManager(): MetadataManager[DataSchema, FileDescriptor, QbeastOptions]
 
-  val format: String = ???
+  val format: String
 }

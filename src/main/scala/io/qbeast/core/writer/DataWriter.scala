@@ -128,5 +128,5 @@ trait DataWriterFactory[DATA, DataSchema, FileDescriptor] {
    */
   def createDataWriter(): DataWriter[DATA, DataSchema, FileDescriptor]
 
-  val format: String = ???
+  val format: String
 }

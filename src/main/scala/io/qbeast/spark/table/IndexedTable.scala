@@ -15,6 +15,7 @@
  */
 package io.qbeast.spark.table
 
+import io.qbeast.context.QbeastContext
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.metadata.MetadataManager
 import io.qbeast.core.model._
@@ -166,8 +167,8 @@ trait IndexedTableFactory {
 final class IndexedTableFactoryImpl(
     private val keeper: Keeper,
     private val indexManager: IndexManager[DataFrame],
-    private val metadataManager: MetadataManager[StructType, IndexFile, QbeastOptions],
-    private val dataWriter: DataWriter[DataFrame, StructType, IndexFile],
+    private val metadataManager: MetadataManager[StructType, Any, QbeastOptions],
+    private val dataWriter: DataWriter[DataFrame, StructType, Any],
     private val revisionFactory: RevisionFactory[StructType, QbeastOptions],
     private val columnSelector: ColumnsToIndexSelector[DataFrame])
     extends IndexedTableFactory {
@@ -206,8 +207,8 @@ private[table] class IndexedTableImpl(
     val tableID: QTableID,
     private val keeper: Keeper,
     private val indexManager: IndexManager[DataFrame],
-    private val metadataManager: MetadataManager[StructType, IndexFile, QbeastOptions],
-    private val dataWriter: DataWriter[DataFrame, StructType, IndexFile],
+    private val metadataManager: MetadataManager[StructType, Any, QbeastOptions],
+    private val dataWriter: DataWriter[DataFrame, StructType, Any],
     private val revisionFactory: RevisionFactory[StructType, QbeastOptions],
     private val columnSelector: ColumnsToIndexSelector[DataFrame])
     extends IndexedTable
@@ -452,7 +453,8 @@ private[table] class IndexedTableImpl(
       append: Boolean): Unit = {
     logTrace(s"Begin: Writing data to table $tableID")
 
-    val stagingDataManager: StagingDataManager = StagingDataManager(tableID)
+    val stagingDataManager: StagingDataManager =
+      StagingDataManager(QbeastContext.storageFormat, tableID)
 
     stagingDataManager.updateWithStagedData(data) match {
       case r: StagingResolution if r.sendToStaging =>

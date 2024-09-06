@@ -16,7 +16,6 @@
 package io.qbeast.spark
 
 import com.github.mrpowers.spark.fast.tests.DatasetComparer
-import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.IndexManager
 import io.qbeast.spark.index.SparkOTreeManager
 import org.apache.log4j.Level
@@ -147,14 +146,7 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
    */
   def withQbeastAndSparkContext[T]()(testCode: SparkSession => T): T = {
     withSpark { spark =>
-      val context = QbeastContext.createManaged()
-
-      try {
-        QbeastContext.setUnmanaged(context)
-        testCode(spark)
-      } finally {
-        QbeastContext.unsetUnmanaged()
-      }
+      testCode(spark)
     }
   }
 
