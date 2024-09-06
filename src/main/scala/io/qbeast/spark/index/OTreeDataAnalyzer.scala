@@ -17,12 +17,15 @@ package io.qbeast.spark.index
 
 import io.qbeast.core.model._
 import io.qbeast.core.transform.Transformer
+import io.qbeast.spark.index.QbeastColumns.cubeColumnName
 import io.qbeast.spark.index.QbeastColumns.cubeToReplicateColumnName
 import io.qbeast.spark.index.QbeastColumns.weightColumnName
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
 import io.qbeast.IISeq
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
+import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Dataset
@@ -51,7 +54,20 @@ trait OTreeDataAnalyzer {
       indexStatus: IndexStatus,
       isReplication: Boolean): (DataFrame, TableChanges)
 
-  def analyzeOptimize(dataToOptimize: DataFrame, indexStatus: IndexStatus): TableChanges
+  /**
+   * This method calculates that new cube id association of the provided
+   * data once it is optimized. It also calculates the new domains.
+   *
+   * @param dataToOptimize the data we want to optimize
+   * @param indexStatus the index changes in the domain after optimizing
+   * @return the dataframe with the new Cube and weight column.
+   *         This dataframe is cached, and should be unpersisted once is used.
+   *
+   *
+   */
+  def analyzeOptimize(
+      dataToOptimize: DataFrame,
+      indexStatus: IndexStatus): (DataFrame, TableChanges)
 
 }
 
@@ -426,7 +442,9 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
     }
   }
 
-  def analyzeOptimize(dataToOptimize: DataFrame, indexStatus: IndexStatus): TableChanges = {
+  def analyzeOptimize(
+      dataToOptimize: DataFrame,
+      indexStatus: IndexStatus): (DataFrame, TableChanges) = {
 
     val indexStatusRevision = indexStatus.revision
     logTrace(s"""Begin: Analyze Optimize for index with
@@ -436,30 +454,49 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
     val weightedDataFrame = dataToOptimize.transform(addRandomWeight(indexStatus.revision))
 
     val revision = indexStatus.revision
-    val cubeMaxWeights: Map[CubeId, Weight] = indexStatus.cubesStatuses.mapValues(_.maxWeight)
-    val weightPosition = weightedDataFrame.schema.fieldIndex(weightColumnName)
-    import weightedDataFrame.sparkSession.implicits._
+    val spark = dataToOptimize.sparkSession
+    val cubeMaxWeightsB: Broadcast[Map[CubeId, Weight]] =
+      spark.sparkContext.broadcast(indexStatus.cubesStatuses.mapValues(_.maxWeight).map(identity))
+
+    val indexedColumns = revision.columnTransformers.map(_.columnName)
     // TODO there function should be rewritten to be faster.
-    val optimizedDataBlockSizes = weightedDataFrame
-      .map(row => {
-        val point = RowUtils.rowValuesToPoint(row, revision)
-        val weight = row.getAs[Int](weightPosition)
-        val cubeId: Option[CubeId] = CubeId.containers(point).find { cubeId =>
-          cubeMaxWeights.get(cubeId) match {
-            case Some(maxWeight) => weight <= maxWeight.value
-            case None => true
-          }
-        }
+    val dataFrameWithCube = weightedDataFrame
+      .withColumn(
+        QbeastColumns.cubeColumnName,
+        getCubeIdUDF(revision, cubeMaxWeightsB)(
+          struct(indexedColumns.map(col): _*),
+          col(QbeastColumns.weightColumnName))).cache()
 
-        cubeId.get
-      })
-      .groupBy("value")
+    import weightedDataFrame.sparkSession.implicits._
+    val nColumns = indexedColumns.length
+    val optimizedDataBlockSizes: Map[CubeId, Long] = dataFrameWithCube
+      .groupBy(cubeColumnName)
       .count()
-      .as[(CubeId, Long)]
+      .as[(Array[Byte], Long)]
       .collect()
+      .map(row => CubeId(nColumns, row._1) -> row._2)
       .toMap
+    cubeMaxWeightsB.unpersist()
 
-    BroadcastedTableChanges(None, indexStatus, Map.empty, optimizedDataBlockSizes, Set.empty)
+    val tableChanges =
+      BroadcastedTableChanges(None, indexStatus, Map.empty, optimizedDataBlockSizes)
+    (dataFrameWithCube, tableChanges)
   }
+
+  private def getCubeIdUDF(
+      revision: Revision,
+      cubeMaxWeightsBroadcast: Broadcast[Map[CubeId, Weight]]): UserDefinedFunction =
+    udf { (row: Row, weight: Int) =>
+      // in this way, we are serializing in the UDF the broadcast reference, not the Map.
+      val cubeMaxWeights = cubeMaxWeightsBroadcast.value
+      val point = RowUtils.rowValuesToPoint(row, revision)
+      val cubeId = CubeId.containers(point).find { cubeId =>
+        cubeMaxWeights.get(cubeId) match {
+          case Some(maxWeight) => weight <= maxWeight.value
+          case None => true
+        }
+      }
+      cubeId.get.bytes
+    }
 
 }
