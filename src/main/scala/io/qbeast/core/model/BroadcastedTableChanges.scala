@@ -15,7 +15,8 @@
  */
 package io.qbeast.core.model
 
-import io.qbeast.spark.utils.State
+import io.qbeast.spark.model.CubeState
+import io.qbeast.spark.model.CubeState.CubeStateValue
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.SparkSession
 
@@ -57,19 +58,14 @@ object BroadcastedTableChanges {
       deltaAnnouncedSet
     }
 
-    val cubeStates = replicatedSet.map(id => id -> State.REPLICATED) ++
-      (announcedSet -- replicatedSet).map(id => id -> State.ANNOUNCED)
-
-    val sparkContext = SparkSession.active.sparkContext
     BroadcastedTableChanges(
       isNewRevision = revisionChanges.isDefined,
       isOptimizeOperation = deltaReplicatedSet.nonEmpty,
       updatedRevision = updatedRevision,
       deltaReplicatedSet = deltaReplicatedSet,
       announcedOrReplicatedSet = announcedSet ++ replicatedSet,
-      cubeStatesBroadcast = sparkContext.broadcast(cubeStates.toMap),
-      cubeWeightsBroadcast = sparkContext.broadcast(cubeWeights),
-      deltaBlockElementCountBroadcast = sparkContext.broadcast(deltaBlockElementCount))
+      cubeWeightsBroadcast = deltaNormalizedCubeWeightsBroadcast,
+      newBlockStatsBroadcast = newBlocksElementCountBroadcast)
   }
 
 }
@@ -80,14 +76,20 @@ case class BroadcastedTableChanges private[model] (
     updatedRevision: Revision,
     deltaReplicatedSet: Set[CubeId],
     announcedOrReplicatedSet: Set[CubeId],
-    cubeStatesBroadcast: Broadcast[Map[CubeId, String]],
+    // this contains an entry for each cube in the index
     cubeWeightsBroadcast: Broadcast[Map[CubeId, Weight]],
     deltaBlockElementCountBroadcast: Broadcast[Map[CubeId, Long]])
     extends TableChanges {
 
   override def cubeWeight(cubeId: CubeId): Option[Weight] = cubeWeightsBroadcast.value.get(cubeId)
 
-  override def cubeState(cubeId: CubeId): Option[String] = cubeStatesBroadcast.value.get(cubeId)
+  override def cubeState(cubeId: CubeId): CubeStateValue = {
+    if (announcedOrReplicatedSet.contains(cubeId)) {
+      CubeState.ANNOUNCED
+    } else {
+      CubeState.FLOODED
+    }
+  }
 
   override def deltaBlockElementCount: Map[CubeId, Long] = deltaBlockElementCountBroadcast.value
 }

@@ -19,15 +19,6 @@ import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.Column
 
 /**
- * Names of possible states of the cube
- */
-object State {
-  final val FLOODED = "FLOODED"
-  final val REPLICATED = "REPLICATED"
-  final val ANNOUNCED = "ANNOUNCED"
-}
-
-/**
  * Tag keys for saving qbeast index metadata into the delta commit log
  */
 object TagColumns {
