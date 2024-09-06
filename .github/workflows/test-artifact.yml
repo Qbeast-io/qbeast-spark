@@ -2,7 +2,15 @@ name: Test artifact
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'build.sbt'
+      - 'project/**'
   pull_request:
+    paths:
+      - 'src/**'
+      - 'build.sbt'
+      - 'project/**'
 
 jobs:
   test-artifact:
