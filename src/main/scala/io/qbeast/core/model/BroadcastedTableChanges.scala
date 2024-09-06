@@ -74,7 +74,7 @@ object BroadcastedTableChanges {
 
 }
 
-case class BroadcastedTableChanges(
+case class BroadcastedTableChanges private[model] (
     isNewRevision: Boolean,
     isOptimizeOperation: Boolean,
     updatedRevision: Revision,
