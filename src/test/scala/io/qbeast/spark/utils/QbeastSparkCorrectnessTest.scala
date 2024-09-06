@@ -15,8 +15,8 @@
  */
 package io.qbeast.spark.utils
 
-import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
+import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.delta.actions.Action
 import org.apache.spark.sql.delta.actions.Metadata
 import org.apache.spark.sql.delta.util.FileNames

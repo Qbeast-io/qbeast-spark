@@ -24,7 +24,6 @@ import io.qbeast.spark.delta
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
 import org.apache.spark.sql.delta.DeltaLog
@@ -65,7 +64,7 @@ class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
             .save(tmpDir)
 
           val deltaLog = DeltaLog.forTable(spark, tmpDir)
-          val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+          val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
           val commitLogWeightMap = qbeastSnapshot.loadLatestIndexStatus.cubesStatuses
 
           // commitLogWeightMap shouldBe weightMap
@@ -87,7 +86,7 @@ class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
       .save(tmpDir)
 
     val deltaLog = DeltaLog.forTable(spark, tmpDir)
-    val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+    val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
     val cubeWeights = qbeastSnapshot.loadLatestIndexStatus.cubesStatuses
 
     cubeWeights.values.foreach { case CubeStatus(_, weight, _, _, _) =>

@@ -20,7 +20,6 @@ import io.qbeast.spark.delta
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.QbeastTable
 import io.qbeast.TestClasses.Client3
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
@@ -74,7 +73,7 @@ class AnalyzeAndOptimizeTest
     qbeastTable.optimize()
 
     val deltaLog = DeltaLog.forTable(spark, tmpDir)
-    val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+    val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
     val replicatedCubes = qbeastSnapshot.loadLatestIndexStatus.replicatedSet
 
     val announcedCubes = qbeastTable.analyze()
@@ -91,7 +90,7 @@ class AnalyzeAndOptimizeTest
         val announcedCubes = qbeastTable.analyze()
         qbeastTable.optimize()
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
         val replicatedCubes =
           qbeastSnapshot.loadLatestIndexStatus.replicatedSet.map(_.string)
 

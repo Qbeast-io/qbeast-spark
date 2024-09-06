@@ -22,7 +22,6 @@ import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
 import io.qbeast.TestClasses.Client4
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.IntegerType
@@ -150,7 +149,7 @@ class IndexTest
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
 
         val offset = 0.5
         val appendData = df

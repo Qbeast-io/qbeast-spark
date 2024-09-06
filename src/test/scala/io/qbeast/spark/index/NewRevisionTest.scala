@@ -19,7 +19,6 @@ import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.spark.delta
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
@@ -60,7 +59,7 @@ class NewRevisionTest
       spaceMultipliers.foreach(i => appendNewRevision(spark, tmpDir, i))
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+      val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
       val spaceRevisions = qbeastSnapshot.loadAllRevisions
 
       // Including the staging revision
@@ -75,7 +74,7 @@ class NewRevisionTest
         appendNewRevision(spark, tmpDir, 3)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
 
         val revisions = qbeastSnapshot.loadAllRevisions
         val allWM =
@@ -108,7 +107,7 @@ class NewRevisionTest
             .save(tmpDir)
 
           val deltaLog = DeltaLog.forTable(spark, tmpDir)
-          val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+          val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
 
           qbeastSnapshot.loadLatestRevision.desiredCubeSize shouldBe cubeSize
 
@@ -141,7 +140,7 @@ class NewRevisionTest
         .save(tmpDir)
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+      val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
 
       // Including the staging revision
       qbeastSnapshot.loadAllRevisions.size shouldBe 3
@@ -170,7 +169,7 @@ class NewRevisionTest
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
         val transformation = qbeastSnapshot.loadLatestRevision.transformations.head
 
         qbeastSnapshot.loadLatestRevision.revisionID shouldBe 1
@@ -202,7 +201,7 @@ class NewRevisionTest
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
         val transformation = qbeastSnapshot.loadLatestRevision.transformations.head
 
         qbeastSnapshot.loadLatestRevision.revisionID shouldBe 1
@@ -235,7 +234,7 @@ class NewRevisionTest
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
         val revision = qbeastSnapshot.loadLatestRevision
         val transformation = revision.transformations.head
 
@@ -273,7 +272,7 @@ class NewRevisionTest
         .save(tmpDir)
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+      val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
       val allRevisions = qbeastSnapshot.loadAllRevisions.sortBy(_.revisionID)
 
       val firstWriteTransformation =
@@ -323,7 +322,7 @@ class NewRevisionTest
           .save(tmpDir)
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
         val allRevisions = qbeastSnapshot.loadAllRevisions.sortBy(_.revisionID)
 
         val firstWriteTransformation =

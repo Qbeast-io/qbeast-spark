@@ -15,11 +15,11 @@
  */
 package io.qbeast.spark.utils
 
+import io.qbeast.core.model.StagingUtils
+import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.QbeastTable
 import io.qbeast.TestClasses.T2
-import io.qbeast.core.utils.StagingUtils
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.SparkSession
 
