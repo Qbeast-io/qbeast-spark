@@ -15,18 +15,15 @@
  */
 package io.qbeast.spark.delta.writer
 
-import io.qbeast.core.model._
-import io.qbeast.spark.index.NormalizedWeight
-import io.qbeast.spark.index.QbeastColumns
-import io.qbeast.spark.index.QbeastColumns._
-import io.qbeast.spark.index.SparkRevisionFactory
-import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.TestClasses.IndexData
+import io.qbeast.core.model._
+import io.qbeast.spark.index.QbeastColumns._
+import io.qbeast.spark.index.{QbeastColumns, SparkRevisionFactory}
+import io.qbeast.spark.internal.QbeastOptions
 import org.apache.hadoop.mapreduce.Job
-import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.execution.datasources.OutputWriterFactory
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.util.SerializableConfiguration
 
 import java.util.UUID
@@ -48,9 +45,9 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
 
   val point: Point = Point(0.66, 0.28)
 
-  val weightMap: Map[CubeId, NormalizedWeight] = 1
+  val weightMap: Map[CubeId, Weight] = 1
     .to(numDistinctCubes)
-    .map(i => (CubeId.container(point, i), Random.nextDouble()))
+    .map(i => (CubeId.container(point, i), NormalizedWeight.toWeight(Random.nextDouble())))
     .toMap
 
   val announcedSet: Set[CubeId] = Set.empty
@@ -58,7 +55,7 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
 
   val indexData: immutable.IndexedSeq[IndexData] =
     weightMap.toIndexedSeq.map(ids =>
-      IndexData(Random.nextInt(), ids._1.bytes, ids._2, "FLOODED"))
+      IndexData(Random.nextInt(), ids._1.bytes, ids._2.fraction, "FLOODED"))
 
   import spark.implicits._
   val indexed: DataFrame = indexData.toDF("id", cubeColumnName, weightColumnName, stateColumnName)
@@ -79,8 +76,7 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
 
   val cubeStatuses: SortedMap[CubeId, CubeStatus] = {
     val cubeStatusesSeq = weightMap.toIndexedSeq.map {
-      case (cubeId: CubeId, normalizedWeight: NormalizedWeight) =>
-        val maxWeight = Weight(normalizedWeight)
+      case (cubeId: CubeId, maxWeight: Weight) =>
         val files = (1 to 4)
           .map { i =>
             // Create a Block under the revision
@@ -98,7 +94,7 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
               .result()
           }
           .flatMap(_.blocks)
-        (cubeId, CubeStatus(cubeId, maxWeight, normalizedWeight, files))
+        (cubeId, CubeStatus(cubeId, maxWeight, maxWeight.fraction, files))
     }
 
     SortedMap(cubeStatusesSeq: _*)

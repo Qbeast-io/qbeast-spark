@@ -29,31 +29,43 @@ object BroadcastedTableChanges {
   def apply(
       revisionChanges: Option[RevisionChange],
       supersededIndexStatus: IndexStatus,
-      deltaNormalizedCubeWeights: Map[CubeId, NormalizedWeight],
-      deltaBlockElementCount: Map[CubeId, Long],
+      deltaNormalizedCubeWeights: Map[CubeId, Weight],
+      newBlocksElementCount: Map[CubeId, Long],
       deltaReplicatedSet: Set[CubeId] = Set.empty,
       deltaAnnouncedSet: Set[CubeId] = Set.empty): TableChanges = {
+    val sparkContext = SparkSession.active.sparkContext
+
+    BroadcastedTableChanges.create(
+      supersededIndexStatus,
+      sparkContext.broadcast(deltaNormalizedCubeWeights),
+      sparkContext.broadcast(newBlocksElementCount),
+      deltaReplicatedSet,
+      deltaAnnouncedSet,
+      revisionChanges)
+
+  }
+
+  def create(
+      supersededIndexStatus: IndexStatus,
+      deltaNormalizedCubeWeightsBroadcast: Broadcast[Map[CubeId, Weight]],
+      newBlocksElementCountBroadcast: Broadcast[Map[CubeId, Long]],
+      deltaReplicatedSet: Set[CubeId] ,
+      deltaAnnouncedSet: Set[CubeId],
+      revisionChanges: Option[RevisionChange]): TableChanges = {
 
     val updatedRevision = revisionChanges match {
       case Some(newRev) => newRev.createNewRevision
       case None => supersededIndexStatus.revision
     }
-    val cubeWeights = deltaNormalizedCubeWeights
-      .mapValues(NormalizedWeight.toWeight)
-      .map(identity)
 
     val replicatedSet = if (revisionChanges.isEmpty) {
-
       supersededIndexStatus.replicatedSet ++ deltaReplicatedSet
-
     } else {
       deltaReplicatedSet
     }
 
     val announcedSet = if (revisionChanges.isEmpty) {
-
       supersededIndexStatus.announcedSet ++ deltaAnnouncedSet
-
     } else {
       deltaAnnouncedSet
     }
@@ -78,10 +90,12 @@ case class BroadcastedTableChanges private[model] (
     announcedOrReplicatedSet: Set[CubeId],
     // this contains an entry for each cube in the index
     cubeWeightsBroadcast: Broadcast[Map[CubeId, Weight]],
-    deltaBlockElementCountBroadcast: Broadcast[Map[CubeId, Long]])
+    // this map contains an entry for each new block added in this write operation.
+    newBlockStatsBroadcast: Broadcast[Map[CubeId, Long]])
     extends TableChanges {
 
-  override def cubeWeight(cubeId: CubeId): Option[Weight] = cubeWeightsBroadcast.value.get(cubeId)
+  override def cubeWeight(cubeId: CubeId): Option[Weight] =
+    cubeWeightsBroadcast.value.get(cubeId)
 
   override def cubeState(cubeId: CubeId): CubeStateValue = {
     if (announcedOrReplicatedSet.contains(cubeId)) {
@@ -91,5 +105,7 @@ case class BroadcastedTableChanges private[model] (
     }
   }
 
-  override def deltaBlockElementCount: Map[CubeId, Long] = deltaBlockElementCountBroadcast.value
+  override def deltaBlockElementCount: Map[CubeId, Long] =
+    newBlockStatsBroadcast.value
+
 }

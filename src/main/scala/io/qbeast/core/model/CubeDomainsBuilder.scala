@@ -175,12 +175,13 @@ class CubeDomainsBuilder protected (
       levelCubes(level).foreach(cube => {
         cube.parent match {
           case Some(parent) =>
+            val weightAndTreeSize = weightsAndTreeSizes(cube)
             val cubeTreeSize = weightsAndTreeSizes(cube).treeSize
             val parentInfo = weightsAndTreeSizes(parent)
 
             // Compute cube domain
             val domain = cubeTreeSize / (1d - parentInfo.weight)
-            cubeDomainBuilder += CubeDomain(cube.bytes, domain)
+            cubeDomainBuilder += CubeDomain(cube.bytes, weightAndTreeSize.cubeSize, domain)
 
             // Update parent treeSize
             parentInfo.treeSize += cubeTreeSize
@@ -191,8 +192,9 @@ class CubeDomainsBuilder protected (
 
     // Top level cube domain = treeSize
     levelCubes(minLevel).foreach { cube =>
-      val domain = weightsAndTreeSizes(cube).treeSize
-      cubeDomainBuilder += CubeDomain(cube.bytes, domain)
+      val weightAndTreeSize = weightsAndTreeSizes(cube)
+      val domain = weightAndTreeSize.treeSize
+      cubeDomainBuilder += CubeDomain(cube.bytes, weightAndTreeSize.cubeSize, domain)
     }
 
     cubeDomainBuilder.result()
@@ -337,10 +339,11 @@ private case class PointWeightAndParent(point: Point, weight: Weight, parent: Op
  * updated to the tree size during computation before being used.
  * @param weight
  *   NormalizedWeight
- * @param treeSize
- *   Cube tree size
+ * @param cubeSize the size of the cube what will be use to calculate the tree size
  */
-private class WeightAndTreeSize(val weight: NormalizedWeight, var treeSize: Double)
+private class WeightAndTreeSize(val weight: NormalizedWeight, val cubeSize: Int) {
+  var treeSize: Double = cubeSize
+}
 
 /**
  * Cube bytes and its domain size from a given data partition, with domain defined as the number
@@ -350,4 +353,4 @@ private class WeightAndTreeSize(val weight: NormalizedWeight, var treeSize: Doub
  * @param domain
  *   The number of records in a partition that fit in the said cube
  */
-final case class CubeDomain(cubeBytes: Array[Byte], domain: Double)
+final case class CubeDomain(cubeBytes: Array[Byte], deltaCubeSize: Int, domain: Double)

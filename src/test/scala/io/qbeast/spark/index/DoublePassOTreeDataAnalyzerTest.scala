@@ -284,6 +284,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
         .transform(computeGlobalCubeDomains(newRevision))
         .collect()
         .toMap
+        .mapValues(_.partialDomain)
 
     // Cube domains should monotonically decrease
     checkDecreasingBranchDomain(
@@ -378,16 +379,18 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
         .transform(computeGlobalCubeDomains(newRevision))
         .collect()
         .toMap
+        .mapValues(_.partialDomain)
 
     // Merge globalCubeDomain with the existing cube domains
-    val mergedCubeDomains: Map[CubeId, Double] = mergeCubeDomains(globalCubeDomains, indexStatus)
+    val mergedCubeDomains: Map[CubeId, Double] =
+      mergeNewAndOldCubeDomains(globalCubeDomains, indexStatus)
 
     // Populate NormalizedWeight level-wise from top to bottom
-    val estimatedCubeWeights: Map[CubeId, NormalizedWeight] =
+    val estimatedCubeWeights: Map[CubeId, Weight] =
       estimateCubeWeights(mergedCubeDomains.toSeq, indexStatus, isReplication = false)
 
     // Cubes with a weight lager than 1d should not have children
-    val leafCubesByWeight = estimatedCubeWeights.filter(cw => cw._2 >= 1d).keys
+    val leafCubesByWeight = estimatedCubeWeights.filter(cw => cw._2.fraction >= 1d).keys
     leafCubesByWeight.exists(cube =>
       cube.children.exists(estimatedCubeWeights.contains)) shouldBe false
 

@@ -72,6 +72,8 @@ trait OTreeDataAnalyzer {
 
 }
 
+private case class PartialCubeState(partialDomain: Double, partialBlockSize: Long)
+
 object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable with Logging {
 
   /**
@@ -203,19 +205,19 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
    * Aggregate partition cube domains to obtain global cube domains for the current write.
    */
   private[index] def computeGlobalCubeDomains(
-      revision: Revision): Dataset[CubeDomain] => Dataset[(CubeId, Double)] =
+      revision: Revision): Dataset[CubeDomain] => Dataset[(CubeId, PartialCubeState)] =
     partitionCubeDomains => {
       val spark = SparkSession.active
       import spark.implicits._
 
       partitionCubeDomains
         .groupBy("cubeBytes")
-        .agg(sum("domain"))
-        .map { row =>
-          val bytes = row.getAs[Array[Byte]](0)
-          val domain = row.getAs[Double](1)
-          (revision.createCubeId(bytes), domain)
-        }
+        .agg(sum("domain").as("domain"), sum("deltaCubeSize").as("deltaCubeSize"))
+        .as[(Array[Byte], Double, Long)]
+        .map(row => {
+          val (cubeBytes, domain, blockSize) = row
+          (revision.createCubeId(cubeBytes), PartialCubeState(domain, blockSize))
+        })
     }
 
   /**
@@ -269,7 +271,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
   /**
    * Merge the global cube domains from the current write with the existing cube domains.
    */
-  private[index] def mergeCubeDomains(
+  private[index] def mergeNewAndOldCubeDomains(
       globalCubeDomains: Map[CubeId, Double],
       indexStatus: IndexStatus): Map[CubeId, Double] = indexStatus.cubesStatuses match {
     case cubeStatuses if cubeStatuses.isEmpty => globalCubeDomains
@@ -315,7 +317,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
   private[index] def estimateCubeWeights(
       mergedCubeDomains: Seq[(CubeId, Double)],
       indexStatus: IndexStatus,
-      isReplication: Boolean): Map[CubeId, NormalizedWeight] = {
+      isReplication: Boolean): Map[CubeId, Weight] = {
     var cubeNormalizedWeights = Map.empty[CubeId, NormalizedWeight]
     val desiredCubeSize = indexStatus.revision.desiredCubeSize
 
@@ -345,7 +347,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
         }
     }
 
-    cubeNormalizedWeights
+    cubeNormalizedWeights.map(i => (i._1, NormalizedWeight.toWeight(i._2)))
   }
 
   override def analyzeAppend(
@@ -383,40 +385,36 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
     val weightedDataFrame = dataFrame.transform(addRandomWeight(newRevision))
 
     // Compute partition-level cube domains
-    val partitionCubeDomains: Dataset[CubeDomain] =
+    val partitionedCubeDomains: Dataset[CubeDomain] =
       weightedDataFrame
         .transform(
           computePartitionCubeDomains(numElements, newRevision, indexStatus, isReplication))
 
     // Compute global cube domains for the current write
     logDebug(s"Computing global cube domains for index revision $indexStatusRevision")
-    val globalCubeDomains: Map[CubeId, Double] =
-      partitionCubeDomains
+    val globalCubeStats: Map[CubeId, PartialCubeState] =
+      partitionedCubeDomains
         .transform(computeGlobalCubeDomains(newRevision))
         .collect()
         .toMap
 
     // Merge globalCubeDomain with the existing cube domains
     logDebug(s"Merging global cube domains for index revision $indexStatusRevision")
-    val mergedCubeDomains: Map[CubeId, Double] = mergeCubeDomains(globalCubeDomains, indexStatus)
+    val newAndOldDataCubeDomains: Map[CubeId, Double] =
+      mergeNewAndOldCubeDomains(globalCubeStats.mapValues(_.partialDomain), indexStatus)
 
     // Populate NormalizedWeight level-wise from top to bottom
     logDebug(s"Estimating cube weights for index revision $indexStatusRevision")
-    val estimatedCubeWeights: Map[CubeId, NormalizedWeight] =
-      estimateCubeWeights(mergedCubeDomains.toSeq, indexStatus, isReplication)
+    val estimatedCubeWeights: Map[CubeId, Weight] =
+      estimateCubeWeights(newAndOldDataCubeDomains.toSeq, indexStatus, isReplication)
 
-    val deltaBlockSizes = globalCubeDomains.map { case (cubeId, domain) =>
-      val minWeight = getMinWeight(estimatedCubeWeights, cubeId).fraction
-      val maxWeight = getMaxWeight(estimatedCubeWeights, cubeId).fraction
-      val size = ((maxWeight - minWeight) * domain).toLong
-      cubeId -> size
-    }
+    val newBlocksSizes = globalCubeStats.mapValues(_.partialBlockSize).map(identity)
     // Gather the new changes
     val tableChanges = BroadcastedTableChanges(
       spaceChanges,
       indexStatus,
       estimatedCubeWeights,
-      deltaBlockSizes,
+      newBlocksSizes,
       if (isReplication) indexStatus.cubesToOptimize
       else Set.empty[CubeId])
 
@@ -425,36 +423,17 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
     result
   }
 
-  private def getMinWeight(
-      estimatedCubeWeights: Map[CubeId, NormalizedWeight],
-      cubeId: CubeId): Weight = {
-    cubeId.parent match {
-      case Some(parentCubeId) => getMaxWeight(estimatedCubeWeights, parentCubeId)
-      case None => Weight.MinValue
-    }
-  }
-
-  private def getMaxWeight(
-      estimatedCubeWeights: Map[CubeId, NormalizedWeight],
-      cubeId: CubeId): Weight = {
-    estimatedCubeWeights.get(cubeId) match {
-      case Some(normalizedWeight) => NormalizedWeight.toWeight(normalizedWeight)
-      case None => Weight.MaxValue
-    }
-  }
-
   def analyzeOptimize(
       dataToOptimize: DataFrame,
       indexStatus: IndexStatus): (DataFrame, TableChanges) = {
 
-    val indexStatusRevision = indexStatus.revision
+    val revision = indexStatus.revision
     logTrace(s"""Begin: Analyze Optimize for index with
-                |revision=$indexStatusRevision""".stripMargin.replaceAll("\n", " "))
+                |revision=$revision""".stripMargin.replaceAll("\n", " "))
 
     // Add a random weight column
-    val weightedDataFrame = dataToOptimize.transform(addRandomWeight(indexStatus.revision))
+    val weightedDataFrame = dataToOptimize.transform(addRandomWeight(revision))
 
-    val revision = indexStatus.revision
     val spark = dataToOptimize.sparkSession
     val cubeMaxWeightsB: Broadcast[Map[CubeId, Weight]] =
       spark.sparkContext.broadcast(indexStatus.cubesStatuses.mapValues(_.maxWeight).map(identity))
@@ -478,10 +457,16 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
       .collect()
       .map(row => CubeId(nColumns, row._1) -> row._2)
       .toMap
-    cubeMaxWeightsB.unpersist()
-
+    val optimizedDataBlockSizeBroadcast: Broadcast[Map[CubeId, Long]] =
+      spark.sparkContext.broadcast(optimizedDataBlockSizes)
     val tableChanges =
-      BroadcastedTableChanges(None, indexStatus, Map.empty, optimizedDataBlockSizes)
+      BroadcastedTableChanges.create(
+        indexStatus,
+        cubeMaxWeightsB,
+        optimizedDataBlockSizeBroadcast,
+        Set.empty,
+        Set.empty,
+        None)
     (dataFrameWithCube, tableChanges)
   }
 
