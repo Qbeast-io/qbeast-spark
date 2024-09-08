@@ -374,12 +374,11 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
         computePartitionCubeDomains(numElements, newRevision, indexStatus, isReplication = false))
 
     // Compute global cube domains for the current write
-    val globalCubeDomains: Map[CubeId, Double] =
+    val globalCubeDomains =
       partitionCubeDomains
         .transform(computeGlobalCubeDomains(newRevision))
         .collect()
         .toMap
-        .mapValues(_.partialDomain)
 
     // Merge globalCubeDomain with the existing cube domains
     val mergedCubeDomains: Map[CubeId, Double] =

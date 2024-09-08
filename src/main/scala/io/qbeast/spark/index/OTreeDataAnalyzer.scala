@@ -272,14 +272,14 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
    * Merge the global cube domains from the current write with the existing cube domains.
    */
   private[index] def mergeNewAndOldCubeDomains(
-      globalCubeDomains: Map[CubeId, Double],
+      globalCubeDomains: Map[CubeId, PartialCubeState],
       indexStatus: IndexStatus): Map[CubeId, Double] = indexStatus.cubesStatuses match {
-    case cubeStatuses if cubeStatuses.isEmpty => globalCubeDomains
+    case cubeStatuses if cubeStatuses.isEmpty => globalCubeDomains.mapValues(_.partialDomain)
     case cubeStatuses =>
       val existingCubeDomains = computeExistingCubeDomains(cubeStatuses)
       (cubeStatuses.keys ++ globalCubeDomains.keys).toSet.map { cubeId: CubeId =>
         val existingDomain = existingCubeDomains.getOrElse(cubeId, 0d)
-        val newDomain = globalCubeDomains.getOrElse(cubeId, 0d)
+        val newDomain = globalCubeDomains.get(cubeId).map(_.partialDomain).getOrElse(0d)
         cubeId -> (existingDomain + newDomain)
       }.toMap
   }
@@ -401,7 +401,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
     // Merge globalCubeDomain with the existing cube domains
     logDebug(s"Merging global cube domains for index revision $indexStatusRevision")
     val newAndOldDataCubeDomains: Map[CubeId, Double] =
-      mergeNewAndOldCubeDomains(globalCubeStats.mapValues(_.partialDomain), indexStatus)
+      mergeNewAndOldCubeDomains(globalCubeStats, indexStatus)
 
     // Populate NormalizedWeight level-wise from top to bottom
     logDebug(s"Estimating cube weights for index revision $indexStatusRevision")
