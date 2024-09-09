@@ -392,7 +392,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
 
     // Compute global cube domains for the current write
     logDebug(s"Computing global cube domains for index revision $indexStatusRevision")
-    val globalCubeDomains: Map[CubeId, Double] =
+    val globalCubeDomainChanges: Map[CubeId, Double] =
       partitionCubeDomains
         .transform(computeGlobalCubeDomains(newRevision))
         .collect()
@@ -401,19 +401,19 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
     // Merge globalCubeDomain with the existing cube domains
     logDebug(s"Merging global cube domains for index revision $indexStatusRevision")
     val newAndOldDataCubeDomains: Map[CubeId, Double] =
-      mergeNewAndOldCubeDomains(globalCubeDomains, indexStatus)
+      mergeNewAndOldCubeDomains(globalCubeDomainChanges, indexStatus)
 
     // Populate NormalizedWeight level-wise from top to bottom
     logDebug(s"Estimating cube weights for index revision $indexStatusRevision")
-    val estimatedCubeWeights: Map[CubeId, Weight] =
+    val estimatedUpdatedCubeWeights: Map[CubeId, Weight] =
       estimateCubeWeights(newAndOldDataCubeDomains.toSeq, indexStatus, isReplication)
 
-    val newBlocksSizes = computeBlockSizes(globalCubeDomains, estimatedCubeWeights)
+    val newBlocksSizes = computeBlockSizes(globalCubeDomainChanges, estimatedUpdatedCubeWeights)
     // Gather the new changes
     val tableChanges = BroadcastedTableChanges(
       spaceChanges,
       indexStatus,
-      estimatedCubeWeights,
+      estimatedUpdatedCubeWeights,
       newBlocksSizes,
       if (isReplication) indexStatus.cubesToOptimize
       else Set.empty[CubeId])
@@ -424,20 +424,22 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
   }
 
   private[index] def computeBlockSizes(
-      globalCubeStats: Map[CubeId, Double],
-      estimatedCubeWeights: Map[CubeId, Weight]): Map[CubeId, Long] = {
+      globalCubeDomainChanges: Map[CubeId, Double],
+      estimatedUpdatedCubeWeights: Map[CubeId, Weight]): Map[CubeId, Long] = {
     // TODO introduce desiredFileSize in Revision and parameters
-    globalCubeStats.map { case (cubeId, domain) =>
-      val minWeight = getMinWeight(estimatedCubeWeights, cubeId).fraction
-      val maxWeight = getMaxWeight(estimatedCubeWeights, cubeId).fraction
+    globalCubeDomainChanges.map { case (cubeId, domain) =>
+      val minWeight = getMinWeight(estimatedUpdatedCubeWeights, cubeId).fraction
+      val maxWeight = getMaxWeight(estimatedUpdatedCubeWeights, cubeId).fraction
       cubeId -> ((maxWeight - minWeight) * domain).toLong
     }
 
   }
 
-  private def getMinWeight(estimatedCubeWeights: Map[CubeId, Weight], cubeId: CubeId): Weight = {
+  private def getMinWeight(
+      estimatedUpdatedCubeWeights: Map[CubeId, Weight],
+      cubeId: CubeId): Weight = {
     cubeId.parent match {
-      case Some(parentCubeId) => getMaxWeight(estimatedCubeWeights, parentCubeId)
+      case Some(parentCubeId) => getMaxWeight(estimatedUpdatedCubeWeights, parentCubeId)
       case None => Weight.MinValue
     }
   }

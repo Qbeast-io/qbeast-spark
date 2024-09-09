@@ -402,21 +402,36 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
       }
   }
 
-  "computeBlockSizes" should  "should calculate correct block sizes" ignore {
+  "computeBlockSizes" should "should calculate correct block sizes" in {
     // Sample data
-    val globalCubeStats: Map[CubeId, Double] =
-      Map(CubeId(1, Array(1.toByte)) -> 100.0, CubeId(1, Array(2.toByte)) -> 200.0)
+    val root = CubeId.root(2)
+    val kids = root.children // 1000 => Domain  2655 -> ebs(deltaW-> 0.1 * 100) =>10
+    val a = kids.next() // 520 => Domain 520 -> ebs(deltaW-> 0.1 * 52) => 5
+    val b = kids.next() // 35 => Domain 35 -> ebs(deltaW-> 0.2 * 35) => 6
+    val c = kids.next() // 1000 => Domain 2100 -> ebs(deltaW-> 0.3 * 100) => 29
+    val cKids = c.children
+    val ca = cKids.next() // 500 -> ebs(deltaW -> 0.1 * 50) => 5
+    val cb = cKids.next() // 600 -> ebs(deltaW -> 0.2* 60) => 11
+
+    val globalCubeDomainChanges: Map[CubeId, Double] =
+      Map(root -> 100d, a -> 52d, b -> 35d, c -> 100d, ca -> 50d, cb -> 60d)
 
     val estimatedCubeWeights: Map[CubeId, Weight] =
-      Map(CubeId(1, Array(1.toByte)) -> Weight(0.1), CubeId(1, Array(2.toByte)) -> Weight(0.2))
+      Map(
+        root -> Weight(0.1),
+        a -> Weight(0.2),
+        b -> Weight(0.3),
+        c -> Weight(0.4),
+        ca -> Weight(0.5),
+        cb -> Weight(0.6))
 
     // Expected results
     val expectedBlockSizes: Map[CubeId, Long] =
-      Map(CubeId(1, Array(1.toByte)) -> 10L, CubeId(1, Array(2.toByte)) -> 20L)
+      Map(root -> 10L, a -> 5L, b -> 6L, c -> 29L, ca -> 5L, cb -> 11L)
 
     // Call the method
     val result =
-      DoublePassOTreeDataAnalyzer.computeBlockSizes(globalCubeStats, estimatedCubeWeights)
+      DoublePassOTreeDataAnalyzer.computeBlockSizes(globalCubeDomainChanges, estimatedCubeWeights)
 
     // Assert the results
     result shouldBe expectedBlockSizes
