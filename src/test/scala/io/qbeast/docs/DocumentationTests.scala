@@ -57,27 +57,76 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
     }
   }
 
-  it should "behave correctly in Quickstart" in withExtendedSpark(config) { spark =>
-    withTmpDir { qbeastTablePath =>
-      val parquetTablePath = "s3a://qbeast-public-datasets/store_sales"
+  it should "behave correctly in Quickstart DF API" in withQbeastContextSparkAndTmpWarehouse(
+    (spark, tmpWarehouse) => {
+      import spark.implicits._
 
-      val parquetDf = spark.read.format("parquet").load(parquetTablePath).na.drop()
+      // CREATE A TABLE
+      val data = Seq((1, "a"), (2, "b"), (3, "c")).toDF("id", "age")
+      data.write.mode("overwrite").option("columnsToIndex", "id,age").saveAsTable("qbeast_table")
+      val qbeast_df = spark.read.table("qbeast_table")
 
-      parquetDf.write
-        .mode("overwrite")
-        .format("qbeast") // Saving the dataframe in a qbeast datasource
-        .option("columnsToIndex", "ss_cdemo_sk,ss_cdemo_sk") // Indexing the table
-        .option("cubeSize", 300000)
-        .save(qbeastTablePath)
+      assertSmallDatasetEquality(
+        qbeast_df,
+        data,
+        orderedComparison = false,
+        ignoreNullable = true)
 
-      val qbeastDf = spark.read.format("qbeast").load(qbeastTablePath)
+      // APPEND TO A TABLE
+      val append = Seq((4, "d"), (5, "e")).toDF("id", "age")
+      append.write.mode("append").insertInto("qbeast_table")
+      val qbeast_df_appended = spark.read.table("qbeast_table")
 
-      qbeastDf.count() shouldBe parquetDf.count() withClue
-        "Quickstart count does not match the original"
-      qbeastDf.schema shouldBe parquetDf.schema withClue
-        "Quickstart schema does not match the original"
-    }
-  }
+      assertSmallDatasetEquality(
+        qbeast_df_appended,
+        data.union(append),
+        orderedComparison = false,
+        ignoreNullable = true)
+
+      // SAMPLE THE TABLE
+      val query = qbeast_df.sample(0.3)
+      query.count() shouldBe >=(1L)
+
+      // APPEND TO A PATH
+      val path = s"$tmpWarehouse/tmp/qbeast_table"
+      append.write
+        .mode("append")
+        .option("columnsToIndex", "id,age")
+        .format("qbeast")
+        .save(path)
+
+      val qbeast_df_appended_path = spark.read.format("qbeast").load(path)
+      assertSmallDatasetEquality(
+        qbeast_df_appended_path,
+        append,
+        orderedComparison = false,
+        ignoreNullable = true)
+    })
+
+  it should "behave correctly in Quickstart SQL API for INSERT INTO" in withQbeastContextSparkAndTmpWarehouse(
+    (spark, _) => {
+      import spark.implicits._
+
+      // CREATE A TABLE
+      spark.sql(
+        "CREATE TABLE qbeast_table (id INT, age STRING) USING qbeast OPTIONS (columnsToIndex 'id,age')")
+
+      // INSERT INTO A TABLE
+      spark.sql("INSERT INTO qbeast_table VALUES (1, 'a'), (2, 'b'), (3, 'c')")
+      val qbeast_df = spark.read.table("qbeast_table")
+      val data = Seq((1, "a"), (2, "b"), (3, "c")).toDF("id", "age")
+
+      assertSmallDatasetEquality(
+        qbeast_df,
+        data,
+        orderedComparison = false,
+        ignoreNullable = true)
+
+      // SAMPLE THE TABLE
+      val query = spark.sql("SELECT * FROM qbeast_table TABLESAMPLE(30 PERCENT)")
+      query.count() shouldBe >=(1L)
+
+    })
 
   it should "behave correctly on Sample Pushdown Notebook" in withExtendedSpark(config) { spark =>
     withTmpDir { DATA_ROOT =>
