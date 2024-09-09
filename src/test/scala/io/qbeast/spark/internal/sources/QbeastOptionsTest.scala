@@ -15,8 +15,8 @@
  */
 package io.qbeast.spark.internal.sources
 
-import io.qbeast.spark.delta.hook.HookInfo
-import io.qbeast.spark.delta.hook.PreCommitHook.PRE_COMMIT_HOOKS_PREFIX
+import io.qbeast.core.writer.HookInfo
+import io.qbeast.core.writer.PreCommitHook.PRE_COMMIT_HOOKS_PREFIX
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.qbeast.config

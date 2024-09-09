@@ -16,17 +16,10 @@
 package io.qbeast.spark
 
 import com.github.mrpowers.spark.fast.tests.DatasetComparer
-import io.qbeast.context.QbeastContext
-import io.qbeast.context.QbeastContextImpl
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.keeper.LocalKeeper
 import io.qbeast.core.model.IndexManager
-import io.qbeast.spark.delta.writer.RollupDataWriter
-import io.qbeast.spark.delta.SparkDeltaMetadataManager
-import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.spark.index.SparkOTreeManager
-import io.qbeast.spark.index.SparkRevisionFactory
-import io.qbeast.spark.table.IndexedTableFactoryImpl
 import org.apache.log4j.Level
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.DataFrame
@@ -158,20 +151,7 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
   def withQbeastAndSparkContext[T](keeper: Keeper = LocalKeeper)(
       testCode: SparkSession => T): T = {
     withSpark { spark =>
-      val indexedTableFactory = new IndexedTableFactoryImpl(
-        keeper,
-        SparkOTreeManager,
-        SparkDeltaMetadataManager,
-        RollupDataWriter,
-        SparkRevisionFactory,
-        SparkColumnsToIndexSelector)
-      val context = new QbeastContextImpl(spark.sparkContext.getConf, keeper, indexedTableFactory)
-      try {
-        QbeastContext.setUnmanaged(context)
         testCode(spark)
-      } finally {
-        QbeastContext.unsetUnmanaged()
-      }
     }
   }
 

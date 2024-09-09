@@ -13,17 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.utils
+package io.qbeast.spark.delta.utils
 
-import io.qbeast.spark.delta.DefaultFileIndex
+import io.qbeast.spark.delta.DeltaDefaultFileIndex
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestUtils._
 import org.apache.spark.sql.execution.FileSourceScanExec
-import org.apache.spark.sql.functions.avg
-import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.functions.rand
-import org.apache.spark.sql.functions.regexp_replace
-import org.apache.spark.sql.functions.when
+import org.apache.spark.sql.functions._
 
 class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
@@ -295,7 +291,8 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
           .collectLeaves()
           .filter(_.isInstanceOf[FileSourceScanExec])
           .foreach {
-            case f: FileSourceScanExec if f.relation.location.isInstanceOf[DefaultFileIndex] =>
+            case f: FileSourceScanExec
+                if f.relation.location.isInstanceOf[DeltaDefaultFileIndex] =>
               val index = f.relation.location
               val matchingFiles =
                 index.listFiles(f.partitionFilters, f.dataFilters).flatMap(_.files)

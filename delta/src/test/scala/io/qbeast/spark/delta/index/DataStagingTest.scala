@@ -13,17 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.index
+package io.qbeast.spark.delta.index
 
 import io.delta.tables.DeltaTable
 import io.qbeast.core.model.QTableID
-import io.qbeast.core.model.StagingUtils
+import io.qbeast.core.utils.StagingUtils
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.delta.StagingDataManager
+import io.qbeast.spark.delta.DeltaStagingDataManager
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.T2
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
 import org.scalatest.PrivateMethodTester
@@ -39,8 +38,8 @@ class DataStagingTest
   }
 
   def getQbeastSnapshot(spark: SparkSession, dir: String): DeltaQbeastSnapshot = {
-    val deltaLog = DeltaLog.forTable(spark, dir)
-    DeltaQbeastSnapshot(deltaLog.update())
+    val tableId = new QTableID(dir)
+    new DeltaQbeastSnapshot(tableId)
   }
 
   private val getCurrentStagingSize: PrivateMethod[Long] =
@@ -86,7 +85,7 @@ class DataStagingTest
       val revisions = snapshot.loadAllRevisions
       revisions.size shouldBe 2
 
-      val stagingDataManager = new StagingDataManager(QTableID(tmpDir))
+      val stagingDataManager = new DeltaStagingDataManager(QTableID(tmpDir))
 
       val indexedDataSize = snapshot
         .loadIndexStatus(1)
@@ -127,7 +126,7 @@ class DataStagingTest
       val revisions = snapshot.loadAllRevisions
       revisions.size shouldBe 2
 
-      val stagingDataManager = new StagingDataManager(QTableID(tmpDir))
+      val stagingDataManager = new DeltaStagingDataManager(QTableID(tmpDir))
 
       val indexedDataSize = snapshot
         .loadIndexStatus(1)

@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.core.model
+package io.qbeast.spark.delta.index
 
 import com.fasterxml.jackson.core.JsonParseException
+import io.qbeast.core.model.{Block, CubeId, IndexFile, Weight}
+import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.delta.IndexFiles
 import io.qbeast.spark.utils.TagUtils
-import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.actions.AddFile
 

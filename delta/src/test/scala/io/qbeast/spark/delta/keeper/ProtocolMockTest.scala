@@ -13,10 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.keeper
+package io.qbeast.spark.delta.keeper
 
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.keeper.LocalKeeper
+import io.qbeast.spark.keeper.AnnouncerProcess
+import io.qbeast.spark.keeper.InitProcess
+import io.qbeast.spark.keeper.OptimizingProcessBad
+import io.qbeast.spark.keeper.OptimizingProcessGood
+import io.qbeast.spark.keeper.ProtocolMockTestSpec
+import io.qbeast.spark.keeper.RandomKeeper
+import io.qbeast.spark.keeper.WritingProcess
 
 class ProtocolMockTest extends ProtocolMockTestSpec {
 

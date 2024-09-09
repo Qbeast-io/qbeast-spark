@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.utils
+package io.qbeast.spark.delta.utils
 
-import io.qbeast.core.model.StagingUtils
+import io.qbeast.core.model.QTableID
+import io.qbeast.core.utils.StagingUtils
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.utils.QbeastExceptionMessages.incorrectIdentifierFormat
@@ -23,7 +24,6 @@ import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMs
 import io.qbeast.spark.utils.QbeastExceptionMessages.unsupportedFormatExceptionMsg
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.QbeastTable
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.SparkSession
 import org.scalatest.PrivateMethodTester
@@ -65,8 +65,8 @@ class ConvertToQbeastTest
   }
 
   def getQbeastSnapshot(spark: SparkSession, dir: String): DeltaQbeastSnapshot = {
-    val deltaLog = DeltaLog.forTable(spark, dir)
-    DeltaQbeastSnapshot(deltaLog.update())
+    val tableId = new QTableID(dir)
+    new DeltaQbeastSnapshot(tableId)
   }
 
   behavior of "ConvertToQbeastCommand"

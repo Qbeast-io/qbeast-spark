@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.index
+package io.qbeast.spark.delta.index
 
 import io.qbeast.core.model._
-import io.qbeast.core.model.BroadcastedTableChanges
-import io.qbeast.spark.delta
+import io.qbeast.spark.delta.DeltaQbeastSnapshot
+import io.qbeast.spark.delta.IndexFiles
+import io.qbeast.spark.index.IndexTestChecks
+import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
@@ -148,8 +150,8 @@ class IndexTest
           .options(options)
           .save(tmpDir)
 
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
+        val tableId = new QTableID(tmpDir)
+        val qbeastSnapshot = new DeltaQbeastSnapshot(tableId)
 
         val offset = 0.5
         val appendData = df
@@ -216,7 +218,7 @@ class IndexTest
           .update()
           .allFiles
           .collect()
-          .map(delta.IndexFiles.fromAddFile(2))
+          .map(IndexFiles.fromAddFile(2))
           .flatMap(_.blocks)
 
         blocks.foreach { block =>

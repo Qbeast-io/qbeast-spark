@@ -13,20 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.index
+package io.qbeast.spark.delta.index
 
-import io.qbeast.core.model.CubeDomainsBuilder
-import io.qbeast.core.model.CubeStatus
-import io.qbeast.core.model.IndexStatus
-import io.qbeast.core.model.QTableID
-import io.qbeast.core.model.Weight
-import io.qbeast.spark.delta
+import io.qbeast.core.model._
+import io.qbeast.spark.delta.DeltaQbeastSnapshot
+import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
 import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 import org.scalatest.PrivateMethodTester
@@ -63,8 +59,8 @@ class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
             .option("columnsToIndex", "age,val2")
             .save(tmpDir)
 
-          val deltaLog = DeltaLog.forTable(spark, tmpDir)
-          val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
+          val tableId = new QTableID(tmpDir)
+          val qbeastSnapshot = new DeltaQbeastSnapshot(tableId)
           val commitLogWeightMap = qbeastSnapshot.loadLatestIndexStatus.cubesStatuses
 
           // commitLogWeightMap shouldBe weightMap
@@ -85,8 +81,8 @@ class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
       .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> "10000"))
       .save(tmpDir)
 
-    val deltaLog = DeltaLog.forTable(spark, tmpDir)
-    val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
+    val tableId = new QTableID(tmpDir)
+    val qbeastSnapshot = new DeltaQbeastSnapshot(tableId)
     val cubeWeights = qbeastSnapshot.loadLatestIndexStatus.cubesStatuses
 
     cubeWeights.values.foreach { case CubeStatus(_, weight, _, _, _) =>

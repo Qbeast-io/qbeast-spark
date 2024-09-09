@@ -36,7 +36,7 @@ class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {
         .save(tmpDir)
 
       val tableId = new QTableID(tmpDir)
-      val indexStatus = QbeastSnapshot("delta", tableId).loadLatestIndexStatus
+      val indexStatus = new DeltaQbeastSnapshot(tableId).loadLatestIndexStatus
 
       indexStatus.revision.revisionID shouldBe 1
       indexStatus.cubesStatuses.map(_._2.elementCount).sum shouldBe 100000L

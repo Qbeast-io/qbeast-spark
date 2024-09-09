@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.index
+package io.qbeast.spark.delta.index
 
+import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.Revision
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.max
 import org.apache.spark.sql.functions.min
 import org.apache.spark.sql.DataFrame
@@ -44,8 +44,8 @@ class RevisionTest
       .format("qbeast")
       .option("columnsToIndex", columnsToIndex)
       .save(directory)
-    val deltaLog = DeltaLog.forTable(spark, directory)
-    val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+    val tableId = new QTableID(directory)
+    val qbeastSnapshot = new DeltaQbeastSnapshot(tableId)
     val lastRevision = qbeastSnapshot.loadLatestRevision
     val dfqbeast = spark.read.format("qbeast").load(directory)
     dfqbeast.createTempView("dfqbeast")
