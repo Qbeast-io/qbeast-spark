@@ -15,7 +15,6 @@
  */
 package io.qbeast.spark.delta
 
-import io.delta.tables.DeltaTable
 import io.qbeast.core.model._
 import io.qbeast.core.stats.tracker.StatsTracker
 import io.qbeast.core.stats.tracker.TaskStats
@@ -111,11 +110,7 @@ class DeltaRollupDataWriter extends RollupDataWriter[FileAction] with DeltaStats
       indexStatus: IndexStatus,
       indexFiles: Dataset[IndexFile]): IISeq[FileAction] = {
 
-    val data =
-      DeltaTable
-        .forName(tableId.id)
-        .toDF // TODO check why we are not considering the schema in the QTableId
-
+    val data = loadDataFromIndexFiles(tableId, indexFiles)
     val statsTrackers = StatsTracker.getStatsTrackers()
     val fileStatsTracker = getFileStatsTracker(tableId, data)
     val trackers = statsTrackers ++ fileStatsTracker
