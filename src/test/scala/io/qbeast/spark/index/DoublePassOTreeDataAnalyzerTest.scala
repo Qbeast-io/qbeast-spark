@@ -284,7 +284,6 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
         .transform(computeGlobalCubeDomains(newRevision))
         .collect()
         .toMap
-        .mapValues(_.partialDomain)
 
     // Cube domains should monotonically decrease
     checkDecreasingBranchDomain(
@@ -401,6 +400,27 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
           .filter(estimatedCubeWeights.contains)
           .foreach(child => weight < estimatedCubeWeights(child))
       }
+  }
+
+  "computeBlockSizes" should "should calculate correct block sizes" in {
+    // Sample data
+    val globalCubeStats: Map[CubeId, Double] =
+      Map(CubeId(1, Array(1.toByte)) -> 100.0, CubeId(1, Array(2.toByte)) -> 200.0)
+
+    val estimatedCubeWeights: Map[CubeId, Weight] =
+      Map(CubeId(1, Array(1.toByte)) -> Weight(0.1), CubeId(1, Array(2.toByte)) -> Weight(0.2))
+
+    // Expected results
+    val expectedBlockSizes: Map[CubeId, Long] =
+      Map(CubeId(1, Array(1.toByte)) -> 10L, CubeId(1, Array(2.toByte)) -> 20L)
+
+    // Call the method
+    val result =
+      DoublePassOTreeDataAnalyzer.computeBlockSizes(globalCubeStats, estimatedCubeWeights)
+
+    // Assert the results
+    assert(result == expectedBlockSizes)
+
   }
 
 }
