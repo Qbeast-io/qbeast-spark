@@ -170,7 +170,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
       val matchingBlocks = queryExecutor.execute(new Path(tmpDir)).map(_.getPath.getName).toSet
 
       matchingBlocks shouldBe allBlocks
-        .filter(_.maxWeight >= weightRange.from)
+        .filter(a => a.maxWeight >= weightRange.from && a.minWeight < weightRange.to)
         .map(_.filePath)
         .toSet
     })
