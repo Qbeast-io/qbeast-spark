@@ -112,6 +112,6 @@ trait QbeastSnapshot {
    */
   def loadRevisionAt(timestamp: Long): Revision
 
-  def loadDataframeFromData(indexFile: Dataset[IndexFile]): DataFrame
+  def loadDataframeFromIndexFiles(indexFile: Dataset[IndexFile]): DataFrame
 
 }

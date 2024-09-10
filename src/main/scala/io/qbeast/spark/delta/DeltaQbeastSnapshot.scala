@@ -214,7 +214,7 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
    */
   def loadStagingFiles(): Dataset[AddFile] = stagingFiles()
 
-  override def loadDataframeFromData(indexFile: Dataset[IndexFile]): DataFrame = {
+  override def loadDataframeFromIndexFiles(indexFile: Dataset[IndexFile]): DataFrame = {
     if (snapshot.deletionVectorsSupported) {
 
       // TODO find a cleaner version to get a subset of data from the parquet considering the deleted parts.

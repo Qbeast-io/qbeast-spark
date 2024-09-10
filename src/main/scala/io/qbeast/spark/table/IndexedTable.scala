@@ -503,7 +503,7 @@ private[table] class IndexedTableImpl(
           val removeFiles =
             indexFiles.map(IndexFiles.toRemoveFile(dataChange = false)).collect().toIndexedSeq
 
-          val data = snapshot.loadDataframeFromData(indexFiles)
+          val data = snapshot.loadDataframeFromIndexFiles(indexFiles)
 
           val (dataExtended, tableChanges) =
             DoublePassOTreeDataAnalyzer.analyzeOptimize(data, indexStatus)

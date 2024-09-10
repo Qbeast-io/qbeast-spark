@@ -204,7 +204,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
       cubeStatus.size should be > 50
       val filesToOptim =
         files.map(IndexFiles.fromAddFile(lastRev.columnTransformers.size))
-      val allData = qbeastSnapshot.loadDataframeFromData(filesToOptim)
+      val allData = qbeastSnapshot.loadDataframeFromIndexFiles(filesToOptim)
       allData.count.toInt shouldBe 10000
 
       import spark.implicits._
@@ -212,14 +212,15 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
       val (filePath, fileSize) =
         data.groupBy(input_file_name()).count().as[(String, Long)].first()
       val fileName = new Path(filePath).getName
-      val subSet = qbeastSnapshot.loadDataframeFromData(filesToOptim.filter(_.path == fileName))
+      val subSet =
+        qbeastSnapshot.loadDataframeFromIndexFiles(filesToOptim.filter(_.path == fileName))
 
       subSet.count shouldBe fileSize
 
     }
   }
 
-  "loadDataframeFromData" should "work properly with evolving schema" in {
+  "loadDataframeFromIndexFiles" should "work properly with evolving schema" in {
     withSparkAndTmpDir { (spark, tmpDir) =>
       import spark.implicits._
 
@@ -258,7 +259,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
       import spark.implicits._
       val filesToOptimize: Dataset[IndexFile] =
         files.map(IndexFiles.fromAddFile(lastRev.columnTransformers.size))
-      val allData = qbeastSnapshot.loadDataframeFromData(filesToOptimize)
+      val allData = qbeastSnapshot.loadDataframeFromIndexFiles(filesToOptimize)
       allData.count.toInt shouldBe 100
 
       val data = spark.read.format("qbeast").load(tmpDir)
@@ -271,7 +272,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
       val fileName = new Path(filePath).getName
 
       val subSet =
-        qbeastSnapshot.loadDataframeFromData(filesToOptimize.filter(_.path == fileName))
+        qbeastSnapshot.loadDataframeFromIndexFiles(filesToOptimize.filter(_.path == fileName))
 
       subSet.schema shouldBe data.schema
       subSet.columns shouldBe Seq("id", "rand")
@@ -306,7 +307,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
           files.map(IndexFiles.fromAddFile(lastRev.columnTransformers.size))
 
         intercept[UnsupportedOperationException] {
-          qbeastSnapshot.loadDataframeFromData(filesToOptim)
+          qbeastSnapshot.loadDataframeFromIndexFiles(filesToOptim)
         }
 
     }
