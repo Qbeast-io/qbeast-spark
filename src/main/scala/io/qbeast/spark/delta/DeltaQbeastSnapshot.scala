@@ -19,10 +19,12 @@ import io.qbeast.core.model._
 import io.qbeast.spark.utils.MetadataConfig
 import io.qbeast.spark.utils.TagColumns
 import io.qbeast.IISeq
+import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Dataset
 
 /**
@@ -211,5 +213,22 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
    * Loads Staging AddFiles
    */
   def loadStagingFiles(): Dataset[AddFile] = stagingFiles()
+
+  override def loadDataframeFromIndexFiles(indexFile: Dataset[IndexFile]): DataFrame = {
+    if (snapshot.deletionVectorsSupported) {
+
+      // TODO find a cleaner version to get a subset of data from the parquet considering the deleted parts.
+      throw new UnsupportedOperationException("Deletion vectors are not supported yet")
+    } else {
+      import indexFile.sparkSession.implicits._
+      val rootPath = snapshot.path.getParent
+      val paths = indexFile.map(ifile => new Path(rootPath, ifile.path).toString).collect()
+
+      indexFile.sparkSession.read
+        .schema(snapshot.schema)
+        .parquet(paths: _*)
+
+    }
+  }
 
 }

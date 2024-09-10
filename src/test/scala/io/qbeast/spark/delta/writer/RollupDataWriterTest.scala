@@ -15,22 +15,20 @@
  */
 package io.qbeast.spark.delta.writer
 
-import io.qbeast.core.model.CubeId
+import io.qbeast.core.model.BroadcastedTableChanges
 import io.qbeast.core.model.IndexStatus
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.Revision
 import io.qbeast.core.transform.EmptyTransformer
-import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
-import org.scalatest.PrivateMethodTester
 
 import scala.reflect.io.Path
 
-class RollupDataWriterTest extends QbeastIntegrationTestSpec with PrivateMethodTester {
+class RollupDataWriterTest extends QbeastIntegrationTestSpec {
 
   "RollupDataWriter" should "write the data correctly" in
     withSparkAndTmpDir { (spark, tmpDir) =>
@@ -66,21 +64,20 @@ class RollupDataWriterTest extends QbeastIntegrationTestSpec with PrivateMethodT
 
   it should "compute rollup correctly when optimizing" in
     withSparkAndTmpDir { (spark, tmpDir) =>
-      import spark.implicits._
-
-      val computeRollup = PrivateMethod[Map[CubeId, CubeId]]('computeRollup)
       val revision =
         Revision(1L, 0, QTableID(tmpDir), 20, Vector(EmptyTransformer("col_1")), Vector.empty)
 
       val root = revision.createCubeIdRoot()
       val c1 = root.children.next()
       val c2 = c1.nextSibling.get
-      val extendedData = Seq(
-        (1 to 20).map(_ => ("root", root.bytes)),
-        (1 to 1).map(_ => ("c1", c1.bytes)),
-        (1 to 20).map(_ => ("c2", c2.bytes))).flatten.toDF("id", QbeastColumns.cubeColumnName)
 
-      val rollup = RollupDataWriter invokePrivate computeRollup(revision, extendedData)
+      val tc = BroadcastedTableChanges(
+        None,
+        IndexStatus.empty(revision),
+        Map.empty,
+        Map(root -> 20L, c1 -> 1L, c2 -> 20L))
+
+      val rollup = RollupDataWriter.computeRollup(tc)
       rollup shouldBe Map(root -> root, c1 -> root, c2 -> c2)
     }
 

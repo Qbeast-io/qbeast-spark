@@ -13,24 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.utils
-
-import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.Column
+package io.qbeast.spark.model
 
 /**
- * Tag keys for saving qbeast index metadata into the delta commit log
+ * Names of possible states of the cube
  */
-object TagColumns {
-  final val revision: Column = col("tags.revision")
-}
 
-object TagUtils {
-  final val revision = "revision"
-  final val blocks = "blocks"
-}
-
-object MetadataConfig {
-  final val revision = "qbeast.revision"
-  final val lastRevisionID = "qbeast.lastRevisionID"
+object CubeState {
+  type CubeStateValue = String
+  final val FLOODED: CubeStateValue = "FLOODED"
+  final val ANNOUNCED: CubeStateValue = "ANNOUNCED"
 }
