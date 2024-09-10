@@ -2,8 +2,22 @@ import json
 import os
 import glob
 from typing import Optional
-
+import pandas as pd
+from deltalake import DeltaTable
 import pyarrow.parquet as pa
+from collections import defaultdict
+from qviz.cube import Cube, SamplingInfo
+
+
+class Block:
+    # Origin file
+    file = None
+    # List of cubes in each block
+    cubes = None
+
+    def __init__(self, file, cubes):
+        self.file = file
+        self.cubes = cubes
 
 
 def process_table_delta_log(table_path: str, revision_id: str) -> (list[dict], Optional[dict]):
@@ -201,12 +215,18 @@ def extract_revision_metadata(checkpoint_file: str, json_files: list[str], revis
     :param revision_id: target RevisionID
     :return: qbeast metadata configuration for the target RevisionID
     """
+
     revision_key = f"qbeast.revision.{revision_id}"
     # Try to extract the target revision metadata, if any, from the checkpoint file
     metadata_configuration = extract_metadata_from_checkpoint(checkpoint_file, revision_key)
 
     return metadata_configuration or extract_metadata_from_json_files(json_files, revision_key)
 
+    # Try to extract the target revision metadata, if any, from the checkpoint file
+    revision_key = f"qbeast.revision.{revision_id}"
+    deltaTable = DeltaTable(checkpoint_file)
+    revision_meta = deltaTable.metadata().configuration[revision_key]
+    return revision_meta or extract_metadata_from_json_files(json_files, revision_key)
 
 def extract_metadata_from_checkpoint(checkpoint_file: str, revision_key: str) -> Optional[dict]:
     """
@@ -226,8 +246,17 @@ def extract_metadata_from_checkpoint(checkpoint_file: str, revision_key: str) ->
                 return json.loads(configuration_dict[revision_key])
     return None
 
+    if not checkpoint_file:
+        return None
+    
+    deltaTable = DeltaTable(checkpoint_file)
+    if revision_key in deltaTable.metadata():
+        metadata = deltaTable.metadata().configuration[revision_key]
+        return metadata
+    return None
 
-def extract_metadata_from_json_files(json_files: list[str], revision_key: str) -> Optional[dict]:
+
+def extract_metadata_from_json_files(file_path: str, json_files: list[str], revision_key: str, table_path: str,) -> Optional[dict]:
     """
     Extract target revision metadata from json log files. Only the first line from the file is read.
     Example json log file content with only three lines:
@@ -248,4 +277,92 @@ def extract_metadata_from_json_files(json_files: list[str], revision_key: str) -
                 configuration = log_in_json['metaData']['configuration']
                 if revision_key in configuration:
                     return json.loads(configuration[revision_key])
+                
+    # Extract metadata from json files using DeltaTable       
+    deltaTable = DeltaTable(table_path)
+    if revision_key in list( deltaTable.get_add_actions(True).to_pandas()["metadata.configuration"] ):
+        metadata = deltaTable.metadata().configuration[revision_key]
+
     return None
+
+
+## CÓDIGO NUEVO 
+
+def process_table(table_path: str, revision_key: str) -> (cube, list[dic]):
+    
+
+    #4. build index from the list of cube blocks
+    # Populate Tree, Root
+    max_level = 0
+    level_cubes = defaultdict(list)
+    for block in blocks:
+        for cube in block.cube:
+            level_cubes[cube.depth].append(cube)
+            max_level = max(max_level, cube.depth)
+
+    for level in range(max_level):
+        for cube in level_cubes[level]:
+            for child in level_cubes[level + 1]:
+                child.link(cube)
+                
+    root = level_cubes[0][0]
+
+    # Populate Tree, Nodes & Edges
+    nodes = []
+    edges = []
+    fraction = -1.0
+    sampling_info = SamplingInfo(fraction)
+    for block in blocks:
+        for cube in block.cube:
+            node, connections = cube.get_elements_for_sampling(fraction)
+            nodes.append(node)
+            edges.extend(connections)
+            sampling_info.update(cube, node['selected'])
+
+    if fraction > 0:
+        print(sampling_info)
+
+        return root, nodes + edges
+
+
+def create_delta_table(table_path: str) -> DeltaTable:
+
+    #1. create delta table
+    deltaTable = DeltaTable(table_path)
+
+def extract_metadata_from_delta_table(delta_table: DeltaTable, revision_key:str):
+
+    #2. extract metadata from delta table
+    if revision_key in list(delta_table.get_add_actions(True).to_pandas()["metadata.configuration"]):
+        metadata = delta_table.metadata().configuration[revision_key]
+        dimension_count = len(metadata['columnTransformers'])
+        symbol_count = (dimension_count + 5) // 6
+    else:
+        print(f"No metadata found for the given RevisionID.")
+        symbol_count = float('inf')
+        for add_file in list(delta_table.get_add_actions(True).to_pandas()["add"]):
+            cube_encoding_size = len(add_file['tags']['blocks']['cubeId'])
+            if 0 < cube_encoding_size < symbol_count:
+                symbol_count = cube_encoding_size
+
+def extract_blocks_from_delta_table(delta_table: DeltaTable):
+
+    #3. extract blocks from delta table
+    # We get all the adds, and for each file we store its blocks. Then we create the cubes stored in these blocks
+    add_list = list( delta_table.get_add_actions(True).to_pandas()["add"] )
+    blocks = list( delta_table.get_add_actions(True).to_pandas().groupBy("cubeId")["tags"]['blocks'] )
+
+def extract_cubes_from_blocks():
+
+    for block in blocks:
+        cube_string = block[0]['cubeId']
+        depth = len(cube_string) // symbol_count
+        size = 0
+        max_weight = float("inf")
+        element_count = 0
+        for add in add_list:
+            max_weight = min(max_weight, int(add['maxWeight']))
+            element_count += int(block['elementCount'])
+            size += int(block['size'])
+
+        cubes.append( Cube(cube_string, max_weight, element_count, size, depth) )

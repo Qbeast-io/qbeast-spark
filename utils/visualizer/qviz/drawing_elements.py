@@ -1,5 +1,8 @@
 from collections import defaultdict
 from qviz.cube import Cube, SamplingInfo
+import pandas as pd
+from deltalake import DeltaTable
+
 
 
 def process_add_files(add_files: list[dict], metadata: dict) -> list[Cube]:
@@ -23,25 +26,25 @@ def process_add_files(add_files: list[dict], metadata: dict) -> list[Cube]:
     # Group cube blocks by Cube string
     cube_blocks = defaultdict(list)
     for add_file in add_files:
-        cube_string = add_file['tags']['cube']
-        cube_blocks[cube_string].append(add_file)
-
+        # For each cube in every block, we append its ID and the addFile to the blocks dict
+        for cube in add_file['tags']['blocks']:
+            cube_string = cube['cubeID'] #cubeID?
+            cube_blocks[cube_string].append(add_file) 
+        
     cubes = []
-    for blocks in cube_blocks.values():
-        cube_string = blocks[0]['block']
-        depth = len(cube_string) // symbol_count
+    for add_files in cube_blocks.values():
 
         size = 0
         max_weight = float("inf")
         element_count = 0
-        for add_file in blocks:
+        for add_file in add_files:
             tags = add_file['tags']
-
+            cube_string = add_file['tags']['blocks']['cubeID']
+            depth = len(cube_string) // symbol_count
             max_weight = min(max_weight, int(tags['maxWeight']))
             element_count += int(tags['elementCount'])
             size += int(add_file['size'])
-
-        cubes.append(Cube(cube_string, max_weight, element_count, size, depth))
+            cubes.append(Cube(cube_string, max_weight, element_count, size, depth))
 
     return cubes
 
