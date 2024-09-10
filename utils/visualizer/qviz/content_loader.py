@@ -9,17 +9,6 @@ from collections import defaultdict
 from qviz.cube import Cube, SamplingInfo
 
 
-class Block:
-    # Origin file
-    file = None
-    # List of cubes in each block
-    cubes = None
-
-    def __init__(self, file, cubes):
-        self.file = file
-        self.cubes = cubes
-
-
 def process_table_delta_log(table_path: str, revision_id: str) -> (list[dict], Optional[dict]):
     """
     Extract valid AddFiles from table's _delta_log
@@ -246,16 +235,6 @@ def extract_metadata_from_checkpoint(checkpoint_file: str, revision_key: str) ->
                 return json.loads(configuration_dict[revision_key])
     return None
 
-    if not checkpoint_file:
-        return None
-    
-    deltaTable = DeltaTable(checkpoint_file)
-    if revision_key in deltaTable.metadata():
-        metadata = deltaTable.metadata().configuration[revision_key]
-        return metadata
-    return None
-
-
 def extract_metadata_from_json_files(file_path: str, json_files: list[str], revision_key: str, table_path: str,) -> Optional[dict]:
     """
     Extract target revision metadata from json log files. Only the first line from the file is read.
@@ -286,20 +265,123 @@ def extract_metadata_from_json_files(file_path: str, json_files: list[str], revi
     return None
 
 
-## CÓDIGO NUEVO 
-
-def process_table(table_path: str, revision_key: str) -> (cube, list[dic]):
+######### CÓDIGO NUEVO ############
+# Returns metadata (dict), cubes(dict), root(cube), nodes & edges (list[dict])
+def process_table(table_path: str, revision_key: str) -> (dict, dict, Cube, list[dict]):
     
+    # Create the Delta table
+    delta_table = create_delta_table(table_path)
 
-    #4. build index from the list of cube blocks
-    # Populate Tree, Root
+    # Extract metadata
+    metadata, symbol_count = extract_metadata_from_delta_table(delta_table, revision_key)
+
+    # Extract blocks from table
+    blocks = extract_blocks_from_delta_table(delta_table)
+
+    # Extract cubes
+    cubes = extract_cubes_from_blocks(delta_table, symbol_count)
+
+    # Build Tree
+    root, elements = build_tree(cubes)
+
+    return metadata, cubes, root, elements
+
+
+# 1. create delta table
+def create_delta_table(table_path: str) -> DeltaTable:
+
+    deltaTable = DeltaTable(table_path)
+    return deltaTable
+
+# 2. extract metadata from delta table
+# Returns metadata (dict), dimension_count (int) and symbol_count (int)
+def extract_metadata_from_delta_table(delta_table: DeltaTable, revision_key:str) -> (dict, int): 
+
+    # We create a dataframe with all the add actions
+    df = delta_table.get_add_actions(True).to_pandas()
+    # List with all the revision ids
+    revision_ids = list(df["tags.revision"])
+    if revision_key in revision_ids:
+        metadata_str = delta_table.metadata().configuration[revision_key]
+        # The last command return a string, and we need a dict to access columnTransformers
+        metadata = json.loads(metadata_str)
+        dimension_count = len(metadata['columnTransformers'])
+        symbol_count = (dimension_count + 5) // 6
+    else:
+        print(f"No metadata found for the given RevisionID.")
+        symbol_count = float('inf')
+        # Create a dataframe with all add actions
+        df = delta_table.get_add_actions(True).to_pandas()
+        # Convert all blocks JSON chains to a list of dictionaries
+        df['tags.blocks'] = df['tags.blocks'].apply(lambda x: json.loads(x) if isinstance(x, str) else x)
+        # Make sure that 'tags.blocks' is a list of dictionaries
+        exploded_df = df.explode('tags.blocks')
+        # Extract 'cubeId'
+        all_cube_ids = exploded_df['tags.blocks'].apply(lambda x: x['cubeId'] if isinstance(x, dict) and 'cubeId' in x else None).dropna().tolist()
+
+        for cube_id in all_cube_ids:
+            cube_encoding_size = len(cube_id)
+            if 0 < cube_encoding_size < symbol_count:
+                symbol_count = cube_encoding_size
+
+    return metadata, symbol_count
+
+# 3. Returns a dictionary, the keys are the cubeids and the values are the actual cubes
+def extract_cubes_from_blocks(delta_table: DeltaTable , symbol_count: int) -> dict:
+
+    df = delta_table.get_add_actions(True).to_pandas()
+
+    df_filtered = df[['size_bytes', 'tags.blocks']]
+    # In this dictionary we store a cube for every cubeId
+    cubes_dict = dict()
+
+    for index, row in df_filtered.iterrows():
+        cubes = row["tags.blocks"] # This returns a pandas series with all the cubes
+        for cube in cubes:
+            # Each cube is formed by a series of blocks
+            # Each block is a string, we make it a list to access the cubeIds and all the variables of the blocks
+            block_list = json.loads(cube)
+            for block in block_list:
+
+                # Check if we already have a cube with the cubeId of this block
+                # If we already have a cube with this cubeId, we update the atributes of the cube
+                # Since objects are passed by reference, they will be modified in situ
+                if block['cubeId'] in cubes_dict.keys():
+                    dict_cube = cubes_dict[block['cubeId']]
+                    dict_cube.max_weight = min(max_weight, int(block['maxWeight']))
+                    dict_cube.element_count += int(block['elementCount'])
+                    dict_cube.size += int(row['size_bytes'])
+
+                else:
+                    # We create a new cube
+                    # Calculate depth of the cube
+                    cube_string = block['cubeId']
+                    depth = len(cube_string) // symbol_count
+                    # Assign max_weight, min_weight, elemnt_count a value for each cube
+                    max_weight = cube['maxWeight']
+                    element_count = cube['elementCount']
+                    replicated = cube['replicated']
+                    min_weight = cube['minWeight']
+                    size = int(row['size_bytes'])
+                    cubes_dict[cube_string] = Cube(cube_string, max_weight, element_count, size, depth) 
+    
+    return cubes
+
+
+#4. build index from the list of cube blocks
+# Returns the root of the tree (cube), the nodes and the edges
+def build_tree(cubes: dict) -> tuple[Cube, list[dict]]:
+
+    # Populate Tree: Root
     max_level = 0
     level_cubes = defaultdict(list)
-    for block in blocks:
-        for cube in block.cube:
-            level_cubes[cube.depth].append(cube)
-            max_level = max(max_level, cube.depth)
 
+    # Get the cubes from the values of the dictionary and assign a level depending of the depth of each cube
+    cubes = cubes.values()
+    for cube in cubes:
+        level_cubes[cube.depth].append(cube)
+        max_level = max(max_level, cube.depth)
+    
     for level in range(max_level):
         for cube in level_cubes[level]:
             for child in level_cubes[level + 1]:
@@ -307,13 +389,12 @@ def process_table(table_path: str, revision_key: str) -> (cube, list[dic]):
                 
     root = level_cubes[0][0]
 
-    # Populate Tree, Nodes & Edges
+    # Populate Tree: Nodes & Edges
     nodes = []
     edges = []
     fraction = -1.0
     sampling_info = SamplingInfo(fraction)
-    for block in blocks:
-        for cube in block.cube:
+    for cube in cubes:
             node, connections = cube.get_elements_for_sampling(fraction)
             nodes.append(node)
             edges.extend(connections)
@@ -322,47 +403,4 @@ def process_table(table_path: str, revision_key: str) -> (cube, list[dic]):
     if fraction > 0:
         print(sampling_info)
 
-        return root, nodes + edges
-
-
-def create_delta_table(table_path: str) -> DeltaTable:
-
-    #1. create delta table
-    deltaTable = DeltaTable(table_path)
-
-def extract_metadata_from_delta_table(delta_table: DeltaTable, revision_key:str):
-
-    #2. extract metadata from delta table
-    if revision_key in list(delta_table.get_add_actions(True).to_pandas()["metadata.configuration"]):
-        metadata = delta_table.metadata().configuration[revision_key]
-        dimension_count = len(metadata['columnTransformers'])
-        symbol_count = (dimension_count + 5) // 6
-    else:
-        print(f"No metadata found for the given RevisionID.")
-        symbol_count = float('inf')
-        for add_file in list(delta_table.get_add_actions(True).to_pandas()["add"]):
-            cube_encoding_size = len(add_file['tags']['blocks']['cubeId'])
-            if 0 < cube_encoding_size < symbol_count:
-                symbol_count = cube_encoding_size
-
-def extract_blocks_from_delta_table(delta_table: DeltaTable):
-
-    #3. extract blocks from delta table
-    # We get all the adds, and for each file we store its blocks. Then we create the cubes stored in these blocks
-    add_list = list( delta_table.get_add_actions(True).to_pandas()["add"] )
-    blocks = list( delta_table.get_add_actions(True).to_pandas().groupBy("cubeId")["tags"]['blocks'] )
-
-def extract_cubes_from_blocks():
-
-    for block in blocks:
-        cube_string = block[0]['cubeId']
-        depth = len(cube_string) // symbol_count
-        size = 0
-        max_weight = float("inf")
-        element_count = 0
-        for add in add_list:
-            max_weight = min(max_weight, int(add['maxWeight']))
-            element_count += int(block['elementCount'])
-            size += int(block['size'])
-
-        cubes.append( Cube(cube_string, max_weight, element_count, size, depth) )
+    return root, nodes + edges

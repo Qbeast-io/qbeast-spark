@@ -5,7 +5,7 @@ RANGE = 2147483647.0 - OFFSET
 
 
 class Cube:
-    def __init__(self, cube_string: str, max_weight: int, element_count: int, size: int, depth: int, cube_id: str):
+    def __init__(self, cube_string: str, max_weight: int, element_count: int, size: int, depth: int):
         self.cube_string = cube_string
         self.max_weight = normalize_weight(max_weight)
         self.element_count = element_count

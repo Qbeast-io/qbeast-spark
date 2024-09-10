@@ -3,7 +3,7 @@ from dash.dependencies import Input, Output
 import dash_cytoscape as cyto
 import click
 
-from qviz.content_loader import process_table_delta_log
+from qviz.content_loader import process_table
 from qviz.drawing_elements import process_add_files, populate_tree, get_nodes_and_edges
 
 
@@ -32,13 +32,15 @@ def show_tree(path: str, revision_id: int) -> None:
     assert revision_id > 0, f"Invalid value for revision_id: {revision_id}, it must be > 0."
 
     # Gather revision AddFiles from the table _delta_log/
-    add_files, metadata = process_table_delta_log(path, str(revision_id))
+    #add_files, metadata = process_table_delta_log(path, str(revision_id))
     # Process build Cubes from AddFiles
-    cubes = process_add_files(add_files, metadata)
+    #cubes = process_add_files(add_files, metadata)
     # Populate the index by creating parent-child references
-    _ = populate_tree(cubes)
+    #_ = populate_tree(cubes)
     # Gather drawing elements from populated cubes
-    elements = get_nodes_and_edges(cubes)
+    #elements = get_nodes_and_edges(cubes)
+
+    metadata, cubes, _, elements = process_table(path, revision_id)
 
     # Callback that modifies the drawing elements
     @app.callback(Output('cyto-space', 'elements'), Input('fraction', 'value'))

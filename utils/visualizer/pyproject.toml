@@ -25,6 +25,9 @@ Werkzeug = "2.2.3"
 zipp = "3.8.0"
 setuptools = "65.5.1"
 pyarrow = "~17.0.0"
+pandas = "2.1.1"
+numpy = "^1.24"
+deltalake = "^0.8.0"
 
 [tool.poetry.scripts]
 qviz = "qviz:show_tree"
