@@ -23,7 +23,7 @@ import io.qbeast.spark.index.query.QueryExecutor
 import io.qbeast.spark.index.query.QuerySpec
 import io.qbeast.spark.index.query.QuerySpecBuilder
 import io.qbeast.spark.index.query.QueryTestSpec
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastDeltaTestSpec
 import io.qbeast.spark.QbeastTable
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.expressions.Expression
@@ -36,7 +36,7 @@ import org.apache.spark.sql.Dataset
 
 import scala.collection.immutable.SortedMap
 
-class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
+class QueryExecutorTest extends QbeastDeltaTestSpec with QueryTestSpec {
 
   behavior of "QueryExecutor"
 

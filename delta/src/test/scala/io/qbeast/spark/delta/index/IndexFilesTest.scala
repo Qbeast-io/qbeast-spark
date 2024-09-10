@@ -16,14 +16,17 @@
 package io.qbeast.spark.delta.index
 
 import com.fasterxml.jackson.core.JsonParseException
-import io.qbeast.core.model.{Block, CubeId, IndexFile, Weight}
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.core.model.Block
+import io.qbeast.core.model.CubeId
+import io.qbeast.core.model.IndexFile
+import io.qbeast.core.model.Weight
 import io.qbeast.spark.delta.IndexFiles
 import io.qbeast.spark.utils.TagUtils
+import io.qbeast.spark.QbeastDeltaTestSpec
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.actions.AddFile
 
-class IndexFilesTest extends QbeastIntegrationTestSpec {
+class IndexFilesTest extends QbeastDeltaTestSpec {
 
   "IndexFiles" should "be able to create an AddFile instance from IndexFile" in withSpark { _ =>
     val indexFile = IndexFile(

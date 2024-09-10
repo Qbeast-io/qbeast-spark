@@ -42,6 +42,21 @@ lazy val qbeastDelta = (project in file("./delta"))
     assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false))
   .settings(noWarningInConsole)
 
+lazy val integrationTests = (project in file("./integration-tests"))
+  .dependsOn(qbeastSpark, qbeastDelta)
+  .settings(
+    name := "integration-tests",
+    libraryDependencies ++= Seq(
+      sparkCore % Test,
+      hadoopClient % Test,
+      sparkSql % Test,
+      apacheCommons % Test,
+      amazonAws % Test,
+      deltaSpark % Test,
+      hadoopCommons % Test,
+      hadoopAws % Test,
+      sparkml % Test))
+
 qbeastSpark / Compile / doc / scalacOptions ++= Seq(
   "-doc-title",
   "qbeast-spark",

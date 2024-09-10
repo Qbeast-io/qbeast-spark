@@ -18,10 +18,9 @@ package io.qbeast.spark.delta.index
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.delta.IndexFiles
-import io.qbeast.spark.index.IndexTestChecks
 import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastDeltaTestSpec
 import io.qbeast.TestClasses.Client3
 import io.qbeast.TestClasses.Client4
 import org.apache.spark.sql.delta.DeltaLog
@@ -33,11 +32,7 @@ import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class IndexTest
-    extends AnyFlatSpec
-    with Matchers
-    with QbeastIntegrationTestSpec
-    with IndexTestChecks {
+class IndexTest extends AnyFlatSpec with Matchers with QbeastDeltaTestSpec with IndexTestChecks {
 
   // TEST CONFIGURATIONS
   private val options = Map("columnsToIndex" -> "age,val2", "cubeSize" -> "10000")

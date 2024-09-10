@@ -17,7 +17,7 @@ package io.qbeast.spark.delta.utils
 
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastDeltaTestSpec
 import org.apache.spark.sql.delta.actions.Action
 import org.apache.spark.sql.delta.actions.Metadata
 import org.apache.spark.sql.delta.util.FileNames
@@ -26,7 +26,7 @@ import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.AnalysisException
 
-class QbeastSparkCorrectnessTest extends QbeastIntegrationTestSpec {
+class QbeastSparkCorrectnessTest extends QbeastDeltaTestSpec {
 
   "Qbeast datasource" should
     "expose the original number of columns and rows" in withQbeastContextSparkAndTmpDir {

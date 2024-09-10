@@ -16,7 +16,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastDeltaTestSpec
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.LessThan
@@ -34,7 +34,7 @@ import org.apache.spark.sql.SparkSession
 /**
  * Tests for DefaultFileIndex.
  */
-class DefaultFileIndexTest extends QbeastIntegrationTestSpec {
+class DefaultFileIndexTest extends QbeastDeltaTestSpec {
 
   private def createTestTable(
       spark: SparkSession,

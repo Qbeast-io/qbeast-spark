@@ -20,14 +20,14 @@ import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.QbeastSnapshot
 import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastDeltaTestSpec
 import io.qbeast.TestClasses.Client3
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 import org.scalatest.AppendedClues.convertToClueful
 
-class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
+class QbeastSnapshotTest extends QbeastDeltaTestSpec {
 
   def createDF(size: Int): Dataset[Client3] = {
     val spark = SparkSession.active

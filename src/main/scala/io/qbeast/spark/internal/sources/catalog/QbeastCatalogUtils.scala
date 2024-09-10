@@ -18,8 +18,8 @@ package io.qbeast.spark.internal.sources.catalog
 import io.qbeast.context.QbeastContext.metadataManager
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
-import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
 import io.qbeast.spark.internal.QbeastOptions
+import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
 import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.fs.Path

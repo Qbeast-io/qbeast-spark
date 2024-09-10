@@ -17,11 +17,11 @@ package io.qbeast
 
 import io.qbeast.spark.delta.DeltaDefaultFileIndex
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastDeltaTestSpec
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.DataFrame
 
-object TestUtils extends QbeastIntegrationTestSpec {
+object TestUtils extends QbeastDeltaTestSpec {
 
   def checkLogicalFilterPushdown(sqlFilters: Seq[String], query: DataFrame): Unit = {
     val leaves = query.queryExecution.sparkPlan.collectLeaves()

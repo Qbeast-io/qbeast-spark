@@ -22,10 +22,10 @@ import io.qbeast.core.model.Weight
 import io.qbeast.core.model.WeightRange
 import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.core.transform.Transformer
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastSrcTestSpec
 import org.apache.spark.sql.functions.expr
 
-class DisjunctiveQuerySpecTest extends QbeastIntegrationTestSpec with QueryTestSpec {
+class DisjunctiveQuerySpecTest extends QbeastSrcTestSpec with QueryTestSpec {
 
   behavior of "QuerySpecBuilder"
 

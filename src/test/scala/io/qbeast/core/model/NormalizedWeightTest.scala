@@ -15,12 +15,12 @@
  */
 package io.qbeast.core.model
 
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastSrcTestSpec
 
 /**
  * Tests of NormalizedWeight.
  */
-class NormalizedWeightTest extends QbeastIntegrationTestSpec {
+class NormalizedWeightTest extends QbeastSrcTestSpec {
 
   "NormalizedWeight" should "support merge with other maxWeight" in {
     NormalizedWeight.merge(2.0, 3.0) shouldBe 1.2

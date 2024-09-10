@@ -16,12 +16,12 @@
 package io.qbeast.core.model
 
 import io.qbeast.core.transform.EmptyTransformer
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastSrcTestSpec
 
 import scala.collection.immutable.SortedMap
 import scala.collection.immutable.SortedSet
 
-class DenormalizedBlockTest extends QbeastIntegrationTestSpec {
+class DenormalizedBlockTest extends QbeastSrcTestSpec {
 
   "DenormalizedBlockTest.isLeaf" should "return correctly determine the leaf nodes" in {
     //            r

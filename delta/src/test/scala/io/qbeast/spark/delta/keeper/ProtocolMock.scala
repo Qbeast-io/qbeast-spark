@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.keeper
+package io.qbeast.spark.delta.keeper
 
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model._
@@ -21,7 +21,7 @@ import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.delta.DeltaSparkMetadataManager
 import io.qbeast.spark.delta.MetadataWriterTest
 import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastDeltaTestSpec
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.delta.DeltaOperations
 import org.apache.spark.sql.types.StructType
@@ -106,7 +106,7 @@ case class ProtoTestContext(outDir: String, spark: SparkSession) {
 
 }
 
-trait ProtocolMockTestSpec extends QbeastIntegrationTestSpec {
+trait ProtocolMockTestSpec extends QbeastDeltaTestSpec {
 
   def withContext[T](keeper: Keeper)(testCode: ProtoTestContext => T): T = {
     withQbeastAndSparkContext() { spark =>

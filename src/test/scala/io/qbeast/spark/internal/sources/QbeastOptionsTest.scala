@@ -18,12 +18,12 @@ package io.qbeast.spark.internal.sources
 import io.qbeast.core.writer.HookInfo
 import io.qbeast.core.writer.PreCommitHook.PRE_COMMIT_HOOKS_PREFIX
 import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastSrcTestSpec
 import org.apache.spark.qbeast.config
 import org.apache.spark.sql.delta.DeltaOptions
 import org.apache.spark.sql.AnalysisException
 
-class QbeastOptionsTest extends QbeastIntegrationTestSpec {
+class QbeastOptionsTest extends QbeastSrcTestSpec {
 
   "QbeastOptions" should "be able to create a QbeastOptions instance only with columnsToIndex" in withSpark {
     _ =>

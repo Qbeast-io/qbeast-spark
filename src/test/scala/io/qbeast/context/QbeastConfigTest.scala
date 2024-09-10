@@ -15,13 +15,13 @@
  */
 package io.qbeast.context
 
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastSrcTestSpec
 import org.apache.spark.qbeast.config
 import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class QbeastConfigTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec {
+class QbeastConfigTest extends AnyFlatSpec with Matchers with QbeastSrcTestSpec {
 
   "Qbeast config" should "use default configurations" in withSpark { _ =>
     config.DEFAULT_CUBE_SIZE shouldBe 5000000

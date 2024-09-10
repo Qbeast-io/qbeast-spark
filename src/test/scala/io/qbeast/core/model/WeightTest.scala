@@ -15,12 +15,12 @@
  */
 package io.qbeast.core.model
 
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastSrcTestSpec
 
 /**
  * Tests for [[Weight]].
  */
-class WeightTest extends QbeastIntegrationTestSpec {
+class WeightTest extends QbeastSrcTestSpec {
 
   "Weight" should "compute fraction correctly" in {
     Weight.MinValue.fraction shouldBe 0.0

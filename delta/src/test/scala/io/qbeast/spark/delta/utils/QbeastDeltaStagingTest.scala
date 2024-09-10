@@ -18,12 +18,12 @@ package io.qbeast.spark.delta.utils
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.utils.StagingUtils
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.QbeastDeltaTestSpec
 import io.qbeast.spark.QbeastTable
 import io.qbeast.TestClasses.T2
 import org.apache.spark.sql.SparkSession
 
-class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils {
+class QbeastDeltaStagingTest extends QbeastDeltaTestSpec with StagingUtils {
   val columnsToIndex: Seq[String] = Seq("a", "b")
   val qDataSize = 10000
   val dDataSize = 10000
