@@ -29,7 +29,7 @@ class QbeastConfigTest extends AnyFlatSpec with Matchers with QbeastSrcTestSpec 
   }
 
   it should "change configurations accordingly" in withExtendedSpark(
-    sparkConfWithSqlAndCatalog
+    sparkConf
       .set("spark.qbeast.index.defaultCubeSize", "1000")
       .set("spark.qbeast.index.cubeWeightsBufferCapacity", "1000")
       .set("spark.qbeast.index.numberOfRetries", "10")) { _ =>
@@ -46,11 +46,10 @@ class QbeastConfigTest extends AnyFlatSpec with Matchers with QbeastSrcTestSpec 
   }
 
   it should "be defined" in withExtendedSpark(
-    sparkConfWithSqlAndCatalog
+    sparkConf
       .set("spark.qbeast.keeper", "myKeeper")) { spark =>
     val keeperString = spark.sparkContext.getConf.getOption("spark.qbeast.keeper")
     keeperString.get shouldBe "myKeeper"
-
   }
 
 }

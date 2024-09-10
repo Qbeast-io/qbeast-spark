@@ -20,7 +20,6 @@ import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.QbeastSnapshot
 import io.qbeast.core.model.StagingDataManager
 import io.qbeast.core.utils.StagingUtils
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.T2
@@ -40,7 +39,7 @@ class DataStagingTest
 
   def getQbeastSnapshot(spark: SparkSession, dir: String): QbeastSnapshot = {
     val tableId = new QTableID(dir)
-    new DeltaQbeastSnapshot(spark, tableId)
+    QbeastSnapshot("delta", tableId)
   }
 
   private val getCurrentStagingSize: PrivateMethod[Long] =

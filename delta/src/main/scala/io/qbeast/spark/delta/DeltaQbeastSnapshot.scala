@@ -228,7 +228,7 @@ class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with DeltaSt
 class DeltaQbeastSnapshotFactory extends QbeastSnapshotFactory {
 
   override def createQbeastSnapshot(tableID: QTableID): QbeastSnapshot = {
-    new DeltaQbeastSnapshot(SparkSession.active, tableID)
+    new DeltaQbeastSnapshot(tableID)
   }
 
   override val format: String = "delta"

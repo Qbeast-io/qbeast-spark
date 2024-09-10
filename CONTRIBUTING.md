@@ -193,7 +193,7 @@ sbt assembly
 $SPARK_HOME/bin/spark-shell \
 --jars ./target/scala-2.12/qbeast-spark-assembly-0.6.0.jar \
 --packages io.delta:delta-spark_2.12:3.1.0 \
---conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
+--conf spark.sql.extensions=io.qbeast.spark.delta.internal.QbeastSparkSessionExtension \
 --conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
 ```
 
@@ -280,7 +280,7 @@ To publish a new version of the qbeast-spark project, follow these steps:
 export QBEAST_SPARK_VERSION=0.6.0-SNAPSHOT
 $SPARK_350/bin/spark-shell --repositories https://s01.oss.sonatype.org/content/repositories/snapshots \
 --packages io.delta:delta-spark_2.12:3.1.0,io.qbeast:qbeast-spark_2.12:$QBEAST_SPARK_VERSION \
---conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
+--conf spark.sql.extensions=io.qbeast.spark.delta.internal.QbeastSparkSessionExtension \
 --conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
 
 ```

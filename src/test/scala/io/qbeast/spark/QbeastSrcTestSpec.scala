@@ -21,7 +21,6 @@ import io.qbeast.core.keeper.LocalKeeper
 import io.qbeast.core.model.IndexManager
 import io.qbeast.spark.index.SparkOTreeManager
 import org.apache.log4j.Level
-import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.SparkConf
@@ -45,12 +44,8 @@ trait QbeastSrcTestSpec extends AnyFlatSpec with Matchers with DatasetComparer {
 
   // Spark Configuration
   // Including Session Extensions and Catalog
-  def sparkConfWithSqlAndCatalog: SparkConf = new SparkConf()
+  def sparkConf: SparkConf = new SparkConf()
     .setMaster("local[8]")
-    .set("spark.sql.extensions", "io.qbeast.spark.internal.QbeastSparkSessionExtension")
-    .set(
-      SQLConf.V2_SESSION_CATALOG_IMPLEMENTATION.key,
-      "io.qbeast.spark.internal.sources.catalog.QbeastCatalog")
 
   def loadTestData(spark: SparkSession): DataFrame = spark.read
     .format("csv")
@@ -111,7 +106,7 @@ trait QbeastSrcTestSpec extends AnyFlatSpec with Matchers with DatasetComparer {
    * @return
    */
   def withSpark[T](testCode: SparkSession => T): T = {
-    withExtendedSpark(sparkConfWithSqlAndCatalog)(testCode)
+    withExtendedSpark(sparkConf)(testCode)
   }
 
   /**
@@ -179,7 +174,7 @@ trait QbeastSrcTestSpec extends AnyFlatSpec with Matchers with DatasetComparer {
   def withQbeastContextSparkAndTmpWarehouse[T](testCode: (SparkSession, String) => T): T =
     withTmpDir(tmpDir =>
       withExtendedSpark(
-        sparkConfWithSqlAndCatalog
+        sparkConf
           .set("spark.sql.warehouse.dir", tmpDir))(spark => testCode(spark, tmpDir)))
 
   /**
