@@ -17,25 +17,34 @@ package io.qbeast.spark.table
 
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model._
-import io.qbeast.core.model.RevisionFactory
 import io.qbeast.spark.delta.IndexFiles
 import io.qbeast.spark.delta.StagingDataManager
 import io.qbeast.spark.delta.StagingResolution
 import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer
+import io.qbeast.spark.index.QbeastColumns
+import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
 import io.qbeast.spark.internal.QbeastOptions.optimizationOptions
 import io.qbeast.spark.internal.QbeastOptions.COLUMNS_TO_INDEX
 import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
+import org.apache.hadoop.fs.Path
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.COLUMN_SELECTOR_ENABLED
 import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
 import org.apache.spark.sql.delta.actions.FileAction
+import org.apache.spark.sql.functions
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.count
+import org.apache.spark.sql.functions.input_file_name
+import org.apache.spark.sql.functions.regexp_extract
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
 
 import java.util.ConcurrentModificationException
 
@@ -133,6 +142,8 @@ trait IndexedTable {
    *   the index files to optimize
    */
   def optimize(files: Seq[String], options: Map[String, String]): Unit
+
+  def indexWithoutRewriting(files: Set[String]): Unit
 }
 
 /**
@@ -513,6 +524,92 @@ private[table] class IndexedTableImpl(
           (tableChanges, newFiles ++ removeFiles)
         }
       }
+    }
+  }
+
+  override def indexWithoutRewriting(files: Set[String]): Unit = {
+
+    val schema = metadataManager.loadCurrentSchema(tableID)
+
+    val indexStatus = snapshot.loadIndexStatus(latestRevision.revisionID)
+    metadataManager.updateWithTransaction(
+      tableID,
+      schema,
+      optimizationOptions(Map()),
+      append = true) {
+
+      val spark = SparkSession.active
+      import spark.implicits._
+      val fileDs = files.toSeq.map(path => new Path(path).getName).toDF("path")
+      val stageIndexFiles = snapshot.loadIndexFiles(0)
+
+      val indexFiles: Dataset[IndexFile] = stageIndexFiles.join(fileDs, "path").as[IndexFile]
+      val removeFiles =
+        indexFiles.map(IndexFiles.toRemoveFile(dataChange = false)).collect().toIndexedSeq
+
+      val data = snapshot.loadDataframeFromIndexFiles(indexFiles)
+
+      val (dataExtended, tableChanges) = SparkOTreeManager.index(data, indexStatus)
+      val updatedRevision = tableChanges.updatedRevision
+      val dimensionCount = updatedRevision.columnTransformers.size
+      val newFiles: Dataset[IndexFile] = dataExtended
+        .withColumn("path", regexp_extract(input_file_name(), "[^/]+$", 0))
+        .groupBy(col("path"), col(QbeastColumns.cubeColumnName))
+        .agg(
+          functions.max(QbeastColumns.weightColumnName).as("maxWeight"),
+          functions.min(QbeastColumns.weightColumnName).as("minWeight"),
+          count("*").as("blockElementCount"))
+        .join(indexFiles, "path")
+        .select(
+          "path",
+          "size",
+          "modificationTime",
+          QbeastColumns.cubeColumnName,
+          "maxWeight",
+          "minWeight",
+          "blockElementCount")
+        .as[(String, Long, Long, Array[Byte], Int, Int, Long)]
+        .groupByKey(a => (a._1, a._2, a._3))
+        .mapGroups {
+          case (
+                (path: String, size: Long, modificationTime: Long),
+                rows: Iterator[(String, Long, Long, Array[Byte], Int, Int, Long)]) =>
+            val ifb = new IndexFileBuilder()
+              .setPath(new Path(path).getName)
+              .setRevisionId(updatedRevision.revisionID)
+              .setSize(size)
+              .setModificationTime(modificationTime)
+            rows
+              .foldLeft(ifb) {
+                case (
+                      ifb,
+                      (
+                        _,
+                        _,
+                        _,
+                        cubeId: Array[Byte],
+                        maxWeight: Int,
+                        minWeight: Int,
+                        blockElementCount: Long)) =>
+                  ifb
+                    .beginBlock()
+                    .setCubeId(CubeId.apply(dimensionCount, cubeId))
+                    .setMinWeight(Weight(minWeight))
+                    .setMaxWeight(Weight(maxWeight))
+                    .setElementCount(blockElementCount)
+                    .setReplicated(false)
+                    .endBlock()
+              }
+              .result()
+        }
+
+      dataExtended.unpersist() // we don't use this anymore
+
+
+      val addFiles = newFiles.map(IndexFiles.toAddFile(dataChange = false)).collect().toIndexedSeq
+
+      (tableChanges, addFiles ++ removeFiles)
+
     }
   }
 

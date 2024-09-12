@@ -107,6 +107,10 @@ class QbeastTable private (
   def optimize(files: Seq[String]): Unit =
     optimize(files, Map.empty[String, String])
 
+  def indexWithoutRewriting(files: Set[String]): Unit = {
+    indexedTable.indexWithoutRewriting(files)
+  }
+
   /**
    * The analyze operation should analyze the index structure and find the cubes that need
    * optimization
