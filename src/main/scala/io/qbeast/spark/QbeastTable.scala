@@ -239,7 +239,7 @@ class QbeastTable private (
   }
 
   /**
-   * Gather an dataset containing all the important information about the index structure.
+   * Gather a dataset containing all the important information about the index structure.
    *
    * @param revisionID
    *   optional RevisionID

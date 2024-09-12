@@ -6,26 +6,34 @@ With a given qbeast table path and a target `RevisionID`, it scans the `_delta_l
 One can also provide a sampling fraction and the selected nodes will be highlighted with a different color. Details about on the sampling efficiency will be shown in the terminal. 
 
 ### Installation
-```
+
+First of all, you need to make sure you have python installed in your pc and then install poetry in order to download all the dependencies.
+
+```bash
+# Clone qbeast-spark repo
 git clone git@github.com:Qbeast-io/qbeast-spark.git
+cd qbeast-spark/utils/visualizer
 
-virtualenv ~/.envs/index-viz
+# Pyhton version should be 3.12
+python3 --version
 
-source ~/.envs/index-viz/bin/activate
-
-cd ./qbeast-spark/utils/visualizer/
-
-make install
+# Install tool and required dependencies
+brew install poetry
+poetry install 
 ```
+
 ### Usage
 
-Launch a `Flask` serve with the following command and open the link with a browser: 
-```
-qviz ./docs/test_table/
+Launch a `Flask` serve with the following command and open the link with a browser:
+
+```bash
+# Run the tool on the test table
+poetry run qviz docs/test_table/
 
 # optionally, specify the index revision(defaulted to 1)
 # qviz <table-path> --revision-id=2
 ```
+
 - Visualize cubes retrieved for a given sampling fraction.
 ![](docs/images/sampling-fraction.png)
 - Sampling details: when a valid value for sampling fraction is given, a set of sampling metrics are displayed.

@@ -16,7 +16,6 @@
 package io.qbeast.spark.delta.writer
 
 import io.qbeast.core.model._
-import io.qbeast.spark.index.NormalizedWeight
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.index.SparkRevisionFactory
@@ -48,9 +47,9 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
 
   val point: Point = Point(0.66, 0.28)
 
-  val weightMap: Map[CubeId, NormalizedWeight] = 1
+  val weightMap: Map[CubeId, Weight] = 1
     .to(numDistinctCubes)
-    .map(i => (CubeId.container(point, i), Random.nextDouble()))
+    .map(i => (CubeId.container(point, i), NormalizedWeight.toWeight(Random.nextDouble())))
     .toMap
 
   val announcedSet: Set[CubeId] = Set.empty
@@ -58,7 +57,7 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
 
   val indexData: immutable.IndexedSeq[IndexData] =
     weightMap.toIndexedSeq.map(ids =>
-      IndexData(Random.nextInt(), ids._1.bytes, ids._2, "FLOODED"))
+      IndexData(Random.nextInt(), ids._1.bytes, ids._2.fraction, "FLOODED"))
 
   import spark.implicits._
   val indexed: DataFrame = indexData.toDF("id", cubeColumnName, weightColumnName, stateColumnName)
@@ -78,27 +77,25 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
       QbeastOptions(Map("columnsToIndex" -> "id", "cubeSize" -> "10000")))
 
   val cubeStatuses: SortedMap[CubeId, CubeStatus] = {
-    val cubeStatusesSeq = weightMap.toIndexedSeq.map {
-      case (cubeId: CubeId, normalizedWeight: NormalizedWeight) =>
-        val maxWeight = Weight(normalizedWeight)
-        val files = (1 to 4)
-          .map { i =>
-            // Create a Block under the revision
-            new IndexFileBuilder()
-              .setPath(UUID.randomUUID().toString)
-              .setSize(i * 1000L)
-              .setModificationTime(System.currentTimeMillis())
-              .setRevisionId(rev.revisionID)
-              .beginBlock()
-              .setCubeId(cubeId)
-              .setMaxWeight(maxWeight)
-              .setElementCount(i * 10L)
-              .setReplicated(false)
-              .endBlock()
-              .result()
-          }
-          .flatMap(_.blocks)
-        (cubeId, CubeStatus(cubeId, maxWeight, normalizedWeight, files))
+    val cubeStatusesSeq = weightMap.toIndexedSeq.map { case (cubeId: CubeId, maxWeight: Weight) =>
+      val files = (1 to 4)
+        .map { i =>
+          // Create a Block under the revision
+          new IndexFileBuilder()
+            .setPath(UUID.randomUUID().toString)
+            .setSize(i * 1000L)
+            .setModificationTime(System.currentTimeMillis())
+            .setRevisionId(rev.revisionID)
+            .beginBlock()
+            .setCubeId(cubeId)
+            .setMaxWeight(maxWeight)
+            .setElementCount(i * 10L)
+            .setReplicated(false)
+            .endBlock()
+            .result()
+        }
+        .flatMap(_.blocks)
+      (cubeId, CubeStatus(cubeId, maxWeight, maxWeight.fraction, files))
     }
 
     SortedMap(cubeStatusesSeq: _*)

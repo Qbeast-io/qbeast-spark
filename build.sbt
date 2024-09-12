@@ -1,7 +1,7 @@
 import xerial.sbt.Sonatype._
 import Dependencies._
 
-val mainVersion = "0.7.0-SNAPSHOT"
+val mainVersion = "0.8.0-SNAPSHOT"
 
 // Projects
 lazy val qbeastSpark = (project in file("."))
@@ -102,7 +102,7 @@ ThisBuild / publishTo := {
 }
 
 // Sonatype settings
-ThisBuild / publishMavenStyle := true
+ThisBuild / publishMavenStyle.withRank(KeyRanks.Invisible) := true
 ThisBuild / sonatypeProfileName := "io.qbeast"
 
 ThisBuild / sonatypeProjectHosting := Some(

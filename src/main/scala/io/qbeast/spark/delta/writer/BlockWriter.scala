@@ -22,7 +22,7 @@ import io.qbeast.core.model.TableChanges
 import io.qbeast.core.model.Weight
 import io.qbeast.spark.delta.IndexFiles
 import io.qbeast.spark.index.QbeastColumns
-import io.qbeast.spark.utils.State
+import io.qbeast.spark.model.CubeState
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapred.JobConf
 import org.apache.hadoop.mapred.TaskAttemptContextImpl
@@ -85,7 +85,7 @@ case class BlockWriter(
     rows.foreach { row =>
       val cubeId = revision.createCubeId(row.getBinary(qbeastColumns.cubeColumnIndex))
 
-      val state = tableChanges.cubeState(cubeId).getOrElse(State.FLOODED)
+      val state = tableChanges.cubeState(cubeId)
       val maxWeight = tableChanges.cubeWeight(cubeId).getOrElse(Weight.MaxValue)
       val context = contexts.getOrElseUpdate(cubeId, buildWriter(cubeId, state, maxWeight))
 
@@ -169,7 +169,7 @@ case class BlockWriter(
       .beginBlock()
       .setCubeId(cubeId)
       .setMaxWeight(maxWeight)
-      .setReplicated(state == State.ANNOUNCED || state == State.REPLICATED)
+      .setReplicated(state == CubeState.ANNOUNCED)
     blockStatsTracker.foreach(_.newFile(writtenPath.toString)) // Update stats trackers
     new BlockContext(builder, writer, writtenPath, blockStatsTracker)
   }
