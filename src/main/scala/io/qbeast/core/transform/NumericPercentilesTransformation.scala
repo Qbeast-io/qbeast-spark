@@ -19,22 +19,22 @@ import io.qbeast.core.model.OrderedDataType
 
 import scala.collection.Searching._
 
-case class NumericQuantilesTransformation(
-    approxQuantiles: IndexedSeq[Any],
+case class NumericPercentilesTransformation(
+    approxPercentiles: IndexedSeq[Any],
     orderedDataType: OrderedDataType)
     extends Transformation {
 
   private implicit val ord: Numeric[Any] = orderedDataType.ordering
 
-  private def isDefault: Boolean = approxQuantiles == orderedDataType.defaultQuantiles
+  private def isDefault: Boolean = approxPercentiles == orderedDataType.defaultPercentiles
 
   override def transform(value: Any): Double = {
-    approxQuantiles.search(value) match {
-      case Found(foundIndex) => foundIndex.toDouble / (approxQuantiles.length - 1)
+    approxPercentiles.search(value) match {
+      case Found(foundIndex) => foundIndex.toDouble / (approxPercentiles.length - 1)
       case InsertionPoint(insertionPoint) =>
         if (insertionPoint == 0) 0d
-        else if (insertionPoint == approxQuantiles.length + 1) 1d
-        else (insertionPoint - 1).toDouble / (approxQuantiles.length - 1)
+        else if (insertionPoint == approxPercentiles.length + 1) 1d
+        else (insertionPoint - 1).toDouble / (approxPercentiles.length - 1)
       case _ =>
         throw new IllegalArgumentException(s"Value $value not found in approximated quantiles")
     }
@@ -50,10 +50,10 @@ case class NumericQuantilesTransformation(
    */
   override def isSupersededBy(newTransformation: Transformation): Boolean =
     newTransformation match {
-      case nt @ NumericQuantilesTransformation(hist, _) =>
+      case nt @ NumericPercentilesTransformation(hist, _) =>
         if (isDefault) !nt.isDefault
         else if (nt.isDefault) false
-        else !(approxQuantiles == hist)
+        else !(approxPercentiles == hist)
       case _ => false
     }
 
@@ -66,7 +66,7 @@ case class NumericQuantilesTransformation(
    *   a new Transformation that contains both this and other.
    */
   override def merge(other: Transformation): Transformation = other match {
-    case _: NumericQuantilesTransformation => other
+    case _: NumericPercentilesTransformation => other
     case _ => this
   }
 

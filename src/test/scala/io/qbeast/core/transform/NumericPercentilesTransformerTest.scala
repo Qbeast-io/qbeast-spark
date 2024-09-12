@@ -6,12 +6,12 @@ import io.qbeast.core.model.QDataType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class NumericQuantilesTransformerTest extends AnyFlatSpec with Matchers {
+class NumericPercentilesTransformerTest extends AnyFlatSpec with Matchers {
 
   private val orderedDataType = new OrderedDataType {
     override val ordering: Numeric[Any] = IntegerDataType.ordering
 
-    override val defaultQuantiles: IndexedSeq[Any] = Seq(1, 2, 3).toIndexedSeq
+    override val defaultPercentiles: IndexedSeq[Any] = Seq(1, 2, 3).toIndexedSeq
 
     override def name: String = "int"
   }
@@ -21,7 +21,7 @@ class NumericQuantilesTransformerTest extends AnyFlatSpec with Matchers {
   }
 
   "NumericQuantilesTransformer" should "return correct stats for given column name and data type" in {
-    val transformer = NumericQuantilesTransformer("testColumn", orderedDataType)
+    val transformer = NumericPercentilesTransformer("testColumn", orderedDataType)
     val stats = transformer.stats
     stats.statsNames should contain("testColumn_quantiles")
     stats.statsSqlPredicates should contain(
@@ -29,26 +29,26 @@ class NumericQuantilesTransformerTest extends AnyFlatSpec with Matchers {
   }
 
   it should "throw IllegalArgumentException for invalid data type" in {
-    val transformer = NumericQuantilesTransformer("testColumn", nonOrderedDataType)
+    val transformer = NumericPercentilesTransformer("testColumn", nonOrderedDataType)
     assertThrows[IllegalArgumentException] {
       transformer.makeTransformation(_ => new AnyRef)
     }
   }
 
   it should "return correct transformation for valid data type" in {
-    val transformer = NumericQuantilesTransformer("testColumn", orderedDataType)
+    val transformer = NumericPercentilesTransformer("testColumn", orderedDataType)
     val transformation = transformer.makeTransformation(_ => Seq.empty)
-    transformation shouldBe a[NumericQuantilesTransformation]
+    transformation shouldBe a[NumericPercentilesTransformation]
   }
 
   it should "return default quantiles for empty sequence" in {
-    val transformer = NumericQuantilesTransformer("testColumn", orderedDataType)
+    val transformer = NumericPercentilesTransformer("testColumn", orderedDataType)
     println(orderedDataType.toString)
     val transformation =
-      transformer.makeTransformation(_ => Seq.empty).asInstanceOf[NumericQuantilesTransformation]
+      transformer.makeTransformation(_ => Seq.empty).asInstanceOf[NumericPercentilesTransformation]
 
     println(transformation.toString)
-    transformation.approxQuantiles should be(orderedDataType.defaultQuantiles)
+    transformation.approxPercentiles should be(orderedDataType.defaultPercentiles)
   }
 
 }
