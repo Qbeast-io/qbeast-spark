@@ -4,8 +4,6 @@ import dash_cytoscape as cyto
 import click
 
 from qviz.content_loader import process_table, delta_nodes_and_edges
-from qviz.drawing_elements import process_add_files, populate_tree, get_nodes_and_edges
-
 
 cyto.load_extra_layouts()
 LAYOUT_NAME = "dagre"
