@@ -17,25 +17,34 @@ package io.qbeast.spark.table
 
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model._
-import io.qbeast.core.model.RevisionFactory
 import io.qbeast.spark.delta.IndexFiles
 import io.qbeast.spark.delta.StagingDataManager
 import io.qbeast.spark.delta.StagingResolution
 import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer
+import io.qbeast.spark.index.QbeastColumns
+import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
 import io.qbeast.spark.internal.QbeastOptions.optimizationOptions
 import io.qbeast.spark.internal.QbeastOptions.COLUMNS_TO_INDEX
 import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
+import org.apache.hadoop.fs.Path
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.COLUMN_SELECTOR_ENABLED
 import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
 import org.apache.spark.sql.delta.actions.FileAction
+import org.apache.spark.sql.functions
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.count
+import org.apache.spark.sql.functions.input_file_name
+import org.apache.spark.sql.functions.regexp_extract
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
 
 import java.util.ConcurrentModificationException
 
@@ -133,6 +142,8 @@ trait IndexedTable {
    *   the index files to optimize
    */
   def optimize(files: Seq[String], options: Map[String, String]): Unit
+
+  def indexWithoutRewriting(files: Set[String]): Unit
 }
 
 /**
@@ -320,63 +331,71 @@ private[table] class IndexedTableImpl(
     } else parameters
   }
 
+  def getIndexStatusAndQbeastOptions(
+      data: DataFrame,
+      parameters: Map[String, String],
+      append: Boolean): (IndexStatus, QbeastOptions) = {
+    val (indexStatus, options) = if (exists && append) {
+      // If the table exists and we are appending new data
+      // 1. Load existing IndexStatus
+      val options = QbeastOptions(verifyAndMergeProperties(parameters))
+      logDebug(s"Appending data to table $tableID with revision=${latestRevision.revisionID}")
+      if (isStaging(latestRevision)) { // If the existing Revision is Staging
+        val revision = revisionFactory.createNewRevision(tableID, data.schema, options)
+        (IndexStatus(revision), options)
+      } else {
+        if (isNewRevision(options)) {
+          // If the new parameters generate a new revision, we need to create another one
+          val newPotentialRevision = revisionFactory
+            .createNewRevision(tableID, data.schema, options)
+          val newRevisionCubeSize = newPotentialRevision.desiredCubeSize
+          // Merge new Revision Transformations with old Revision Transformations
+          logDebug(
+            s"Merging transformations for table $tableID with cubeSize=$newRevisionCubeSize")
+          val newRevisionTransformations =
+            latestRevision.transformations.zip(newPotentialRevision.transformations).map {
+              case (oldTransformation, newTransformation)
+                  if oldTransformation.isSupersededBy(newTransformation) =>
+                Some(oldTransformation.merge(newTransformation))
+              case _ => None
+            }
+
+          // Create a RevisionChange
+          val revisionChanges = RevisionChange(
+            supersededRevision = latestRevision,
+            timestamp = System.currentTimeMillis(),
+            desiredCubeSizeChange = Some(newRevisionCubeSize),
+            transformationsChanges = newRevisionTransformations)
+          logDebug(
+            s"Creating new revision changes for table $tableID with revisionChanges=$revisionChanges)")
+
+          // Output the New Revision into the IndexStatus
+          (IndexStatus(revisionChanges.createNewRevision), options)
+        } else {
+          // If the new parameters does not create a different revision,
+          // load the latest IndexStatus
+          logDebug(
+            s"Loading latest revision for table $tableID with revision=${latestRevision.revisionID}")
+          (snapshot.loadIndexStatus(latestRevision.revisionID), options)
+        }
+      }
+    } else {
+      // IF autoIndexingEnabled, choose columns to index
+      val updatedParameters = selectColumnsToIndex(parameters, Some(data))
+      val options = QbeastOptions(updatedParameters)
+      val revision = revisionFactory.createNewRevision(tableID, data.schema, options)
+      (IndexStatus(revision), options)
+    }
+
+    (indexStatus, options)
+  }
+
   override def save(
       data: DataFrame,
       parameters: Map[String, String],
       append: Boolean): BaseRelation = {
     logTrace(s"Begin: save table $tableID")
-    val (indexStatus, options) =
-      if (exists && append) {
-        // If the table exists and we are appending new data
-        // 1. Load existing IndexStatus
-        val options = QbeastOptions(verifyAndMergeProperties(parameters))
-        logDebug(s"Appending data to table $tableID with revision=${latestRevision.revisionID}")
-        if (isStaging(latestRevision)) { // If the existing Revision is Staging
-          val revision = revisionFactory.createNewRevision(tableID, data.schema, options)
-          (IndexStatus(revision), options)
-        } else {
-          if (isNewRevision(options)) {
-            // If the new parameters generate a new revision, we need to create another one
-            val newPotentialRevision = revisionFactory
-              .createNewRevision(tableID, data.schema, options)
-            val newRevisionCubeSize = newPotentialRevision.desiredCubeSize
-            // Merge new Revision Transformations with old Revision Transformations
-            logDebug(
-              s"Merging transformations for table $tableID with cubeSize=$newRevisionCubeSize")
-            val newRevisionTransformations =
-              latestRevision.transformations.zip(newPotentialRevision.transformations).map {
-                case (oldTransformation, newTransformation)
-                    if oldTransformation.isSupersededBy(newTransformation) =>
-                  Some(oldTransformation.merge(newTransformation))
-                case _ => None
-              }
-
-            // Create a RevisionChange
-            val revisionChanges = RevisionChange(
-              supersededRevision = latestRevision,
-              timestamp = System.currentTimeMillis(),
-              desiredCubeSizeChange = Some(newRevisionCubeSize),
-              transformationsChanges = newRevisionTransformations)
-            logDebug(
-              s"Creating new revision changes for table $tableID with revisionChanges=$revisionChanges)")
-
-            // Output the New Revision into the IndexStatus
-            (IndexStatus(revisionChanges.createNewRevision), options)
-          } else {
-            // If the new parameters does not create a different revision,
-            // load the latest IndexStatus
-            logDebug(
-              s"Loading latest revision for table $tableID with revision=${latestRevision.revisionID}")
-            (snapshot.loadIndexStatus(latestRevision.revisionID), options)
-          }
-        }
-      } else {
-        // IF autoIndexingEnabled, choose columns to index
-        val updatedParameters = selectColumnsToIndex(parameters, Some(data))
-        val options = QbeastOptions(updatedParameters)
-        val revision = revisionFactory.createNewRevision(tableID, data.schema, options)
-        (IndexStatus(revision), options)
-      }
+    val (indexStatus, options) = getIndexStatusAndQbeastOptions(data, parameters, append)
     val result = write(data, indexStatus, options, append)
     logTrace(s"End: Save table $tableID")
     result
@@ -513,6 +532,94 @@ private[table] class IndexedTableImpl(
           (tableChanges, newFiles ++ removeFiles)
         }
       }
+    }
+  }
+
+  override def indexWithoutRewriting(files: Set[String]): Unit = {
+
+    val spark = SparkSession.active
+    import spark.implicits._
+    val schema = metadataManager.loadCurrentSchema(tableID)
+
+    metadataManager.updateWithTransaction(
+      tableID,
+      schema,
+      optimizationOptions(Map()),
+      append = true) {
+      // Get all the staging files to index
+      val fileDs = files.toSeq.map(path => new Path(path).getName).toDF("path")
+      val stageIndexFiles = snapshot.loadIndexFiles(0)
+
+      val indexFiles: Dataset[IndexFile] = stageIndexFiles.join(fileDs, "path").as[IndexFile]
+      val removeFiles =
+        indexFiles.map(IndexFiles.toRemoveFile(dataChange = false)).collect().toIndexedSeq
+      // Load the data from the index files
+      val data = snapshot.loadDataframeFromIndexFiles(indexFiles)
+      // Load the Index Status
+      val (indexStatus, _) = getIndexStatusAndQbeastOptions(data, Map(), append = true)
+      // Index the data
+      val (dataExtended, tableChanges) = SparkOTreeManager.index(data, indexStatus)
+      val updatedRevision = tableChanges.updatedRevision
+      val dimensionCount = updatedRevision.columnTransformers.size
+      // Aggregate the index metadata for each file
+      val newFiles: Dataset[IndexFile] = dataExtended
+        .withColumn("path", regexp_extract(input_file_name(), "[^/]+$", 0))
+        .groupBy(col("path"), col(QbeastColumns.cubeColumnName))
+        .agg(
+          functions.max(QbeastColumns.weightColumnName).as("maxWeight"),
+          functions.min(QbeastColumns.weightColumnName).as("minWeight"),
+          count("*").as("blockElementCount"))
+        .join(indexFiles, "path")
+        .select(
+          "path",
+          "size",
+          "modificationTime",
+          QbeastColumns.cubeColumnName,
+          "maxWeight",
+          "minWeight",
+          "blockElementCount")
+        .as[(String, Long, Long, Array[Byte], Int, Int, Long)]
+        .groupByKey(a => (a._1, a._2, a._3))
+        .mapGroups {
+          case (
+                (path: String, size: Long, modificationTime: Long),
+                rows: Iterator[(String, Long, Long, Array[Byte], Int, Int, Long)]) =>
+            val ifb = new IndexFileBuilder()
+              .setPath(new Path(path).getName)
+              .setRevisionId(updatedRevision.revisionID)
+              .setSize(size)
+              .setModificationTime(modificationTime)
+            rows
+              .foldLeft(ifb) {
+                case (
+                      ifb,
+                      (
+                        _,
+                        _,
+                        _,
+                        cubeId: Array[Byte],
+                        maxWeight: Int,
+                        minWeight: Int,
+                        blockElementCount: Long)) =>
+                  ifb
+                    .beginBlock()
+                    .setCubeId(CubeId.apply(dimensionCount, cubeId))
+                    .setMinWeight(Weight(minWeight))
+                    .setMaxWeight(Weight(maxWeight))
+                    .setElementCount(blockElementCount)
+                    .setReplicated(false)
+                    .endBlock()
+              }
+              .result()
+        }
+
+      dataExtended.unpersist() // we don't use this anymore
+
+      // Return the changes with AddFile and DeletedFile structures
+      val addFiles = newFiles.map(IndexFiles.toAddFile(dataChange = false)).collect().toIndexedSeq
+      // Commit the information to the log
+      (tableChanges, addFiles ++ removeFiles)
+
     }
   }
 

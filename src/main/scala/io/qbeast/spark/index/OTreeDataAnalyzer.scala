@@ -72,8 +72,6 @@ trait OTreeDataAnalyzer {
 
 }
 
-private case class PartialCubeState(partialDomain: Double, partialBlockSize: Long)
-
 object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable with Logging {
 
   /**

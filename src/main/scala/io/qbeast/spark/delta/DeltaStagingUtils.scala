@@ -38,7 +38,7 @@ private[spark] trait DeltaStagingUtils extends StagingUtils {
    * Extract current staging files from the snapshot
    * @return
    */
-  protected def stagingFiles(): Dataset[AddFile] = {
+  def stagingFiles(): Dataset[AddFile] = {
     snapshot.allFiles.where(isStagingFileColumn)
   }
 
