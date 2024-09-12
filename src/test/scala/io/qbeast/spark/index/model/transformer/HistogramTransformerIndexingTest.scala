@@ -1,10 +1,10 @@
-package io.qbeast.spark.index
+package io.qbeast.spark.index.model.transformer
 
-import io.qbeast.spark.utils.QbeastUtils
 import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.utils.QbeastUtils
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 

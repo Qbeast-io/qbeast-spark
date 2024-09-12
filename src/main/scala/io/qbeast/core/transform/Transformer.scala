@@ -31,7 +31,7 @@ object Transformer {
     Seq(
       LinearTransformer,
       HashTransformer,
-      NumericPercentilesTransformer,
+      NumericQuantileTransformer,
       StringHistogramTransformer)
       .map(a => (a.transformerSimpleName, a))
       .toMap

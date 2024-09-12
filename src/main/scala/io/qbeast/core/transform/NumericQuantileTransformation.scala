@@ -19,25 +19,14 @@ import io.qbeast.core.model.OrderedDataType
 
 import scala.collection.Searching._
 
-case class NumericPercentilesTransformation(
-    approxPercentiles: IndexedSeq[Any],
+case class NumericQuantileTransformation(
+    approxQuantiles: IndexedSeq[Any],
     orderedDataType: OrderedDataType)
     extends Transformation {
-
-  private implicit val ord: Numeric[Any] = orderedDataType.ordering
-
-  private def isDefault: Boolean = approxPercentiles == orderedDataType.defaultPercentiles
+  private def isDefault: Boolean = approxQuantiles == orderedDataType.defaultQuantiles
 
   override def transform(value: Any): Double = {
-    approxPercentiles.search(value) match {
-      case Found(foundIndex) => foundIndex.toDouble / (approxPercentiles.length - 1)
-      case InsertionPoint(insertionPoint) =>
-        if (insertionPoint == 0) 0d
-        else if (insertionPoint == approxPercentiles.length + 1) 1d
-        else (insertionPoint - 1).toDouble / (approxPercentiles.length - 1)
-      case _ =>
-        throw new IllegalArgumentException(s"Value $value not found in approximated quantiles")
-    }
+    approxQuantiles.zipWithIndex.minBy { case (v, _) => math.abs(v - value) }._2
   }
 
   /**
@@ -50,10 +39,10 @@ case class NumericPercentilesTransformation(
    */
   override def isSupersededBy(newTransformation: Transformation): Boolean =
     newTransformation match {
-      case nt @ NumericPercentilesTransformation(hist, _) =>
+      case nt @ NumericQuantileTransformation(hist, _) =>
         if (isDefault) !nt.isDefault
         else if (nt.isDefault) false
-        else !(approxPercentiles == hist)
+        else !(approxQuantiles == hist)
       case _ => false
     }
 
@@ -66,7 +55,7 @@ case class NumericPercentilesTransformation(
    *   a new Transformation that contains both this and other.
    */
   override def merge(other: Transformation): Transformation = other match {
-    case _: NumericPercentilesTransformation => other
+    case _: NumericQuantileTransformation => other
     case _ => this
   }
 

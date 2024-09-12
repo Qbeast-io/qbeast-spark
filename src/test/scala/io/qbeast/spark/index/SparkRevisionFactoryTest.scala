@@ -19,6 +19,7 @@ import io.qbeast.core.model._
 import io.qbeast.core.transform.HashTransformer
 import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.core.transform.LinearTransformer
+import io.qbeast.core.transform.NumericQuantileTransformer
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
@@ -276,6 +277,24 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
       HashTransformer("c", StringDataType),
       HashTransformer("d", FloatDataType))
     revision.transformations shouldBe Vector.empty
+
+  })
+
+  it should "create new revision with approximate percentiles type" in withSpark(spark => {
+    import spark.implicits._
+    val schema = spark.range(1).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).schema
+    val qid = QTableID("t")
+    val revision =
+      SparkRevisionFactory.createNewRevision(
+        qid,
+        schema,
+        QbeastOptions(
+          Map(QbeastOptions.COLUMNS_TO_INDEX -> "a:percentile", QbeastOptions.CUBE_SIZE -> "10")))
+
+    revision.tableID shouldBe qid
+    revision.revisionID shouldBe 0L
+    revision.desiredCubeSize shouldBe 10
+    revision.columnTransformers shouldBe Vector(NumericQuantileTransformer("a", LongDataType))
 
   })
 

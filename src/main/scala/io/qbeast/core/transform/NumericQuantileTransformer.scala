@@ -18,17 +18,17 @@ package io.qbeast.core.transform
 import io.qbeast.core.model.OrderedDataType
 import io.qbeast.core.model.QDataType
 
-object NumericPercentilesTransformer extends TransformerType {
-  override def transformerSimpleName: String = "quantile"
+object NumericQuantileTransformer extends TransformerType {
+  override def transformerSimpleName: String = "percentile"
 
 }
 
-case class NumericPercentilesTransformer(columnName: String, dataType: QDataType)
+case class NumericQuantileTransformer(columnName: String, dataType: QDataType)
     extends Transformer {
 
   private val columnPercentiles = s"${columnName}_percentiles"
 
-  override protected def transformerType: TransformerType = NumericPercentilesTransformer
+  override protected def transformerType: TransformerType = NumericQuantileTransformer
 
   /**
    * Returns the stats
@@ -55,9 +55,9 @@ case class NumericPercentilesTransformer(columnName: String, dataType: QDataType
       case ord: OrderedDataType =>
         val hist = row(columnPercentiles) match {
           case h: Seq[_] => h.toIndexedSeq
-          case _ => ord.defaultPercentiles
+          case _ => ord.defaultQuantiles
         }
-        NumericPercentilesTransformation(hist, ord)
+        NumericQuantileTransformation(hist, ord)
       case _ => throw new IllegalArgumentException(s"Invalid data type: $dataType")
     }
 

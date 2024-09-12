@@ -13,21 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.index
+package io.qbeast.spark.index.model.transformer
 
-import io.qbeast.spark.utils.QbeastUtils
-import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.spark.utils.QbeastUtils
+import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.functions.abs
-import org.apache.spark.sql.functions.ascii
-import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.functions.substring
-import org.apache.spark.sql.functions.sum
-import org.apache.spark.sql.functions.to_date
-import org.apache.spark.sql.functions.to_timestamp
-import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.functions._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
