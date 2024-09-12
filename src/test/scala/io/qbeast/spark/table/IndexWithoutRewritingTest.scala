@@ -23,7 +23,6 @@ class IndexWithoutRewritingTest extends AnyFlatSpec with Matchers with QbeastInt
         Seq("event_time", "event_type", "product_id"),
         10000).run(spark)
       sm.stagingFiles().count() should be > 0L
-      //data.write.format("qbeast").mode("append").save(tmpDir)
 
       val dataWritten = spark.read.format("qbeast").load(tmpDir)
       val files = dataWritten.select(input_file_name()).distinct().as[String].collect().toSet
@@ -31,7 +30,7 @@ class IndexWithoutRewritingTest extends AnyFlatSpec with Matchers with QbeastInt
       qt.indexWithoutRewriting(files)
       qt.latestRevision.revisionID shouldBe 1
       val dnb = qt.getDenormalizedBlocks()
-      dnb.show()
+      dnb.show() // TODO: denormalized blocks are empty
       println(qt.getIndexMetrics())
       dnb.map(_.cubeId).distinct().count() should be > 1L
 
