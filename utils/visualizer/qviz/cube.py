@@ -123,4 +123,7 @@ def normalize_weight(weight: int) -> float:
     :return: weight's corresponding NormalizedWeight
     """
     fraction = (weight - OFFSET) / RANGE
-    return float("{:.3f}".format(fraction))
+    # We make sure fraction is in range [0, 1] using max & min
+    normalized = max(0, min(1, fraction))
+
+    return float("{:.3f}".format(normalized))

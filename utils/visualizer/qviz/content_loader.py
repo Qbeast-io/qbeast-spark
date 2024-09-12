@@ -6,7 +6,7 @@ import pandas as pd
 from deltalake import DeltaTable
 import pyarrow.parquet as pa
 from collections import defaultdict
-from qviz.cube import Cube, SamplingInfo
+from qviz.cube import Cube, SamplingInfo, normalize_weight
 
 
 def process_table_delta_log(table_path: str, revision_id: str) -> (list[dict], Optional[dict]):
@@ -267,24 +267,27 @@ def extract_metadata_from_json_files(file_path: str, json_files: list[str], revi
 
 ######### NEW CODE ############
 # Returns metadata (dict), cubes(dict), root(cube), nodes & edges (list[dict])
-def process_table(table_path: str, revision_key: str) -> (dict, dict, Cube, list[dict]):
+def process_table(table_path: str, revision_id: str) -> (dict, dict, Cube, list[dict]):
+    """
+    Process a delta table given a path to a Qbeast table and a revision ID.
+    :param table_path: path to a Qbeast table
+    :param revision_id: Configuration entry for the target RevisionID. e.g. 1
+    :return: a dictionary with the metadata of the table, a dictionary with all the created cubes, the root node (a cube) of the viusalization and a list of dictionaries with the nodes and edges of the visualization.
+    """
     
     # Create the Delta table
     delta_table = create_delta_table(table_path)
 
     # Extract metadata
-    metadata, symbol_count = extract_metadata_from_delta_table(delta_table, revision_key)
+    metadata, symbol_count = extract_metadata_from_delta_table(delta_table, revision_id)
 
     # Extract cubes
-    print("WE START WITH THE CUBES \n\n")
     cubes = extract_cubes_from_blocks(delta_table, symbol_count)
 
     # Build Tree
-    print("WE POPULATE THE TREE \n\n")
     root = populate_tree(cubes)
 
     # Build Tree
-    print("WE COMPUTE NODES & EDGES OF THE TREE \n\n")
     elements = delta_nodes_and_edges(cubes)
 
     return metadata, cubes, root, elements
@@ -292,24 +295,49 @@ def process_table(table_path: str, revision_key: str) -> (dict, dict, Cube, list
 
 # 1. create delta table
 def create_delta_table(table_path: str) -> DeltaTable:
-
-    deltaTable = DeltaTable(table_path)
-    return deltaTable
+    """
+    Creates delta table given a path where a Qbeast table is stored.
+    :param table_path: local path to your Qbeast table
+    :return: a Delta table
+    """
+    try:
+        # Try to find the table in the provided path 
+        deltaTable = DeltaTable(table_path)
+        return deltaTable
+    
+    except Exception as e:
+        # If the table doesn't exist, throw an exception
+        print(f"Failed when creating the delta table: {e}\n")
 
 # 2. extract metadata from delta table
 # Returns metadata (dict), dimension_count (int) and symbol_count (int)
-def extract_metadata_from_delta_table(delta_table: DeltaTable, revision_key:str) -> (dict, int): 
+def extract_metadata_from_delta_table(delta_table: DeltaTable, revision_id:str) -> (dict, int): 
+    """
+    Extract metadata from a Delta table by checking if the revision ID is in that table.
+    If that ID exists in the table, a revision key (e.g. qbeast.revision.1) is created and the metadata is returned.
+    It also calculates the number of symbols used to representate the visualization.
+    :param delta_table: a created delta table.
+    :param revision_id: Configuration entry for the target RevisionID. e.g. 1
+    :return: A dictionary with the metadata related to the revisionId, an integer representing the number of simbols used fot the visualization representation.
+    """
 
     # We create a dataframe with all the add actions
     df = delta_table.get_add_actions(True).to_pandas()
     # List with all the revision ids
-    revision_ids = list(df["tags.revision"])
-    if revision_key in revision_ids:
+    revision_ids = [rev_id.strip() for rev_id in df["tags.revision"]]  # Delete blank spaces in each id
+    revision_id = str(revision_id).strip()  # Delete blank spaces in revision_key
+
+    # Check if our table has a revision id that matches the given revision id
+    if revision_id in revision_ids:
+        print("Metadata found for the given RevisionID\n")
+        revision_key = f"qbeast.revision.{revision_id}"
         metadata_str = delta_table.metadata().configuration[revision_key]
         # The last command return a string, and we need a dict to access columnTransformers
         metadata = json.loads(metadata_str)
+        # Calculate the number of symbols used for the visualization
         dimension_count = len(metadata['columnTransformers'])
         symbol_count = (dimension_count + 5) // 6
+        return metadata, symbol_count
     else:
         print(f"No metadata found for the given RevisionID.")
         symbol_count = float('inf')
@@ -328,78 +356,81 @@ def extract_metadata_from_delta_table(delta_table: DeltaTable, revision_key:str)
                 symbol_count = cube_encoding_size
         return None, symbol_count
 
-    return metadata, symbol_count
 
 # 3. Returns a dictionary, the keys are the cubeids and the values are the actual cubes
 def extract_cubes_from_blocks(delta_table: DeltaTable , symbol_count: int) -> dict:
+    """
+    Takes all the blocks stored in the table and creates the cubes.
+    :param delta_table: list of json log files
+    :param symbol_count: Integer representing the number of symbols used for the representation
+    :return: A dictionary with all the cubes stored in the table.
+    """
 
     df = delta_table.get_add_actions(True).to_pandas()
 
     df_filtered = df[['size_bytes', 'tags.blocks']]
-    #print("Filtered DataFrame: \n",df_filtered, "\n\n")
-    # In this dictionary we store a cube for every cubeId
+    # In this dictionary we store a cube for every cubeId. Each cube will be associated to his cube ID
     cubes_dict = dict()
 
     # Iterate throughout each row of the dataframe
     for index, row in df_filtered.iterrows():
-        cube = row["tags.blocks"] # This returns a pandas series with all the cubes
+        cube = row["tags.blocks"] # This returns a pandas series with the blocks of the cube in each of the iterated rows
 
-        # Check if cubes is a  JSON chainc & convert it into a list of dictionaries
+        # Check if the cube is a JSON chain & try to convert it into a list of dictionaries
         if isinstance(cube, str):
             try:
-                cube = json.loads(cube)  # Convertir el string JSON en lista de diccionarios
+                cube = json.loads(cube)  # Convert the string JSON into a list of dictionaries
             except json.JSONDecodeError:
                 print("Error decoding JSON:", cube)
-                continue
 
-        #print("Cube:", cube, "\n\n")
         for block in cube:
-            #print("Block is: ", block, "\n\n")
-            # Each cube is formed by a series of blocks
-            # Each block is a string, we make it a list to access the cubeIds and all the variables of the blocks
-            #block_list = json.loads(cube)
+            # Check if we already have a cube in the dictionary with the cube ID of this block
+            # If we already have a cube with this ID, we update the atributes of the cube
+            # Since objects are passed by reference, they can be modified in situ
 
-            # Check if we already have a cube with the cubeId of this block
-            # If we already have a cube with this cubeId, we update the atributes of the cube
-            # Since objects are passed by reference, they will be modified in situ
             if block['cubeId'] in cubes_dict.keys():
                     dict_cube = cubes_dict[block['cubeId']]
-                    dict_cube.max_weight = min(max_weight, int(block['maxWeight']))
+                    normalized_max_weight = normalize_weight(int(block['maxWeight']))
+                    dict_cube.max_weight = min(max_weight, normalized_max_weight)
                     dict_cube.element_count += int(block['elementCount'])
                     dict_cube.size += int(row['size_bytes'])
-
+            # If we don't have this cube in the dictionary, a new cube is created
             else:
-                # We create a new cube
                 # Calculate depth of the cube
                 cube_string = block['cubeId']
                 depth = len(cube_string) // symbol_count
-                # Assign max_weight, min_weight, elemnt_count a value for each cube
+                # Assign max_weight, min_weight, elemnt_count a value for the new cube
                 max_weight = block['maxWeight']
                 element_count = block['elementCount']
                 replicated = block['replicated'] # Do we have to add it?
                 min_weight = block['minWeight'] # Do we have to add it?
                 size = int(row['size_bytes'])
                 cubes_dict[cube_string] = Cube(cube_string, max_weight, element_count, size, depth) 
-    
-    print("WE ARE DONE WITH THE CUBES")
-    
+        
     return cubes_dict
 
 
 #4. build index from the list of cube blocks
 # Returns the root of the tree (cube)
 def populate_tree(cubes: dict) -> Cube:
+    """
+    Assigns a depth (in terms if a tree viusalization) to each cube and finds the root of the tree.
+    It also creates the father - child relationships between these cubes.
+    :param cubes: dictionary with the cubes stored in a delta table.
+    :return: A cube that represents the root of the visualization tree.
+    """
 
-    # Populate Tree: Root
+    # Initialize variables. level_cubes is a dictionary of lists, being the key each level of representation and the matching value a list of the cubes in that level.
     max_level = 0
     level_cubes = defaultdict(list)
 
-    # Get the cubes from the values of the dictionary and assign a level depending of the depth of each cube
+    # Get the cubes from the values of the dictionary and assign a level (key) depending of the depth of each cube
     cubes = cubes.values()
     for cube in cubes:
         level_cubes[cube.depth].append(cube)
         max_level = max(max_level, cube.depth)
-    
+
+    # Create father - child relationships between the cubes
     for level in range(max_level):
         for cube in level_cubes[level]:
             for child in level_cubes[level + 1]:
@@ -410,11 +441,16 @@ def populate_tree(cubes: dict) -> Cube:
 
 # Populate Tree: Nodes & Edges (list[dict])
 def delta_nodes_and_edges(cubes:dict, fraction: float = -1.0) -> list[dict]:
+    """
+    Sampling function. 
+    :param cubes: dictionary with the cubes stored in a delta table.
+    :param fraction: float between 0 and 1, used to select cubes based on their normalized maximum weight
+    :return: A list of dictionaries that contains the nodes and their connections.
+    """
+
     nodes = []
     edges = []
     sampling_info = SamplingInfo(fraction)
-    #print("SAMPLING INFO IS:", sampling_info)
-    print("N&E, Cubes are: ", cubes.values() )
     for cube in cubes.values():
             print("Cube N&E: ", cube)
             node, connections = cube.get_elements_for_sampling(fraction)
@@ -424,7 +460,5 @@ def delta_nodes_and_edges(cubes:dict, fraction: float = -1.0) -> list[dict]:
 
     if fraction > 0:
         print(sampling_info)
-
-    print("WE ARE DONE WITH THE TREE")
 
     return nodes + edges
