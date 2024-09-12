@@ -21,6 +21,8 @@ import io.qbeast.spark.index.QbeastColumns.cubeToReplicateColumnName
 import io.qbeast.spark.index.QbeastColumns.weightColumnName
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
 import io.qbeast.IISeq
+import io.qbeast.core.index.NormalizedWeight
+import io.qbeast.spark.utils.RowUtils
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
 import org.apache.spark.sql.functions._

@@ -15,7 +15,7 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.core.model.ColumnsToIndexSelector
+import io.qbeast.core.index.ColumnsToIndexSelector
 import org.apache.spark.ml.feature.OneHotEncoder
 import org.apache.spark.ml.feature.StringIndexer
 import org.apache.spark.ml.feature.VectorAssembler

@@ -15,6 +15,7 @@
  */
 package io.qbeast.context
 
+import io.qbeast.core.index.ColumnsToIndexSelector
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.keeper.LocalKeeper
 import io.qbeast.core.metadata.MetadataManager

@@ -15,12 +15,12 @@
  */
 package io.qbeast.spark.internal
 
-import io.qbeast.core.model.ColumnToIndex
+import io.qbeast.core.index.ColumnsToIndex
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.writer.HookInfo
 import io.qbeast.core.writer.PreCommitHook.getHookArgName
 import io.qbeast.core.writer.PreCommitHook.PRE_COMMIT_HOOKS_PREFIX
-import io.qbeast.spark.index.ColumnsToIndex
+import io.qbeast.spark.index.ColumnToIndex
 import io.qbeast.spark.internal.QbeastOptions.COLUMNS_TO_INDEX
 import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE

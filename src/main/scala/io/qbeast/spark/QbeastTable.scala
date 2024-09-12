@@ -16,14 +16,14 @@
 package io.qbeast.spark
 
 import io.qbeast.context.QbeastContext
-import io.qbeast.core.model.DenormalizedBlock
 import io.qbeast.core.model.QTableID
-import io.qbeast.core.model.QbeastSnapshot
+import io.qbeast.core.model.QbeastStaging
 import io.qbeast.core.model.Revision
 import io.qbeast.core.model.RevisionID
-import io.qbeast.core.utils.StagingUtils
+import io.qbeast.spark.index.DenormalizedBlock
 import io.qbeast.spark.internal.commands.AnalyzeTableCommand
 import io.qbeast.spark.internal.commands.OptimizeTableCommand
+import io.qbeast.spark.snapshot.SparkQbeastSnapshot
 import io.qbeast.spark.table._
 import io.qbeast.spark.utils.IndexMetrics
 import org.apache.spark.sql.AnalysisExceptionFactory
@@ -45,10 +45,10 @@ class QbeastTable private (
     tableID: QTableID,
     indexedTableFactory: IndexedTableFactory)
     extends Serializable
-    with StagingUtils {
+    with QbeastStaging {
 
-  private def qbeastSnapshot: QbeastSnapshot =
-    QbeastSnapshot(QbeastContext.storageFormat, tableID)
+  private def qbeastSnapshot: SparkQbeastSnapshot =
+    SparkQbeastSnapshot(QbeastContext.storageFormat, tableID)
 
   private def indexedTable: IndexedTable = indexedTableFactory.getIndexedTable(tableID)
 

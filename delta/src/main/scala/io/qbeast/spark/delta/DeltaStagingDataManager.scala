@@ -17,9 +17,9 @@ package io.qbeast.spark.delta
 
 import io.qbeast.core.model.IndexStatus
 import io.qbeast.core.model.QTableID
-import io.qbeast.core.model.StagingDataManager
 import io.qbeast.core.model.StagingDataManagerFactory
 import io.qbeast.core.model.StagingResolution
+import io.qbeast.core.staging.StagingDataManager
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.internal.QbeastOptions
 import org.apache.hadoop.fs.Path
@@ -37,7 +37,7 @@ import org.apache.spark.sql.SparkSession
  * Access point for staged data
  */
 private[spark] class DeltaStagingDataManager(tableID: QTableID)
-    extends DeltaStagingUtils
+    extends DeltaQbeastStaging
     with StagingDataManager {
 
   private val spark = SparkSession.active
@@ -50,7 +50,7 @@ private[spark] class DeltaStagingDataManager(tableID: QTableID)
     stagingFiles().map(a => a.remove).as[RemoveFile].collect()
   }
 
-  private def currentStagingSize(): Long = {
+  override def currentStagingSize(): Long = {
     val row = stagingFiles().selectExpr("sum(size)").first()
     if (row.isNullAt(0)) 0L
     else row.getLong(0)

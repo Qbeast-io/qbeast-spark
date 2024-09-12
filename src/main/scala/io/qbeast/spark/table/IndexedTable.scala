@@ -16,18 +16,21 @@
 package io.qbeast.spark.table
 
 import io.qbeast.context.QbeastContext
+import io.qbeast.core.index.ColumnsToIndexSelector
+import io.qbeast.core.index.IndexManager
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.metadata.MetadataManager
 import io.qbeast.core.model._
+import io.qbeast.core.model.QbeastStaging
 import io.qbeast.core.model.RevisionFactory
-import io.qbeast.core.utils.StagingUtils
 import io.qbeast.core.writer.DataWriter
+import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
 import io.qbeast.spark.internal.QbeastOptions.optimizationOptions
 import io.qbeast.spark.internal.QbeastOptions.COLUMNS_TO_INDEX
 import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
-import io.qbeast.spark.internal.sources.QbeastBaseRelation
+import io.qbeast.spark.snapshot.SparkQbeastSnapshot
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.COLUMN_SELECTOR_ENABLED
 import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
@@ -212,7 +215,7 @@ private[table] class IndexedTableImpl(
     private val revisionFactory: RevisionFactory[StructType, QbeastOptions],
     private val columnSelector: ColumnsToIndexSelector[DataFrame])
     extends IndexedTable
-    with StagingUtils
+    with QbeastStaging
     with Logging {
   private var snapshotCache: Option[QbeastSnapshot] = None
 

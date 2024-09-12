@@ -17,6 +17,7 @@ package io.qbeast.spark.index
 
 import io.qbeast.core.model._
 import io.qbeast.IISeq
+import io.qbeast.core.index.IndexManager
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.DataFrame
 

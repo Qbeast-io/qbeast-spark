@@ -62,7 +62,7 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
    * Gets the delegated catalog of the session
    * @return
    */
-  private def getDelegatedCatalog(): T = {
+  private def getDelegatedCatalog: T = {
     val sessionCatalog = delegatedCatalog match {
       case null =>
         // In this case, any catalog has been delegated, so we need to search for the default

@@ -15,7 +15,7 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.utils.StagingUtils
+import io.qbeast.core.model.QbeastStaging
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.functions.col
@@ -23,7 +23,7 @@ import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.Dataset
 
-private[spark] trait DeltaStagingUtils extends StagingUtils {
+private[spark] trait DeltaQbeastStaging extends QbeastStaging {
   protected def snapshot: Snapshot
 
   protected def isInitial: Boolean = snapshot.version == -1

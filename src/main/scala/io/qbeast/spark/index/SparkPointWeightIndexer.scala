@@ -15,10 +15,11 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.core.model.PointWeightIndexer
+import io.qbeast.core.index.PointWeightIndexer
 import io.qbeast.core.model.TableChanges
 import io.qbeast.core.model.Weight
 import io.qbeast.spark.index.QbeastColumns._
+import io.qbeast.spark.utils.RowUtils
 import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.DataFrame

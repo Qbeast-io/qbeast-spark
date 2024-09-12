@@ -16,7 +16,9 @@
 package io.qbeast.spark.index.query
 
 import io.qbeast.core.model._
+import io.qbeast.spark.snapshot.SparkQbeastSnapshot
 import io.qbeast.IISeq
+import io.qbeast.core.index.query.QuerySpec
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.execution.datasources.FileStatusWithMetadata
@@ -34,7 +36,7 @@ import scala.collection.mutable
  * @param querySpecBuilder
  *   the builder for the query specification
  */
-class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSnapshot) {
+class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: SparkQbeastSnapshot) {
 
   /**
    * Executes the query on each revision according to their QuerySpec

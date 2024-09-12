@@ -15,8 +15,8 @@
  */
 package io.qbeast.spark.index.query
 
+import io.qbeast.core.index.query.QuerySpec
 import io.qbeast.core.model._
-import io.qbeast.core.utils.StagingUtils
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.expressions.EqualTo
 import org.apache.spark.sql.catalyst.expressions.Expression
@@ -36,7 +36,7 @@ import org.apache.spark.sql.types.IntegerType
  */
 private[spark] class QuerySpecBuilder(sparkFilters: Seq[Expression])
     extends Serializable
-    with StagingUtils
+    with QbeastStaging
     with QueryFiltersUtils {
 
   /**

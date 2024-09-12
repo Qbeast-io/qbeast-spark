@@ -16,7 +16,9 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.core.model._
+import io.qbeast.spark.index.DenormalizedBlock
 import io.qbeast.spark.utils.IndexMetrics.computeMinHeight
+import io.qbeast.spark.utils.NormalizedWeightUtils
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.LongType
 import org.apache.spark.sql.Column
@@ -198,7 +200,7 @@ object IndexMetrics {
       .toDF("depth", "cubeElementCountStats")
 
     val levelWiseAverageWeight = cubes
-      .withColumn("normalizedWeight", NormalizedWeight.fromWeightColumn($"maxWeightInt"))
+      .withColumn("normalizedWeight", NormalizedWeightUtils.fromWeightColumn($"maxWeightInt"))
       .groupBy("cubeId.depth")
       .agg(avg("normalizedWeight"))
       .toDF("depth", "avgWeight")

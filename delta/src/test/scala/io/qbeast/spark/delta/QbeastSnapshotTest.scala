@@ -17,7 +17,6 @@ package io.qbeast.spark.delta
 
 import io.qbeast.core.model.CubeStatus
 import io.qbeast.core.model.QTableID
-import io.qbeast.core.model.QbeastSnapshot
 import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastDeltaTestSpec

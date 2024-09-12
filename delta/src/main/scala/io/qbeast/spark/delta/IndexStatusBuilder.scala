@@ -15,8 +15,8 @@
  */
 package io.qbeast.spark.delta
 
+import io.qbeast.core.index.NormalizedWeight
 import io.qbeast.core.model._
-import io.qbeast.core.utils.StagingUtils
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.Dataset
@@ -38,7 +38,7 @@ private[delta] class IndexStatusBuilder(
     revision: Revision,
     announcedSet: Set[CubeId] = Set.empty)
     extends Serializable
-    with StagingUtils {
+    with QbeastStaging {
 
   /**
    * Dataset of files belonging to the specific revision
@@ -94,7 +94,7 @@ private[delta] class IndexStatusBuilder(
       .withColumn(
         "normalizedWeight",
         when(
-          $"maxWeightInt" < Weight.MaxValueColumn,
+          $"maxWeightInt" < lit(Weight.MaxValue.value),
           NormalizedWeight.fromWeightColumn($"maxWeightInt"))
           .otherwise(NormalizedWeight.fromColumns(lit(desiredCubeSize), $"elementCount")))
       .withColumn("maxWeight", struct($"maxWeightInt".as("value")))
