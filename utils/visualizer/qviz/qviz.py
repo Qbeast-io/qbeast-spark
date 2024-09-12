@@ -3,7 +3,7 @@ from dash.dependencies import Input, Output
 import dash_cytoscape as cyto
 import click
 
-from qviz.content_loader import process_table
+from qviz.content_loader import process_table, delta_nodes_and_edges
 from qviz.drawing_elements import process_add_files, populate_tree, get_nodes_and_edges
 
 
@@ -47,7 +47,7 @@ def show_tree(path: str, revision_id: int) -> None:
     def update_fraction_edges(fraction):
         if fraction is None or fraction <= 0:
             return elements
-        return get_nodes_and_edges(cubes, fraction)
+        return delta_nodes_and_edges(cubes, fraction)
 
     app.layout = html.Div([
         html.P("OTree Index"),

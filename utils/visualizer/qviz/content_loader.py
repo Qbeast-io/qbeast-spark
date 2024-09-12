@@ -265,7 +265,7 @@ def extract_metadata_from_json_files(file_path: str, json_files: list[str], revi
     return None
 
 
-######### CÓDIGO NUEVO ############
+######### NEW CODE ############
 # Returns metadata (dict), cubes(dict), root(cube), nodes & edges (list[dict])
 def process_table(table_path: str, revision_key: str) -> (dict, dict, Cube, list[dict]):
     
@@ -275,14 +275,17 @@ def process_table(table_path: str, revision_key: str) -> (dict, dict, Cube, list
     # Extract metadata
     metadata, symbol_count = extract_metadata_from_delta_table(delta_table, revision_key)
 
-    # Extract blocks from table
-    blocks = extract_blocks_from_delta_table(delta_table)
-
     # Extract cubes
+    print("WE START WITH THE CUBES \n\n")
     cubes = extract_cubes_from_blocks(delta_table, symbol_count)
 
     # Build Tree
-    root, elements = build_tree(cubes)
+    print("WE POPULATE THE TREE \n\n")
+    root = populate_tree(cubes)
+
+    # Build Tree
+    print("WE COMPUTE NODES & EDGES OF THE TREE \n\n")
+    elements = delta_nodes_and_edges(cubes)
 
     return metadata, cubes, root, elements
 
@@ -323,6 +326,7 @@ def extract_metadata_from_delta_table(delta_table: DeltaTable, revision_key:str)
             cube_encoding_size = len(cube_id)
             if 0 < cube_encoding_size < symbol_count:
                 symbol_count = cube_encoding_size
+        return None, symbol_count
 
     return metadata, symbol_count
 
@@ -332,45 +336,59 @@ def extract_cubes_from_blocks(delta_table: DeltaTable , symbol_count: int) -> di
     df = delta_table.get_add_actions(True).to_pandas()
 
     df_filtered = df[['size_bytes', 'tags.blocks']]
+    #print("Filtered DataFrame: \n",df_filtered, "\n\n")
     # In this dictionary we store a cube for every cubeId
     cubes_dict = dict()
 
+    # Iterate throughout each row of the dataframe
     for index, row in df_filtered.iterrows():
-        cubes = row["tags.blocks"] # This returns a pandas series with all the cubes
-        for cube in cubes:
+        cube = row["tags.blocks"] # This returns a pandas series with all the cubes
+
+        # Check if cubes is a  JSON chainc & convert it into a list of dictionaries
+        if isinstance(cube, str):
+            try:
+                cube = json.loads(cube)  # Convertir el string JSON en lista de diccionarios
+            except json.JSONDecodeError:
+                print("Error decoding JSON:", cube)
+                continue
+
+        #print("Cube:", cube, "\n\n")
+        for block in cube:
+            #print("Block is: ", block, "\n\n")
             # Each cube is formed by a series of blocks
             # Each block is a string, we make it a list to access the cubeIds and all the variables of the blocks
-            block_list = json.loads(cube)
-            for block in block_list:
+            #block_list = json.loads(cube)
 
-                # Check if we already have a cube with the cubeId of this block
-                # If we already have a cube with this cubeId, we update the atributes of the cube
-                # Since objects are passed by reference, they will be modified in situ
-                if block['cubeId'] in cubes_dict.keys():
+            # Check if we already have a cube with the cubeId of this block
+            # If we already have a cube with this cubeId, we update the atributes of the cube
+            # Since objects are passed by reference, they will be modified in situ
+            if block['cubeId'] in cubes_dict.keys():
                     dict_cube = cubes_dict[block['cubeId']]
                     dict_cube.max_weight = min(max_weight, int(block['maxWeight']))
                     dict_cube.element_count += int(block['elementCount'])
                     dict_cube.size += int(row['size_bytes'])
 
-                else:
-                    # We create a new cube
-                    # Calculate depth of the cube
-                    cube_string = block['cubeId']
-                    depth = len(cube_string) // symbol_count
-                    # Assign max_weight, min_weight, elemnt_count a value for each cube
-                    max_weight = cube['maxWeight']
-                    element_count = cube['elementCount']
-                    replicated = cube['replicated']
-                    min_weight = cube['minWeight']
-                    size = int(row['size_bytes'])
-                    cubes_dict[cube_string] = Cube(cube_string, max_weight, element_count, size, depth) 
+            else:
+                # We create a new cube
+                # Calculate depth of the cube
+                cube_string = block['cubeId']
+                depth = len(cube_string) // symbol_count
+                # Assign max_weight, min_weight, elemnt_count a value for each cube
+                max_weight = block['maxWeight']
+                element_count = block['elementCount']
+                replicated = block['replicated'] # Do we have to add it?
+                min_weight = block['minWeight'] # Do we have to add it?
+                size = int(row['size_bytes'])
+                cubes_dict[cube_string] = Cube(cube_string, max_weight, element_count, size, depth) 
     
-    return cubes
+    print("WE ARE DONE WITH THE CUBES")
+    
+    return cubes_dict
 
 
 #4. build index from the list of cube blocks
-# Returns the root of the tree (cube), the nodes and the edges
-def build_tree(cubes: dict) -> tuple[Cube, list[dict]]:
+# Returns the root of the tree (cube)
+def populate_tree(cubes: dict) -> Cube:
 
     # Populate Tree: Root
     max_level = 0
@@ -388,13 +406,17 @@ def build_tree(cubes: dict) -> tuple[Cube, list[dict]]:
                 child.link(cube)
                 
     root = level_cubes[0][0]
+    return root
 
-    # Populate Tree: Nodes & Edges
+# Populate Tree: Nodes & Edges (list[dict])
+def delta_nodes_and_edges(cubes:dict, fraction: float = -1.0) -> list[dict]:
     nodes = []
     edges = []
-    fraction = -1.0
     sampling_info = SamplingInfo(fraction)
-    for cube in cubes:
+    #print("SAMPLING INFO IS:", sampling_info)
+    print("N&E, Cubes are: ", cubes.values() )
+    for cube in cubes.values():
+            print("Cube N&E: ", cube)
             node, connections = cube.get_elements_for_sampling(fraction)
             nodes.append(node)
             edges.extend(connections)
@@ -403,4 +425,6 @@ def build_tree(cubes: dict) -> tuple[Cube, list[dict]]:
     if fraction > 0:
         print(sampling_info)
 
-    return root, nodes + edges
+    print("WE ARE DONE WITH THE TREE")
+
+    return nodes + edges
