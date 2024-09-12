@@ -15,6 +15,7 @@
  */
 package io.qbeast.spark.index
 
+import io.qbeast.core.model.QTableID
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.delta.IndexFiles
 import io.qbeast.spark.QbeastIntegrationTestSpec
@@ -75,8 +76,8 @@ class NormalizedWeightIntegrationTest extends QbeastIntegrationTestSpec {
           .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> cubeSize.toString))
           .save(tmpDir)
 
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+        val tableId = new QTableID(tmpDir)
+        val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
         val cubeNormalizedWeights =
           qbeastSnapshot.loadLatestIndexStatus.cubeNormalizedWeights
 

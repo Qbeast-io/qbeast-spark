@@ -27,7 +27,7 @@ import org.apache.spark.sql.SparkSession
 /**
  * Spark+Delta implementation of the MetadataManager interface
  */
-object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction, QbeastOptions] {
+object DeltaSparkMetadataManager extends MetadataManager[StructType, FileAction, QbeastOptions] {
 
   override def updateWithTransaction(
       tableID: QTableID,
@@ -35,7 +35,7 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction,
       options: QbeastOptions,
       append: Boolean)(writer: => (TableChanges, IISeq[FileAction])): Unit = {
 
-    val deltaLog = loadDeltaQbeastLog(tableID).deltaLog
+    val deltaLog = loadDeltaLog(tableID)
     val mode = if (append) SaveMode.Append else SaveMode.Overwrite
 
     val metadataWriter =
@@ -45,7 +45,7 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction,
 
   override def updateMetadataWithTransaction(tableID: QTableID, schema: StructType)(
       update: => Configuration): Unit = {
-    val deltaLog = loadDeltaQbeastLog(tableID).deltaLog
+    val deltaLog = loadDeltaLog(tableID)
     val metadataWriter =
       DeltaMetadataWriter(tableID, mode = SaveMode.Append, deltaLog, QbeastOptions.empty, schema)
 
@@ -54,11 +54,11 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction,
   }
 
   override def loadSnapshot(tableID: QTableID): DeltaQbeastSnapshot = {
-    DeltaQbeastSnapshot(loadDeltaQbeastLog(tableID).deltaLog.update())
+    DeltaQbeastSnapshot(tableID)
   }
 
   override def loadCurrentSchema(tableID: QTableID): StructType = {
-    loadDeltaQbeastLog(tableID).deltaLog.update().schema
+    loadDeltaLog(tableID).update().schema
   }
 
   override def updateRevision(tableID: QTableID, revisionChange: RevisionChange): Unit = {}
@@ -71,8 +71,8 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction,
    *   the table ID
    * @return
    */
-  def loadDeltaQbeastLog(tableID: QTableID): DeltaQbeastLog = {
-    DeltaQbeastLog(DeltaLog.forTable(SparkSession.active, tableID.id))
+  def loadDeltaLog(tableID: QTableID): DeltaLog = {
+    DeltaLog.forTable(SparkSession.active, tableID.id)
   }
 
   override def hasConflicts(
@@ -98,7 +98,7 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction,
    * @return
    */
   override def existsLog(tableID: QTableID): Boolean = {
-    loadDeltaQbeastLog(tableID).deltaLog.tableExists
+    loadDeltaLog(tableID).tableExists
   }
 
   /**
@@ -107,7 +107,7 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction,
    * @param tableID
    */
   override def createLog(tableID: QTableID): Unit = {
-    loadDeltaQbeastLog(tableID).deltaLog.createLogDirectory()
+    loadDeltaLog(tableID).createLogDirectory()
   }
 
 }

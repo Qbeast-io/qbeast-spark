@@ -18,12 +18,11 @@ package io.qbeast.spark.keeper
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
+import io.qbeast.spark.delta.DeltaSparkMetadataManager
 import io.qbeast.spark.delta.MetadataWriterTest
-import io.qbeast.spark.delta.SparkDeltaMetadataManager
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.delta.actions.FileAction
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.delta.DeltaOperations
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.SaveMode
@@ -103,8 +102,7 @@ case class ProtoTestContext(outDir: String, spark: SparkSession) {
 
   lazy val schema: StructType = spark.read.format("qbeast").load(tableID.id).schema
 
-  lazy val rev: Revision = DeltaQbeastSnapshot(
-    DeltaLog.forTable(spark, tableID.id).unsafeVolatileSnapshot).loadLatestRevision
+  lazy val rev: Revision = DeltaQbeastSnapshot(tableID).loadLatestRevision
 
 }
 
@@ -144,7 +142,7 @@ class WritingProcess(context: ProtoTestContext)(implicit keeper: Keeper) extends
   override def run(): Unit = {
     val winfo = keeper.beginWrite(tableID, rev.revisionID)
 
-    val deltaLog = SparkDeltaMetadataManager.loadDeltaQbeastLog(tableID).deltaLog
+    val deltaLog = DeltaSparkMetadataManager.loadDeltaLog(tableID)
     val mode = SaveMode.Append
     val metadataWriter = MetadataWriterTest(tableID, mode, deltaLog, QbeastOptions.empty, schema)
 
@@ -165,7 +163,7 @@ class WritingProcess(context: ProtoTestContext)(implicit keeper: Keeper) extends
             succeeded = Some(true)
           } catch {
             case cme: ConcurrentModificationException
-                if SparkDeltaMetadataManager.hasConflicts(
+                if DeltaSparkMetadataManager.hasConflicts(
                   tableID,
                   rev.revisionID,
                   knownAnnounced,
@@ -194,7 +192,7 @@ class OptimizingProcessGood(context: ProtoTestContext)(implicit keeper: Keeper)
   override def run(): Unit = {
     val bo = keeper.beginOptimization(tableID, rev.revisionID)
 
-    val deltaLog = SparkDeltaMetadataManager.loadDeltaQbeastLog(tableID).deltaLog
+    val deltaLog = DeltaSparkMetadataManager.loadDeltaLog(tableID)
     val deltaSnapshot = deltaLog.update()
     val mode = SaveMode.Append
     val metadataWriter = MetadataWriterTest(tableID, mode, deltaLog, QbeastOptions.empty, schema)
@@ -226,7 +224,7 @@ class OptimizingProcessBad(context: ProtoTestContext, args: Seq[String])(implici
   override def run(): Unit = {
     val bo = keeper.beginOptimization(tableID, rev.revisionID)
 
-    val deltaLog = SparkDeltaMetadataManager.loadDeltaQbeastLog(tableID).deltaLog
+    val deltaLog = DeltaSparkMetadataManager.loadDeltaLog(tableID)
     val deltaSnapshot = deltaLog.update()
     val mode = SaveMode.Append
     val metadataWriter = MetadataWriterTest(tableID, mode, deltaLog, QbeastOptions.empty, schema)

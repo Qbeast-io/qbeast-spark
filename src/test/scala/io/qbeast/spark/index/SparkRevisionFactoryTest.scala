@@ -23,7 +23,6 @@ import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.T3
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.to_timestamp
 
 import java.text.SimpleDateFormat
@@ -132,8 +131,8 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
       .option("columnStats", appendColumnStats)
       .save(tmpDir)
 
-    val qbeastSnapshot =
-      DeltaQbeastSnapshot(DeltaLog.forTable(spark, tmpDir).unsafeVolatileSnapshot)
+    val tableId = new QTableID(tmpDir)
+    val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
     val latestRevision = qbeastSnapshot.loadLatestRevision
     val transformation = latestRevision.transformations.head
 
@@ -166,8 +165,8 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
         .option("columnStats", columnStats)
         .save(tmpDir)
 
-      val qbeastSnapshot =
-        DeltaQbeastSnapshot(DeltaLog.forTable(spark, tmpDir).update())
+      val tableId = new QTableID(tmpDir)
+      val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
       val latestRevision = qbeastSnapshot.loadLatestRevision
       val transformation = latestRevision.transformations.head
 

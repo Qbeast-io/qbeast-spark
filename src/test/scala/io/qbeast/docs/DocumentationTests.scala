@@ -15,8 +15,9 @@
  */
 package io.qbeast.docs
 
+import io.qbeast.core.model.QTableID
+import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.input_file_name
 import org.apache.spark.SparkConf
 import org.scalatest.AppendedClues.convertToClueful
@@ -150,8 +151,9 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
 
       val qbeast_df = spark.read.format("qbeast").load(qbeast_table_path)
 
-      val deltaLog = DeltaLog.forTable(spark, qbeast_table_path)
-      val totalNumberOfFiles = deltaLog.update().allFiles.count()
+      val tableId = new QTableID(qbeast_table_path)
+      val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
+      val totalNumberOfFiles = qbeastSnapshot.allFilesCount
 
       totalNumberOfFiles should be > 1L withClue
         "Total number of files in pushdown notebook changes to " + totalNumberOfFiles

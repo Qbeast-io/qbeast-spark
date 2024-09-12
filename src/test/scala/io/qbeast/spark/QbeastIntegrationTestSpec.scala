@@ -22,7 +22,7 @@ import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.keeper.LocalKeeper
 import io.qbeast.core.model.IndexManager
 import io.qbeast.spark.delta.writer.RollupDataWriter
-import io.qbeast.spark.delta.SparkDeltaMetadataManager
+import io.qbeast.spark.delta.DeltaSparkMetadataManager
 import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.index.SparkRevisionFactory
@@ -161,7 +161,7 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
       val indexedTableFactory = new IndexedTableFactoryImpl(
         keeper,
         SparkOTreeManager,
-        SparkDeltaMetadataManager,
+        DeltaSparkMetadataManager,
         RollupDataWriter,
         SparkRevisionFactory,
         SparkColumnsToIndexSelector)

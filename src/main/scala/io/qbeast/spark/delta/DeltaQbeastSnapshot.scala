@@ -21,21 +21,25 @@ import io.qbeast.spark.utils.TagColumns
 import io.qbeast.IISeq
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
 
 /**
  * Qbeast Snapshot that provides information about the current index state.
  *
- * @param snapshot
- *   the internal Delta Lakes log snapshot
+ * @param tableID
+ *   the table ID
  */
-case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
-    extends QbeastSnapshot
-    with DeltaStagingUtils {
+case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with DeltaStagingUtils {
+
+  override val snapshot: Snapshot =
+    DeltaLog.forTable(SparkSession.active, tableID.id).unsafeVolatileSnapshot
 
   /**
    * The current state of the snapshot.
@@ -43,6 +47,10 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
    * @return
    */
   override def isInitial: Boolean = snapshot.version == -1
+
+  override val schema: StructType = snapshot.metadata.schema
+
+  override val allFilesCount: Long = snapshot.allFiles.count
 
   private val metadataMap: Map[String, String] = snapshot.metadata.configuration
 

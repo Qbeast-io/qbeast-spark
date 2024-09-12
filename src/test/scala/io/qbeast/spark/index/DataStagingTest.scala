@@ -23,7 +23,6 @@ import io.qbeast.spark.delta.StagingDataManager
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.T2
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
 import org.scalatest.PrivateMethodTester
@@ -38,9 +37,9 @@ class DataStagingTest
     spark.range(10000).map(i => T2(i, i.toDouble)).toDF()
   }
 
-  def getQbeastSnapshot(spark: SparkSession, dir: String): DeltaQbeastSnapshot = {
-    val deltaLog = DeltaLog.forTable(spark, dir)
-    DeltaQbeastSnapshot(deltaLog.update())
+  def getQbeastSnapshot(dir: String): DeltaQbeastSnapshot = {
+    val tableId = new QTableID(dir)
+    DeltaQbeastSnapshot(tableId)
   }
 
   private val getCurrentStagingSize: PrivateMethod[Long] =
@@ -57,7 +56,7 @@ class DataStagingTest
         .option("cubeSize", "2000")
         .save(tmpDir)
 
-      val revisions = getQbeastSnapshot(spark, tmpDir).loadAllRevisions
+      val revisions = getQbeastSnapshot(tmpDir).loadAllRevisions
       revisions.size shouldBe 1
       isStaging(revisions.head) shouldBe true
     }
@@ -82,7 +81,7 @@ class DataStagingTest
         .option("cubeSize", "2000")
         .save(tmpDir)
 
-      val snapshot = getQbeastSnapshot(spark, tmpDir)
+      val snapshot = getQbeastSnapshot(tmpDir)
       val revisions = snapshot.loadAllRevisions
       revisions.size shouldBe 2
 
@@ -123,7 +122,7 @@ class DataStagingTest
         .format("qbeast")
         .save(tmpDir)
 
-      val snapshot = getQbeastSnapshot(spark, tmpDir)
+      val snapshot = getQbeastSnapshot(tmpDir)
       val revisions = snapshot.loadAllRevisions
       revisions.size shouldBe 2
 

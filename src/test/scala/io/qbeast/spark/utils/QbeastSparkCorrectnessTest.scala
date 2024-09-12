@@ -15,6 +15,7 @@
  */
 package io.qbeast.spark.utils
 
+import io.qbeast.core.model.QTableID
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.delta.actions.Action
@@ -97,8 +98,8 @@ class QbeastSparkCorrectnessTest extends QbeastIntegrationTestSpec {
         // OVERWRITE
         writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
 
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+        val tableId = new QTableID(tmpDir)
+        val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
 
         // Include the staging revision
         qbeastSnapshot.loadAllRevisions.size shouldBe 2

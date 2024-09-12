@@ -16,6 +16,7 @@
 package io.qbeast.core.model
 
 import io.qbeast.IISeq
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Dataset
 
@@ -25,10 +26,24 @@ import org.apache.spark.sql.Dataset
 trait QbeastSnapshot {
 
   /**
+   * Returns the current snapshot object, representing the dataset state.
+   */
+  def snapshot: Any
+
+  /**
    * The current state of the snapshot.
-   * @return
    */
   def isInitial: Boolean
+
+  /**
+   * Returns the total number of data files in the snapshot.
+   */
+  def allFilesCount: Long
+
+  /**
+   * Provides the schema of the dataset for this snapshot.
+   */
+  def schema: StructType
 
   /**
    * The current table description.

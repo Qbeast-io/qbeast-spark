@@ -18,6 +18,7 @@ package io.qbeast.spark.index
 import io.qbeast.core.model._
 import io.qbeast.core.model.BroadcastedTableChanges
 import io.qbeast.spark.delta
+import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
@@ -148,8 +149,8 @@ class IndexTest
           .options(options)
           .save(tmpDir)
 
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
+        val tableId = new QTableID(tmpDir)
+        val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
 
         val offset = 0.5
         val appendData = df

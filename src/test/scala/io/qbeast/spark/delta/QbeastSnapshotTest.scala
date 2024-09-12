@@ -24,7 +24,6 @@ import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.actions.AddFile
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.input_file_name
 import org.apache.spark.sql.functions.rand
 import org.apache.spark.sql.AnalysisException
@@ -44,6 +43,11 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
 
   }
 
+  def getQbeastSnapshot(dir: String): DeltaQbeastSnapshot = {
+    val tableId = new QTableID(dir)
+    DeltaQbeastSnapshot(tableId)
+  }
+
   "QbeastSnapshot" should
     "load last index status correctly" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
       {
@@ -56,8 +60,8 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
           .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> cubeSize.toString))
           .save(tmpDir)
 
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+        val tableId = new QTableID(tmpDir)
+        val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
         val indexStatus = qbeastSnapshot.loadLatestIndexStatus
         val revision = indexStatus.revision
 
@@ -82,8 +86,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
           .options(options)
           .save(tmpDir)
 
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+        val qbeastSnapshot = getQbeastSnapshot(tmpDir)
         val columnTransformers = SparkRevisionFactory
           .createNewRevision(QTableID(tmpDir), df.schema, QbeastOptions(options))
           .columnTransformers
@@ -112,8 +115,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
           .options(options)
           .save(tmpDir)
 
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+        val qbeastSnapshot = getQbeastSnapshot(tmpDir)
         val timestamp = System.currentTimeMillis()
         qbeastSnapshot.loadRevisionAt(timestamp) shouldBe qbeastSnapshot.loadLatestRevision
 
@@ -137,8 +139,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
           .options(options)
           .save(tmpDir)
 
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+        val qbeastSnapshot = getQbeastSnapshot(tmpDir)
         an[AnalysisException] shouldBe thrownBy(
           qbeastSnapshot.loadRevisionAt(invalidRevisionTimestamp))
 
@@ -160,8 +161,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
               Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> cubeSize.toString))
             .save(tmpDir)
 
-          val deltaLog = DeltaLog.forTable(spark, tmpDir)
-          val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+          val qbeastSnapshot = getQbeastSnapshot(tmpDir)
           val builder =
             new IndexStatusBuilder(
               qbeastSnapshot,
@@ -194,10 +194,9 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
         .options(options)
         .save(tmpDir)
 
-      val deltaLog = DeltaLog.forTable(spark, tmpDir)
       import spark.implicits._
 
-      val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+      val qbeastSnapshot = getQbeastSnapshot(tmpDir)
       val lastRev = qbeastSnapshot.loadLatestRevision
       val files = qbeastSnapshot.loadRevisionFiles(lastRev.revisionID)
       val cubeStatus = qbeastSnapshot.loadIndexStatus(lastRev.revisionID).cubesStatuses
@@ -249,8 +248,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
 
       spark.read.format("qbeast").load(tmpDir).count.toInt shouldBe 100
 
-      val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+      val qbeastSnapshot = getQbeastSnapshot(tmpDir)
 
       val lastRev = qbeastSnapshot.loadLatestRevision
       val files = qbeastSnapshot.loadAllRevisions
@@ -297,8 +295,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
           .mode("overwrite")
           .options(options)
           .save(tmpDir)
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+        val qbeastSnapshot = getQbeastSnapshot(tmpDir)
         val lastRev = qbeastSnapshot.loadLatestRevision
         val files = qbeastSnapshot.loadRevisionFiles(lastRev.revisionID)
 

@@ -17,9 +17,9 @@ package io.qbeast.spark.delta
 
 import io.qbeast.core.model.CubeId
 import io.qbeast.core.model.CubeStatus
+import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.Weight
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import org.apache.spark.sql.delta.DeltaLog
 
 class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {
 
@@ -34,9 +34,8 @@ class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {
         .option("cubeSize", "10000")
         .save(tmpDir)
 
-      val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val indexStatus =
-        DeltaQbeastSnapshot(deltaLog.update()).loadLatestIndexStatus
+      val tableId = new QTableID(tmpDir)
+      val indexStatus = DeltaQbeastSnapshot(tableId).loadLatestIndexStatus
 
       indexStatus.revision.revisionID shouldBe 1
       indexStatus.cubesStatuses.map(_._2.elementCount).sum shouldBe 100000L
@@ -55,16 +54,15 @@ class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {
       .option("columnsToIndex", "id")
       .option("cubeSize", "10000")
       .save(tmpDir)
-    val deltaLog = DeltaLog.forTable(spark, tmpDir)
-    val firstIndexStatus =
-      DeltaQbeastSnapshot(deltaLog.update()).loadLatestIndexStatus
+    val tableId = new QTableID(tmpDir)
+    val firstIndexStatus = DeltaQbeastSnapshot(tableId).loadLatestIndexStatus
     data.write
       .format("qbeast")
       .mode("append")
       .option("columnsToIndex", "id")
       .option("cubeSize", "10000")
       .save(tmpDir)
-    val secondIndexStatus = DeltaQbeastSnapshot(deltaLog.update()).loadLatestIndexStatus
+    val secondIndexStatus = DeltaQbeastSnapshot(tableId).loadLatestIndexStatus
 
     secondIndexStatus.revision.revisionID shouldBe 1
     secondIndexStatus.announcedSet shouldBe Set.empty

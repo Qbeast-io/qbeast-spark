@@ -26,7 +26,6 @@ import io.qbeast.spark.internal.commands.AnalyzeTableCommand
 import io.qbeast.spark.internal.commands.OptimizeTableCommand
 import io.qbeast.spark.table._
 import io.qbeast.spark.utils.IndexMetrics
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
@@ -48,10 +47,7 @@ class QbeastTable private (
     extends Serializable
     with StagingUtils {
 
-  private def deltaLog: DeltaLog = DeltaLog.forTable(sparkSession, tableID.id)
-
-  private def qbeastSnapshot: DeltaQbeastSnapshot =
-    delta.DeltaQbeastSnapshot(deltaLog.update())
+  private def qbeastSnapshot: DeltaQbeastSnapshot = DeltaQbeastSnapshot(tableID)
 
   private def indexedTable: IndexedTable = indexedTableFactory.getIndexedTable(tableID)
 
