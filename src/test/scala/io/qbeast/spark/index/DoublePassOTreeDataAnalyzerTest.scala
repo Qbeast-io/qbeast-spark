@@ -373,21 +373,22 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
         computePartitionCubeDomains(numElements, newRevision, indexStatus, isReplication = false))
 
     // Compute global cube domains for the current write
-    val globalCubeDomains: Map[CubeId, Double] =
+    val globalCubeDomains =
       partitionCubeDomains
         .transform(computeGlobalCubeDomains(newRevision))
         .collect()
         .toMap
 
     // Merge globalCubeDomain with the existing cube domains
-    val mergedCubeDomains: Map[CubeId, Double] = mergeCubeDomains(globalCubeDomains, indexStatus)
+    val mergedCubeDomains: Map[CubeId, Double] =
+      mergeNewAndOldCubeDomains(globalCubeDomains, indexStatus)
 
     // Populate NormalizedWeight level-wise from top to bottom
-    val estimatedCubeWeights: Map[CubeId, NormalizedWeight] =
+    val estimatedCubeWeights: Map[CubeId, Weight] =
       estimateCubeWeights(mergedCubeDomains.toSeq, indexStatus, isReplication = false)
 
     // Cubes with a weight lager than 1d should not have children
-    val leafCubesByWeight = estimatedCubeWeights.filter(cw => cw._2 >= 1d).keys
+    val leafCubesByWeight = estimatedCubeWeights.filter(cw => cw._2.fraction >= 1d).keys
     leafCubesByWeight.exists(cube =>
       cube.children.exists(estimatedCubeWeights.contains)) shouldBe false
 
@@ -399,6 +400,42 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
           .filter(estimatedCubeWeights.contains)
           .foreach(child => weight < estimatedCubeWeights(child))
       }
+  }
+
+  "computeBlockSizes" should "should calculate correct block sizes" in {
+    // Sample data
+    val root = CubeId.root(2)
+    val kids = root.children // 1000 => Domain  2655 -> ebs(deltaW-> 0.1 * 100) =>10
+    val a = kids.next() // 520 => Domain 520 -> ebs(deltaW-> 0.1 * 52) => 5
+    val b = kids.next() // 35 => Domain 35 -> ebs(deltaW-> 0.2 * 35) => 6
+    val c = kids.next() // 1000 => Domain 2100 -> ebs(deltaW-> 0.3 * 100) => 29
+    val cKids = c.children
+    val ca = cKids.next() // 500 -> ebs(deltaW -> 0.1 * 50) => 5
+    val cb = cKids.next() // 600 -> ebs(deltaW -> 0.2* 60) => 11
+
+    val globalCubeDomainChanges: Map[CubeId, Double] =
+      Map(root -> 100d, a -> 52d, b -> 35d, c -> 100d, ca -> 50d, cb -> 60d)
+
+    val estimatedCubeWeights: Map[CubeId, Weight] =
+      Map(
+        root -> Weight(0.1),
+        a -> Weight(0.2),
+        b -> Weight(0.3),
+        c -> Weight(0.4),
+        ca -> Weight(0.5),
+        cb -> Weight(0.6))
+
+    // Expected results
+    val expectedBlockSizes: Map[CubeId, Long] =
+      Map(root -> 10L, a -> 5L, b -> 6L, c -> 29L, ca -> 5L, cb -> 11L)
+
+    // Call the method
+    val result =
+      DoublePassOTreeDataAnalyzer.computeBlockSizes(globalCubeDomainChanges, estimatedCubeWeights)
+
+    // Assert the results
+    result shouldBe expectedBlockSizes
+
   }
 
 }

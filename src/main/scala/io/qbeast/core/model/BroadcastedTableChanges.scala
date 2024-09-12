@@ -15,7 +15,8 @@
  */
 package io.qbeast.core.model
 
-import io.qbeast.spark.utils.State
+import io.qbeast.spark.model.CubeState
+import io.qbeast.spark.model.CubeState.CubeStateValue
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.SparkSession
 
@@ -28,37 +29,46 @@ object BroadcastedTableChanges {
   def apply(
       revisionChanges: Option[RevisionChange],
       supersededIndexStatus: IndexStatus,
-      deltaNormalizedCubeWeights: Map[CubeId, NormalizedWeight],
-      deltaCubeDomains: Map[CubeId, Double],
+      deltaNormalizedCubeWeights: Map[CubeId, Weight],
+      newBlocksElementCount: Map[CubeId, Long],
       deltaReplicatedSet: Set[CubeId] = Set.empty,
       deltaAnnouncedSet: Set[CubeId] = Set.empty): TableChanges = {
+    val sparkContext = SparkSession.active.sparkContext
+
+    BroadcastedTableChanges.create(
+      supersededIndexStatus,
+      sparkContext.broadcast(deltaNormalizedCubeWeights),
+      sparkContext.broadcast(newBlocksElementCount),
+      deltaReplicatedSet,
+      deltaAnnouncedSet,
+      revisionChanges)
+
+  }
+
+  def create(
+      supersededIndexStatus: IndexStatus,
+      deltaNormalizedCubeWeightsBroadcast: Broadcast[Map[CubeId, Weight]],
+      newBlocksElementCountBroadcast: Broadcast[Map[CubeId, Long]],
+      deltaReplicatedSet: Set[CubeId],
+      deltaAnnouncedSet: Set[CubeId],
+      revisionChanges: Option[RevisionChange]): TableChanges = {
 
     val updatedRevision = revisionChanges match {
       case Some(newRev) => newRev.createNewRevision
       case None => supersededIndexStatus.revision
     }
-    val cubeWeights = deltaNormalizedCubeWeights
-      .mapValues(NormalizedWeight.toWeight)
-      .map(identity)
 
     val replicatedSet = if (revisionChanges.isEmpty) {
-
       supersededIndexStatus.replicatedSet ++ deltaReplicatedSet
-
     } else {
       deltaReplicatedSet
     }
 
     val announcedSet = if (revisionChanges.isEmpty) {
-
       supersededIndexStatus.announcedSet ++ deltaAnnouncedSet
-
     } else {
       deltaAnnouncedSet
     }
-
-    val cubeStates = replicatedSet.map(id => id -> State.REPLICATED) ++
-      (announcedSet -- replicatedSet).map(id => id -> State.ANNOUNCED)
 
     BroadcastedTableChanges(
       isNewRevision = revisionChanges.isDefined,
@@ -66,27 +76,36 @@ object BroadcastedTableChanges {
       updatedRevision = updatedRevision,
       deltaReplicatedSet = deltaReplicatedSet,
       announcedOrReplicatedSet = announcedSet ++ replicatedSet,
-      cubeStatesBroadcast = SparkSession.active.sparkContext.broadcast(cubeStates.toMap),
-      cubeWeightsBroadcast = SparkSession.active.sparkContext.broadcast(cubeWeights),
-      cubeDomainsBroadcast = SparkSession.active.sparkContext.broadcast(deltaCubeDomains))
+      cubeWeightsBroadcast = deltaNormalizedCubeWeightsBroadcast,
+      newBlockStatsBroadcast = newBlocksElementCountBroadcast)
   }
 
 }
 
-case class BroadcastedTableChanges(
+case class BroadcastedTableChanges private[model] (
     isNewRevision: Boolean,
     isOptimizeOperation: Boolean,
     updatedRevision: Revision,
     deltaReplicatedSet: Set[CubeId],
     announcedOrReplicatedSet: Set[CubeId],
-    cubeStatesBroadcast: Broadcast[Map[CubeId, String]],
+    // this contains an entry for each cube in the index
     cubeWeightsBroadcast: Broadcast[Map[CubeId, Weight]],
-    cubeDomainsBroadcast: Broadcast[Map[CubeId, Double]])
+    // this map contains an entry for each new block added in this write operation.
+    newBlockStatsBroadcast: Broadcast[Map[CubeId, Long]])
     extends TableChanges {
 
-  override def cubeWeight(cubeId: CubeId): Option[Weight] = cubeWeightsBroadcast.value.get(cubeId)
+  override def cubeWeight(cubeId: CubeId): Option[Weight] =
+    cubeWeightsBroadcast.value.get(cubeId)
 
-  override def cubeState(cubeId: CubeId): Option[String] = cubeStatesBroadcast.value.get(cubeId)
+  override def cubeState(cubeId: CubeId): CubeStateValue = {
+    if (announcedOrReplicatedSet.contains(cubeId)) {
+      CubeState.ANNOUNCED
+    } else {
+      CubeState.FLOODED
+    }
+  }
 
-  override def cubeDomains: Map[CubeId, Double] = cubeDomainsBroadcast.value
+  override def deltaBlockElementCount: Map[CubeId, Long] =
+    newBlockStatsBroadcast.value
+
 }

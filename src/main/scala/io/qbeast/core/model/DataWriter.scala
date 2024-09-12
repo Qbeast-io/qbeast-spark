@@ -16,7 +16,6 @@
 package io.qbeast.core.model
 
 import io.qbeast.IISeq
-import org.apache.spark.sql.Dataset
 
 /**
  * Data Writer template
@@ -47,27 +46,5 @@ trait DataWriter[DATA, DataSchema, FileDescriptor] {
       schema: DataSchema,
       data: DATA,
       tableChanges: TableChanges): IISeq[FileDescriptor]
-
-  /**
-   * Optimize the files
-   * @param tableID
-   *   the table identifier
-   * @param schema
-   *   the schema of the data
-   * @param revision
-   *   the revision of the index
-   * @param indexStatus
-   *   the current index status
-   * @param indexFiles
-   *   the index files to compact
-   * @return
-   *   the sequence of files written and deleted
-   */
-  def optimize(
-      tableID: QTableID,
-      schema: DataSchema,
-      revision: Revision,
-      indexStatus: IndexStatus,
-      indexFiles: Dataset[IndexFile]): IISeq[FileDescriptor]
 
 }

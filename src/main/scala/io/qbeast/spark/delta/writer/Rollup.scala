@@ -40,7 +40,7 @@ private[writer] class Rollup(limit: Double) {
    * @param size
    *   the size associated with the cube
    */
-  def populate(cubeId: CubeId, size: Double): Rollup = {
+  def populate(cubeId: CubeId, size: Long): Rollup = {
     val group = groups.getOrElseUpdate(cubeId, Group.empty)
     group.add(cubeId, size)
     this
@@ -75,9 +75,9 @@ private[writer] class Rollup(limit: Double) {
     }.toMap
   }
 
-  private class Group(val cubeIds: mutable.Set[CubeId], var size: Double) {
+  private class Group(val cubeIds: mutable.Set[CubeId], var size: Long) {
 
-    def add(cubeId: CubeId, size: Double): Unit = {
+    def add(cubeId: CubeId, size: Long): Unit = {
       cubeIds.add(cubeId)
       this.size += size
     }
@@ -92,7 +92,7 @@ private[writer] class Rollup(limit: Double) {
   }
 
   private object Group {
-    def empty: Group = new Group(mutable.Set.empty, 0.0)
+    def empty: Group = new Group(mutable.Set.empty, 0L)
   }
 
 }
