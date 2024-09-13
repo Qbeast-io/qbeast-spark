@@ -19,7 +19,8 @@ import io.qbeast.core.model._
 import io.qbeast.core.transform.HashTransformer
 import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.core.transform.LinearTransformer
-import io.qbeast.core.transform.NumericQuantileTransformer
+import io.qbeast.core.transform.QuantileTransformation
+import io.qbeast.core.transform.QuantileTransformer
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
@@ -280,22 +281,36 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
 
   })
 
-  it should "create new revision with approximate percentiles type" in withSpark(spark => {
+  it should "create new revision with quantile type" in withSpark(spark => {
     import spark.implicits._
     val schema = spark.range(1).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).schema
-    val qid = QTableID("t")
     val revision =
       SparkRevisionFactory.createNewRevision(
-        qid,
+        QTableID("t"),
+        schema,
+        QbeastOptions(Map(QbeastOptions.COLUMNS_TO_INDEX -> "a:quantile")))
+
+    revision.revisionID shouldBe 0L
+    revision.columnTransformers shouldBe Vector(QuantileTransformer("a", LongDataType))
+
+  })
+
+  it should "create new revision with quantiles from columnStats" in withSpark(spark => {
+    import spark.implicits._
+    val schema = spark.range(1).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).schema
+    val revision =
+      SparkRevisionFactory.createNewRevision(
+        QTableID("t"),
         schema,
         QbeastOptions(
-          Map(QbeastOptions.COLUMNS_TO_INDEX -> "a:percentile", QbeastOptions.CUBE_SIZE -> "10")))
+          Map(
+            QbeastOptions.COLUMNS_TO_INDEX -> "a:quantile",
+            QbeastOptions.STATS -> """{"a_quantiles":[0,1,2,3,4,5,6,7,8,9,10]}""")))
 
-    revision.tableID shouldBe qid
-    revision.revisionID shouldBe 0L
-    revision.desiredCubeSize shouldBe 10
-    revision.columnTransformers shouldBe Vector(NumericQuantileTransformer("a", LongDataType))
-
+    revision.revisionID shouldBe 1L
+    revision.columnTransformers shouldBe Vector(QuantileTransformer("a", LongDataType))
+    revision.transformations shouldBe Vector(
+      QuantileTransformation((0 to 10).map(_.toDouble), LongDataType))
   })
 
 }

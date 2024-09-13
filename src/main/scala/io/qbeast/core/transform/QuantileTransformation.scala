@@ -19,14 +19,20 @@ import io.qbeast.core.model.OrderedDataType
 
 import scala.collection.Searching._
 
-case class NumericQuantileTransformation(
-    approxQuantiles: IndexedSeq[Any],
-    orderedDataType: OrderedDataType)
+case class QuantileTransformation(quantiles: IndexedSeq[Any], orderedDataType: OrderedDataType)
     extends Transformation {
-  private def isDefault: Boolean = approxQuantiles == orderedDataType.defaultQuantiles
+
+  implicit val ordering = orderedDataType.ordering
+  private def isDefault: Boolean = quantiles == orderedDataType.defaultQuantiles
 
   override def transform(value: Any): Double = {
-    approxQuantiles.zipWithIndex.minBy { case (v, _) => math.abs(v - value) }._2
+    quantiles.search(value) match {
+      case Found(foundIndex) => foundIndex.toDouble / (quantiles.length - 1)
+      case InsertionPoint(insertionPoint) =>
+        if (insertionPoint == 0) 0d
+        else if (insertionPoint == quantiles.length + 1) 1d
+        else (insertionPoint - 1).toDouble / (quantiles.length - 1)
+    }
   }
 
   /**
@@ -39,10 +45,10 @@ case class NumericQuantileTransformation(
    */
   override def isSupersededBy(newTransformation: Transformation): Boolean =
     newTransformation match {
-      case nt @ NumericQuantileTransformation(hist, _) =>
+      case nt @ QuantileTransformation(quantiles, _) =>
         if (isDefault) !nt.isDefault
         else if (nt.isDefault) false
-        else !(approxQuantiles == hist)
+        else !(quantiles == quantiles)
       case _ => false
     }
 
@@ -55,7 +61,7 @@ case class NumericQuantileTransformation(
    *   a new Transformation that contains both this and other.
    */
   override def merge(other: Transformation): Transformation = other match {
-    case _: NumericQuantileTransformation => other
+    case _: QuantileTransformation => other
     case _ => this
   }
 

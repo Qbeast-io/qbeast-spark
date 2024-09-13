@@ -18,26 +18,27 @@ package io.qbeast.core.transform
 import io.qbeast.core.model.OrderedDataType
 import io.qbeast.core.model.QDataType
 
-object NumericQuantileTransformer extends TransformerType {
-  override def transformerSimpleName: String = "percentile"
+object QuantileTransformer extends TransformerType {
+  override def transformerSimpleName: String = "quantile"
 
 }
 
-case class NumericQuantileTransformer(columnName: String, dataType: QDataType)
-    extends Transformer {
+case class QuantileTransformer(columnName: String, dataType: QDataType) extends Transformer {
 
-  private val columnPercentiles = s"${columnName}_percentiles"
+  private val columnQuantiles = s"${columnName}_quantiles"
 
-  override protected def transformerType: TransformerType = NumericQuantileTransformer
+  override protected def transformerType: TransformerType = QuantileTransformer
 
   /**
    * Returns the stats
    *
+   * In this case, we are using the method approx_percentiles from Spark SQL
+   *
    * @return
    */
   override def stats: ColumnStats = {
-    val names = columnPercentiles :: Nil
-    val sqlPredicates = s"approx_percentile($columnName) AS $columnPercentiles" :: Nil
+    val names = columnQuantiles :: Nil
+    val sqlPredicates = s"approx_percentiles($columnName) AS $columnQuantiles" :: Nil
     ColumnStats(names, sqlPredicates)
   }
 
@@ -53,11 +54,11 @@ case class NumericQuantileTransformer(columnName: String, dataType: QDataType)
 
     dataType match {
       case ord: OrderedDataType =>
-        val hist = row(columnPercentiles) match {
+        val hist = row(columnQuantiles) match {
           case h: Seq[_] => h.toIndexedSeq
-          case _ => ord.defaultQuantiles
+          case _ => ord.defaultQuantiles // if no quantiles are found, we use the default ones
         }
-        NumericQuantileTransformation(hist, ord)
+        QuantileTransformation(hist, ord)
       case _ => throw new IllegalArgumentException(s"Invalid data type: $dataType")
     }
 
