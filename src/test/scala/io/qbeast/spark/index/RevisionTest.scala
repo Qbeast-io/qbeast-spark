@@ -15,9 +15,7 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.Revision
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
 import org.apache.spark.sql.functions.max
@@ -44,8 +42,7 @@ class RevisionTest
       .format("qbeast")
       .option("columnsToIndex", columnsToIndex)
       .save(directory)
-    val tableId = new QTableID(directory)
-    val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
+    val qbeastSnapshot = getQbeastSnapshot(directory)
     val lastRevision = qbeastSnapshot.loadLatestRevision
     val dfqbeast = spark.read.format("qbeast").load(directory)
     dfqbeast.createTempView("dfqbeast")

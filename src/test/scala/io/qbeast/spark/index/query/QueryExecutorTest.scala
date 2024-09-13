@@ -17,7 +17,6 @@ package io.qbeast.spark.index.query
 
 import io.qbeast.core.model._
 import io.qbeast.core.transform.EmptyTransformer
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.delta.IndexFiles
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.QbeastTable
@@ -42,8 +41,8 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     writeTestData(source.toDF(), Seq("a", "c"), 8000, tmpdir)
 
     val deltaLog = DeltaLog.forTable(spark, tmpdir)
-    val tableId = new QTableID(tmpdir)
-    val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
+    val qbeastSnapshot = getQbeastSnapshot(tmpdir)
+
     val filters = Seq.empty
 
     val querySpec = new QuerySpecBuilder(filters)
@@ -68,8 +67,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     writeTestData(source.toDF(), Seq("a", "c"), 8000, tmpdir)
 
     val deltaLog = DeltaLog.forTable(spark, tmpdir)
-    val tableId = new QTableID(tmpdir)
-    val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
+    val qbeastSnapshot = getQbeastSnapshot(tmpdir)
 
     val filters = Seq(weightFilters(WeightRange(Weight.MinValue, Weight(0.001))))
     val querySpec = new QuerySpecBuilder(filters)
@@ -91,8 +89,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     writeTestData(source.toDF(), Seq("a", "c"), 8000, tmpdir)
 
     val deltaLog = DeltaLog.forTable(spark, tmpdir)
-    val tableId = new QTableID(tmpdir)
-    val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
+    val qbeastSnapshot = getQbeastSnapshot(tmpdir)
 
     val filters = Seq(expr("a >= 2 and a < 10").expr)
     val querySpec = new QuerySpecBuilder(filters)
@@ -121,8 +118,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
     writeTestData(differentRevision, Seq("a", "c"), 10000, tmpdir, "append")
 
     val deltaLog = DeltaLog.forTable(spark, tmpdir)
-    val tableId = new QTableID(tmpdir)
-    val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
+    val qbeastSnapshot = getQbeastSnapshot(tmpdir)
 
     // Including the staging revision
     qbeastSnapshot.loadAllRevisions.size shouldBe 3
@@ -151,8 +147,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
       writeTestData(df, Seq("a", "c"), 10000, tmpDir)
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val tableId = new QTableID(tmpDir)
-      val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
+      val qbeastSnapshot = getQbeastSnapshot(tmpDir)
 
       val weightRange = WeightRange(Weight(3), Weight(5))
       val expressionFilters = weightFilters(weightRange)
@@ -178,8 +173,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
 
     val deltaLog = DeltaLog.forTable(spark, tmpdir)
 
-    val tableId = new QTableID(tmpdir)
-    val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
+    val qbeastSnapshot = getQbeastSnapshot(tmpdir)
     val revision = qbeastSnapshot.loadLatestRevision
     val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
 
@@ -284,8 +278,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
           root -> CubeStatus(root, Weight(0.1), 0.1, rb1 :: Nil),
           c1 -> CubeStatus(root, Weight(0.2), 0.2, c1b1 :: c1b2 :: Nil)))
 
-      val tableId = new QTableID(tmpDir)
-      val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
+      val qbeastSnapshot = getQbeastSnapshot(tmpDir)
       val querySpecBuilder = new QuerySpecBuilder(Seq.empty[Expression])
 
       val executor = new QueryExecutor(querySpecBuilder, qbeastSnapshot)

@@ -118,7 +118,7 @@ case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with De
    * @return
    *   boolean
    */
-  def existsRevision(revisionID: RevisionID): Boolean = {
+  override def existsRevision(revisionID: RevisionID): Boolean = {
     revisionsMap.contains(revisionID)
   }
 
@@ -212,15 +212,10 @@ case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with De
    * @return
    *   the Dataset of QbeastBlocks
    */
-  def loadRevisionFiles(revisionID: RevisionID): Dataset[AddFile] = {
+  override def loadRevisionFiles(revisionID: RevisionID): Dataset[AddFile] = {
     if (isStaging(revisionID)) loadStagingFiles()
     else snapshot.allFiles.where(TagColumns.revision === lit(revisionID.toString))
   }
-
-  /**
-   * Loads Staging AddFiles
-   */
-  def loadStagingFiles(): Dataset[AddFile] = stagingFiles()
 
   override def loadDataframeFromIndexFiles(indexFile: Dataset[IndexFile]): DataFrame = {
     if (snapshot.deletionVectorsSupported) {
@@ -238,5 +233,10 @@ case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with De
 
     }
   }
+
+  /**
+   * Loads Staging AddFiles
+   */
+  def loadStagingFiles(): Dataset[AddFile] = stagingFiles()
 
 }

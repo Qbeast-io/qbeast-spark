@@ -20,7 +20,6 @@ import io.qbeast.core.model.CubeStatus
 import io.qbeast.core.model.IndexStatus
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.Weight
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
@@ -62,8 +61,7 @@ class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
             .option("columnsToIndex", "age,val2")
             .save(tmpDir)
 
-          val tableId = new QTableID(tmpDir)
-          val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
+          val qbeastSnapshot = getQbeastSnapshot(tmpDir)
           val commitLogWeightMap = qbeastSnapshot.loadLatestIndexStatus.cubesStatuses
 
           // commitLogWeightMap shouldBe weightMap
@@ -84,8 +82,7 @@ class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
       .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> "10000"))
       .save(tmpDir)
 
-    val tableId = new QTableID(tmpDir)
-    val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
+    val qbeastSnapshot = getQbeastSnapshot(tmpDir)
     val cubeWeights = qbeastSnapshot.loadLatestIndexStatus.cubesStatuses
 
     cubeWeights.values.foreach { case CubeStatus(_, weight, _, _, _) =>

@@ -27,7 +27,7 @@ import org.apache.spark.sql.SparkSession
 /**
  * Spark+Delta implementation of the MetadataManager interface
  */
-object DeltaSparkMetadataManager extends MetadataManager[StructType, FileAction, QbeastOptions] {
+object DeltaMetadataManager extends MetadataManager[StructType, FileAction, QbeastOptions] {
 
   override def updateWithTransaction(
       tableID: QTableID,
@@ -71,7 +71,7 @@ object DeltaSparkMetadataManager extends MetadataManager[StructType, FileAction,
    *   the table ID
    * @return
    */
-  def loadDeltaLog(tableID: QTableID): DeltaLog = {
+  private def loadDeltaLog(tableID: QTableID): DeltaLog = {
     DeltaLog.forTable(SparkSession.active, tableID.id)
   }
 

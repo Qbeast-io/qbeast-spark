@@ -15,9 +15,7 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.core.model.QTableID
 import io.qbeast.core.transform.LinearTransformation
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
 import org.apache.spark.sql.SparkSession
@@ -53,18 +51,12 @@ class NewRevisionTest
       .save(tmpDir)
   }
 
-  def getQbeastSnapshot(dir: String): DeltaQbeastSnapshot = {
-    val tableId = new QTableID(dir)
-    DeltaQbeastSnapshot(tableId)
-  }
-
   "new revision" should "create different revisions" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
       val spaceMultipliers = List(1, 3, 8)
       spaceMultipliers.foreach(i => appendNewRevision(spark, tmpDir, i))
 
-      val tableId = new QTableID(tmpDir)
-      val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
+      val qbeastSnapshot = getQbeastSnapshot(tmpDir)
       val spaceRevisions = qbeastSnapshot.loadAllRevisions
 
       // Including the staging revision

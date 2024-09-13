@@ -18,7 +18,6 @@ package io.qbeast.spark.index
 import io.delta.tables.DeltaTable
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.StagingUtils
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.delta.StagingDataManager
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.QbeastIntegrationTestSpec
@@ -35,11 +34,6 @@ class DataStagingTest
   def createDF(spark: SparkSession): DataFrame = {
     import spark.implicits._
     spark.range(10000).map(i => T2(i, i.toDouble)).toDF()
-  }
-
-  def getQbeastSnapshot(dir: String): DeltaQbeastSnapshot = {
-    val tableId = new QTableID(dir)
-    DeltaQbeastSnapshot(tableId)
   }
 
   private val getCurrentStagingSize: PrivateMethod[Long] =

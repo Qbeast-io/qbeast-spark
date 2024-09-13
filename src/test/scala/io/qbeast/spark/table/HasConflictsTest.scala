@@ -17,7 +17,7 @@ package io.qbeast.spark.table
 
 import io.qbeast.core.model.CubeId
 import io.qbeast.core.model.QTableID
-import io.qbeast.spark.delta.DeltaSparkMetadataManager
+import io.qbeast.spark.delta.DeltaMetadataManager
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.QbeastTable
 
@@ -42,7 +42,7 @@ class HasConflictsTest extends QbeastIntegrationTestSpec {
         // If the announced cubes is empty,
         // means that the process is not aware of the cubes optimized in the middle
         // and the conflict is not solvable
-        DeltaSparkMetadataManager.hasConflicts(
+        DeltaMetadataManager.hasConflicts(
           QTableID(tmpDir),
           1L,
           Set.empty, // knowAnnounced is empty
@@ -65,7 +65,7 @@ class HasConflictsTest extends QbeastIntegrationTestSpec {
 
         // If we are aware of the announced cubes,
         // the process has to end successfully and no conflicts are raised
-        DeltaSparkMetadataManager.hasConflicts(
+        DeltaMetadataManager.hasConflicts(
           QTableID(tmpDir),
           1L,
           knowAnnounced.map(CubeId(2, _)).toSet, // know announced is set

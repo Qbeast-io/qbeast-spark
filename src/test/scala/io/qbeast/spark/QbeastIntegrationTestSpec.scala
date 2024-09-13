@@ -21,8 +21,10 @@ import io.qbeast.context.QbeastContextImpl
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.keeper.LocalKeeper
 import io.qbeast.core.model.IndexManager
+import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QbeastSnapshot
 import io.qbeast.spark.delta.writer.RollupDataWriter
-import io.qbeast.spark.delta.DeltaSparkMetadataManager
+import io.qbeast.spark.delta.DeltaMetadataManager
 import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.index.SparkRevisionFactory
@@ -161,7 +163,7 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
       val indexedTableFactory = new IndexedTableFactoryImpl(
         keeper,
         SparkOTreeManager,
-        DeltaSparkMetadataManager,
+        DeltaMetadataManager,
         RollupDataWriter,
         SparkRevisionFactory,
         SparkColumnsToIndexSelector)
@@ -206,6 +208,11 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
    */
   def withOTreeAlgorithm[T](code: IndexManager[DataFrame] => T): T = {
     code(SparkOTreeManager)
+  }
+
+  def getQbeastSnapshot(dir: String): QbeastSnapshot = {
+    val tableId = new QTableID(dir)
+    QbeastContext.metadataManager.loadSnapshot(tableId)
   }
 
 }

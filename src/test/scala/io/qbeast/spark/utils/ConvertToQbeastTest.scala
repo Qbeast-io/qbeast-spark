@@ -15,9 +15,7 @@
  */
 package io.qbeast.spark.utils
 
-import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.StagingUtils
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.utils.QbeastExceptionMessages.incorrectIdentifierFormat
 import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
@@ -62,11 +60,6 @@ class ConvertToQbeastTest
     // Convert source data to qbeast
     val tableIdentifier = s"$format.`$tablePath`"
     ConvertToQbeastCommand(tableIdentifier, columnsToIndex, dcs).run(spark)
-  }
-
-  def getQbeastSnapshot(dir: String): DeltaQbeastSnapshot = {
-    val tableId = new QTableID(dir)
-    DeltaQbeastSnapshot(tableId)
   }
 
   behavior of "ConvertToQbeastCommand"

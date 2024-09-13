@@ -18,7 +18,7 @@ package io.qbeast.spark.keeper
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.delta.DeltaSparkMetadataManager
+import io.qbeast.spark.delta.DeltaMetadataManager
 import io.qbeast.spark.delta.MetadataWriterTest
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
@@ -142,7 +142,7 @@ class WritingProcess(context: ProtoTestContext)(implicit keeper: Keeper) extends
   override def run(): Unit = {
     val winfo = keeper.beginWrite(tableID, rev.revisionID)
 
-    val deltaLog = DeltaSparkMetadataManager.loadDeltaLog(tableID)
+    val deltaLog = DeltaMetadataManager.loadDeltaLog(tableID)
     val mode = SaveMode.Append
     val metadataWriter = MetadataWriterTest(tableID, mode, deltaLog, QbeastOptions.empty, schema)
 
@@ -163,7 +163,7 @@ class WritingProcess(context: ProtoTestContext)(implicit keeper: Keeper) extends
             succeeded = Some(true)
           } catch {
             case cme: ConcurrentModificationException
-                if DeltaSparkMetadataManager.hasConflicts(
+                if DeltaMetadataManager.hasConflicts(
                   tableID,
                   rev.revisionID,
                   knownAnnounced,
@@ -192,7 +192,7 @@ class OptimizingProcessGood(context: ProtoTestContext)(implicit keeper: Keeper)
   override def run(): Unit = {
     val bo = keeper.beginOptimization(tableID, rev.revisionID)
 
-    val deltaLog = DeltaSparkMetadataManager.loadDeltaLog(tableID)
+    val deltaLog = DeltaMetadataManager.loadDeltaLog(tableID)
     val deltaSnapshot = deltaLog.update()
     val mode = SaveMode.Append
     val metadataWriter = MetadataWriterTest(tableID, mode, deltaLog, QbeastOptions.empty, schema)
@@ -224,7 +224,7 @@ class OptimizingProcessBad(context: ProtoTestContext, args: Seq[String])(implici
   override def run(): Unit = {
     val bo = keeper.beginOptimization(tableID, rev.revisionID)
 
-    val deltaLog = DeltaSparkMetadataManager.loadDeltaLog(tableID)
+    val deltaLog = DeltaMetadataManager.loadDeltaLog(tableID)
     val deltaSnapshot = deltaLog.update()
     val mode = SaveMode.Append
     val metadataWriter = MetadataWriterTest(tableID, mode, deltaLog, QbeastOptions.empty, schema)

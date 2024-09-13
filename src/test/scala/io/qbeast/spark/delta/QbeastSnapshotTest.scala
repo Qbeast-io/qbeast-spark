@@ -43,11 +43,6 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
 
   }
 
-  def getQbeastSnapshot(dir: String): DeltaQbeastSnapshot = {
-    val tableId = new QTableID(dir)
-    DeltaQbeastSnapshot(tableId)
-  }
-
   "QbeastSnapshot" should
     "load last index status correctly" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
       {
@@ -60,8 +55,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
           .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> cubeSize.toString))
           .save(tmpDir)
 
-        val tableId = new QTableID(tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
+        val qbeastSnapshot = getQbeastSnapshot(tmpDir)
         val indexStatus = qbeastSnapshot.loadLatestIndexStatus
         val revision = indexStatus.revision
 

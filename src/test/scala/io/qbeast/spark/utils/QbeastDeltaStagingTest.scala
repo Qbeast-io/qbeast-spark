@@ -15,9 +15,7 @@
  */
 package io.qbeast.spark.utils
 
-import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.StagingUtils
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.QbeastTable
 import io.qbeast.TestClasses.T2
@@ -60,8 +58,7 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
       assertLargeDatasetEquality(qbeastDf, deltaDf)
 
       // Should have the staging revision and the first revision
-      val tableId = new QTableID(tmpDir)
-      val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
+      val qbeastSnapshot = getQbeastSnapshot(tmpDir)
 
       qbeastSnapshot.loadAllRevisions.size shouldBe 2
       qbeastSnapshot.existsRevision(stagingID)
@@ -84,8 +81,7 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
       assertLargeDatasetEquality(qbeastDf, deltaDf)
 
       // Should preserve standing staging revision behavior
-      val tableId = new QTableID(tmpDir)
-      val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
+      val qbeastSnapshot = getQbeastSnapshot(tmpDir)
       val stagingIndexStatus = qbeastSnapshot.loadIndexStatus(stagingID)
       stagingIndexStatus.cubesStatuses.size shouldBe 1
       stagingIndexStatus.replicatedOrAnnouncedSet.isEmpty shouldBe true

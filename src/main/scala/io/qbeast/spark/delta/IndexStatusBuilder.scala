@@ -33,7 +33,7 @@ import scala.collection.immutable.SortedMap
  *   the announced set available for the revision
  */
 private[delta] class IndexStatusBuilder(
-    qbeastSnapshot: DeltaQbeastSnapshot,
+    qbeastSnapshot: QbeastSnapshot,
     revision: Revision,
     announcedSet: Set[CubeId] = Set.empty)
     extends Serializable

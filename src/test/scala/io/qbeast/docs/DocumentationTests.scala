@@ -15,8 +15,6 @@
  */
 package io.qbeast.docs
 
-import io.qbeast.core.model.QTableID
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.functions.input_file_name
 import org.apache.spark.SparkConf
@@ -151,8 +149,7 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
 
       val qbeast_df = spark.read.format("qbeast").load(qbeast_table_path)
 
-      val tableId = new QTableID(qbeast_table_path)
-      val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
+      val qbeastSnapshot = getQbeastSnapshot(qbeast_table_path)
       val totalNumberOfFiles = qbeastSnapshot.allFilesCount
 
       totalNumberOfFiles should be > 1L withClue

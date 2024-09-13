@@ -16,6 +16,7 @@
 package io.qbeast.core.model
 
 import io.qbeast.IISeq
+import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Dataset
@@ -103,6 +104,16 @@ trait QbeastSnapshot {
   def loadAllRevisions: IISeq[Revision]
 
   /**
+   * Returns true if a revision with a specific revision identifier exists
+   *
+   * @param revisionID
+   *   the identifier of the revision
+   * @return
+   *   boolean
+   */
+  def existsRevision(revisionID: RevisionID): Boolean
+
+  /**
    * Obtains the last Revision available
    * @return
    *   the revision
@@ -127,6 +138,22 @@ trait QbeastSnapshot {
    */
   def loadRevisionAt(timestamp: Long): Revision
 
+  /**
+   * Loads the dataset of qbeast blocks from index files
+   * @param indexFile
+   *   A dataset of index files
+   * @return
+   *   the Datasetframe
+   */
   def loadDataframeFromIndexFiles(indexFile: Dataset[IndexFile]): DataFrame
+
+  /**
+   * Loads the dataset of qbeast blocks for a given revision
+   * @param revisionID
+   *   the revision identifier
+   * @return
+   *   the Dataset of QbeastBlocks
+   */
+  def loadRevisionFiles(revisionID: RevisionID): Dataset[AddFile]
 
 }

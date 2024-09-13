@@ -19,7 +19,6 @@ import io.qbeast.core.model._
 import io.qbeast.core.transform.HashTransformer
 import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.core.transform.LinearTransformer
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.T3
@@ -131,8 +130,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
       .option("columnStats", appendColumnStats)
       .save(tmpDir)
 
-    val tableId = new QTableID(tmpDir)
-    val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
+    val qbeastSnapshot = getQbeastSnapshot(tmpDir)
     val latestRevision = qbeastSnapshot.loadLatestRevision
     val transformation = latestRevision.transformations.head
 
@@ -165,8 +163,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
         .option("columnStats", columnStats)
         .save(tmpDir)
 
-      val tableId = new QTableID(tmpDir)
-      val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
+      val qbeastSnapshot = getQbeastSnapshot(tmpDir)
       val latestRevision = qbeastSnapshot.loadLatestRevision
       val transformation = latestRevision.transformations.head
 

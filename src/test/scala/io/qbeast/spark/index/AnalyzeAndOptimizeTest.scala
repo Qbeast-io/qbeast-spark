@@ -16,8 +16,6 @@
 package io.qbeast.spark.index
 
 import io.qbeast.core.model.CubeId
-import io.qbeast.core.model.QTableID
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.QbeastTable
 import io.qbeast.TestClasses.Client3
@@ -72,8 +70,7 @@ class AnalyzeAndOptimizeTest
     qbeastTable.analyze()
     qbeastTable.optimize()
 
-    val tableId = new QTableID(tmpDir)
-    val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
+    val qbeastSnapshot = getQbeastSnapshot(tmpDir)
     val replicatedCubes = qbeastSnapshot.loadLatestIndexStatus.replicatedSet
 
     val announcedCubes = qbeastTable.analyze()
@@ -89,10 +86,8 @@ class AnalyzeAndOptimizeTest
       (0 to 5).foreach(_ => {
         val announcedCubes = qbeastTable.analyze()
         qbeastTable.optimize()
-        val tableId = new QTableID(tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(tableId)
-        val replicatedCubes =
-          qbeastSnapshot.loadLatestIndexStatus.replicatedSet.map(_.string)
+        val qbeastSnapshot = getQbeastSnapshot(tmpDir)
+        val replicatedCubes = qbeastSnapshot.loadLatestIndexStatus.replicatedSet.map(_.string)
 
         announcedCubes.foreach(r => replicatedCubes should contain(r))
       })
