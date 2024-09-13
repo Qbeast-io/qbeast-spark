@@ -16,7 +16,6 @@
 package io.qbeast.core.model
 
 import io.qbeast.IISeq
-import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Dataset
@@ -82,14 +81,14 @@ trait QbeastSnapshot {
   def loadLatestIndexFiles: Dataset[IndexFile]
 
   /**
-   * Loads the index files of the specified revision.
+   * Loads the index files of the specified revision (revision files).
    *
-   * @param revisionId
+   * @param revisionID
    *   the revision identifier
    * @return
    *   the index files of the specified revision
    */
-  def loadIndexFiles(revisionId: RevisionID): Dataset[IndexFile]
+  def loadIndexFiles(revisionID: RevisionID): Dataset[IndexFile]
 
   /**
    * Obtains all Revisions
@@ -141,14 +140,5 @@ trait QbeastSnapshot {
    *   the Datasetframe
    */
   def loadDataframeFromIndexFiles(indexFile: Dataset[IndexFile]): DataFrame
-
-  /**
-   * Loads the dataset of qbeast blocks for a given revision
-   * @param revisionID
-   *   the revision identifier
-   * @return
-   *   the Dataset of QbeastBlocks
-   */
-  def loadRevisionFiles(revisionID: RevisionID): Dataset[AddFile]
 
 }

@@ -16,7 +16,6 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model._
-import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.Dataset
 
@@ -38,15 +37,6 @@ private[delta] class IndexStatusBuilder(
     announcedSet: Set[CubeId] = Set.empty)
     extends Serializable
     with StagingUtils {
-
-  /**
-   * Dataset of files belonging to the specific revision
-   * @return
-   *   the dataset of AddFile actions
-   */
-  def revisionFiles: Dataset[AddFile] =
-    // this must be external to the lambda, to avoid SerializationErrors
-    qbeastSnapshot.loadRevisionFiles(revision.revisionID)
 
   def build(): IndexStatus = {
     val cubeStatus =
@@ -78,13 +68,13 @@ private[delta] class IndexStatusBuilder(
    */
   def indexCubeStatuses: SortedMap[CubeId, CubeStatus] = {
     val builder = SortedMap.newBuilder[CubeId, CubeStatus]
-    val dimensionCount = revision.transformations.size
     val desiredCubeSize = revision.desiredCubeSize
-    val revisionAddFiles: Dataset[AddFile] = revisionFiles
+    val revisionAddFiles: Dataset[IndexFile] =
+      qbeastSnapshot.loadIndexFiles(revision.revisionID)
 
     import revisionAddFiles.sparkSession.implicits._
     val cubeStatuses = revisionAddFiles
-      .flatMap(IndexFiles.fromAddFile(dimensionCount)(_).blocks)
+      .flatMap(_.blocks)
       .groupBy($"cubeId")
       .agg(
         min($"maxWeight.value").as("maxWeightInt"),

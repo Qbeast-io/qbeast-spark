@@ -146,13 +146,11 @@ case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with De
 
   override def loadLatestIndexFiles: Dataset[IndexFile] = loadIndexFiles(lastRevisionID)
 
-  override def loadIndexFiles(revisionId: RevisionID): Dataset[IndexFile] = {
-    val revision = loadRevision(revisionId)
-    val dimensionCount = revision.transformations.size
+  override def loadIndexFiles(revisionID: RevisionID): Dataset[IndexFile] = {
+    val dimensionCount = loadRevision(revisionID).transformations.size
     val addFiles =
-      if (isStaging(revision)) loadStagingFiles()
-      else loadRevisionFiles(revisionId)
-
+      if (isStaging(revisionID)) loadStagingFiles()
+      else snapshot.allFiles.where(TagColumns.revision === lit(revisionID.toString))
     import addFiles.sparkSession.implicits._
     addFiles.map(IndexFiles.fromAddFile(dimensionCount))
   }
@@ -206,16 +204,12 @@ case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with De
   }
 
   /**
-   * Loads the dataset of qbeast blocks for a given revision
-   * @param revisionID
-   *   the revision identifier
+   * Loads the dataset of qbeast blocks from index files
+   * @param indexFile
+   *   A dataset of index files
    * @return
-   *   the Dataset of QbeastBlocks
+   *   the Datasetframe
    */
-  override def loadRevisionFiles(revisionID: RevisionID): Dataset[AddFile] = {
-    if (isStaging(revisionID)) loadStagingFiles()
-    else snapshot.allFiles.where(TagColumns.revision === lit(revisionID.toString))
-  }
 
   override def loadDataframeFromIndexFiles(indexFile: Dataset[IndexFile]): DataFrame = {
     if (snapshot.deletionVectorsSupported) {
@@ -237,6 +231,6 @@ case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with De
   /**
    * Loads Staging AddFiles
    */
-  def loadStagingFiles(): Dataset[AddFile] = stagingFiles()
+  private def loadStagingFiles(): Dataset[AddFile] = stagingFiles()
 
 }
