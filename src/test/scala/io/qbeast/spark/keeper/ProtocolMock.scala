@@ -17,8 +17,8 @@ package io.qbeast.spark.keeper
 
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model._
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.delta.DeltaMetadataManager
+import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.delta.MetadataWriterTest
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec

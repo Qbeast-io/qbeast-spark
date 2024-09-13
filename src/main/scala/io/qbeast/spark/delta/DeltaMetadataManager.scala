@@ -71,7 +71,7 @@ object DeltaMetadataManager extends MetadataManager[StructType, FileAction, Qbea
    *   the table ID
    * @return
    */
-  private def loadDeltaLog(tableID: QTableID): DeltaLog = {
+  def loadDeltaLog(tableID: QTableID): DeltaLog = {
     DeltaLog.forTable(SparkSession.active, tableID.id)
   }
 
@@ -105,6 +105,7 @@ object DeltaMetadataManager extends MetadataManager[StructType, FileAction, Qbea
    * Creates an initial log directory
    *
    * @param tableID
+   *   Table ID
    */
   override def createLog(tableID: QTableID): Unit = {
     loadDeltaLog(tableID).createLogDirectory()
