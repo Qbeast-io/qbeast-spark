@@ -180,19 +180,16 @@ def extract_cubes_from_blocks(delta_table: DeltaTable , symbol_count: int) -> di
     # Iterate throughout each row of the dataframe
     for index, row in df_filtered.iterrows():
         cube = row["tags.blocks"] # This returns a pandas series with the blocks of the cube in each of the iterated rows
-
         # Check if the cube is a JSON chain & try to convert it into a list of dictionaries
         if isinstance(cube, str):
             try:
                 cube = json.loads(cube)  # Convert the string JSON into a list of dictionaries
             except json.JSONDecodeError:
                 print("Error decoding JSON:", cube)
-
         for block in cube:
             # Check if we already have a cube in the dictionary with the cube ID of this block
             # If we already have a cube with this ID, we update the atributes of the cube
             # Since objects are passed by reference, they can be modified in situ
-
             if block['cubeId'] in cubes_dict.keys():
                     dict_cube = cubes_dict[block['cubeId']]
                     normalized_max_weight = normalize_weight(int(block['maxWeight']))
@@ -211,7 +208,6 @@ def extract_cubes_from_blocks(delta_table: DeltaTable , symbol_count: int) -> di
                 min_weight = block['minWeight'] # Do we have to add it?
                 size = int(row['size_bytes'])
                 cubes_dict[cube_string] = Cube(cube_string, max_weight, element_count, size, depth) 
-        
     return cubes_dict
 
 
