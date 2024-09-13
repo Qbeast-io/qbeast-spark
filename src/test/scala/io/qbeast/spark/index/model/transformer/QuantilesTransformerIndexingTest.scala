@@ -32,7 +32,7 @@ class QuantilesTransformerIndexingTest extends QbeastIntegrationTestSpec {
         .mode("overwrite")
         .format("qbeast")
         .option("cubeSize", "30000")
-        .option("columnsToIndex", s"$columnName:quantile")
+        .option("columnsToIndex", s"$columnName:quantiles")
         .option("columnStats", s"""{"${columnName}_quantiles":$columnQuantilesString}""")
         .save(qbeastWithQuantiles)
 
