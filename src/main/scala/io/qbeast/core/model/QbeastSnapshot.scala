@@ -27,11 +27,6 @@ import org.apache.spark.sql.Dataset
 trait QbeastSnapshot {
 
   /**
-   * Returns the current snapshot object, representing the dataset state.
-   */
-  def snapshot: Any
-
-  /**
    * The current state of the snapshot.
    */
   def isInitial: Boolean

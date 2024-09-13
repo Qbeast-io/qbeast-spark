@@ -45,6 +45,7 @@ ThisBuild / libraryDependencies ++= Seq(
   mockito % Test)
 
 Test / javaOptions ++= Seq("-Xmx10G", "-XX:+UseG1GC")
+Test / testOptions += Tests.Argument("-oD")
 Test / fork := true
 
 // Scala compiler settings
