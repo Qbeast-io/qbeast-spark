@@ -19,29 +19,28 @@ import io.qbeast.core.model.OrderedDataType
 import io.qbeast.core.model.QDataType
 import org.apache.hadoop.classification.InterfaceStability.Evolving
 
-object QuantileTransformer extends TransformerType {
-  override def transformerSimpleName: String = "quantile"
+object QuantilesTransformer extends TransformerType {
+  override def transformerSimpleName: String = "quantiles"
 
 }
 
 @Evolving
-case class QuantileTransformer(columnName: String, dataType: QDataType) extends Transformer {
+case class QuantilesTransformer(columnName: String, dataType: QDataType) extends Transformer {
 
   private val columnQuantiles = s"${columnName}_quantiles"
 
-  override protected def transformerType: TransformerType = QuantileTransformer
+  override protected def transformerType: TransformerType = QuantilesTransformer
 
   /**
    * Returns the stats
    *
-   * In this case, we are using the method approx_percentiles from Spark SQL to calculate the
-   * quantiles // TODO: test this method
+   * In this case, no stats are computed since we use the default quantiles of the DataType
    *
    * @return
    */
   override def stats: ColumnStats = {
     val names = columnQuantiles :: Nil
-    val sqlPredicates = s"approx_percentiles($columnName) AS $columnQuantiles" :: Nil
+    val sqlPredicates = Nil
     ColumnStats(names, sqlPredicates)
   }
 
@@ -61,8 +60,10 @@ case class QuantileTransformer(columnName: String, dataType: QDataType) extends 
           case h: Seq[_] => h.toIndexedSeq
           case _ => ord.defaultQuantiles // if no quantiles are found, we use the default ones
         }
-        QuantileTransformation(hist, ord)
-      case _ => throw new IllegalArgumentException(s"Invalid data type: $dataType")
+        QuantilesTransformation(hist, ord)
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Invalid data type for QuantilesTransformation: $dataType, please use an OrderedDataType such as Numeric or Date")
     }
 
   }

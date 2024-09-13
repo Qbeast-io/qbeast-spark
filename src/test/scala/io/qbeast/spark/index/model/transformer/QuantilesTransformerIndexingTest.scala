@@ -1,13 +1,13 @@
 package io.qbeast.spark.index.model.transformer
 
-import io.qbeast.core.transform.QuantileTransformation
+import io.qbeast.core.transform.QuantilesTransformation
 import io.qbeast.spark.utils.QbeastUtils
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.QbeastTable
 
-class QuantileTransformerIndexingTest extends QbeastIntegrationTestSpec {
+class QuantilesTransformerIndexingTest extends QbeastIntegrationTestSpec {
 
-  "QuantileTrasfomer" should "initialize the transformation with input columnStats" in withQbeastContextSparkAndTmpDir(
+  "QuantilesTrasfomer" should "initialize the transformation with input columnStats" in withQbeastContextSparkAndTmpDir(
     (spark, tmpDir) => {
 
       val qbeastDefault = tmpDir + "/default"
@@ -32,14 +32,14 @@ class QuantileTransformerIndexingTest extends QbeastIntegrationTestSpec {
         .mode("overwrite")
         .format("qbeast")
         .option("cubeSize", "30000")
-        .option("columnsToIndex", s"$columnName:quantiles")
+        .option("columnsToIndex", s"$columnName:quantile")
         .option("columnStats", s"""{"${columnName}_quantiles":$columnQuantilesString}""")
         .save(qbeastWithQuantiles)
 
       val qbeastTable = QbeastTable.forPath(spark, qbeastWithQuantiles)
       val transformation = qbeastTable.latestRevision.transformations.head
-      transformation.isInstanceOf[QuantileTransformation] shouldBe true
-      transformation.asInstanceOf[QuantileTransformation].quantiles should be(approxQuantiles)
+      transformation.isInstanceOf[QuantilesTransformation] shouldBe true
+      transformation.asInstanceOf[QuantilesTransformation].quantiles should be(approxQuantiles)
 
       val indexMetricsDefault = QbeastTable.forPath(spark, qbeastDefault).getIndexMetrics()
       println("INDEX METRICS DEFAULT")

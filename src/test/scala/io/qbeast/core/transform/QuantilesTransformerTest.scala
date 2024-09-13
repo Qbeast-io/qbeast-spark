@@ -6,7 +6,7 @@ import io.qbeast.core.model.QDataType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class QuantileTransformerTest extends AnyFlatSpec with Matchers {
+class QuantilesTransformerTest extends AnyFlatSpec with Matchers {
 
   private val orderedDataType = new OrderedDataType {
     override val ordering: Numeric[Any] = IntegerDataType.ordering
@@ -20,8 +20,8 @@ class QuantileTransformerTest extends AnyFlatSpec with Matchers {
     override def name: String = "non-int"
   }
 
-  "QuantileTransformer" should "return correct stats for given column name and data type" in {
-    val transformer = QuantileTransformer("testColumn", orderedDataType)
+  "QuantilesTransformer" should "return correct stats for given column name and data type" in {
+    val transformer = QuantilesTransformer("testColumn", orderedDataType)
     val stats = transformer.stats
     stats.statsNames should contain("testColumn_quantiles")
     stats.statsSqlPredicates should contain(
@@ -29,23 +29,23 @@ class QuantileTransformerTest extends AnyFlatSpec with Matchers {
   }
 
   it should "throw IllegalArgumentException for invalid data type" in {
-    val transformer = QuantileTransformer("testColumn", nonOrderedDataType)
+    val transformer = QuantilesTransformer("testColumn", nonOrderedDataType)
     assertThrows[IllegalArgumentException] {
       transformer.makeTransformation(_ => new AnyRef)
     }
   }
 
   it should "return correct transformation for valid data type" in {
-    val transformer = QuantileTransformer("testColumn", orderedDataType)
+    val transformer = QuantilesTransformer("testColumn", orderedDataType)
     val transformation = transformer.makeTransformation(_ => Seq.empty)
-    transformation shouldBe a[QuantileTransformation]
+    transformation shouldBe a[QuantilesTransformation]
   }
 
   it should "return default quantiles for empty sequence" in {
-    val transformer = QuantileTransformer("testColumn", orderedDataType)
+    val transformer = QuantilesTransformer("testColumn", orderedDataType)
     println(orderedDataType.toString)
     val transformation =
-      transformer.makeTransformation(_ => Seq.empty).asInstanceOf[QuantileTransformation]
+      transformer.makeTransformation(_ => Seq.empty).asInstanceOf[QuantilesTransformation]
 
     println(transformation.toString)
     transformation.quantiles should be(orderedDataType.defaultQuantiles)

@@ -21,7 +21,7 @@ import org.apache.hadoop.classification.InterfaceStability.Evolving
 import scala.collection.Searching._
 
 @Evolving
-case class QuantileTransformation(quantiles: IndexedSeq[Any], orderedDataType: OrderedDataType)
+case class QuantilesTransformation(quantiles: IndexedSeq[Any], orderedDataType: OrderedDataType)
     extends Transformation {
 
   implicit val ordering = orderedDataType.ordering
@@ -47,7 +47,7 @@ case class QuantileTransformation(quantiles: IndexedSeq[Any], orderedDataType: O
    */
   override def isSupersededBy(newTransformation: Transformation): Boolean =
     newTransformation match {
-      case nt @ QuantileTransformation(quantiles, _) =>
+      case nt @ QuantilesTransformation(quantiles, _) =>
         if (isDefault) !nt.isDefault
         else if (nt.isDefault) false
         else !(quantiles == quantiles)
@@ -63,7 +63,7 @@ case class QuantileTransformation(quantiles: IndexedSeq[Any], orderedDataType: O
    *   a new Transformation that contains both this and other.
    */
   override def merge(other: Transformation): Transformation = other match {
-    case _: QuantileTransformation => other
+    case _: QuantilesTransformation => other
     case _ => this
   }
 
