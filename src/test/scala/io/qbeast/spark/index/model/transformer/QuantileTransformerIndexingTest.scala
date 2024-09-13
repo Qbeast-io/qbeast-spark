@@ -25,15 +25,15 @@ class QuantileTransformerIndexingTest extends QbeastIntegrationTestSpec {
       println(s"APPROX QUANTILES FOR COLUMN $columnName")
       approxQuantiles.foreach(println)
 
-      val columnQuantilesString = QbeastUtils.computeQuantilesForColumn(df, "a", quantileRanges)
-      val statsStr = s"""{"${columnName}_quantiles":$columnQuantilesString}"""
+      val columnQuantilesString =
+        QbeastUtils.computeQuantilesForColumn(df, columnName, quantileRanges)
 
       df.write
         .mode("overwrite")
         .format("qbeast")
         .option("cubeSize", "30000")
         .option("columnsToIndex", s"$columnName:quantiles")
-        .option("columnStats", statsStr)
+        .option("columnStats", s"""{"${columnName}_quantiles":$columnQuantilesString}""")
         .save(qbeastWithQuantiles)
 
       val qbeastTable = QbeastTable.forPath(spark, qbeastWithQuantiles)

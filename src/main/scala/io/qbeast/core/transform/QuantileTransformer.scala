@@ -17,12 +17,14 @@ package io.qbeast.core.transform
 
 import io.qbeast.core.model.OrderedDataType
 import io.qbeast.core.model.QDataType
+import org.apache.hadoop.classification.InterfaceStability.Evolving
 
 object QuantileTransformer extends TransformerType {
   override def transformerSimpleName: String = "quantile"
 
 }
 
+@Evolving
 case class QuantileTransformer(columnName: String, dataType: QDataType) extends Transformer {
 
   private val columnQuantiles = s"${columnName}_quantiles"
@@ -32,7 +34,8 @@ case class QuantileTransformer(columnName: String, dataType: QDataType) extends 
   /**
    * Returns the stats
    *
-   * In this case, we are using the method approx_percentiles from Spark SQL
+   * In this case, we are using the method approx_percentiles from Spark SQL to calculate the
+   * quantiles // TODO: test this method
    *
    * @return
    */

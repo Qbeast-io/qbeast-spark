@@ -78,11 +78,19 @@ object QbeastUtils extends Logging {
       .mkString("[", ",", "]")
   }
 
+  /**
+   * Compute the quantiles for a given column
+   * @param df DataFrame
+   * @param columnName Column name
+   * @param probabilities Array of probabilities
+   * @return
+   */
   def computeQuantilesForColumn(
       df: DataFrame,
       columnName: String,
       probabilities: Array[Double]): String = {
     val approxQuantile = df.stat.approxQuantile(columnName, probabilities, 0.1)
+    log.info(s"Approx quantiles for column $columnName: $approxQuantile")
     approxQuantile
       .mkString("[", ",", "]")
   }

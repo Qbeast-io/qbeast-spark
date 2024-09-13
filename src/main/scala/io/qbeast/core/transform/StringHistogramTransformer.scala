@@ -16,17 +16,27 @@
 package io.qbeast.core.transform
 
 import io.qbeast.core.model.QDataType
+import io.qbeast.core.model.StringDataType
 import io.qbeast.core.transform.StringHistogramTransformer.defaultStringHistogram
 
 object StringHistogramTransformer extends TransformerType {
   override def transformerSimpleName: String = "histogram"
 
+  override def apply(columnName: String, dataType: QDataType): Transformer = {
+    if (dataType != StringDataType) {
+      throw new IllegalArgumentException(
+        s"StringHistogramTransformer can only be applied to String columns. " +
+          s"Column $columnName is of type $dataType")
+    } else {
+      StringHistogramTransformer(columnName)
+    }
+  }
+
   val defaultStringHistogram: IndexedSeq[String] = (97 to 122).map(_.toChar.toString)
 
 }
 
-case class StringHistogramTransformer(columnName: String, dataType: QDataType)
-    extends Transformer {
+case class StringHistogramTransformer(columnName: String) extends Transformer {
   private val columnHistogram = s"${columnName}_histogram"
 
   /**

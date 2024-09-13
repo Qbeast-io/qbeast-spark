@@ -16,9 +16,11 @@
 package io.qbeast.core.transform
 
 import io.qbeast.core.model.OrderedDataType
+import org.apache.hadoop.classification.InterfaceStability.Evolving
 
 import scala.collection.Searching._
 
+@Evolving
 case class QuantileTransformation(quantiles: IndexedSeq[Any], orderedDataType: OrderedDataType)
     extends Transformation {
 
