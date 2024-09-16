@@ -15,12 +15,12 @@
  */
 package io.qbeast.spark.delta
 
+import io.qbeast.core.model.PreCommitHook.PreCommitHookOutput
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.RevisionID
 import io.qbeast.core.model.TableChanges
-import io.qbeast.spark.delta.hook.PreCommitHook
-import io.qbeast.spark.delta.hook.PreCommitHook.PreCommitHookOutput
-import io.qbeast.spark.delta.hook.QbeastHookLoader
+import io.qbeast.spark.delta.hook.DeltaHookLoader
+import io.qbeast.spark.delta.hook.DeltaPreCommitHook
 import io.qbeast.spark.delta.writer.StatsTracker.registerStatsTrackers
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
@@ -100,7 +100,7 @@ private[delta] case class DeltaMetadataWriter(
     statsTrackers
   }
 
-  private val preCommitHooks = new ListBuffer[PreCommitHook]()
+  private val preCommitHooks = new ListBuffer[DeltaPreCommitHook]()
 
   // Load the pre-commit hooks
   loadPreCommitHooks().foreach(registerPreCommitHooks)
@@ -110,7 +110,7 @@ private[delta] case class DeltaMetadataWriter(
    * @param preCommitHook
    *   the hook to register
    */
-  private def registerPreCommitHooks(preCommitHook: PreCommitHook): Unit = {
+  private def registerPreCommitHooks(preCommitHook: DeltaPreCommitHook): Unit = {
     if (!preCommitHooks.contains(preCommitHook)) {
       preCommitHooks.append(preCommitHook)
     }
@@ -121,8 +121,8 @@ private[delta] case class DeltaMetadataWriter(
    * @return
    *   the loaded hooks
    */
-  private def loadPreCommitHooks(): Seq[PreCommitHook] =
-    qbeastOptions.hookInfo.map(QbeastHookLoader.loadHook)
+  private def loadPreCommitHooks(): Seq[DeltaPreCommitHook] =
+    qbeastOptions.hookInfo.map(DeltaHookLoader.loadHook)
 
   /**
    * Executes all registered pre-commit hooks.

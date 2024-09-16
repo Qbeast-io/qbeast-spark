@@ -16,10 +16,10 @@
 package io.qbeast.spark.internal
 
 import io.qbeast.core.model.ColumnToIndex
+import io.qbeast.core.model.HookInfo
+import io.qbeast.core.model.PreCommitHook.getHookArgName
+import io.qbeast.core.model.PreCommitHook.PRE_COMMIT_HOOKS_PREFIX
 import io.qbeast.core.model.QTableID
-import io.qbeast.spark.delta.hook.HookInfo
-import io.qbeast.spark.delta.hook.PreCommitHook.getHookArgName
-import io.qbeast.spark.delta.hook.PreCommitHook.PRE_COMMIT_HOOKS_PREFIX
 import io.qbeast.spark.index.ColumnsToIndex
 import io.qbeast.spark.internal.QbeastOptions.COLUMNS_TO_INDEX
 import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
@@ -37,8 +37,6 @@ import scala.util.matching.Regex
  *
  * @param columnsToIndex
  *   A sequence of column names to index.
- * @param columnsToIndexDecoded
- *   A sequence of ColumnToIndex objects representing the columns to index.
  * @param cubeSize
  *   The number of desired elements per cube.
  * @param stats

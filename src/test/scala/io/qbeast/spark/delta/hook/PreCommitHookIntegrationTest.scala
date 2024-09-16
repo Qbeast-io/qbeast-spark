@@ -1,16 +1,16 @@
 package io.qbeast.spark.delta.hook
 
 import io.qbeast.context.QbeastContext
+import io.qbeast.core.model.PreCommitHook.PRE_COMMIT_HOOKS_PREFIX
+import io.qbeast.core.model.PreCommitHook.PreCommitHookOutput
 import io.qbeast.core.model.QTableID
-import io.qbeast.spark.delta.hook.PreCommitHook.PRE_COMMIT_HOOKS_PREFIX
-import io.qbeast.spark.delta.hook.PreCommitHook.PreCommitHookOutput
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.delta.actions.Action
 import org.apache.spark.sql.delta.actions.CommitInfo
 import org.apache.spark.sql.delta.util.FileNames
 import org.apache.spark.sql.delta.DeltaLog
 
-private class SimpleHook(kv: String) extends PreCommitHook {
+private class SimpleHook(kv: String) extends DeltaPreCommitHook {
   override val name: String = "SimpleHook"
 
   override def run(args: Seq[Action]): PreCommitHookOutput = {
