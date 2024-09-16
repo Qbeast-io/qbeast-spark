@@ -148,8 +148,7 @@ class IndexTest
           .options(options)
           .save(tmpDir)
 
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
+        val qbeastSnapshot = getQbeastSnapshot(tmpDir)
 
         val offset = 0.5
         val appendData = df

@@ -21,21 +21,25 @@ import io.qbeast.spark.utils.TagColumns
 import io.qbeast.IISeq
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
 
 /**
  * Qbeast Snapshot that provides information about the current index state.
  *
- * @param snapshot
- *   the internal Delta Lakes log snapshot
+ * @param tableID
+ *   the table ID
  */
-case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
-    extends QbeastSnapshot
-    with DeltaStagingUtils {
+case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with DeltaStagingUtils {
+
+  override val snapshot: Snapshot =
+    DeltaLog.forTable(SparkSession.active, tableID.id).update()
 
   /**
    * The current state of the snapshot.
@@ -43,6 +47,10 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
    * @return
    */
   override def isInitial: Boolean = snapshot.version == -1
+
+  override val schema: StructType = snapshot.metadata.schema
+
+  override val allFilesCount: Long = snapshot.allFiles.count
 
   private val metadataMap: Map[String, String] = snapshot.metadata.configuration
 
@@ -110,7 +118,7 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
    * @return
    *   boolean
    */
-  def existsRevision(revisionID: RevisionID): Boolean = {
+  override def existsRevision(revisionID: RevisionID): Boolean = {
     revisionsMap.contains(revisionID)
   }
 
@@ -138,13 +146,11 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
 
   override def loadLatestIndexFiles: Dataset[IndexFile] = loadIndexFiles(lastRevisionID)
 
-  override def loadIndexFiles(revisionId: RevisionID): Dataset[IndexFile] = {
-    val revision = loadRevision(revisionId)
-    val dimensionCount = revision.transformations.size
+  override def loadIndexFiles(revisionID: RevisionID): Dataset[IndexFile] = {
+    val dimensionCount = loadRevision(revisionID).transformations.size
     val addFiles =
-      if (isStaging(revision)) loadStagingFiles()
-      else loadRevisionFiles(revisionId)
-
+      if (isStaging(revisionID)) loadStagingFiles()
+      else snapshot.allFiles.where(TagColumns.revision === lit(revisionID.toString))
     import addFiles.sparkSession.implicits._
     addFiles.map(IndexFiles.fromAddFile(dimensionCount))
   }
@@ -198,21 +204,12 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
   }
 
   /**
-   * Loads the dataset of qbeast blocks for a given revision
-   * @param revisionID
-   *   the revision identifier
+   * Loads the dataset of qbeast blocks from index files
+   * @param indexFile
+   *   A dataset of index files
    * @return
-   *   the Dataset of QbeastBlocks
+   *   the Datasetframe
    */
-  def loadRevisionFiles(revisionID: RevisionID): Dataset[AddFile] = {
-    if (isStaging(revisionID)) loadStagingFiles()
-    else snapshot.allFiles.where(TagColumns.revision === lit(revisionID.toString))
-  }
-
-  /**
-   * Loads Staging AddFiles
-   */
-  def loadStagingFiles(): Dataset[AddFile] = stagingFiles()
 
   override def loadDataframeFromIndexFiles(indexFile: Dataset[IndexFile]): DataFrame = {
     if (snapshot.deletionVectorsSupported) {
@@ -230,5 +227,10 @@ case class DeltaQbeastSnapshot(protected override val snapshot: Snapshot)
 
     }
   }
+
+  /**
+   * Loads Staging AddFiles
+   */
+  private def loadStagingFiles(): Dataset[AddFile] = stagingFiles()
 
 }

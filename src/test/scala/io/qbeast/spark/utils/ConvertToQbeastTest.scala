@@ -16,14 +16,12 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.core.model.StagingUtils
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.utils.QbeastExceptionMessages.incorrectIdentifierFormat
 import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
 import io.qbeast.spark.utils.QbeastExceptionMessages.unsupportedFormatExceptionMsg
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.QbeastTable
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.SparkSession
 import org.scalatest.PrivateMethodTester
@@ -64,11 +62,6 @@ class ConvertToQbeastTest
     ConvertToQbeastCommand(tableIdentifier, columnsToIndex, dcs).run(spark)
   }
 
-  def getQbeastSnapshot(spark: SparkSession, dir: String): DeltaQbeastSnapshot = {
-    val deltaLog = DeltaLog.forTable(spark, dir)
-    DeltaQbeastSnapshot(deltaLog.update())
-  }
-
   behavior of "ConvertToQbeastCommand"
 
   it should "convert a delta table" in withSparkAndTmpDir((spark, tmpDir) => {
@@ -82,7 +75,7 @@ class ConvertToQbeastTest
 
     // All non-qbeast files are considered staging files and are placed
     // directly into the staging revision(RevisionID = 0)
-    val indexStatus = getQbeastSnapshot(spark, tmpDir).loadIndexStatus(stagingID)
+    val indexStatus = getQbeastSnapshot(tmpDir).loadIndexStatus(stagingID)
     indexStatus.cubesStatuses.size shouldBe 1
 
     val valuesToTransform = Vector(544496263, 76.96, "view")
@@ -101,7 +94,7 @@ class ConvertToQbeastTest
 
     // All non-qbeast files are considered staging files and are placed
     // directly into the staging revision(RevisionID = 0)
-    val indexStatus = getQbeastSnapshot(spark, tmpDir).loadIndexStatus(stagingID)
+    val indexStatus = getQbeastSnapshot(tmpDir).loadIndexStatus(stagingID)
     indexStatus.cubesStatuses.size shouldBe 1
   })
 
@@ -146,9 +139,9 @@ class ConvertToQbeastTest
         .option("cubeSize", dcs)
         .save(tmpDir)
 
-      val revisionsBefore = getQbeastSnapshot(spark, tmpDir).loadAllRevisions
+      val revisionsBefore = getQbeastSnapshot(tmpDir).loadAllRevisions
       ConvertToQbeastCommand(s"qbeast.`$tmpDir`", columnsToIndex, dcs).run(spark)
-      val revisionsAfter = getQbeastSnapshot(spark, tmpDir).loadAllRevisions
+      val revisionsAfter = getQbeastSnapshot(tmpDir).loadAllRevisions
 
       // Revisions should not modify
       revisionsAfter shouldBe revisionsBefore
@@ -172,7 +165,7 @@ class ConvertToQbeastTest
       .format("delta")
       .save(location)
     ConvertToQbeastCommand(identifier, columnsToIndex, dcs).run(spark)
-    getQbeastSnapshot(spark, location).loadAllRevisions.size shouldBe 1
+    getQbeastSnapshot(location).loadAllRevisions.size shouldBe 1
   })
 
   it should "preserve sampling accuracy" in withSparkAndTmpDir((spark, tmpDir) => {
@@ -205,7 +198,7 @@ class ConvertToQbeastTest
         .save(tmpDir)
 
       // Should add new revision
-      val qs = getQbeastSnapshot(spark, tmpDir)
+      val qs = getQbeastSnapshot(tmpDir)
       val allRevisions = qs.loadAllRevisions
       val rev = qs.loadLatestRevision
 
@@ -222,7 +215,7 @@ class ConvertToQbeastTest
       qbeastTable.analyze()
 
       // Preserve empty ANNOUNCED set
-      val qs = getQbeastSnapshot(spark, tmpDir)
+      val qs = getQbeastSnapshot(tmpDir)
       qs.loadLatestIndexStatus.announcedSet.isEmpty shouldBe true
     })
 

@@ -16,11 +16,9 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.core.model.StagingUtils
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.QbeastTable
 import io.qbeast.TestClasses.T2
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.SparkSession
 
 class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils {
@@ -60,10 +58,10 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
       assertLargeDatasetEquality(qbeastDf, deltaDf)
 
       // Should have the staging revision and the first revision
-      val snapshot = DeltaLog.forTable(spark, tmpDir).unsafeVolatileSnapshot
-      val qs = DeltaQbeastSnapshot(snapshot)
-      qs.loadAllRevisions.size shouldBe 2
-      qs.existsRevision(stagingID)
+      val qbeastSnapshot = getQbeastSnapshot(tmpDir)
+
+      qbeastSnapshot.loadAllRevisions.size shouldBe 2
+      qbeastSnapshot.existsRevision(stagingID)
     })
 
   it should "be readable using both formats after Analyze and Optimize" in withSparkAndTmpDir(
@@ -83,8 +81,7 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
       assertLargeDatasetEquality(qbeastDf, deltaDf)
 
       // Should preserve standing staging revision behavior
-      val snapshot = DeltaLog.forTable(spark, tmpDir).unsafeVolatileSnapshot
-      val qbeastSnapshot = DeltaQbeastSnapshot(snapshot)
+      val qbeastSnapshot = getQbeastSnapshot(tmpDir)
       val stagingIndexStatus = qbeastSnapshot.loadIndexStatus(stagingID)
       stagingIndexStatus.cubesStatuses.size shouldBe 1
       stagingIndexStatus.replicatedOrAnnouncedSet.isEmpty shouldBe true

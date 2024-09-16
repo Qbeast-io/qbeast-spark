@@ -19,7 +19,7 @@ import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.keeper.LocalKeeper
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.writer.RollupDataWriter
-import io.qbeast.spark.delta.SparkDeltaMetadataManager
+import io.qbeast.spark.delta.DeltaMetadataManager
 import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.index.SparkRevisionFactory
@@ -92,7 +92,7 @@ object QbeastContext
   override def indexManager: IndexManager[DataFrame] = SparkOTreeManager
 
   override def metadataManager: MetadataManager[StructType, FileAction, QbeastOptions] =
-    SparkDeltaMetadataManager
+    DeltaMetadataManager
 
   override def dataWriter: DataWriter[DataFrame, StructType, FileAction] =
     RollupDataWriter

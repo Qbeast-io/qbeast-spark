@@ -16,8 +16,8 @@
 package io.qbeast.spark.internal.commands
 
 import io.qbeast.core.model._
+import io.qbeast.spark.delta.DeltaMetadataManager
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.delta.SparkDeltaMetadataManager
 import io.qbeast.spark.utils.MetadataConfig.lastRevisionID
 import io.qbeast.spark.utils.MetadataConfig.revision
 import io.qbeast.spark.utils.QbeastExceptionMessages.incorrectIdentifierFormat
@@ -28,7 +28,6 @@ import org.apache.http.annotation.Experimental
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.AnalysisExceptionFactory
@@ -80,9 +79,8 @@ case class ConvertToQbeastCommand(
   override def run(spark: SparkSession): Seq[Row] = {
     val (fileFormat, tableId) = resolveTableFormat(spark)
 
-    val deltaLog = DeltaLog.forTable(spark, tableId.table)
-    val unsafeVolatileSnapshot = deltaLog.update()
-    val qbeastSnapshot = DeltaQbeastSnapshot(unsafeVolatileSnapshot)
+    val tableID = QTableID(tableId.table)
+    val qbeastSnapshot = DeltaQbeastSnapshot(tableID)
     val isQbeast = qbeastSnapshot.loadAllRevisions.nonEmpty
 
     if (isQbeast) {
@@ -105,10 +103,10 @@ case class ConvertToQbeastCommand(
       }
 
       // Convert delta to qbeast through metadata modification
-      val tableID = QTableID(tableId.table)
-      val schema = deltaLog.update().schema
 
-      SparkDeltaMetadataManager.updateMetadataWithTransaction(tableID, schema) {
+      val schema = qbeastSnapshot.schema
+
+      DeltaMetadataManager.updateMetadataWithTransaction(tableID, schema) {
         val convRevision = stagingRevision(tableID, cubeSize, columnsToIndex)
         val revisionID = convRevision.revisionID
 

@@ -18,7 +18,7 @@ package io.qbeast.context
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.keeper.LocalKeeper
 import io.qbeast.spark.delta.writer.RollupDataWriter
-import io.qbeast.spark.delta.SparkDeltaMetadataManager
+import io.qbeast.spark.delta.DeltaMetadataManager
 import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.index.SparkRevisionFactory
@@ -35,7 +35,7 @@ class QbeastContextTest extends AnyFlatSpec with Matchers with QbeastIntegration
     val indexedTableFactory = new IndexedTableFactoryImpl(
       keeper,
       SparkOTreeManager,
-      SparkDeltaMetadataManager,
+      DeltaMetadataManager,
       RollupDataWriter,
       SparkRevisionFactory,
       SparkColumnsToIndexSelector)
@@ -56,7 +56,7 @@ class QbeastContextTest extends AnyFlatSpec with Matchers with QbeastIntegration
     val indexedTableFactory = new IndexedTableFactoryImpl(
       keeper,
       SparkOTreeManager,
-      SparkDeltaMetadataManager,
+      DeltaMetadataManager,
       RollupDataWriter,
       SparkRevisionFactory,
       SparkColumnsToIndexSelector)

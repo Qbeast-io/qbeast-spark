@@ -16,6 +16,7 @@
 package io.qbeast.core.model
 
 import io.qbeast.IISeq
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Dataset
 
@@ -26,9 +27,18 @@ trait QbeastSnapshot {
 
   /**
    * The current state of the snapshot.
-   * @return
    */
   def isInitial: Boolean
+
+  /**
+   * Returns the total number of data files in the snapshot.
+   */
+  def allFilesCount: Long
+
+  /**
+   * Provides the schema of the dataset for this snapshot.
+   */
+  def schema: StructType
 
   /**
    * The current table description.
@@ -71,14 +81,14 @@ trait QbeastSnapshot {
   def loadLatestIndexFiles: Dataset[IndexFile]
 
   /**
-   * Loads the index files of the specified revision.
+   * Loads the index files of the specified revision (revision files).
    *
-   * @param revisionId
+   * @param revisionID
    *   the revision identifier
    * @return
    *   the index files of the specified revision
    */
-  def loadIndexFiles(revisionId: RevisionID): Dataset[IndexFile]
+  def loadIndexFiles(revisionID: RevisionID): Dataset[IndexFile]
 
   /**
    * Obtains all Revisions
@@ -86,6 +96,16 @@ trait QbeastSnapshot {
    *   an immutable Seq of Revision
    */
   def loadAllRevisions: IISeq[Revision]
+
+  /**
+   * Returns true if a revision with a specific revision identifier exists
+   *
+   * @param revisionID
+   *   the identifier of the revision
+   * @return
+   *   boolean
+   */
+  def existsRevision(revisionID: RevisionID): Boolean
 
   /**
    * Obtains the last Revision available
@@ -112,6 +132,13 @@ trait QbeastSnapshot {
    */
   def loadRevisionAt(timestamp: Long): Revision
 
+  /**
+   * Loads the dataset of qbeast blocks from index files
+   * @param indexFile
+   *   A dataset of index files
+   * @return
+   *   the Datasetframe
+   */
   def loadDataframeFromIndexFiles(indexFile: Dataset[IndexFile]): DataFrame
 
 }
