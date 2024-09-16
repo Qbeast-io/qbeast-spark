@@ -39,7 +39,7 @@ import org.apache.spark.sql.SparkSession
 case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with DeltaStagingUtils {
 
   override val snapshot: Snapshot =
-    DeltaLog.forTable(SparkSession.active, tableID.id).unsafeVolatileSnapshot
+    DeltaLog.forTable(SparkSession.active, tableID.id).update()
 
   /**
    * The current state of the snapshot.

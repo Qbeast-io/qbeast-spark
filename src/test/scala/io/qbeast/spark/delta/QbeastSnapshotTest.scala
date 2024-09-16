@@ -191,10 +191,10 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
 
       val qbeastSnapshot = getQbeastSnapshot(tmpDir)
       val lastRev = qbeastSnapshot.loadLatestRevision
-      val filesToOptim = qbeastSnapshot.loadIndexFiles(lastRev.revisionID)
+      val filesToOptimize = qbeastSnapshot.loadIndexFiles(lastRev.revisionID)
       val cubeStatus = qbeastSnapshot.loadIndexStatus(lastRev.revisionID).cubesStatuses
       cubeStatus.size should be > 50
-      val allData = qbeastSnapshot.loadDataframeFromIndexFiles(filesToOptim)
+      val allData = qbeastSnapshot.loadDataframeFromIndexFiles(filesToOptimize)
       allData.count.toInt shouldBe 10000
 
       val data = spark.read.format("qbeast").load(tmpDir)
@@ -202,7 +202,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
         data.groupBy(input_file_name()).count().as[(String, Long)].first()
       val fileName = new Path(filePath).getName
       val subSet =
-        qbeastSnapshot.loadDataframeFromIndexFiles(filesToOptim.filter(_.path == fileName))
+        qbeastSnapshot.loadDataframeFromIndexFiles(filesToOptimize.filter(_.path == fileName))
 
       subSet.count shouldBe fileSize
 
@@ -283,10 +283,10 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
           .save(tmpDir)
         val qbeastSnapshot = getQbeastSnapshot(tmpDir)
         val lastRev = qbeastSnapshot.loadLatestRevision
-        val filesToOptim = qbeastSnapshot.loadIndexFiles(lastRev.revisionID)
+        val filesToOptimize = qbeastSnapshot.loadIndexFiles(lastRev.revisionID)
 
         intercept[UnsupportedOperationException] {
-          qbeastSnapshot.loadDataframeFromIndexFiles(filesToOptim)
+          qbeastSnapshot.loadDataframeFromIndexFiles(filesToOptimize)
         }
 
     }
