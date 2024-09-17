@@ -15,7 +15,6 @@ object CDFQuantilesTransformer extends TransformerType {
         throw new IllegalArgumentException(
           s"CDFQuantilesTransformer can only be applied to OrderedDataType columns or StringDataType columns. " +
             s"Column $columnName is of type $dataType")
-
     }
   }
 

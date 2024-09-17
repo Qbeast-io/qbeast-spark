@@ -9,8 +9,6 @@ case class CDFNumericQuantilesTransformation(
 
   override implicit val ordering: Ordering[Any] = orderedDataType.ordering
 
-  override def mapValue(value: Any): Any = {
-    value
-  }
+  override def mapValue(value: Any): Any = value // No mapping required for numeric values
 
 }

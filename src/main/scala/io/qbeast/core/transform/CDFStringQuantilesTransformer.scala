@@ -48,7 +48,6 @@ case class CDFStringQuantilesTransformer(columnName: String) extends Transformer
       case h: Seq[_] => h.map(_.toString).toIndexedSeq
       case _ => defaultStringQuantiles
     }
-
     CDFStringQuantilesTransformation(quantiles)
   }
 
