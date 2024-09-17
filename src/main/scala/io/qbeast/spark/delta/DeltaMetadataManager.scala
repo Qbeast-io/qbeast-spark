@@ -44,8 +44,8 @@ object DeltaMetadataManager extends MetadataManager[StructType, IndexFile, Qbeas
 
     val deltaWriter: (TableChanges, Seq[AddFile], Seq[RemoveFile]) = {
       val (tableChanges, addIndexFiles, removeIndexFiles) = writer
-      val addFiles = addIndexFiles.map(IndexFiles.toAddFile(dataChange = false))
-      val removeFiles = removeIndexFiles.map(IndexFiles.toRemoveFile(dataChange = true))
+      val addFiles = addIndexFiles.map(IndexFiles.toAddFile(dataChange = true))
+      val removeFiles = removeIndexFiles.map(IndexFiles.toRemoveFile(dataChange = false))
       (tableChanges, addFiles, removeFiles)
     }
 

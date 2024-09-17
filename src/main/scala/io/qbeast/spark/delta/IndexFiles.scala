@@ -92,8 +92,8 @@ object IndexFiles {
       size = indexFile.size,
       modificationTime = indexFile.modificationTime,
       dataChange = dataChange,
-      tags = tags,
-      stats = indexFile.stats)
+      stats = indexFile.stats,
+      tags = tags)
   }
 
   def fromRemoveFile(removeFile: RemoveFile): IndexFile = {

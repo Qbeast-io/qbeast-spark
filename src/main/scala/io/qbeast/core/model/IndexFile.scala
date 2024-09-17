@@ -35,8 +35,7 @@ case class IndexFile(
     modificationTime: Long,
     revisionId: RevisionID,
     blocks: IISeq[Block],
-    stats: String = null,
-    remove: Boolean = false)
+    stats: String = null)
     extends Serializable {
 
   /**
@@ -77,7 +76,7 @@ case class IndexFile(
   }
 
   override def toString: String = {
-    s"IndexFile($path, $size, $modificationTime, $revisionId, $blocks, $remove)"
+    s"IndexFile($path, $size, $modificationTime, $revisionId, $blocks)"
   }
 
 }
