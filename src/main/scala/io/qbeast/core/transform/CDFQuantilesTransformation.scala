@@ -27,6 +27,12 @@ import scala.collection.Searching._
 case class CDFQuantilesTransformation(quantiles: IndexedSeq[Any], dataType: QDataType)
     extends Transformation {
 
+  /**
+   * The ordering of the data type
+   *
+   * When the type is an OrderedDataType, the ordering is the one defined in the data type. When
+   * the type is a StringDataType, the ordering is the one defined in the String class.
+   */
   implicit val ordering: Ordering[Any] = dataType match {
     case orderedDataType: OrderedDataType => orderedDataType.ordering
     case StringDataType => implicitly[Ordering[String]].asInstanceOf[Ordering[Any]]
@@ -36,6 +42,18 @@ case class CDFQuantilesTransformation(quantiles: IndexedSeq[Any], dataType: QDat
           s"Column is of type $dataType")
   }
 
+  /**
+   * Transforms a value to a Double between 0 and 1
+   *
+   *   1. Checks if the value is null, if so, returns 0 2. Searches for the value in the quantiles
+   *      3. If the value is found, returns the current index divided by the length of the
+   *      quantiles 4. If the value is not found, returns the relative position of the insertion
+   *      point
+   * @param value
+   *   the value to convert
+   * @return
+   *   the number between 0 and 1
+   */
   override def transform(value: Any): Double = {
 
     // If the value is null, we return 0

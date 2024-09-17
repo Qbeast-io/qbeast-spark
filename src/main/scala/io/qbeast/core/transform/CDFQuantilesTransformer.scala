@@ -24,10 +24,16 @@ object CDFQuantilesTransformer extends TransformerType {
   override def transformerSimpleName: String = "quantiles"
 
   /**
-   * Returns the transformer
+   * Returns the CDFQuantilesTransformer that would compute the Quantiles for the defined
+   * columnName and dataType and initialize a new instance of CDFQuantilesTransformation
+   *
    * @param columnName
+   *   the column name
    * @param dataType
+   *   the data type
    * @return
+   *   the CDFFQuantilesTransformer, which can be of type CDFNumericQuantilesTransformer or
+   *   CDFStringQuantilesTransformer
    */
   override def apply(columnName: String, dataType: QDataType): CDFQuantilesTransformer = {
     dataType match {
