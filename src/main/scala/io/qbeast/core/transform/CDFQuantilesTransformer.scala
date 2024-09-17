@@ -41,8 +41,8 @@ object CDFQuantilesTransformer extends TransformerType {
       case StringDataType => CDFStringQuantilesTransformer(columnName)
       case _ =>
         throw AnalysisExceptionFactory.create(
-          "CDFQuantilesTransformer can only be applied to OrderedDataType columns or StringDataType columns. " +
-            s"Column $columnName is of type $dataType")
+          s"CDFQuantilesTransformer can only be applied to OrderedDataType columns " +
+            s"or StringDataType columns. Column $columnName is of type $dataType")
     }
   }
 
@@ -53,7 +53,7 @@ object CDFQuantilesTransformer extends TransformerType {
  */
 trait CDFQuantilesTransformer extends Transformer {
 
-  val columnQuantile = s"${columnName}_quantile"
+  val columnQuantile: String = s"${columnName}_quantile"
 
   val defaultQuantiles: IndexedSeq[Any]
 

@@ -38,7 +38,7 @@ case class CDFQuantilesTransformation(quantiles: IndexedSeq[Any], dataType: QDat
     case StringDataType => implicitly[Ordering[String]].asInstanceOf[Ordering[Any]]
     case _ =>
       throw AnalysisExceptionFactory.create(
-        s"Quantiles transformation can only be applied to OrderedDataType columns or StringDataType columns. " +
+        "Quantiles transformation can only be applied to OrderedDataType columns or StringDataType columns. " +
           s"Column is of type $dataType")
   }
 

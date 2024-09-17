@@ -19,11 +19,12 @@ import io.qbeast.core.model.StringDataType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.collection.immutable
 import scala.util.Random
 
 class CDFStringQuantilesTransformationTest extends AnyFlatSpec with Matchers {
 
-  val defaultStringQuantiles = (97 to 122).map(_.toChar.toString)
+  val defaultStringQuantiles: immutable.IndexedSeq[String] = (97 to 122).map(_.toChar.toString)
 
   "A CDFStringQuantilesTransformation" should "map values to [0d, 1d]" in {
     val attempts = 10

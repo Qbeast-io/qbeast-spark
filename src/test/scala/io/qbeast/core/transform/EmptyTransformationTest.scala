@@ -19,10 +19,11 @@ import io.qbeast.core.model.DoubleDataType
 import io.qbeast.core.model.StringDataType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import scala.collection.immutable
 
 class EmptyTransformationTest extends AnyFlatSpec with Matchers {
 
-  val defaultStringQuantiles = (97 to 122).map(_.toChar.toString)
+  val defaultStringQuantiles: immutable.IndexedSeq[String] = (97 to 122).map(_.toChar.toString)
 
   it should "always map to the same value" in {
     val t = EmptyTransformation()
