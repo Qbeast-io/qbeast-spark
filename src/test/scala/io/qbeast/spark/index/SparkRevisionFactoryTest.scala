@@ -17,6 +17,7 @@ package io.qbeast.spark.index
 
 import io.qbeast.core.model._
 import io.qbeast.core.transform.CDFNumericQuantilesTransformation
+import io.qbeast.core.transform.CDFNumericQuantilesTransformer
 import io.qbeast.core.transform.CDFQuantilesTransformer
 import io.qbeast.core.transform.HashTransformer
 import io.qbeast.core.transform.LinearTransformation
@@ -304,11 +305,11 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
         schema,
         QbeastOptions(
           Map(
-            QbeastOptions.COLUMNS_TO_INDEX -> "a:quantile",
+            QbeastOptions.COLUMNS_TO_INDEX -> "a:quantiles",
             QbeastOptions.STATS -> """{"a_quantiles":[0,1,2,3,4,5,6,7,8,9,10]}""")))
 
     revision.revisionID shouldBe 1L
-    revision.columnTransformers shouldBe Vector(CDFQuantilesTransformer("a", LongDataType))
+    revision.columnTransformers shouldBe Vector(CDFNumericQuantilesTransformer("a", LongDataType))
     revision.transformations shouldBe Vector(
       CDFNumericQuantilesTransformation((0 to 10).map(_.toDouble), LongDataType))
   })
