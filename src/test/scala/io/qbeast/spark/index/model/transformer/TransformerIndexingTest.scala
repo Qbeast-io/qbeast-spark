@@ -390,14 +390,14 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   it should "create better file-level min-max with a String histogram" in withSparkAndTmpDir(
     (spark, tmpDir) => {
-      val histPath = tmpDir + "/string_hist/"
+      val quantilesPath = tmpDir + "/string_quantiles/"
       val hashPath = tmpDir + "/string_hash/"
       val colName = "brand"
 
       val df = loadTestData(spark)
 
-      val colHistStr = QbeastUtils.computeQuantilesForColumn(df, colName)
-      val statsStr = s"""{"${colName}_histogram":$colHistStr}"""
+      val colQuantilesStr = QbeastUtils.computeQuantilesForColumn(df, colName)
+      val statsStr = s"""{"${colName}_quantiles":$colQuantilesStr}"""
 
       df.write
         .mode("overwrite")
@@ -405,8 +405,8 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
         .option("cubeSize", "30000")
         .option("columnsToIndex", s"$colName:histogram")
         .option("columnStats", statsStr)
-        .save(histPath)
-      val histDist = computeColumnEncodingDist(spark, histPath, colName)
+        .save(quantilesPath)
+      val quantilesDist = computeColumnEncodingDist(spark, quantilesPath, colName)
 
       df.write
         .mode("overwrite")
@@ -416,27 +416,25 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
         .save(hashPath)
       val hashDist = computeColumnEncodingDist(spark, hashPath, colName)
 
-      histDist should be < hashDist
+      quantilesDist should be < hashDist
     })
 
   it should "create better file-level min-max with a histogram transformation" in withSparkAndTmpDir(
     (spark, tmpDir) => {
-      val histPath = tmpDir + "/hist/"
+      val quantilesPath = tmpDir + "/hist/"
       val defaultPath = tmpDir + "/normal/"
       val colName = "user_id"
 
       val df = loadTestData(spark)
 
-      println("About to write with histogram")
       df.write
         .mode("overwrite")
         .format("qbeast")
         .option("cubeSize", "30000")
-        .option("columnsToIndex", s"$colName:histogram")
-        .save(histPath)
+        .option("columnsToIndex", s"$colName:quantiles")
+        .save(quantilesPath)
 
-      println("Write with histogram completed")
-      val histDist = computeColumnEncodingDist(spark, histPath, colName)
+      val quantilesDist = computeColumnEncodingDist(spark, quantilesPath, colName)
 
       df.write
         .mode("overwrite")
@@ -446,7 +444,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
         .save(defaultPath)
       val defaultDist = computeColumnEncodingDist(spark, defaultPath, colName)
 
-      histDist should be < defaultDist
+      quantilesDist should be < defaultDist
     })
 
 }

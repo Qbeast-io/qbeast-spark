@@ -25,7 +25,15 @@ trait CDFQuantilesTransformation extends Transformation {
   implicit val ordering: Ordering[Any]
 
   val quantiles: IndexedSeq[Any]
-  def mapValue(value: Any): Any
+
+  val defaultNullValue: Any
+
+  def mapValue(value: Any): Any = {
+    value match {
+      case v: Any => v
+      case null => defaultNullValue
+    }
+  }
 
   override def transform(value: Any): Double = {
     quantiles.search(mapValue(value)) match {

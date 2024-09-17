@@ -15,25 +15,9 @@
  */
 package io.qbeast.core.transform
 
-import io.qbeast.core.transform.CDFStringQuantilesTransformer.defaultStringQuantiles
+case class CDFStringQuantilesTransformer(columnName: String) extends CDFQuantilesTransformer {
 
-object CDFStringQuantilesTransformer {
-  val defaultStringQuantiles: IndexedSeq[String] = (97 to 122).map(_.toChar.toString)
-}
-
-case class CDFStringQuantilesTransformer(columnName: String) extends Transformer {
-  private val columnHistogram = s"${columnName}_histogram"
-
-  override protected def transformerType: TransformerType = CDFQuantilesTransformer
-
-  /**
-   * Returns the stats
-   *
-   * @return
-   */
-  override def stats: ColumnStats = {
-    ColumnStats(statsNames = columnHistogram :: Nil, statsSqlPredicates = Nil)
-  }
+  override val defaultQuantiles: IndexedSeq[String] = (97 to 122).map(_.toChar.toString)
 
   /**
    * Returns the Transformation given a row representation of the values
@@ -44,9 +28,9 @@ case class CDFStringQuantilesTransformer(columnName: String) extends Transformer
    *   the transformation
    */
   override def makeTransformation(row: String => Any): Transformation = {
-    val quantiles = row(columnHistogram) match {
+    val quantiles = row(columnQuantile) match {
       case h: Seq[_] => h.map(_.toString).toIndexedSeq
-      case _ => defaultStringQuantiles
+      case _ => defaultQuantiles
     }
     CDFStringQuantilesTransformation(quantiles)
   }

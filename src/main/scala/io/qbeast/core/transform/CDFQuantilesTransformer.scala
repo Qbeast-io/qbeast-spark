@@ -29,7 +29,7 @@ object CDFQuantilesTransformer extends TransformerType {
    * @param dataType
    * @return
    */
-  override def apply(columnName: String, dataType: QDataType): Transformer = {
+  override def apply(columnName: String, dataType: QDataType): CDFQuantilesTransformer = {
     dataType match {
       case ord: OrderedDataType => CDFNumericQuantilesTransformer(columnName, ord)
       case StringDataType => CDFStringQuantilesTransformer(columnName)
@@ -38,6 +38,25 @@ object CDFQuantilesTransformer extends TransformerType {
           "CDFQuantilesTransformer can only be applied to OrderedDataType columns or StringDataType columns. " +
             s"Column $columnName is of type $dataType")
     }
+  }
+
+}
+
+trait CDFQuantilesTransformer extends Transformer {
+
+  val columnQuantile = s"${columnName}_quantile"
+
+  val defaultQuantiles: IndexedSeq[Any]
+
+  override protected def transformerType: TransformerType = CDFQuantilesTransformer
+
+  /**
+   * Returns the stats
+   *
+   * @return
+   */
+  override def stats: ColumnStats = {
+    ColumnStats(s"${columnName}_quantiles" :: Nil, Nil)
   }
 
 }

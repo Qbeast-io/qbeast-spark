@@ -16,11 +16,12 @@
 package io.qbeast.core.transform
 
 import io.qbeast.core.model.DoubleDataType
-import io.qbeast.core.transform.CDFStringQuantilesTransformer.defaultStringQuantiles
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class EmptyTransformationTest extends AnyFlatSpec with Matchers {
+
+  val defaultStringQuantiles = (97 to 122).map(_.toChar.toString)
 
   it should "always map to the same value" in {
     val t = EmptyTransformation()

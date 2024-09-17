@@ -26,4 +26,5 @@ case class CDFNumericQuantilesTransformation(
 
   override def mapValue(value: Any): Any = value // No mapping required for numeric values
 
+  override val defaultNullValue: Any = null
 }

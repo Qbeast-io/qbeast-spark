@@ -8,10 +8,7 @@ import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class HistogramTransformerIndexingTest
-    extends AnyFlatSpec
-    with Matchers
-    with QbeastIntegrationTestSpec {
+class CDFStringQuantilesTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec {
 
   /**
    * Compute weighted encoding distance for files: (ascii(string_col_max.head) -
@@ -49,22 +46,22 @@ class HistogramTransformerIndexingTest
       .getAs[Long](0)
   }
 
-  it should "create better file-level min-max with a String histogram" in withSparkAndTmpDir(
+  it should "create better file-level min-max with a String quantiles" in withSparkAndTmpDir(
     (spark, tmpDir) => {
-      val histPath = tmpDir + "/string_hist/"
+      val histPath = tmpDir + "/string_quantiles/"
       val hashPath = tmpDir + "/string_hash/"
       val colName = "brand"
 
       val df = loadTestData(spark)
 
-      val colHistStr = QbeastUtils.computeQuantilesForColumn(df, colName)
-      val statsStr = s"""{"${colName}_histogram":$colHistStr}"""
+      val columnQuantiles = QbeastUtils.computeQuantilesForColumn(df, colName)
+      val statsStr = s"""{"${colName}_quantiles":$columnQuantiles}"""
 
       df.write
         .mode("overwrite")
         .format("qbeast")
         .option("cubeSize", "30000")
-        .option("columnsToIndex", s"$colName:histogram")
+        .option("columnsToIndex", s"$colName:quantiles")
         .option("columnStats", statsStr)
         .save(histPath)
       val histDist = computeColumnEncodingDist(spark, histPath, colName)
@@ -86,11 +83,11 @@ class HistogramTransformerIndexingTest
       import spark.implicits._
       val df = 1.to(100).toDF("int_col")
       val colName = "int_col"
-      val histPath = tmpDir + "/hist/"
+      val quantilesPath = tmpDir + "/quantiles/"
       val hashPath = tmpDir + "/linear/"
 
-      val colHistStr = QbeastUtils.computeQuantilesForColumn(df, colName)
-      val statsStr = s"""{"${colName}_histogram":$colHistStr}"""
+      val colQuantilesDist = QbeastUtils.computeQuantilesForColumn(df, colName)
+      val statsStr = s"""{"${colName}_quantiles":$colQuantilesDist}"""
 
       df.write
         .mode("overwrite")
@@ -98,8 +95,8 @@ class HistogramTransformerIndexingTest
         .option("cubeSize", "30")
         .option("columnsToIndex", s"$colName:histogram")
         .option("columnStats", statsStr)
-        .save(histPath)
-      val histDist = computeColumnEncodingDist(spark, histPath, colName)
+        .save(quantilesPath)
+      val quantilesDist = computeColumnEncodingDist(spark, quantilesPath, colName)
 
       df.write
         .mode("overwrite")
@@ -109,7 +106,7 @@ class HistogramTransformerIndexingTest
         .save(hashPath)
       val hashDist = computeColumnEncodingDist(spark, hashPath, colName)
 
-      histDist should be < hashDist
+      quantilesDist should be < hashDist
     })
 
 }
