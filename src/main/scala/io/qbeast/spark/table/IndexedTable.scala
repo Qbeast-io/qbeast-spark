@@ -59,7 +59,9 @@ trait IndexedTable {
    *   - AutoIndexing is enabled
    *   - Data is available
    * @param parameters
+   *   Map of parameters
    * @param data
+   *   Dataframe
    * @return
    */
   def selectColumnsToIndex(
@@ -462,8 +464,8 @@ private[table] class IndexedTableImpl(
         val schema = dataToWrite.schema
         metadataManager.updateWithTransaction(tableID, schema, options, append) {
           val (qbeastData, tableChanges) = indexManager.index(dataToWrite, indexStatus)
-          val fileActions = dataWriter.write(tableID, schema, qbeastData, tableChanges)
-          (tableChanges, fileActions ++ removeFiles)
+          val addFiles = dataWriter.write(tableID, schema, qbeastData, tableChanges)
+          (tableChanges, addFiles, removeFiles.toIndexedSeq)
         }
     }
     logTrace(s"End: Writing data to table $tableID")
@@ -498,16 +500,13 @@ private[table] class IndexedTableImpl(
           schema,
           optimizationOptions(options),
           append = true) {
-
-          val removeFiles = indexFiles.collect().toIndexedSeq // Ned to tag as remove
           val data = snapshot.loadDataframeFromIndexFiles(indexFiles)
-
           val (dataExtended, tableChanges) =
             DoublePassOTreeDataAnalyzer.analyzeOptimize(data, indexStatus)
-
-          val newFiles = dataWriter.write(tableID, schema, dataExtended, tableChanges)
+          val addFiles = dataWriter.write(tableID, schema, dataExtended, tableChanges)
           dataExtended.unpersist()
-          (tableChanges, newFiles ++ removeFiles)
+          val removeFiles = indexFiles.collect().toIndexedSeq
+          (tableChanges, addFiles, removeFiles)
         }
       }
     }

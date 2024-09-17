@@ -31,7 +31,6 @@ import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.actions.Action
 import org.apache.spark.sql.delta.actions.AddFile
-import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.delta.actions.RemoveFile
 import org.apache.spark.sql.delta.actions.SetTransaction
 import org.apache.spark.sql.execution.datasources.FileStatusWithMetadata
@@ -102,7 +101,6 @@ object IndexFiles {
       .setPath(removeFile.path)
       .setSize(removeFile.size.get)
       .setModificationTime(removeFile.deletionTimestamp.get)
-      .setRemove()
     builder.result()
   }
 
@@ -134,14 +132,6 @@ object IndexFiles {
       case removeFile: RemoveFile => fromRemoveFile(removeFile)
       case setTransaction: SetTransaction => null
       case _ => throw new IllegalArgumentException(s"Unknown Action type: ${action.getClass}")
-    }
-  }
-
-  def toFileAction(indexFile: IndexFile): FileAction = {
-    if (indexFile.remove) {
-      toRemoveFile(dataChange = false)(indexFile)
-    } else {
-      toAddFile(dataChange = false)(indexFile)
     }
   }
 

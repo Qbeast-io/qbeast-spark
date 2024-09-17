@@ -62,7 +62,8 @@ trait MetadataManager[DataSchema, FileDescriptor, QbeastOptions] {
       tableID: QTableID,
       schema: DataSchema,
       options: QbeastOptions,
-      append: Boolean)(writer: => (TableChanges, IISeq[FileDescriptor])): Unit
+      append: Boolean)(
+      writer: => (TableChanges, IISeq[FileDescriptor], IISeq[FileDescriptor])): Unit
 
   /**
    * Updates the table metadata by overwriting the metadata configurations with the provided
@@ -127,6 +128,7 @@ trait MetadataManager[DataSchema, FileDescriptor, QbeastOptions] {
   /**
    * Creates an initial log directory
    * @param tableID
+   *   table ID
    */
   def createLog(tableID: QTableID): Unit
 

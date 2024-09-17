@@ -156,7 +156,7 @@ private[delta] case class DeltaMetadataWriter(
     }
   }
 
-  def writeWithTransaction(writer: => (TableChanges, Seq[FileAction])): Unit = {
+  def writeWithTransaction(writer: => (TableChanges, Seq[AddFile], Seq[RemoveFile])): Unit = {
     val oldTransactions = deltaLog.unsafeVolatileSnapshot.setTransactions
     // If the transaction was completed before then no operation
     for (txn <- oldTransactions; version <- options.txnVersion; appId <- options.txnAppId) {
@@ -172,9 +172,9 @@ private[delta] case class DeltaMetadataWriter(
       val statsTrackers = createStatsTrackers(txn)
       registerStatsTrackers(statsTrackers)
       // Execute write
-      val (changes, newFiles) = writer
+      val (changes, addFiles, removeFiles) = writer
       // Update Qbeast Metadata (replicated set, revision..)
-      var actions = updateMetadata(txn, changes, newFiles)
+      var actions = updateMetadata(txn, changes, addFiles, removeFiles)
       // Set transaction identifier if specified
       for (txnVersion <- options.txnVersion; txnAppId <- options.txnAppId) {
         actions +:= SetTransaction(txnAppId, txnVersion, Some(System.currentTimeMillis()))
@@ -235,19 +235,23 @@ private[delta] case class DeltaMetadataWriter(
 
   /**
    * Writes metadata of the table
+ *
    * @param txn
    *   transaction to commit
    * @param tableChanges
    *   changes to apply
-   * @param newFiles
-   *   files to add or remove
+   * @param addFiles
+   *   files to add
+   * @param removeFiles
+   *   files to remove
    * @return
    *   the sequence of file actions to save in the commit log(add, remove...)
    */
   protected def updateMetadata(
       txn: OptimisticTransaction,
       tableChanges: TableChanges,
-      newFiles: Seq[FileAction]): Seq[Action] = {
+      addFiles: Seq[AddFile],
+      removeFiles: Seq[RemoveFile]): Seq[Action] = {
 
     if (txn.readVersion > -1) {
       // This table already exists, check if the insert is valid.
@@ -275,11 +279,10 @@ private[delta] case class DeltaMetadataWriter(
       fs.mkdirs(deltaLog.logPath)
     }
 
-    val addFiles = newFiles.collect { case a: AddFile => a }
     val deletedFiles = mode match {
       case SaveMode.Overwrite =>
         txn.filterFiles().map(_.remove)
-      case _ => newFiles.collect { case r: RemoveFile => r }
+      case _ => removeFiles
     }
 
     val allFileActions = if (rearrangeOnly) {

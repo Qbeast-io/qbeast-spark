@@ -18,7 +18,8 @@ package io.qbeast.spark.delta
 import io.qbeast.core.model._
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.IISeq
-import org.apache.spark.sql.delta.actions.FileAction
+import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.actions.RemoveFile
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.SaveMode
@@ -33,7 +34,7 @@ object DeltaMetadataManager extends MetadataManager[StructType, IndexFile, Qbeas
       tableID: QTableID,
       schema: StructType,
       options: QbeastOptions,
-      append: Boolean)(writer: => (TableChanges, IISeq[IndexFile])): Unit = {
+      append: Boolean)(writer: => (TableChanges, IISeq[IndexFile], IISeq[IndexFile])): Unit = {
 
     val deltaLog = loadDeltaLog(tableID)
     val mode = if (append) SaveMode.Append else SaveMode.Overwrite
@@ -41,10 +42,11 @@ object DeltaMetadataManager extends MetadataManager[StructType, IndexFile, Qbeas
     val metadataWriter =
       DeltaMetadataWriter(tableID, mode, deltaLog, options, schema)
 
-    val deltaWriter: (TableChanges, Seq[FileAction]) = {
-      val (tableChanges, indexFiles) = writer
-      val fileActions = indexFiles.map(IndexFiles.toFileAction)
-      (tableChanges, fileActions)
+    val deltaWriter: (TableChanges, Seq[AddFile], Seq[RemoveFile]) = {
+      val (tableChanges, addIndexFiles, removeIndexFiles) = writer
+      val addFiles = addIndexFiles.map(IndexFiles.toAddFile(dataChange = false))
+      val removeFiles = removeIndexFiles.map(IndexFiles.toRemoveFile(dataChange = true))
+      (tableChanges, addFiles, removeFiles)
     }
 
     metadataWriter.writeWithTransaction(deltaWriter)
