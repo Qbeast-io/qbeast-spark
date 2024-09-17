@@ -26,6 +26,7 @@ final class IndexFileBuilder {
   private var modificationTime: Long = 0L
   private var revisionId: RevisionID = 0L
   private val blocks = immutable.Seq.newBuilder[VolatileBlock]
+  private var stats: String = null
   private var remove: Boolean = false
 
   /**
@@ -51,6 +52,19 @@ final class IndexFileBuilder {
    */
   def setSize(size: Long): IndexFileBuilder = {
     this.size = size
+    this
+  }
+
+  /**
+   * Sets the stats.
+   *
+   * @param stats
+   *   the stats
+   * @return
+   *   this instance
+   */
+  def setStats(stats: String): IndexFileBuilder = {
+    this.stats = stats
     this
   }
 
@@ -112,6 +126,7 @@ final class IndexFileBuilder {
       modificationTime,
       revisionId,
       blocks.result().map(_.toBlock(filePath)),
+      stats,
       remove)
   }
 

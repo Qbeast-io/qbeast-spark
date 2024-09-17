@@ -35,6 +35,7 @@ case class IndexFile(
     modificationTime: Long,
     revisionId: RevisionID,
     blocks: IISeq[Block],
+    stats: String = null,
     remove: Boolean = false)
     extends Serializable {
 
@@ -72,7 +73,7 @@ case class IndexFile(
     val newBlocks = blocks.map { block =>
       if (cubeIds.contains(block.cubeId)) block.replicate() else block
     }
-    Some(IndexFile(path, size, newModificationTime, revisionId, newBlocks, remove))
+    Some(IndexFile(path, size, newModificationTime, revisionId, newBlocks))
   }
 
   override def toString: String = {

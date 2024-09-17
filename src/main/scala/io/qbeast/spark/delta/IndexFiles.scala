@@ -31,7 +31,9 @@ import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.actions.Action
 import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.delta.actions.RemoveFile
+import org.apache.spark.sql.delta.actions.SetTransaction
 import org.apache.spark.sql.execution.datasources.FileStatusWithMetadata
 
 import java.io.StringWriter
@@ -58,6 +60,7 @@ object IndexFiles {
     val builder = new IndexFileBuilder()
       .setPath(addFile.path)
       .setSize(addFile.size)
+      .setStats(addFile.stats)
       .setModificationTime(addFile.modificationTime)
     addFile.getTag(TagUtils.revision) match {
       case Some(value) => builder.setRevisionId(value.toLong)
@@ -90,7 +93,8 @@ object IndexFiles {
       size = indexFile.size,
       modificationTime = indexFile.modificationTime,
       dataChange = dataChange,
-      tags = tags)
+      tags = tags,
+      stats = indexFile.stats)
   }
 
   def fromRemoveFile(removeFile: RemoveFile): IndexFile = {
@@ -128,7 +132,16 @@ object IndexFiles {
     action match {
       case addFile: AddFile => fromAddFile(1)(addFile)
       case removeFile: RemoveFile => fromRemoveFile(removeFile)
-      case _ => throw new IllegalArgumentException("Unknown Action type")
+      case setTransaction: SetTransaction => null
+      case _ => throw new IllegalArgumentException(s"Unknown Action type: ${action.getClass}")
+    }
+  }
+
+  def toFileAction(indexFile: IndexFile): FileAction = {
+    if (indexFile.remove) {
+      toRemoveFile(dataChange = false)(indexFile)
+    } else {
+      toAddFile(dataChange = false)(indexFile)
     }
   }
 
