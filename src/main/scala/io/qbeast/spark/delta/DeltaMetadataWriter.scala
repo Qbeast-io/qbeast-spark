@@ -235,7 +235,7 @@ private[delta] case class DeltaMetadataWriter(
 
   /**
    * Writes metadata of the table
- *
+   *
    * @param txn
    *   transaction to commit
    * @param tableChanges
