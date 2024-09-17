@@ -1,6 +1,6 @@
 package io.qbeast.spark.index.model.transformer
 
-import io.qbeast.core.transform.QuantilesTransformation
+import io.qbeast.core.transform.CDFQuantilesTransformation
 import io.qbeast.spark.utils.QbeastUtils
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.QbeastTable
@@ -18,7 +18,7 @@ class QuantilesTransformerIndexingTest extends QbeastIntegrationTestSpec {
       // SAVE DEFAULT
       df.write.format("qbeast").option("columnsToIndex", s"$columnName").save(qbeastDefault)
 
-      val quantileRanges = (0 to 10).map(_ / 10.0).toArray
+      val quantileRanges = (1 to 10).map(_ / 10.0).toArray
       val relativeError = 0.1
       val approxQuantiles =
         df.stat.approxQuantile(columnName, quantileRanges, relativeError)
@@ -26,7 +26,7 @@ class QuantilesTransformerIndexingTest extends QbeastIntegrationTestSpec {
       approxQuantiles.foreach(println)
 
       val columnQuantilesString =
-        QbeastUtils.computeQuantilesForColumn(df, columnName, quantileRanges)
+        QbeastUtils.computeQuantilesForColumn(df, columnName, 10)
 
       df.write
         .mode("overwrite")
@@ -38,8 +38,8 @@ class QuantilesTransformerIndexingTest extends QbeastIntegrationTestSpec {
 
       val qbeastTable = QbeastTable.forPath(spark, qbeastWithQuantiles)
       val transformation = qbeastTable.latestRevision.transformations.head
-      transformation.isInstanceOf[QuantilesTransformation] shouldBe true
-      transformation.asInstanceOf[QuantilesTransformation].quantiles should be(approxQuantiles)
+      transformation.isInstanceOf[CDFQuantilesTransformation] shouldBe true
+      transformation.asInstanceOf[CDFQuantilesTransformation].quantiles should be(approxQuantiles)
 
       val indexMetricsDefault = QbeastTable.forPath(spark, qbeastDefault).getIndexMetrics()
       println("INDEX METRICS DEFAULT")

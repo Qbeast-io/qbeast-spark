@@ -15,12 +15,13 @@
  */
 package io.qbeast.spark.index.model.transformer
 
-import io.qbeast.TestClasses._
-import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.utils.QbeastUtils
-import org.apache.spark.sql.{Dataset, SparkSession}
+import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.TestClasses._
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -395,7 +396,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
       val df = loadTestData(spark)
 
-      val colHistStr = QbeastUtils.computeHistogramForColumn(df, colName, 50)
+      val colHistStr = QbeastUtils.computeQuantilesForColumn(df, colName)
       val statsStr = s"""{"${colName}_histogram":$colHistStr}"""
 
       df.write

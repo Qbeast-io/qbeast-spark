@@ -24,7 +24,7 @@ class QbeastUtilsTest extends QbeastIntegrationTestSpec {
     (spark, _) => {
       import spark.implicits._
       val df = Seq("a", "b", "c", "a", "b", "c", "a", "b", "c").toDF("name")
-      val hist = QbeastUtils.computeHistogramForColumn(df, "name")
+      val hist = QbeastUtils.computeQuantilesForColumn(df, "name")
 
       hist shouldBe "['a','b','c']"
     })
@@ -32,7 +32,7 @@ class QbeastUtilsTest extends QbeastIntegrationTestSpec {
   it should "compute histogram for Int" in withQbeastContextSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
     val df = Seq(1, 2, 3, 1, 2, 3, 1, 2, 3).toDF("age")
-    val hist = QbeastUtils.computeHistogramForColumn(df, "age")
+    val hist = QbeastUtils.computeQuantilesForColumn(df, "age")
 
     hist shouldBe "['1','2','3']"
   })
@@ -42,7 +42,7 @@ class QbeastUtilsTest extends QbeastIntegrationTestSpec {
       import spark.implicits._
       val df = Seq("a").toDF("name")
       an[AnalysisException] shouldBe thrownBy(
-        QbeastUtils.computeHistogramForColumn(df, "non_existing_column"))
+        QbeastUtils.computeQuantilesForColumn(df, "non_existing_column"))
     })
 
 }

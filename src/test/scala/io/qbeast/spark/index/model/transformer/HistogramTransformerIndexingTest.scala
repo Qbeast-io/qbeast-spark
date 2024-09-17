@@ -1,10 +1,10 @@
 package io.qbeast.spark.index.model.transformer
 
-import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.utils.QbeastUtils
-import org.apache.spark.sql.SparkSession
+import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -57,7 +57,7 @@ class HistogramTransformerIndexingTest
 
       val df = loadTestData(spark)
 
-      val colHistStr = QbeastUtils.computeHistogramForColumn(df, colName)
+      val colHistStr = QbeastUtils.computeQuantilesForColumn(df, colName)
       val statsStr = s"""{"${colName}_histogram":$colHistStr}"""
 
       df.write
@@ -89,7 +89,7 @@ class HistogramTransformerIndexingTest
       val histPath = tmpDir + "/hist/"
       val hashPath = tmpDir + "/linear/"
 
-      val colHistStr = QbeastUtils.computeHistogramForColumn(df, colName)
+      val colHistStr = QbeastUtils.computeQuantilesForColumn(df, colName)
       val statsStr = s"""{"${colName}_histogram":$colHistStr}"""
 
       df.write

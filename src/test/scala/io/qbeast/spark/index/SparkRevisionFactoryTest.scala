@@ -16,11 +16,11 @@
 package io.qbeast.spark.index
 
 import io.qbeast.core.model._
+import io.qbeast.core.transform.CDFNumericQuantilesTransformation
+import io.qbeast.core.transform.CDFQuantilesTransformer
 import io.qbeast.core.transform.HashTransformer
 import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.core.transform.LinearTransformer
-import io.qbeast.core.transform.QuantilesTransformation
-import io.qbeast.core.transform.QuantilesTransformer
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
@@ -291,7 +291,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
         QbeastOptions(Map(QbeastOptions.COLUMNS_TO_INDEX -> "a:quantile")))
 
     revision.revisionID shouldBe 0L
-    revision.columnTransformers shouldBe Vector(QuantilesTransformer("a", LongDataType))
+    revision.columnTransformers shouldBe Vector(CDFQuantilesTransformer("a", LongDataType))
 
   })
 
@@ -308,9 +308,9 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
             QbeastOptions.STATS -> """{"a_quantiles":[0,1,2,3,4,5,6,7,8,9,10]}""")))
 
     revision.revisionID shouldBe 1L
-    revision.columnTransformers shouldBe Vector(QuantilesTransformer("a", LongDataType))
+    revision.columnTransformers shouldBe Vector(CDFQuantilesTransformer("a", LongDataType))
     revision.transformations shouldBe Vector(
-      QuantilesTransformation((0 to 10).map(_.toDouble), LongDataType))
+      CDFNumericQuantilesTransformation((0 to 10).map(_.toDouble), LongDataType))
   })
 
 }

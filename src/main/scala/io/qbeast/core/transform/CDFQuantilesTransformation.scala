@@ -15,20 +15,20 @@
  */
 package io.qbeast.core.transform
 
-import io.qbeast.core.model.OrderedDataType
 import org.apache.hadoop.classification.InterfaceStability.Evolving
 
 import scala.collection.Searching._
 
 @Evolving
-case class QuantilesTransformation(quantiles: IndexedSeq[Any], orderedDataType: OrderedDataType)
-    extends Transformation {
+trait CDFQuantilesTransformation extends Transformation {
 
-  implicit val ordering = orderedDataType.ordering
-  private def isDefault: Boolean = quantiles == orderedDataType.defaultQuantiles
+  implicit val ordering: Ordering[Any]
+
+  val quantiles: IndexedSeq[Any]
+  def mapValue(value: Any): Any
 
   override def transform(value: Any): Double = {
-    quantiles.search(value) match {
+    quantiles.search(mapValue(value)) match {
       case Found(foundIndex) => foundIndex.toDouble / (quantiles.length - 1)
       case InsertionPoint(insertionPoint) =>
         if (insertionPoint == 0) 0d
@@ -47,10 +47,7 @@ case class QuantilesTransformation(quantiles: IndexedSeq[Any], orderedDataType: 
    */
   override def isSupersededBy(newTransformation: Transformation): Boolean =
     newTransformation match {
-      case nt @ QuantilesTransformation(quantiles, _) =>
-        if (isDefault) !nt.isDefault
-        else if (nt.isDefault) false
-        else !(quantiles == quantiles)
+      case a: CDFQuantilesTransformation => !(this.quantiles == a.quantiles)
       case _ => false
     }
 
@@ -63,7 +60,7 @@ case class QuantilesTransformation(quantiles: IndexedSeq[Any], orderedDataType: 
    *   a new Transformation that contains both this and other.
    */
   override def merge(other: Transformation): Transformation = other match {
-    case _: QuantilesTransformation => other
+    case _: CDFQuantilesTransformation => other
     case _ => this
   }
 

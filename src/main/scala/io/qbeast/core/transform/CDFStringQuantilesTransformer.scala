@@ -15,29 +15,16 @@
  */
 package io.qbeast.core.transform
 
-import io.qbeast.core.model.QDataType
-import io.qbeast.core.model.StringDataType
-import io.qbeast.core.transform.StringHistogramTransformer.defaultStringHistogram
+import io.qbeast.core.transform.CDFStringQuantilesTransformer.defaultStringQuantiles
 
-object StringHistogramTransformer extends TransformerType {
-  override def transformerSimpleName: String = "histogram"
-
-  override def apply(columnName: String, dataType: QDataType): Transformer = {
-    if (dataType != StringDataType) {
-      throw new IllegalArgumentException(
-        s"StringHistogramTransformer can only be applied to String columns. " +
-          s"Column $columnName is of type $dataType")
-    } else {
-      StringHistogramTransformer(columnName)
-    }
-  }
-
-  val defaultStringHistogram: IndexedSeq[String] = (97 to 122).map(_.toChar.toString)
-
+object CDFStringQuantilesTransformer {
+  val defaultStringQuantiles: IndexedSeq[String] = (97 to 122).map(_.toChar.toString)
 }
 
-case class StringHistogramTransformer(columnName: String) extends Transformer {
+case class CDFStringQuantilesTransformer(columnName: String) extends Transformer {
   private val columnHistogram = s"${columnName}_histogram"
+
+  override protected def transformerType: TransformerType = CDFQuantilesTransformer
 
   /**
    * Returns the stats
@@ -45,7 +32,7 @@ case class StringHistogramTransformer(columnName: String) extends Transformer {
    * @return
    */
   override def stats: ColumnStats = {
-    val defaultHistString = defaultStringHistogram.mkString("Array('", "', '", "')")
+    val defaultHistString = defaultStringQuantiles.mkString("Array('", "', '", "')")
     ColumnStats(
       statsNames = columnHistogram :: Nil,
       statsSqlPredicates = s"$defaultHistString AS $columnHistogram" :: Nil)
@@ -60,13 +47,12 @@ case class StringHistogramTransformer(columnName: String) extends Transformer {
    *   the transformation
    */
   override def makeTransformation(row: String => Any): Transformation = {
-    val hist = row(columnHistogram) match {
+    val quantiles = row(columnHistogram) match {
       case h: Seq[_] => h.map(_.toString).toIndexedSeq
-      case _ => defaultStringHistogram
+      case _ => defaultStringQuantiles
     }
 
-    StringHistogramTransformation(hist)
+    CDFStringQuantilesTransformation(quantiles)
   }
 
-  override protected def transformerType: TransformerType = StringHistogramTransformer
 }
