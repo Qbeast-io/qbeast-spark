@@ -15,7 +15,6 @@
  */
 package io.qbeast.spark.utils
 
-import io.qbeast.core.model.StringDataType
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.delta.skipping.MultiDimClusteringFunctions
 import org.apache.spark.sql.functions.col

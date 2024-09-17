@@ -16,14 +16,12 @@
 package io.qbeast.core.transform
 
 import io.qbeast.core.model.OrderedDataType
+import org.apache.spark.sql.AnalysisExceptionFactory
 
 case class CDFNumericQuantilesTransformer(columnName: String, orderedDataType: OrderedDataType)
     extends CDFQuantilesTransformer {
 
-  /**
-   * The default quantiles
-   */
-  override val defaultQuantiles: IndexedSeq[Any] = orderedDataType.defaultQuantiles
+  override val columnQuantileSQL: Seq[String] = Nil
 
   /**
    * Returns the Transformation given a row representation of the values
@@ -34,9 +32,12 @@ case class CDFNumericQuantilesTransformer(columnName: String, orderedDataType: O
    *   the transformation
    */
   override def makeTransformation(row: String => Any): CDFQuantilesTransformation = {
-    val quantiles = row(columnQuantile) match {
+    val quantiles = row(columnTransformerName) match {
       case h: Seq[_] => h.toIndexedSeq
-      case _ => defaultQuantiles
+      case _ =>
+        throw AnalysisExceptionFactory.create(
+          s"Quantiles for column $columnName are not available. " +
+            "Please provide them through .option('columnStats', '[1, 2...n]')")
     }
     CDFQuantilesTransformation(quantiles, orderedDataType)
 

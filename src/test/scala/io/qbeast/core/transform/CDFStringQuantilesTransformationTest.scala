@@ -24,11 +24,12 @@ import scala.util.Random
 
 class CDFStringQuantilesTransformationTest extends AnyFlatSpec with Matchers {
 
-  val defaultStringQuantiles: immutable.IndexedSeq[String] = (97 to 122).map(_.toChar.toString)
+  val defaultStringQuantilesTest: immutable.IndexedSeq[String] =
+    (97 to 122).map(_.toChar.toString)
 
   "A CDFStringQuantilesTransformation" should "map values to [0d, 1d]" in {
     val attempts = 10
-    val sht = CDFQuantilesTransformation(defaultStringQuantiles, StringDataType)
+    val sht = CDFQuantilesTransformation(defaultStringQuantilesTest, StringDataType)
     val minAsciiEnc = 32 // SPACE
     val maxAsciiEnc = 126 // ~
     (1 to attempts).foreach { _ =>
@@ -46,7 +47,7 @@ class CDFStringQuantilesTransformationTest extends AnyFlatSpec with Matchers {
   }
 
   it should "properly handle null" in {
-    val sht = CDFQuantilesTransformation(defaultStringQuantiles, StringDataType)
+    val sht = CDFQuantilesTransformation(defaultStringQuantilesTest, StringDataType)
     val v = sht.transform(null)
     v should be <= 1d
     v should be >= 0d
@@ -71,7 +72,7 @@ class CDFStringQuantilesTransformationTest extends AnyFlatSpec with Matchers {
   }
 
   it should "supersede correctly" in {
-    val defaultT = CDFQuantilesTransformation(defaultStringQuantiles, StringDataType)
+    val defaultT = CDFQuantilesTransformation(defaultStringQuantilesTest, StringDataType)
     val customT_1 =
       CDFQuantilesTransformation(Array("brand_A", "brand_B", "brand_C"), StringDataType)
     val customT_2 =

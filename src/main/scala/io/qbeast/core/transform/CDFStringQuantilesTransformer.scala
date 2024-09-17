@@ -16,10 +16,14 @@
 package io.qbeast.core.transform
 
 import io.qbeast.core.model.StringDataType
+import org.apache.spark.sql.AnalysisExceptionFactory
 
 case class CDFStringQuantilesTransformer(columnName: String) extends CDFQuantilesTransformer {
 
-  override val defaultQuantiles: IndexedSeq[String] = (97 to 122).map(_.toChar.toString)
+  /**
+   * The SQL to calculate the quantiles
+   */
+  override val columnQuantileSQL: Seq[String] = Nil
 
   /**
    * Returns the Transformation given a row representation of the values
@@ -30,9 +34,12 @@ case class CDFStringQuantilesTransformer(columnName: String) extends CDFQuantile
    *   the transformation
    */
   override def makeTransformation(row: String => Any): Transformation = {
-    val quantiles = row(columnQuantile) match {
+    val quantiles = row(columnTransformerName) match {
       case h: Seq[_] => h.map(_.toString).toIndexedSeq
-      case _ => defaultQuantiles
+      case _ =>
+        throw AnalysisExceptionFactory.create(
+          s"Quantiles for column $columnName are not available. " +
+            "Please provide them through .option('columnStats', '[1, 2...n]')")
     }
     CDFQuantilesTransformation(quantiles, StringDataType)
   }

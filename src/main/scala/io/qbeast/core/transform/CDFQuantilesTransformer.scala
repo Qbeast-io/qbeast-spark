@@ -41,7 +41,7 @@ object CDFQuantilesTransformer extends TransformerType {
       case StringDataType => CDFStringQuantilesTransformer(columnName)
       case _ =>
         throw AnalysisExceptionFactory.create(
-          s"CDFQuantilesTransformer can only be applied to OrderedDataType columns " +
+          "CDFQuantilesTransformer can only be applied to OrderedDataType columns " +
             s"or StringDataType columns. Column $columnName is of type $dataType")
     }
   }
@@ -53,9 +53,15 @@ object CDFQuantilesTransformer extends TransformerType {
  */
 trait CDFQuantilesTransformer extends Transformer {
 
-  val columnQuantile: String = s"${columnName}_quantile"
+  /**
+   * The name of the transformer
+   */
+  val columnTransformerName: String = s"${columnName}_quantile"
 
-  val defaultQuantiles: IndexedSeq[Any]
+  /**
+   * The SQL to calculate the quantiles
+   */
+  val columnQuantileSQL: Seq[String]
 
   override protected def transformerType: TransformerType = CDFQuantilesTransformer
 
@@ -64,8 +70,7 @@ trait CDFQuantilesTransformer extends Transformer {
    *
    * @return
    */
-  override def stats: ColumnStats = {
-    ColumnStats(s"${columnName}_quantiles" :: Nil, Nil)
-  }
+  override def stats: ColumnStats =
+    ColumnStats(columnTransformerName :: Nil, columnQuantileSQL)
 
 }
