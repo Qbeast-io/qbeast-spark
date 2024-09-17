@@ -40,11 +40,11 @@ class TestCube(unittest.TestCase):
         cube.link(root)
 
         node, edges = root.get_elements_for_sampling(0.15)
-        self.assertTrue(node['data']['id'] == 'root')
-        self.assertTrue(node['selected'])
-        self.assertTrue(edges[0]['data']['source'] == 'root')
-        self.assertTrue(edges[0]['data']['target'] == 'A')
-        self.assertFalse(edges[0]['selected'])
+        self.assertTrue(node["data"]["id"] == "root")
+        self.assertTrue(node["selected"])
+        self.assertTrue(edges[0]["data"]["source"] == "root")
+        self.assertTrue(edges[0]["data"]["target"] == "A")
+        self.assertFalse(edges[0]["selected"])
 
 
 class TestSamplingInfo(unittest.TestCase):

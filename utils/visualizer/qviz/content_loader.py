@@ -8,8 +8,11 @@ import pyarrow.parquet as pa
 from collections import defaultdict
 from qviz.cube import Cube, SamplingInfo, normalize_weight
 
+
 # Returns metadata (dict), cubes(dict), root(cube), nodes & edges (list[dict])
-def process_table(table_path: str, revision_id: str) -> tuple[dict, dict, Cube, list[dict]]:
+def process_table(
+    table_path: str, revision_id: str
+) -> tuple[dict, dict, Cube, list[dict]]:
     """
     Process a delta table given a path to a Qbeast table and a revision ID.
     Example json log file content:
@@ -79,7 +82,7 @@ def process_table(table_path: str, revision_id: str) -> tuple[dict, dict, Cube, 
     :param revision_id: Configuration entry for the target RevisionID. e.g. 1
     :return: a dictionary with the metadata of the table, a dictionary with all the created cubes, the root node (a cube) of the viusalization and a list of dictionaries with the nodes and edges of the visualization.
     """
-    
+
     # Create the Delta table
     delta_table = create_delta_table(table_path)
 
@@ -106,17 +109,20 @@ def create_delta_table(table_path: str) -> DeltaTable:
     :return: a Delta table
     """
     try:
-        # Try to find the table in the provided path 
+        # Try to find the table in the provided path
         deltaTable = DeltaTable(table_path)
         return deltaTable
-    
+
     except Exception as e:
         # If the table doesn't exist, throw an exception
         print(f"Failed when creating the delta table: {e}\n")
 
+
 # 2. extract metadata from delta table
 # Returns metadata (dict), dimension_count (int) and symbol_count (int)
-def extract_metadata_from_delta_table(delta_table: DeltaTable, revision_id:str) -> (dict, int): 
+def extract_metadata_from_delta_table(
+    delta_table: DeltaTable, revision_id: str
+) -> (dict, int):
     """
     Extract metadata from a Delta table by checking if the revision ID is in that table.
     If that ID exists in the table, a revision key (e.g. qbeast.revision.1) is created and the metadata is returned.
@@ -129,7 +135,9 @@ def extract_metadata_from_delta_table(delta_table: DeltaTable, revision_id:str) 
     # We create a dataframe with all the add actions
     df = delta_table.get_add_actions(True).to_pandas()
     # List with all the revision ids
-    revision_ids = [rev_id.strip() for rev_id in df["tags.revision"]]  # Delete blank spaces in each id
+    revision_ids = [
+        rev_id.strip() for rev_id in df["tags.revision"]
+    ]  # Delete blank spaces in each id
     revision_id = str(revision_id).strip()  # Delete blank spaces in revision_key
 
     # Check if our table has a revision id that matches the given revision id
@@ -140,30 +148,15 @@ def extract_metadata_from_delta_table(delta_table: DeltaTable, revision_id:str) 
         # The last command return a string, and we need a dict to access columnTransformers
         metadata = json.loads(metadata_str)
         # Calculate the number of symbols used for the visualization
-        dimension_count = len(metadata['columnTransformers'])
+        dimension_count = len(metadata["columnTransformers"])
         symbol_count = (dimension_count + 5) // 6
         return metadata, symbol_count
     else:
         print(f"No metadata found for the given RevisionID.")
-        symbol_count = float('inf')
-        # Create a dataframe with all add actions
-        df = delta_table.get_add_actions(True).to_pandas()
-        # Convert all blocks JSON chains to a list of dictionaries
-        df['tags.blocks'] = df['tags.blocks'].apply(lambda x: json.loads(x) if isinstance(x, str) else x)
-        # Make sure that 'tags.blocks' is a list of dictionaries
-        exploded_df = df.explode('tags.blocks')
-        # Extract 'cubeId'
-        all_cube_ids = exploded_df['tags.blocks'].apply(lambda x: x['cubeId'] if isinstance(x, dict) and 'cubeId' in x else None).dropna().tolist()
-
-        for cube_id in all_cube_ids:
-            cube_encoding_size = len(cube_id)
-            if 0 < cube_encoding_size < symbol_count:
-                symbol_count = cube_encoding_size
-        return None, symbol_count
 
 
 # 3. Returns a dictionary, the keys are the cubeids and the values are the actual cubes
-def extract_cubes_from_blocks(delta_table: DeltaTable , symbol_count: int) -> dict:
+def extract_cubes_from_blocks(delta_table: DeltaTable, symbol_count: int) -> dict:
     """
     Takes all the blocks stored in the table and creates the cubes.
     :param delta_table: list of json log files
@@ -173,45 +166,52 @@ def extract_cubes_from_blocks(delta_table: DeltaTable , symbol_count: int) -> di
 
     df = delta_table.get_add_actions(True).to_pandas()
 
-    df_filtered = df[['size_bytes', 'tags.blocks']]
+    df_filtered = df[["size_bytes", "tags.blocks"]]
     # In this dictionary we store a cube for every cubeId. Each cube will be associated to his cube ID
     cubes_dict = dict()
 
     # Iterate throughout each row of the dataframe
     for index, row in df_filtered.iterrows():
-        cube = row["tags.blocks"] # This returns a pandas series with the blocks of the cube in each of the iterated rows
+        blocks_str = row[
+            "tags.blocks"
+        ]  # This returns a pandas series with the blocks of the cube in each of the iterated rows
         # Check if the cube is a JSON chain & try to convert it into a list of dictionaries
-        if isinstance(cube, str):
+        if isinstance(blocks_str, str):
             try:
-                cube = json.loads(cube)  # Convert the string JSON into a list of dictionaries
+                blocks = json.loads(
+                    blocks_str
+                )  # Convert the string JSON into a list of dictionaries
+                for block in blocks:
+                    # Check if we already have a cube in the dictionary with the cube ID of this block
+                    # If we already have a cube with this ID, we update the atributes of the cube
+                    # Since objects are passed by reference, they can be modified in situ
+                    if block["cubeId"] in cubes_dict.keys():
+                        dict_cube = cubes_dict[block["cubeId"]]
+                        normalized_max_weight = normalize_weight(int(block["maxWeight"]))
+                        dict_cube.max_weight = min(max_weight, normalized_max_weight)
+                        dict_cube.element_count += int(block["elementCount"])
+                        dict_cube.size += int(row["size_bytes"])
+                    # If we don't have this cube in the dictionary, a new cube is created
+                    else:
+                        # Calculate depth of the cube
+                        cube_string = block["cubeId"]
+                        depth = len(cube_string) // symbol_count
+                        # Assign max_weight, min_weight, elemnt_count a value for the new cube
+                        max_weight = block["maxWeight"]
+                        element_count = block["elementCount"]
+                        replicated = block["replicated"]  # Do we have to add it?
+                        min_weight = block["minWeight"]  # Do we have to add it?
+                        size = int(row["size_bytes"])
+                        cubes_dict[cube_string] = Cube(
+                            cube_string, max_weight, element_count, size, depth
+                        )
             except json.JSONDecodeError:
                 print("Error decoding JSON:", cube)
-        for block in cube:
-            # Check if we already have a cube in the dictionary with the cube ID of this block
-            # If we already have a cube with this ID, we update the atributes of the cube
-            # Since objects are passed by reference, they can be modified in situ
-            if block['cubeId'] in cubes_dict.keys():
-                    dict_cube = cubes_dict[block['cubeId']]
-                    normalized_max_weight = normalize_weight(int(block['maxWeight']))
-                    dict_cube.max_weight = min(max_weight, normalized_max_weight)
-                    dict_cube.element_count += int(block['elementCount'])
-                    dict_cube.size += int(row['size_bytes'])
-            # If we don't have this cube in the dictionary, a new cube is created
-            else:
-                # Calculate depth of the cube
-                cube_string = block['cubeId']
-                depth = len(cube_string) // symbol_count
-                # Assign max_weight, min_weight, elemnt_count a value for the new cube
-                max_weight = block['maxWeight']
-                element_count = block['elementCount']
-                replicated = block['replicated'] # Do we have to add it?
-                min_weight = block['minWeight'] # Do we have to add it?
-                size = int(row['size_bytes'])
-                cubes_dict[cube_string] = Cube(cube_string, max_weight, element_count, size, depth) 
+        
     return cubes_dict
 
 
-#4. build index from the list of cube blocks
+# 4. build index from the list of cube blocks
 # Returns the root of the tree (cube)
 def populate_tree(cubes: dict) -> Cube:
     """
@@ -236,14 +236,15 @@ def populate_tree(cubes: dict) -> Cube:
         for cube in level_cubes[level]:
             for child in level_cubes[level + 1]:
                 child.link(cube)
-                
+
     root = level_cubes[0][0]
     return root
 
+
 # Populate Tree: Nodes & Edges (list[dict])
-def delta_nodes_and_edges(cubes:dict, fraction: float = -1.0) -> list[dict]:
+def delta_nodes_and_edges(cubes: dict, fraction: float = -1.0) -> list[dict]:
     """
-    Sampling function. 
+    Sampling function.
     :param cubes: dictionary with the cubes stored in a delta table.
     :param fraction: float between 0 and 1, used to select cubes based on their normalized maximum weight
     :return: A list of dictionaries that contains the nodes and their connections.
@@ -253,11 +254,11 @@ def delta_nodes_and_edges(cubes:dict, fraction: float = -1.0) -> list[dict]:
     edges = []
     sampling_info = SamplingInfo(fraction)
     for cube in cubes.values():
-            print("Cube N&E: ", cube)
-            node, connections = cube.get_elements_for_sampling(fraction)
-            nodes.append(node)
-            edges.extend(connections)
-            sampling_info.update(cube, node['selected'])
+        print("Cube N&E: ", cube)
+        node, connections = cube.get_elements_for_sampling(fraction)
+        nodes.append(node)
+        edges.extend(connections)
+        sampling_info.update(cube, node["selected"])
 
     if fraction > 0:
         print(sampling_info)

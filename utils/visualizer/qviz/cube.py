@@ -5,7 +5,14 @@ RANGE = 2147483647.0 - OFFSET
 
 
 class Cube:
-    def __init__(self, cube_string: str, max_weight: int, element_count: int, size: int, depth: int):
+    def __init__(
+        self,
+        cube_string: str,
+        max_weight: int,
+        element_count: int,
+        size: int,
+        depth: int,
+    ):
         self.cube_string = cube_string
         self.max_weight = normalize_weight(max_weight)
         self.element_count = element_count
@@ -25,9 +32,11 @@ class Cube:
             that.children.append(self)
 
     def is_child_of(self, that: Cube) -> bool:
-        return (self.is_not_root() and
-                that.depth + 1 == self.depth and
-                self.cube_string.startswith(that.cube_string))
+        return (
+            self.is_not_root()
+            and that.depth + 1 == self.depth
+            and self.cube_string.startswith(that.cube_string)
+        )
 
     def is_not_root(self) -> bool:
         return bool(self.cube_string)
@@ -41,12 +50,12 @@ class Cube:
         sampling
         """
         selected = self.is_sampled(fraction)
-        name = self.cube_string or 'root'
-        label = (name + " " if name == 'root' else "") + str(self.max_weight)
+        name = self.cube_string or "root"
+        label = (name + " " if name == "root" else "") + str(self.max_weight)
         node = {
-            'data': {'id': name, 'label': label},
-            'selected': selected,
-            'classes': "sampled" if selected else ""
+            "data": {"id": name, "label": label},
+            "selected": selected,
+            "classes": "sampled" if selected else "",
         }
 
         edges = []
@@ -54,9 +63,9 @@ class Cube:
             selected_child = child.is_sampled(fraction)
             edges.append(
                 {
-                    'data': {'source': name, 'target': child.cube_string},
-                    'selected': selected_child,
-                    'classes': "sampled" if selected_child else ""
+                    "data": {"source": name, "target": child.cube_string},
+                    "selected": selected_child,
+                    "classes": "sampled" if selected_child else "",
                 }
             )
 
@@ -68,9 +77,9 @@ class Cube:
         :param fraction: sampling fraction between 0 and 1
         :return: boolean determining if the cube is selected
         """
-        return (fraction > 0 and
-                (self.parent is None or
-                 self.parent.max_weight < fraction))
+        return fraction > 0 and (
+            self.parent is None or self.parent.max_weight < fraction
+        )
 
     def __repr__(self) -> str:
         return f"Cube: {self.cube_string}, count: {self.element_count}, maxWeight: {self.max_weight}"
@@ -110,9 +119,15 @@ class SamplingInfo:
         \n\tsample size: {:.5f}/{:.5f}GB, {:.2f}%""".format(
             disclaimer,
             self.fraction,
-            self.sampled_cubes, self.total_cubes, file_count_percentage,
-            self.sampled_rows, self.total_rows, row_count_percentage,
-            self.sampled_size / 1024, self.total_size / 1024, size_count_percentage
+            self.sampled_cubes,
+            self.total_cubes,
+            file_count_percentage,
+            self.sampled_rows,
+            self.total_rows,
+            row_count_percentage,
+            self.sampled_size / 1024,
+            self.total_size / 1024,
+            size_count_percentage,
         )
 
 

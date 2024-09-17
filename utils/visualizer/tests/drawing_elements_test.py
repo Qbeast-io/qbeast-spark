@@ -5,10 +5,42 @@ from qviz.drawing_elements import process_add_files, get_nodes_and_edges, popula
 class TestDrawingElementPreparation(unittest.TestCase):
     def setUp(self) -> None:
         self.add_files = [
-            {"size": 1, "tags": {"state": "FLOODED", "cube": "", "elementCount": "100", "maxWeight": "-1717986918"}},
-            {"size": 1, "tags": {"state": "FLOODED", "cube": "A", "elementCount": "50", "maxWeight": "2147483647"}},
-            {"size": 1, "tags": {"state": "FLOODED", "cube": "g", "elementCount": "100", "maxWeight": "-1269647486"}},
-            {"size": 1, "tags": {"state": "FLOODED", "cube": "g", "elementCount": "100", "maxWeight": "-1269647486"}}
+            {
+                "size": 1,
+                "tags": {
+                    "state": "FLOODED",
+                    "cube": "",
+                    "elementCount": "100",
+                    "maxWeight": "-1717986918",
+                },
+            },
+            {
+                "size": 1,
+                "tags": {
+                    "state": "FLOODED",
+                    "cube": "A",
+                    "elementCount": "50",
+                    "maxWeight": "2147483647",
+                },
+            },
+            {
+                "size": 1,
+                "tags": {
+                    "state": "FLOODED",
+                    "cube": "g",
+                    "elementCount": "100",
+                    "maxWeight": "-1269647486",
+                },
+            },
+            {
+                "size": 1,
+                "tags": {
+                    "state": "FLOODED",
+                    "cube": "g",
+                    "elementCount": "100",
+                    "maxWeight": "-1269647486",
+                },
+            },
         ]
         self.metadata = {
             "desiredCubeSize": 10000,
@@ -16,15 +48,15 @@ class TestDrawingElementPreparation(unittest.TestCase):
                 {
                     "className": "io.qbeast.core.transform.LinearTransformer",
                     "columnName": "user_id",
-                    "dataType": "IntegerDataType"
+                    "dataType": "IntegerDataType",
                 },
                 {
                     "className": "io.qbeast.core.transform.LinearTransformer",
                     "columnName": "price",
-                    "dataType": "DoubleDataType"
-                }
+                    "dataType": "DoubleDataType",
+                },
             ],
-            "transformations": []
+            "transformations": [],
         }
 
     def test_add_files_processing(self):
@@ -49,16 +81,16 @@ class TestDrawingElementPreparation(unittest.TestCase):
 
         nodes, edges = [], []
         for element in elements:
-            if 'source' in element['data']:
+            if "source" in element["data"]:
                 edges.append(element)
             else:
                 nodes.append(element)
 
-        node_names = sorted([node['data']['id'] for node in nodes])
+        node_names = sorted([node["data"]["id"] for node in nodes])
         cube_strings = sorted([cube.cube_string or "root" for cube in cubes])
         for node_name, cube_name in zip(node_names, cube_strings):
             self.assertTrue(node_name, cube_name)
 
         for edge in edges:
-            if edge['data']['source'] == 'root':
-                self.assertIn(edge['data']['target'], ["A", "g"])
+            if edge["data"]["source"] == "root":
+                self.assertIn(edge["data"]["target"], ["A", "g"])
