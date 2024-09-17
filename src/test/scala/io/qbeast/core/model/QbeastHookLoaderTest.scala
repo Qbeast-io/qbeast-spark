@@ -13,40 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.delta.hook
+package io.qbeast.core.model
 
-import io.qbeast.core.model.HookInfo
 import io.qbeast.core.model.PreCommitHook.PreCommitHookOutput
-import io.qbeast.spark.delta.hook.StatefulTestHook.StatefulTestHookState
+import io.qbeast.core.model.StatefulTestHook.StatefulTestHookState
 import io.qbeast.spark.internal.QbeastOptions
-import org.apache.spark.sql.delta.actions.Action
 import org.mockito.Mockito._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.util.UUID
 
-private class SimpleTestHook extends DeltaPreCommitHook {
+private class SimpleTestHook extends PreCommitHook {
   override val name: String = "SimpleTestHook"
 
-  var args: Seq[Action] = Seq.empty
+  var args: Seq[IndexFile] = Seq.empty
 
-  override def run(args: Seq[Action]): PreCommitHookOutput = {
+  override def run(args: Seq[IndexFile]): PreCommitHookOutput = {
     this.args = args
     Map.empty
   }
 
 }
 
-private class StatefulTestHook(val stateId: String) extends DeltaPreCommitHook {
+private class StatefulTestHook(val stateId: String) extends PreCommitHook {
 
   val state: StatefulTestHookState = StatefulTestHook.stateMap(stateId)
 
-  var args: Seq[Action] = Seq.empty
+  var args: Seq[IndexFile] = Seq.empty
 
   override val name: String = "StatefulTestHook"
 
-  override def run(actions: Seq[Action]): PreCommitHookOutput = {
+  override def run(actions: Seq[IndexFile]): PreCommitHookOutput = {
     this.args = actions
     Map.empty
   }
@@ -54,11 +52,11 @@ private class StatefulTestHook(val stateId: String) extends DeltaPreCommitHook {
 }
 
 object StatefulTestHook {
-  protected case class StatefulTestHookState(timestamp: Long, args: Seq[Action])
+  protected case class StatefulTestHookState(timestamp: Long, args: Seq[IndexFile])
 
   protected var stateMap: Map[String, StatefulTestHookState] = Map.empty
 
-  def createNewState(timestamp: Long, args: Seq[Action]): String = {
+  def createNewState(timestamp: Long, args: Seq[IndexFile]): String = {
     val state = StatefulTestHookState(timestamp, args)
     val stateId = UUID.randomUUID().toString
     stateMap += (stateId -> state)
@@ -74,11 +72,11 @@ class QbeastHookLoaderTest extends AnyFlatSpec with Matchers {
     when(qbeastOptions.hookInfo).thenReturn(
       HookInfo("", classOf[SimpleTestHook].getCanonicalName, None) :: Nil)
 
-    val hookOpts = qbeastOptions.hookInfo.map(DeltaHookLoader.loadHook)
+    val hookOpts = qbeastOptions.hookInfo.map(QbeastHookLoader.loadHook)
     hookOpts.size shouldBe 1
-    hookOpts.head shouldBe a[DeltaPreCommitHook]
+    hookOpts.head shouldBe a[PreCommitHook]
 
-    val mockActions = mock(classOf[List[Action]])
+    val mockActions = mock(classOf[List[IndexFile]])
     hookOpts.head.run(mockActions)
     hookOpts.head.asInstanceOf[SimpleTestHook].args shouldBe mockActions
   }
@@ -91,11 +89,11 @@ class QbeastHookLoaderTest extends AnyFlatSpec with Matchers {
       when(qbeastOptions.hookInfo).thenReturn(
         HookInfo("", classOf[StatefulTestHook].getCanonicalName, Some(argument)) :: Nil)
 
-      val hooks = qbeastOptions.hookInfo.map(DeltaHookLoader.loadHook)
+      val hooks = qbeastOptions.hookInfo.map(QbeastHookLoader.loadHook)
       hooks.size shouldBe 1
-      hooks.head shouldBe a[DeltaPreCommitHook]
+      hooks.head shouldBe a[PreCommitHook]
 
-      val mockActions = mock(classOf[List[Action]])
+      val mockActions = mock(classOf[List[IndexFile]])
       hooks.head.run(mockActions)
       val sth = hooks.head.asInstanceOf[StatefulTestHook]
       sth.args shouldBe mockActions
@@ -107,7 +105,7 @@ class QbeastHookLoaderTest extends AnyFlatSpec with Matchers {
     val qbeastOptions = mock(classOf[QbeastOptions])
     when(qbeastOptions.hookInfo).thenReturn(Nil)
 
-    val hookOpts = qbeastOptions.hookInfo.map(DeltaHookLoader.loadHook)
+    val hookOpts = qbeastOptions.hookInfo.map(QbeastHookLoader.loadHook)
     hookOpts.size shouldBe 0
   }
 

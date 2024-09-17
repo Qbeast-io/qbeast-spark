@@ -25,7 +25,7 @@ import PreCommitHook.PreCommitHookOutput
  * Pre-commit hooks are executed before a commit is made to the table. They can be used to perform
  * actions such as validation, logging, or other custom logic.
  */
-trait PreCommitHook[T] {
+trait PreCommitHook {
 
   /**
    * The name of the hook.
@@ -45,7 +45,7 @@ trait PreCommitHook[T] {
    * @return
    *   The output of the hook as a `PreCommitHookOutput`.
    */
-  def run(actions: Seq[T]): PreCommitHookOutput
+  def run(actions: Seq[IndexFile]): PreCommitHookOutput
 
 }
 
@@ -69,6 +69,33 @@ object PreCommitHook {
   def getHookName(hookName: String): String = s"$PRE_COMMIT_HOOKS_PREFIX.$hookName"
 
   def getHookArgName(hookName: String): String = s"${getHookName(hookName)}.$argName"
+
+}
+
+/**
+ * A loader for PreCommitHooks
+ */
+object QbeastHookLoader {
+
+  /**
+   * Loads a pre-commit hook from a `HookInfo` object.
+   *
+   * This method takes a `HookInfo` object and returns a `PreCommitHook` instance.
+   *
+   * @param hookInfo
+   *   The `HookInfo` object representing the hook to load.
+   * @return
+   *   The loaded `PreCommitHook` instance.
+   */
+  def loadHook(hookInfo: HookInfo): PreCommitHook = hookInfo match {
+    case HookInfo(_, clsFullName, argOpt) =>
+      val cls = Class.forName(clsFullName)
+      val instance =
+        if (argOpt.isDefined)
+          cls.getDeclaredConstructor(argOpt.get.getClass).newInstance(argOpt.get)
+        else cls.getDeclaredConstructor().newInstance()
+      instance.asInstanceOf[PreCommitHook]
+  }
 
 }
 

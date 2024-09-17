@@ -23,7 +23,6 @@ import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.delta.actions.AddFile
-import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.delta.stats.DeltaFileStatistics
 import org.apache.spark.sql.delta.stats.DeltaJobStatisticsTracker
 import org.apache.spark.sql.delta.DeltaStatsCollectionUtils
@@ -44,8 +43,8 @@ import scala.collection.mutable
 /**
  * Implementation of DataWriter that applies rollup to compact the files.
  */
-object RollupDataWriter
-    extends DataWriter[DataFrame, StructType, FileAction]
+object DeltaRollupDataWriter
+    extends DataWriter[DataFrame, StructType, IndexFile]
     with DeltaStatsCollectionUtils {
 
   private type GetCubeMaxWeight = CubeId => Weight
@@ -56,9 +55,10 @@ object RollupDataWriter
       tableId: QTableID,
       schema: StructType,
       data: DataFrame,
-      tableChanges: TableChanges): IISeq[FileAction] = {
+      tableChanges: TableChanges): IISeq[IndexFile] = {
     val extendedData = extendDataWithCubeToRollup(data, tableChanges)
     val revision = tableChanges.updatedRevision
+    val dimensionCount = revision.transformations.length
     val getCubeMaxWeight = { cubeId: CubeId =>
       tableChanges.cubeWeight(cubeId).getOrElse(Weight.MaxValue)
     }
@@ -81,6 +81,7 @@ object RollupDataWriter
       .map(_._1)
       .map(IndexFiles.toAddFile(dataChange = true))
       .map(correctAddFileStats(fileStatsTracker))
+      .map(IndexFiles.fromAddFile(dimensionCount))
   }
 
   private def getFileStatsTracker(

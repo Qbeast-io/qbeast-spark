@@ -18,7 +18,7 @@ package io.qbeast.spark.index
 import io.delta.tables.DeltaTable
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.StagingUtils
-import io.qbeast.spark.delta.StagingDataManager
+import io.qbeast.spark.delta.DeltaStagingDataManager
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.T2
@@ -79,7 +79,7 @@ class DataStagingTest
       val revisions = snapshot.loadAllRevisions
       revisions.size shouldBe 2
 
-      val stagingDataManager = new StagingDataManager(QTableID(tmpDir))
+      val stagingDataManager = new DeltaStagingDataManager(QTableID(tmpDir))
 
       val indexedDataSize = snapshot
         .loadIndexStatus(1)
@@ -120,7 +120,7 @@ class DataStagingTest
       val revisions = snapshot.loadAllRevisions
       revisions.size shouldBe 2
 
-      val stagingDataManager = new StagingDataManager(QTableID(tmpDir))
+      val stagingDataManager = new DeltaStagingDataManager(QTableID(tmpDir))
 
       val indexedDataSize = snapshot
         .loadIndexStatus(1)

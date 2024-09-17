@@ -32,6 +32,7 @@ trait QbeastCoreContext[DATA, DataSchema, QbeastOptions, FileDescriptor] {
   def metadataManager: MetadataManager[DataSchema, FileDescriptor, QbeastOptions]
   def dataWriter: DataWriter[DATA, DataSchema, FileDescriptor]
   def indexManager: IndexManager[DATA]
+  def stagingDataManagerBuilder: StagingDataManagerFactory[DATA, QbeastOptions]
   def revisionBuilder: RevisionFactory[DataSchema, QbeastOptions]
   def columnSelector: ColumnsToIndexSelector[DATA]
   def keeper: Keeper

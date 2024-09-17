@@ -28,7 +28,7 @@ import io.qbeast.TestClasses._
 
 import scala.reflect.io.Path
 
-class RollupDataWriterTest extends QbeastIntegrationTestSpec {
+class DeltaRollupDataWriterTest extends QbeastIntegrationTestSpec {
 
   "RollupDataWriter" should "write the data correctly" in
     withSparkAndTmpDir { (spark, tmpDir) =>
@@ -54,11 +54,10 @@ class RollupDataWriterTest extends QbeastIntegrationTestSpec {
       val indexStatus = IndexStatus(revision)
       val (qbeastData, tableChanges) = SparkOTreeManager.index(df, indexStatus)
 
-      val fileActions = RollupDataWriter.write(tableID, df.schema, qbeastData, tableChanges)
+      val fileActions = DeltaRollupDataWriter.write(tableID, df.schema, qbeastData, tableChanges)
 
       for (fa <- fileActions) {
         Path(tmpDir + "/" + fa.path).exists shouldBe true
-        fa.dataChange shouldBe true
       }
     }
 
@@ -77,7 +76,7 @@ class RollupDataWriterTest extends QbeastIntegrationTestSpec {
         Map.empty,
         Map(root -> 20L, c1 -> 1L, c2 -> 20L))
 
-      val rollup = RollupDataWriter.computeRollup(tc)
+      val rollup = DeltaRollupDataWriter.computeRollup(tc)
       rollup shouldBe Map(root -> root, c1 -> root, c2 -> c2)
     }
 

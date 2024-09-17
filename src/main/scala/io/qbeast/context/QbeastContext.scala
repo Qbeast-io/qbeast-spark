@@ -18,8 +18,9 @@ package io.qbeast.context
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.keeper.LocalKeeper
 import io.qbeast.core.model._
-import io.qbeast.spark.delta.writer.RollupDataWriter
+import io.qbeast.spark.delta.writer.DeltaRollupDataWriter
 import io.qbeast.spark.delta.DeltaMetadataManager
+import io.qbeast.spark.delta.DeltaStagingDataManagerFactory
 import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.index.SparkRevisionFactory
@@ -28,7 +29,6 @@ import io.qbeast.spark.table.IndexedTableFactory
 import io.qbeast.spark.table.IndexedTableFactoryImpl
 import org.apache.spark.scheduler.SparkListener
 import org.apache.spark.scheduler.SparkListenerApplicationEnd
-import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
@@ -75,7 +75,7 @@ trait QbeastContext {
  */
 object QbeastContext
     extends QbeastContext
-    with QbeastCoreContext[DataFrame, StructType, QbeastOptions, FileAction] {
+    with QbeastCoreContext[DataFrame, StructType, QbeastOptions, IndexFile] {
   private var managedOption: Option[QbeastContext] = None
   private var unmanagedOption: Option[QbeastContext] = None
 
@@ -91,11 +91,14 @@ object QbeastContext
 
   override def indexManager: IndexManager[DataFrame] = SparkOTreeManager
 
-  override def metadataManager: MetadataManager[StructType, FileAction, QbeastOptions] =
+  override def metadataManager: MetadataManager[StructType, IndexFile, QbeastOptions] =
     DeltaMetadataManager
 
-  override def dataWriter: DataWriter[DataFrame, StructType, FileAction] =
-    RollupDataWriter
+  override def dataWriter: DataWriter[DataFrame, StructType, IndexFile] =
+    DeltaRollupDataWriter
+
+  override def stagingDataManagerBuilder: StagingDataManagerFactory[DataFrame, QbeastOptions] =
+    DeltaStagingDataManagerFactory
 
   override def revisionBuilder: RevisionFactory[StructType, QbeastOptions] =
     SparkRevisionFactory
@@ -156,6 +159,7 @@ object QbeastContext
       indexManager,
       metadataManager,
       dataWriter,
+      stagingDataManagerBuilder,
       revisionBuilder,
       columnSelector)
 

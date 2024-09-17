@@ -29,6 +29,7 @@ import io.qbeast.spark.utils.TagUtils
 import io.qbeast.IISeq
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.fs.Path
+import org.apache.spark.sql.delta.actions.Action
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.actions.RemoveFile
 import org.apache.spark.sql.execution.datasources.FileStatusWithMetadata
@@ -92,6 +93,15 @@ object IndexFiles {
       tags = tags)
   }
 
+  def fromRemoveFile(removeFile: RemoveFile): IndexFile = {
+    val builder = new IndexFileBuilder()
+      .setPath(removeFile.path)
+      .setSize(removeFile.size.get)
+      .setModificationTime(removeFile.deletionTimestamp.get)
+      .setRemove()
+    builder.result()
+  }
+
   /**
    * Converts a given IndexFile instance to a RemoveFile instance.
    *
@@ -103,10 +113,24 @@ object IndexFiles {
   def toRemoveFile(dataChange: Boolean)(indexFile: IndexFile): RemoveFile =
     RemoveFile(
       path = indexFile.path,
-      deletionTimestamp = Some(System.currentTimeMillis()),
+      deletionTimestamp = Some(indexFile.modificationTime),
       dataChange = dataChange,
       partitionValues = Map.empty[String, String],
       size = Some(indexFile.size))
+
+  /**
+   * Converts a given action instance to a IndexFile instance.
+   *
+   * @param action
+   *   the action instance
+   */
+  def fromAction(action: Action): IndexFile = {
+    action match {
+      case addFile: AddFile => fromAddFile(1)(addFile)
+      case removeFile: RemoveFile => fromRemoveFile(removeFile)
+      case _ => throw new IllegalArgumentException("Unknown Action type")
+    }
+  }
 
   /**
    * Converts IndexFile instance to FileStatus instance.
