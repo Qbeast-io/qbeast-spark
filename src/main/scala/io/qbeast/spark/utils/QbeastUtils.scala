@@ -120,7 +120,7 @@ object QbeastUtils extends Logging {
       case _ =>
         throw AnalysisExceptionFactory.create(
           s"Column $columnName is of type $dataType. " +
-            s"Only String and Numeric columns are supported")
+            "Only String and Numeric columns are supported")
     }
   }
 

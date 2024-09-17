@@ -29,7 +29,9 @@ trait CDFQuantilesTransformation extends Transformation {
 
   override def transform(value: Any): Double = {
     quantiles.search(mapValue(value)) match {
+      // First case when the index is found
       case Found(foundIndex) => foundIndex.toDouble / (quantiles.length - 1)
+      // When the index is not found, we return the relative position of the insertion point
       case InsertionPoint(insertionPoint) =>
         if (insertionPoint == 0) 0d
         else if (insertionPoint == quantiles.length + 1) 1d
@@ -40,6 +42,11 @@ trait CDFQuantilesTransformation extends Transformation {
   /**
    * This method should determine if the new data will cause the creation of a new revision.
    *
+   * The current CDFQuantilesTransformation is superseded by another if
+   *   - the new transformation is a CDFQuantilesTransformation
+   *   - the ordering of the new transformation is the same as the current one
+   *   - the quantiles of the new transformation are different from the current one
+   *
    * @param newTransformation
    *   the new transformation created with statistics over the new data
    * @return
@@ -47,7 +54,8 @@ trait CDFQuantilesTransformation extends Transformation {
    */
   override def isSupersededBy(newTransformation: Transformation): Boolean =
     newTransformation match {
-      case a: CDFQuantilesTransformation => !(this.quantiles == a.quantiles)
+      case newT: CDFQuantilesTransformation =>
+        this.ordering == newT.ordering && (this.quantiles == newT.quantiles)
       case _ => false
     }
 
