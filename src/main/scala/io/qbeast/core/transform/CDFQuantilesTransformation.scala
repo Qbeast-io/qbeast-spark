@@ -16,16 +16,25 @@
 package io.qbeast.core.transform
 
 import io.qbeast.core.model.OrderedDataType
+import io.qbeast.core.model.QDataType
+import io.qbeast.core.model.StringDataType
 import org.apache.hadoop.classification.InterfaceStability.Evolving
+import org.apache.spark.sql.AnalysisExceptionFactory
 
 import scala.collection.Searching._
 
 @Evolving
-trait CDFQuantilesTransformation extends Transformation {
+case class CDFQuantilesTransformation(quantiles: IndexedSeq[Any], dataType: QDataType)
+    extends Transformation {
 
-  implicit val ordering: Ordering[Any]
-
-  val quantiles: IndexedSeq[Any]
+  implicit val ordering: Ordering[Any] = dataType match {
+    case orderedDataType: OrderedDataType => orderedDataType.ordering
+    case StringDataType => implicitly[Ordering[String]].asInstanceOf[Ordering[Any]]
+    case _ =>
+      throw AnalysisExceptionFactory.create(
+        s"Quantiles transformation can only be applied to OrderedDataType columns or StringDataType columns. " +
+          s"Column is of type $dataType")
+  }
 
   override def transform(value: Any): Double = {
 
@@ -75,31 +84,5 @@ trait CDFQuantilesTransformation extends Transformation {
     case _: CDFQuantilesTransformation => other
     case _ => this
   }
-
-}
-
-/**
- * Implementation of the CDFQuantilesTransformation for numeric values
- * @param quantiles
- * @param nullValue
- * @param orderedDataType
- */
-case class CDFNumericQuantilesTransformation(
-    quantiles: IndexedSeq[Any],
-    orderedDataType: OrderedDataType)
-    extends CDFQuantilesTransformation {
-
-  override implicit val ordering: Ordering[Any] = orderedDataType.ordering
-}
-
-/**
- * Implementation of the CDFQuantilesTransformation for string values
- * @param quantiles
- */
-case class CDFStringQuantilesTransformation(quantiles: IndexedSeq[String])
-    extends CDFQuantilesTransformation {
-
-  override implicit val ordering: Ordering[Any] =
-    implicitly[Ordering[String]].asInstanceOf[Ordering[Any]]
 
 }

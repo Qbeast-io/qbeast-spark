@@ -15,6 +15,8 @@
  */
 package io.qbeast.core.transform
 
+import io.qbeast.core.model.StringDataType
+
 case class CDFStringQuantilesTransformer(columnName: String) extends CDFQuantilesTransformer {
 
   override val defaultQuantiles: IndexedSeq[String] = (97 to 122).map(_.toChar.toString)
@@ -32,7 +34,7 @@ case class CDFStringQuantilesTransformer(columnName: String) extends CDFQuantile
       case h: Seq[_] => h.map(_.toString).toIndexedSeq
       case _ => defaultQuantiles
     }
-    CDFStringQuantilesTransformation(quantiles)
+    CDFQuantilesTransformation(quantiles, StringDataType)
   }
 
 }

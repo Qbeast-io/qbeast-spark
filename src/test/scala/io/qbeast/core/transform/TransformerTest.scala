@@ -106,11 +106,11 @@ class TransformerTest extends AnyFlatSpec with Matchers {
     val transformer = Transformer("histogram", columnName, dataType)
     transformer shouldBe a[CDFStringQuantilesTransformer]
 
-    val hist = Seq("str_1", "str_2", "str_3", "str_4", "str_5", "str_6")
-    val transformation = Map(s"${columnName}_histogram" -> hist)
+    val quantiles = Seq("str_1", "str_2", "str_3", "str_4", "str_5", "str_6")
+    val transformation = Map(s"${columnName}_quantiles" -> quantiles)
     transformer.makeTransformation(transformation) match {
-      case _ @CDFStringQuantilesTransformation(histogram) =>
-        histogram == hist shouldBe true
+      case _ @CDFQuantilesTransformation(quantilesT, _) =>
+        quantiles == quantilesT shouldBe true
       case _ => fail("should always be StringHistogramTransformation")
     }
 

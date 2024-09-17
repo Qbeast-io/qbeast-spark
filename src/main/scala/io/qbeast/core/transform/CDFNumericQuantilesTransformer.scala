@@ -38,7 +38,7 @@ case class CDFNumericQuantilesTransformer(columnName: String, orderedDataType: O
       case h: Seq[_] => h.toIndexedSeq
       case _ => defaultQuantiles
     }
-    CDFNumericQuantilesTransformation(quantiles, orderedDataType)
+    CDFQuantilesTransformation(quantiles, orderedDataType)
 
   }
 
