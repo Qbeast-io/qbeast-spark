@@ -42,6 +42,9 @@ object CDFQuantilesTransformer extends TransformerType {
 
 }
 
+/**
+ * A transformer that calculates the CDF quantiles
+ */
 trait CDFQuantilesTransformer extends Transformer {
 
   val columnQuantile = s"${columnName}_quantile"

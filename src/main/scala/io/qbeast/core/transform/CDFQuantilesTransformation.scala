@@ -15,6 +15,7 @@
  */
 package io.qbeast.core.transform
 
+import io.qbeast.core.model.OrderedDataType
 import org.apache.hadoop.classification.InterfaceStability.Evolving
 
 import scala.collection.Searching._
@@ -26,17 +27,12 @@ trait CDFQuantilesTransformation extends Transformation {
 
   val quantiles: IndexedSeq[Any]
 
-  val defaultNullValue: Any
-
-  def mapValue(value: Any): Any = {
-    value match {
-      case v: Any => v
-      case null => defaultNullValue
-    }
-  }
-
   override def transform(value: Any): Double = {
-    quantiles.search(mapValue(value)) match {
+
+    // If the value is null, we return 0
+    if (value == null) return 0d
+    // Otherwise, we search for the value in the quantiles
+    quantiles.search(value) match {
       // First case when the index is found
       case Found(foundIndex) => foundIndex.toDouble / (quantiles.length - 1)
       // When the index is not found, we return the relative position of the insertion point
@@ -79,5 +75,31 @@ trait CDFQuantilesTransformation extends Transformation {
     case _: CDFQuantilesTransformation => other
     case _ => this
   }
+
+}
+
+/**
+ * Implementation of the CDFQuantilesTransformation for numeric values
+ * @param quantiles
+ * @param nullValue
+ * @param orderedDataType
+ */
+case class CDFNumericQuantilesTransformation(
+    quantiles: IndexedSeq[Any],
+    orderedDataType: OrderedDataType)
+    extends CDFQuantilesTransformation {
+
+  override implicit val ordering: Ordering[Any] = orderedDataType.ordering
+}
+
+/**
+ * Implementation of the CDFQuantilesTransformation for string values
+ * @param quantiles
+ */
+case class CDFStringQuantilesTransformation(quantiles: IndexedSeq[String])
+    extends CDFQuantilesTransformation {
+
+  override implicit val ordering: Ordering[Any] =
+    implicitly[Ordering[String]].asInstanceOf[Ordering[Any]]
 
 }

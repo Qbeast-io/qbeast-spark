@@ -15,6 +15,8 @@
  */
 package io.qbeast.core.model
 
+import io.qbeast.core.transform.CDFNumericQuantilesTransformation
+import io.qbeast.core.transform.CDFStringQuantilesTransformation
 import io.qbeast.core.transform.HashTransformation
 import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.core.transform.Transformation
@@ -203,6 +205,27 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
         """[{"className":"io.qbeast.core.transform.HashTransformation","nullValue":"null"}]}"""
     mapper.writeValueAsString(rev) shouldBe json
     mapper.readValue[Revision](json, classOf[Revision]) shouldBe rev
+
+  }
+
+  "A CDFTransformation" should "be serialized according to its type" in {
+    val tr: Transformation =
+      CDFNumericQuantilesTransformation(IndexedSeq(1, 2, 3), IntegerDataType)
+    val ser =
+      """{"className":"io.qbeast.core.transform.CDFNumericQuantilesTransformation",
+        |"quantiles":[1,2,3],"orderedDataType":"IntegerDataType","ordering":{}}""".stripMargin
+
+    println(mapper.writeValueAsString(tr))
+    mapper.writeValueAsString(tr) shouldBe ser
+    mapper.readValue(ser, classOf[Transformation]) shouldBe tr
+
+    val tr2: Transformation = CDFStringQuantilesTransformation(IndexedSeq("a", "b", "c"))
+    val ser2 =
+      """{"className":"io.qbeast.core.transform.CDFStringQuantilesTransformation",
+        |"quantiles":["a","b","c"],"ordering":{},"defaultNullValue":"null"}""".stripMargin
+    println(mapper.writeValueAsString(tr2))
+    mapper.writeValueAsString(tr2) shouldBe ser2
+    mapper.readValue(ser2, classOf[Transformation]) shouldBe tr2
 
   }
 
