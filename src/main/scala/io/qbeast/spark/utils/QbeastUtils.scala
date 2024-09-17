@@ -15,6 +15,7 @@
  */
 package io.qbeast.spark.utils
 
+import io.qbeast.core.model.StringDataType
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.delta.skipping.MultiDimClusteringFunctions
 import org.apache.spark.sql.functions.col
@@ -107,16 +108,16 @@ object QbeastUtils extends Logging {
   def computeQuantilesForColumn(
       df: DataFrame,
       columnName: String,
-      numberOrQuantiles: Int = 50): String = {
+      numberOfQuantiles: Int = 50): String = {
     if (!df.columns.contains(columnName)) {
       throw AnalysisExceptionFactory.create(s"Column $columnName does not exist in the dataframe")
     }
     val dataType = df.schema(columnName).dataType
     dataType match {
-      case _ if dataType.isInstanceOf[StringType] =>
-        computeQuantilesForStringColumn(df, columnName, numberOrQuantiles)
-      case _ if dataType.isInstanceOf[NumericType] =>
-        computeQuantilesForNumericColumn(df, columnName, numberOrQuantiles)
+      case StringType =>
+        computeQuantilesForStringColumn(df, columnName, numberOfQuantiles)
+      case _: NumericType =>
+        computeQuantilesForNumericColumn(df, columnName, numberOfQuantiles)
       case _ =>
         throw AnalysisExceptionFactory.create(
           s"Column $columnName is of type $dataType. " +
