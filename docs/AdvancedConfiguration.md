@@ -167,36 +167,36 @@ val columnStats =
      |"date_max":"${formatter.format(maxTimestamp)}" }""".stripMargin
 ```
 
-## String indexing via Histograms
+## Indexing via Quantile Based CDF
 
-The default **String** column transformation (`HashTransformation`) has limited range query supports since the lexicographic ordering of the String values are not preserved.
+The default column transformation for Strings (`HashTransformation`) has limited range query supports since the lexicographic ordering of the String values are not preserved. On the numeric side, the default transformation is `LinearTransformation`, which is a simple linear transformation that preserves the ordering of the values.
 
-This can be addressed by introducing a custom **String** histogram in the form of sorted `Seq[String]`, and can lead to several improvements including:
+This can be addressed by introducing a custom Quantile Based sequence in the form of sorted `Seq`, and can lead to several improvements including:
 1. more efficient file-pruning because of its reduced file-level column min/max
 2. support for range queries on String columns
 3. improved overall query speed
 
-The following code snippet demonstrates the extraction of a **String** histogram from the source data:
+The following code snippet demonstrates the extraction of a Quantile-based CDF from the source data:
 
 ```scala
 import io.qbeast.spark.utils.QbeastUtils
 
-val brandStats = QbeastUtils.computeQuantilesForStringColumn(df, "brand", 50)
-val statsStr = s"""{"brand_histogram":$brandStats}"""
+val brandQuantiles = QbeastUtils.computeQuantilesForColumn(df, "brand", 50)
+val statsStr = s"""{"brand_quantiles":$brandQuantiles}"""
 
 (df
   .write
   .mode("overwrite")
   .format("qbeast")
-  .option("columnsToIndex", "brand:histogram")
+  .option("columnsToIndex", "brand:quantiles")
   .option("columnStats", statsStr)
   .save(targetPath))
 ```
-This is only necessary for the first write, if not otherwise made explicit, all subsequent appends will reuse the same histogram.
-Any new custom histogram provided during `appends` forces the creation of a new `Revision`.
+This is only necessary for the first write, if not otherwise made explicit, all subsequent appends will reuse the same quantile calculation.
+Any new custom quantiles provided during `appends` forces the creation of a new `Revision`.
 
-A default **String** histogram("a" t0 "z") will be used if the use of histogram is stated(`stringColName:string_hist`) with no histogram in `columnStats`.
-The default histogram can not supersede an existing `StringHashTransformation`.
+- A default set of Quantiles (for String is "a" t0 "z", and for Numeric is percentiles based on the `[Number.MinValue, Number.MaxValue]` range) will be used if the use of histogram is stated(`stringColName:string_hist`) with no histogram in `columnStats`.
+- The default Quantiles can not supersede an existing `StringHashTransformation`.
 
 ## DefaultCubeSize
 
