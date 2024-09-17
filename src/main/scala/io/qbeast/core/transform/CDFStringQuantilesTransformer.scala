@@ -32,10 +32,7 @@ case class CDFStringQuantilesTransformer(columnName: String) extends Transformer
    * @return
    */
   override def stats: ColumnStats = {
-    val defaultHistString = defaultStringQuantiles.mkString("Array('", "', '", "')")
-    ColumnStats(
-      statsNames = columnHistogram :: Nil,
-      statsSqlPredicates = s"$defaultHistString AS $columnHistogram" :: Nil)
+    ColumnStats(statsNames = columnHistogram :: Nil, statsSqlPredicates = Nil)
   }
 
   /**

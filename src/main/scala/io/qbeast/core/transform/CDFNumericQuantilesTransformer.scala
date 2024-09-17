@@ -1,7 +1,6 @@
 package io.qbeast.core.transform
 
 import io.qbeast.core.model.OrderedDataType
-import org.apache.spark.sql.AnalysisExceptionFactory
 
 case class CDFNumericQuantilesTransformer(columnName: String, orderedDataType: OrderedDataType)
     extends Transformer {
@@ -11,9 +10,7 @@ case class CDFNumericQuantilesTransformer(columnName: String, orderedDataType: O
   /**
    * The default quantiles
    */
-  private val defaultQuantiles =
-    1.to(10)
-      .map(i => i.toDouble / 10 * orderedDataType.defaultScale)
+  private val defaultQuantiles: IndexedSeq[Any] = orderedDataType.defaultQuantiles
 
   override protected def transformerType: TransformerType = CDFQuantilesTransformer
 
@@ -23,10 +20,7 @@ case class CDFNumericQuantilesTransformer(columnName: String, orderedDataType: O
    * @return
    */
   override def stats: ColumnStats = {
-    val columnNames = columnQuantiles :: Nil
-    val columnStats =
-      s"${defaultQuantiles.mkString("Array(", ", ", ")")} AS $columnQuantiles" :: Nil
-    ColumnStats(columnNames, columnStats)
+    ColumnStats(columnQuantiles :: Nil, Nil)
   }
 
   /**
