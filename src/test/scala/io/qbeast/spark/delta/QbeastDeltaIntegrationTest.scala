@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.utils
+package io.qbeast.spark.delta
 
 import io.delta.tables._
 import io.qbeast.spark.QbeastIntegrationTestSpec

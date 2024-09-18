@@ -496,23 +496,21 @@ private[table] class IndexedTableImpl(
         .filter(file => paths.contains(file.path))
       if (!indexFiles.isEmpty) {
         val indexStatus = snapshot.loadIndexStatus(revision.revisionID)
-
-        import indexFiles.sparkSession.implicits._
-        val deleteFiles: IISeq[DeleteFile] = indexFiles
-          .map { indexFile =>
-            DeleteFile(
-              path = indexFile.path,
-              size = indexFile.size,
-              deletionTime = currentTimeMillis())
-          }
-          .collect()
-          .toIndexedSeq
-
         metadataManager.updateWithTransaction(
           tableID,
           schema,
           optimizationOptions(options),
           append = true) {
+          import indexFiles.sparkSession.implicits._
+          val deleteFiles: IISeq[DeleteFile] = indexFiles
+            .map { indexFile =>
+              DeleteFile(
+                path = indexFile.path,
+                size = indexFile.size,
+                deletionTimestamp = currentTimeMillis())
+            }
+            .collect()
+            .toIndexedSeq
           val data = snapshot.loadDataframeFromIndexFiles(indexFiles)
           val (dataExtended, tableChanges) =
             DoublePassOTreeDataAnalyzer.analyzeOptimize(data, indexStatus)

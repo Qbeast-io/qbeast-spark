@@ -15,7 +15,7 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.spark.delta.QbeastFiles
+import io.qbeast.spark.delta.QbeastFileUtils
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
 import org.apache.spark.sql.delta.DeltaLog
@@ -53,7 +53,7 @@ class NormalizedWeightIntegrationTest extends QbeastIntegrationTestSpec {
         val files = deltaLog.update().allFiles
         files.count() shouldBe 1
         files.collect
-          .map(QbeastFiles.fromAddFile(names.length))
+          .map(QbeastFileUtils.fromAddFile(names.length))
           .flatMap(_.blocks)
           .foreach { block =>
             block.maxWeight.value shouldBe <=(Int.MaxValue)

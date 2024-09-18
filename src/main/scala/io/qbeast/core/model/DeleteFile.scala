@@ -18,10 +18,10 @@ package io.qbeast.core.model
 /**
  * Delete file represents a physical file to be deleted.
  */
-case class DeleteFile(path: String, size: Long, deletionTime: Long) extends QbeastFile {
+case class DeleteFile(path: String, size: Long, deletionTimestamp: Long) extends QbeastFile {
 
   override def toString: String = {
-    s"DeleteFile($path, $size, $deletionTime)"
+    s"DeleteFile($path, $size, $deletionTimestamp)"
   }
 
 }

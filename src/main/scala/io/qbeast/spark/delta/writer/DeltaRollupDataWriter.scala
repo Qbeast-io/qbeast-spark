@@ -16,7 +16,7 @@
 package io.qbeast.spark.delta.writer
 
 import io.qbeast.core.model._
-import io.qbeast.spark.delta.QbeastFiles
+import io.qbeast.spark.delta.QbeastFileUtils
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.IISeq
 import org.apache.hadoop.fs.Path
@@ -77,9 +77,9 @@ object DeltaRollupDataWriter extends DataWriter with DeltaStatsCollectionUtils {
     processStats(stats, statsTrackers, fileStatsTracker)
     filesAndStats
       .map(_._1)
-      .map(QbeastFiles.toAddFile(dataChange = true))
+      .map(QbeastFileUtils.toAddFile(dataChange = true))
       .map(correctAddFileStats(fileStatsTracker))
-      .map(QbeastFiles.fromAddFile(dimensionCount))
+      .map(QbeastFileUtils.fromAddFile(dimensionCount))
   }
 
   private def getFileStatsTracker(

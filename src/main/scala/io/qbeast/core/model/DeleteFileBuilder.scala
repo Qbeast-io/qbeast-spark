@@ -21,7 +21,7 @@ package io.qbeast.core.model
 final class DeleteFileBuilder {
   private var path: Option[String] = None
   private var size: Long = 0L
-  private var deletionTime: Long = 0L
+  private var deletionTimestamp: Long = 0L
 
   /**
    * Sets the path.
@@ -52,13 +52,13 @@ final class DeleteFileBuilder {
   /**
    * Sets the deletion time
    *
-   * @param deletionTime
+   * @param deletionTimestamp
    *   the deletion time to set
    * @return
    *   this instance
    */
-  def setDeletionTime(deletionTime: Long): DeleteFileBuilder = {
-    this.deletionTime = deletionTime
+  def setDeletionTimestamp(deletionTimestamp: Long): DeleteFileBuilder = {
+    this.deletionTimestamp = deletionTimestamp
     this
   }
 
@@ -70,7 +70,7 @@ final class DeleteFileBuilder {
    */
   def result(): DeleteFile = {
     val filePath = path.get
-    DeleteFile(filePath, size, deletionTime)
+    DeleteFile(filePath, size, deletionTimestamp)
   }
 
 }

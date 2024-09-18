@@ -20,7 +20,7 @@ import io.qbeast.core.model.IndexFileBuilder
 import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
 import io.qbeast.core.model.TableChanges
 import io.qbeast.core.model.Weight
-import io.qbeast.spark.delta.QbeastFiles
+import io.qbeast.spark.delta.QbeastFileUtils
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.model.CubeState
 import org.apache.hadoop.fs.Path
@@ -140,7 +140,7 @@ case class BlockWriter(
               |size=${file.size},
               |modificationTime=${file.modificationTime},
               |revision=${file.revisionId}""".stripMargin.replaceAll("\n", " "))
-      val addFile = QbeastFiles.toAddFile(dataChange = true)(file)
+      val addFile = QbeastFileUtils.toAddFile(dataChange = true)(file)
 
       (addFile, taskStats)
     }.iterator

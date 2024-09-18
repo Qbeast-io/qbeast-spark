@@ -215,7 +215,7 @@ class IndexTest
           .update()
           .allFiles
           .collect()
-          .map(delta.QbeastFiles.fromAddFile(2))
+          .map(delta.QbeastFileUtils.fromAddFile(2))
           .flatMap(_.blocks)
 
         blocks.foreach { block =>

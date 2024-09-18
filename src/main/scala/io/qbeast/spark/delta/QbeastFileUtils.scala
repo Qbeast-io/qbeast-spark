@@ -35,7 +35,6 @@ import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.actions.Action
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.actions.RemoveFile
-import org.apache.spark.sql.delta.actions.SetTransaction
 import org.apache.spark.sql.execution.datasources.FileStatusWithMetadata
 
 import java.io.StringWriter
@@ -44,7 +43,7 @@ import java.net.URI
 /**
  * Utility object for working with index files.
  */
-object QbeastFiles {
+object QbeastFileUtils {
 
   private val jsonFactory = new JsonFactory()
 
@@ -62,7 +61,7 @@ object QbeastFiles {
     val builder = new IndexFileBuilder()
       .setPath(addFile.path)
       .setSize(addFile.size)
-      .setStats(addFile.stats)
+      .setStats(Some(addFile.stats))
       .setModificationTime(addFile.modificationTime)
     addFile.getTag(TagUtils.revision) match {
       case Some(value) => builder.setRevisionId(value.toLong)
@@ -95,7 +94,7 @@ object QbeastFiles {
       size = indexFile.size,
       modificationTime = indexFile.modificationTime,
       dataChange = dataChange,
-      stats = indexFile.stats,
+      stats = indexFile.stats.orNull,
       tags = tags)
   }
 
@@ -103,7 +102,7 @@ object QbeastFiles {
     val builder = new DeleteFileBuilder()
       .setPath(removeFile.path)
       .setSize(removeFile.size.get)
-      .setDeletionTime(removeFile.deletionTimestamp.get)
+      .setDeletionTimestamp(removeFile.deletionTimestamp.get)
     builder.result()
   }
 
@@ -118,7 +117,7 @@ object QbeastFiles {
   def toRemoveFile(dataChange: Boolean)(deleteFile: DeleteFile): RemoveFile =
     RemoveFile(
       path = deleteFile.path,
-      deletionTimestamp = Some(deleteFile.deletionTime),
+      deletionTimestamp = Some(deleteFile.deletionTimestamp),
       dataChange = dataChange,
       partitionValues = Map.empty[String, String],
       size = Some(deleteFile.size))
@@ -133,8 +132,7 @@ object QbeastFiles {
     action match {
       case addFile: AddFile => fromAddFile(1)(addFile)
       case removeFile: RemoveFile => fromRemoveFile(removeFile)
-      case setTransaction: SetTransaction => null
-      case _ => throw new IllegalArgumentException(s"Unknown Action type: ${action.getClass}")
+      case _ => null
     }
   }
 

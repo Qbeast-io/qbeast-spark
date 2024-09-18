@@ -152,7 +152,7 @@ private[delta] case class DeltaMetadataWriter(
    *   A Map[String, String] representing the combined outputs of all hooks.
    */
   private def runPreCommitHooks(actions: Seq[Action]): PreCommitHookOutput = {
-    val qbeastActions = actions.map(QbeastFiles.fromAction)
+    val qbeastActions = actions.map(QbeastFileUtils.fromAction)
     preCommitHooks.foldLeft(Map.empty[String, String]) { (acc, hook) =>
       acc ++ hook.run(qbeastActions)
     }
@@ -176,8 +176,8 @@ private[delta] case class DeltaMetadataWriter(
       // Execute write
 
       val (changes, indexFiles, deleteFiles) = writer
-      val addFiles = indexFiles.map(QbeastFiles.toAddFile(dataChange = true))
-      val removeFiles = deleteFiles.map(QbeastFiles.toRemoveFile(dataChange = false))
+      val addFiles = indexFiles.map(QbeastFileUtils.toAddFile(dataChange = true))
+      val removeFiles = deleteFiles.map(QbeastFileUtils.toRemoveFile(dataChange = false))
 
       // Update Qbeast Metadata (replicated set, revision..)
       var actions = updateMetadata(txn, changes, addFiles, removeFiles)
@@ -223,9 +223,9 @@ private[delta] case class DeltaMetadataWriter(
       .allFiles
       .where(TagColumns.revision === lit(revision.revisionID.toString))
       .collect()
-      .map(QbeastFiles.fromAddFile(dimensionCount))
+      .map(QbeastFileUtils.fromAddFile(dimensionCount))
       .flatMap(_.tryReplicateBlocks(deltaReplicatedSet))
-      .map(QbeastFiles.toAddFile(dataChange = false))
+      .map(QbeastFileUtils.toAddFile(dataChange = false))
       .toSeq
   }
 
