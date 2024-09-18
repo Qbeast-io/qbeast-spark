@@ -110,8 +110,8 @@ def create_delta_table(table_path: str) -> DeltaTable:
     """
     try:
         # Try to find the table in the provided path
-        deltaTable = DeltaTable(table_path)
-        return deltaTable
+        delta_table = DeltaTable(table_path)
+        return delta_table
 
     except Exception as e:
         # If the table doesn't exist, throw an exception
