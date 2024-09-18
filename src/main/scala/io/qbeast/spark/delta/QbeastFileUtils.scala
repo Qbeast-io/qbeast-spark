@@ -88,13 +88,17 @@ object QbeastFileUtils {
     val tags = Map(
       TagUtils.revision -> indexFile.revisionId.toString,
       TagUtils.blocks -> encodeBlocks(indexFile.blocks))
+    val stats = Option(indexFile.stats).flatMap {
+      case Some(s) => Some(s)
+      case None => None
+    }.orNull
     AddFile(
       path = indexFile.path,
       partitionValues = Map.empty[String, String],
       size = indexFile.size,
       modificationTime = indexFile.modificationTime,
       dataChange = dataChange,
-      stats = indexFile.stats.orNull,
+      stats = stats,
       tags = tags)
   }
 
