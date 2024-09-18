@@ -41,8 +41,8 @@ def generate_fake_data(partition_id, num_rows):
         )
     return data
 
-def create_qbeast_tables():
 
+def create_qbeast_tables():
     # Total number of rows & partitions
     total_rows = 4_000_000
     partitions = 200
@@ -75,7 +75,7 @@ def create_qbeast_tables():
     filtered_df = df.filter((df["age"] >= 24) & (df["age"] <= 63))
     age_min = filtered_df.select("age").agg({"age": "min"}).collect()[0][0]
     age_max = filtered_df.select("age").agg({"age": "max"}).collect()[0][0]
-    
+
     filtered_df.write.mode("overwrite").format("qbeast").option(
         "columnsToIndex", "age"
     ).option("columnStats", f"""{{"age_min":{age_min},"age_max":{age_max}}}""").option(
@@ -106,9 +106,9 @@ def create_qbeast_tables():
 
     count_elements_tables(df_path1, df_path2, df_path3)
 
+
 # COUNT THE NUMBER OF ELEMENTS IN THE CREATED QBEAST TABLES:
 def count_elements_tables(df_path1: str, df_path2: str, df_path3: str):
-    
     # FIRST TABLE
     delta_table1 = create_delta_table(df_path1)
     d1_adds = delta_table1.get_add_actions(True).to_pandas()
@@ -148,9 +148,11 @@ def count_elements_tables(df_path1: str, df_path2: str, df_path3: str):
         cubes_elements_number += cube.element_count
     print(cubes_elements_number)  # 1.524.203
 
+
 # MAIN function
 def main():
     create_qbeast_tables()
+
 
 # Entry point of the script
 if __name__ == "__main__":

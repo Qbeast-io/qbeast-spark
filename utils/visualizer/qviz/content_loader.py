@@ -129,31 +129,24 @@ def extract_metadata_from_delta_table(
     It also calculates the number of symbols used to representate the visualization.
     :param delta_table: a created delta table.
     :param revision_id: Configuration entry for the target RevisionID. e.g. 1
-    :return: A dictionary with the metadata related to the revisionId, an integer representing the number of simbols used fot the visualization representation.
+    :return: A dictionary with the metadata related to the revisionId, an integer
+    representing the number of simbols used for the visualization representation.
     """
 
-    # We create a dataframe with all the add actions
-    df = delta_table.get_add_actions(True).to_pandas()
     # List with all the revision ids
-    revision_ids = [
-        rev_id.strip() for rev_id in df["tags.revision"]
-    ]  # Delete blank spaces in each id
-    revision_id = str(revision_id).strip()  # Delete blank spaces in revision_key
+    metadata = delta_table.metadata().configuration #This returns a dictionary with the metadata
+    revision_key = "qbeast.revision." + revision_id
 
-    # Check if our table has a revision id that matches the given revision id
-    if revision_id in revision_ids:
-        print("Metadata found for the given RevisionID\n")
-        revision_key = f"qbeast.revision.{revision_id}"
-        metadata_str = delta_table.metadata().configuration[revision_key]
-        # The last command return a string, and we need a dict to access columnTransformers
-        metadata = json.loads(metadata_str)
-        # Calculate the number of symbols used for the visualization
-        dimension_count = len(metadata["columnTransformers"])
-        symbol_count = (dimension_count + 5) // 6
-        return metadata, symbol_count
+    if revision_key in metadata.keys():
+            metadata_key_str = metadata[revision_key]
+            metadata_key = json.loads(metadata_key_str)
+            dimension_count = len(metadata_key["columnTransformers"])
+            symbol_count = (dimension_count + 5) // 6
+            print(symbol_count)
+            return metadata_key, symbol_count
     else:
-        print(f"No metadata found for the given RevisionID.")
-
+        print(f"No metadata found for the given RevisionID. There is no Qbeast table.")
+        return None
 
 # 3. Returns a dictionary, the keys are the cubeids and the values are the actual cubes
 def extract_cubes_from_blocks(delta_table: DeltaTable, symbol_count: int) -> dict:
@@ -187,7 +180,9 @@ def extract_cubes_from_blocks(delta_table: DeltaTable, symbol_count: int) -> dic
                     # Since objects are passed by reference, they can be modified in situ
                     if block["cubeId"] in cubes_dict.keys():
                         dict_cube = cubes_dict[block["cubeId"]]
-                        normalized_max_weight = normalize_weight(int(block["maxWeight"]))
+                        normalized_max_weight = normalize_weight(
+                            int(block["maxWeight"])
+                        )
                         dict_cube.max_weight = min(max_weight, normalized_max_weight)
                         dict_cube.element_count += int(block["elementCount"])
                         dict_cube.size += int(row["size_bytes"])
@@ -206,8 +201,9 @@ def extract_cubes_from_blocks(delta_table: DeltaTable, symbol_count: int) -> dic
                             cube_string, max_weight, element_count, size, depth
                         )
             except json.JSONDecodeError:
-                print("Error decoding JSON:", cube)
-        
+                print("Error decoding JSON:", blocks_str)
+                raise
+
     return cubes_dict
 
 
