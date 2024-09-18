@@ -36,7 +36,7 @@ case class IndexFile(
     revisionId: RevisionID,
     blocks: IISeq[Block],
     stats: String = null)
-    extends Serializable {
+    extends QbeastFile {
 
   /**
    * The number of elements in the file

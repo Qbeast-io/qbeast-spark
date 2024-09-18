@@ -30,7 +30,7 @@ import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.TimestampType
 import org.apache.spark.sql.DataFrame
 
-object SparkColumnsToIndexSelector extends ColumnsToIndexSelector[DataFrame] with Serializable {
+object SparkColumnsToIndexSelector extends ColumnsToIndexSelector with Serializable {
 
   /**
    * The maximum number of columns to index.
@@ -42,7 +42,9 @@ object SparkColumnsToIndexSelector extends ColumnsToIndexSelector[DataFrame] wit
   /**
    * Adds unix timestamp columns to the DataFrame for the columns specified
    * @param data
+   *   A spark DataFrame
    * @param inputCols
+   *   Lis of input columns
    * @return
    */
   private def withUnixTimestamp(data: DataFrame, inputCols: Seq[StructField]): DataFrame = {

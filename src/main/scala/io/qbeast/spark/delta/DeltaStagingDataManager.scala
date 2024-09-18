@@ -38,7 +38,7 @@ import org.apache.spark.sql.SparkSession
  */
 private[spark] class DeltaStagingDataManager(tableID: QTableID)
     extends DeltaStagingUtils
-    with StagingDataManager[DataFrame, QbeastOptions] {
+    with StagingDataManager {
   private val spark = SparkSession.active
 
   protected override val snapshot: Snapshot =
@@ -92,7 +92,7 @@ private[spark] class DeltaStagingDataManager(tableID: QTableID)
           val dataToWrite = mergeWithStagingData(data, stagingRemoveFiles)
           StagingResolution(
             dataToWrite,
-            stagingRemoveFiles.map(IndexFiles.fromRemoveFile),
+            stagingRemoveFiles.map(QbeastFiles.fromRemoveFile),
             sendToStaging = false)
         } else {
           // The staging area is not full, stage the data
@@ -147,8 +147,7 @@ private[spark] class DeltaStagingDataManager(tableID: QTableID)
 /**
  * Implementation of StagingDataManagerFactory.
  */
-object DeltaStagingDataManagerFactory
-    extends StagingDataManagerFactory[DataFrame, QbeastOptions] {
+object DeltaStagingDataManagerFactory extends StagingDataManagerFactory {
 
   override def getManager(tableID: QTableID): DeltaStagingDataManager =
     new DeltaStagingDataManager(tableID)

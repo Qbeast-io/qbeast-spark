@@ -45,7 +45,7 @@ trait PreCommitHook {
    * @return
    *   The output of the hook as a `PreCommitHookOutput`.
    */
-  def run(actions: Seq[IndexFile]): PreCommitHookOutput
+  def run(actions: Seq[QbeastFile]): PreCommitHookOutput
 
 }
 

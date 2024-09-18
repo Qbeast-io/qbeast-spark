@@ -27,9 +27,9 @@ import java.util.UUID
 private class SimpleTestHook extends PreCommitHook {
   override val name: String = "SimpleTestHook"
 
-  var args: Seq[IndexFile] = Seq.empty
+  var args: Seq[QbeastFile] = Seq.empty
 
-  override def run(args: Seq[IndexFile]): PreCommitHookOutput = {
+  override def run(args: Seq[QbeastFile]): PreCommitHookOutput = {
     this.args = args
     Map.empty
   }
@@ -40,11 +40,11 @@ private class StatefulTestHook(val stateId: String) extends PreCommitHook {
 
   val state: StatefulTestHookState = StatefulTestHook.stateMap(stateId)
 
-  var args: Seq[IndexFile] = Seq.empty
+  var args: Seq[QbeastFile] = Seq.empty
 
   override val name: String = "StatefulTestHook"
 
-  override def run(actions: Seq[IndexFile]): PreCommitHookOutput = {
+  override def run(actions: Seq[QbeastFile]): PreCommitHookOutput = {
     this.args = actions
     Map.empty
   }

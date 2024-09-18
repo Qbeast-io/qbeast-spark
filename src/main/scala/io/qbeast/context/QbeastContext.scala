@@ -24,13 +24,10 @@ import io.qbeast.spark.delta.DeltaStagingDataManagerFactory
 import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.index.SparkRevisionFactory
-import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.table.IndexedTableFactory
 import io.qbeast.spark.table.IndexedTableFactoryImpl
 import org.apache.spark.scheduler.SparkListener
 import org.apache.spark.scheduler.SparkListenerApplicationEnd
-import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.SparkConf
 
@@ -73,9 +70,7 @@ trait QbeastContext {
  * session and should be used in testing scenarios only. To restore the default behavior use the
  * #unsetUnmanaged method.
  */
-object QbeastContext
-    extends QbeastContext
-    with QbeastCoreContext[DataFrame, StructType, QbeastOptions, IndexFile] {
+object QbeastContext extends QbeastContext with QbeastCoreContext {
   private var managedOption: Option[QbeastContext] = None
   private var unmanagedOption: Option[QbeastContext] = None
 
@@ -89,21 +84,18 @@ object QbeastContext
 
   // Override methods from QbeastCoreContext
 
-  override def indexManager: IndexManager[DataFrame] = SparkOTreeManager
+  override def indexManager: IndexManager = SparkOTreeManager
 
-  override def metadataManager: MetadataManager[StructType, IndexFile, QbeastOptions] =
-    DeltaMetadataManager
+  override def metadataManager: MetadataManager = DeltaMetadataManager
 
-  override def dataWriter: DataWriter[DataFrame, StructType, IndexFile] =
-    DeltaRollupDataWriter
+  override def dataWriter: DataWriter = DeltaRollupDataWriter
 
-  override def stagingDataManagerBuilder: StagingDataManagerFactory[DataFrame, QbeastOptions] =
+  override def stagingDataManagerBuilder: StagingDataManagerFactory =
     DeltaStagingDataManagerFactory
 
-  override def revisionBuilder: RevisionFactory[StructType, QbeastOptions] =
-    SparkRevisionFactory
+  override def revisionBuilder: RevisionFactory = SparkRevisionFactory
 
-  override def columnSelector: ColumnsToIndexSelector[DataFrame] = SparkColumnsToIndexSelector
+  override def columnSelector: ColumnsToIndexSelector = SparkColumnsToIndexSelector
 
   /**
    * Sets the unmanaged context. The specified context will not be disposed automatically at the

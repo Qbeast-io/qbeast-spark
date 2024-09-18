@@ -16,13 +16,12 @@
 package io.qbeast.core.model
 
 import io.qbeast.IISeq
+import org.apache.spark.sql.DataFrame
 
 /**
  * Index Manager template
- * @tparam DATA
- *   type of data to index
  */
-trait IndexManager[DATA] {
+trait IndexManager {
 
   /**
    * Indexes the data
@@ -33,7 +32,7 @@ trait IndexManager[DATA] {
    * @return
    *   the changes of the index and reorganization of data
    */
-  def index(data: DATA, indexStatus: IndexStatus): (DATA, TableChanges)
+  def index(data: DataFrame, indexStatus: IndexStatus): (DataFrame, TableChanges)
 
   /**
    * Optimizes the index
@@ -44,7 +43,7 @@ trait IndexManager[DATA] {
    * @return
    *   the changes on the index and reorganization of data
    */
-  def optimize(data: DATA, indexStatus: IndexStatus): (DATA, TableChanges)
+  def optimize(data: DataFrame, indexStatus: IndexStatus): (DataFrame, TableChanges)
 
   /**
    * Analyzes the current index status

@@ -21,9 +21,12 @@ import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.core.JsonToken
 import io.qbeast.core.model.Block
 import io.qbeast.core.model.CubeId
+import io.qbeast.core.model.DeleteFile
+import io.qbeast.core.model.DeleteFileBuilder
 import io.qbeast.core.model.IndexFile
 import io.qbeast.core.model.IndexFileBuilder
 import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
+import io.qbeast.core.model.QbeastFile
 import io.qbeast.core.model.Weight
 import io.qbeast.spark.utils.TagUtils
 import io.qbeast.IISeq
@@ -41,7 +44,7 @@ import java.net.URI
 /**
  * Utility object for working with index files.
  */
-object IndexFiles {
+object QbeastFiles {
 
   private val jsonFactory = new JsonFactory()
 
@@ -96,11 +99,11 @@ object IndexFiles {
       tags = tags)
   }
 
-  def fromRemoveFile(removeFile: RemoveFile): IndexFile = {
-    val builder = new IndexFileBuilder()
+  def fromRemoveFile(removeFile: RemoveFile): DeleteFile = {
+    val builder = new DeleteFileBuilder()
       .setPath(removeFile.path)
       .setSize(removeFile.size.get)
-      .setModificationTime(removeFile.deletionTimestamp.get)
+      .setDeletionTime(removeFile.deletionTimestamp.get)
     builder.result()
   }
 
@@ -109,16 +112,16 @@ object IndexFiles {
    *
    * @param dataChange
    *   whether this file removal implies data change
-   * @param indexFile
-   *   the IndexFile instance
+   * @param deleteFile
+   *   the DeleteFile instance
    */
-  def toRemoveFile(dataChange: Boolean)(indexFile: IndexFile): RemoveFile =
+  def toRemoveFile(dataChange: Boolean)(deleteFile: DeleteFile): RemoveFile =
     RemoveFile(
-      path = indexFile.path,
-      deletionTimestamp = Some(indexFile.modificationTime),
+      path = deleteFile.path,
+      deletionTimestamp = Some(deleteFile.deletionTime),
       dataChange = dataChange,
       partitionValues = Map.empty[String, String],
-      size = Some(indexFile.size))
+      size = Some(deleteFile.size))
 
   /**
    * Converts a given action instance to a IndexFile instance.
@@ -126,7 +129,7 @@ object IndexFiles {
    * @param action
    *   the action instance
    */
-  def fromAction(action: Action): IndexFile = {
+  def fromAction(action: Action): QbeastFile = {
     action match {
       case addFile: AddFile => fromAddFile(1)(addFile)
       case removeFile: RemoveFile => fromRemoveFile(removeFile)

@@ -12,7 +12,7 @@ import org.apache.spark.sql.delta.DeltaLog
 private class SimpleHook(kv: String) extends PreCommitHook {
   override val name: String = "SimpleHook"
 
-  override def run(args: Seq[IndexFile]): PreCommitHookOutput = {
+  override def run(args: Seq[QbeastFile]): PreCommitHookOutput = {
     kv.split(":") match {
       case Array(k, v) => Map(k -> v)
       case _ => Map.empty

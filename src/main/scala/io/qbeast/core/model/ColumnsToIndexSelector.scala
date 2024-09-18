@@ -15,12 +15,12 @@
  */
 package io.qbeast.core.model
 
+import org.apache.spark.sql.DataFrame
+
 /**
  * ColumnsToIndexSelector interface to automatically select which columns to index.
- * @tparam DATA
- *   the data to index
  */
-trait ColumnsToIndexSelector[DATA] {
+trait ColumnsToIndexSelector {
 
   /**
    * The maximum number of columns to index.
@@ -34,7 +34,7 @@ trait ColumnsToIndexSelector[DATA] {
    *   the data to index
    * @return
    */
-  def selectColumnsToIndex(data: DATA): Seq[String] =
+  def selectColumnsToIndex(data: DataFrame): Seq[String] =
     selectColumnsToIndex(data, MAX_COLUMNS_TO_INDEX)
 
   /**
@@ -46,6 +46,6 @@ trait ColumnsToIndexSelector[DATA] {
    * @return
    *   A sequence with the names of the columns to index
    */
-  def selectColumnsToIndex(data: DATA, numColumnsToIndex: Int): Seq[String]
+  def selectColumnsToIndex(data: DataFrame, numColumnsToIndex: Int): Seq[String]
 
 }

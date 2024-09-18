@@ -208,7 +208,7 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
    * @tparam T
    * @return
    */
-  def withOTreeAlgorithm[T](code: IndexManager[DataFrame] => T): T = {
+  def withOTreeAlgorithm[T](code: IndexManager => T): T = {
     code(SparkOTreeManager)
   }
 

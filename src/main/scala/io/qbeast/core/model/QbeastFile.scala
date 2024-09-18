@@ -15,32 +15,17 @@
  */
 package io.qbeast.core.model
 
-import io.qbeast.IISeq
-import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.DataFrame
-
 /**
- * Data Writer template
+ * QBeast File base interface
  */
-trait DataWriter {
+trait QbeastFile extends Serializable {
 
-  /**
-   * Write the index data to the files
-   * @param tableID
-   *   the table identifier
-   * @param schema
-   *   the schema of the data
-   * @param data
-   *   the data to write
-   * @param tableChanges
-   *   the changes of the index
-   * @return
-   *   the sequence of files written
-   */
-  def write(
-      tableID: QTableID,
-      schema: StructType,
-      data: DataFrame,
-      tableChanges: TableChanges): IISeq[IndexFile]
+  def path: String
+
+  def size: Long
+
+  override def toString: String = {
+    s"QbeastFile($path, $size)"
+  }
 
 }

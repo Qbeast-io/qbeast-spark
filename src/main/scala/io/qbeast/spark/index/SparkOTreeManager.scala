@@ -23,7 +23,7 @@ import org.apache.spark.sql.DataFrame
 /**
  * Implementation of OTreeAlgorithm.
  */
-object SparkOTreeManager extends IndexManager[DataFrame] with Serializable with Logging {
+object SparkOTreeManager extends IndexManager with Serializable with Logging {
 
   /**
    * Builds an OTree index.

@@ -15,6 +15,8 @@
  */
 package io.qbeast.spark.delta
 
+import io.qbeast.core.model.DeleteFile
+import io.qbeast.core.model.IndexFile
 import io.qbeast.core.model.PreCommitHook
 import io.qbeast.core.model.PreCommitHook.PreCommitHookOutput
 import io.qbeast.core.model.QTableID
@@ -150,13 +152,13 @@ private[delta] case class DeltaMetadataWriter(
    *   A Map[String, String] representing the combined outputs of all hooks.
    */
   private def runPreCommitHooks(actions: Seq[Action]): PreCommitHookOutput = {
-    val qbeastActions = actions.map(IndexFiles.fromAction)
+    val qbeastActions = actions.map(QbeastFiles.fromAction)
     preCommitHooks.foldLeft(Map.empty[String, String]) { (acc, hook) =>
       acc ++ hook.run(qbeastActions)
     }
   }
 
-  def writeWithTransaction(writer: => (TableChanges, Seq[AddFile], Seq[RemoveFile])): Unit = {
+  def writeWithTransaction(writer: => (TableChanges, Seq[IndexFile], Seq[DeleteFile])): Unit = {
     val oldTransactions = deltaLog.unsafeVolatileSnapshot.setTransactions
     // If the transaction was completed before then no operation
     for (txn <- oldTransactions; version <- options.txnVersion; appId <- options.txnAppId) {
@@ -172,7 +174,11 @@ private[delta] case class DeltaMetadataWriter(
       val statsTrackers = createStatsTrackers(txn)
       registerStatsTrackers(statsTrackers)
       // Execute write
-      val (changes, addFiles, removeFiles) = writer
+
+      val (changes, indexFiles, deleteFiles) = writer
+      val addFiles = indexFiles.map(QbeastFiles.toAddFile(dataChange = true))
+      val removeFiles = deleteFiles.map(QbeastFiles.toRemoveFile(dataChange = false))
+
       // Update Qbeast Metadata (replicated set, revision..)
       var actions = updateMetadata(txn, changes, addFiles, removeFiles)
       // Set transaction identifier if specified
@@ -217,9 +223,9 @@ private[delta] case class DeltaMetadataWriter(
       .allFiles
       .where(TagColumns.revision === lit(revision.revisionID.toString))
       .collect()
-      .map(IndexFiles.fromAddFile(dimensionCount))
+      .map(QbeastFiles.fromAddFile(dimensionCount))
       .flatMap(_.tryReplicateBlocks(deltaReplicatedSet))
-      .map(IndexFiles.toAddFile(dataChange = false))
+      .map(QbeastFiles.toAddFile(dataChange = false))
       .toSeq
   }
 

@@ -15,19 +15,13 @@
  */
 package io.qbeast.core.model
 
+import io.qbeast.spark.internal.QbeastOptions
 import org.apache.spark.sql.DataFrame
 
 /**
  * Metadata Manager template
- *
- * @tparam DataSchema
- *   type of data schema
- * @tparam FileDescriptor
- *   type of file descriptor
- * @tparam QbeastOptions
- *   type of the Qbeast options
  */
-trait StagingDataManager[DATA, QbeastOptions] {
+trait StagingDataManager {
 
   /**
    * Resolve write policy according to the current staging size and its desired value.
@@ -38,7 +32,7 @@ trait StagingDataManager[DATA, QbeastOptions] {
    *   A StagingResolution instance containing the data to write, the staging RemoveFiles, and a
    *   boolean denoting whether the data to write is to be staged or indexed.
    */
-  def updateWithStagedData(data: DATA): StagingResolution
+  def updateWithStagedData(data: DataFrame): StagingResolution
 
   /**
    * Stage the data without indexing by writing it in the desired format.
@@ -53,14 +47,14 @@ trait StagingDataManager[DATA, QbeastOptions] {
    *   Whether the operation appends data or overwrites.
    */
   def stageData(
-      data: DATA,
+      data: DataFrame,
       indexStatus: IndexStatus,
       options: QbeastOptions,
       append: Boolean): Unit
 
 }
 
-trait StagingDataManagerFactory[DATA, QbeastOptions] {
+trait StagingDataManagerFactory {
 
   /**
    * Returns a IndexedTable for given SQLContext and path. It is not guaranteed that the returned
@@ -71,10 +65,10 @@ trait StagingDataManagerFactory[DATA, QbeastOptions] {
    * @return
    *   the stagingmanager
    */
-  def getManager(tableId: QTableID): StagingDataManager[DATA, QbeastOptions]
+  def getManager(tableId: QTableID): StagingDataManager
 }
 
 case class StagingResolution(
     dataToWrite: DataFrame,
-    removeFiles: Seq[IndexFile],
+    removeFiles: Seq[DeleteFile],
     sendToStaging: Boolean)

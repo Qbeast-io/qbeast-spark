@@ -15,32 +15,13 @@
  */
 package io.qbeast.core.model
 
-import io.qbeast.IISeq
-import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.DataFrame
-
 /**
- * Data Writer template
+ * Delete file represents a physical file to be deleted.
  */
-trait DataWriter {
+case class DeleteFile(path: String, size: Long, deletionTime: Long) extends QbeastFile {
 
-  /**
-   * Write the index data to the files
-   * @param tableID
-   *   the table identifier
-   * @param schema
-   *   the schema of the data
-   * @param data
-   *   the data to write
-   * @param tableChanges
-   *   the changes of the index
-   * @return
-   *   the sequence of files written
-   */
-  def write(
-      tableID: QTableID,
-      schema: StructType,
-      data: DataFrame,
-      tableChanges: TableChanges): IISeq[IndexFile]
+  override def toString: String = {
+    s"DeleteFile($path, $size, $deletionTime)"
+  }
 
 }

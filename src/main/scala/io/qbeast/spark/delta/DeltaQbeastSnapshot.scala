@@ -152,7 +152,7 @@ case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with De
       if (isStaging(revisionID)) loadStagingFiles()
       else snapshot.allFiles.where(TagColumns.revision === lit(revisionID.toString))
     import addFiles.sparkSession.implicits._
-    addFiles.map(IndexFiles.fromAddFile(dimensionCount))
+    addFiles.map(QbeastFiles.fromAddFile(dimensionCount))
   }
 
   /**
