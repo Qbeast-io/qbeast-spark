@@ -47,7 +47,7 @@ case class IndexFile(
     modificationTime: Long,
     revisionId: RevisionID,
     blocks: IISeq[Block],
-    stats: Option[String] = null)
+    stats: Option[QbeastStats] = None)
     extends QbeastFile {
 
   /**

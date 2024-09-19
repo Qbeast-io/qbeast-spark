@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.delta.writer
+package io.qbeast.spark.writer
 
 import io.qbeast.core.model.CubeId
 
@@ -87,7 +87,7 @@ private[writer] class Rollup(limit: Double) {
       size += other.size
     }
 
-    override def toString(): String = s"[Group: cubeIds: ${cubeIds}, size: ${size}]"
+    override def toString: String = s"[Group: cubeIds: $cubeIds, size: $size]"
 
   }
 

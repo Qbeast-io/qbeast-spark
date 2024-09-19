@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.delta.writer
+package io.qbeast.spark.writer
 
 import io.qbeast.core.model.CubeId
 import io.qbeast.core.model.IndexFile
@@ -85,9 +85,9 @@ private[writer] class IndexFileWriter(
     val hadoopPath = new Path(output.path())
     val status = hadoopPath.getFileSystem(config).getFileStatus(hadoopPath)
     file
-      .setPath(hadoopPath.getName())
-      .setSize(status.getLen())
-      .setModificationTime(status.getModificationTime())
+      .setPath(hadoopPath.getName)
+      .setSize(status.getLen)
+      .setModificationTime(status.getModificationTime)
     blocks.values.foreach(_.endBlock())
     trackers.foreach(_.closeFile(output.path()))
     val time = System.currentTimeMillis()
