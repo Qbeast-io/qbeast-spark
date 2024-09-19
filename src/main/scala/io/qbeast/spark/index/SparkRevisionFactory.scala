@@ -27,7 +27,7 @@ import org.apache.spark.sql.types.StructType
 /**
  * Spark implementation of RevisionBuilder
  */
-object SparkRevisionFactory extends RevisionFactory[StructType, QbeastOptions] {
+object SparkRevisionFactory extends RevisionFactory {
 
   override def createNewRevision(
       qtableID: QTableID,

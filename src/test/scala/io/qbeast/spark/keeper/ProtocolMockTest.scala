@@ -123,7 +123,7 @@ class ProtocolMockTest extends ProtocolMockTestSpec {
   "A write timout" should
     "not cause inconsistency when a timeout may interfere with an optimization" in withContext(
       LocalKeeper) { context =>
-      implicit val keeper = LocalKeeper
+      implicit val keeper: LocalKeeper.type = LocalKeeper
       val initProcess = new InitProcess(context)
       val announcer = new AnnouncerProcess(context, Seq("", "A", "AA"))
       val writer = new WritingProcess(context)
@@ -150,7 +150,7 @@ class ProtocolMockTest extends ProtocolMockTestSpec {
     }
 
   "A crashed optimization" should "not caused problems" in withContext(LocalKeeper) { context =>
-    implicit val keeper = LocalKeeper
+    implicit val keeper: LocalKeeper.type = LocalKeeper
 
     val initProcess = new InitProcess(context)
     val announcer = new AnnouncerProcess(context, Seq("", "A", "AA"))

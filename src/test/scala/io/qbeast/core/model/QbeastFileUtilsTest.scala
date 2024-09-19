@@ -16,13 +16,14 @@
 package io.qbeast.core.model
 
 import com.fasterxml.jackson.core.JsonParseException
-import io.qbeast.spark.delta.IndexFiles
+import io.qbeast.spark.delta.QbeastFileUtils
 import io.qbeast.spark.utils.TagUtils
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.actions.RemoveFile
 
-class IndexFilesTest extends QbeastIntegrationTestSpec {
+class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
 
   "IndexFiles" should "be able to create an AddFile instance from IndexFile" in withSpark { _ =>
     val indexFile = IndexFile(
@@ -39,7 +40,7 @@ class IndexFilesTest extends QbeastIntegrationTestSpec {
           1L,
           replicated = false)).toIndexedSeq)
 
-    val addFile = IndexFiles.toAddFile(dataChange = true)(indexFile)
+    val addFile = QbeastFileUtils.toAddFile(dataChange = true)(indexFile)
     addFile.path shouldBe "path"
     addFile.size shouldBe 2L
     addFile.modificationTime shouldBe 0L
@@ -61,7 +62,7 @@ class IndexFilesTest extends QbeastIntegrationTestSpec {
         TagUtils.revision -> "1",
         TagUtils.blocks -> """[{"cubeId":"","minWeight":2147483647,"maxWeight":2147483647,"elementCount":1,"replicated":false}]"""))
 
-    val indexFile = IndexFiles.fromAddFile(2)(addFile)
+    val indexFile = QbeastFileUtils.fromAddFile(2)(addFile)
     indexFile.path shouldBe "path"
     indexFile.size shouldBe 2L
     indexFile.modificationTime shouldBe 0L
@@ -71,26 +72,28 @@ class IndexFilesTest extends QbeastIntegrationTestSpec {
     indexFile.blocks.head.replicated shouldBe false
   }
 
-  it should "transform the AddFile to a Remove File" in withSpark { _ =>
-    val indexFile = IndexFile(
-      path = "path",
-      size = 2L,
-      modificationTime = 0L,
-      revisionId = 1L,
-      blocks = Seq(
-        Block(
-          "path",
-          CubeId.root(2),
-          Weight(1L),
-          Weight(2L),
-          1L,
-          replicated = false)).toIndexedSeq)
+  it should "transform the DeleteFile to a RemoveFile" in withSpark { _ =>
+    val deleteFile = DeleteFile(path = "path", size = 2L, deletionTimestamp = 0L)
 
     val dataChange = false
-    val removeFile = IndexFiles.toRemoveFile(dataChange = dataChange)(indexFile)
+    val removeFile = QbeastFileUtils.toRemoveFile(dataChange = dataChange)(deleteFile)
     removeFile.path shouldBe "path"
     removeFile.dataChange shouldBe dataChange
-    removeFile.getTag(TagUtils.blocks) shouldBe None
+  }
+
+  it should "transform the RemoveFile to a DeleteFile" in withSpark { _ =>
+    val removeFile = RemoveFile(
+      path = "path",
+      partitionValues = Map(),
+      size = Some(2L),
+      deletionTimestamp = Some(0L),
+      dataChange = true,
+      stats = null)
+
+    val deleteFile = QbeastFileUtils.fromRemoveFile(removeFile)
+    deleteFile.path shouldBe "path"
+    deleteFile.size shouldBe 2L
+    deleteFile.deletionTimestamp shouldBe 0L
   }
 
   it should "be able to create a FileStatus from an IndexFile" in withSpark { _ =>
@@ -109,7 +112,7 @@ class IndexFilesTest extends QbeastIntegrationTestSpec {
           replicated = false)).toIndexedSeq)
 
     val indexPath = new Path("/absolute/")
-    val indexStatus = IndexFiles.toFileStatus(indexPath)(indexFile)
+    val indexStatus = QbeastFileUtils.toFileStatus(indexPath)(indexFile)
 
     indexStatus.isFile shouldBe true
     indexStatus.getPath shouldBe new Path("/absolute/path")
@@ -135,7 +138,7 @@ class IndexFilesTest extends QbeastIntegrationTestSpec {
 
     val indexPath = new Path("/absolute/")
     val indexStatus =
-      IndexFiles.toFileStatusWithMetadata(indexPath, Map("key" -> "value"))(indexFile)
+      QbeastFileUtils.toFileStatusWithMetadata(indexPath, Map("key" -> "value"))(indexFile)
 
     indexStatus.getPath shouldBe new Path("/absolute/path")
     indexStatus.getLen shouldBe 2L
@@ -159,7 +162,7 @@ class IndexFilesTest extends QbeastIntegrationTestSpec {
             """{"cubeId":"","minWeight":2147483647,
               |"maxWeight":2147483647,"elementCount":1,"replicated":false}]""".stripMargin))
 
-      an[JsonParseException] shouldBe thrownBy(IndexFiles.fromAddFile(2)(addFile))
+      an[JsonParseException] shouldBe thrownBy(QbeastFileUtils.fromAddFile(2)(addFile))
   }
 
   it should "throw error when trying to create an IndexFile with a wrong block format end" in withSpark {
@@ -177,7 +180,7 @@ class IndexFilesTest extends QbeastIntegrationTestSpec {
             """[{"cubeId":"","minWeight":2147483647,
               |"maxWeight":2147483647,"elementCount":1,"replicated":false}""".stripMargin))
 
-      an[NumberFormatException] shouldBe thrownBy(IndexFiles.fromAddFile(2)(addFile))
+      an[NumberFormatException] shouldBe thrownBy(QbeastFileUtils.fromAddFile(2)(addFile))
   }
 
 }

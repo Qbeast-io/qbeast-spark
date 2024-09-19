@@ -15,12 +15,14 @@
  */
 package io.qbeast.spark.delta
 
+import io.qbeast.core.model.DeleteFile
+import io.qbeast.core.model.IndexFile
+import io.qbeast.core.model.PreCommitHook
+import io.qbeast.core.model.PreCommitHook.PreCommitHookOutput
 import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QbeastHookLoader
 import io.qbeast.core.model.RevisionID
 import io.qbeast.core.model.TableChanges
-import io.qbeast.spark.delta.hook.PreCommitHook
-import io.qbeast.spark.delta.hook.PreCommitHook.PreCommitHookOutput
-import io.qbeast.spark.delta.hook.QbeastHookLoader
 import io.qbeast.spark.delta.writer.StatsTracker.registerStatsTrackers
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
@@ -150,10 +152,13 @@ private[delta] case class DeltaMetadataWriter(
    *   A Map[String, String] representing the combined outputs of all hooks.
    */
   private def runPreCommitHooks(actions: Seq[Action]): PreCommitHookOutput = {
-    preCommitHooks.foldLeft(Map.empty[String, String]) { (acc, hook) => acc ++ hook.run(actions) }
+    val qbeastActions = actions.map(QbeastFileUtils.fromAction)
+    preCommitHooks.foldLeft(Map.empty[String, String]) { (acc, hook) =>
+      acc ++ hook.run(qbeastActions)
+    }
   }
 
-  def writeWithTransaction(writer: => (TableChanges, Seq[FileAction])): Unit = {
+  def writeWithTransaction(writer: => (TableChanges, Seq[IndexFile], Seq[DeleteFile])): Unit = {
     val oldTransactions = deltaLog.unsafeVolatileSnapshot.setTransactions
     // If the transaction was completed before then no operation
     for (txn <- oldTransactions; version <- options.txnVersion; appId <- options.txnAppId) {
@@ -169,9 +174,13 @@ private[delta] case class DeltaMetadataWriter(
       val statsTrackers = createStatsTrackers(txn)
       registerStatsTrackers(statsTrackers)
       // Execute write
-      val (changes, newFiles) = writer
+
+      val (changes, indexFiles, deleteFiles) = writer
+      val addFiles = indexFiles.map(QbeastFileUtils.toAddFile(dataChange = true))
+      val removeFiles = deleteFiles.map(QbeastFileUtils.toRemoveFile(dataChange = false))
+
       // Update Qbeast Metadata (replicated set, revision..)
-      var actions = updateMetadata(txn, changes, newFiles)
+      var actions = updateMetadata(txn, changes, addFiles, removeFiles)
       // Set transaction identifier if specified
       for (txnVersion <- options.txnVersion; txnAppId <- options.txnAppId) {
         actions +:= SetTransaction(txnAppId, txnVersion, Some(System.currentTimeMillis()))
@@ -214,9 +223,9 @@ private[delta] case class DeltaMetadataWriter(
       .allFiles
       .where(TagColumns.revision === lit(revision.revisionID.toString))
       .collect()
-      .map(IndexFiles.fromAddFile(dimensionCount))
+      .map(QbeastFileUtils.fromAddFile(dimensionCount))
       .flatMap(_.tryReplicateBlocks(deltaReplicatedSet))
-      .map(IndexFiles.toAddFile(dataChange = false))
+      .map(QbeastFileUtils.toAddFile(dataChange = false))
       .toSeq
   }
 
@@ -232,19 +241,23 @@ private[delta] case class DeltaMetadataWriter(
 
   /**
    * Writes metadata of the table
+   *
    * @param txn
    *   transaction to commit
    * @param tableChanges
    *   changes to apply
-   * @param newFiles
-   *   files to add or remove
+   * @param addFiles
+   *   files to add
+   * @param removeFiles
+   *   files to remove
    * @return
    *   the sequence of file actions to save in the commit log(add, remove...)
    */
   protected def updateMetadata(
       txn: OptimisticTransaction,
       tableChanges: TableChanges,
-      newFiles: Seq[FileAction]): Seq[Action] = {
+      addFiles: Seq[AddFile],
+      removeFiles: Seq[RemoveFile]): Seq[Action] = {
 
     if (txn.readVersion > -1) {
       // This table already exists, check if the insert is valid.
@@ -272,11 +285,10 @@ private[delta] case class DeltaMetadataWriter(
       fs.mkdirs(deltaLog.logPath)
     }
 
-    val addFiles = newFiles.collect { case a: AddFile => a }
     val deletedFiles = mode match {
       case SaveMode.Overwrite =>
         txn.filterFiles().map(_.remove)
-      case _ => newFiles.collect { case r: RemoveFile => r }
+      case _ => removeFiles
     }
 
     val allFileActions = if (rearrangeOnly) {

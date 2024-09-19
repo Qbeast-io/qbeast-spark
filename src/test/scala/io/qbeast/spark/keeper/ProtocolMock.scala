@@ -22,7 +22,8 @@ import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.delta.MetadataWriterTest
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import org.apache.spark.sql.delta.actions.FileAction
+import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.actions.RemoveFile
 import org.apache.spark.sql.delta.DeltaOperations
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.SaveMode
@@ -71,19 +72,19 @@ trait ConcurrentActor {
     thread.join()
   }
 
-  def writeData(rev: Revision): (TableChanges, Seq[FileAction]) = {
+  def writeData(rev: Revision): (TableChanges, Seq[AddFile], Seq[RemoveFile]) = {
     val tableChanges =
       BroadcastedTableChanges(
         None,
         IndexStatus(rev),
         deltaNormalizedCubeWeights = Map.empty,
         Map.empty)
-    (tableChanges, Seq.empty)
+    (tableChanges, Seq.empty, Seq.empty)
   }
 
   def optimizeData(
       rev: Revision,
-      cubesToOptimize: Set[CubeId]): (TableChanges, Seq[FileAction]) = {
+      cubesToOptimize: Set[CubeId]): (TableChanges, Seq[AddFile], Seq[RemoveFile]) = {
     val tableChanges =
       BroadcastedTableChanges(
         None,
@@ -91,7 +92,7 @@ trait ConcurrentActor {
         deltaNormalizedCubeWeights = Map.empty,
         Map.empty,
         deltaReplicatedSet = cubesToOptimize)
-    (tableChanges, Seq.empty)
+    (tableChanges, Seq.empty, Seq.empty)
   }
 
 }
@@ -154,8 +155,8 @@ class WritingProcess(context: ProtoTestContext)(implicit keeper: Keeper) extends
         val knownAnnounced = winfo.announcedCubes.map(rev.createCubeId)
         deltaLog.withNewTransaction(None, Some(deltaLog.update())) { txn =>
           enteredTransaction()
-          val (changes, newFiles) = writer
-          val finalActions = metadataWriter.updateMetadata(txn, changes, newFiles)
+          val (changes, addFiles, removeFiles) = writer
+          val finalActions = metadataWriter.updateMetadata(txn, changes, addFiles, removeFiles)
           simulatePause()
           try {
             txn.commit(finalActions, DeltaOperations.Write(mode))
@@ -202,9 +203,9 @@ class OptimizingProcessGood(context: ProtoTestContext)(implicit keeper: Keeper)
       val optimizer = optimizeData(rev, cubesToOptimize)
       deltaLog.withNewTransaction(None, Some(deltaSnapshot))(tnx => {
         enteredTransaction()
-        val (changes, newFiles) = optimizer
+        val (changes, addFiles, removeFiles) = optimizer
         simulatePause()
-        val finalActions = metadataWriter.updateMetadata(tnx, changes, newFiles)
+        val finalActions = metadataWriter.updateMetadata(tnx, changes, addFiles, removeFiles)
         tnx.commit(finalActions, DeltaOperations.ManualUpdate)
         bo.end(cubesToOptimize.map(_.string))
       })
@@ -235,9 +236,9 @@ class OptimizingProcessBad(context: ProtoTestContext, args: Seq[String])(implici
       val optimizer = optimizeData(rev, cubesToOptimize.map(rev.createCubeId))
       deltaLog.withNewTransaction(None, Some(deltaSnapshot))(tnx => {
         enteredTransaction()
-        val (changes, newFiles) = optimizer
+        val (changes, addFiles, removeFiles) = optimizer
         simulatePause()
-        val finalActions = metadataWriter.updateMetadata(tnx, changes, newFiles)
+        val finalActions = metadataWriter.updateMetadata(tnx, changes, addFiles, removeFiles)
         tnx.commit(finalActions, DeltaOperations.ManualUpdate)
         bo.end(cubesToOptimize)
       })

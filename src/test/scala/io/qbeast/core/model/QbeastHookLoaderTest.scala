@@ -13,12 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.delta.hook
+package io.qbeast.core.model
 
-import io.qbeast.spark.delta.hook.PreCommitHook.PreCommitHookOutput
-import io.qbeast.spark.delta.hook.StatefulTestHook.StatefulTestHookState
+import io.qbeast.core.model.PreCommitHook.PreCommitHookOutput
+import io.qbeast.core.model.StatefulTestHook.StatefulTestHookState
 import io.qbeast.spark.internal.QbeastOptions
-import org.apache.spark.sql.delta.actions.Action
 import org.mockito.Mockito._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -28,9 +27,9 @@ import java.util.UUID
 private class SimpleTestHook extends PreCommitHook {
   override val name: String = "SimpleTestHook"
 
-  var args: Seq[Action] = Seq.empty
+  var args: Seq[QbeastFile] = Seq.empty
 
-  override def run(args: Seq[Action]): PreCommitHookOutput = {
+  override def run(args: Seq[QbeastFile]): PreCommitHookOutput = {
     this.args = args
     Map.empty
   }
@@ -41,11 +40,11 @@ private class StatefulTestHook(val stateId: String) extends PreCommitHook {
 
   val state: StatefulTestHookState = StatefulTestHook.stateMap(stateId)
 
-  var args: Seq[Action] = Seq.empty
+  var args: Seq[QbeastFile] = Seq.empty
 
   override val name: String = "StatefulTestHook"
 
-  override def run(actions: Seq[Action]): PreCommitHookOutput = {
+  override def run(actions: Seq[QbeastFile]): PreCommitHookOutput = {
     this.args = actions
     Map.empty
   }
@@ -53,11 +52,11 @@ private class StatefulTestHook(val stateId: String) extends PreCommitHook {
 }
 
 object StatefulTestHook {
-  protected case class StatefulTestHookState(timestamp: Long, args: Seq[Action])
+  protected case class StatefulTestHookState(timestamp: Long, args: Seq[IndexFile])
 
   protected var stateMap: Map[String, StatefulTestHookState] = Map.empty
 
-  def createNewState(timestamp: Long, args: Seq[Action]): String = {
+  def createNewState(timestamp: Long, args: Seq[IndexFile]): String = {
     val state = StatefulTestHookState(timestamp, args)
     val stateId = UUID.randomUUID().toString
     stateMap += (stateId -> state)
@@ -77,7 +76,7 @@ class QbeastHookLoaderTest extends AnyFlatSpec with Matchers {
     hookOpts.size shouldBe 1
     hookOpts.head shouldBe a[PreCommitHook]
 
-    val mockActions = mock(classOf[List[Action]])
+    val mockActions = mock(classOf[List[IndexFile]])
     hookOpts.head.run(mockActions)
     hookOpts.head.asInstanceOf[SimpleTestHook].args shouldBe mockActions
   }
@@ -94,7 +93,7 @@ class QbeastHookLoaderTest extends AnyFlatSpec with Matchers {
       hooks.size shouldBe 1
       hooks.head shouldBe a[PreCommitHook]
 
-      val mockActions = mock(classOf[List[Action]])
+      val mockActions = mock(classOf[List[IndexFile]])
       hooks.head.run(mockActions)
       val sth = hooks.head.asInstanceOf[StatefulTestHook]
       sth.args shouldBe mockActions

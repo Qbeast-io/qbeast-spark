@@ -18,9 +18,6 @@ package io.qbeast.spark.table
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model._
 import io.qbeast.core.model.RevisionFactory
-import io.qbeast.spark.delta.IndexFiles
-import io.qbeast.spark.delta.StagingDataManager
-import io.qbeast.spark.delta.StagingResolution
 import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import io.qbeast.spark.internal.QbeastOptions
@@ -28,15 +25,15 @@ import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
 import io.qbeast.spark.internal.QbeastOptions.optimizationOptions
 import io.qbeast.spark.internal.QbeastOptions.COLUMNS_TO_INDEX
 import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
+import io.qbeast.IISeq
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.COLUMN_SELECTOR_ENABLED
 import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
-import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.sources.BaseRelation
-import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
 
+import java.lang.System.currentTimeMillis
 import java.util.ConcurrentModificationException
 
 /**
@@ -63,7 +60,9 @@ trait IndexedTable {
    *   - AutoIndexing is enabled
    *   - Data is available
    * @param parameters
+   *   Map of parameters
    * @param data
+   *   Dataframe
    * @return
    */
   def selectColumnsToIndex(
@@ -167,11 +166,12 @@ trait IndexedTableFactory {
  */
 final class IndexedTableFactoryImpl(
     private val keeper: Keeper,
-    private val indexManager: IndexManager[DataFrame],
-    private val metadataManager: MetadataManager[StructType, FileAction, QbeastOptions],
-    private val dataWriter: DataWriter[DataFrame, StructType, FileAction],
-    private val revisionFactory: RevisionFactory[StructType, QbeastOptions],
-    private val columnSelector: ColumnsToIndexSelector[DataFrame])
+    private val indexManager: IndexManager,
+    private val metadataManager: MetadataManager,
+    private val dataWriter: DataWriter,
+    private val stagingDataManagerFactory: StagingDataManagerFactory,
+    private val revisionFactory: RevisionFactory,
+    private val columnSelector: ColumnsToIndexSelector)
     extends IndexedTableFactory {
 
   override def getIndexedTable(tableID: QTableID): IndexedTable =
@@ -181,6 +181,7 @@ final class IndexedTableFactoryImpl(
       indexManager,
       metadataManager,
       dataWriter,
+      stagingDataManagerFactory,
       revisionFactory,
       columnSelector)
 
@@ -207,11 +208,12 @@ final class IndexedTableFactoryImpl(
 private[table] class IndexedTableImpl(
     val tableID: QTableID,
     private val keeper: Keeper,
-    private val indexManager: IndexManager[DataFrame],
-    private val metadataManager: MetadataManager[StructType, FileAction, QbeastOptions],
-    private val dataWriter: DataWriter[DataFrame, StructType, FileAction],
-    private val revisionFactory: RevisionFactory[StructType, QbeastOptions],
-    private val columnSelector: ColumnsToIndexSelector[DataFrame])
+    private val indexManager: IndexManager,
+    private val metadataManager: MetadataManager,
+    private val dataWriter: DataWriter,
+    private val stagingDataManagerFactory: StagingDataManagerFactory,
+    private val revisionFactory: RevisionFactory,
+    private val columnSelector: ColumnsToIndexSelector)
     extends IndexedTable
     with StagingUtils
     with Logging {
@@ -453,17 +455,18 @@ private[table] class IndexedTableImpl(
       options: QbeastOptions,
       append: Boolean): Unit = {
     logTrace(s"Begin: Writing data to table $tableID")
-    val stagingDataManager: StagingDataManager = new StagingDataManager(tableID)
+    val stagingDataManager: StagingDataManager = stagingDataManagerFactory.getManager(tableID)
     stagingDataManager.updateWithStagedData(data) match {
       case r: StagingResolution if r.sendToStaging =>
         stagingDataManager.stageData(data, indexStatus, options, append)
 
       case StagingResolution(dataToWrite, removeFiles, false) =>
         val schema = dataToWrite.schema
+        val deleteFiles = removeFiles.toIndexedSeq
         metadataManager.updateWithTransaction(tableID, schema, options, append) {
           val (qbeastData, tableChanges) = indexManager.index(dataToWrite, indexStatus)
-          val fileActions = dataWriter.write(tableID, schema, qbeastData, tableChanges)
-          (tableChanges, fileActions ++ removeFiles)
+          val addFiles = dataWriter.write(tableID, schema, qbeastData, tableChanges)
+          (tableChanges, addFiles, deleteFiles)
         }
     }
     logTrace(s"End: Writing data to table $tableID")
@@ -498,19 +501,22 @@ private[table] class IndexedTableImpl(
           schema,
           optimizationOptions(options),
           append = true) {
-
           import indexFiles.sparkSession.implicits._
-          val removeFiles =
-            indexFiles.map(IndexFiles.toRemoveFile(dataChange = false)).collect().toIndexedSeq
-
+          val deleteFiles: IISeq[DeleteFile] = indexFiles
+            .map { indexFile =>
+              DeleteFile(
+                path = indexFile.path,
+                size = indexFile.size,
+                deletionTimestamp = currentTimeMillis())
+            }
+            .collect()
+            .toIndexedSeq
           val data = snapshot.loadDataframeFromIndexFiles(indexFiles)
-
           val (dataExtended, tableChanges) =
             DoublePassOTreeDataAnalyzer.analyzeOptimize(data, indexStatus)
-
-          val newFiles = dataWriter.write(tableID, schema, dataExtended, tableChanges)
+          val addFiles = dataWriter.write(tableID, schema, dataExtended, tableChanges)
           dataExtended.unpersist()
-          (tableChanges, newFiles ++ removeFiles)
+          (tableChanges, addFiles, deleteFiles)
         }
       }
     }

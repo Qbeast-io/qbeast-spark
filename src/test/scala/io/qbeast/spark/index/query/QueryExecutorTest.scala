@@ -17,7 +17,7 @@ package io.qbeast.spark.index.query
 
 import io.qbeast.core.model._
 import io.qbeast.core.transform.EmptyTransformer
-import io.qbeast.spark.delta.IndexFiles
+import io.qbeast.spark.delta.QbeastFileUtils
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.QbeastTable
 import org.apache.hadoop.fs.Path
@@ -156,7 +156,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
       val queryExecutor = new QueryExecutor(querySpecBuilder, qbeastSnapshot)
 
       val allBlocks =
-        deltaLog.update().allFiles.collect().map(IndexFiles.fromAddFile(2)).flatMap(_.blocks)
+        deltaLog.update().allFiles.collect().map(QbeastFileUtils.fromAddFile(2)).flatMap(_.blocks)
 
       val matchingBlocks = queryExecutor.execute(new Path(tmpDir)).map(_.getPath.getName).toSet
 
@@ -258,7 +258,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
           "maxWeight": ${Weight(0.8).value},
           "elementCount": 1, "replicated": false}"""
 
-      val Seq(rb1, c1b1, c1b2) = IndexFiles
+      val Seq(rb1, c1b1, c1b2) = QbeastFileUtils
         .fromAddFile(2)(
           AddFile(
             path = tmpDir,

@@ -17,6 +17,9 @@ package io.qbeast.spark.delta
 
 import io.qbeast.core.model.IndexStatus
 import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.StagingDataManager
+import io.qbeast.core.model.StagingDataManagerFactory
+import io.qbeast.core.model.StagingResolution
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.internal.QbeastOptions
 import org.apache.hadoop.fs.Path
@@ -33,7 +36,9 @@ import org.apache.spark.sql.SparkSession
 /**
  * Access point for staged data
  */
-private[spark] class StagingDataManager(tableID: QTableID) extends DeltaStagingUtils {
+private[spark] class DeltaStagingDataManager(tableID: QTableID)
+    extends DeltaStagingUtils
+    with StagingDataManager {
   private val spark = SparkSession.active
 
   protected override val snapshot: Snapshot =
@@ -73,7 +78,7 @@ private[spark] class StagingDataManager(tableID: QTableID) extends DeltaStagingU
    *   a StagingResolution instance containing the data to write, the staging RemoveFiles, and a
    *   boolean denoting whether the data to write is to be staged or indexed.
    */
-  def updateWithStagedData(data: DataFrame): StagingResolution = {
+  override def updateWithStagedData(data: DataFrame): StagingResolution = {
     STAGING_SIZE_IN_BYTES match {
       case None =>
         // Staging option deactivated, all staged data are ignored
@@ -84,9 +89,11 @@ private[spark] class StagingDataManager(tableID: QTableID) extends DeltaStagingU
         } else if (currentStagingSize >= stagingSize) {
           // Full staging area, merge current data with the staging data and mark
           // all staging AddFiles as removed
-          val stagedFiles = stagingRemoveFiles
-          val dataToWrite = mergeWithStagingData(data, stagedFiles)
-          StagingResolution(dataToWrite, stagedFiles, sendToStaging = false)
+          val dataToWrite = mergeWithStagingData(data, stagingRemoveFiles)
+          StagingResolution(
+            dataToWrite,
+            stagingRemoveFiles.map(QbeastFileUtils.fromRemoveFile),
+            sendToStaging = false)
         } else {
           // The staging area is not full, stage the data
           StagingResolution(data, Nil, sendToStaging = true)
@@ -107,7 +114,7 @@ private[spark] class StagingDataManager(tableID: QTableID) extends DeltaStagingU
    * @param append
    *   the operation appends data
    */
-  def stageData(
+  override def stageData(
       data: DataFrame,
       indexStatus: IndexStatus,
       options: QbeastOptions,
@@ -137,7 +144,12 @@ private[spark] class StagingDataManager(tableID: QTableID) extends DeltaStagingU
 
 }
 
-case class StagingResolution(
-    dataToWrite: DataFrame,
-    removeFiles: Seq[RemoveFile],
-    sendToStaging: Boolean)
+/**
+ * Implementation of StagingDataManagerFactory.
+ */
+object DeltaStagingDataManagerFactory extends StagingDataManagerFactory {
+
+  override def getManager(tableID: QTableID): DeltaStagingDataManager =
+    new DeltaStagingDataManager(tableID)
+
+}

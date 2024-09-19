@@ -21,14 +21,17 @@ import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.core.JsonToken
 import io.qbeast.core.model.Block
 import io.qbeast.core.model.CubeId
+import io.qbeast.core.model.DeleteFile
 import io.qbeast.core.model.IndexFile
 import io.qbeast.core.model.IndexFileBuilder
 import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
+import io.qbeast.core.model.QbeastFile
 import io.qbeast.core.model.Weight
 import io.qbeast.spark.utils.TagUtils
 import io.qbeast.IISeq
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.fs.Path
+import org.apache.spark.sql.delta.actions.Action
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.actions.RemoveFile
 import org.apache.spark.sql.execution.datasources.FileStatusWithMetadata
@@ -39,7 +42,7 @@ import java.net.URI
 /**
  * Utility object for working with index files.
  */
-object IndexFiles {
+object QbeastFileUtils {
 
   private val jsonFactory = new JsonFactory()
 
@@ -57,6 +60,7 @@ object IndexFiles {
     val builder = new IndexFileBuilder()
       .setPath(addFile.path)
       .setSize(addFile.size)
+      .setStats(Some(addFile.stats))
       .setModificationTime(addFile.modificationTime)
     addFile.getTag(TagUtils.revision) match {
       case Some(value) => builder.setRevisionId(value.toLong)
@@ -83,13 +87,25 @@ object IndexFiles {
     val tags = Map(
       TagUtils.revision -> indexFile.revisionId.toString,
       TagUtils.blocks -> encodeBlocks(indexFile.blocks))
+    val stats = Option(indexFile.stats).flatMap {
+      case Some(s) => Some(s)
+      case None => None
+    }.orNull
     AddFile(
       path = indexFile.path,
       partitionValues = Map.empty[String, String],
       size = indexFile.size,
       modificationTime = indexFile.modificationTime,
       dataChange = dataChange,
+      stats = stats,
       tags = tags)
+  }
+
+  def fromRemoveFile(removeFile: RemoveFile): DeleteFile = {
+    DeleteFile(
+      path = removeFile.path,
+      size = removeFile.size.get,
+      deletionTimestamp = removeFile.deletionTimestamp.get)
   }
 
   /**
@@ -97,16 +113,30 @@ object IndexFiles {
    *
    * @param dataChange
    *   whether this file removal implies data change
-   * @param indexFile
-   *   the IndexFile instance
+   * @param deleteFile
+   *   the DeleteFile instance
    */
-  def toRemoveFile(dataChange: Boolean)(indexFile: IndexFile): RemoveFile =
+  def toRemoveFile(dataChange: Boolean)(deleteFile: DeleteFile): RemoveFile =
     RemoveFile(
-      path = indexFile.path,
-      deletionTimestamp = Some(System.currentTimeMillis()),
+      path = deleteFile.path,
+      deletionTimestamp = Some(deleteFile.deletionTimestamp),
       dataChange = dataChange,
       partitionValues = Map.empty[String, String],
-      size = Some(indexFile.size))
+      size = Some(deleteFile.size))
+
+  /**
+   * Converts a given action instance to a IndexFile instance.
+   *
+   * @param action
+   *   the action instance
+   */
+  def fromAction(action: Action): QbeastFile = {
+    action match {
+      case addFile: AddFile => fromAddFile(1)(addFile)
+      case removeFile: RemoveFile => fromRemoveFile(removeFile)
+      case _ => null
+    }
+  }
 
   /**
    * Converts IndexFile instance to FileStatus instance.

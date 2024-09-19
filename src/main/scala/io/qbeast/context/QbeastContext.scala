@@ -18,19 +18,16 @@ package io.qbeast.context
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.keeper.LocalKeeper
 import io.qbeast.core.model._
-import io.qbeast.spark.delta.writer.RollupDataWriter
+import io.qbeast.spark.delta.writer.DeltaRollupDataWriter
 import io.qbeast.spark.delta.DeltaMetadataManager
+import io.qbeast.spark.delta.DeltaStagingDataManagerFactory
 import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.index.SparkRevisionFactory
-import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.table.IndexedTableFactory
 import io.qbeast.spark.table.IndexedTableFactoryImpl
 import org.apache.spark.scheduler.SparkListener
 import org.apache.spark.scheduler.SparkListenerApplicationEnd
-import org.apache.spark.sql.delta.actions.FileAction
-import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.SparkConf
 
@@ -73,9 +70,7 @@ trait QbeastContext {
  * session and should be used in testing scenarios only. To restore the default behavior use the
  * #unsetUnmanaged method.
  */
-object QbeastContext
-    extends QbeastContext
-    with QbeastCoreContext[DataFrame, StructType, QbeastOptions, FileAction] {
+object QbeastContext extends QbeastContext with QbeastCoreContext {
   private var managedOption: Option[QbeastContext] = None
   private var unmanagedOption: Option[QbeastContext] = None
 
@@ -89,18 +84,18 @@ object QbeastContext
 
   // Override methods from QbeastCoreContext
 
-  override def indexManager: IndexManager[DataFrame] = SparkOTreeManager
+  override def indexManager: IndexManager = SparkOTreeManager
 
-  override def metadataManager: MetadataManager[StructType, FileAction, QbeastOptions] =
-    DeltaMetadataManager
+  override def metadataManager: MetadataManager = DeltaMetadataManager
 
-  override def dataWriter: DataWriter[DataFrame, StructType, FileAction] =
-    RollupDataWriter
+  override def dataWriter: DataWriter = DeltaRollupDataWriter
 
-  override def revisionBuilder: RevisionFactory[StructType, QbeastOptions] =
-    SparkRevisionFactory
+  override def stagingDataManagerBuilder: StagingDataManagerFactory =
+    DeltaStagingDataManagerFactory
 
-  override def columnSelector: ColumnsToIndexSelector[DataFrame] = SparkColumnsToIndexSelector
+  override def revisionBuilder: RevisionFactory = SparkRevisionFactory
+
+  override def columnSelector: ColumnsToIndexSelector = SparkColumnsToIndexSelector
 
   /**
    * Sets the unmanaged context. The specified context will not be disposed automatically at the
@@ -156,6 +151,7 @@ object QbeastContext
       indexManager,
       metadataManager,
       dataWriter,
+      stagingDataManagerBuilder,
       revisionBuilder,
       columnSelector)
 

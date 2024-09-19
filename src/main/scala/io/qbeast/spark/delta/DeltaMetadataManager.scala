@@ -18,7 +18,6 @@ package io.qbeast.spark.delta
 import io.qbeast.core.model._
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.IISeq
-import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.SaveMode
@@ -27,19 +26,20 @@ import org.apache.spark.sql.SparkSession
 /**
  * Spark+Delta implementation of the MetadataManager interface
  */
-object DeltaMetadataManager extends MetadataManager[StructType, FileAction, QbeastOptions] {
+object DeltaMetadataManager extends MetadataManager {
 
   override def updateWithTransaction(
       tableID: QTableID,
       schema: StructType,
       options: QbeastOptions,
-      append: Boolean)(writer: => (TableChanges, IISeq[FileAction])): Unit = {
+      append: Boolean)(writer: => (TableChanges, IISeq[IndexFile], IISeq[DeleteFile])): Unit = {
 
     val deltaLog = loadDeltaLog(tableID)
     val mode = if (append) SaveMode.Append else SaveMode.Overwrite
 
     val metadataWriter =
       DeltaMetadataWriter(tableID, mode, deltaLog, options, schema)
+
     metadataWriter.writeWithTransaction(writer)
   }
 

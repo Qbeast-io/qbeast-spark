@@ -15,18 +15,14 @@
  */
 package io.qbeast.core.model
 
+import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.IISeq
+import org.apache.spark.sql.types.StructType
 
 /**
  * Metadata Manager template
- * @tparam DataSchema
- *   type of data schema
- * @tparam FileDescriptor
- *   type of file descriptor
- * @tparam QbeastOptions
- *   type of the Qbeast options
  */
-trait MetadataManager[DataSchema, FileDescriptor, QbeastOptions] {
+trait MetadataManager {
   type Configuration = Map[String, String]
 
   /**
@@ -45,7 +41,7 @@ trait MetadataManager[DataSchema, FileDescriptor, QbeastOptions] {
    * @return
    *   the current schema
    */
-  def loadCurrentSchema(tableID: QTableID): DataSchema
+  def loadCurrentSchema(tableID: QTableID): StructType
 
   /**
    * Writes and updates the metadata by using transaction control
@@ -60,9 +56,9 @@ trait MetadataManager[DataSchema, FileDescriptor, QbeastOptions] {
    */
   def updateWithTransaction(
       tableID: QTableID,
-      schema: DataSchema,
+      schema: StructType,
       options: QbeastOptions,
-      append: Boolean)(writer: => (TableChanges, IISeq[FileDescriptor])): Unit
+      append: Boolean)(writer: => (TableChanges, IISeq[IndexFile], IISeq[DeleteFile])): Unit
 
   /**
    * Updates the table metadata by overwriting the metadata configurations with the provided
@@ -74,7 +70,7 @@ trait MetadataManager[DataSchema, FileDescriptor, QbeastOptions] {
    * @param update
    *   configurations used to overwrite the existing metadata
    */
-  def updateMetadataWithTransaction(tableID: QTableID, schema: DataSchema)(
+  def updateMetadataWithTransaction(tableID: QTableID, schema: StructType)(
       update: => Configuration): Unit
 
   /**
@@ -127,6 +123,7 @@ trait MetadataManager[DataSchema, FileDescriptor, QbeastOptions] {
   /**
    * Creates an initial log directory
    * @param tableID
+   *   table ID
    */
   def createLog(tableID: QTableID): Unit
 

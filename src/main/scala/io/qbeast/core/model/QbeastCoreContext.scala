@@ -16,37 +16,27 @@
 package io.qbeast.core.model
 
 import io.qbeast.core.keeper.Keeper
+import io.qbeast.spark.internal.QbeastOptions
+import org.apache.spark.sql.types.StructType
 
 /**
  * Qbeast Core main components
- * @tparam DATA
- *   type of the data
- * @tparam DataSchema
- *   type of the data schema
- * @tparam QbeastOptions
- *   type of the Qbeast options
- * @tparam FileDescriptor
- *   type of the file descriptor
  */
-trait QbeastCoreContext[DATA, DataSchema, QbeastOptions, FileDescriptor] {
-  def metadataManager: MetadataManager[DataSchema, FileDescriptor, QbeastOptions]
-  def dataWriter: DataWriter[DATA, DataSchema, FileDescriptor]
-  def indexManager: IndexManager[DATA]
-  def revisionBuilder: RevisionFactory[DataSchema, QbeastOptions]
-  def columnSelector: ColumnsToIndexSelector[DATA]
+trait QbeastCoreContext {
+  def metadataManager: MetadataManager
+  def dataWriter: DataWriter
+  def indexManager: IndexManager
+  def stagingDataManagerBuilder: StagingDataManagerFactory
+  def revisionBuilder: RevisionFactory
+  def columnSelector: ColumnsToIndexSelector
   def keeper: Keeper
 
 }
 
 /**
  * RevisionFactory
- *
- * @tparam DataSchema
- *   type of the data schema
- * @tparam QbeastOptions
- *   type of the Qbeast options
  */
-trait RevisionFactory[DataSchema, QbeastOptions] {
+trait RevisionFactory {
 
   /**
    * Create a new revision for a table with given parameters
@@ -59,7 +49,7 @@ trait RevisionFactory[DataSchema, QbeastOptions] {
    *   the options
    * @return
    */
-  def createNewRevision(qtableID: QTableID, schema: DataSchema, options: QbeastOptions): Revision
+  def createNewRevision(qtableID: QTableID, schema: StructType, options: QbeastOptions): Revision
 
   /**
    * Create a new revision with given parameters from an old revision
@@ -75,7 +65,7 @@ trait RevisionFactory[DataSchema, QbeastOptions] {
    */
   def createNextRevision(
       qtableID: QTableID,
-      schema: DataSchema,
+      schema: StructType,
       options: QbeastOptions,
       oldRevision: RevisionID): Revision
 

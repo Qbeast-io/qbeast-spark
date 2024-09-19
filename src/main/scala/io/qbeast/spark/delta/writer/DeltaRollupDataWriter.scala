@@ -16,14 +16,13 @@
 package io.qbeast.spark.delta.writer
 
 import io.qbeast.core.model._
-import io.qbeast.spark.delta.IndexFiles
+import io.qbeast.spark.delta.QbeastFileUtils
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.IISeq
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.delta.actions.AddFile
-import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.delta.stats.DeltaFileStatistics
 import org.apache.spark.sql.delta.stats.DeltaJobStatisticsTracker
 import org.apache.spark.sql.delta.DeltaStatsCollectionUtils
@@ -44,9 +43,7 @@ import scala.collection.mutable
 /**
  * Implementation of DataWriter that applies rollup to compact the files.
  */
-object RollupDataWriter
-    extends DataWriter[DataFrame, StructType, FileAction]
-    with DeltaStatsCollectionUtils {
+object DeltaRollupDataWriter extends DataWriter with DeltaStatsCollectionUtils {
 
   private type GetCubeMaxWeight = CubeId => Weight
   private type Extract = InternalRow => (InternalRow, Weight, CubeId, CubeId)
@@ -56,9 +53,10 @@ object RollupDataWriter
       tableId: QTableID,
       schema: StructType,
       data: DataFrame,
-      tableChanges: TableChanges): IISeq[FileAction] = {
+      tableChanges: TableChanges): IISeq[IndexFile] = {
     val extendedData = extendDataWithCubeToRollup(data, tableChanges)
     val revision = tableChanges.updatedRevision
+    val dimensionCount = revision.transformations.length
     val getCubeMaxWeight = { cubeId: CubeId =>
       tableChanges.cubeWeight(cubeId).getOrElse(Weight.MaxValue)
     }
@@ -79,8 +77,9 @@ object RollupDataWriter
     processStats(stats, statsTrackers, fileStatsTracker)
     filesAndStats
       .map(_._1)
-      .map(IndexFiles.toAddFile(dataChange = true))
+      .map(QbeastFileUtils.toAddFile(dataChange = true))
       .map(correctAddFileStats(fileStatsTracker))
+      .map(QbeastFileUtils.fromAddFile(dimensionCount))
   }
 
   private def getFileStatsTracker(

@@ -13,12 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.delta.hook
+package io.qbeast.core.model
 
-import io.qbeast.spark.delta.hook.PreCommitHook.getHookArgName
-import io.qbeast.spark.delta.hook.PreCommitHook.getHookName
-import io.qbeast.spark.delta.hook.PreCommitHook.PreCommitHookOutput
-import org.apache.spark.sql.delta.actions.Action
+import PreCommitHook.getHookArgName
+import PreCommitHook.getHookName
+import PreCommitHook.PreCommitHookOutput
 
 /**
  * A trait representing a pre-commit hook.
@@ -46,7 +45,7 @@ trait PreCommitHook {
    * @return
    *   The output of the hook as a `PreCommitHookOutput`.
    */
-  def run(actions: Seq[Action]): PreCommitHookOutput
+  def run(actions: Seq[QbeastFile]): PreCommitHookOutput
 
 }
 

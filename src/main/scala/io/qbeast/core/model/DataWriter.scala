@@ -16,17 +16,13 @@
 package io.qbeast.core.model
 
 import io.qbeast.IISeq
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.DataFrame
 
 /**
  * Data Writer template
- * @tparam DATA
- *   type of data
- * @tparam DataSchema
- *   type of the data schema
- * @tparam FileDescriptor
- *   type of file descriptor
  */
-trait DataWriter[DATA, DataSchema, FileDescriptor] {
+trait DataWriter {
 
   /**
    * Write the index data to the files
@@ -43,8 +39,8 @@ trait DataWriter[DATA, DataSchema, FileDescriptor] {
    */
   def write(
       tableID: QTableID,
-      schema: DataSchema,
-      data: DATA,
-      tableChanges: TableChanges): IISeq[FileDescriptor]
+      schema: StructType,
+      data: DataFrame,
+      tableChanges: TableChanges): IISeq[IndexFile]
 
 }

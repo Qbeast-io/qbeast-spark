@@ -17,6 +17,18 @@ package io.qbeast.core.model
 
 import io.qbeast.IISeq
 
+sealed trait QbeastFile extends Serializable {
+
+  def path: String
+
+  def size: Long
+
+  override def toString: String = {
+    s"QbeastFile($path, $size)"
+  }
+
+}
+
 /**
  * Index file represents a physical file where blocks of the elements are stored.
  *
@@ -34,8 +46,9 @@ case class IndexFile(
     size: Long,
     modificationTime: Long,
     revisionId: RevisionID,
-    blocks: IISeq[Block])
-    extends Serializable {
+    blocks: IISeq[Block],
+    stats: Option[String] = null)
+    extends QbeastFile {
 
   /**
    * The number of elements in the file
@@ -76,6 +89,24 @@ case class IndexFile(
 
   override def toString: String = {
     s"IndexFile($path, $size, $modificationTime, $revisionId, $blocks)"
+  }
+
+}
+
+/**
+ * Index file represents a physical file where blocks of the elements are stored.
+ *
+ * @param path
+ *   the file path
+ * @param size
+ *   the file size in bytes
+ * @param deletionTimestamp
+ *   the deletion timestamp
+ */
+case class DeleteFile(path: String, size: Long, deletionTimestamp: Long) extends QbeastFile {
+
+  override def toString: String = {
+    s"DeleteFile($path, $size, $deletionTimestamp)"
   }
 
 }
