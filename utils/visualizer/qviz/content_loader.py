@@ -105,7 +105,7 @@ def extract_metadata_from_delta_table(
         return None
 
 # 3. Returns a dictionary, the keys are the cubeids and the values are the actual cubes
-def extract_cubes_from_blocks(delta_table: DeltaTable, symbol_count: int) -> dict:
+def extract_cubes_from_delta_table(delta_table: DeltaTable, symbol_count: int) -> dict:
     """
     Takes all the blocks stored in the table and creates the cubes.
     :param delta_table: list of json log files
