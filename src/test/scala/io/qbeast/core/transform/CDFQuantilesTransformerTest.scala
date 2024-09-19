@@ -1,17 +1,12 @@
 package io.qbeast.core.transform
 
 import io.qbeast.core.model.IntegerDataType
-import io.qbeast.core.model.QDataType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class CDFQuantilesTransformerTest extends AnyFlatSpec with Matchers {
 
   private val orderedDataType = IntegerDataType
-
-  private val invalidDataType = new QDataType {
-    override def name: String = "non-int"
-  }
 
   "CDFQuantilesTransformer" should "return correct stats for given column name and data type" in {
     val transformer = CDFQuantilesTransformer("testColumn", IntegerDataType)
