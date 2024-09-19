@@ -71,6 +71,7 @@ def create_delta_table(table_path: str) -> DeltaTable:
     except Exception as e:
         # If the table doesn't exist, throw an exception
         print(f"Failed when creating the delta table: {e}\n")
+        raise e
 
 
 # 2. extract metadata from delta table
