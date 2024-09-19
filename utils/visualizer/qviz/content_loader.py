@@ -16,18 +16,6 @@ def process_table(
     """
     Process a delta table given a path to a Qbeast table and a revision ID.
     Example json log file content:
-        {"commitInfo":
-            {"timestamp":1726134717979,
-            "operation":"WRITE",
-            "operationParameters":
-                {"mode":"Overwrite"},
-                "isolationLevel":"Serializable",
-                "isBlindAppend":false,
-                "operationMetrics":{"numFiles":"16",
-                "numOutputRows":"300000",
-                "numOutputBytes":"9486957"},
-            "engineInfo":"Apache-Spark/3.5.0 Delta-Lake/3.1.0",
-            "txnId":"450ebb6f-6845-4e75-a1b5-d1143a1b9f29"}}
         {"metaData":
             {"id":"d8ed5bdc-9625-4cf2-940e-3ffe0a36104b",
             "format":
@@ -36,48 +24,15 @@ def process_table(
                 "schemaString":
                     "{\"type\":\"struct\",\"fields\":[
                         {\"name\":\"event_time\",\"type\":\"timestamp\",\"nullable\":true,\"metadata\":{}},
-                        {\"name\":\"event_type\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},
                         ...}}
-        {"protocol":
-            {"minReaderVersion":1,
-            "minWriterVersion":2}}
         {"add":
-            {"path":"8eb0fcd7-c5ca-4b4c-a967-bc10188be935.parquet",
-            "partitionValues":{},
             "size":814021,
-            "modificationTime":1726134717043,
-            "dataChange":true,
             "stats":"{
-                \"numRecords\":27384,
-                \"minValues\":{
-                    \"event_time\":\"2019-11-01T01:00:08.000+01:00\",
-                    \"event_type\":\"cart\",
-                    \"product_id\":1002225,
-                    \"category_id\":2053013552259662037,
-                    \"category_code\":\"accessories.bag\",
-                    \"brand\":\"nady\",
-                    \"price\":0.0,
-                    \"user_id\":529936225,
-                    \"user_session\":\"00088e2e-4611-46fa-a7ce-bd1e6f05\"},
-                \"maxValues\":{
-                    \"event_time\":\"2019-11-01T07:45:50.000+01:00\",
-                    \"event_type\":\"view\",
-                    \"product_id\":60000025,
-                    ...},
-                \"nullCount\":{
-                    \"event_time\":0,
-                    \"event_type\":0,
-                    \"product_id\":0,
-                    ...}",
                 "tags":
                     {
                         "revision":"1",
                         "blocks":"[
-                            {\"cubeId\":\"wggg\",\"minWeight\":-103008559,\"maxWeight\":2147483647,\"elementCount\":9521,\"replicated\":false},
-                            {\"cubeId\":\"wggQ\",\"minWeight\":-100165008,\"maxWeight\":2147483647,\"elementCount\":880,\"replicated\":false},
-                            {\"cubeId\":\"wgg\",\"minWeight\":-1401341541,\"maxWeight\":-103459089,\"elementCount\":9759,\"replicated\":false},
-                            {\"cubeId\":\"wggA\",\"minWeight\":-102673026,\"maxWeight\":2147483647,\"elementCount\":5982,\"replicated\":false},
-                            {\"cubeId\":\"wggw\",\"minWeight\":-91591261,\"maxWeight\":2147483647,\"elementCount\":1242,\"replicated\":false}]"}}}
+                            {\"cubeId\":\"wggg\",\"minWeight\":-103008559,\"maxWeight\":2147483647,\"elementCount\":9521,\"replicated\":false}
     :param table_path: path to a Qbeast table
     :param revision_id: Configuration entry for the target RevisionID. e.g. 1
     :return: a dictionary with the metadata of the table, a dictionary with all the created cubes, the root node (a cube) of the viusalization and a list of dictionaries with the nodes and edges of the visualization.
