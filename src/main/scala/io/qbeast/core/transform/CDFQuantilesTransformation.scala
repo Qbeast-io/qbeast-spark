@@ -41,7 +41,7 @@ trait CDFQuantilesTransformation extends Transformation {
    * When the type is an OrderedDataType, the ordering is the one defined in the data type. When
    * the type is a StringDataType, the ordering is the one defined in the String class.
    */
-  implicit val ordering: Ordering[Any]
+  implicit def ordering: Ordering[Any]
 
   /**
    * Maps the values to Double in case of Number and to text in case of String

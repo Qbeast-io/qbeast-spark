@@ -33,8 +33,8 @@ case class CDFNumericQuantilesTransformation(
     dataType: OrderedDataType)
     extends CDFQuantilesTransformation {
 
-  override implicit val ordering: Ordering[Any] =
-    implicitly[Ordering[Double]].asInstanceOf[Ordering[Any]]
+  override def ordering: Ordering[Any] =
+    Ordering[Double].asInstanceOf[Ordering[Any]]
 
   override def mapValue(value: Any): Any = {
     value match {
