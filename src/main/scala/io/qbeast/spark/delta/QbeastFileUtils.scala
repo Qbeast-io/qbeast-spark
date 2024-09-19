@@ -22,7 +22,6 @@ import com.fasterxml.jackson.core.JsonToken
 import io.qbeast.core.model.Block
 import io.qbeast.core.model.CubeId
 import io.qbeast.core.model.DeleteFile
-import io.qbeast.core.model.DeleteFileBuilder
 import io.qbeast.core.model.IndexFile
 import io.qbeast.core.model.IndexFileBuilder
 import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
@@ -103,11 +102,10 @@ object QbeastFileUtils {
   }
 
   def fromRemoveFile(removeFile: RemoveFile): DeleteFile = {
-    val builder = new DeleteFileBuilder()
-      .setPath(removeFile.path)
-      .setSize(removeFile.size.get)
-      .setDeletionTimestamp(removeFile.deletionTimestamp.get)
-    builder.result()
+    DeleteFile(
+      path = removeFile.path,
+      size = removeFile.size.get,
+      deletionTimestamp = removeFile.deletionTimestamp.get)
   }
 
   /**

@@ -18,7 +18,7 @@ package io.qbeast.core.model
 /**
  * QBeast File base interface
  */
-trait QbeastFile extends Serializable {
+sealed trait QbeastFile extends Serializable {
 
   def path: String
 
