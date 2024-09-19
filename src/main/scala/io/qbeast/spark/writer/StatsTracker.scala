@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.delta.writer
+package io.qbeast.spark.writer
 
 import org.apache.spark.sql.execution.datasources.WriteJobStatsTracker
 import org.apache.spark.sql.execution.datasources.WriteTaskStats
@@ -28,6 +28,6 @@ object StatsTracker {
     statsTrackers = newStatsTrackers
   }
 
-  def getStatsTrackers(): Seq[WriteJobStatsTracker] = statsTrackers
+  def getStatsTrackers: Seq[WriteJobStatsTracker] = statsTrackers
 
 }

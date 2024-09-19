@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.delta.writer
+package io.qbeast.spark.writer
 
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.RevisionID
@@ -61,7 +61,7 @@ private[writer] class IndexFileWriterFactory(
    *   a new IndexFileWriter instance
    */
   def createIndexFileWriter(): IndexFileWriter = {
-    val path = new Path(tableId.id, s"${UUID.randomUUID()}.parquet").toString()
+    val path = new Path(tableId.id, s"${UUID.randomUUID()}.parquet").toString
     val jobConfig = new JobConf(config.value)
     val taskId = new TaskAttemptID("", 0, TaskType.REDUCE, 0, 0)
     val context = new TaskAttemptContextImpl(jobConfig, taskId)

@@ -17,8 +17,8 @@ package io.qbeast.context
 
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.keeper.LocalKeeper
-import io.qbeast.spark.delta.writer.DeltaRollupDataWriter
 import io.qbeast.spark.delta.DeltaMetadataManager
+import io.qbeast.spark.delta.DeltaRollupDataWriter
 import io.qbeast.spark.delta.DeltaStagingDataManagerFactory
 import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.spark.index.SparkOTreeManager
