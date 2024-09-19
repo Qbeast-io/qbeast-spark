@@ -83,7 +83,7 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
         ignoreNullable = true)
 
       // SAMPLE THE TABLE
-      val query = qbeast_df.sample(0.3)
+      val query = qbeast_df.sample(0.5)
       query.count() shouldBe >=(1L)
 
       // APPEND TO A PATH

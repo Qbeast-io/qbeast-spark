@@ -31,8 +31,8 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 
 case class QbeastStats(
     numRecords: Long,
-    minValues: Map[String, Either[Number, String]],
-    maxValues: Map[String, Either[Number, String]],
+    minValues: Map[String, String],
+    maxValues: Map[String, String],
     nullCount: Map[String, Int]) {
 
   def toJson: String = QbeastStats.mapper.writeValueAsString(this)
@@ -46,8 +46,8 @@ object QbeastStats {
   mapper.registerModule(DefaultScalaModule)
 
   private val module = new SimpleModule()
-  module.addSerializer(classOf[Either[Number, String]], new EitherSerializer)
-  module.addDeserializer(classOf[Either[Number, String]], new EitherDeserializer)
+  module.addSerializer(classOf[String], new ValueSerializer)
+  module.addDeserializer(classOf[String], new ValueDeserializer)
   mapper.registerModule(module)
 
   def fromString(jsonString: String): Option[QbeastStats] = {
@@ -68,40 +68,39 @@ object QbeastStats {
 
 }
 
-class EitherSerializer extends JsonSerializer[Either[Number, String]] {
+class ValueSerializer extends JsonSerializer[String] {
 
   override def serialize(
-      value: Either[Number, String],
+      value: String,
       gen: JsonGenerator,
       serializers: SerializerProvider): Unit = {
-    value match {
-      case Left(num) =>
-        num match {
-          case num: Integer => gen.writeNumber(num.intValue())
-          case _ => gen.writeNumber(num.doubleValue())
+    try {
+      val intValue = value.toInt
+      gen.writeNumber(intValue)
+    } catch {
+      case _: NumberFormatException =>
+        try {
+          val doubleValue = value.toDouble
+          gen.writeNumber(doubleValue)
+        } catch {
+          case _: NumberFormatException =>
+            gen.writeString(value)
         }
-      case Right(str) => gen.writeString(str)
     }
   }
 
 }
 
-class EitherDeserializer extends JsonDeserializer[Either[Number, String]] {
+class ValueDeserializer extends JsonDeserializer[String] {
 
-  override def deserialize(
-      p: JsonParser,
-      ctxt: DeserializationContext): Either[Number, String] = {
+  override def deserialize(p: JsonParser, ct: DeserializationContext): String = {
     val node = p.getCodec.readTree[JsonNode](p)
     if (node.isNumber) {
-      if (node.isIntegralNumber) {
-        Left(node.asInt())
-      } else {
-        Left(node.asDouble())
-      }
+      node.asText()
     } else if (node.isTextual) {
-      Right(node.asText())
+      node.asText()
     } else {
-      throw new IllegalArgumentException("Unsupported JSON type for Either")
+      throw new IllegalArgumentException("Unsupported JSON type for value")
     }
   }
 
