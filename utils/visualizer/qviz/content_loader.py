@@ -45,7 +45,7 @@ def process_table(
     metadata, symbol_count = extract_metadata_from_delta_table(delta_table, revision_id)
 
     # Extract cubes
-    cubes = extract_cubes_from_blocks(delta_table, symbol_count)
+    cubes = extract_cubes_from_delta_table(delta_table, symbol_count)
 
     # Build Tree
     root = populate_tree(cubes)
@@ -98,7 +98,6 @@ def extract_metadata_from_delta_table(
             metadata_key = json.loads(metadata_key_str)
             dimension_count = len(metadata_key["columnTransformers"])
             symbol_count = (dimension_count + 5) // 6
-            print(symbol_count)
             return metadata_key, symbol_count
     else:
         print(f"No metadata found for the given RevisionID. There is no Qbeast table.")
@@ -123,8 +122,8 @@ def extract_cubes_from_delta_table(delta_table: DeltaTable, symbol_count: int) -
     for index, row in df_filtered.iterrows():
         blocks_str = row[
             "tags.blocks"
-        ]  # This returns a pandas series with the blocks of the cube in each of the iterated rows
-        # Check if the cube is a JSON chain & try to convert it into a list of dictionaries
+        ]  
+        blocks_str = str(blocks_str) 
         if isinstance(blocks_str, str):
             try:
                 blocks = json.loads(
