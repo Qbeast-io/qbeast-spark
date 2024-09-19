@@ -12,7 +12,7 @@ class CDFQuantilesTransformerTest extends AnyFlatSpec with Matchers {
     val transformer = CDFQuantilesTransformer("testColumn", IntegerDataType)
     val stats = transformer.stats
     stats.statsNames should contain("testColumn_quantiles")
-    stats.statsSqlPredicates should contain(s"array() AS testColumn_quantiles")
+    stats.statsSqlPredicates should contain("array() AS testColumn_quantiles")
   }
 
   it should "return correct transformation for valid data type" in {
