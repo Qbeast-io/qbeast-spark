@@ -112,8 +112,8 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
 
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
         // Including the staging revision
-        qbeastTable.revisionsIDs().size shouldBe 4
-        qbeastTable.revisionsIDs() == Seq(0L, 1L, 2L, 3L)
+        qbeastTable.revisionIDs().size shouldBe 4
+        qbeastTable.revisionIDs() == Seq(0L, 1L, 2L, 3L)
       }
   }
 

@@ -16,11 +16,7 @@
 package io.qbeast.spark
 
 import io.qbeast.context.QbeastContext
-import io.qbeast.core.model.DenormalizedBlock
-import io.qbeast.core.model.QTableID
-import io.qbeast.core.model.Revision
-import io.qbeast.core.model.RevisionID
-import io.qbeast.core.model.StagingUtils
+import io.qbeast.core.model._
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.internal.commands.AnalyzeTableCommand
 import io.qbeast.spark.internal.commands.OptimizeTableCommand
@@ -42,28 +38,39 @@ import org.apache.spark.sql.SparkSession
  *   configuration of the indexed table
  */
 class QbeastTable private (
+    val tableID: QTableID,
     sparkSession: SparkSession,
-    tableID: QTableID,
     indexedTableFactory: IndexedTableFactory)
     extends Serializable
     with StagingUtils {
+  private val deltaLog: DeltaLog = DeltaLog.forTable(sparkSession, tableID.id)
 
-  private def deltaLog: DeltaLog = DeltaLog.forTable(sparkSession, tableID.id)
+  private var qbeastSnapshotCache: Option[DeltaQbeastSnapshot] = None
 
-  private def qbeastSnapshot: DeltaQbeastSnapshot =
-    delta.DeltaQbeastSnapshot(deltaLog.update())
+  private def qbeastSnapshot: DeltaQbeastSnapshot = {
+    if (qbeastSnapshotCache.isEmpty) {
+      val snapshot = deltaLog.update()
+      qbeastSnapshotCache = Some(DeltaQbeastSnapshot(snapshot))
+    }
+    qbeastSnapshotCache.get
+  }
+
+  def update(): Unit = {
+    val snapshot = deltaLog.update()
+    qbeastSnapshotCache = Some(DeltaQbeastSnapshot(snapshot))
+  }
 
   private def indexedTable: IndexedTable = indexedTableFactory.getIndexedTable(tableID)
 
-  private def latestRevisionAvailable = qbeastSnapshot.loadLatestRevision
+  private def latestRevision: Revision = qbeastSnapshot.loadLatestRevision
 
-  private def latestRevisionAvailableID = latestRevisionAvailable.revisionID
+  private def latestRevisionID: RevisionID = latestRevision.revisionID
 
   private def checkRevisionAvailable(revisionID: RevisionID): Unit = {
     if (!qbeastSnapshot.existsRevision(revisionID)) {
       throw AnalysisExceptionFactory.create(
         s"Revision $revisionID does not exists. " +
-          s"The latest revision available is $latestRevisionAvailableID")
+          s"The latest revision available is $latestRevisionID")
     }
   }
 
@@ -87,7 +94,7 @@ class QbeastTable private (
   }
 
   def optimize(options: Map[String, String]): Unit = {
-    optimize(latestRevisionAvailableID, options)
+    optimize(latestRevisionID, options)
   }
 
   def optimize(): Unit = {
@@ -127,8 +134,8 @@ class QbeastTable private (
   }
 
   def analyze(): Seq[String] = {
-    if (isStaging(latestRevisionAvailableID)) Seq.empty
-    else analyze(latestRevisionAvailableID)
+    if (isStaging(latestRevisionID)) Seq.empty
+    else analyze(latestRevisionID)
   }
 
   /**
@@ -151,9 +158,8 @@ class QbeastTable private (
    * Outputs the indexed columns of the table
    * @return
    */
-  def indexedColumns(): Seq[String] = {
-    latestRevisionAvailable.columnTransformers.map(_.columnName)
-  }
+  def indexedColumns(): Seq[String] =
+    latestRevision.columnTransformers.map(_.columnName)
 
   /**
    * Outputs the cubeSize of the table
@@ -165,53 +171,17 @@ class QbeastTable private (
   def cubeSize(revisionID: RevisionID): Int = {
     checkRevisionAvailable(revisionID)
     qbeastSnapshot.loadRevision(revisionID).desiredCubeSize
-
   }
 
-  def cubeSize(): Int =
-    latestRevisionAvailable.desiredCubeSize
+  def cubeSize(): Int = latestRevision.desiredCubeSize
 
-  /**
-   * Outputs all the revision identifiers available for the table
-   * @return
-   */
-  def revisionsIDs(): Seq[RevisionID] = {
-    qbeastSnapshot.loadAllRevisions.map(_.revisionID)
-  }
+  def allRevisions(): Seq[Revision] = qbeastSnapshot.loadAllRevisions
 
-  /**
-   * Outputs all the revision information available for the table
-   * @return
-   */
-  def allRevisions(): Seq[Revision] = {
-    qbeastSnapshot.loadAllRevisions
-  }
+  def allRevisionIDs(): Seq[RevisionID] = allRevisions().map(_.revisionID)
 
-  /**
-   * Outputs the revision information for the latest revision available
-   * @return
-   */
-  def latestRevision: Revision = {
-    latestRevisionAvailable
-  }
-
-  /**
-   * Outputs the revision information for a given identifier
-   * @param revisionID
-   *   the identifier of the revision
-   * @return
-   */
   def revision(revisionID: RevisionID): Revision = {
     checkRevisionAvailable(revisionID)
     qbeastSnapshot.loadRevision(revisionID)
-  }
-
-  /**
-   * Outputs the identifier of the latest revision available
-   * @return
-   */
-  def latestRevisionID(): RevisionID = {
-    latestRevisionAvailableID
   }
 
   /**
@@ -221,7 +191,6 @@ class QbeastTable private (
    * @return
    */
   def getIndexMetrics(revisionID: Option[RevisionID] = None): IndexMetrics = {
-
     val indexStatus = revisionID match {
       case Some(id) => qbeastSnapshot.loadIndexStatus(id)
       case None => qbeastSnapshot.loadLatestIndexStatus
@@ -266,7 +235,7 @@ class QbeastTable private (
 object QbeastTable {
 
   def forPath(sparkSession: SparkSession, path: String): QbeastTable = {
-    new QbeastTable(sparkSession, new QTableID(path), QbeastContext.indexedTableFactory)
+    new QbeastTable(new QTableID(path), sparkSession, QbeastContext.indexedTableFactory)
   }
 
 }
