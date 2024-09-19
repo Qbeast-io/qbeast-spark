@@ -18,6 +18,7 @@ package io.qbeast.core
 import com.fasterxml.jackson.annotation.JsonInclude.Include
 import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.module.scala.ClassTagExtensions
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 
 package object model {
@@ -36,7 +37,7 @@ package object model {
       .addModule(DefaultScalaModule)
       .serializationInclusion(Include.NON_ABSENT)
       .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-      .build()
+      .build() :: ClassTagExtensions
   }
 
 }

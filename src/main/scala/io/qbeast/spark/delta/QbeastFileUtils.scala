@@ -58,14 +58,14 @@ object QbeastFileUtils {
    */
   def fromAddFile(dimensionCount: Int)(addFile: AddFile): IndexFile = {
     val jsonString = addFile.stats
-    val qbeastStats = jsonString match {
+    val stats = jsonString match {
       case null => None
       case _ => QbeastStatsUtils.fromString(jsonString)
     }
     val builder = new IndexFileBuilder()
       .setPath(addFile.path)
       .setSize(addFile.size)
-      .setStats(qbeastStats)
+      .setStats(stats)
       .setModificationTime(addFile.modificationTime)
     addFile.getTag(TagUtils.revision) match {
       case Some(value) => builder.setRevisionId(value.toLong)
