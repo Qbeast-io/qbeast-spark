@@ -38,11 +38,12 @@ case class CDFStringQuantilesTransformer(columnName: String) extends CDFQuantile
   override def makeTransformation(row: String => Any): Transformation = {
     val quantiles =
       row(columnTransformerName) match {
-        case h: Seq[_] => h.map(_.toString).toIndexedSeq
+        case q: Seq[_] => q.map(_.toString).toIndexedSeq
         case _ =>
           throw AnalysisExceptionFactory.create(
             s"Quantiles for column $columnName are not available. " +
-              "Please provide them through .option('columnStats', '[<column_name>1, 2...n]')")
+              "Please provide them through " +
+              ".option('columnStats', '<column_name>_quantiles:[1, 2...n]')")
       }
     CDFStringQuantilesTransformation(quantiles)
   }

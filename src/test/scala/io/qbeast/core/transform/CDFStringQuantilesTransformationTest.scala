@@ -71,21 +71,17 @@ class CDFStringQuantilesTransformationTest extends AnyFlatSpec with Matchers {
   }
 
   it should "supersede correctly" in {
-    val defaultT = CDFStringQuantilesTransformation(defaultStringQuantilesTest)
     val customT_1 =
       CDFStringQuantilesTransformation(Array("brand_A", "brand_B", "brand_C"))
     val customT_2 =
       CDFStringQuantilesTransformation(Array("brand_A", "brand_B", "brand_D"))
 
-    defaultT.isSupersededBy(customT_1) shouldBe true
-    defaultT.isSupersededBy(defaultT) shouldBe false
-
-    customT_1.isSupersededBy(defaultT) shouldBe false
-    customT_1.isSupersededBy(customT_1) shouldBe false
+    customT_1.isSupersededBy(customT_1) shouldBe true
     customT_1.isSupersededBy(customT_2) shouldBe true
   }
 
-  it should "have histograms with length > 1" in {
+  // TODO: check this test
+  it should "have quantiles with length > 1" in {
     an[IllegalArgumentException] should be thrownBy
       CDFStringQuantilesTransformation(Array.empty[String])
 

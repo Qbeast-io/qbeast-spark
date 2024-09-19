@@ -289,7 +289,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
       SparkRevisionFactory.createNewRevision(
         QTableID("t"),
         schema,
-        QbeastOptions(Map(QbeastOptions.COLUMNS_TO_INDEX -> "a:quantile")))
+        QbeastOptions(Map(QbeastOptions.COLUMNS_TO_INDEX -> "a:quantiles")))
 
     revision.revisionID shouldBe 0L
     revision.columnTransformers shouldBe Vector(CDFQuantilesTransformer("a", LongDataType))
@@ -307,7 +307,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
         QbeastOptions(
           Map(
             QbeastOptions.COLUMNS_TO_INDEX -> "a:quantiles",
-            QbeastOptions.STATS -> s"""{"a_quantiles":[$numericQuantiles]}""")))
+            QbeastOptions.STATS -> s"""{"a_quantiles":[${numericQuantiles.mkString(", ")}]}""")))
 
     revision.revisionID shouldBe 1L
     revision.columnTransformers shouldBe Vector(CDFNumericQuantilesTransformer("a", LongDataType))

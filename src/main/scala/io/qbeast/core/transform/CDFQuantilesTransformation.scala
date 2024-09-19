@@ -94,8 +94,8 @@ trait CDFQuantilesTransformation extends Transformation {
   override def isSupersededBy(newTransformation: Transformation): Boolean =
     newTransformation match {
       case newT: CDFQuantilesTransformation =>
-        this.ordering == newT.ordering && newT.quantiles.nonEmpty && quantiles == newT.quantiles
-      case _ => false
+        this.ordering == newT.ordering && newT.quantiles.nonEmpty && quantiles != newT.quantiles
+      case _ => false // Not superseded by other types of transformations
     }
 
   /**

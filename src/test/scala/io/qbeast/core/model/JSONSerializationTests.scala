@@ -212,19 +212,17 @@ class JSONSerializationTests extends AnyFlatSpec with Matchers {
     val tr: Transformation =
       CDFNumericQuantilesTransformation(IndexedSeq(1, 2, 3), IntegerDataType)
     val ser =
-      """{"className":"io.qbeast.core.transform.CDFNumericQuantilesTransformation",
-        |"quantiles":[1.0,2.0,3.0],"dataType":"IntegerDataType"}""".stripMargin
+      """{"className":"io.qbeast.core.transform.CDFNumericQuantilesTransformation",""" +
+        """"quantiles":[1.0,2.0,3.0],"dataType":"IntegerDataType"}"""
 
-    println(mapper.writeValueAsString(tr))
     mapper.writeValueAsString(tr) shouldBe ser
     mapper.readValue(ser, classOf[Transformation]) shouldBe tr
 
     val tr2: Transformation =
       CDFStringQuantilesTransformation(IndexedSeq("a", "b", "c"))
     val ser2 =
-      """{"className":"io.qbeast.core.transform.CDFStringQuantilesTransformation",
-        |"quantiles":["a","b","c"]}""".stripMargin
-    println(mapper.writeValueAsString(tr2))
+      """{"className":"io.qbeast.core.transform.CDFStringQuantilesTransformation",""" +
+        """"quantiles":["a","b","c"],"dataType":"StringDataType"}"""
     mapper.writeValueAsString(tr2) shouldBe ser2
     mapper.readValue(ser2, classOf[Transformation]) shouldBe tr2
 

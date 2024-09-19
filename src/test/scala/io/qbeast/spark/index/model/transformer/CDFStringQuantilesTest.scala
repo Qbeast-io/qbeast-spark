@@ -93,7 +93,7 @@ class CDFStringQuantilesTest extends AnyFlatSpec with Matchers with QbeastIntegr
         .mode("overwrite")
         .format("qbeast")
         .option("cubeSize", "30")
-        .option("columnsToIndex", s"$colName:histogram")
+        .option("columnsToIndex", s"$colName:quantiles")
         .option("columnStats", statsStr)
         .save(quantilesPath)
       val quantilesDist = computeColumnEncodingDist(spark, quantilesPath, colName)

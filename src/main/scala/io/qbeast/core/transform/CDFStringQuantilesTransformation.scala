@@ -30,7 +30,6 @@ import io.qbeast.core.model.StringDataType
 
 case class CDFStringQuantilesTransformation(quantiles: IndexedSeq[String])
     extends CDFQuantilesTransformation {
-
   override val dataType: QDataType = StringDataType
 
   override def ordering: Ordering[Any] =
