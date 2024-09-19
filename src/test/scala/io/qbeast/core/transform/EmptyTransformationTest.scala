@@ -16,7 +16,6 @@
 package io.qbeast.core.transform
 
 import io.qbeast.core.model.DoubleDataType
-import io.qbeast.core.model.StringDataType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -41,7 +40,7 @@ class EmptyTransformationTest extends AnyFlatSpec with Matchers {
     val et = EmptyTransformation()
     val ht = HashTransformation()
     val lt = LinearTransformation(1d, 1.1, DoubleDataType)
-    val sht = CDFQuantilesTransformation(defaultStringQuantilesTest, StringDataType)
+    val sht = CDFStringQuantilesTransformation(defaultStringQuantilesTest)
 
     et.isSupersededBy(ht) shouldBe true
     et.isSupersededBy(lt) shouldBe true
@@ -52,7 +51,7 @@ class EmptyTransformationTest extends AnyFlatSpec with Matchers {
     val et = EmptyTransformation()
     val ht = HashTransformation()
     val lt = LinearTransformation(1d, 1.1, DoubleDataType)
-    val sht = CDFQuantilesTransformation(defaultStringQuantilesTest, StringDataType)
+    val sht = CDFStringQuantilesTransformation(defaultStringQuantilesTest)
 
     et.merge(ht) shouldBe ht
     et.merge(lt) shouldBe lt

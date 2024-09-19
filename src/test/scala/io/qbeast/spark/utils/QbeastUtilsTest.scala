@@ -20,21 +20,21 @@ import org.apache.spark.sql.AnalysisException
 
 class QbeastUtilsTest extends QbeastIntegrationTestSpec {
 
-  "QbeastUtils" should "compute histogram for string columns" in withQbeastContextSparkAndTmpDir(
+  "QbeastUtils" should "compute quantiles for string columns" in withQbeastContextSparkAndTmpDir(
     (spark, _) => {
       import spark.implicits._
       val df = Seq("a", "b", "c", "a", "b", "c", "a", "b", "c").toDF("name")
-      val hist = QbeastUtils.computeQuantilesForColumn(df, "name")
+      val quantiles = QbeastUtils.computeQuantilesForColumn(df, "name")
 
-      hist shouldBe "['a','b','c']"
+      quantiles shouldBe "['a', 'b', 'c']"
     })
 
-  it should "compute histogram for Int" in withQbeastContextSparkAndTmpDir((spark, tmpDir) => {
+  it should "compute quantiles for Int" in withQbeastContextSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
     val df = Seq(1, 2, 3, 1, 2, 3, 1, 2, 3).toDF("age")
-    val hist = QbeastUtils.computeQuantilesForColumn(df, "age")
+    val quantiles = QbeastUtils.computeQuantilesForColumn(df, "age", 3)
 
-    hist shouldBe "['1','2','3']"
+    quantiles shouldBe "[1.0, 2.0, 3.0]"
   })
 
   it should "throw error when the column does not exists" in withQbeastContextSparkAndTmpDir(

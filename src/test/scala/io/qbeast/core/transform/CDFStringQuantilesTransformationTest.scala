@@ -15,7 +15,6 @@
  */
 package io.qbeast.core.transform
 
-import io.qbeast.core.model.StringDataType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -29,7 +28,7 @@ class CDFStringQuantilesTransformationTest extends AnyFlatSpec with Matchers {
 
   "A CDFStringQuantilesTransformation" should "map values to [0d, 1d]" in {
     val attempts = 10
-    val sht = CDFQuantilesTransformation(defaultStringQuantilesTest, StringDataType)
+    val sht = CDFStringQuantilesTransformation(defaultStringQuantilesTest)
     val minAsciiEnc = 32 // SPACE
     val maxAsciiEnc = 126 // ~
     (1 to attempts).foreach { _ =>
@@ -47,7 +46,7 @@ class CDFStringQuantilesTransformationTest extends AnyFlatSpec with Matchers {
   }
 
   it should "properly handle null" in {
-    val sht = CDFQuantilesTransformation(defaultStringQuantilesTest, StringDataType)
+    val sht = CDFStringQuantilesTransformation(defaultStringQuantilesTest)
     val v = sht.transform(null)
     v should be <= 1d
     v should be >= 0d
@@ -55,13 +54,13 @@ class CDFStringQuantilesTransformationTest extends AnyFlatSpec with Matchers {
 
   it should "map existing values correctly" in {
     val quantiles = Array(0.0, 0.25, 0.5, 0.75, 1.0).map(_.toString)
-    val sht = CDFQuantilesTransformation(quantiles, StringDataType)
+    val sht = CDFStringQuantilesTransformation(quantiles)
     quantiles.foreach(s => sht.transform(s) shouldBe s.toDouble)
   }
 
   it should "map non-existing values correctly" in {
     val quantiles = Array(0.0, 0.25, 0.5, 0.75, 1.0).map(_.toString)
-    val sht = CDFQuantilesTransformation(quantiles, StringDataType)
+    val sht = CDFStringQuantilesTransformation(quantiles)
     sht.transform((quantiles.head.toDouble - 1).toString) shouldBe 0d
     sht.transform((quantiles.last.toDouble + 1).toString) shouldBe 1d
 
@@ -72,11 +71,11 @@ class CDFStringQuantilesTransformationTest extends AnyFlatSpec with Matchers {
   }
 
   it should "supersede correctly" in {
-    val defaultT = CDFQuantilesTransformation(defaultStringQuantilesTest, StringDataType)
+    val defaultT = CDFStringQuantilesTransformation(defaultStringQuantilesTest)
     val customT_1 =
-      CDFQuantilesTransformation(Array("brand_A", "brand_B", "brand_C"), StringDataType)
+      CDFStringQuantilesTransformation(Array("brand_A", "brand_B", "brand_C"))
     val customT_2 =
-      CDFQuantilesTransformation(Array("brand_A", "brand_B", "brand_D"), StringDataType)
+      CDFStringQuantilesTransformation(Array("brand_A", "brand_B", "brand_D"))
 
     defaultT.isSupersededBy(customT_1) shouldBe true
     defaultT.isSupersededBy(defaultT) shouldBe false
@@ -88,10 +87,10 @@ class CDFStringQuantilesTransformationTest extends AnyFlatSpec with Matchers {
 
   it should "have histograms with length > 1" in {
     an[IllegalArgumentException] should be thrownBy
-      CDFQuantilesTransformation(Array.empty[String], StringDataType)
+      CDFStringQuantilesTransformation(Array.empty[String])
 
     an[IllegalArgumentException] should be thrownBy
-      CDFQuantilesTransformation(Array("a"), StringDataType)
+      CDFStringQuantilesTransformation(Array("a"))
   }
 
 }

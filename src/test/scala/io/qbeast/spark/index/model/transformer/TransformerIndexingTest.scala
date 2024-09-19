@@ -388,7 +388,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
       .getAs[Long](0)
   }
 
-  it should "create better file-level min-max with a String histogram" in withSparkAndTmpDir(
+  it should "create better file-level min-max with a String Quantiles" in withSparkAndTmpDir(
     (spark, tmpDir) => {
       val quantilesPath = tmpDir + "/string_quantiles/"
       val hashPath = tmpDir + "/string_hash/"
@@ -403,7 +403,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
         .mode("overwrite")
         .format("qbeast")
         .option("cubeSize", "30000")
-        .option("columnsToIndex", s"$colName:histogram")
+        .option("columnsToIndex", s"$colName:quantiles")
         .option("columnStats", statsStr)
         .save(quantilesPath)
       val quantilesDist = computeColumnEncodingDist(spark, quantilesPath, colName)

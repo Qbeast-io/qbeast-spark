@@ -40,10 +40,9 @@ object QbeastUtils extends Logging {
   private def computeQuantilesForStringColumn(
       df: DataFrame,
       columnName: String,
-      numberOfQuantiles: Int): String = {
+      numberOfQuantiles: Int): Array[String] = {
 
     import df.sparkSession.implicits._
-    log.info(s"Computing histogram for column $columnName with number of bins $numberOfQuantiles")
     val binStarts = "__bin_starts"
     val stringPartitionColumn =
       MultiDimClusteringFunctions.range_partition_id(col(columnName), numberOfQuantiles)
@@ -60,22 +59,19 @@ object QbeastUtils extends Logging {
       .as[String]
       .collect()
 
-    log.info(s"Quantiles for column $columnName: $quantiles")
-    quantiles
-      .map(string => s"'$string'")
-      .mkString("[", ",", "]")
+    log.info(s"String Quantiles for column $columnName: $quantiles")
+    quantiles.map(string => s"'$string'")
+
   }
 
   private def computeQuantilesForNumericColumn(
       df: DataFrame,
       columnName: String,
-      numberOfQuantiles: Int): String = {
-    log.info(s"Computing quantiles for column $columnName with number of bins $numberOfQuantiles")
-    val probabilities = (0 to numberOfQuantiles).map(_ / numberOfQuantiles.toDouble).toArray
-    val approxQuantile = df.stat.approxQuantile(columnName, probabilities, 0.1)
-    log.info(s"Quantiles for column $columnName: $approxQuantile")
+      numberOfQuantiles: Int): Array[Double] = {
+    val probabilities = (1 to numberOfQuantiles).map(_ / numberOfQuantiles.toDouble).toArray
+    val approxQuantile = df.stat.approxQuantile(columnName, probabilities, 0.0)
+    log.info(s"Numeric Quantiles for column $columnName: ${approxQuantile.mkString(",")}")
     approxQuantile
-      .mkString("[", ",", "]")
   }
 
   /**
@@ -100,19 +96,23 @@ object QbeastUtils extends Logging {
    *   DataFrame
    * @param columnName
    *   Column name
-   * @param probabilities
-   *   Array of probabilities
+   * @param numberOfQuantiles
+   *   Number of Quantiles
    * @return
    */
   def computeQuantilesForColumn(
       df: DataFrame,
       columnName: String,
       numberOfQuantiles: Int = 50): String = {
+    // Check if the column exists
     if (!df.columns.contains(columnName)) {
       throw AnalysisExceptionFactory.create(s"Column $columnName does not exist in the dataframe")
     }
     val dataType = df.schema(columnName).dataType
-    dataType match {
+
+    log.info(s"Computing quantiles for column $columnName with number of bins $numberOfQuantiles")
+    // Compute the quantiles based on the data type
+    val quantilesArray: Array[_] = dataType match {
       case StringType =>
         computeQuantilesForStringColumn(df, columnName, numberOfQuantiles)
       case _: NumericType =>
@@ -122,6 +122,8 @@ object QbeastUtils extends Logging {
           s"Column $columnName is of type $dataType. " +
             "Only String and Numeric columns are supported")
     }
+    // Return the quantiles as a string
+    quantilesArray.mkString("[", ", ", "]")
   }
 
 }

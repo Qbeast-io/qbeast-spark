@@ -53,24 +53,8 @@ object CDFQuantilesTransformer extends TransformerType {
  */
 trait CDFQuantilesTransformer extends Transformer {
 
-  /**
-   * The name of the transformer
-   */
-  val columnTransformerName: String = s"${columnName}_quantile"
-
-  /**
-   * The SQL to calculate the quantiles
-   */
-  val columnQuantileSQL: Seq[String]
+  val columnTransformerName: String = s"${columnName}_quantiles"
 
   override protected def transformerType: TransformerType = CDFQuantilesTransformer
-
-  /**
-   * Returns the stats
-   *
-   * @return
-   */
-  override def stats: ColumnStats =
-    ColumnStats(columnTransformerName :: Nil, columnQuantileSQL)
 
 }

@@ -49,7 +49,6 @@ object SparkRevisionFactory extends RevisionFactory[StructType, QbeastOptions] {
 
           transformers.foreach(transformer => {
             if (columnStats.schema.exists(_.name.contains(transformer.columnName))) {
-              println("COLUMN STATS EXISTS for column $columnName")
               // Create transformation with provided boundaries
               builder += transformer.makeTransformation(columnName =>
                 columnStats.getAs[Object](columnName))

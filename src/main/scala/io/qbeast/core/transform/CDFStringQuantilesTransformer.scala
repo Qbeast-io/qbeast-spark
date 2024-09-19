@@ -15,15 +15,17 @@
  */
 package io.qbeast.core.transform
 
-import io.qbeast.core.model.StringDataType
 import org.apache.spark.sql.AnalysisExceptionFactory
 
 case class CDFStringQuantilesTransformer(columnName: String) extends CDFQuantilesTransformer {
 
   /**
-   * The SQL to calculate the quantiles
+   * Returns the stats
+   *
+   * @return
    */
-  override val columnQuantileSQL: Seq[String] = Nil
+  override def stats: ColumnStats =
+    ColumnStats(columnTransformerName :: Nil, s"array() AS $columnTransformerName" :: Nil)
 
   /**
    * Returns the Transformation given a row representation of the values
@@ -34,14 +36,15 @@ case class CDFStringQuantilesTransformer(columnName: String) extends CDFQuantile
    *   the transformation
    */
   override def makeTransformation(row: String => Any): Transformation = {
-    val quantiles = row(columnTransformerName) match {
-      case h: Seq[_] => h.map(_.toString).toIndexedSeq
-      case _ =>
-        throw AnalysisExceptionFactory.create(
-          s"Quantiles for column $columnName are not available. " +
-            "Please provide them through .option('columnStats', '[1, 2...n]')")
-    }
-    CDFQuantilesTransformation(quantiles, StringDataType)
+    val quantiles =
+      row(columnTransformerName) match {
+        case h: Seq[_] => h.map(_.toString).toIndexedSeq
+        case _ =>
+          throw AnalysisExceptionFactory.create(
+            s"Quantiles for column $columnName are not available. " +
+              "Please provide them through .option('columnStats', '[<column_name>1, 2...n]')")
+      }
+    CDFStringQuantilesTransformation(quantiles)
   }
 
 }

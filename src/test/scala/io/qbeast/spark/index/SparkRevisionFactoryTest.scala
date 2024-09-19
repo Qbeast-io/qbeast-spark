@@ -16,8 +16,8 @@
 package io.qbeast.spark.index
 
 import io.qbeast.core.model._
+import io.qbeast.core.transform.CDFNumericQuantilesTransformation
 import io.qbeast.core.transform.CDFNumericQuantilesTransformer
-import io.qbeast.core.transform.CDFQuantilesTransformation
 import io.qbeast.core.transform.CDFQuantilesTransformer
 import io.qbeast.core.transform.HashTransformer
 import io.qbeast.core.transform.LinearTransformation
@@ -299,6 +299,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
   it should "create new revision with quantiles from columnStats" in withSpark(spark => {
     import spark.implicits._
     val schema = spark.range(1).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).schema
+    val numericQuantiles = (0 to 10).map(_.toDouble)
     val revision =
       SparkRevisionFactory.createNewRevision(
         QTableID("t"),
@@ -306,12 +307,12 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
         QbeastOptions(
           Map(
             QbeastOptions.COLUMNS_TO_INDEX -> "a:quantiles",
-            QbeastOptions.STATS -> """{"a_quantiles":[0,1,2,3,4,5,6,7,8,9,10]}""")))
+            QbeastOptions.STATS -> s"""{"a_quantiles":[$numericQuantiles]}""")))
 
     revision.revisionID shouldBe 1L
     revision.columnTransformers shouldBe Vector(CDFNumericQuantilesTransformer("a", LongDataType))
     revision.transformations shouldBe Vector(
-      CDFQuantilesTransformation((0 to 10).map(_.toDouble), LongDataType))
+      CDFNumericQuantilesTransformation(numericQuantiles, LongDataType))
   })
 
 }

@@ -150,7 +150,7 @@ class QbeastSamplingTest extends QbeastIntegrationTestSpec {
           .mode("append")
           .format("qbeast")
           .options(
-            Map("columnsToIndex" -> "user_id,brand:histogram", "cubeSize" -> cubeSize.toString))
+            Map("columnsToIndex" -> "user_id,brand:quantiles", "cubeSize" -> cubeSize.toString))
           .saveAsTable("table")
 
         val dataSize = data.count()

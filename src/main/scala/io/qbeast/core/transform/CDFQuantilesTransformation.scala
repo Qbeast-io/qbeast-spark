@@ -15,17 +15,25 @@
  */
 package io.qbeast.core.transform
 
-import io.qbeast.core.model.OrderedDataType
 import io.qbeast.core.model.QDataType
-import io.qbeast.core.model.StringDataType
 import org.apache.hadoop.classification.InterfaceStability.Evolving
-import org.apache.spark.sql.AnalysisExceptionFactory
 
 import scala.collection.Searching._
 
+/**
+ * A transformation that converts a value to a double between 0 and 1 based on the quantiles
+ *
+ * @param quantiles
+ *   A set of quantiles that define the transformation
+ * @param dataType
+ *   The data type of the column
+ */
 @Evolving
-case class CDFQuantilesTransformation(quantiles: IndexedSeq[Any], dataType: QDataType)
-    extends Transformation {
+trait CDFQuantilesTransformation extends Transformation {
+
+  val quantiles: IndexedSeq[Any]
+
+  val dataType: QDataType
 
   /**
    * The ordering of the data type
@@ -33,14 +41,13 @@ case class CDFQuantilesTransformation(quantiles: IndexedSeq[Any], dataType: QDat
    * When the type is an OrderedDataType, the ordering is the one defined in the data type. When
    * the type is a StringDataType, the ordering is the one defined in the String class.
    */
-  implicit val ordering: Ordering[Any] = dataType match {
-    case orderedDataType: OrderedDataType => orderedDataType.ordering
-    case StringDataType => implicitly[Ordering[String]].asInstanceOf[Ordering[Any]]
-    case _ =>
-      throw AnalysisExceptionFactory.create(
-        "Quantiles transformation can only be applied to OrderedDataType columns or StringDataType columns. " +
-          s"Column is of type $dataType")
-  }
+  implicit val ordering: Ordering[Any]
+
+  /**
+   * Maps the values to Double in case of Number and to text in case of String
+   * @return
+   */
+  def mapValue(value: Any): Any
 
   /**
    * Transforms a value to a Double between 0 and 1
@@ -59,7 +66,7 @@ case class CDFQuantilesTransformation(quantiles: IndexedSeq[Any], dataType: QDat
     // If the value is null, we return 0
     if (value == null) return 0d
     // Otherwise, we search for the value in the quantiles
-    quantiles.search(value) match {
+    quantiles.search(mapValue(value)) match {
       // First case when the index is found
       case Found(foundIndex) => foundIndex.toDouble / (quantiles.length - 1)
       // When the index is not found, we return the relative position of the insertion point
@@ -76,6 +83,7 @@ case class CDFQuantilesTransformation(quantiles: IndexedSeq[Any], dataType: QDat
    * The current CDFQuantilesTransformation is superseded by another if
    *   - the new transformation is a CDFQuantilesTransformation
    *   - the ordering of the new transformation is the same as the current one
+   *   - the quantiles of the new transformation are non-empty
    *   - the quantiles of the new transformation are different from the current one
    *
    * @param newTransformation
@@ -86,7 +94,7 @@ case class CDFQuantilesTransformation(quantiles: IndexedSeq[Any], dataType: QDat
   override def isSupersededBy(newTransformation: Transformation): Boolean =
     newTransformation match {
       case newT: CDFQuantilesTransformation =>
-        this.ordering == newT.ordering && (this.quantiles == newT.quantiles)
+        this.ordering == newT.ordering && newT.quantiles.nonEmpty && quantiles == newT.quantiles
       case _ => false
     }
 
