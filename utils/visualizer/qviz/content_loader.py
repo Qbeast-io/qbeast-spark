@@ -133,8 +133,9 @@ def extract_cubes_from_delta_table(delta_table: DeltaTable, symbol_count: int) -
                     # Check if we already have a cube in the dictionary with the cube ID of this block
                     # If we already have a cube with this ID, we update the atributes of the cube
                     # Since objects are passed by reference, they can be modified in situ
-                    if block["cubeId"] in cubes_dict.keys():
-                        dict_cube = cubes_dict[block["cubeId"]]
+                    cube_string = block["cubeId"]
+                    if cube_string in cubes_dict.keys():
+                        dict_cube = cubes_dict[cube_string]
                         normalized_max_weight = normalize_weight(
                             int(block["maxWeight"])
                         )
@@ -144,7 +145,6 @@ def extract_cubes_from_delta_table(delta_table: DeltaTable, symbol_count: int) -
                     # If we don't have this cube in the dictionary, a new cube is created
                     else:
                         # Calculate depth of the cube
-                        cube_string = block["cubeId"]
                         depth = len(cube_string) // symbol_count
                         # Assign max_weight, min_weight, elemnt_count a value for the new cube
                         max_weight = block["maxWeight"]
