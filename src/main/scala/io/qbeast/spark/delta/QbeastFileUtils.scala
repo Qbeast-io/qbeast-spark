@@ -26,6 +26,7 @@ import io.qbeast.core.model.IndexFile
 import io.qbeast.core.model.IndexFileBuilder
 import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
 import io.qbeast.core.model.QbeastFile
+import io.qbeast.core.model.QbeastStats
 import io.qbeast.core.model.Weight
 import io.qbeast.spark.utils.TagUtils
 import io.qbeast.IISeq
@@ -57,10 +58,15 @@ object QbeastFileUtils {
    *   an IndexFile instance
    */
   def fromAddFile(dimensionCount: Int)(addFile: AddFile): IndexFile = {
+    val jsonString = addFile.stats
+    val qbeastStats = jsonString match {
+      case null => None
+      case _ => QbeastStats.fromString(jsonString)
+    }
     val builder = new IndexFileBuilder()
       .setPath(addFile.path)
       .setSize(addFile.size)
-      .setStats(Some(addFile.stats))
+      .setStats(qbeastStats)
       .setModificationTime(addFile.modificationTime)
     addFile.getTag(TagUtils.revision) match {
       case Some(value) => builder.setRevisionId(value.toLong)
@@ -88,7 +94,7 @@ object QbeastFileUtils {
       TagUtils.revision -> indexFile.revisionId.toString,
       TagUtils.blocks -> encodeBlocks(indexFile.blocks))
     val stats = Option(indexFile.stats).flatMap {
-      case Some(s) => Some(s)
+      case Some(s) => Some(s.toJson)
       case None => None
     }.orNull
     AddFile(
