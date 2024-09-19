@@ -31,8 +31,8 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 
 case class QbeastStats(
     numRecords: Long,
-    minValues: Map[String, Either[Int, String]],
-    maxValues: Map[String, Either[Int, String]],
+    minValues: Map[String, Either[Number, String]],
+    maxValues: Map[String, Either[Number, String]],
     nullCount: Map[String, Int]) {
 
   def toJson: String = QbeastStats.mapper.writeValueAsString(this)
@@ -46,8 +46,8 @@ object QbeastStats {
   mapper.registerModule(DefaultScalaModule)
 
   private val module = new SimpleModule()
-  module.addSerializer(classOf[Either[Int, String]], new EitherSerializer)
-  module.addDeserializer(classOf[Either[Int, String]], new EitherDeserializer)
+  module.addSerializer(classOf[Either[Number, String]], new EitherSerializer)
+  module.addDeserializer(classOf[Either[Number, String]], new EitherDeserializer)
   mapper.registerModule(module)
 
   def fromString(jsonString: String): Option[QbeastStats] = {
@@ -68,26 +68,36 @@ object QbeastStats {
 
 }
 
-class EitherSerializer extends JsonSerializer[Either[Int, String]] {
+class EitherSerializer extends JsonSerializer[Either[Number, String]] {
 
   override def serialize(
-      value: Either[Int, String],
+      value: Either[Number, String],
       gen: JsonGenerator,
       serializers: SerializerProvider): Unit = {
     value match {
-      case Left(intValue) => gen.writeNumber(intValue)
-      case Right(strValue) => gen.writeString(strValue)
+      case Left(num) =>
+        num match {
+          case num: Integer => gen.writeNumber(num.intValue())
+          case _ => gen.writeNumber(num.doubleValue())
+        }
+      case Right(str) => gen.writeString(str)
     }
   }
 
 }
 
-class EitherDeserializer extends JsonDeserializer[Either[Int, String]] {
+class EitherDeserializer extends JsonDeserializer[Either[Number, String]] {
 
-  override def deserialize(p: JsonParser, ctxt: DeserializationContext): Either[Int, String] = {
+  override def deserialize(
+      p: JsonParser,
+      ctxt: DeserializationContext): Either[Number, String] = {
     val node = p.getCodec.readTree[JsonNode](p)
     if (node.isNumber) {
-      Left(node.asInt())
+      if (node.isIntegralNumber) {
+        Left(node.asInt())
+      } else {
+        Left(node.asDouble())
+      }
     } else if (node.isTextual) {
       Right(node.asText())
     } else {

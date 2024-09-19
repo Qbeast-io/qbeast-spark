@@ -34,7 +34,7 @@ import scala.collection.mutable
 /**
  * Implementation of DataWriter that applies rollup to compact the files.
  */
-abstract class RollupDataWriter extends DataWriter {
+trait RollupDataWriter extends DataWriter {
 
   type GetCubeMaxWeight = CubeId => Weight
   type Extract = InternalRow => (InternalRow, Weight, CubeId, CubeId)
