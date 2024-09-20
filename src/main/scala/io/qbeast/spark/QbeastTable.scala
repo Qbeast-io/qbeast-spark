@@ -16,13 +16,8 @@
 package io.qbeast.spark
 
 import io.qbeast.context.QbeastContext
-import io.qbeast.core.model.DenormalizedBlock
-import io.qbeast.core.model.QTableID
-import io.qbeast.core.model.Revision
-import io.qbeast.core.model.RevisionID
-import io.qbeast.core.model.StagingUtils
+import io.qbeast.core.model._
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.internal.commands.AnalyzeTableCommand
 import io.qbeast.spark.internal.commands.OptimizeTableCommand
 import io.qbeast.spark.table._
 import io.qbeast.spark.utils.IndexMetrics
@@ -57,7 +52,7 @@ class QbeastTable private (
 
   private def latestRevisionAvailable = qbeastSnapshot.loadLatestRevision
 
-  private def latestRevisionAvailableID = latestRevisionAvailable.revisionID
+  private def latestRevisionAvailableID: RevisionID = latestRevisionAvailable.revisionID
 
   private def checkRevisionAvailable(revisionID: RevisionID): Unit = {
     if (!qbeastSnapshot.existsRevision(revisionID)) {
@@ -68,30 +63,47 @@ class QbeastTable private (
   }
 
   /**
-   * The optimize operation should read the data of those cubes announced and replicate it in
-   * their children
+   * Optimizes a given index revision up to a given fraction.
    * @param revisionID
-   *   the identifier of the revision to optimize. If doesn't exist or none is specified, would be
-   *   the last available
+   *   the identifier of revision to optimize
+   * @param fraction
+   *   the fraction of the index to optimize; this value should be between (0, 1].
+   * @param options
+   *   Optimization options where user metadata and pre-commit hooks are specified.
    */
-  def optimize(revisionID: RevisionID, options: Map[String, String]): Unit = {
+  def optimize(revisionID: RevisionID, fraction: Double, options: Map[String, String]): Unit = {
     if (!isStaging(revisionID)) {
       checkRevisionAvailable(revisionID)
-      OptimizeTableCommand(revisionID, indexedTable, options)
-        .run(sparkSession)
+      OptimizeTableCommand(revisionID, fraction, indexedTable, options).run(sparkSession)
     }
   }
 
+  def optimize(revisionID: RevisionID, fraction: Double): Unit = {
+    optimize(revisionID, fraction, Map.empty[String, String])
+  }
+
+  def optimize(revisionID: RevisionID, options: Map[String, String]): Unit = {
+    optimize(revisionID, 1.0, options)
+  }
+
   def optimize(revisionID: RevisionID): Unit = {
-    optimize(revisionID, Map.empty[String, String])
+    optimize(revisionID, 1.0, Map.empty[String, String])
+  }
+
+  def optimize(fraction: Double, options: Map[String, String]): Unit = {
+    optimize(latestRevisionAvailableID, fraction, options)
+  }
+
+  def optimize(fraction: Double): Unit = {
+    optimize(latestRevisionAvailableID, fraction, Map.empty[String, String])
   }
 
   def optimize(options: Map[String, String]): Unit = {
-    optimize(latestRevisionAvailableID, options)
+    optimize(latestRevisionAvailableID, 1.0, options)
   }
 
   def optimize(): Unit = {
-    optimize(Map.empty[String, String])
+    optimize(latestRevisionAvailableID, 1.0, Map.empty[String, String])
   }
 
   /**
@@ -106,30 +118,6 @@ class QbeastTable private (
 
   def optimize(files: Seq[String]): Unit =
     optimize(files, Map.empty[String, String])
-
-  /**
-   * The analyze operation should analyze the index structure and find the cubes that need
-   * optimization
-   * @param revisionID
-   *   the identifier of the revision to optimize. If doesn't exist or none is specified, would be
-   *   the last available
-   * @return
-   *   the sequence of cubes to optimize in string representation
-   */
-  def analyze(revisionID: RevisionID): Seq[String] = {
-    if (isStaging(revisionID)) Seq.empty
-    else {
-      checkRevisionAvailable(revisionID)
-      AnalyzeTableCommand(revisionID, indexedTable)
-        .run(sparkSession)
-        .map(_.getString(0))
-    }
-  }
-
-  def analyze(): Seq[String] = {
-    if (isStaging(latestRevisionAvailableID)) Seq.empty
-    else analyze(latestRevisionAvailableID)
-  }
 
   /**
    * Outputs the indexed columns of the table
