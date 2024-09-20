@@ -22,14 +22,6 @@ case class CDFNumericQuantilesTransformer(columnName: String, orderedDataType: O
     extends CDFQuantilesTransformer {
 
   /**
-   * Returns the stats
-   *
-   * @return
-   */
-  override def stats: ColumnStats =
-    ColumnStats(columnTransformerName :: Nil, s"array() AS $columnTransformerName" :: Nil)
-
-  /**
    * Returns the Transformation given a row representation of the values
    *
    * @param row
@@ -37,15 +29,25 @@ case class CDFNumericQuantilesTransformer(columnName: String, orderedDataType: O
    * @return
    *   the transformation
    */
-  override def makeTransformation(row: String => Any): CDFQuantilesTransformation = {
-    val quantiles = row(columnTransformerName) match {
-      case h: Seq[_] => h.map(_.asInstanceOf[Double]).toIndexedSeq
+  override def makeTransformation(row: String => Any): Transformation = {
+    row(columnTransformerName) match {
+      case null => EmptyTransformation()
+      case q: Seq[_] if q.nonEmpty =>
+        try {
+          val quantiles = q.map(_.asInstanceOf[Double]).toIndexedSeq
+          CDFNumericQuantilesTransformation(quantiles, orderedDataType)
+        } catch {
+          case _: ClassCastException =>
+            throw AnalysisExceptionFactory.create(
+              "Quantiles should be of type Double, but found another type")
+        }
+      case q: Seq[_] if q.isEmpty =>
+        throw AnalysisExceptionFactory.create(
+          s"Quantiles for column $columnName size should be greater than 1")
       case _ =>
         throw AnalysisExceptionFactory.create(
-          s"Numeric Quantiles for column $columnName are not available. " +
-            "Please provide them as an Array[Double] through .option('columnStats', '[1.0, 2.0...n]')")
+          s"Quantiles for column $columnName should be of type Array[Double]")
     }
-    CDFNumericQuantilesTransformation(quantiles, orderedDataType)
 
   }
 

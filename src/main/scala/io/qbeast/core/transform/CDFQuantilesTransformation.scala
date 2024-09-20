@@ -94,12 +94,18 @@ trait CDFQuantilesTransformation extends Transformation {
   override def isSupersededBy(newTransformation: Transformation): Boolean =
     newTransformation match {
       case newT: CDFQuantilesTransformation =>
-        this.ordering == newT.ordering && newT.quantiles.nonEmpty && quantiles != newT.quantiles
-      case _ => false // Not superseded by other types of transformations
+        // Is superseded by other CDFQuantilesTransformations with different and non-empty quantiles
+        this.ordering == newT.ordering && newT.quantiles.nonEmpty && this.quantiles != newT.quantiles
+      case _ =>
+        // Not superseded by other transformations: Empty, Linear...
+        false
     }
 
   /**
    * Merges two transformations. The domain of the resulting transformation is the union of this
+   *
+   * In the case of CDFQuantilesTransformation, the merge would automatically select the new
+   * transformation if it's of the same type
    *
    * @param other
    *   the other transformation
@@ -107,7 +113,7 @@ trait CDFQuantilesTransformation extends Transformation {
    *   a new Transformation that contains both this and other.
    */
   override def merge(other: Transformation): Transformation = other match {
-    case _: CDFQuantilesTransformation => other
+    case otherT: CDFQuantilesTransformation => otherT
     case _ => this
   }
 

@@ -20,15 +20,39 @@ import io.qbeast.core.model.Revision
 import io.qbeast.core.model.RevisionFactory
 import io.qbeast.core.model.RevisionID
 import io.qbeast.core.transform.EmptyTransformation
+import io.qbeast.core.transform.ManualPlaceholderTransformation
+import io.qbeast.core.transform.NoColumnStats
 import io.qbeast.core.transform.Transformation
 import io.qbeast.spark.internal.QbeastOptions
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.Row
 
 /**
  * Spark implementation of RevisionBuilder
  */
 object SparkRevisionFactory extends RevisionFactory[StructType, QbeastOptions] {
 
+  /**
+   * Creates a new revision
+   *
+   * The Revision is created with the provided QbeastOptions: cubeSize, columnsToIndex and
+   * columnStats
+   *
+   *   - For each column to index, a Transformer is created.
+   *   - For each Transformer, we look for manual column stats.
+   *   - If no column stats are provided, and manual stats are required, we use a
+   *     ManualPlaceholderTransformation.
+   *   - If manual column stats are provided, we create a Transformation with boundaries.
+   *   - If no column stats are provided, and no manual stats are required, we use an
+   *     EmptyTransformation.
+   * @param qtableID
+   *   the table identifier
+   * @param schema
+   *   the schema
+   * @param options
+   *   the options
+   * @return
+   */
   override def createNewRevision(
       qtableID: QTableID,
       schema: StructType,
@@ -38,39 +62,59 @@ object SparkRevisionFactory extends RevisionFactory[StructType, QbeastOptions] {
     val columnsToIndex = options.columnsToIndexParsed
     val transformers = columnsToIndex.map(_.toTransformer(schema)).toVector
 
-    options.stats match {
-      case None => Revision.firstRevision(qtableID, desiredCubeSize, transformers)
+    // Check if the columns to index are present in the schema
+    var manualDefinedColumnStats = false
+    val columnStats = options.stats match {
       case Some(stats) =>
-        val columnStats = stats.first()
-        var shouldCreateNewSpace = true
-        val transformations = {
-          val builder = Vector.newBuilder[Transformation]
-          builder.sizeHint(transformers.size)
-
-          transformers.foreach(transformer => {
-            if (columnStats.schema.exists(_.name.contains(transformer.columnName))) {
-              // Create transformation with provided boundaries
-              builder += transformer.makeTransformation(columnName =>
-                columnStats.getAs[Object](columnName))
-            } else {
-              // Use an EmptyTransformation which will always be superseded
-              builder += EmptyTransformation()
-              shouldCreateNewSpace = false
-            }
-          })
-          builder.result()
-        }
-
-        val firstRevision =
-          Revision.firstRevision(qtableID, desiredCubeSize, transformers, transformations)
-
-        // When all indexing columns have been provided with a boundary, update the RevisionID
-        // to 1 to avoid using the StagingRevisionID(0). It is possible for this RevisionID to
-        // to be later updated to 2 if the actual column boundaries are larger that than the
-        // provided values. In this case, we will have Revision 2 instead of Revision 1.
-        if (shouldCreateNewSpace) firstRevision.copy(revisionID = 1)
-        else firstRevision
+        manualDefinedColumnStats = true
+        stats.first()
+      case None => Row.empty
     }
+
+    val transformations = {
+      val builder = Vector.newBuilder[Transformation]
+      builder.sizeHint(transformers.size)
+
+      transformers.foreach(transformer => {
+        // A Transformer needs manual column stats if:
+        //  - it has stats assigned
+        //  - if the sql predicates are empty
+        val needManualColumnStats = transformer.stats match {
+          case NoColumnStats => false
+          case s => s.statsSqlPredicates.isEmpty
+        }
+        val hasManualColumnStats = manualDefinedColumnStats &&
+          columnStats.schema.exists(_.name.contains(transformer.columnName))
+
+        if (needManualColumnStats && !hasManualColumnStats) {
+          // Use an ManualPlaceholderTransformation which will throw an error if not provided
+          builder += ManualPlaceholderTransformation(
+            transformer.columnName,
+            transformer.stats.statsNames)
+        } else if (hasManualColumnStats) {
+          // If manual column stats are provided
+          // Create transformation with boundaries
+          builder += transformer.makeTransformation(columnName =>
+            columnStats.getAs[Object](columnName))
+        } else {
+          // If no column stats are provided, and no manual stats are required
+          // Use an EmptyTransformation which will always be superseded
+          builder += EmptyTransformation()
+          manualDefinedColumnStats = false
+        }
+      })
+      builder.result()
+    }
+
+    val revision =
+      Revision.firstRevision(qtableID, desiredCubeSize, transformers, transformations)
+
+    // When all indexing columns have been provided with a boundary, update the RevisionID
+    // to 1 to avoid using the StagingRevisionID(0). It is possible for this RevisionID to
+    // to be later updated to 2 if the actual column boundaries are larger that than the
+    // provided values. In this case, we will have Revision 2 instead of Revision 1.
+    if (manualDefinedColumnStats) revision.copy(revisionID = 1)
+    else revision
   }
 
   override def createNextRevision(

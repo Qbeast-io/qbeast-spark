@@ -55,6 +55,18 @@ trait CDFQuantilesTransformer extends Transformer {
 
   val columnTransformerName: String = s"${columnName}_quantiles"
 
+  /**
+   * Returns the stats
+   *
+   * Right now, the stats computation for CDFQuantilesTransformer
+   * are empty. They can only be initialized through columnStats
+   * See issue #QBEAST-422: https://github.com/Qbeast-io/qbeast-spark/issues/422
+   *
+   * @return
+   */
+  override def stats: ColumnStats =
+    ColumnStats(columnTransformerName :: Nil, Nil)
+
   override protected def transformerType: TransformerType = CDFQuantilesTransformer
 
 }

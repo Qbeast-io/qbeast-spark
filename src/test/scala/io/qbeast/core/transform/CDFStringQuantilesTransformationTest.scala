@@ -76,7 +76,7 @@ class CDFStringQuantilesTransformationTest extends AnyFlatSpec with Matchers {
     val customT_2 =
       CDFStringQuantilesTransformation(Array("brand_A", "brand_B", "brand_D"))
 
-    customT_1.isSupersededBy(customT_1) shouldBe true
+    customT_1.isSupersededBy(customT_1) shouldBe false
     customT_1.isSupersededBy(customT_2) shouldBe true
   }
 
