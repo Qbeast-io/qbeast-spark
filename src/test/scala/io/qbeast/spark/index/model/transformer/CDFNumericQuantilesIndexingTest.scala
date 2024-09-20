@@ -65,7 +65,11 @@ class CDFNumericQuantilesIndexingTest
 
       val indexed = spark.read.format("qbeast").load(path)
       indexed.count() shouldBe 20
-      assertSmallDatasetEquality(df.union(df), indexed, ignoreNullable = true, orderedComparison = false)
+      assertSmallDatasetEquality(
+        df.union(df),
+        indexed,
+        ignoreNullable = true,
+        orderedComparison = false)
     })
 
   it should "trigger new revision when columnStats changes"
