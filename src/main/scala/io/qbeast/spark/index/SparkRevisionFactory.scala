@@ -20,8 +20,8 @@ import io.qbeast.core.model.Revision
 import io.qbeast.core.model.RevisionFactory
 import io.qbeast.core.model.RevisionID
 import io.qbeast.core.transform.EmptyTransformation
+import io.qbeast.core.transform.ManualColumnStats
 import io.qbeast.core.transform.ManualPlaceholderTransformation
-import io.qbeast.core.transform.NoColumnStats
 import io.qbeast.core.transform.Transformation
 import io.qbeast.spark.internal.QbeastOptions
 import org.apache.spark.sql.types.StructType
@@ -77,11 +77,10 @@ object SparkRevisionFactory extends RevisionFactory[StructType, QbeastOptions] {
 
       transformers.foreach(transformer => {
         // A Transformer needs manual column stats if:
-        //  - it has stats assigned
-        //  - if the sql predicates are empty
+        // - it's type is ManualColumnStats
         val needManualColumnStats = transformer.stats match {
-          case NoColumnStats => false
-          case s => s.statsSqlPredicates.isEmpty
+          case m: ManualColumnStats => true
+          case _ => false
         }
         val hasManualColumnStats = manualDefinedColumnStats &&
           columnStats.schema.exists(_.name.contains(transformer.columnName))

@@ -145,17 +145,35 @@ trait Transformer extends Serializable {
 
 }
 
+trait ColumnStats extends Serializable {
+  val statsNames: Seq[String]
+  val statsSqlPredicates: Seq[String]
+}
+
+object ColumnStats {
+
+  def apply(names: Seq[String], predicates: Seq[String]): ColumnStats =
+    new ColumnStats {
+      override val statsNames: Seq[String] = names
+      override val statsSqlPredicates: Seq[String] = predicates
+    }
+
+}
+
 /**
  * Empty ColumnStats
  */
-object NoColumnStats extends ColumnStats(Nil, Nil)
+
+object NoColumnStats extends ColumnStats {
+  override val statsNames: Seq[String] = Nil
+  override val statsSqlPredicates: Seq[String] = Nil
+}
 
 /**
- * Stores the stats of the column
- * @param statsNames
+ * Manual ColumnStats type
+ * @param statsNames:
  *   the names of the stats
- * @param statsSqlPredicates
- *   the stats column predicates
  */
-case class ColumnStats(statsNames: Seq[String], statsSqlPredicates: Seq[String])
-    extends Serializable
+case class ManualColumnStats(statsNames: Seq[String]) extends ColumnStats {
+  override val statsSqlPredicates: Seq[String] = statsNames.map(name => s"null AS $name")
+}

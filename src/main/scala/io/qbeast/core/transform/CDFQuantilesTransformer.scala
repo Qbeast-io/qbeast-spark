@@ -50,6 +50,8 @@ object CDFQuantilesTransformer extends TransformerType {
 
 /**
  * A transformer that calculates the CDF quantiles
+ *
+ * This type of Transformer can only be applied from Manual ColumnStats
  */
 trait CDFQuantilesTransformer extends Transformer {
 
@@ -64,8 +66,8 @@ trait CDFQuantilesTransformer extends Transformer {
    *
    * @return
    */
-  override def stats: ColumnStats =
-    ColumnStats(columnTransformerName :: Nil, Nil)
+  override def stats: ManualColumnStats =
+    ManualColumnStats(columnTransformerName :: Nil)
 
   override protected def transformerType: TransformerType = CDFQuantilesTransformer
 
