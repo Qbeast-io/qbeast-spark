@@ -26,7 +26,7 @@ case class ManualPlaceholderTransformation(columnName: String, columnStatsNames:
 
   override def transform(value: Any): Double = {
     throw new UnsupportedOperationException(
-      s"ManualPlaceholderTransformation does not support transform. " +
+      "ManualPlaceholderTransformation does not support transform. " +
         s"Please provide the valid transformation of $columnName through option 'columnStats'")
   }
 
