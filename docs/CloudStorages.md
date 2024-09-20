@@ -34,7 +34,7 @@ Amazon Web Services S3 does not work with Hadoop 2.7. For this provider you'll n
 - If you are using a **public** bucket:
 ```bash
 $SPARK_HOME/bin/spark-shell \
---conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
+--conf spark.sql.extensions=io.qbeast.spark.delta.QbeastSparkSessionExtension \
 --conf spark.hadoop.fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider \
 --packages io.qbeast:qbeast-spark_2.12:0.3.2,\
 io.delta:delta-core_2.12:1.2.0,\
@@ -46,7 +46,7 @@ org.apache.hadoop:hadoop-aws:3.2.0
 - If you are using **private** buckets:
 ```bash
 $SPARK_HOME/bin/spark-shell \
---conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
+--conf spark.sql.extensions=io.qbeast.spark.delta.QbeastSparkSessionExtension \
 --conf spark.hadoop.fs.s3a.access.key=${AWS_ACCESS_KEY_ID} \
 --conf spark.hadoop.fs.s3a.secret.key=${AWS_SECRET_ACCESS_KEY} \
 --conf spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem \
@@ -66,7 +66,7 @@ recommend using the latest. Remember that vanilla parquet format may not work in
 $SPARK_HOME/bin/spark-shell \
 --conf spark.hadoop.fs.azure.account.key.blobqsql.blob.core.windows.net="${AZURE_BLOB_STORAGE_KEY}" \
 --conf spark.hadoop.fs.AbstractFileSystem.wasb.impl=org.apache.hadoop.fs.azure.Wasb \
---conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
+--conf spark.sql.extensions=io.qbeast.spark.delta.QbeastSparkSessionExtension \
 --packages io.qbeast:qbeast-spark_2.12:0.3.2,\
 io.delta:delta-core_2.12:1.2.0,\
 org.apache.hadoop:hadoop-azure:3.2.0

@@ -15,6 +15,7 @@
  */
 package io.qbeast.spark.internal.sources.catalog
 
+import io.qbeast.context.QbeastContext
 import io.qbeast.context.QbeastContext.metadataManager
 import io.qbeast.core.model.QTableID
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
@@ -116,14 +117,14 @@ object QbeastCatalogUtils extends Logging {
       path: Path,
       table: CatalogTable): CatalogTable = {
 
+    val tableID = QTableID(path.toString)
     val isTablePopulated = table.tableType == CatalogTableType.EXTERNAL && fs
       .exists(path) && fs.listStatus(path).nonEmpty
     // Users did not specify the schema. We expect the schema exists in Delta.
     if (table.schema.isEmpty) {
       if (table.tableType == CatalogTableType.EXTERNAL) {
         if (fs.exists(path) && fs.listStatus(path).nonEmpty) {
-          val existingSchema =
-            DeltaLog.forTable(spark, path.toString).unsafeVolatileSnapshot.metadata.schema
+          val existingSchema = QbeastContext.metadataManager.loadSnapshot(tableID).schema
           table.copy(schema = existingSchema)
         } else {
           throw AnalysisExceptionFactory
@@ -139,8 +140,7 @@ object QbeastCatalogUtils extends Logging {
       }
     } else {
       if (isTablePopulated) {
-        val existingSchema =
-          DeltaLog.forTable(spark, path.toString).unsafeVolatileSnapshot.metadata.schema
+        val existingSchema = QbeastContext.metadataManager.loadSnapshot(tableID).schema
         if (existingSchema != table.schema) {
           throw AnalysisExceptionFactory
             .create(
@@ -194,7 +194,7 @@ object QbeastCatalogUtils extends Logging {
       .save(location)
 
     log.info(s"Converting Delta to Qbeast Table at $tableLocation")
-    val convertToQbeastId = s"delta.`${location}`"
+    val convertToQbeastId = s"delta.`$location`"
     val qbeastOptions = QbeastOptions(allProperties)
     val columnsToIndex = qbeastOptions.columnsToIndex
     val cubeSize = qbeastOptions.cubeSize
@@ -293,10 +293,11 @@ object QbeastCatalogUtils extends Logging {
 
     // Verify the schema if it's an external table
     val tableLocation = new Path(loc)
+    val tableID = QTableID(tableLocation.toString)
     val hadoopConf = spark.sharedState.sparkContext.hadoopConfiguration
     val fs = tableLocation.getFileSystem(hadoopConf)
     val table = verifySchema(spark, fs, tableLocation, t)
-    val deltaTableExists = DeltaLog.forTable(spark, tableLocation).tableExists
+    val tableExists = QbeastContext.metadataManager.existsLog(tableID)
 
     dataFrame match {
       case Some(df) =>
@@ -307,7 +308,7 @@ object QbeastCatalogUtils extends Logging {
         val append = tableCreationMode.saveMode == SaveMode.Append
         indexedTable.save(df, allProperties, append)
 
-      case None if !deltaTableExists =>
+      case None if !tableExists =>
         // If the table does not exist, we create the Delta Table
         createDeltaQbeastLog(spark, schema, tableLocation, allProperties)
 

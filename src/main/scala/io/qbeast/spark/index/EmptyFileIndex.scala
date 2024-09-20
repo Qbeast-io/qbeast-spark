@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.delta
+package io.qbeast.spark.index
 
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.expressions.Expression

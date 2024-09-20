@@ -59,9 +59,9 @@ class DefaultFileIndex private (target: TahoeLogFileIndex)
     val context = target.spark.sparkContext
     val execId = context.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
     val partitionFiltersInfo = partitionFilters.map(_.toString).mkString(" ")
-    logInfo(s"DefaultFileIndex partition filters (exec id ${execId}): ${partitionFiltersInfo}")
+    logInfo(s"DefaultFileIndex partition filters (exec id $execId): $partitionFiltersInfo")
     val dataFiltersInfo = dataFilters.map(_.toString).mkString(" ")
-    logInfo(s"DefaultFileIndex data filters (exec id ${execId}): ${dataFiltersInfo}")
+    logInfo(s"DefaultFileIndex data filters (exec id $execId): $dataFiltersInfo")
   }
 
   override def inputFiles: Array[String] = target.inputFiles
@@ -91,7 +91,8 @@ object DefaultFileIndex {
   def apply(spark: SparkSession, path: Path): DefaultFileIndex = {
     val log = DeltaLog.forTable(spark, path)
     val snapshot = log.update()
-    val target = TahoeLogFileIndex(spark, log, path, snapshot, Seq.empty, false)
+    val target =
+      TahoeLogFileIndex(spark, log, path, snapshot, Seq.empty, isTimeTravelQuery = false)
     new DefaultFileIndex(target)
   }
 

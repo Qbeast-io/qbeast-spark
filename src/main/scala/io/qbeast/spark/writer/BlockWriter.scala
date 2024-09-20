@@ -16,11 +16,11 @@
 package io.qbeast.spark.writer
 
 import io.qbeast.core.model.CubeId
+import io.qbeast.core.model.IndexFile
 import io.qbeast.core.model.IndexFileBuilder
 import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
 import io.qbeast.core.model.TableChanges
 import io.qbeast.core.model.Weight
-import io.qbeast.spark.delta.QbeastFileUtils
 import io.qbeast.spark.index.QbeastColumns
 import io.qbeast.spark.model.CubeState
 import org.apache.hadoop.fs.Path
@@ -30,7 +30,6 @@ import org.apache.hadoop.mapred.TaskAttemptID
 import org.apache.hadoop.mapreduce.TaskType
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.execution.datasources.OutputWriter
 import org.apache.spark.sql.execution.datasources.OutputWriterFactory
 import org.apache.spark.sql.execution.datasources.WriteJobStatsTracker
@@ -79,7 +78,7 @@ case class BlockWriter(
    * @return
    *   the sequence of files added
    */
-  def writeRow(rows: Iterator[InternalRow]): Iterator[(AddFile, TaskStats)] = {
+  def writeRow(rows: Iterator[InternalRow]): Iterator[(IndexFile, TaskStats)] = {
     val revision = tableChanges.updatedRevision
     val contexts = mutable.Map.empty[CubeId, BlockContext]
     rows.foreach { row =>
@@ -140,9 +139,8 @@ case class BlockWriter(
               |size=${file.size},
               |modificationTime=${file.modificationTime},
               |revision=${file.revisionId}""".stripMargin.replaceAll("\n", " "))
-      val addFile = QbeastFileUtils.toAddFile(dataChange = true)(file)
 
-      (addFile, taskStats)
+      (file, taskStats)
     }.iterator
   }
 

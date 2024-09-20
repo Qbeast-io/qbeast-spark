@@ -13,12 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.internal
+package io.qbeast.spark.delta
 
 import io.delta.sql.DeltaSparkSessionExtension
-import io.qbeast.spark.internal.rules.QbeastAnalysis
-import io.qbeast.spark.internal.rules.SampleRule
-import io.qbeast.spark.internal.rules.SaveAsTableRule
+import io.qbeast.spark.internal.rules.{QbeastAnalysis, SampleRule, SaveAsTableRule}
 import org.apache.spark.sql.SparkSessionExtensions
 
 /**

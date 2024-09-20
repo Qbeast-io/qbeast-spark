@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.delta
+package io.qbeast.spark.index
 
 import io.qbeast.core.model._
 import org.apache.spark.sql.functions._
@@ -31,7 +31,7 @@ import scala.collection.immutable.SortedMap
  * @param announcedSet
  *   the announced set available for the revision
  */
-private[delta] class IndexStatusBuilder(
+class IndexStatusBuilder(
     qbeastSnapshot: QbeastSnapshot,
     revision: Revision,
     announcedSet: Set[CubeId] = Set.empty)

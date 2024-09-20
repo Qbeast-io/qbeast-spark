@@ -17,7 +17,7 @@ package io.qbeast.spark.internal.sources
 
 import io.qbeast.context.QbeastContext
 import io.qbeast.spark.delta.DefaultFileIndex
-import io.qbeast.spark.delta.EmptyFileIndex
+import io.qbeast.spark.index.EmptyFileIndex
 import io.qbeast.spark.table.IndexedTable
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
@@ -40,10 +40,13 @@ object QbeastBaseRelation {
    * Returns a HadoopFsRelation that contains all of the data present in the table. This relation
    * will be continually updated as files are added or removed from the table. However, new
    * HadoopFsRelation must be requested in order to see changes to the schema.
-   * @param tableID
-   *   the identifier of the table
+   *
    * @param sqlContext
-   *   the SQLContext
+   *   the SQLContex
+   * @param table
+   *   the indexed table
+   * @param options
+   *   options
    * @return
    *   the HadoopFsRelation
    */
