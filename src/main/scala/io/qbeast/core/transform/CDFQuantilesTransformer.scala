@@ -58,9 +58,9 @@ trait CDFQuantilesTransformer extends Transformer {
   /**
    * Returns the stats
    *
-   * Right now, the stats computation for CDFQuantilesTransformer
-   * are empty. They can only be initialized through columnStats
-   * See issue #QBEAST-422: https://github.com/Qbeast-io/qbeast-spark/issues/422
+   * Right now, the stats computation for CDFQuantilesTransformer are empty. They can only be
+   * initialized through columnStats See issue #QBEAST-422:
+   * https://github.com/Qbeast-io/qbeast-spark/issues/422
    *
    * @return
    */
