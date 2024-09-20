@@ -16,10 +16,10 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model._
+import io.qbeast.spark.index.IndexStatusBuilder
 import io.qbeast.spark.utils.MetadataConfig
 import io.qbeast.spark.utils.TagColumns
 import io.qbeast.IISeq
-import io.qbeast.spark.index.IndexStatusBuilder
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.DeltaLog

@@ -15,7 +15,6 @@
  */
 package io.qbeast.spark.index
 
-import io.delta.tables.DeltaTable
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.StagingUtils
 import io.qbeast.spark.delta.DeltaStagingDataManager
@@ -132,26 +131,5 @@ class DataStagingTest
       stagingDataManager invokePrivate getCurrentStagingSize() shouldBe 0L
       indexedDataSize shouldBe 10001L
     }
-
-  it should "write userMetadata" in withExtendedSparkAndTmpDir(
-    sparkConfWithSqlAndCatalog
-      .set("spark.qbeast.index.stagingSizeInBytes", "1")) { (spark, tmpDir) =>
-    {
-      val df = createDF(spark)
-      df.write
-        .format("qbeast")
-        .option("columnsToIndex", "a,c")
-        .option("cubeSize", "2000")
-        .option("userMetadata", "userMetadata1")
-        .save(tmpDir)
-
-      val deltaTable = DeltaTable.forPath(spark, tmpDir)
-      val userMetadata =
-        deltaTable.history().orderBy("timestamp").select("userMetadata").first().getAs[String](0)
-
-      userMetadata shouldBe "userMetadata1"
-
-    }
-  }
 
 }

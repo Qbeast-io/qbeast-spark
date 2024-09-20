@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.core.model
+package io.qbeast.spark.delta
 
 import com.fasterxml.jackson.core.JsonParseException
-import io.qbeast.spark.delta.QbeastFileUtils
+import io.qbeast.core.model._
 import io.qbeast.spark.utils.TagUtils
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.hadoop.fs.Path

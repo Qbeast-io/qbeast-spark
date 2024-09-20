@@ -15,14 +15,13 @@
  */
 package io.qbeast.spark.index
 
+import io.qbeast.context.QbeastContext
 import io.qbeast.core.model._
 import io.qbeast.core.model.BroadcastedTableChanges
-import io.qbeast.spark.delta
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
 import io.qbeast.TestClasses.Client4
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.types.LongType
@@ -210,13 +209,9 @@ class IndexTest
           .options(options)
           .save(tmpDir)
 
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val blocks = deltaLog
-          .update()
-          .allFiles
-          .collect()
-          .map(delta.QbeastFileUtils.fromAddFile(2))
-          .flatMap(_.blocks)
+        val tableId = new QTableID(tmpDir)
+        val snapshot = QbeastContext.metadataManager.loadSnapshot(tableId)
+        val blocks = snapshot.loadLatestIndexFiles.collect().flatMap(_.blocks)
 
         blocks.foreach { block =>
           block.cubeId.parent match {

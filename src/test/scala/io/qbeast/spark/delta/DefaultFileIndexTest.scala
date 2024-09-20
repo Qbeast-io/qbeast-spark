@@ -65,7 +65,7 @@ class DefaultFileIndexTest extends QbeastIntegrationTestSpec {
   private def newTahoeLogFileIndex(spark: SparkSession, path: String): TahoeLogFileIndex = {
     val log = DeltaLog.forTable(spark, path)
     val snapshot = log.update()
-    TahoeLogFileIndex(spark, log, new Path(path), snapshot, Seq.empty, false)
+    TahoeLogFileIndex(spark, log, new Path(path), snapshot, Seq.empty, isTimeTravelQuery = false)
   }
 
   "DefaultFileIndex" should "use Delta if the query does not have sampling clause" in withSparkAndTmpDir {

@@ -107,7 +107,7 @@ object QbeastOptions {
   val PATH: String = "path"
   val STATS: String = "columnStats"
   val TXN_APP_ID: String = "txnAppId"
-  val TXN_VERSION: String = "txnAppId"
+  val TXN_VERSION: String = "txnVersion"
   val USER_METADATA: String = "userMetadata"
   val MERGE_SCHEMA: String = "mergeSchema"
   val OVERWRITE_SCHEMA: String = "overwriteSchema"

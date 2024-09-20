@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.delta
+package io.qbeast.spark.index
 
+import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.CubeId
 import io.qbeast.core.model.CubeStatus
 import io.qbeast.core.model.QTableID
@@ -35,7 +36,8 @@ class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {
         .save(tmpDir)
 
       val tableId = new QTableID(tmpDir)
-      val indexStatus = DeltaQbeastSnapshot(tableId).loadLatestIndexStatus
+      val snapshot = QbeastContext.metadataManager.loadSnapshot(tableId)
+      val indexStatus = snapshot.loadLatestIndexStatus
 
       indexStatus.revision.revisionID shouldBe 1
       indexStatus.cubesStatuses.map(_._2.elementCount).sum shouldBe 100000L
@@ -55,14 +57,15 @@ class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {
       .option("cubeSize", "10000")
       .save(tmpDir)
     val tableId = new QTableID(tmpDir)
-    val firstIndexStatus = DeltaQbeastSnapshot(tableId).loadLatestIndexStatus
+    val snapshot = QbeastContext.metadataManager.loadSnapshot(tableId)
+    val firstIndexStatus = snapshot.loadLatestIndexStatus
     data.write
       .format("qbeast")
       .mode("append")
       .option("columnsToIndex", "id")
       .option("cubeSize", "10000")
       .save(tmpDir)
-    val secondIndexStatus = DeltaQbeastSnapshot(tableId).loadLatestIndexStatus
+    val secondIndexStatus = snapshot.loadLatestIndexStatus
 
     secondIndexStatus.revision.revisionID shouldBe 1
     secondIndexStatus.announcedSet shouldBe Set.empty
