@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.utils
+package io.qbeast.spark.delta
 
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
@@ -229,7 +229,7 @@ class QbeastSparkTxnTest extends QbeastIntegrationTestSpec {
 
   private def makeDataFrame(spark: SparkSession): DataFrame = {
     import spark.implicits._
-    (1 to 3).map(i => Student(i, i.toString(), Random.nextInt)).toDF()
+    (1 to 3).map(i => Student(i, i.toString, Random.nextInt)).toDF()
   }
 
 }

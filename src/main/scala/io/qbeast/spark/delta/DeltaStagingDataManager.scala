@@ -92,7 +92,7 @@ private[spark] class DeltaStagingDataManager(tableID: QTableID)
           val dataToWrite = mergeWithStagingData(data, stagingRemoveFiles)
           StagingResolution(
             dataToWrite,
-            stagingRemoveFiles.map(QbeastFileUtils.fromRemoveFile),
+            stagingRemoveFiles.map(DeltaQbeastFileUtils.fromRemoveFile),
             sendToStaging = false)
         } else {
           // The staging area is not full, stage the data

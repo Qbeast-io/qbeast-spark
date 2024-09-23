@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.internal
+package io.qbeast.spark.delta
 
 import io.delta.sql.DeltaSparkSessionExtension
 import io.qbeast.spark.internal.rules.QbeastAnalysis
@@ -24,7 +24,7 @@ import org.apache.spark.sql.SparkSessionExtensions
 /**
  * Qbeast rules extension to spark query analyzer/optimizer/planner
  */
-class QbeastSparkSessionExtension extends DeltaSparkSessionExtension {
+class QbeastDeltaSparkSessionExtension extends DeltaSparkSessionExtension {
 
   override def apply(extensions: SparkSessionExtensions): Unit = {
 

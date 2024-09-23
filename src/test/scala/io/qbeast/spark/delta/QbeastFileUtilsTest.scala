@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.core.model
+package io.qbeast.spark.delta
 
 import com.fasterxml.jackson.core.JsonParseException
-import io.qbeast.spark.delta.QbeastFileUtils
+import io.qbeast.core.model._
 import io.qbeast.spark.utils.TagUtils
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.hadoop.fs.Path
@@ -40,7 +40,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
           1L,
           replicated = false)).toIndexedSeq)
 
-    val addFile = QbeastFileUtils.toAddFile(dataChange = true)(indexFile)
+    val addFile = DeltaQbeastFileUtils.toAddFile(dataChange = true)(indexFile)
     addFile.path shouldBe "path"
     addFile.size shouldBe 2L
     addFile.modificationTime shouldBe 0L
@@ -62,7 +62,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
         TagUtils.revision -> "1",
         TagUtils.blocks -> """[{"cubeId":"","minWeight":2147483647,"maxWeight":2147483647,"elementCount":1,"replicated":false}]"""))
 
-    val indexFile = QbeastFileUtils.fromAddFile(2)(addFile)
+    val indexFile = DeltaQbeastFileUtils.fromAddFile(2)(addFile)
     indexFile.path shouldBe "path"
     indexFile.size shouldBe 2L
     indexFile.modificationTime shouldBe 0L
@@ -76,7 +76,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
     val deleteFile = DeleteFile(path = "path", size = 2L, deletionTimestamp = 0L)
 
     val dataChange = false
-    val removeFile = QbeastFileUtils.toRemoveFile(dataChange = dataChange)(deleteFile)
+    val removeFile = DeltaQbeastFileUtils.toRemoveFile(dataChange = dataChange)(deleteFile)
     removeFile.path shouldBe "path"
     removeFile.dataChange shouldBe dataChange
   }
@@ -90,7 +90,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
       dataChange = true,
       stats = null)
 
-    val deleteFile = QbeastFileUtils.fromRemoveFile(removeFile)
+    val deleteFile = DeltaQbeastFileUtils.fromRemoveFile(removeFile)
     deleteFile.path shouldBe "path"
     deleteFile.size shouldBe 2L
     deleteFile.deletionTimestamp shouldBe 0L
@@ -112,7 +112,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
           replicated = false)).toIndexedSeq)
 
     val indexPath = new Path("/absolute/")
-    val indexStatus = QbeastFileUtils.toFileStatus(indexPath)(indexFile)
+    val indexStatus = DeltaQbeastFileUtils.toFileStatus(indexPath)(indexFile)
 
     indexStatus.isFile shouldBe true
     indexStatus.getPath shouldBe new Path("/absolute/path")
@@ -138,7 +138,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
 
     val indexPath = new Path("/absolute/")
     val indexStatus =
-      QbeastFileUtils.toFileStatusWithMetadata(indexPath, Map("key" -> "value"))(indexFile)
+      DeltaQbeastFileUtils.toFileStatusWithMetadata(indexPath, Map("key" -> "value"))(indexFile)
 
     indexStatus.getPath shouldBe new Path("/absolute/path")
     indexStatus.getLen shouldBe 2L
@@ -162,7 +162,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
             """{"cubeId":"","minWeight":2147483647,
               |"maxWeight":2147483647,"elementCount":1,"replicated":false}]""".stripMargin))
 
-      an[JsonParseException] shouldBe thrownBy(QbeastFileUtils.fromAddFile(2)(addFile))
+      an[JsonParseException] shouldBe thrownBy(DeltaQbeastFileUtils.fromAddFile(2)(addFile))
   }
 
   it should "throw error when trying to create an IndexFile with a wrong block format end" in withSpark {
@@ -180,7 +180,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
             """[{"cubeId":"","minWeight":2147483647,
               |"maxWeight":2147483647,"elementCount":1,"replicated":false}""".stripMargin))
 
-      an[NumberFormatException] shouldBe thrownBy(QbeastFileUtils.fromAddFile(2)(addFile))
+      an[NumberFormatException] shouldBe thrownBy(DeltaQbeastFileUtils.fromAddFile(2)(addFile))
   }
 
 }

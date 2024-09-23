@@ -107,4 +107,25 @@ class QbeastDeltaIntegrationTest extends QbeastIntegrationTestSpec {
     allUserMetadata should contain theSameElementsAs "userMetadata1" :: "userMetadata2" :: Nil
   })
 
+  it should "write userMetadata" in withExtendedSparkAndTmpDir(
+    sparkConfWithSqlAndCatalog
+      .set("spark.qbeast.index.stagingSizeInBytes", "1")) { (spark, tmpDir) =>
+    {
+      val df = createSimpleTestData(spark)
+      df.write
+        .format("qbeast")
+        .option("columnsToIndex", "a,b")
+        .option("cubeSize", "2000")
+        .option("userMetadata", "userMetadata1")
+        .save(tmpDir)
+
+      val deltaTable = DeltaTable.forPath(spark, tmpDir)
+      val userMetadata =
+        deltaTable.history().orderBy("timestamp").select("userMetadata").first().getAs[String](0)
+
+      userMetadata shouldBe "userMetadata1"
+
+    }
+  }
+
 }

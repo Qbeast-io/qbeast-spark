@@ -29,7 +29,7 @@ import com.fasterxml.jackson.module.scala.ClassTagExtensions
 import io.qbeast.core.model.mapper
 import io.qbeast.core.model.QbeastStats
 
-object QbeastStatsUtils {
+private[delta] object QbeastStatsUtils {
   private val module = new SimpleModule()
   module.addSerializer(classOf[String], new ValueSerializer)
   module.addDeserializer(classOf[String], new ValueDeserializer)

@@ -13,11 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.delta
+package io.qbeast.core.model
 
-import io.qbeast.core.model.CubeStatus
-import io.qbeast.core.model.IndexFile
-import io.qbeast.core.model.QTableID
+import io.qbeast.spark.index.IndexStatusBuilder
 import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec

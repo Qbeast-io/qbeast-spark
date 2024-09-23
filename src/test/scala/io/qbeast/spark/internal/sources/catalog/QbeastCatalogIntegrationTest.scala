@@ -27,7 +27,7 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
     "coexist with Delta tables" in withTmpDir(tmpDir =>
       withExtendedSpark(sparkConf = new SparkConf()
         .setMaster("local[8]")
-        .set("spark.sql.extensions", "io.qbeast.spark.internal.QbeastSparkSessionExtension")
+        .set("spark.sql.extensions", "io.qbeast.spark.delta.QbeastDeltaSparkSessionExtension")
         .set("spark.sql.warehouse.dir", tmpDir)
         .set("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
         .set(
@@ -296,8 +296,8 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
       val catalogProperties =
         catalog.getTableMetadata(TableIdentifier("t1")).properties
       properties should contain key "k"
-      catalogProperties should contain key ("k")
-      showProperties should contain key ("k")
+      catalogProperties should contain key "k"
+      showProperties should contain key "k"
 
       spark.sql("ALTER TABLE t1 UNSET TBLPROPERTIES ('k')")
       // Check the delta log info

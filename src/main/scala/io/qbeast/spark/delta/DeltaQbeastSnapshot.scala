@@ -16,6 +16,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model._
+import io.qbeast.spark.index.IndexStatusBuilder
 import io.qbeast.spark.utils.MetadataConfig
 import io.qbeast.spark.utils.TagColumns
 import io.qbeast.IISeq
@@ -152,7 +153,7 @@ case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with De
       if (isStaging(revisionID)) loadStagingFiles()
       else snapshot.allFiles.where(TagColumns.revision === lit(revisionID.toString))
     import addFiles.sparkSession.implicits._
-    addFiles.map(QbeastFileUtils.fromAddFile(dimensionCount))
+    addFiles.map(DeltaQbeastFileUtils.fromAddFile(dimensionCount))
   }
 
   /**

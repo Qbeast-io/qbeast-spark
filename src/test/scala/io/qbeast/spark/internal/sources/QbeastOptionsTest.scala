@@ -20,7 +20,6 @@ import io.qbeast.core.model.PreCommitHook.PRE_COMMIT_HOOKS_PREFIX
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.qbeast.config
-import org.apache.spark.sql.delta.DeltaOptions
 import org.apache.spark.sql.AnalysisException
 
 class QbeastOptionsTest extends QbeastIntegrationTestSpec {
@@ -87,9 +86,9 @@ class QbeastOptionsTest extends QbeastIntegrationTestSpec {
         QbeastOptions.CUBE_SIZE -> "10",
         QbeastOptions.TXN_APP_ID -> "app",
         QbeastOptions.TXN_VERSION -> "1",
-        DeltaOptions.USER_METADATA_OPTION -> "metadata",
-        DeltaOptions.MERGE_SCHEMA_OPTION -> "true",
-        DeltaOptions.OVERWRITE_SCHEMA_OPTION -> "true",
+        QbeastOptions.USER_METADATA -> "metadata",
+        QbeastOptions.MERGE_SCHEMA -> "true",
+        QbeastOptions.OVERWRITE_SCHEMA -> "true",
         s"$PRE_COMMIT_HOOKS_PREFIX.hook2" -> "HookClass2",
         s"$PRE_COMMIT_HOOKS_PREFIX.hook2.arg" -> "HookClass2Arg")
 
@@ -116,7 +115,7 @@ class QbeastOptionsTest extends QbeastIntegrationTestSpec {
 
   "optimizationOptions" should "return a QbeastOption with proper settings" in {
     val options = Map(
-      DeltaOptions.USER_METADATA_OPTION -> "metadata",
+      QbeastOptions.USER_METADATA -> "metadata",
       s"$PRE_COMMIT_HOOKS_PREFIX.hook" -> "HookClass",
       s"$PRE_COMMIT_HOOKS_PREFIX.hook.arg" -> "HookClassArg")
     val qo = QbeastOptions.optimizationOptions(options)

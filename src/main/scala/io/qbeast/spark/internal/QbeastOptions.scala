@@ -25,7 +25,6 @@ import io.qbeast.spark.internal.QbeastOptions.COLUMNS_TO_INDEX
 import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
-import org.apache.spark.sql.delta.DeltaOptions
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
@@ -74,17 +73,17 @@ case class QbeastOptions(
   def toMap: CaseInsensitiveMap[String] = {
     val options = Map.newBuilder[String, String]
     for (txnAppId <- txnAppId; txnVersion <- txnVersion) {
-      options += DeltaOptions.TXN_APP_ID -> txnAppId
-      options += DeltaOptions.TXN_VERSION -> txnVersion
+      options += "txnAppId" -> txnAppId
+      options += "txnVersion" -> txnVersion
     }
     if (userMetadata.nonEmpty) {
-      options += DeltaOptions.USER_METADATA_OPTION -> userMetadata.get
+      options += "userMetadata" -> userMetadata.get
     }
     if (mergeSchema.nonEmpty) {
-      options += DeltaOptions.MERGE_SCHEMA_OPTION -> mergeSchema.get
+      options += "mergeSchema" -> mergeSchema.get
     }
     if (overwriteSchema.nonEmpty) {
-      options += DeltaOptions.OVERWRITE_SCHEMA_OPTION -> overwriteSchema.get
+      options += "overwriteSchema" -> overwriteSchema.get
     }
     if (hookInfo.nonEmpty) {
       hookInfo.foreach { options ++= _.toMap }
@@ -107,11 +106,11 @@ object QbeastOptions {
   val CUBE_SIZE: String = "cubeSize"
   val PATH: String = "path"
   val STATS: String = "columnStats"
-  val TXN_APP_ID: String = DeltaOptions.TXN_APP_ID
-  val TXN_VERSION: String = DeltaOptions.TXN_VERSION
-  val USER_METADATA: String = DeltaOptions.USER_METADATA_OPTION
-  val MERGE_SCHEMA: String = DeltaOptions.MERGE_SCHEMA_OPTION
-  val OVERWRITE_SCHEMA: String = DeltaOptions.OVERWRITE_SCHEMA_OPTION
+  val TXN_APP_ID: String = "txnAppId"
+  val TXN_VERSION: String = "txnVersion"
+  val USER_METADATA: String = "userMetadata"
+  val MERGE_SCHEMA: String = "mergeSchema"
+  val OVERWRITE_SCHEMA: String = "overwriteSchema"
 
   /**
    * Gets the columns to index from the options

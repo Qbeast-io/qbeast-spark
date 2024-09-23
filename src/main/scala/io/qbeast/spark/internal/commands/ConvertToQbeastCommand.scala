@@ -15,9 +15,8 @@
  */
 package io.qbeast.spark.internal.commands
 
+import io.qbeast.context.QbeastContext
 import io.qbeast.core.model._
-import io.qbeast.spark.delta.DeltaMetadataManager
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.utils.MetadataConfig.lastRevisionID
 import io.qbeast.spark.utils.MetadataConfig.revision
 import io.qbeast.spark.utils.QbeastExceptionMessages.incorrectIdentifierFormat
@@ -80,7 +79,7 @@ case class ConvertToQbeastCommand(
     val (fileFormat, tableId) = resolveTableFormat(spark)
 
     val tableID = QTableID(tableId.table)
-    val qbeastSnapshot = DeltaQbeastSnapshot(tableID)
+    val qbeastSnapshot = QbeastContext.metadataManager.loadSnapshot(tableID)
     val isQbeast = qbeastSnapshot.loadAllRevisions.nonEmpty
 
     if (isQbeast) {
@@ -106,7 +105,7 @@ case class ConvertToQbeastCommand(
 
       val schema = qbeastSnapshot.schema
 
-      DeltaMetadataManager.updateMetadataWithTransaction(tableID, schema) {
+      QbeastContext.metadataManager.updateMetadataWithTransaction(tableID, schema) {
         val convRevision = stagingRevision(tableID, cubeSize, columnsToIndex)
         val revisionID = convRevision.revisionID
 
