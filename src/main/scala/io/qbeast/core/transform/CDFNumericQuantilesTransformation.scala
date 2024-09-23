@@ -36,6 +36,7 @@ case class CDFNumericQuantilesTransformation(
     quantiles: IndexedSeq[Double],
     dataType: OrderedDataType)
     extends CDFQuantilesTransformation {
+  require(quantiles.size > 1, "Quantiles size should be greater than 1")
 
   override def ordering: Ordering[Any] =
     Ordering[Double].asInstanceOf[Ordering[Any]]

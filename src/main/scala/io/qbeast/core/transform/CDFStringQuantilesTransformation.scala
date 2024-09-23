@@ -35,7 +35,7 @@ import io.qbeast.core.model.StringDataType
 case class CDFStringQuantilesTransformation(quantiles: IndexedSeq[String])
     extends CDFQuantilesTransformation {
 
-  require(quantiles.size > 1, s"Quantiles size should be greater than 1")
+  require(quantiles.size > 1, "Quantiles size should be greater than 1")
 
   override val dataType: QDataType = StringDataType
 
