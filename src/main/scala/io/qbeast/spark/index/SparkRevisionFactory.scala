@@ -63,13 +63,9 @@ object SparkRevisionFactory extends RevisionFactory[StructType, QbeastOptions] {
     val transformers = columnsToIndex.map(_.toTransformer(schema)).toVector
 
     // Check if the columns to index are present in the schema
-    var manualDefinedColumnStats = false
-    val columnStats = options.stats match {
-      case Some(stats) =>
-        manualDefinedColumnStats = true
-        stats.first()
-      case None => Row.empty
-    }
+    var shouldCreateNewSpace = true
+    val manualDefinedColumnStats = options.stats.isDefined
+    val columnStats = if (manualDefinedColumnStats) options.stats.get.first() else Row.empty
 
     val transformations = {
       val builder = Vector.newBuilder[Transformation]
@@ -99,7 +95,8 @@ object SparkRevisionFactory extends RevisionFactory[StructType, QbeastOptions] {
           // If no column stats are provided, and no manual stats are required
           // Use an EmptyTransformation which will always be superseded
           builder += EmptyTransformation()
-          manualDefinedColumnStats = false
+          // If any column does not have manual column stats, we should not create a new space
+          shouldCreateNewSpace = false
         }
       })
       builder.result()
@@ -112,7 +109,7 @@ object SparkRevisionFactory extends RevisionFactory[StructType, QbeastOptions] {
     // to 1 to avoid using the StagingRevisionID(0). It is possible for this RevisionID to
     // to be later updated to 2 if the actual column boundaries are larger that than the
     // provided values. In this case, we will have Revision 2 instead of Revision 1.
-    if (manualDefinedColumnStats) revision.copy(revisionID = 1)
+    if (shouldCreateNewSpace) revision.copy(revisionID = 1)
     else revision
   }
 
