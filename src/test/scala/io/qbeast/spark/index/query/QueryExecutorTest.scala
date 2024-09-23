@@ -231,32 +231,10 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
       val root = CubeId.root(2)
       val c1 = root.firstChild
 
-//      val rootBlock =
-//        s"""{
-//          "cubeId": "${root.string}",
-//          "minWeight": ${Weight(0.0).value},
-//          "maxWeight": ${Weight(0.1).value},
-//          "elementCount": 1, "replicated": false}""".stripMargin
-
       val rootBlock =
         Block(tmpDir, CubeId(2, root.string), Weight(0.0), Weight(0.1), 1, replicated = false)
-
-//      val c1Block1 =
-//        s"""{
-//          "cubeId": "${c1.string}",
-//          "minWeight": ${Weight(0.1).value},
-//          "maxWeight": ${Weight(0.2).value},
-//          "elementCount": 1,"replicated": false}""".stripMargin
-
       val c1Block1 =
         Block(tmpDir, CubeId(2, c1.string), Weight(0.1), Weight(0.2), 1, replicated = false)
-
-//      val c1Block2 =
-//        s"""{"cubeId": "${c1.string}",
-//          "minWeight": ${Weight(0.7).value},
-//          "maxWeight": ${Weight(0.8).value},
-//          "elementCount": 1, "replicated": false}"""
-
       val c1Block2 =
         Block(tmpDir, CubeId(2, c1.string), Weight(0.7), Weight(0.8), 1, replicated = false)
 
