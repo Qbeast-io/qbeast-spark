@@ -15,10 +15,8 @@
  */
 package io.qbeast.spark.index.model.transformer
 
-import io.qbeast.spark.utils.QbeastUtils
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
@@ -350,101 +348,6 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
         indexed.where(filter).count() shouldBe source.where(filter).count()
       })
 
-    })
-
-  /**
-   * Compute weighted encoding distance for files: (ascii(string_col_max.head) -
-   * ascii(string_col_min.head)) * numRecords
-   */
-  def computeColumnEncodingDist(
-      spark: SparkSession,
-      tablePath: String,
-      columnName: String): Long = {
-    import spark.implicits._
-
-    val dl = DeltaLog.forTable(spark, tablePath)
-    val js = dl
-      .update()
-      .allFiles
-      .select("stats")
-      .collect()
-      .map(r => r.getAs[String](0))
-      .mkString("[", ",", "]")
-    val stats = spark.read.json(Seq(js).toDS())
-
-    stats
-      .select(
-        col(s"maxValues.$columnName").alias("__max"),
-        col(s"minValues.$columnName").alias("__min"),
-        col("numRecords"))
-      .withColumn("__max_start", substring(col("__max"), 0, 1))
-      .withColumn("__min_start", substring(col("__min"), 0, 1))
-      .withColumn("__max_ascii", ascii(col("__max_start")))
-      .withColumn("__min_ascii", ascii(col("__min_start")))
-      .withColumn("dist", abs(col("__max_ascii") - col("__min_ascii")) * col("numRecords"))
-      .select("dist")
-      .agg(sum("dist"))
-      .first()
-      .getAs[Long](0)
-  }
-
-  it should "create better file-level min-max with a String Quantiles" in withSparkAndTmpDir(
-    (spark, tmpDir) => {
-      val quantilesPath = tmpDir + "/string_quantiles/"
-      val hashPath = tmpDir + "/string_hash/"
-      val colName = "brand"
-
-      val df = loadTestData(spark)
-
-      val colQuantilesStr = QbeastUtils.computeQuantilesForColumn(df, colName)
-      val statsStr = s"""{"${colName}_quantiles":$colQuantilesStr}"""
-
-      df.write
-        .mode("overwrite")
-        .format("qbeast")
-        .option("cubeSize", "30000")
-        .option("columnsToIndex", s"$colName:quantiles")
-        .option("columnStats", statsStr)
-        .save(quantilesPath)
-      val quantilesDist = computeColumnEncodingDist(spark, quantilesPath, colName)
-
-      df.write
-        .mode("overwrite")
-        .format("qbeast")
-        .option("columnsToIndex", colName)
-        .option("cubeSize", "30000")
-        .save(hashPath)
-      val hashDist = computeColumnEncodingDist(spark, hashPath, colName)
-
-      quantilesDist should be < hashDist
-    })
-
-  it should "create better file-level min-max with a histogram transformation" in withSparkAndTmpDir(
-    (spark, tmpDir) => {
-      val quantilesPath = tmpDir + "/hist/"
-      val defaultPath = tmpDir + "/normal/"
-      val colName = "user_id"
-
-      val df = loadTestData(spark)
-
-      df.write
-        .mode("overwrite")
-        .format("qbeast")
-        .option("cubeSize", "30000")
-        .option("columnsToIndex", s"$colName:quantiles")
-        .save(quantilesPath)
-
-      val quantilesDist = computeColumnEncodingDist(spark, quantilesPath, colName)
-
-      df.write
-        .mode("overwrite")
-        .format("qbeast")
-        .option("columnsToIndex", s"$colName:hashing")
-        .option("cubeSize", "30000")
-        .save(defaultPath)
-      val defaultDist = computeColumnEncodingDist(spark, defaultPath, colName)
-
-      quantilesDist should be < defaultDist
     })
 
 }

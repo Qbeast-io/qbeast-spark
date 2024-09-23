@@ -93,24 +93,24 @@ class CDFNumericQuantilesIndexingTest
         .quantiles shouldBe Seq(0.1, 0.4, 0.7, 0.8, 0.9)
     })
 
-  it should "throw error when no columnStats are provided and column is not indexed" in withSparkAndTmpDir(
-    (spark, tmpDir) => {
+  it should "throw Unsupported Operation Exception" +
+    " when no columnStats are provided and column is not indexed" in withSparkAndTmpDir(
+      (spark, tmpDir) => {
 
-      import spark.implicits._
-      val df = 1.to(10).toDF("int_col")
-      val colName = "int_col"
-      val path = tmpDir + "/quantiles/"
+        import spark.implicits._
+        val df = 1.to(10).toDF("int_col")
+        val colName = "int_col"
+        val path = tmpDir + "/quantiles/"
 
-      val thrown = intercept[IllegalArgumentException] {
-        df.write
-          .mode("append")
-          .format("qbeast")
-          .option("columnsToIndex", s"$colName:quantiles")
-          .option("cubeSize", "30")
-          .save(path)
-      }
-      thrown.getMessage should include(
-        "ManualPlaceholderTransformation does not support transform.")
-    })
+        val thrown = intercept[UnsupportedOperationException] {
+          df.write
+            .mode("append")
+            .format("qbeast")
+            .option("columnsToIndex", s"$colName:quantiles")
+            .option("cubeSize", "30")
+            .save(path)
+        }
+        thrown.getMessage should include("ManualPlaceholderTransformation does not support")
+      })
 
 }

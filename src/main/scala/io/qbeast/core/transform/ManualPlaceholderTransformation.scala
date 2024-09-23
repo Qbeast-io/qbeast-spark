@@ -30,7 +30,16 @@ case class ManualPlaceholderTransformation(columnName: String, columnStatsNames:
         s"Please provide the valid transformation of $columnName through option 'columnStats'")
   }
 
-  override def isSupersededBy(newTransformation: Transformation): Boolean = true
+  override def isSupersededBy(newTransformation: Transformation): Boolean = {
+    throw new UnsupportedOperationException(
+      "ManualPlaceholderTransformation does not support superseeded by. " +
+        s"Please provide the valid transformation of $columnName through option 'columnStats'")
+  }
 
-  override def merge(other: Transformation): Transformation = other
+  override def merge(other: Transformation): Transformation = {
+    throw new UnsupportedOperationException(
+      "ManualPlaceholderTransformation does not support merge with other Transformations. " +
+        s"Please provide the valid transformation of $columnName through option 'columnStats'")
+  }
+
 }
