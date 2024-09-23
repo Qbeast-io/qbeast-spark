@@ -11,7 +11,7 @@ class CDFQuantilesTransformerTest extends AnyFlatSpec with Matchers {
     val transformer = CDFQuantilesTransformer("testColumn", IntegerDataType)
     val stats = transformer.stats
     stats.statsNames should contain("testColumn_quantiles")
-    stats.statsSqlPredicates shouldBe empty
+    stats.statsSqlPredicates should contain("null AS testColumn_quantiles")
   }
 
   it should "return empty transformation for empty stats" in {

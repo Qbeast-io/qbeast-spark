@@ -19,6 +19,8 @@ import com.fasterxml.jackson.core.JsonFactory
 import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.core.TreeNode
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.jsontype.TypeSerializer
 import com.fasterxml.jackson.databind.node.ArrayNode
@@ -28,6 +30,8 @@ import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.SerializerProvider
 import io.qbeast.core.model.OrderedDataType
 
+@JsonSerialize(using = classOf[CDFNumericQuantilesTransformationSerializer])
+@JsonDeserialize(using = classOf[CDFNumericQuantilesTransformationDeserializer])
 case class CDFNumericQuantilesTransformation(
     quantiles: IndexedSeq[Double],
     dataType: OrderedDataType)
@@ -98,7 +102,7 @@ class CDFNumericQuantilesTransformationDeserializer
       ctxt: DeserializationContext): CDFNumericQuantilesTransformation = {
     val tree: TreeNode = p.getCodec.readTree(p)
     // Deserialize the ordered data type
-    val odt = tree.get("orderedDataType") match {
+    val odt = tree.get("dataType") match {
       case tn: TextNode => OrderedDataType(tn.asText())
     }
     // Deserialize the quantiles

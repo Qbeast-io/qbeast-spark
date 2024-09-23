@@ -79,7 +79,7 @@ object SparkRevisionFactory extends RevisionFactory[StructType, QbeastOptions] {
         // A Transformer needs manual column stats if:
         // - it's type is ManualColumnStats
         val needManualColumnStats = transformer.stats match {
-          case m: ManualColumnStats => true
+          case _: ManualColumnStats => true
           case _ => false
         }
         val hasManualColumnStats = manualDefinedColumnStats &&

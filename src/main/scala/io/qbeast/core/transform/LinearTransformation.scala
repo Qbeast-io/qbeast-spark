@@ -139,6 +139,7 @@ case class LinearTransformation(
         gt(minNumber, newMin) || lt(maxNumber, newMax)
       case IdentityToZeroTransformation(newVal) =>
         gt(minNumber, newVal) || lt(maxNumber, newVal)
+      case _ => false
     }
 
 }

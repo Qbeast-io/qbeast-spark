@@ -13,7 +13,7 @@ class CDFStringQuantilesIndexingTest
 
   "CDF Quantile for String values" should "create better file-level min-max with a String quantiles" in withSparkAndTmpDir(
     (spark, tmpDir) => {
-      val histPath = tmpDir + "/string_quantiles/"
+      val quantilesPath = tmpDir + "/string_quantiles/"
       val hashPath = tmpDir + "/string_hash/"
       val colName = "brand"
 
@@ -28,8 +28,8 @@ class CDFStringQuantilesIndexingTest
         .option("cubeSize", "30000")
         .option("columnsToIndex", s"$colName:quantiles")
         .option("columnStats", statsStr)
-        .save(histPath)
-      val histDist = computeColumnEncodingDist(spark, histPath, colName)
+        .save(quantilesPath)
+      val quantilesDist = computeColumnEncodingDistance(spark, quantilesPath, colName, forString = true)
 
       df.write
         .mode("overwrite")
@@ -37,9 +37,9 @@ class CDFStringQuantilesIndexingTest
         .option("columnsToIndex", colName)
         .option("cubeSize", "30000")
         .save(hashPath)
-      val hashDist = computeColumnEncodingDist(spark, hashPath, colName)
+      val hashDist = computeColumnEncodingDistance(spark, hashPath, colName, forString = true)
 
-      histDist should be < hashDist
+      quantilesDist should be < hashDist
     })
 
 }

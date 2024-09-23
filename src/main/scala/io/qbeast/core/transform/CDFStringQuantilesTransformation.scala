@@ -19,6 +19,8 @@ import com.fasterxml.jackson.core.JsonFactory
 import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.core.TreeNode
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.jsontype.TypeSerializer
 import com.fasterxml.jackson.databind.node.ArrayNode
@@ -28,12 +30,12 @@ import com.fasterxml.jackson.databind.SerializerProvider
 import io.qbeast.core.model.QDataType
 import io.qbeast.core.model.StringDataType
 
+@JsonSerialize(using = classOf[CDFStringQuantilesTransformationSerializer])
+@JsonDeserialize(using = classOf[CDFStringQuantilesTransformationDeserializer])
 case class CDFStringQuantilesTransformation(quantiles: IndexedSeq[String])
     extends CDFQuantilesTransformation {
 
-  assert(
-    quantiles.size > 1,
-    new IllegalArgumentException("Quantiles size should be greater than 1"))
+  require(quantiles.size > 1, s"Quantiles size should be greater than 1")
 
   override val dataType: QDataType = StringDataType
 

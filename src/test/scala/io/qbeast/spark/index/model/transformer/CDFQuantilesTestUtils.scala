@@ -6,11 +6,35 @@ import org.apache.spark.sql.SparkSession
 
 trait CDFQuantilesTestUtils {
 
-  /**
-   * Compute weighted encoding distance for files: (ascii(string_col_max.head) -
-   * ascii(string_col_min.head)) * numRecords
-   */
-  def computeColumnEncodingDist(
+  def computeColumnEncodingDistanceNumeric(
+      spark: SparkSession,
+      tablePath: String,
+      columnName: String): Long = {
+    import spark.implicits._
+
+    val dl = DeltaLog.forTable(spark, tablePath)
+    val js = dl
+      .update()
+      .allFiles
+      .select("stats")
+      .collect()
+      .map(r => r.getAs[String](0))
+      .mkString("[", ",", "]")
+    val stats = spark.read.json(Seq(js).toDS())
+
+    stats
+      .select(
+        col(s"maxValues.$columnName").alias("__max"),
+        col(s"minValues.$columnName").alias("__min"),
+        col("numRecords"))
+      .withColumn("dist", abs(col("__max") - col("__min")) * col("numRecords"))
+      .select("dist")
+      .agg(sum("dist"))
+      .first()
+      .getAs[Long](0)
+  }
+
+  def computeColumnEncodingDistanceString(
       spark: SparkSession,
       tablePath: String,
       columnName: String): Long = {
@@ -40,6 +64,22 @@ trait CDFQuantilesTestUtils {
       .agg(sum("dist"))
       .first()
       .getAs[Long](0)
+  }
+
+  /**
+   * Compute weighted encoding distance for files: (ascii(string_col_max.head) -
+   * ascii(string_col_min.head)) * numRecords
+   */
+  def computeColumnEncodingDistance(
+      spark: SparkSession,
+      tablePath: String,
+      columnName: String,
+      forString: Boolean): Long = {
+    if (forString) {
+      computeColumnEncodingDistanceString(spark, tablePath, columnName)
+    } else {
+      computeColumnEncodingDistanceNumeric(spark, tablePath, columnName)
+    }
   }
 
 }
