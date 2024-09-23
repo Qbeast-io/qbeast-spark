@@ -27,7 +27,7 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
     "coexist with Delta tables" in withTmpDir(tmpDir =>
       withExtendedSpark(sparkConf = new SparkConf()
         .setMaster("local[8]")
-        .set("spark.sql.extensions", "io.qbeast.spark.delta.QbeastSparkSessionExtension")
+        .set("spark.sql.extensions", "io.qbeast.spark.delta.QbeastDeltaSparkSessionExtension")
         .set("spark.sql.warehouse.dir", tmpDir)
         .set("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
         .set(

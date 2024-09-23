@@ -61,9 +61,9 @@ object DeltaRollupDataWriter extends RollupDataWriter with DeltaStatsCollectionU
     processStats(stats, statsTrackers, fileStatsTracker)
     filesAndStats
       .map(_._1)
-      .map(QbeastFileUtils.toAddFile(dataChange = true))
+      .map(DeltaQbeastFileUtils.toAddFile(dataChange = true))
       .map(correctAddFileStats(fileStatsTracker))
-      .map(QbeastFileUtils.fromAddFile(dimensionCount))
+      .map(DeltaQbeastFileUtils.fromAddFile(dimensionCount))
   }
 
   private def getFileStatsTracker(

@@ -57,7 +57,7 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
   // Including Session Extensions and Catalog
   def sparkConfWithSqlAndCatalog: SparkConf = new SparkConf()
     .setMaster("local[8]")
-    .set("spark.sql.extensions", "io.qbeast.spark.delta.QbeastSparkSessionExtension")
+    .set("spark.sql.extensions", "io.qbeast.spark.delta.QbeastDeltaSparkSessionExtension")
     .set(
       SQLConf.V2_SESSION_CATALOG_IMPLEMENTATION.key,
       "io.qbeast.spark.internal.sources.catalog.QbeastCatalog")

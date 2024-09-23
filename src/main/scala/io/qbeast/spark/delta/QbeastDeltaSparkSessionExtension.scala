@@ -24,7 +24,7 @@ import org.apache.spark.sql.SparkSessionExtensions
 /**
  * Qbeast rules extension to spark query analyzer/optimizer/planner
  */
-class QbeastSparkSessionExtension extends DeltaSparkSessionExtension {
+class QbeastDeltaSparkSessionExtension extends DeltaSparkSessionExtension {
 
   override def apply(extensions: SparkSessionExtensions): Unit = {
 

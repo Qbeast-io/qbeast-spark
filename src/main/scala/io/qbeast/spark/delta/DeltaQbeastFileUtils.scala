@@ -42,7 +42,7 @@ import java.net.URI
 /**
  * Utility object for working with index files.
  */
-private[delta] object QbeastFileUtils {
+private[delta] object DeltaQbeastFileUtils {
 
   private val jsonFactory = new JsonFactory()
 
