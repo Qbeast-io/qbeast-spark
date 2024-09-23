@@ -80,22 +80,22 @@ object SparkRevisionFactory extends RevisionFactory[StructType, QbeastOptions] {
         }
         val hasManualColumnStats = manualDefinedColumnStats &&
           columnStats.schema.exists(_.name.contains(transformer.columnName))
-
-        if (needManualColumnStats && !hasManualColumnStats) {
-          // Use an ManualPlaceholderTransformation which will throw an error if not provided
-          builder += ManualPlaceholderTransformation(
-            transformer.columnName,
-            transformer.stats.statsNames)
-        } else if (hasManualColumnStats) {
+        if (hasManualColumnStats) {
           // If manual column stats are provided
           // Create transformation with boundaries
           builder += transformer.makeTransformation(columnName =>
             columnStats.getAs[Object](columnName))
+        } else if (needManualColumnStats) {
+          // If no column stats are provided, and manual stats are required
+          // Use an ManualPlaceholderTransformation which will throw an error when indexing
+          builder += ManualPlaceholderTransformation(
+            transformer.columnName,
+            transformer.stats.statsNames)
+          shouldCreateNewSpace = false
         } else {
           // If no column stats are provided, and no manual stats are required
           // Use an EmptyTransformation which will always be superseded
           builder += EmptyTransformation()
-          // If any column does not have manual column stats, we should not create a new space
           shouldCreateNewSpace = false
         }
       })
