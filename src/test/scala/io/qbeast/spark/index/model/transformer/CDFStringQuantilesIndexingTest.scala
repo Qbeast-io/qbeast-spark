@@ -29,7 +29,8 @@ class CDFStringQuantilesIndexingTest
         .option("columnsToIndex", s"$colName:quantiles")
         .option("columnStats", statsStr)
         .save(quantilesPath)
-      val quantilesDist = computeColumnEncodingDistance(spark, quantilesPath, colName, forString = true)
+      val quantilesDist =
+        computeColumnEncodingDistance(spark, quantilesPath, colName, forString = true)
 
       df.write
         .mode("overwrite")
