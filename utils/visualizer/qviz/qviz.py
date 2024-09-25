@@ -49,7 +49,7 @@ def show_tree(path: str, revision_id: int) -> None:
                         style={"width": "50%", "display": "inline"},
                         children=[
                             "Sampling Fraction:",
-                            dcc.Input(id="fraction", type="number"),
+                            dcc.Input(id="fraction", type="number", step=0.01, value=0.02),
                         ],
                     )
                 ]
