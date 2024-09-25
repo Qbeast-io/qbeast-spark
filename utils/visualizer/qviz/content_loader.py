@@ -91,7 +91,7 @@ def extract_metadata_from_delta_table(
 
     # List with all the revision ids
     metadata = delta_table.metadata().configuration #This returns a dictionary with the metadata
-    revision_key = "qbeast.revision." + revision_id
+    revision_key = "qbeast.revision." + str(revision_id)
 
     if revision_key in metadata.keys():
             metadata_key_str = metadata[revision_key]
