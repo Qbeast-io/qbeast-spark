@@ -158,6 +158,8 @@ def extract_cubes_from_delta_table(delta_table: DeltaTable, symbol_count: int) -
             except json.JSONDecodeError:
                 print("Error decoding JSON:", blocks_str)
                 raise
+        else:
+            print("The format of the block_string is not a string")
 
     return cubes_dict
 
