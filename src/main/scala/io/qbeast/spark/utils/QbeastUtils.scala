@@ -92,7 +92,7 @@ object QbeastUtils extends Logging {
    * val quantiles = qbeastTable.computeQuantilesForColumn(df, "column")
    *
    * df.write.format("qbeast") .option("columnsToIndex","column:quantiles")
-   * .option("columnStats",s"""{"column_quantiles":$quantiles}""").save()
+   * .option("columnStats",s"""{"column_quantiles":quantiles}""").save()
    *
    * @param df
    *   DataFrame
