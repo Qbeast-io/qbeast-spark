@@ -67,9 +67,11 @@ object QbeastUtils extends Logging {
   private def computeQuantilesForNumericColumn(
       df: DataFrame,
       columnName: String,
-      numberOfQuantiles: Int): Array[Double] = {
+      numberOfQuantiles: Int,
+      relativeError: Double): Array[Double] = {
     val probabilities = (1 to numberOfQuantiles).map(_ / numberOfQuantiles.toDouble).toArray
-    val approxQuantile = df.stat.approxQuantile(columnName, probabilities, 0.0)
+    val reducedDF = df.select(columnName)
+    val approxQuantile = reducedDF.stat.approxQuantile(columnName, probabilities, relativeError)
     log.info(s"Numeric Quantiles for column $columnName: ${approxQuantile.mkString(",")}")
     approxQuantile
   }
@@ -87,23 +89,26 @@ object QbeastUtils extends Logging {
    *
    * val qbeastTable = QbeastTable.forPath(spark, "path")
    *
-   * val quantiles =qbeastTable.computeQuantilesForColumn(df, "column")
+   * val quantiles = qbeastTable.computeQuantilesForColumn(df, "column")
    *
    * df.write.format("qbeast") .option("columnsToIndex","column:quantiles")
-   * .option("columnStats",quantiles).save()
+   * .option("columnStats",s"""{"column_quantiles":$quantiles}""").save()
    *
    * @param df
    *   DataFrame
    * @param columnName
    *   Column name
    * @param numberOfQuantiles
-   *   Number of Quantiles
+   *   Number of Quantiles, default is 50
+   * @param relativeError
+   *   Relative Error, default is 0.1
    * @return
    */
   def computeQuantilesForColumn(
       df: DataFrame,
       columnName: String,
-      numberOfQuantiles: Int = 50): String = {
+      numberOfQuantiles: Int = 50,
+      relativeError: Double = 0.1): String = {
     // Check if the column exists
     if (!df.columns.contains(columnName)) {
       throw AnalysisExceptionFactory.create(s"Column $columnName does not exist in the dataframe")
@@ -116,11 +121,11 @@ object QbeastUtils extends Logging {
       case StringType =>
         computeQuantilesForStringColumn(df, columnName, numberOfQuantiles)
       case _: NumericType =>
-        computeQuantilesForNumericColumn(df, columnName, numberOfQuantiles)
+        computeQuantilesForNumericColumn(df, columnName, numberOfQuantiles, relativeError)
       case _ =>
         throw AnalysisExceptionFactory.create(
           s"Column $columnName is of type $dataType. " +
-            "Only String and Numeric columns are supported")
+            "Only StringType and NumericType columns are supported.")
     }
     // Return the quantiles as a string
     quantilesArray.mkString("[", ", ", "]")
