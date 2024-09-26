@@ -213,28 +213,12 @@ class ConvertToQbeastTest
       isStaging(rev) shouldBe false
     })
 
-  "Analyzing the staging revision" should "not change the ANNOUNCED set" in
-    withSparkAndTmpDir((spark, tmpDir) => {
-      convertFromFormat(spark, "parquet", tmpDir)
-
-      // Analyze the staging revision
-      val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-      qbeastTable.analyze()
-
-      // Preserve empty ANNOUNCED set
-      val qs = getQbeastSnapshot(spark, tmpDir)
-      qs.loadLatestIndexStatus.announcedSet.isEmpty shouldBe true
-    })
-
-  "Optimizing the staging revision" should "not replicate any data" in
+  "Optimizing the staging revision" should "not corrupt the data" in
     withSparkAndTmpDir((spark, tmpDir) => {
       val fileFormat = "parquet"
       convertFromFormat(spark, fileFormat, tmpDir)
 
-      // Analyze and optimize
-      val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-      qbeastTable.analyze()
-      qbeastTable.optimize()
+      QbeastTable.forPath(spark, tmpDir).optimize()
 
       // Compare DataFrames
       val sourceDf = spark.read.format(fileFormat).load(tmpDir)
