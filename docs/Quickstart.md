@@ -92,7 +92,7 @@ Run `pyspark` shell:
 
 ```bash
 pyspark --packages io.qbeast:qbeast-spark_2.12:0.7.0,io.delta:delta-spark_2.12:3.1.0 \
---conf spark.sql.extensions=io.qbeast.spark.delta.QbeastDeltaSparkSessionExtension \
+--conf spark.sql.extensions=io.qbeast.spark.QbeastSparkSessionExtension \
 --conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
 ```
 
@@ -103,7 +103,7 @@ Run a `spark-shell` from the binaries:
 ```bash
 $SPARK_HOME/bin/spark-shell \
 --packages io.qbeast:qbeast-spark_2.12:0.7.0,io.delta:delta-spark_2.12:3.1.0 \
---conf spark.sql.extensions=io.qbeast.spark.delta.QbeastDeltaSparkSessionExtension \
+--conf spark.sql.extensions=io.qbeast.spark.QbeastSparkSessionExtension \
 --conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
 ```
 
@@ -112,7 +112,7 @@ $SPARK_HOME/bin/spark-shell \
 ```bash
 $SPARK_HOME/bin/spark-sql \
 --packages io.qbeast:qbeast-spark_2.12:0.7.0,io.delta:delta-spark_2.12:3.1.0 \
---conf spark.sql.extensions=io.qbeast.spark.delta.QbeastDeltaSparkSessionExtension \
+--conf spark.sql.extensions=io.qbeast.spark.QbeastSparkSessionExtension \
 --conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
 ```
 
@@ -174,7 +174,7 @@ spark = pyspark.sql.SparkSession.builder.appName("MyApp").getOrCreate()
 
 # Session with Configuration
 pyspark.sql.SparkSession.builder.appName("MyApp") \
-    .config("spark.sql.extensions", "io.qbeast.spark.delta.QbeastSparkSessionExtension") \
+    .config("spark.sql.extensions", "io.qbeast.spark.QbeastSparkSessionExtension") \
     .config("spark.sql.catalog.spark_catalog", "io.qbeast.spark.internal.sources.catalog.QbeastCatalog").getOrCreate()
 
 ```
@@ -448,7 +448,7 @@ For setting up writes and reads on Amazon S3 service, it is possible to use both
 
     ```bash
     $SPARK_HOME/bin/spark-shell \
-    --conf spark.sql.extensions=io.qbeast.spark.delta.QbeastDeltaSparkSessionExtension \
+    --conf spark.sql.extensions=io.qbeast.spark.QbeastSparkSessionExtension \
     --conf spark.hadoop.fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider \
     --packages io.qbeast:qbeast-spark_2.12:0.7.0,\
     io.delta:delta-spark_2.12:3.1.0,\
@@ -462,7 +462,7 @@ For setting up writes and reads on Amazon S3 service, it is possible to use both
 
     ```bash
     $SPARK_HOME/bin/spark-shell \
-    --conf spark.sql.extensions=io.qbeast.spark.delta.QbeastDeltaSparkSessionExtension \
+    --conf spark.sql.extensions=io.qbeast.spark.QbeastSparkSessionExtension \
     --conf spark.hadoop.fs.s3a.access.key=${AWS_ACCESS_KEY_ID} \
     --conf spark.hadoop.fs.s3a.secret.key=${AWS_SECRET_ACCESS_KEY}\
     --conf spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem \
@@ -487,7 +487,7 @@ Google has several services related to Qbeast including [Cloud Storage](https://
 
     ```bash
     # Configure the Spark worker to use the Qbeast formatter library
-    spark.sql.extensions io.qbeast.spark.delta.QbeastDeltaSparkSessionExtension
+    spark.sql.extensions io.qbeast.spark.QbeastSparkSessionExtension
     spark.sql.catalog.spark_catalog io.qbeast.spark.internal.sources.catalog.QbeastCatalog
     ```
 
