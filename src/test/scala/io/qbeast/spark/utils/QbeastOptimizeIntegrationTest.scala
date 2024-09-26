@@ -73,16 +73,13 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
     val qt = QbeastTable.forPath(spark, tmpDir)
     qt.optimize()
 
-    val tolerance = 0.02
-    List(0.1, 0.2, 0.5, 0.7, 0.99).foreach(precision => {
-      val margin = dataSize * precision * tolerance
-      val sampleSize = df
-        .sample(withReplacement = false, precision)
-        .count()
-        .toDouble
-
-      sampleSize shouldBe (dataSize * precision) +- margin
-    })
+    // Here, we use a tolerance of 5% because the total number of elements is relatively small
+    val tolerance = 0.05
+    List(0.1, 0.2, 0.5, 0.7, 0.99).foreach { f =>
+      val margin = dataSize * f * tolerance
+      val sampleSize = df.sample(f).count().toDouble
+      sampleSize shouldBe (dataSize * f) +- margin
+    }
   }
 
   "Optimizing with given fraction" should "improve sampling efficiency" in withQbeastContextSparkAndTmpDir {
