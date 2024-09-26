@@ -15,13 +15,13 @@
  */
 package io.qbeast.spark
 
-import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.DenormalizedBlock
 import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QbeastSnapshot
 import io.qbeast.core.model.Revision
 import io.qbeast.core.model.RevisionID
 import io.qbeast.core.model.StagingUtils
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
+import io.qbeast.spark.context.QbeastContext
 import io.qbeast.spark.internal.commands.AnalyzeTableCommand
 import io.qbeast.spark.internal.commands.OptimizeTableCommand
 import io.qbeast.spark.table._
@@ -47,7 +47,7 @@ class QbeastTable private (
     extends Serializable
     with StagingUtils {
 
-  private def qbeastSnapshot: DeltaQbeastSnapshot = DeltaQbeastSnapshot(tableID)
+  private def qbeastSnapshot: QbeastSnapshot = QbeastContext.metadataManager.loadSnapshot(tableID)
 
   private def indexedTable: IndexedTable = indexedTableFactory.getIndexedTable(tableID)
 

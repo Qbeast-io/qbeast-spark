@@ -15,7 +15,7 @@
  */
 package io.qbeast.spark.internal.sources.catalog
 
-import io.qbeast.context.QbeastContext
+import io.qbeast.spark.context.QbeastContext
 import io.qbeast.spark.internal.commands.AlterTableSetPropertiesQbeastCommand
 import io.qbeast.spark.internal.commands.AlterTableUnsetPropertiesQbeastCommand
 import io.qbeast.spark.internal.sources.v2.QbeastStagedTableImpl

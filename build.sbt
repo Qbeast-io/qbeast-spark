@@ -8,14 +8,13 @@ lazy val qbeastCore = (project in file("./core"))
     name := "qbeast-core",
     libraryDependencies ++= Seq(
       sparkCore % Provided,
-      hadoopClient % Provided,
       sparkSql % Provided,
+      hadoopClient % Provided,
+      sparkml % Provided,
       apacheCommons % Test,
       amazonAws % Test,
-      deltaSpark,
       hadoopCommons % Test,
-      hadoopAws % Test,
-      sparkml % Test),
+      hadoopAws % Test),
     Test / parallelExecution := false,
     assembly / test := {},
     assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false))

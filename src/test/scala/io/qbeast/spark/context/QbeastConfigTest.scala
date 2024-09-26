@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.context
+package io.qbeast.spark.context
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.qbeast.config

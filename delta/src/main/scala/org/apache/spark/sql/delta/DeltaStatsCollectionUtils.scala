@@ -15,7 +15,6 @@
  */
 package org.apache.spark.sql.delta
 
-import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.QTableID
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.expressions.Expression
@@ -85,7 +84,7 @@ trait DeltaStatsCollectionUtils {
       sparkSession: SparkSession,
       tableID: QTableID): Option[DeltaJobStatisticsTracker] = {
 
-    if (QbeastContext.config.get(DeltaSQLConf.DELTA_COLLECT_STATS)) {
+    if (sparkSession.conf.get(DeltaSQLConf.DELTA_COLLECT_STATS)) {
       val outputStatsAtrributes = data.queryExecution.analyzed.output
       val outputSchema = data.schema
 

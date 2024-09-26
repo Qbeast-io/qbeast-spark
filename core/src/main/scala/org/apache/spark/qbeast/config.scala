@@ -15,10 +15,10 @@
  */
 package org.apache.spark.qbeast
 
-import io.qbeast.context.QbeastContext
 import org.apache.spark.internal.config.ConfigBuilder
 import org.apache.spark.internal.config.ConfigEntry
 import org.apache.spark.internal.config.OptionalConfigEntry
+import org.apache.spark.sql.SparkSession
 
 package object config {
 
@@ -58,19 +58,22 @@ package object config {
       .intConf
       .createWithDefault(3)
 
-  def DEFAULT_NUMBER_OF_RETRIES: Int = QbeastContext.config
+  def DEFAULT_NUMBER_OF_RETRIES: Int = SparkSession.active.sparkContext.conf
     .get(defaultNumberOfRetries)
 
-  def DEFAULT_CUBE_SIZE: Int = QbeastContext.config
+  def DEFAULT_CUBE_SIZE: Int = SparkSession.active.sparkContext.conf
     .get(defaultCubeSize)
 
-  def CUBE_WEIGHTS_BUFFER_CAPACITY: Long = QbeastContext.config
+  def CUBE_WEIGHTS_BUFFER_CAPACITY: Long = SparkSession.active.sparkContext.conf
     .get(cubeWeightsBufferCapacity)
 
-  def STAGING_SIZE_IN_BYTES: Option[Long] = QbeastContext.config.get(stagingSizeInBytes)
+  def STAGING_SIZE_IN_BYTES: Option[Long] =
+    SparkSession.active.sparkContext.conf.get(stagingSizeInBytes)
 
-  def COLUMN_SELECTOR_ENABLED: Boolean = QbeastContext.config.get(columnsToIndexSelectorEnabled)
+  def COLUMN_SELECTOR_ENABLED: Boolean =
+    SparkSession.active.sparkContext.conf.get(columnsToIndexSelectorEnabled)
 
-  def MAX_NUM_COLUMNS_TO_INDEX: Int = QbeastContext.config.get(maxNumColumnsToIndex)
+  def MAX_NUM_COLUMNS_TO_INDEX: Int =
+    SparkSession.active.sparkContext.conf.get(maxNumColumnsToIndex)
 
 }
