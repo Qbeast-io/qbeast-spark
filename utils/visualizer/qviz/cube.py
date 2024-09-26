@@ -19,6 +19,7 @@ class Cube:
         self.depth = depth
         self.size = size
         self.children = []
+        self.blocks = []
         self.parent = None
 
     def link(self, that: Cube) -> None:

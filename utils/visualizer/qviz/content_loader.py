@@ -7,6 +7,7 @@ from deltalake import DeltaTable
 import pyarrow.parquet as pa
 from collections import defaultdict
 from qviz.cube import Cube, SamplingInfo, normalize_weight
+from qviz.block import Block
 
 
 # Returns metadata (dict), cubes(dict), root(cube), nodes & edges (list[dict])
@@ -114,7 +115,7 @@ def extract_cubes_from_delta_table(delta_table: DeltaTable, symbol_count: int) -
 
     df = delta_table.get_add_actions(True).to_pandas()
 
-    df_filtered = df[["size_bytes", "tags.blocks"]]
+    df_filtered = df[["size_bytes", "tags.blocks", "path"]]
     # In this dictionary we store a cube for every cubeId. Each cube will be associated to his cube ID
     cubes_dict = dict()
 
@@ -135,32 +136,58 @@ def extract_cubes_from_delta_table(delta_table: DeltaTable, symbol_count: int) -
                     # Since objects are passed by reference, they can be modified in situ
                     cube_string = block["cubeId"]
                     if cube_string in cubes_dict.keys():
+
+                        element_count_block = block["elementCount"]
+                        min_weight_block = block["minWeight"]
+                        max_weight_block = normalize_weight( int(block["maxWeight"]) )
+                        file = row["path"]  
+                        size_block = int(row["size_bytes"])
+                        # We create a new block
+                        new_block = Block(cube_string, element_count_block, min_weight_block, max_weight_block, file, size_block)
+
+                        # Get the cube from the dictionary
                         dict_cube = cubes_dict[cube_string]
                         normalized_max_weight = normalize_weight(
                             int(block["maxWeight"])
                         )
                         dict_cube.max_weight = min(max_weight, normalized_max_weight)
                         dict_cube.element_count += int(block["elementCount"])
-                        dict_cube.size += int(row["size_bytes"])
+
+                        # Let's search if we have a block for that file
+                        repeated = False
+                        for cube_block in dict_cube.blocks:
+                            if cube_block.file == file:
+                                repeated = True 
+                        if repeated == False: 
+                            dict_cube.size += int(row["size_bytes"])
+
+                        # Append the new cube to the blocks list
+                        dict_cube.blocks.append(new_block)
+
                     # If we don't have this cube in the dictionary, a new cube is created
                     else:
                         # Calculate depth of the cube
                         depth = len(cube_string) // symbol_count
                         # Assign max_weight, min_weight, elemnt_count a value for the new cube
-                        max_weight = block["maxWeight"]
                         element_count = block["elementCount"]
-                        replicated = block["replicated"]  # Do we have to add it?
-                        min_weight = block["minWeight"]  # Do we have to add it?
+                        min_weight = block["minWeight"]
+                        max_weight = normalize_weight( int(block["maxWeight"]) )
+                        file = row["path"]  
                         size = int(row["size_bytes"])
+                        # We create the new block
+                        new_block = Block(cube_string, element_count, min_weight, max_weight, file, size)
+                        # Create cube and add the block the the cube's list
                         cubes_dict[cube_string] = Cube(
                             cube_string, max_weight, element_count, size, depth
                         )
+                        cubes_dict[cube_string].blocks.append(new_block)
+
             except json.JSONDecodeError:
                 print("Error decoding JSON:", blocks_str)
                 raise
         else:
             print("The format of the block_string is not a string")
-
+    
     return cubes_dict
 
 
