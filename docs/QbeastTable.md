@@ -26,9 +26,12 @@ qbeatsTable.lastRevisionID() // the last Revision identifier
 ```
 
 ## Table Operations
-Through `QbeastTable` you can also execute `Optimize` operation. This command is used to **optimize the files in the table**, merging those small blocks into bigger ones to maintain an even distribution.
+Through `QbeastTable` you can also execute the `Optimize` operation. This command is used to **rearrange the files in the table** according to the dictates of the index to render queries more efficient. 
 
-These are a few different ways of executing the `optimize` operation:
+These are a few different ways of executing the `optimize` operation, with the input parameters being:
+1. `revisionID`: The revision number you want to optimize, the default is the latest revision.
+2. `fraction`: The fraction of the data of the specified revision you want to optimize.
+3. `options`: A map of options of the optimization. You can specify the `userMetadata` as well as configurations for `io.qbeast.spark.delta.hook.PreCommitHook.`
 
 ```scala
 // Optimizing 10% of the data from Revision number 2, and stores some user metadata
