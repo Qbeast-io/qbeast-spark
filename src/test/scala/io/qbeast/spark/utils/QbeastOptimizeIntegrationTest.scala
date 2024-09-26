@@ -85,7 +85,7 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
     })
   }
 
-  "Optimizing a with given fraction" should "improve sampling efficiency" in withQbeastContextSparkAndTmpDir {
+  "Optimizing with given fraction" should "improve sampling efficiency" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
       def getSampledFiles(deltaLog: DeltaLog, fraction: Double): Seq[IndexFile] = {
         val qs = DeltaQbeastSnapshot(deltaLog.update())
