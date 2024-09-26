@@ -3,8 +3,45 @@ import Dependencies._
 
 val mainVersion = "0.8.0-SNAPSHOT"
 
-// Projects
+lazy val qbeastCore = (project in file("./core"))
+  .settings(
+    name := "qbeast-core",
+    libraryDependencies ++= Seq(
+      sparkCore % Provided,
+      hadoopClient % Provided,
+      sparkSql % Provided,
+      apacheCommons % Test,
+      amazonAws % Test,
+      deltaSpark,
+      hadoopCommons % Test,
+      hadoopAws % Test,
+      sparkml % Test),
+    Test / parallelExecution := false,
+    assembly / test := {},
+    assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false))
+  .settings(noWarningInConsole)
+
+lazy val qbeastDelta = (project in file("./delta"))
+  .dependsOn(qbeastCore)
+  .settings(
+    name := "qbeast-delta",
+    libraryDependencies ++= Seq(
+      sparkCore % Provided,
+      hadoopClient % Provided,
+      sparkSql % Provided,
+      apacheCommons % Test,
+      amazonAws % Test,
+      deltaSpark,
+      hadoopCommons % Test,
+      hadoopAws % Test,
+      sparkml % Test),
+    Test / parallelExecution := false,
+    assembly / test := {},
+    assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false))
+  .settings(noWarningInConsole)
+
 lazy val qbeastSpark = (project in file("."))
+  .dependsOn(qbeastCore, qbeastDelta)
   .enablePlugins(ScalaUnidocPlugin)
   .settings(
     name := "qbeast-spark",
@@ -23,6 +60,14 @@ lazy val qbeastSpark = (project in file("."))
     assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false))
   .settings(noWarningInConsole)
 
+qbeastCore / Compile / doc / scalacOptions ++= Seq(
+  "-doc-title",
+  "qbeast-core",
+  "-doc-version",
+  mainVersion,
+  "-doc-footer",
+  "Copyright 2022 Qbeast - Docs for version " + mainVersion + " of qbeast-core")
+
 qbeastSpark / Compile / doc / scalacOptions ++= Seq(
   "-doc-title",
   "qbeast-spark",
@@ -30,6 +75,21 @@ qbeastSpark / Compile / doc / scalacOptions ++= Seq(
   mainVersion,
   "-doc-footer",
   "Copyright 2022 Qbeast - Docs for version " + mainVersion + " of qbeast-spark")
+
+qbeastDelta / Compile / doc / scalacOptions ++= Seq(
+  "-doc-title",
+  "qbeast-delta",
+  "-doc-version",
+  mainVersion,
+  "-doc-footer",
+  "Copyright 2022 Qbeast - Docs for version " + mainVersion + " of qbeast-delta")
+
+// Common metadata
+ThisBuild / version := mainVersion
+ThisBuild / organization := "io.qbeast"
+ThisBuild / organizationName := "Qbeast Analytics, S.L."
+ThisBuild / organizationHomepage := Some(url("https://qbeast.io/"))
+ThisBuild / startYear := Some(2021)
 
 // Common metadata
 ThisBuild / version := mainVersion
