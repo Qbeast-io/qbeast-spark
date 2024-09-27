@@ -54,10 +54,11 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
   it should "have no cube fragmentation" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
     createTableWithMultipleAppends(spark, tmpDir)
     val qt = QbeastTable.forPath(spark, tmpDir)
-    val elementCountBefore = qt.getIndexMetrics().elementCount
+    val elementCountBefore = qt.getIndexMetrics.elementCount
     qt.optimize()
 
-    val mAfter = qt.getIndexMetrics()
+    qt.update()
+    val mAfter = qt.getIndexMetrics
     val fragmentationAfter = mAfter.blockCount / mAfter.cubeCount.toDouble
     val elementCountAfter = mAfter.elementCount
 

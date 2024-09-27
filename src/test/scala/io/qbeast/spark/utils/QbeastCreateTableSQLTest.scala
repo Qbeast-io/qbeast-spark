@@ -100,20 +100,18 @@ class QbeastCreateTableSQLTest extends QbeastIntegrationTestSpec {
         .option("cubeSize", "100")
         .save(location)
 
+      val qbeastTable = QbeastTable.forPath(spark, location)
+      qbeastTable.cubeSize() shouldBe 100
+
       spark.sql(
         "CREATE EXTERNAL TABLE student_cube_change (id INT, name STRING, age INT) " +
           "USING qbeast " +
           "OPTIONS ('cubeSize'='50') " +
           s"LOCATION '$location'")
-
-      val qbeastTable = QbeastTable.forPath(spark, location)
-      qbeastTable.cubeSize() shouldBe 100
-
       data.writeTo("student_cube_change").append()
-
-      spark.sql("SELECT * FROM student_cube_change").count() shouldBe data.count() * 2
+      qbeastTable.update()
       qbeastTable.cubeSize() shouldBe 50
-
+      spark.sql("SELECT * FROM student_cube_change").count() shouldBe data.count() * 2
     })
 
   it should "create indexedTable even if location is not populated" in

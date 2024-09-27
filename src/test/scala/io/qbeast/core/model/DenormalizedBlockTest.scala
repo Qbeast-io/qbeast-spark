@@ -18,7 +18,6 @@ package io.qbeast.core.model
 import io.qbeast.core.transform.EmptyTransformer
 import io.qbeast.spark.QbeastIntegrationTestSpec
 
-import scala.collection.immutable.SortedMap
 import scala.collection.immutable.SortedSet
 
 class DenormalizedBlockTest extends QbeastIntegrationTestSpec {
@@ -34,25 +33,25 @@ class DenormalizedBlockTest extends QbeastIntegrationTestSpec {
     val c2 = c1.firstChild
     val c3 = c1.nextSibling.get
     val c4 = c3.firstChild
-    val cubeStatuses = SortedSet(root, c1, c2, c3, c4)
+    val cubeIds = SortedSet(root, c1, c2, c3, c4)
 
-    DenormalizedBlock.isLeaf(cubeStatuses)(root) shouldBe false
-    DenormalizedBlock.isLeaf(cubeStatuses - root)(root) shouldBe false
+    DenormalizedBlock.isLeaf(cubeIds)(root) shouldBe false
+    DenormalizedBlock.isLeaf(cubeIds - root)(root) shouldBe false
 
-    DenormalizedBlock.isLeaf(cubeStatuses)(c1) shouldBe false
-    DenormalizedBlock.isLeaf(cubeStatuses - c1)(c1) shouldBe false
+    DenormalizedBlock.isLeaf(cubeIds)(c1) shouldBe false
+    DenormalizedBlock.isLeaf(cubeIds - c1)(c1) shouldBe false
 
-    DenormalizedBlock.isLeaf(cubeStatuses)(c2) shouldBe true
-    DenormalizedBlock.isLeaf(cubeStatuses - c2)(c2) shouldBe true
-    DenormalizedBlock.isLeaf(cubeStatuses)(c2.firstChild) shouldBe true
+    DenormalizedBlock.isLeaf(cubeIds)(c2) shouldBe true
+    DenormalizedBlock.isLeaf(cubeIds - c2)(c2) shouldBe true
+    DenormalizedBlock.isLeaf(cubeIds)(c2.firstChild) shouldBe true
 
-    DenormalizedBlock.isLeaf(cubeStatuses)(c3) shouldBe false
-    DenormalizedBlock.isLeaf(cubeStatuses - c3)(c3) shouldBe false
-    DenormalizedBlock.isLeaf(cubeStatuses)(c3.nextSibling.get) shouldBe true
+    DenormalizedBlock.isLeaf(cubeIds)(c3) shouldBe false
+    DenormalizedBlock.isLeaf(cubeIds - c3)(c3) shouldBe false
+    DenormalizedBlock.isLeaf(cubeIds)(c3.nextSibling.get) shouldBe true
 
-    DenormalizedBlock.isLeaf(cubeStatuses)(c4) shouldBe true
-    DenormalizedBlock.isLeaf(cubeStatuses - c4)(c4) shouldBe true
-    DenormalizedBlock.isLeaf(cubeStatuses)(c4.firstChild) shouldBe true
+    DenormalizedBlock.isLeaf(cubeIds)(c4) shouldBe true
+    DenormalizedBlock.isLeaf(cubeIds - c4)(c4) shouldBe true
+    DenormalizedBlock.isLeaf(cubeIds)(c4.firstChild) shouldBe true
 
   }
 
@@ -70,10 +69,6 @@ class DenormalizedBlockTest extends QbeastIntegrationTestSpec {
       val c1B1 = Block("f1.parquet", c1, Weight(0.5), Weight(1.0), 1, replicated = false)
       val c1B2 = Block("f2.parquet", c1, Weight(0.45), Weight(1.0), 1, replicated = false)
 
-      val cubeStatuses = SortedMap(
-        root -> CubeStatus(root, Weight(1), NormalizedWeight(Weight(1)), Vector(rootB1, rootB2)),
-        c1 -> CubeStatus(c1, Weight(1), NormalizedWeight(Weight(1)), Vector(c1B1, c1B2)))
-
       val t = EmptyTransformer("")
       val revision =
         Revision(
@@ -90,7 +85,7 @@ class DenormalizedBlockTest extends QbeastIntegrationTestSpec {
         IndexFile("f2.parquet", fileSize, 2, revision.revisionID, Vector(rootB2, c1B2))).toDS
 
       val denormalizedBlock =
-        DenormalizedBlock.buildDataset(revision, cubeStatuses, indexFilesDs)
+        DenormalizedBlock.buildDataset(revision.revisionID, indexFilesDs)
 
       denormalizedBlock.collect() should contain theSameElementsAs Vector(
         DenormalizedBlock(

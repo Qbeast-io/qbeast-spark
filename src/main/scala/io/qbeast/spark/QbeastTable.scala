@@ -78,9 +78,9 @@ class QbeastTable private (
     qbeastSnapshot.loadRevision(revisionID)
   }
 
-  private def latestRevision: Revision = qbeastSnapshot.loadLatestRevision
+  def latestRevision: Revision = qbeastSnapshot.loadLatestRevision
 
-  private def latestRevisionID: RevisionID = latestRevision.revisionID
+  def latestRevisionID: RevisionID = latestRevision.revisionID
 
   def indexedColumns(revisionID: RevisionID): Seq[String] = {
     checkRevisionAvailable(revisionID)
@@ -160,17 +160,20 @@ class QbeastTable private (
   /**
    * Gather an overview of the index for a given revision
    * @param revisionID
-   *   optional RevisionID
+   *   RevisionID
+   * @param indexFiles
+   *   Dataset of IndexFile
    * @return
+   *   IndexMetrics
    */
-  def getIndexMetrics(revisionID: RevisionID): IndexMetrics = {
-    val indexStatus = qbeastSnapshot.loadIndexStatus(revisionID)
-    val indexFiles = qbeastSnapshot.loadIndexFiles(revisionID)
-    val revision = indexStatus.revision
-    val cubeStatuses = indexStatus.cubesStatuses
-    val denormalizedBlock = DenormalizedBlock.buildDataset(revision, cubeStatuses, indexFiles)
+  def getIndexMetrics(revisionID: RevisionID, indexFiles: Dataset[IndexFile]): IndexMetrics = {
+    val denormalizedBlock = DenormalizedBlock.buildDataset(revisionID, indexFiles)
+    IndexMetrics(revision(revisionID), denormalizedBlock)
+  }
 
-    IndexMetrics(revision, denormalizedBlock)
+  def getIndexMetrics(revisionID: RevisionID): IndexMetrics = {
+    val indexFiles = qbeastSnapshot.loadIndexFiles(revisionID)
+    getIndexMetrics(revisionID, indexFiles)
   }
 
   def getIndexMetrics: IndexMetrics = {
@@ -178,18 +181,24 @@ class QbeastTable private (
   }
 
   /**
-   * Gather a dataset containing all the important information about the index structure.
+   * Gather a dataset containing all DenormalizedBlocks for a given revision.
    *
    * @param revisionID
-   *   optional RevisionID
+   *   RevisionID
+   * @param indexFiles
+   *   Dataset of IndexFile
    * @return
+   *   Dataset of DenormalizedBlock
    */
+  def getDenormalizedBlocks(
+      revisionID: RevisionID,
+      indexFiles: Dataset[IndexFile]): Dataset[DenormalizedBlock] = {
+    DenormalizedBlock.buildDataset(revisionID, indexFiles)
+  }
+
   def getDenormalizedBlocks(revisionID: RevisionID): Dataset[DenormalizedBlock] = {
-    val indexStatus = qbeastSnapshot.loadIndexStatus(revisionID)
     val indexFiles = qbeastSnapshot.loadIndexFiles(revisionID)
-    val revision = indexStatus.revision
-    val cubeStatuses = indexStatus.cubesStatuses
-    DenormalizedBlock.buildDataset(revision, cubeStatuses, indexFiles)
+    getDenormalizedBlocks(revisionID, indexFiles)
   }
 
   def getDenormalizedBlocks: Dataset[DenormalizedBlock] = {
