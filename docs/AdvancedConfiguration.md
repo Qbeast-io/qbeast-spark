@@ -181,23 +181,37 @@ The following code snippet demonstrates the extraction of a Quantile-based CDF f
 ```scala
 import io.qbeast.spark.utils.QbeastUtils
 
-val brandQuantiles = QbeastUtils.computeQuantilesForColumn(df, "brand", 50)
-val statsStr = s"""{"brand_quantiles":$brandQuantiles}"""
+val columnQuantiles = QbeastUtils.computeQuantilesForColumn(df, "brand")
+val columnStats = s"""{"brand_quantiles":$columnQuantiles}"""
 
 (df
   .write
   .mode("overwrite")
   .format("qbeast")
   .option("columnsToIndex", "brand:quantiles")
-  .option("columnStats", statsStr)
-  .save(targetPath))
+  .option("columnStats", columnStats)
+  .save("/tmp/qbeast_table_quantiles"))
 ```
+
 This is only necessary for the first write, if not otherwise made explicit, all subsequent appends will reuse the same quantile calculation.
 Any new custom quantiles provided during `appends` forces the creation of a new `Revision`.
 
-- A default set of Quantiles (for String is "a" t0 "z", and for Numeric is percentiles based on the `[Number.MinValue, Number.MaxValue]` range) will be used if the use of histogram is stated(`stringColName:string_hist`) with no histogram in `columnStats`.
-- The default Quantiles can not supersede an existing `StringHashTransformation`.
+### How to configure quantiles computation
+The `computeQuantilesForColumn` method computes the quantiles for the specified column and returns a `Seq` of quantile values. The `Seq` is then serialized into a `String` and passed as a custom column transformation to the `columnsToIndex` option.
 
+You can **tune the number of quantiles and the relative error** for numeric columns using the QbeastUtils API.
+```scala
+val columnQuantiles =
+  QbeastUtils.computeQuantilesForColumn(df = df, columnName = columnName)
+val columnQuantilesNumberOfQuantiles =
+  QbeastUtils.computeQuantilesForColumn(df = df, columnName = columnName, numberOfQuantiles = 100)
+// For numeric columns, you can also specify the relative error
+// For String columns, the relativeError is ignored
+val columnQuantilesRelativeError =
+  QbeastUtils.computeQuantilesForColumn(df = df, columnName = columnName, relativeError = 0.3)
+val columnQuantilesNumAndError =
+  QbeastUtils.computeQuantilesForColumn(df = df, columnName = columnName, numberOfQuantiles = 100, relativeError = 0.3)
+```
 ## DefaultCubeSize
 
 If you don't specify the cubeSize at DataFrame level, the default value is used. This is set to 5M, so if you want to change it

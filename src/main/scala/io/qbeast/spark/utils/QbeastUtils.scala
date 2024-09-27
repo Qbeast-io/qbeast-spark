@@ -77,13 +77,14 @@ object QbeastUtils extends Logging {
   }
 
   /**
-   * Compute the quantiles for a given column
+   * Compute a sequence of numberOfQuantiles (default 50) within a relativeError (default 0.1) for
+   * a given column
    *
    * Since computing the quantiles can be expensive, this method is used outside the indexing
    * process.
    *
-   * It outputs the quantiles of the column as format [bin1, bin2, bin3, ...] Number of bins by
-   * default is 50.
+   * It outputs the quantiles of the column as an Array[value1, value2, value2, ...] of size equal
+   * to the numberOfQuantiles parameter.
    *
    * For example:
    *

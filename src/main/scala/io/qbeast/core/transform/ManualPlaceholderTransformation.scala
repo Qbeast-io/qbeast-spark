@@ -32,7 +32,7 @@ case class ManualPlaceholderTransformation(columnName: String, columnStatsNames:
 
   override def isSupersededBy(newTransformation: Transformation): Boolean = {
     throw new UnsupportedOperationException(
-      "ManualPlaceholderTransformation does not support superseeded by. " +
+      "ManualPlaceholderTransformation does not support superseded by. " +
         s"Please provide the valid transformation of $columnName through option 'columnStats'")
   }
 
