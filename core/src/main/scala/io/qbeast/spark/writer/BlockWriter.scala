@@ -15,7 +15,8 @@
  */
 package io.qbeast.spark.writer
 
-import io.qbeast.core.model.{CubeId, CubeState}
+import io.qbeast.core.model.CubeId
+import io.qbeast.core.model.CubeState
 import io.qbeast.core.model.IndexFile
 import io.qbeast.core.model.IndexFileBuilder
 import io.qbeast.core.model.IndexFileBuilder.BlockBuilder

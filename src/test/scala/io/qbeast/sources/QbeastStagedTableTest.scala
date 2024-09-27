@@ -15,9 +15,9 @@
  */
 package io.qbeast.sources
 
-import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.catalog.CatalogTestSuite
 import io.qbeast.sources.v2.QbeastStagedTableImpl
+import io.qbeast.QbeastIntegrationTestSpec
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.connector.catalog.Identifier
 import org.apache.spark.sql.connector.catalog.TableCapability.V1_BATCH_WRITE
@@ -126,7 +126,10 @@ class QbeastStagedTableTest extends QbeastIntegrationTestSpec with CatalogTestSu
       .build()
 
     writeBuilder shouldBe a[V1Write]
-    writeBuilder.asInstanceOf[V1Write].toInsertableRelation.insert(dataToCommit, overwrite = false)
+    writeBuilder
+      .asInstanceOf[V1Write]
+      .toInsertableRelation
+      .insert(dataToCommit, overwrite = false)
 
     // Commit the staged changes
     // This should create the log and write the data

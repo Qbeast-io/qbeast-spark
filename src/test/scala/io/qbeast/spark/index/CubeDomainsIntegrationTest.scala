@@ -15,13 +15,13 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.core.model.CubeDomainsBuilder
 import io.qbeast.core.model.CubeStatus
 import io.qbeast.core.model.IndexStatus
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.Weight
 import io.qbeast.spark.internal.QbeastOptions
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
 import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE

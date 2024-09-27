@@ -15,9 +15,10 @@
  */
 package io.qbeast.sources
 
-import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.catalog.CatalogTestSuite
-import io.qbeast.sources.v2.{QbeastTableImpl, QbeastWriteBuilder}
+import io.qbeast.sources.v2.QbeastTableImpl
+import io.qbeast.sources.v2.QbeastWriteBuilder
+import io.qbeast.QbeastIntegrationTestSpec
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.connector.catalog.Identifier

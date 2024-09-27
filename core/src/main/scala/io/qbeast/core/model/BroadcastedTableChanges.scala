@@ -15,9 +15,10 @@
  */
 package io.qbeast.core.model
 
-import CubeState.CubeStateValue
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.SparkSession
+
+import CubeState.CubeStateValue
 
 /**
  * Container for the table changes

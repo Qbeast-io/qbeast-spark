@@ -188,9 +188,7 @@ class DefaultStagedTableTest extends QbeastIntegrationTestSpec with CatalogTestS
       .set("spark.sql.extensions", "io.qbeast.sql.QbeastSparkSessionExtension")
       .set("spark.sql.warehouse.dir", tmpDir)
       .set("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
-      .set(
-        "spark.sql.catalog.qbeast_catalog",
-        "io.qbeast.catalog.QbeastCatalog"))(spark => {
+      .set("spark.sql.catalog.qbeast_catalog", "io.qbeast.catalog.QbeastCatalog"))(spark => {
 
       val tableIdentifier = Identifier.of(Array("default"), "students")
       val catalog = sessionCatalog(spark)

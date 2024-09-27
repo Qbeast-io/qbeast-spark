@@ -15,10 +15,10 @@
  */
 package io.qbeast.sources
 
-import io.qbeast.QbeastIntegrationTestSpec
-import io.qbeast.core.model.QTableID
-import io.qbeast.TestClasses.Student
 import io.qbeast.context.QbeastContext
+import io.qbeast.core.model.QTableID
+import io.qbeast.QbeastIntegrationTestSpec
+import io.qbeast.TestClasses.Student
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.sources.InsertableRelation
 

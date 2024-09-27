@@ -30,9 +30,7 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
         .set("spark.sql.extensions", "io.qbeast.sql.QbeastSparkSessionExtension")
         .set("spark.sql.warehouse.dir", tmpDir)
         .set("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
-        .set(
-          "spark.sql.catalog.qbeast_catalog",
-          "io.qbeast.catalog.QbeastCatalog"))(spark => {
+        .set("spark.sql.catalog.qbeast_catalog", "io.qbeast.catalog.QbeastCatalog"))(spark => {
 
         val data = createTestData(spark)
 

@@ -15,9 +15,9 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.core.model.CubeId
 import io.qbeast.table.QbeastTable
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
 import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
