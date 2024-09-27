@@ -6,9 +6,7 @@ val mainVersion = "0.8.0-SNAPSHOT"
 lazy val qbeastCore = (project in file("./core"))
   .settings(
     name := "qbeast-core",
-    libraryDependencies ++= Seq(
-      sparkSql % Provided,
-      sparkml % Provided),
+    libraryDependencies ++= Seq(sparkSql % Provided, sparkml % Provided),
     Test / parallelExecution := false,
     assembly / test := {},
     assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false))
@@ -18,9 +16,7 @@ lazy val qbeastDelta = (project in file("./delta"))
   .dependsOn(qbeastCore)
   .settings(
     name := "qbeast-delta",
-    libraryDependencies ++= Seq(
-      deltaSpark % Provided,
-      sparkSql % Provided),
+    libraryDependencies ++= Seq(deltaSpark % Provided, sparkSql % Provided),
     Test / parallelExecution := false,
     assembly / test := {},
     assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false))
