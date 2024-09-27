@@ -57,7 +57,7 @@ class QbeastTable private (
   /**
    * Update the snapshot of the table
    */
-  def update(): Unit = {
+  def updateSnapshot(): Unit = {
     val snapshot = deltaLog.update()
     qbeastSnapshotCache = Some(DeltaQbeastSnapshot(snapshot))
   }
