@@ -7,14 +7,8 @@ lazy val qbeastCore = (project in file("./core"))
   .settings(
     name := "qbeast-core",
     libraryDependencies ++= Seq(
-      sparkCore % Provided,
       sparkSql % Provided,
-      hadoopClient % Provided,
-      sparkml % Provided,
-      apacheCommons % Test,
-      amazonAws % Test,
-      hadoopCommons % Test,
-      hadoopAws % Test),
+      sparkml % Provided),
     Test / parallelExecution := false,
     assembly / test := {},
     assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false))
@@ -25,15 +19,8 @@ lazy val qbeastDelta = (project in file("./delta"))
   .settings(
     name := "qbeast-delta",
     libraryDependencies ++= Seq(
-      sparkCore % Provided,
-      hadoopClient % Provided,
-      sparkSql % Provided,
-      apacheCommons % Test,
-      amazonAws % Test,
-      deltaSpark,
-      hadoopCommons % Test,
-      hadoopAws % Test,
-      sparkml % Test),
+      deltaSpark % Provided,
+      sparkSql % Provided),
     Test / parallelExecution := false,
     assembly / test := {},
     assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false))
@@ -45,15 +32,8 @@ lazy val qbeastSpark = (project in file("."))
   .settings(
     name := "qbeast-spark",
     libraryDependencies ++= Seq(
-      sparkCore % Provided,
       sparkSql % Provided,
-      hadoopClient % Provided,
-      deltaSpark % Provided,
-      sparkml % Provided,
-      apacheCommons % Test,
-      amazonAws % Test,
-      hadoopCommons % Test,
-      hadoopAws % Test),
+      deltaSpark % Provided),
     Test / parallelExecution := false,
     assembly / test := {},
     assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false))

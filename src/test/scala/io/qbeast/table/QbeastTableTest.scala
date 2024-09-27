@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.utils
+package io.qbeast.table
 
-import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.internal.commands.ConvertToQbeastCommand
-import io.qbeast.table.QbeastTable
+import io.qbeast.spark.utils.SizeStats
+import io.qbeast.spark.utils.Tabulator
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.DataFrame

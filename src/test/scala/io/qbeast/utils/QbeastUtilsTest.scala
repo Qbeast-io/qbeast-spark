@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.utils
+package io.qbeast.utils
 
-import io.qbeast.utils.QbeastUtils
 import io.qbeast.QbeastIntegrationTestSpec
 import org.apache.spark.sql.AnalysisException
 
