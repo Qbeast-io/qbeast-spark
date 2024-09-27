@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.internal.commands
+package io.qbeast.internal.commands
 
+import io.qbeast.spark.sources.v2.QbeastTableImpl
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.plans.logical.IgnoreCachedData
 import org.apache.spark.sql.delta.catalog.DeltaTableV2

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.rules
+package io.qbeast.internal.rules
 
 import io.qbeast.spark.sources.catalog.QbeastCatalogUtils.isQbeastProvider
 import org.apache.spark.internal.Logging

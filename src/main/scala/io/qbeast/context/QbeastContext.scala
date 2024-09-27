@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.context
+package io.qbeast.context
 
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.keeper.LocalKeeper

@@ -15,7 +15,7 @@
  */
 package io.qbeast.spark.sources
 
-import io.qbeast.spark.context.QbeastContext
+import io.qbeast.context.QbeastContext
 import io.qbeast.spark.delta.DefaultFileIndex
 import io.qbeast.spark.index.EmptyFileIndex
 import io.qbeast.spark.table.IndexedTable

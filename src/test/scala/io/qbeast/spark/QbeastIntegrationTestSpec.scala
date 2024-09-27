@@ -16,13 +16,12 @@
 package io.qbeast.spark
 
 import com.github.mrpowers.spark.fast.tests.DatasetComparer
+import io.qbeast.context.{QbeastContext, QbeastContextImpl}
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.keeper.LocalKeeper
 import io.qbeast.core.model.IndexManager
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.QbeastSnapshot
-import io.qbeast.spark.context.QbeastContext
-import io.qbeast.spark.context.QbeastContextImpl
 import io.qbeast.spark.delta.DeltaMetadataManager
 import io.qbeast.spark.delta.DeltaRollupDataWriter
 import io.qbeast.spark.delta.DeltaStagingDataManagerFactory

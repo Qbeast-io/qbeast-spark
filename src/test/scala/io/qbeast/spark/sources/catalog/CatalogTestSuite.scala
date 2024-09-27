@@ -15,9 +15,9 @@
  */
 package io.qbeast.spark.sources.catalog
 
-import io.qbeast.spark.context.QbeastContext
 import io.qbeast.spark.table.IndexedTableFactory
 import io.qbeast.TestClasses.Student
+import io.qbeast.context.QbeastContext
 import org.apache.spark.sql.connector.catalog.Column
 import org.apache.spark.sql.connector.catalog.SparkCatalogV2Util
 import org.apache.spark.sql.connector.catalog.StagingTableCatalog

@@ -15,9 +15,9 @@
  */
 package io.qbeast.spark.sources.catalog
 
-import io.qbeast.spark.context.QbeastContext
-import io.qbeast.spark.internal.commands.AlterTableSetPropertiesQbeastCommand
-import io.qbeast.spark.internal.commands.AlterTableUnsetPropertiesQbeastCommand
+import io.qbeast.context.QbeastContext
+import io.qbeast.internal.commands.AlterTableSetPropertiesQbeastCommand
+import io.qbeast.internal.commands.AlterTableUnsetPropertiesQbeastCommand
 import io.qbeast.spark.sources.v2.QbeastStagedTableImpl
 import io.qbeast.spark.sources.v2.QbeastTableImpl
 import org.apache.hadoop.fs.Path
@@ -63,7 +63,7 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
    * Gets the delegated catalog of the session
    * @return
    */
-  private def getDelegatedCatalog(): T = {
+  private def getDelegatedCatalog: T = {
     val sessionCatalog = delegatedCatalog match {
       case null =>
         // In this case, any catalog has been delegated, so we need to search for the default
@@ -87,7 +87,7 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
   private def getSessionCatalog(properties: Map[String, String] = Map.empty): T = {
     properties.get("provider") match {
       case Some("delta") => deltaCatalog.asInstanceOf[T]
-      case _ => getDelegatedCatalog()
+      case _ => getDelegatedCatalog
     }
   }
 

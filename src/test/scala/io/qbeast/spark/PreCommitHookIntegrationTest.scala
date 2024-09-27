@@ -1,11 +1,11 @@
 package io.qbeast.spark
 
+import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.PreCommitHook
 import io.qbeast.core.model.PreCommitHook.PRE_COMMIT_HOOKS_PREFIX
 import io.qbeast.core.model.PreCommitHook.PreCommitHookOutput
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.QbeastFile
-import io.qbeast.spark.context.QbeastContext
 import org.apache.spark.sql.delta.actions.Action
 import org.apache.spark.sql.delta.actions.CommitInfo
 import org.apache.spark.sql.delta.util.FileNames

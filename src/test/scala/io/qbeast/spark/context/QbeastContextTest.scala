@@ -15,6 +15,7 @@
  */
 package io.qbeast.spark.context
 
+import io.qbeast.context.{QbeastContext, QbeastContextImpl}
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.keeper.LocalKeeper
 import io.qbeast.spark.QbeastIntegrationTestSpec

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.rules
+package io.qbeast.internal.rules
 
 import io.qbeast.spark.sources.v2.QbeastTableImpl
 import org.apache.spark.sql.catalyst.plans.logical.AppendData

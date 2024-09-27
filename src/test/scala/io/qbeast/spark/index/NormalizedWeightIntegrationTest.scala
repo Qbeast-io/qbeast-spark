@@ -16,9 +16,9 @@
 package io.qbeast.spark.index
 
 import io.qbeast.core.model.QTableID
-import io.qbeast.spark.context.QbeastContext
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
+import io.qbeast.context.QbeastContext
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 

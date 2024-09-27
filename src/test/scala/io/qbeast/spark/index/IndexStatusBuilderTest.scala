@@ -15,11 +15,11 @@
  */
 package io.qbeast.spark.index
 
+import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.CubeId
 import io.qbeast.core.model.CubeStatus
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.Weight
-import io.qbeast.spark.context.QbeastContext
 import io.qbeast.spark.QbeastIntegrationTestSpec
 
 class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {

@@ -17,11 +17,11 @@ package io.qbeast.spark.index
 
 import io.qbeast.core.model._
 import io.qbeast.core.model.BroadcastedTableChanges
-import io.qbeast.spark.context.QbeastContext
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
 import io.qbeast.TestClasses.Client4
+import io.qbeast.context.QbeastContext
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.types.LongType

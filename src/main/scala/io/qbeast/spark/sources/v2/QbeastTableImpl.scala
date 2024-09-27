@@ -15,8 +15,8 @@
  */
 package io.qbeast.spark.sources.v2
 
+import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.QTableID
-import io.qbeast.spark.context.QbeastContext
 import io.qbeast.spark.sources.QbeastBaseRelation
 import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.hadoop.fs.Path

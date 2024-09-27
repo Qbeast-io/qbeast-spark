@@ -15,9 +15,9 @@
  */
 package io.qbeast.spark.sources.catalog
 
+import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.QTableID
-import io.qbeast.spark.context.QbeastContext
-import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
+import io.qbeast.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.sources.v2.QbeastTableImpl
 import io.qbeast.spark.table.IndexedTableFactory

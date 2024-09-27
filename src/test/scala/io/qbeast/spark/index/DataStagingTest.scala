@@ -17,10 +17,10 @@ package io.qbeast.spark.index
 
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.StagingUtils
-import io.qbeast.spark.context.QbeastContext
-import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
+import io.qbeast.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.T2
+import io.qbeast.context.QbeastContext
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
 import org.scalatest.PrivateMethodTester

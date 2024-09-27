@@ -15,8 +15,7 @@
  */
 package io.qbeast.core.model
 
-import io.qbeast.spark.model.CubeState
-import io.qbeast.spark.model.CubeState.CubeStateValue
+import CubeState.CubeStateValue
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.SparkSession
 

@@ -15,14 +15,13 @@
  */
 package io.qbeast.spark.writer
 
-import io.qbeast.core.model.CubeId
+import io.qbeast.core.model.{CubeId, CubeState}
 import io.qbeast.core.model.IndexFile
 import io.qbeast.core.model.IndexFileBuilder
 import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
 import io.qbeast.core.model.TableChanges
 import io.qbeast.core.model.Weight
 import io.qbeast.spark.index.QbeastColumns
-import io.qbeast.spark.model.CubeState
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapred.JobConf
 import org.apache.hadoop.mapred.TaskAttemptContextImpl

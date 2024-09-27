@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.internal.commands
+package io.qbeast.internal.commands
 
 import io.qbeast.core.model.RevisionID
 import io.qbeast.spark.table.IndexedTable

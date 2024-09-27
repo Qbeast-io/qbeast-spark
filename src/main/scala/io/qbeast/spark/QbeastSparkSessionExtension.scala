@@ -16,9 +16,7 @@
 package io.qbeast.spark
 
 import io.delta.sql.DeltaSparkSessionExtension
-import io.qbeast.spark.rules.QbeastAnalysis
-import io.qbeast.spark.rules.SampleRule
-import io.qbeast.spark.rules.SaveAsTableRule
+import io.qbeast.internal.rules.{QbeastAnalysis, SampleRule, SaveAsTableRule}
 import org.apache.spark.sql.SparkSessionExtensions
 
 /**
