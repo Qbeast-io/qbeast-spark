@@ -54,6 +54,9 @@ class QbeastTable private (
     qbeastSnapshotCache.get
   }
 
+  /**
+   * Update the snapshot of the table
+   */
   def update(): Unit = {
     val snapshot = deltaLog.update()
     qbeastSnapshotCache = Some(DeltaQbeastSnapshot(snapshot))
@@ -69,10 +72,21 @@ class QbeastTable private (
     }
   }
 
+  /**
+   * Returns all available revisions in the table.
+   */
   def allRevisions(): Seq[Revision] = qbeastSnapshot.loadAllRevisions
 
+  /**
+   * Returns all available RevisionIDs in the table.
+   */
   def allRevisionIDs(): Seq[RevisionID] = allRevisions().map(_.revisionID)
 
+  /**
+   * Returns the revision with the given revisionID.
+   * @param revisionID
+   *   RevisionID
+   */
   def revision(revisionID: RevisionID): Revision = {
     checkRevisionAvailable(revisionID)
     qbeastSnapshot.loadRevision(revisionID)
@@ -82,6 +96,11 @@ class QbeastTable private (
 
   def latestRevisionID: RevisionID = latestRevision.revisionID
 
+  /**
+   * Returns the indexing columns of the given revision.
+   * @param revisionID
+   *   RevisionID
+   */
   def indexedColumns(revisionID: RevisionID): Seq[String] = {
     checkRevisionAvailable(revisionID)
     qbeastSnapshot
@@ -93,6 +112,11 @@ class QbeastTable private (
   def indexedColumns(): Seq[String] =
     latestRevision.columnTransformers.map(_.columnName)
 
+  /**
+   * Returns the desired cube size of the given revision.
+   * @param revisionID
+   *   RevisionID
+   */
   def cubeSize(revisionID: RevisionID): Int = {
     checkRevisionAvailable(revisionID)
     qbeastSnapshot.loadRevision(revisionID).desiredCubeSize
@@ -150,6 +174,8 @@ class QbeastTable private (
    *
    * @param files
    *   the index files to optimize
+   * @param options
+   *   Optimization options where user metadata and pre-commit hooks are specified.
    */
   def optimize(files: Seq[String], options: Map[String, String]): Unit =
     indexedTable.optimize(files, options)
@@ -171,6 +197,11 @@ class QbeastTable private (
     IndexMetrics(revision(revisionID), denormalizedBlock)
   }
 
+  /**
+   * Gather an overview of the index for the given RevisionID
+   * @return
+   *   IndexMetrics
+   */
   def getIndexMetrics(revisionID: RevisionID): IndexMetrics = {
     val indexFiles = qbeastSnapshot.loadIndexFiles(revisionID)
     getIndexMetrics(revisionID, indexFiles)
