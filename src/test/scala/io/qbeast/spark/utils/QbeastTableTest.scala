@@ -15,10 +15,10 @@
  */
 package io.qbeast.spark.utils
 
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.core.transform.LinearTransformation
-import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
-import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.QbeastTable
+import io.qbeast.internal.commands.ConvertToQbeastCommand
+import io.qbeast.table.QbeastTable
 import io.qbeast.TestClasses.Client3
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.DataFrame

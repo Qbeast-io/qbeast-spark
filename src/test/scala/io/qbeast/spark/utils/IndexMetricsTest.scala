@@ -15,8 +15,8 @@
  */
 package io.qbeast.spark.utils
 
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.core.model._
-import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.Dataset
 
 class IndexMetricsTest extends QbeastIntegrationTestSpec {

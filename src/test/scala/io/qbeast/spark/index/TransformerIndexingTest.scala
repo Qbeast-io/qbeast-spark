@@ -15,7 +15,7 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
 import org.apache.spark.sql.delta.skipping.MultiDimClusteringFunctions
 import org.apache.spark.sql.delta.DeltaLog
@@ -112,7 +112,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
       .load(tmpDir)
   }
 
-  "Qbeast spark" should "Index tables with string" in withSparkAndTmpDir((spark, tmpDir) => {
+  "Qbeast spark" should "Index table with string" in withSparkAndTmpDir((spark, tmpDir) => {
 
     import spark.implicits._
     val source = spark
@@ -142,7 +142,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
   })
 
   it should
-    "index tables with hashing configuration" in withSparkAndTmpDir((spark, tmpDir) => {
+    "index table with hashing configuration" in withSparkAndTmpDir((spark, tmpDir) => {
       import spark.implicits._
       val source = spark
         .range(100001)
@@ -169,7 +169,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
     })
 
-  it should "index tables with all String" in withSparkAndTmpDir((spark, tmpDir) => {
+  it should "index table with all String" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
     val source = spark
       .range(100001)
@@ -183,7 +183,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   })
 
-  it should "index tables with non-numeric string" in withSparkAndTmpDir((spark, tmpDir) => {
+  it should "index table with non-numeric string" in withSparkAndTmpDir((spark, tmpDir) => {
 
     import spark.implicits._
     val source = spark
@@ -199,7 +199,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   })
 
-  it should "index tables with all Double" in withSparkAndTmpDir((spark, tmpDir) => {
+  it should "index table with all Double" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
     val source = spark
       .range(100001)
@@ -214,7 +214,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   })
 
-  it should "index tables with all Int" in withSparkAndTmpDir((spark, tmpDir) => {
+  it should "index table with all Int" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
     val source = spark
       .range(100001)
@@ -229,7 +229,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   })
 
-  it should "index tables with BigDecimal" in withSparkAndTmpDir((spark, tmpDir) => {
+  it should "index table with BigDecimal" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
     val source = spark
       .range(100001)
@@ -244,7 +244,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   })
 
-  it should "index tables with all Float" in withSparkAndTmpDir((spark, tmpDir) => {
+  it should "index table with all Float" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
     val source = spark
       .range(100001)
@@ -259,7 +259,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   })
 
-  it should "index tables with all Long" in withSparkAndTmpDir((spark, tmpDir) => {
+  it should "index table with all Long" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
     val source = spark
       .range(100001)
@@ -274,7 +274,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   })
 
-  it should "index tables with all Timestamps" in withSparkAndTmpDir((spark, tmpDir) => {
+  it should "index table with all Timestamps" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
     val df =
       Seq(
@@ -292,7 +292,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   })
 
-  it should "index tables with all Dates" in withSparkAndTmpDir((spark, tmpDir) => {
+  it should "index table with all Dates" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
     val df =
       Seq("2017-01-01", "2017-01-02", "2017-01-03", "2017-01-04").toDF("date")
@@ -306,7 +306,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   })
 
-  it should "index tables with multiple rows of a unique Timestamp" in withSparkAndTmpDir(
+  it should "index table with multiple rows of a unique Timestamp" in withSparkAndTmpDir(
     (spark, tmpDir) => {
       import spark.implicits._
       val df =
@@ -329,7 +329,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
     })
 
-  it should "index tables with multiple rows of a unique Date" in withSparkAndTmpDir(
+  it should "index table with multiple rows of a unique Date" in withSparkAndTmpDir(
     (spark, tmpDir) => {
       import spark.implicits._
       val df =
@@ -348,7 +348,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
     })
 
-  it should "index tables with null values" in withSparkAndTmpDir((spark, tmpDir) => {
+  it should "index table with null values" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
     val source = spark
       .range(100001)
@@ -366,7 +366,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   })
 
-  it should "index tables with ALL null values" in withSparkAndTmpDir((spark, tmpDir) => {
+  it should "index table with ALL null values" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
     val source = spark
       .range(100001)
@@ -381,7 +381,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   })
 
-  it should "index tables with the same value in all rows" in withSparkAndTmpDir(
+  it should "index table with the same value in all rows" in withSparkAndTmpDir(
     (spark, tmpDir) => {
       import spark.implicits._
       val source = spark

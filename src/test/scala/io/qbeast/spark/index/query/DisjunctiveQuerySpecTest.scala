@@ -15,6 +15,7 @@
  */
 package io.qbeast.spark.index.query
 
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.core.model.IntegerDataType
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.Revision
@@ -22,7 +23,6 @@ import io.qbeast.core.model.Weight
 import io.qbeast.core.model.WeightRange
 import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.core.transform.Transformer
-import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.functions.expr
 
 class DisjunctiveQuerySpecTest extends QbeastIntegrationTestSpec with QueryTestSpec {

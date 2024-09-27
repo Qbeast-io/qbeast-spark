@@ -36,7 +36,7 @@ import org.apache.spark.sql.SparkSession
 /**
  * Command to convert a parquet or a delta table into a qbeast table. The command creates the an
  * empty revision for the metadata, the qbeast options provided should be those with which the
- * user want to index the table. Partitioned tables are not supported.
+ * user want to index the table. Partitioned table are not supported.
  * @param identifier
  *   STRING, table identifier consisting of "format.`tablePath`" e.g. parquet.`/tmp/test/`
  * @param columnsToIndex

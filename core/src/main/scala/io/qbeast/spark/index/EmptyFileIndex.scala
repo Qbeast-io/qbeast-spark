@@ -23,7 +23,7 @@ import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
 
 /**
- * Implementation of FileIndex to be used for empty tables.
+ * Implementation of FileIndex to be used for empty table.
  */
 object EmptyFileIndex extends FileIndex with Serializable {
 

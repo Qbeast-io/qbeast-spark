@@ -15,7 +15,7 @@
  */
 package io.qbeast.internal.commands
 
-import io.qbeast.spark.sources.v2.QbeastTableImpl
+import io.qbeast.sources.v2.QbeastTableImpl
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.plans.logical.IgnoreCachedData
 import org.apache.spark.sql.delta.catalog.DeltaTableV2

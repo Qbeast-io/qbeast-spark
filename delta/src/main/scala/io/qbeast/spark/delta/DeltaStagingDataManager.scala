@@ -20,7 +20,7 @@ import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.StagingDataManager
 import io.qbeast.core.model.StagingDataManagerFactory
 import io.qbeast.core.model.StagingResolution
-import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
+// import io.qbeast.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.internal.QbeastOptions
 import org.apache.hadoop.fs.Path
 import org.apache.spark.qbeast.config.STAGING_SIZE_IN_BYTES
@@ -36,7 +36,7 @@ import org.apache.spark.sql.SparkSession
 /**
  * Access point for staged data
  */
-private[spark] class DeltaStagingDataManager(tableID: QTableID)
+class DeltaStagingDataManager(tableID: QTableID)
     extends DeltaStagingUtils
     with StagingDataManager {
   private val spark = SparkSession.active
@@ -135,11 +135,11 @@ private[spark] class DeltaStagingDataManager(tableID: QTableID)
     writer.save(tableID.id)
 
     // Convert if the table is not yet qbeast
-    if (isInitial) {
-      val colsToIndex = indexStatus.revision.columnTransformers.map(_.columnName)
-      val dcs = indexStatus.revision.desiredCubeSize
-      ConvertToQbeastCommand(s"delta.`${tableID.id}`", colsToIndex, dcs).run(spark)
-    }
+//    if (isInitial) {
+//      val colsToIndex = indexStatus.revision.columnTransformers.map(_.columnName)
+//      val dcs = indexStatus.revision.desiredCubeSize
+//      ConvertToQbeastCommand(s"delta.`${tableID.id}`", colsToIndex, dcs).run(spark)
+//    }
   }
 
 }

@@ -15,10 +15,10 @@
  */
 package io.qbeast.spark.index
 
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.core.model._
 import io.qbeast.core.model.BroadcastedTableChanges
 import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
 import io.qbeast.TestClasses.Client4
 import io.qbeast.context.QbeastContext

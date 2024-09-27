@@ -85,11 +85,11 @@ object SchemaUtils {
       val existingFieldNames = existing.fieldNames.map(_.toLowerCase).toSet
       assert(
         existingFieldNames.size == existing.length,
-        "Delta tables don't allow field names that only differ by case")
+        "Delta table don't allow field names that only differ by case")
       val newFields = newtype.fieldNames.map(_.toLowerCase).toSet
       assert(
         newFields.size == newtype.length,
-        "Delta tables don't allow field names that only differ by case")
+        "Delta table don't allow field names that only differ by case")
       // scalastyle:on caselocale
 
       if (!allowMissingColumns &&

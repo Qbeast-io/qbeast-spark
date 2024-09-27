@@ -15,13 +15,13 @@
  */
 package io.qbeast.spark.utils
 
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.core.model.StagingUtils
-import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
+import io.qbeast.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.utils.QbeastExceptionMessages.incorrectIdentifierFormat
 import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
 import io.qbeast.spark.utils.QbeastExceptionMessages.unsupportedFormatExceptionMsg
-import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.QbeastTable
+import io.qbeast.table.QbeastTable
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.SparkSession
 import org.scalatest.PrivateMethodTester

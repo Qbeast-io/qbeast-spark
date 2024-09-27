@@ -16,8 +16,8 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.core.model.StagingUtils
-import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.QbeastTable
+import io.qbeast.table.QbeastTable
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.T2
 import org.apache.spark.sql.SparkSession
 

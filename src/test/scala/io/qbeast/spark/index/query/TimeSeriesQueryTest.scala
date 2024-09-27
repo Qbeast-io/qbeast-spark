@@ -15,7 +15,7 @@
  */
 package io.qbeast.spark.index.query
 
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
 import org.apache.spark.sql.functions.to_date
 import org.apache.spark.sql.functions.to_timestamp
 import org.apache.spark.sql.functions.unix_timestamp

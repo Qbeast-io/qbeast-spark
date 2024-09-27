@@ -15,7 +15,8 @@
  */
 package io.qbeast.spark.utils
 
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
+import io.qbeast.utils.QbeastUtils
 import org.apache.spark.sql.AnalysisException
 
 class QbeastUtilsTest extends QbeastIntegrationTestSpec {

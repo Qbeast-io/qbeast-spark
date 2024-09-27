@@ -1,5 +1,6 @@
 package io.qbeast.spark
 
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.PreCommitHook
 import io.qbeast.core.model.PreCommitHook.PRE_COMMIT_HOOKS_PREFIX

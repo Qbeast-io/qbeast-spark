@@ -15,13 +15,13 @@
  */
 package io.qbeast.spark.delta.keeper
 
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.DeltaMetadataManager
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.delta.MetadataWriterTest
 import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.actions.RemoveFile
 import org.apache.spark.sql.delta.DeltaOperations

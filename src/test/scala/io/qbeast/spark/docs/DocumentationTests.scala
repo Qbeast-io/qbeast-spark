@@ -15,7 +15,7 @@
  */
 package io.qbeast.spark.docs
 
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
 import org.apache.spark.sql.functions.input_file_name
 import org.apache.spark.SparkConf
 import org.scalatest.AppendedClues.convertToClueful
