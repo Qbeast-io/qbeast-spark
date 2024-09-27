@@ -32,7 +32,6 @@ import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
 
-
 case class ConvertToQbeastCommand(
     identifier: String,
     columnsToIndex: Seq[String],
