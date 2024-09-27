@@ -1,4 +1,4 @@
-package io.qbeast.spark
+package io.qbeast.spark.utils
 
 import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.PreCommitHook

@@ -58,11 +58,20 @@ package object config {
       .intConf
       .createWithDefault(3)
 
+  private[config] val tableFormat: ConfigEntry[String] =
+    ConfigBuilder("spark.qbeast.tableFormat")
+      .version("0.2.0")
+      .stringConf
+      .createWithDefault("delta")
+
   def DEFAULT_NUMBER_OF_RETRIES: Int = SparkSession.active.sparkContext.conf
     .get(defaultNumberOfRetries)
 
   def DEFAULT_CUBE_SIZE: Int = SparkSession.active.sparkContext.conf
     .get(defaultCubeSize)
+
+  def DEFAULT_TABLE_FORMAT: String = SparkSession.active.sparkContext.conf
+    .get(tableFormat)
 
   def CUBE_WEIGHTS_BUFFER_CAPACITY: Long = SparkSession.active.sparkContext.conf
     .get(cubeWeightsBufferCapacity)

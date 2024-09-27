@@ -33,7 +33,9 @@ lazy val qbeastSpark = (project in file("."))
     name := "qbeast-spark",
     libraryDependencies ++= Seq(
       sparkSql % Provided,
-      deltaSpark % Provided),
+      deltaSpark % Provided,
+      sparkml % Test,
+      hadoopAws % Test),
     Test / parallelExecution := false,
     assembly / test := {},
     assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false))

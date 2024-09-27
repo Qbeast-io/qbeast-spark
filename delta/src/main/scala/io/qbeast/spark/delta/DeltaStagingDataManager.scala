@@ -20,7 +20,6 @@ import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.StagingDataManager
 import io.qbeast.core.model.StagingDataManagerFactory
 import io.qbeast.core.model.StagingResolution
-// import io.qbeast.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.internal.QbeastOptions
 import org.apache.hadoop.fs.Path
 import org.apache.spark.qbeast.config.STAGING_SIZE_IN_BYTES
@@ -133,13 +132,6 @@ class DeltaStagingDataManager(tableID: QTableID)
         .option(DeltaOptions.USER_METADATA_OPTION, options.userMetadata.get)
     }
     writer.save(tableID.id)
-
-    // Convert if the table is not yet qbeast
-//    if (isInitial) {
-//      val colsToIndex = indexStatus.revision.columnTransformers.map(_.columnName)
-//      val dcs = indexStatus.revision.desiredCubeSize
-//      ConvertToQbeastCommand(s"delta.`${tableID.id}`", colsToIndex, dcs).run(spark)
-//    }
   }
 
 }

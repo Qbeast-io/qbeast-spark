@@ -18,6 +18,7 @@ package io.qbeast.table
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model._
 import io.qbeast.core.model.RevisionFactory
+import io.qbeast.internal.commands.ConvertToQbeastCommand
 import io.qbeast.sources.QbeastBaseRelation
 import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer
 import io.qbeast.spark.internal.QbeastOptions
@@ -32,6 +33,7 @@ import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SparkSession
 
 import java.lang.System.currentTimeMillis
 import java.util.ConcurrentModificationException
@@ -459,6 +461,12 @@ private[table] class IndexedTableImpl(
     stagingDataManager.updateWithStagedData(data) match {
       case r: StagingResolution if r.sendToStaging =>
         stagingDataManager.stageData(data, indexStatus, options, append)
+        if (snapshot.isInitial) {
+          val colsToIndex = indexStatus.revision.columnTransformers.map(_.columnName)
+          val dcs = indexStatus.revision.desiredCubeSize
+          ConvertToQbeastCommand(s"${options.tableFormat}.`${tableID.id}`", colsToIndex, dcs)
+            .run(SparkSession.active)
+        }
 
       case StagingResolution(dataToWrite, removeFiles, false) =>
         val schema = dataToWrite.schema

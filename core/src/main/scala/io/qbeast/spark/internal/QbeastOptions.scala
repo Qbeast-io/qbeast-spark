@@ -24,6 +24,7 @@ import io.qbeast.spark.index.ColumnsToIndex
 import io.qbeast.spark.internal.QbeastOptions.COLUMNS_TO_INDEX
 import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
+import org.apache.spark.qbeast.config.DEFAULT_TABLE_FORMAT
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
@@ -56,6 +57,7 @@ import scala.util.matching.Regex
 case class QbeastOptions(
     columnsToIndex: Seq[String],
     cubeSize: Int,
+    tableFormat: String,
     stats: Option[DataFrame],
     txnAppId: Option[String],
     txnVersion: Option[String],
@@ -104,6 +106,7 @@ case class QbeastOptions(
 object QbeastOptions {
   val COLUMNS_TO_INDEX: String = "columnsToIndex"
   val CUBE_SIZE: String = "cubeSize"
+  val TABLE_FORMAT: String = "tableFormat"
   val PATH: String = "path"
   val STATS: String = "columnStats"
   val TXN_APP_ID: String = "txnAppId"
@@ -141,6 +144,12 @@ object QbeastOptions {
       case None => DEFAULT_CUBE_SIZE
     }
   }
+
+  private def getTableFormat(options: Map[String, String]): String =
+    options.get(TABLE_FORMAT) match {
+      case Some(value) => value
+      case None => DEFAULT_TABLE_FORMAT
+    }
 
   /**
    * Get the column stats from the options This stats should be in a JSON formatted string with
@@ -219,6 +228,7 @@ object QbeastOptions {
   def apply(options: CaseInsensitiveMap[String]): QbeastOptions = {
     val columnsToIndex = getColumnsToIndex(options)
     val desiredCubeSize = getDesiredCubeSize(options)
+    val tableFormat = getTableFormat(options)
     val stats = getStats(options)
     val txnAppId = getTxnAppId(options)
     val txnVersion = getTxnVersion(options)
@@ -230,6 +240,7 @@ object QbeastOptions {
     QbeastOptions(
       columnsToIndex,
       desiredCubeSize,
+      tableFormat,
       stats,
       txnAppId,
       txnVersion,
@@ -258,14 +269,33 @@ object QbeastOptions {
     val caseInsensitiveMap = CaseInsensitiveMap(options)
     val userMetadata = getUserMetadata(caseInsensitiveMap)
     val hookInfo = getHookInfo(caseInsensitiveMap)
-    QbeastOptions(Seq.empty, 0, None, None, None, userMetadata, None, None, hookInfo)
+    QbeastOptions(
+      Seq.empty,
+      0,
+      DEFAULT_TABLE_FORMAT,
+      None,
+      None,
+      None,
+      userMetadata,
+      None,
+      None,
+      hookInfo)
   }
 
   /**
    * The empty options to be used as a placeholder.
    */
   lazy val empty: QbeastOptions =
-    QbeastOptions(Seq.empty, DEFAULT_CUBE_SIZE, None, None, None, None, None, None)
+    QbeastOptions(
+      Seq.empty,
+      DEFAULT_CUBE_SIZE,
+      DEFAULT_TABLE_FORMAT,
+      None,
+      None,
+      None,
+      None,
+      None,
+      None)
 
   def loadTableIDFromParameters(parameters: Map[String, String]): QTableID = {
     new QTableID(

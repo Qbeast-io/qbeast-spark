@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark
+package io.qbeast.spark.utils
 
 import io.qbeast.core.model.CubeStatus
 import io.qbeast.core.model.IndexFile
