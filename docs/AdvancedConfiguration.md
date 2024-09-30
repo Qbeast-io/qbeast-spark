@@ -169,6 +169,8 @@ val columnStats =
 
 ## Indexing via Quantile Based CDF
 
+> **WARNING**: This is an **Experimental Feature**, and the API might change in the near future.
+
 The default column transformation for Strings (`HashTransformation`) has limited range query supports since the lexicographic ordering of the String values are not preserved. On the numeric side, the default transformation is `LinearTransformation`, which is a simple linear transformation that preserves the ordering of the values.
 
 This can be addressed by introducing a custom Quantile Based sequence in the form of sorted `Seq`, and can lead to several improvements including:
