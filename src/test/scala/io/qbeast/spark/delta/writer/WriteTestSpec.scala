@@ -43,7 +43,7 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
       new SerializableConfiguration(job.getConfiguration))
   }
 
-  val tableID: QTableID = QTableID(tmpDir)
+  val tableId: QTableId = QTableId(tmpDir)
 
   val point: Point = Point(0.66, 0.28)
 
@@ -72,7 +72,7 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
 
   val rev: Revision = SparkRevisionFactory
     .createNewRevision(
-      QTableID("test"),
+      QTableId("test"),
       data.schema,
       QbeastOptions(Map("columnsToIndex" -> "id", "cubeSize" -> "10000")))
 

@@ -31,26 +31,26 @@ import org.apache.spark.sql.SparkSession
  *
  * @param sparkSession
  *   active SparkSession
- * @param tableID
+ * @param tableId
  *   QTableID
  * @param indexedTableFactory
  *   configuration of the indexed table
  */
 class QbeastTable private (
     sparkSession: SparkSession,
-    val tableID: QTableID,
+    val tableId: QTableId,
     indexedTableFactory: IndexedTableFactory)
     extends Serializable
     with StagingUtils {
 
-  private val deltaLog: DeltaLog = DeltaLog.forTable(sparkSession, tableID.id)
+  private val deltaLog: DeltaLog = DeltaLog.forTable(sparkSession, tableId.id)
 
   private def qbeastSnapshot: DeltaQbeastSnapshot = {
     val snapshot = deltaLog.update()
     DeltaQbeastSnapshot(snapshot)
   }
 
-  private def indexedTable: IndexedTable = indexedTableFactory.getIndexedTable(tableID)
+  private def indexedTable: IndexedTable = indexedTableFactory.getIndexedTable(tableId)
 
   private def checkRevisionAvailable(revisionID: RevisionID): Unit = {
     if (!qbeastSnapshot.existsRevision(revisionID)) {
@@ -229,7 +229,7 @@ class QbeastTable private (
 object QbeastTable {
 
   def forPath(spark: SparkSession, path: String): QbeastTable = {
-    new QbeastTable(spark, new QTableID(path), QbeastContext.indexedTableFactory)
+    new QbeastTable(spark, new QTableId(path), QbeastContext.indexedTableFactory)
   }
 
 }

@@ -21,7 +21,7 @@ import io.qbeast.core.model.CubeId
 import io.qbeast.core.model.CubeStatus
 import io.qbeast.core.model.DenormalizedBlock
 import io.qbeast.core.model.IndexStatus
-import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QTableId
 import io.qbeast.core.model.Revision
 import io.qbeast.core.model.Weight
 import io.qbeast.core.model.WeightRange
@@ -280,7 +280,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
 
       val indexStatus = IndexStatus(
         Revision.firstRevision(
-          new QTableID(tmpDir),
+          new QTableId(tmpDir),
           1,
           Vector(EmptyTransformer("t1"), EmptyTransformer("t2"))),
         cubesStatuses = SortedMap(

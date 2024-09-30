@@ -99,12 +99,12 @@ trait ConcurrentActor {
 
 case class ProtoTestContext(outDir: String, spark: SparkSession) {
 
-  lazy val tableID: QTableID = QTableID(outDir + "/q1")
+  lazy val tableId: QTableId = QTableId(outDir + "/q1")
 
-  lazy val schema: StructType = spark.read.format("qbeast").load(tableID.id).schema
+  lazy val schema: StructType = spark.read.format("qbeast").load(tableId.id).schema
 
   lazy val rev: Revision = DeltaQbeastSnapshot(
-    DeltaLog.forTable(spark, tableID.id).unsafeVolatileSnapshot).loadLatestRevision
+    DeltaLog.forTable(spark, tableId.id).unsafeVolatileSnapshot).loadLatestRevision
 
 }
 
@@ -131,7 +131,7 @@ class InitProcess(context: ProtoTestContext) extends ConcurrentActor {
       .write
       .format("qbeast")
       .option("columnsToIndex", "id")
-      .save(context.tableID.id)
+      .save(context.tableId.id)
 
   }
 
@@ -142,11 +142,11 @@ class WritingProcess(context: ProtoTestContext)(implicit keeper: Keeper) extends
   var succeeded: Option[Boolean] = None
 
   override def run(): Unit = {
-    val winfo = keeper.beginWrite(tableID, rev.revisionID)
+    val winfo = keeper.beginWrite(tableId, rev.revisionID)
 
-    val deltaLog = SparkDeltaMetadataManager.loadDeltaQbeastLog(tableID).deltaLog
+    val deltaLog = SparkDeltaMetadataManager.loadDeltaQbeastLog(tableId).deltaLog
     val mode = SaveMode.Append
-    val metadataWriter = MetadataWriterTest(tableID, mode, deltaLog, QbeastOptions.empty, schema)
+    val metadataWriter = MetadataWriterTest(tableId, mode, deltaLog, QbeastOptions.empty, schema)
 
     var tries = 2
     try {
@@ -166,7 +166,7 @@ class WritingProcess(context: ProtoTestContext)(implicit keeper: Keeper) extends
           } catch {
             case cme: ConcurrentModificationException
                 if SparkDeltaMetadataManager.hasConflicts(
-                  tableID,
+                  tableId,
                   rev.revisionID,
                   knownAnnounced,
                   Set.empty) || tries == 0 =>
@@ -192,12 +192,12 @@ class OptimizingProcessGood(context: ProtoTestContext)(implicit keeper: Keeper)
   import context._
 
   override def run(): Unit = {
-    val bo = keeper.beginOptimization(tableID, rev.revisionID)
+    val bo = keeper.beginOptimization(tableId, rev.revisionID)
 
-    val deltaLog = SparkDeltaMetadataManager.loadDeltaQbeastLog(tableID).deltaLog
+    val deltaLog = SparkDeltaMetadataManager.loadDeltaQbeastLog(tableId).deltaLog
     val deltaSnapshot = deltaLog.update()
     val mode = SaveMode.Append
-    val metadataWriter = MetadataWriterTest(tableID, mode, deltaLog, QbeastOptions.empty, schema)
+    val metadataWriter = MetadataWriterTest(tableId, mode, deltaLog, QbeastOptions.empty, schema)
     val cubesToOptimize = bo.cubesToOptimize.map(rev.createCubeId)
 
     try {
@@ -224,12 +224,12 @@ class OptimizingProcessBad(context: ProtoTestContext, args: Seq[String])(implici
   import context._
 
   override def run(): Unit = {
-    val bo = keeper.beginOptimization(tableID, rev.revisionID)
+    val bo = keeper.beginOptimization(tableId, rev.revisionID)
 
-    val deltaLog = SparkDeltaMetadataManager.loadDeltaQbeastLog(tableID).deltaLog
+    val deltaLog = SparkDeltaMetadataManager.loadDeltaQbeastLog(tableId).deltaLog
     val deltaSnapshot = deltaLog.update()
     val mode = SaveMode.Append
-    val metadataWriter = MetadataWriterTest(tableID, mode, deltaLog, QbeastOptions.empty, schema)
+    val metadataWriter = MetadataWriterTest(tableId, mode, deltaLog, QbeastOptions.empty, schema)
 
     val cubesToOptimize = args.toSet
 
@@ -257,7 +257,7 @@ class AnnouncerProcess(context: ProtoTestContext, args: Seq[String])(implicit ke
   import context._
 
   override def run(): Unit = {
-    keeper.announce(tableID, rev.revisionID, args)
+    keeper.announce(tableId, rev.revisionID, args)
   }
 
 }

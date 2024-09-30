@@ -1,7 +1,7 @@
 package io.qbeast.spark.delta.hook
 
 import io.qbeast.context.QbeastContext
-import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QTableId
 import io.qbeast.spark.delta.hook.PreCommitHook.PRE_COMMIT_HOOKS_PREFIX
 import io.qbeast.spark.delta.hook.PreCommitHook.PreCommitHookOutput
 import io.qbeast.spark.QbeastIntegrationTestSpec
@@ -63,7 +63,7 @@ class PreCommitHookIntegrationTest extends QbeastIntegrationTestSpec {
         .option("columnsToIndex", "id")
         .save(tmpDir)
 
-      val indexedTable = QbeastContext.indexedTableFactory.getIndexedTable(QTableID(tmpDir))
+      val indexedTable = QbeastContext.indexedTableFactory.getIndexedTable(QTableId(tmpDir))
       indexedTable.optimize(
         1L,
         Map(

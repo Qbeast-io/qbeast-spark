@@ -66,7 +66,7 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       schema: StructType,
       partitioning: Array[Transform],
       properties: util.Map[String, String]): Table = {
-    val tableId = QbeastOptions.loadTableIDFromParameters(properties.asScala.toMap)
+    val tableId = QbeastOptions.loadTableIdFromParameters(properties.asScala.toMap)
     logInfo(s"Getting Qbeast table ${tableId}")
     val indexedTable = tableFactory.getIndexedTable(tableId)
     if (indexedTable.exists) {
@@ -114,7 +114,7 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       parameters.contains("columnsToIndex") || mode == SaveMode.Append || COLUMN_SELECTOR_ENABLED,
       throw AnalysisExceptionFactory.create("'columnsToIndex' is not specified"))
 
-    val tableId = QbeastOptions.loadTableIDFromParameters(parameters)
+    val tableId = QbeastOptions.loadTableIdFromParameters(parameters)
     val table = tableFactory.getIndexedTable(tableId)
     logTrace(s"Begin: Create Qbeast relation ${tableId}")
     val result = mode match {
@@ -133,16 +133,16 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
   override def createRelation(
       sqlContext: SQLContext,
       parameters: Map[String, String]): BaseRelation = {
-    val tableID = QbeastOptions.loadTableIDFromParameters(parameters)
-    val table = tableFactory.getIndexedTable(tableID)
-    logTrace(s"Begin: Create Qbeast relation ${tableID}")
+    val tableId = QbeastOptions.loadTableIdFromParameters(parameters)
+    val table = tableFactory.getIndexedTable(tableId)
+    logTrace(s"Begin: Create Qbeast relation ${tableId}")
     if (table.exists) {
       val result = table.load()
-      logTrace(s"End: Create Qbeast relation ${tableID}")
+      logTrace(s"End: Create Qbeast relation ${tableId}")
       result
     } else {
       throw AnalysisExceptionFactory.create(
-        s"'$tableID' is not a Qbeast formatted data directory.")
+        s"'$tableId' is not a Qbeast formatted data directory.")
     }
   }
 

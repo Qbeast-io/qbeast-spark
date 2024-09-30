@@ -74,7 +74,7 @@ class DenormalizedBlockTest extends QbeastIntegrationTestSpec {
         Revision(
           1L,
           1L,
-          QTableID(""),
+          QTableId(""),
           1,
           Vector(t),
           Vector(t.makeTransformation((_: String) => _)))

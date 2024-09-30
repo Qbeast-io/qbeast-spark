@@ -53,10 +53,10 @@ object RollupDataWriter
   private type WriteRows = Iterator[InternalRow] => Iterator[(IndexFile, TaskStats)]
 
   override def write(
-      tableId: QTableID,
-      schema: StructType,
-      data: DataFrame,
-      tableChanges: TableChanges): IISeq[FileAction] = {
+                      tableId: QTableId,
+                      schema: StructType,
+                      data: DataFrame,
+                      tableChanges: TableChanges): IISeq[FileAction] = {
     val extendedData = extendDataWithCubeToRollup(data, tableChanges)
     val revision = tableChanges.updatedRevision
     val getCubeMaxWeight = { cubeId: CubeId =>
@@ -84,8 +84,8 @@ object RollupDataWriter
   }
 
   private def getFileStatsTracker(
-      tableId: QTableID,
-      data: DataFrame): Option[DeltaJobStatisticsTracker] = {
+                                   tableId: QTableId,
+                                   data: DataFrame): Option[DeltaJobStatisticsTracker] = {
     val spark = data.sparkSession
     val originalColumns = data.schema.map(_.name).filterNot(QbeastColumns.contains)
     val originalData = data.selectExpr(originalColumns: _*)
@@ -93,12 +93,12 @@ object RollupDataWriter
   }
 
   private def getWriteRows(
-      tableId: QTableID,
-      schema: StructType,
-      extendedData: DataFrame,
-      revision: Revision,
-      getCubeMaxWeight: GetCubeMaxWeight,
-      trackers: Seq[WriteJobStatsTracker]): WriteRows = {
+                            tableId: QTableId,
+                            schema: StructType,
+                            extendedData: DataFrame,
+                            revision: Revision,
+                            getCubeMaxWeight: GetCubeMaxWeight,
+                            trackers: Seq[WriteJobStatsTracker]): WriteRows = {
     val extract = getExtract(extendedData, revision)
     val revisionId = revision.revisionID
     val writerFactory =
@@ -135,11 +135,11 @@ object RollupDataWriter
   }
 
   private def getIndexFileWriterFactory(
-      tableId: QTableID,
-      schema: StructType,
-      extendedData: DataFrame,
-      revisionId: RevisionID,
-      trackers: Seq[WriteJobStatsTracker]): IndexFileWriterFactory = {
+                                         tableId: QTableId,
+                                         schema: StructType,
+                                         extendedData: DataFrame,
+                                         revisionId: RevisionID,
+                                         trackers: Seq[WriteJobStatsTracker]): IndexFileWriterFactory = {
     val session = extendedData.sparkSession
     val job = Job.getInstance(session.sparkContext.hadoopConfiguration)
     val outputFactory = new ParquetFileFormat().prepareWrite(session, job, Map.empty, schema)

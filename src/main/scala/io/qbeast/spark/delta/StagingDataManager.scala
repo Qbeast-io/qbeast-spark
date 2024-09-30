@@ -16,7 +16,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model.IndexStatus
-import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QTableId
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.internal.QbeastOptions
 import org.apache.hadoop.fs.Path
@@ -33,11 +33,11 @@ import org.apache.spark.sql.SparkSession
 /**
  * Access point for staged data
  */
-private[spark] class StagingDataManager(tableID: QTableID) extends DeltaStagingUtils {
+private[spark] class StagingDataManager(tableId: QTableId) extends DeltaStagingUtils {
   private val spark = SparkSession.active
 
   protected override val snapshot: Snapshot =
-    DeltaLog.forTable(spark, tableID.id).unsafeVolatileSnapshot
+    DeltaLog.forTable(spark, tableId.id).unsafeVolatileSnapshot
 
   private def stagingRemoveFiles: Seq[RemoveFile] = {
     import spark.implicits._
@@ -56,7 +56,7 @@ private[spark] class StagingDataManager(tableID: QTableID) extends DeltaStagingU
   private def mergeWithStagingData(data: DataFrame, stagedFiles: Seq[FileAction]): DataFrame = {
     if (stagedFiles.isEmpty) data
     else {
-      val paths = stagedFiles.map(r => new Path(tableID.id, r.path).toString)
+      val paths = stagedFiles.map(r => new Path(tableId.id, r.path).toString)
       val stagingData = spark.read.parquet(paths: _*)
       data.unionByName(stagingData, allowMissingColumns = true)
     }
@@ -125,13 +125,13 @@ private[spark] class StagingDataManager(tableID: QTableID) extends DeltaStagingU
       writer = writer
         .option(DeltaOptions.USER_METADATA_OPTION, options.userMetadata.get)
     }
-    writer.save(tableID.id)
+    writer.save(tableId.id)
 
     // Convert if the table is not yet qbeast
     if (isInitial) {
       val colsToIndex = indexStatus.revision.columnTransformers.map(_.columnName)
       val dcs = indexStatus.revision.desiredCubeSize
-      ConvertToQbeastCommand(s"delta.`${tableID.id}`", colsToIndex, dcs).run(spark)
+      ConvertToQbeastCommand(s"delta.`${tableId.id}`", colsToIndex, dcs).run(spark)
     }
   }
 

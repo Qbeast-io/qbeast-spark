@@ -42,7 +42,7 @@ trait StagingUtils {
    * superseded.
    */
   protected def stagingRevision(
-      tableID: QTableID,
+      tableId: QTableId,
       desiredCubeSize: Int,
       columnsToIndex: Seq[String]): Revision = {
     val emptyTransformers = columnsToIndex.map(s => EmptyTransformer(s)).toIndexedSeq
@@ -51,7 +51,7 @@ trait StagingUtils {
     Revision(
       stagingID,
       System.currentTimeMillis(),
-      tableID,
+      tableId,
       desiredCubeSize,
       emptyTransformers,
       emptyTransformations)

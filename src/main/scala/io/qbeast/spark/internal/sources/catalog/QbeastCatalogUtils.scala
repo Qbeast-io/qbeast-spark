@@ -16,7 +16,7 @@
 package io.qbeast.spark.internal.sources.catalog
 
 import io.qbeast.context.QbeastContext.metadataManager
-import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QTableId
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
 import io.qbeast.spark.internal.QbeastOptions
@@ -259,7 +259,7 @@ object QbeastCatalogUtils extends Logging {
       .getOrElse(existingSessionCatalog.defaultTablePath(id))
 
     // Process the parameters/options/configuration sent to the table
-    val indexedTable = tableFactory.getIndexedTable(QTableID(loc.toString))
+    val indexedTable = tableFactory.getIndexedTable(QTableId(loc.toString))
     val newProperties =
       if (!indexedTable.exists) indexedTable.selectColumnsToIndex(properties, dataFrame)
       else properties
@@ -318,7 +318,7 @@ object QbeastCatalogUtils extends Logging {
 
     // Update the existing session catalog with the Qbeast table information
     updateCatalog(
-      QTableID(loc.toString),
+      QTableId(loc.toString),
       tableCreationMode,
       table,
       isPathTable,
@@ -326,7 +326,7 @@ object QbeastCatalogUtils extends Logging {
       existingSessionCatalog)
   }
 
-  private def checkLogCreation(tableID: QTableID): Unit = {
+  private def checkLogCreation(tableID: QTableId): Unit = {
     // If the Log is not created
     // We make sure we create the table physically
     // So new data can be inserted
@@ -344,12 +344,12 @@ object QbeastCatalogUtils extends Logging {
    * @param existingSessionCatalog
    */
   private def updateCatalog(
-      tableID: QTableID,
-      operation: CreationMode,
-      table: CatalogTable,
-      isPathTable: Boolean,
-      existingTableOpt: Option[CatalogTable],
-      existingSessionCatalog: SessionCatalog): Unit = {
+                             tableID: QTableId,
+                             operation: CreationMode,
+                             table: CatalogTable,
+                             isPathTable: Boolean,
+                             existingTableOpt: Option[CatalogTable],
+                             existingSessionCatalog: SessionCatalog): Unit = {
 
     operation match {
       case _ if isPathTable => // do nothing

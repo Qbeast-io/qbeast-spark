@@ -37,13 +37,15 @@ import org.apache.spark.sql.SparkSession
 object QbeastBaseRelation {
 
   /**
-   * Returns a HadoopFsRelation that contains all of the data present in the table. This relation
+   * Returns a HadoopFsRelation that contains all the data present in the table. This relation
    * will be continually updated as files are added or removed from the table. However, new
    * HadoopFsRelation must be requested in order to see changes to the schema.
-   * @param tableID
-   *   the identifier of the table
    * @param sqlContext
    *   the SQLContext
+   * @param table
+   *   the table
+   * @param options
+   *   the options
    * @return
    *   the HadoopFsRelation
    */
@@ -53,9 +55,9 @@ object QbeastBaseRelation {
       options: Map[String, String]): BaseRelation = {
 
     val spark = SparkSession.active
-    val tableID = table.tableID
-    val snapshot = QbeastContext.metadataManager.loadSnapshot(tableID)
-    val schema = QbeastContext.metadataManager.loadCurrentSchema(tableID)
+    val tableId = table.tableId
+    val snapshot = QbeastContext.metadataManager.loadSnapshot(tableId)
+    val schema = QbeastContext.metadataManager.loadCurrentSchema(tableId)
     if (snapshot.isInitial) {
       // If the Table is initial, read empty relation
       // This could happen if we CREATE/REPLACE TABLE without inserting data
@@ -73,7 +75,7 @@ object QbeastBaseRelation {
       }
     } else {
       // If the table contains data, initialize it
-      val path = new Path(tableID.id)
+      val path = new Path(tableId.id)
       val fileIndex = DefaultFileIndex(spark, path)
       val bucketSpec: Option[BucketSpec] = None
       val file = new ParquetFileFormat()
@@ -97,7 +99,7 @@ object QbeastBaseRelation {
 
   /**
    * Function that can be called from a QbeastBaseRelation object to create a new
-   * QbeastBaseRelation with a new tableID.
+   * QbeastBaseRelation with a new IndexedTable.
    * @param indexedTable
    *   the indexed table
    * @return

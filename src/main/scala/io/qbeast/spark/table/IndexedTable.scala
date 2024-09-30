@@ -64,7 +64,9 @@ trait IndexedTable {
    *   - AutoIndexing is enabled
    *   - Data is available
    * @param parameters
+   *   the parameters
    * @param data
+   *   the data
    * @return
    */
   def selectColumnsToIndex(
@@ -77,7 +79,7 @@ trait IndexedTable {
    * @return
    *   the table id
    */
-  def tableID: QTableID
+  def tableId: QTableId
 
   /**
    * Merge new and index current properties
@@ -165,7 +167,7 @@ trait IndexedTableFactory {
    * @return
    *   the table
    */
-  def getIndexedTable(tableId: QTableID): IndexedTable
+  def getIndexedTable(tableId: QTableId): IndexedTable
 }
 
 /**
@@ -190,9 +192,9 @@ final class IndexedTableFactoryImpl(
     private val columnSelector: ColumnsToIndexSelector[DataFrame])
     extends IndexedTableFactory {
 
-  override def getIndexedTable(tableID: QTableID): IndexedTable =
+  override def getIndexedTable(tableId: QTableId): IndexedTable =
     new IndexedTableImpl(
-      tableID,
+      tableId,
       keeper,
       indexManager,
       metadataManager,
@@ -205,7 +207,7 @@ final class IndexedTableFactoryImpl(
 /**
  * Implementation of IndexedTable.
  *
- * @param tableID
+ * @param tableId
  *   the table identifier
  * @param keeper
  *   the keeper
@@ -221,7 +223,7 @@ final class IndexedTableFactoryImpl(
  *   the auto indexer
  */
 private[table] class IndexedTableImpl(
-    val tableID: QTableID,
+    val tableId: QTableId,
     private val keeper: Keeper,
     private val indexManager: IndexManager[DataFrame],
     private val metadataManager: MetadataManager[StructType, FileAction, QbeastOptions],
@@ -272,7 +274,7 @@ private[table] class IndexedTableImpl(
       finalProperties
     } else {
       throw AnalysisExceptionFactory.create(
-        s"Table ${tableID.id} exists but does not contain Qbeast metadata. " +
+        s"Table ${tableId.id} exists but does not contain Qbeast metadata. " +
           "Please use ConvertToQbeastCommand to convert the table to Qbeast.")
     }
   }
@@ -340,25 +342,25 @@ private[table] class IndexedTableImpl(
       data: DataFrame,
       parameters: Map[String, String],
       append: Boolean): BaseRelation = {
-    logTrace(s"Begin: save table $tableID")
+    logTrace(s"Begin: save table $tableId")
     val (indexStatus, options) =
       if (exists && append) {
         // If the table exists and we are appending new data
         // 1. Load existing IndexStatus
         val options = QbeastOptions(verifyAndMergeProperties(parameters))
-        logDebug(s"Appending data to table $tableID with revision=${latestRevision.revisionID}")
+        logDebug(s"Appending data to table $tableId with revision=${latestRevision.revisionID}")
         if (isStaging(latestRevision)) { // If the existing Revision is Staging
-          val revision = revisionFactory.createNewRevision(tableID, data.schema, options)
+          val revision = revisionFactory.createNewRevision(tableId, data.schema, options)
           (IndexStatus(revision), options)
         } else {
           if (isNewRevision(options)) {
             // If the new parameters generate a new revision, we need to create another one
             val newPotentialRevision = revisionFactory
-              .createNewRevision(tableID, data.schema, options)
+              .createNewRevision(tableId, data.schema, options)
             val newRevisionCubeSize = newPotentialRevision.desiredCubeSize
             // Merge new Revision Transformations with old Revision Transformations
             logDebug(
-              s"Merging transformations for table $tableID with cubeSize=$newRevisionCubeSize")
+              s"Merging transformations for table $tableId with cubeSize=$newRevisionCubeSize")
             val newRevisionTransformations =
               latestRevision.transformations.zip(newPotentialRevision.transformations).map {
                 case (oldTransformation, newTransformation)
@@ -374,7 +376,7 @@ private[table] class IndexedTableImpl(
               desiredCubeSizeChange = Some(newRevisionCubeSize),
               transformationsChanges = newRevisionTransformations)
             logDebug(
-              s"Creating new revision changes for table $tableID with revisionChanges=$revisionChanges)")
+              s"Creating new revision changes for table $tableId with revisionChanges=$revisionChanges)")
 
             // Output the New Revision into the IndexStatus
             (IndexStatus(revisionChanges.createNewRevision), options)
@@ -382,7 +384,7 @@ private[table] class IndexedTableImpl(
             // If the new parameters does not create a different revision,
             // load the latest IndexStatus
             logDebug(
-              s"Loading latest revision for table $tableID with revision=${latestRevision.revisionID}")
+              s"Loading latest revision for table $tableId with revision=${latestRevision.revisionID}")
             (snapshot.loadIndexStatus(latestRevision.revisionID), options)
           }
         }
@@ -390,11 +392,11 @@ private[table] class IndexedTableImpl(
         // IF autoIndexingEnabled, choose columns to index
         val updatedParameters = selectColumnsToIndex(parameters, Some(data))
         val options = QbeastOptions(updatedParameters)
-        val revision = revisionFactory.createNewRevision(tableID, data.schema, options)
+        val revision = revisionFactory.createNewRevision(tableId, data.schema, options)
         (IndexStatus(revision), options)
       }
     val result = write(data, indexStatus, options, append)
-    logTrace(s"End: Save table $tableID")
+    logTrace(s"End: Save table $tableId")
     result
   }
 
@@ -405,7 +407,7 @@ private[table] class IndexedTableImpl(
 
   private def snapshot = {
     if (snapshotCache.isEmpty) {
-      snapshotCache = Some(metadataManager.loadSnapshot(tableID))
+      snapshotCache = Some(metadataManager.loadSnapshot(tableId))
     }
     snapshotCache.get
   }
@@ -428,10 +430,10 @@ private[table] class IndexedTableImpl(
       indexStatus: IndexStatus,
       options: QbeastOptions,
       append: Boolean): BaseRelation = {
-    logTrace(s"Begin: Writing data to table $tableID")
+    logTrace(s"Begin: Writing data to table $tableId")
     val revision = indexStatus.revision
-    logDebug(s"Writing data to table $tableID with revision ${revision.revisionID}")
-    keeper.withWrite(tableID, revision.revisionID) { write =>
+    logDebug(s"Writing data to table $tableId with revision ${revision.revisionID}")
+    keeper.withWrite(tableId, revision.revisionID) { write =>
       var tries = DEFAULT_NUMBER_OF_RETRIES
       while (tries > 0) {
         val announcedSet = write.announcedCubes.map(indexStatus.revision.createCubeId)
@@ -444,7 +446,7 @@ private[table] class IndexedTableImpl(
         } catch {
           case cme: ConcurrentModificationException
               if metadataManager.hasConflicts(
-                tableID,
+                tableId,
                 revisionID,
                 replicatedSet,
                 announcedSet) || tries == 0 =>
@@ -459,7 +461,7 @@ private[table] class IndexedTableImpl(
     }
     clearCaches()
     val result = createQbeastBaseRelation()
-    logTrace(s"End: Done writing data to table $tableID")
+    logTrace(s"End: Done writing data to table $tableId")
     result
   }
 
@@ -468,27 +470,27 @@ private[table] class IndexedTableImpl(
       indexStatus: IndexStatus,
       options: QbeastOptions,
       append: Boolean): Unit = {
-    logTrace(s"Begin: Writing data to table $tableID")
-    val stagingDataManager: StagingDataManager = new StagingDataManager(tableID)
+    logTrace(s"Begin: Writing data to table $tableId")
+    val stagingDataManager: StagingDataManager = new StagingDataManager(tableId)
     stagingDataManager.updateWithStagedData(data) match {
       case r: StagingResolution if r.sendToStaging =>
         stagingDataManager.stageData(data, indexStatus, options, append)
 
       case StagingResolution(dataToWrite, removeFiles, false) =>
         val schema = dataToWrite.schema
-        metadataManager.updateWithTransaction(tableID, schema, options, append) {
+        metadataManager.updateWithTransaction(tableId, schema, options, append) {
           val (qbeastData, tableChanges) = indexManager.index(dataToWrite, indexStatus)
-          val fileActions = dataWriter.write(tableID, schema, qbeastData, tableChanges)
+          val fileActions = dataWriter.write(tableId, schema, qbeastData, tableChanges)
           (tableChanges, fileActions ++ removeFiles)
         }
     }
-    logTrace(s"End: Writing data to table $tableID")
+    logTrace(s"End: Writing data to table $tableId")
   }
 
   override def analyze(revisionID: RevisionID): Seq[String] = {
     val indexStatus = snapshot.loadIndexStatus(revisionID)
     val cubesToAnnounce = indexManager.analyze(indexStatus).map(_.string)
-    keeper.announce(tableID, revisionID, cubesToAnnounce)
+    keeper.announce(tableId, revisionID, cubesToAnnounce)
     cubesToAnnounce
 
   }
@@ -518,7 +520,7 @@ private[table] class IndexedTableImpl(
 
   override def optimize(files: Seq[String], options: Map[String, String]): Unit = {
     val paths = files.toSet
-    val schema = metadataManager.loadCurrentSchema(tableID)
+    val schema = metadataManager.loadCurrentSchema(tableId)
     snapshot.loadAllRevisions.foreach { revision =>
       val indexFiles = snapshot
         .loadIndexFiles(revision.revisionID)
@@ -526,7 +528,7 @@ private[table] class IndexedTableImpl(
       if (!indexFiles.isEmpty) {
         val indexStatus = snapshot.loadIndexStatus(revision.revisionID)
         metadataManager.updateWithTransaction(
-          tableID,
+          tableId,
           schema,
           optimizationOptions(options),
           append = true) {
@@ -540,7 +542,7 @@ private[table] class IndexedTableImpl(
           val (dataExtended, tableChanges) =
             DoublePassOTreeDataAnalyzer.analyzeOptimize(data, indexStatus)
 
-          val newFiles = dataWriter.write(tableID, schema, dataExtended, tableChanges)
+          val newFiles = dataWriter.write(tableId, schema, dataExtended, tableChanges)
           dataExtended.unpersist()
           (tableChanges, newFiles ++ removeFiles)
         }

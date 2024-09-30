@@ -15,7 +15,7 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QTableId
 import io.qbeast.core.model.Revision
 import io.qbeast.core.model.RevisionFactory
 import io.qbeast.core.model.RevisionID
@@ -30,16 +30,16 @@ import org.apache.spark.sql.types.StructType
 object SparkRevisionFactory extends RevisionFactory[StructType, QbeastOptions] {
 
   override def createNewRevision(
-      qtableID: QTableID,
-      schema: StructType,
-      options: QbeastOptions): Revision = {
+                                  tableId: QTableId,
+                                  schema: StructType,
+                                  options: QbeastOptions): Revision = {
 
     val desiredCubeSize = options.cubeSize
     val columnsToIndex = options.columnsToIndexParsed
     val transformers = columnsToIndex.map(_.toTransformer(schema)).toVector
 
     options.stats match {
-      case None => Revision.firstRevision(qtableID, desiredCubeSize, transformers)
+      case None => Revision.firstRevision(tableId, desiredCubeSize, transformers)
       case Some(stats) =>
         val columnStats = stats.first()
         var shouldCreateNewSpace = true
@@ -62,7 +62,7 @@ object SparkRevisionFactory extends RevisionFactory[StructType, QbeastOptions] {
         }
 
         val firstRevision =
-          Revision.firstRevision(qtableID, desiredCubeSize, transformers, transformations)
+          Revision.firstRevision(tableId, desiredCubeSize, transformers, transformations)
 
         // When all indexing columns have been provided with a boundary, update the RevisionID
         // to 1 to avoid using the StagingRevisionID(0). It is possible for this RevisionID to
@@ -74,11 +74,11 @@ object SparkRevisionFactory extends RevisionFactory[StructType, QbeastOptions] {
   }
 
   override def createNextRevision(
-      qtableID: QTableID,
-      schema: StructType,
-      options: QbeastOptions,
-      oldRevisionID: RevisionID): Revision = {
-    val revision = createNewRevision(qtableID, schema, options)
+                                   tableId: QTableId,
+                                   schema: StructType,
+                                   options: QbeastOptions,
+                                   oldRevisionID: RevisionID): Revision = {
+    val revision = createNewRevision(tableId, schema, options)
     revision.copy(revisionID = oldRevisionID + 1)
   }
 

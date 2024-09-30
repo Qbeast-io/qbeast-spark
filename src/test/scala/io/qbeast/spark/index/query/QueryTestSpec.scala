@@ -16,7 +16,7 @@
 package io.qbeast.spark.index.query
 
 import io.qbeast.core.model.IntegerDataType
-import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QTableId
 import io.qbeast.core.model.QuerySpaceFromTo
 import io.qbeast.core.model.Revision
 import io.qbeast.core.model.WeightRange
@@ -65,7 +65,7 @@ trait QueryTestSpec extends AnyFlatSpec with Matchers with PrivateMethodTester {
     Revision(
       1,
       System.currentTimeMillis(),
-      QTableID("test"),
+      QTableId("test"),
       100,
       columnTransformers,
       transformations)

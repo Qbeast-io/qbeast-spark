@@ -25,7 +25,7 @@ class RevisionTest extends AnyFlatSpec with Matchers {
     val revision = Revision(
       1L,
       1L,
-      QTableID(""),
+      QTableId(""),
       1,
       Vector(LinearTransformer("col_1", IntegerDataType)),
       Vector.empty)

@@ -25,10 +25,10 @@ import io.qbeast.IISeq
 
 import scala.collection.immutable.SortedMap
 
-object QTableID {
+object QTableId {
 
   @JsonCreator
-  def apply(id: String): QTableID = new QTableID(id)
+  def apply(id: String): QTableId = new QTableId(id)
 
 }
 
@@ -37,17 +37,17 @@ object QTableID {
  * @param _id
  *   the identifier in string form
  */
-final class QTableID(_id: String) extends Serializable {
+final class QTableId(_id: String) extends Serializable {
 
   def id: String = _id
 
   @JsonValue
   override def toString: String = _id
 
-  def canEqual(other: Any): Boolean = other.isInstanceOf[QTableID]
+  def canEqual(other: Any): Boolean = other.isInstanceOf[QTableId]
 
   override def equals(other: Any): Boolean = other match {
-    case that: QTableID =>
+    case that: QTableId =>
       toString == that.toString
     case _ => false
   }
@@ -62,7 +62,7 @@ object Revision {
 
   /**
    * Create a new first revision for a table
-   * @param tableID
+   * @param tableId
    *   the table identifier
    * @param desiredCubeSize
    *   the desired cube size
@@ -72,21 +72,21 @@ object Revision {
    *   the new Revision, without any data insights
    */
   def firstRevision(
-      tableID: QTableID,
+      tableId: QTableId,
       desiredCubeSize: Int,
       columnTransformers: IISeq[Transformer]): Revision = {
     Revision(
       0,
       System.currentTimeMillis(),
-      tableID,
+      tableId,
       desiredCubeSize,
       columnTransformers,
       Vector.empty)
   }
 
   /**
-   * Create a new first revision for a table with pre-loaded transformations
-   * @param tableID
+   * Create a new first revision for a table with preloaded transformations
+   * @param tableId
    *   the table identifier
    * @param desiredCubeSize
    *   the desired cube size
@@ -99,14 +99,14 @@ object Revision {
    */
 
   def firstRevision(
-      tableID: QTableID,
+      tableId: QTableId,
       desiredCubeSize: Int,
       columnTransformers: IISeq[Transformer],
       columnTransformations: IISeq[Transformation]): Revision = {
     Revision(
       0,
       System.currentTimeMillis(),
-      tableID,
+      tableId,
       desiredCubeSize,
       columnTransformers,
       columnTransformations)
@@ -120,7 +120,7 @@ object Revision {
  *   the identifier of the revision
  * @param timestamp
  *   the timestamp
- * @param tableID
+ * @param tableId
  *   the table identifier
  * @param desiredCubeSize
  *   the desired cube size
@@ -132,7 +132,7 @@ object Revision {
 final case class Revision(
     revisionID: RevisionID,
     timestamp: Long,
-    tableID: QTableID,
+    tableId: QTableId,
     desiredCubeSize: Int,
     @JsonSerialize(
       as = classOf[IISeq[Transformer]],
@@ -229,11 +229,11 @@ case class RevisionChange(
    * @return
    */
   def createNewRevision: Revision = supersededRevision match {
-    case Revision(revisionID, _, tableID, desiredCubeSize, columnTransformers, transformations) =>
+    case Revision(revisionID, _, tableId, desiredCubeSize, columnTransformers, transformations) =>
       Revision(
         revisionID + 1,
         timestamp,
-        tableID,
+        tableId,
         desiredCubeSizeChange.getOrElse(desiredCubeSize),
         mergeChanges(columnTransformers, columnTransformersChanges),
         mergeChanges(transformations, transformationsChanges))

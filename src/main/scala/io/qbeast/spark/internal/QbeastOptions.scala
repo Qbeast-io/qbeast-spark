@@ -16,7 +16,7 @@
 package io.qbeast.spark.internal
 
 import io.qbeast.core.model.ColumnToIndex
-import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QTableId
 import io.qbeast.spark.delta.hook.HookInfo
 import io.qbeast.spark.delta.hook.PreCommitHook.getHookArgName
 import io.qbeast.spark.delta.hook.PreCommitHook.PRE_COMMIT_HOOKS_PREFIX
@@ -270,8 +270,8 @@ object QbeastOptions {
   lazy val empty: QbeastOptions =
     QbeastOptions(Seq.empty, DEFAULT_CUBE_SIZE, None, None, None, None, None, None)
 
-  def loadTableIDFromParameters(parameters: Map[String, String]): QTableID = {
-    new QTableID(
+  def loadTableIdFromParameters(parameters: Map[String, String]): QTableId = {
+    new QTableId(
       parameters.getOrElse(
         PATH, {
           throw AnalysisExceptionFactory.create("'path' is not specified")

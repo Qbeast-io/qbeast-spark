@@ -16,7 +16,7 @@
 package org.apache.spark.sql.delta
 
 import io.qbeast.context.QbeastContext
-import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QTableId
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.logical.LocalRelation
@@ -83,13 +83,13 @@ trait DeltaStatsCollectionUtils {
   protected def getDeltaOptionalTrackers(
       data: DataFrame,
       sparkSession: SparkSession,
-      tableID: QTableID): Option[DeltaJobStatisticsTracker] = {
+      tableId: QTableId): Option[DeltaJobStatisticsTracker] = {
 
     if (QbeastContext.config.get(DeltaSQLConf.DELTA_COLLECT_STATS)) {
       val outputStatsAtrributes = data.queryExecution.analyzed.output
       val outputSchema = data.schema
 
-      val deltaLog = DeltaLog.forTable(sparkSession, tableID.id)
+      val deltaLog = DeltaLog.forTable(sparkSession, tableId.id)
       val deltaSnapshot = deltaLog.update()
       val deltaMetadata = deltaSnapshot.metadata
       val outputPath = deltaLog.dataPath

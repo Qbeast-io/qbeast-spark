@@ -51,7 +51,7 @@ trait RevisionFactory[DataSchema, QbeastOptions] {
   /**
    * Create a new revision for a table with given parameters
    *
-   * @param qtableID
+   * @param tableId
    *   the table identifier
    * @param schema
    *   the schema
@@ -59,11 +59,11 @@ trait RevisionFactory[DataSchema, QbeastOptions] {
    *   the options
    * @return
    */
-  def createNewRevision(qtableID: QTableID, schema: DataSchema, options: QbeastOptions): Revision
+  def createNewRevision(tableId: QTableId, schema: DataSchema, options: QbeastOptions): Revision
 
   /**
    * Create a new revision with given parameters from an old revision
-   * @param qtableID
+   * @param tableId
    *   the table identifier
    * @param schema
    *   the schema
@@ -74,7 +74,7 @@ trait RevisionFactory[DataSchema, QbeastOptions] {
    * @return
    */
   def createNextRevision(
-      qtableID: QTableID,
+      tableId: QTableId,
       schema: DataSchema,
       options: QbeastOptions,
       oldRevision: RevisionID): Revision

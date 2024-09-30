@@ -15,7 +15,7 @@
  */
 package io.qbeast.core.keeper
 
-import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QTableId
 import io.qbeast.SerializedCubeID
 
 import java.util.ServiceLoader
@@ -28,19 +28,19 @@ trait Keeper {
   /**
    * Begins a write for given index domain revision.
    *
-   * @param tableID
+   * @param tableId
    *   the table identifier
    * @param revision
    *   the domain revision
    * @return
    *   the write operation
    */
-  def beginWrite(tableID: QTableID, revision: Long): Write
+  def beginWrite(tableId: QTableId, revision: Long): Write
 
   /**
    * Runs an action as part of write operation for the specified index revision.
    *
-   * @param tableID
+   * @param tableId
    *   the table identifier
    * @param revision
    *   the index domain revision
@@ -49,8 +49,8 @@ trait Keeper {
    * @return
    *   the result
    */
-  def withWrite[T](tableID: QTableID, revision: Long)(action: Write => T): T = {
-    val write = beginWrite(tableID, revision)
+  def withWrite[T](tableId: QTableId, revision: Long)(action: Write => T): T = {
+    val write = beginWrite(tableId, revision)
     try {
       action(write)
     } finally {
@@ -60,18 +60,18 @@ trait Keeper {
 
   /**
    * Announces cubes for given index domain revision
-   * @param tableID
+   * @param tableId
    *   the table identifier
    * @param revision
    *   the domain revision
    * @param cubes
    *   the announced cube identifiers
    */
-  def announce(tableID: QTableID, revision: Long, cubes: Seq[SerializedCubeID]): Unit
+  def announce(tableId: QTableId, revision: Long, cubes: Seq[SerializedCubeID]): Unit
 
   /**
    * Begins an optimization for given index domain revision.
-   * @param tableID
+   * @param tableId
    *   the table identifier
    * @param revision
    *   the domain revision
@@ -81,7 +81,7 @@ trait Keeper {
    *   the optimization operation
    */
   def beginOptimization(
-      tableID: QTableID,
+      tableId: QTableId,
       revision: Long,
       cubeLimit: Integer = Integer.MAX_VALUE): Optimization
 

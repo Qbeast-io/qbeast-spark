@@ -18,7 +18,7 @@ package io.qbeast.spark.index
 import io.qbeast.core.model.CubeDomainsBuilder
 import io.qbeast.core.model.CubeStatus
 import io.qbeast.core.model.IndexStatus
-import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QTableId
 import io.qbeast.core.model.Weight
 import io.qbeast.spark.delta
 import io.qbeast.spark.internal.QbeastOptions
@@ -52,7 +52,7 @@ class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
           val indexStatus = IndexStatus(
             SparkRevisionFactory
               .createNewRevision(
-                QTableID("test"),
+                QTableId("test"),
                 df.schema,
                 QbeastOptions(
                   Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> "10000"))))

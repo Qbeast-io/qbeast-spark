@@ -17,7 +17,7 @@ package io.qbeast.spark.delta
 
 import io.qbeast.core.model.CubeStatus
 import io.qbeast.core.model.IndexFile
-import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QTableId
 import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
@@ -85,12 +85,12 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
         val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
         val columnTransformers = SparkRevisionFactory
-          .createNewRevision(QTableID(tmpDir), df.schema, QbeastOptions(options))
+          .createNewRevision(QTableId(tmpDir), df.schema, QbeastOptions(options))
           .columnTransformers
 
         val revision = qbeastSnapshot.loadLatestRevision
         revision.revisionID shouldBe 1L
-        revision.tableID shouldBe QTableID(tmpDir)
+        revision.tableId shouldBe QTableId(tmpDir)
         revision.columnTransformers.map(_.columnName) shouldBe names
         revision.desiredCubeSize shouldBe cubeSize
         revision.columnTransformers shouldBe columnTransformers

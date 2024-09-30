@@ -17,7 +17,7 @@ package io.qbeast.spark.delta.writer
 
 import io.qbeast.core.model.BroadcastedTableChanges
 import io.qbeast.core.model.IndexStatus
-import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QTableId
 import io.qbeast.core.model.Revision
 import io.qbeast.core.transform.EmptyTransformer
 import io.qbeast.spark.index.SparkOTreeManager
@@ -46,15 +46,15 @@ class RollupDataWriterTest extends QbeastIntegrationTestSpec {
             Some(i * 2567.3432143)))
         .toDF()
 
-      val tableID = QTableID(tmpDir)
+      val tableId = QTableId(tmpDir)
       val parameters: Map[String, String] =
         Map("columnsToIndex" -> "age,val2", "cubeSize" -> cubeSize.toString)
       val revision =
-        SparkRevisionFactory.createNewRevision(tableID, df.schema, QbeastOptions(parameters))
+        SparkRevisionFactory.createNewRevision(tableId, df.schema, QbeastOptions(parameters))
       val indexStatus = IndexStatus(revision)
       val (qbeastData, tableChanges) = SparkOTreeManager.index(df, indexStatus)
 
-      val fileActions = RollupDataWriter.write(tableID, df.schema, qbeastData, tableChanges)
+      val fileActions = RollupDataWriter.write(tableId, df.schema, qbeastData, tableChanges)
 
       for (fa <- fileActions) {
         Path(tmpDir + "/" + fa.path).exists shouldBe true
@@ -65,7 +65,7 @@ class RollupDataWriterTest extends QbeastIntegrationTestSpec {
   it should "compute rollup correctly when optimizing" in
     withSparkAndTmpDir { (spark, tmpDir) =>
       val revision =
-        Revision(1L, 0, QTableID(tmpDir), 20, Vector(EmptyTransformer("col_1")), Vector.empty)
+        Revision(1L, 0, QTableId(tmpDir), 20, Vector(EmptyTransformer("col_1")), Vector.empty)
 
       val root = revision.createCubeIdRoot()
       val c1 = root.children.next()

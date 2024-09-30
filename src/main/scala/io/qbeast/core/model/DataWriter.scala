@@ -30,7 +30,7 @@ trait DataWriter[DATA, DataSchema, FileDescriptor] {
 
   /**
    * Write the index data to the files
-   * @param tableID
+   * @param tableId
    *   the table identifier
    * @param schema
    *   the schema of the data
@@ -42,7 +42,7 @@ trait DataWriter[DATA, DataSchema, FileDescriptor] {
    *   the sequence of files written
    */
   def write(
-      tableID: QTableID,
+      tableId: QTableId,
       schema: DataSchema,
       data: DATA,
       tableChanges: TableChanges): IISeq[FileDescriptor]

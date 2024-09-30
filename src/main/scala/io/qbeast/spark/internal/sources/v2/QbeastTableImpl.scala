@@ -16,7 +16,7 @@
 package io.qbeast.spark.internal.sources.v2
 
 import io.qbeast.context.QbeastContext
-import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QTableId
 import io.qbeast.spark.internal.sources.QbeastBaseRelation
 import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.hadoop.fs.Path
@@ -66,7 +66,7 @@ case class QbeastTableImpl(
 
   private val pathString = path.toString
 
-  private val tableId = QTableID(pathString)
+  private val tableId = QTableId(pathString)
 
   private val indexedTable = tableFactory.getIndexedTable(tableId)
 

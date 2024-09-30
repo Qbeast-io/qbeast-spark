@@ -15,7 +15,7 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QTableId
 import io.qbeast.core.model.RevisionID
 import io.qbeast.core.model.TableChanges
 import io.qbeast.spark.delta.hook.PreCommitHook
@@ -47,7 +47,7 @@ import scala.collection.mutable.ListBuffer
  * DeltaMetadataWriter is in charge of writing data to a table and report the necessary log
  * information
  *
- * @param tableID
+ * @param tableId
  *   the table identifier
  * @param mode
  *   SaveMode of the writeMetadata
@@ -59,7 +59,7 @@ import scala.collection.mutable.ListBuffer
  *   the schema of the table
  */
 private[delta] case class DeltaMetadataWriter(
-    tableID: QTableID,
+    tableId: QTableId,
     mode: SaveMode,
     deltaLog: DeltaLog,
     qbeastOptions: QbeastOptions,
@@ -69,7 +69,7 @@ private[delta] case class DeltaMetadataWriter(
     with Logging {
 
   private val options = {
-    val optionsMap = qbeastOptions.toMap ++ Map("path" -> tableID.id)
+    val optionsMap = qbeastOptions.toMap ++ Map("path" -> tableId.id)
     new DeltaOptions(optionsMap, SparkSession.active.sessionState.conf)
   }
 
@@ -223,7 +223,7 @@ private[delta] case class DeltaMetadataWriter(
   private def updateTransactionVersion(
       txn: OptimisticTransaction,
       revisionID: RevisionID): SetTransaction = {
-    val transactionID = s"qbeast.${tableID.id}.$revisionID"
+    val transactionID = s"qbeast.${tableId.id}.$revisionID"
     val startingTnx = txn.txnVersion(transactionID)
     val newTransaction = startingTnx + 1
 

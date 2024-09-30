@@ -87,7 +87,7 @@ private[delta] trait QbeastMetadataOperation extends ImplicitMetadataOperation w
         // We modify its timestamp to secure loadRevisionAt
         val stagingRev =
           stagingRevision(
-            newRevision.tableID,
+            newRevision.tableId,
             newRevision.desiredCubeSize,
             newRevision.columnTransformers.map(_.columnName))
             .copy(timestamp = newRevision.timestamp - 1)

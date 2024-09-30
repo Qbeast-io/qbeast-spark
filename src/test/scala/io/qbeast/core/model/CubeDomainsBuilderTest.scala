@@ -34,7 +34,7 @@ class CubeDomainsBuilderTest extends AnyFlatSpec with Matchers with PrivateMetho
 
   private val rev =
     Revision
-      .firstRevision(QTableID("test"), dcs, transformers, transformations)
+      .firstRevision(QTableId("test"), dcs, transformers, transformations)
       .copy(revisionID = 1)
 
   private def createCubeDomainsBuilder(

@@ -35,7 +35,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
   it should "createNewRevision with only one columns" in withSpark(spark => {
     import spark.implicits._
     val schema = spark.range(1).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).schema
-    val qid = QTableID("t")
+    val qid = QTableId("t")
     val revision =
       SparkRevisionFactory.createNewRevision(
         qid,
@@ -43,7 +43,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
         QbeastOptions(
           Map(QbeastOptions.COLUMNS_TO_INDEX -> "a", QbeastOptions.CUBE_SIZE -> "10")))
 
-    revision.tableID shouldBe qid
+    revision.tableId shouldBe qid
     revision.revisionID shouldBe 0
     revision.desiredCubeSize shouldBe 10
     revision.columnTransformers shouldBe Vector(LinearTransformer("a", LongDataType))
@@ -54,7 +54,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
   it should "createNewRevision with only indexed columns and no spec" in withSpark(spark => {
     import spark.implicits._
     val schema = spark.range(1).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).schema
-    val qid = QTableID("t")
+    val qid = QTableId("t")
     val revision =
       SparkRevisionFactory.createNewRevision(
         qid,
@@ -62,7 +62,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
         QbeastOptions(
           Map(QbeastOptions.COLUMNS_TO_INDEX -> "a,b,c,d", QbeastOptions.CUBE_SIZE -> "10")))
 
-    revision.tableID shouldBe qid
+    revision.tableId shouldBe qid
     revision.revisionID shouldBe 0
     revision.desiredCubeSize shouldBe 10
     revision.columnTransformers shouldBe Vector(
@@ -87,7 +87,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
   it should "createNewRevision with min max transformation" in withSpark(spark => {
     import spark.implicits._
     val schema = spark.range(1).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).schema
-    val qid = QTableID("t")
+    val qid = QTableId("t")
     val revision =
       SparkRevisionFactory.createNewRevision(
         qid,
@@ -98,7 +98,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
             QbeastOptions.CUBE_SIZE -> "10",
             QbeastOptions.STATS -> """{ "a_min": 0, "a_max": 10 }""")))
 
-    revision.tableID shouldBe qid
+    revision.tableId shouldBe qid
     // the reason while it's 1 is because columnStats are provided here
     revision.revisionID shouldBe 1
     revision.desiredCubeSize shouldBe 10
@@ -199,7 +199,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
       s"""{ "date_min":"${formatter.format(minTimestamp)}",
          |"date_max":"${formatter.format(maxTimestamp)}" }""".stripMargin
 
-    val qid = QTableID("t")
+    val qid = QTableId("t")
     val revision =
       SparkRevisionFactory.createNewRevision(
         qid,
@@ -219,7 +219,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
     spark => {
       import spark.implicits._
       val schema = spark.range(1).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).schema
-      val qid = QTableID("t")
+      val qid = QTableId("t")
       val revision =
         SparkRevisionFactory.createNewRevision(
           qid,
@@ -231,7 +231,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
               QbeastOptions.STATS ->
                 """{ "a_min": 0, "a_max": 10, "b_min": 10.0, "b_max": 20.0}""".stripMargin)))
 
-      revision.tableID shouldBe qid
+      revision.tableId shouldBe qid
       // the reason while it's 1 is because columnStats are provided here
       revision.revisionID shouldBe 1
       revision.desiredCubeSize shouldBe 10
@@ -257,7 +257,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
   it should "createNewRevision with only indexed columns with all hash" in withSpark(spark => {
     import spark.implicits._
     val schema = spark.range(1).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).schema
-    val qid = QTableID("t")
+    val qid = QTableId("t")
     val revision =
       SparkRevisionFactory.createNewRevision(
         qid,
@@ -267,7 +267,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
             QbeastOptions.COLUMNS_TO_INDEX -> "a:hashing,b:hashing,c:hashing,d:hashing",
             QbeastOptions.CUBE_SIZE -> "10")))
 
-    revision.tableID shouldBe qid
+    revision.tableId shouldBe qid
     revision.revisionID shouldBe 0
     revision.desiredCubeSize shouldBe 10
     revision.columnTransformers shouldBe Vector(

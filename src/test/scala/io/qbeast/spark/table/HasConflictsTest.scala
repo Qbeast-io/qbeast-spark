@@ -39,7 +39,7 @@ class HasConflictsTest extends QbeastIntegrationTestSpec {
         // means that the process is not aware of the cubes optimized in the middle
         // and the conflict is not solvable
 //        SparkDeltaMetadataManager.hasConflicts(
-//          QTableID(tmpDir),
+//          QTableId(tmpDir),
 //          1L,
 //          Set.empty, // knowAnnounced is empty
 //          Set.empty // old replicated set is empty
@@ -62,7 +62,7 @@ class HasConflictsTest extends QbeastIntegrationTestSpec {
         // If we are aware of the announced cubes,
         // the process has to end successfully and no conflicts are raised
 //        SparkDeltaMetadataManager.hasConflicts(
-//          QTableID(tmpDir),
+//          QTableId(tmpDir),
 //          1L,
 //          Set.empty, // know announced is set
 //          Set.empty // old replicated set is empty

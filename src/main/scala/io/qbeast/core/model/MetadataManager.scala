@@ -31,25 +31,25 @@ trait MetadataManager[DataSchema, FileDescriptor, QbeastOptions] {
 
   /**
    * Gets the Snapshot for a given table
-   * @param tableID
+   * @param tableId
    *   the QTableID
    * @return
    *   the current snapshot
    */
-  def loadSnapshot(tableID: QTableID): QbeastSnapshot
+  def loadSnapshot(tableId: QTableId): QbeastSnapshot
 
   /**
    * Gets the Schema for a given table
-   * @param tableID
+   * @param tableId
    *   the QTableID
    * @return
    *   the current schema
    */
-  def loadCurrentSchema(tableID: QTableID): DataSchema
+  def loadCurrentSchema(tableId: QTableId): DataSchema
 
   /**
    * Writes and updates the metadata by using transaction control
-   * @param tableID
+   * @param tableId
    *   the QTableID
    * @param schema
    *   the schema of the data
@@ -59,7 +59,7 @@ trait MetadataManager[DataSchema, FileDescriptor, QbeastOptions] {
    *   the append flag
    */
   def updateWithTransaction(
-      tableID: QTableID,
+      tableId: QTableId,
       schema: DataSchema,
       options: QbeastOptions,
       append: Boolean)(writer: => (TableChanges, IISeq[FileDescriptor])): Unit
@@ -67,39 +67,39 @@ trait MetadataManager[DataSchema, FileDescriptor, QbeastOptions] {
   /**
    * Updates the table metadata by overwriting the metadata configurations with the provided
    * key-value pairs.
-   * @param tableID
+   * @param tableId
    *   QTableID
    * @param schema
    *   table schema
    * @param update
    *   configurations used to overwrite the existing metadata
    */
-  def updateMetadataWithTransaction(tableID: QTableID, schema: DataSchema)(
+  def updateMetadataWithTransaction(tableId: QTableId, schema: DataSchema)(
       update: => Configuration): Unit
 
   /**
    * Updates the Revision with the given RevisionChanges
-   * @param tableID
+   * @param tableId
    *   the QTableID
    * @param revisionChange
    *   the collection of RevisionChanges
    */
-  def updateRevision(tableID: QTableID, revisionChange: RevisionChange): Unit
+  def updateRevision(tableId: QTableId, revisionChange: RevisionChange): Unit
 
   /**
    * Updates the Table with the given TableChanges
-   * @param tableID
+   * @param tableId
    *   the QTableID
    * @param tableChanges
    *   the collection of TableChanges
    */
-  def updateTable(tableID: QTableID, tableChanges: TableChanges): Unit
+  def updateTable(tableId: QTableId, tableChanges: TableChanges): Unit
 
   /**
    * This function checks if there's a conflict. A conflict happens if there are new cubes that
-   * have been optimized but they were not announced.
+   * have been optimized, but they were not announced.
    *
-   * @param tableID
+   * @param tableId
    *   the table ID
    * @param revisionID
    *   the revision ID
@@ -111,23 +111,23 @@ trait MetadataManager[DataSchema, FileDescriptor, QbeastOptions] {
    *   true if there is a conflict, false otherwise
    */
   def hasConflicts(
-      tableID: QTableID,
+      tableId: QTableId,
       revisionID: RevisionID,
       knownAnnounced: Set[CubeId],
       oldReplicatedSet: ReplicatedSet): Boolean
 
   /**
    * Checks if there's an existing log directory for the table
-   * @param tableID
+   * @param tableId
    *   the table ID
    * @return
    */
-  def existsLog(tableID: QTableID): Boolean
+  def existsLog(tableId: QTableId): Boolean
 
   /**
    * Creates an initial log directory
-   * @param tableID
+   * @param tableId
    */
-  def createLog(tableID: QTableID): Unit
+  def createLog(tableId: QTableId): Unit
 
 }

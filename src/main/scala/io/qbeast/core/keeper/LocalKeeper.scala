@@ -15,7 +15,7 @@
  */
 package io.qbeast.core.keeper
 
-import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QTableId
 import io.qbeast.SerializedCubeID
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -28,24 +28,24 @@ object LocalKeeper extends Keeper {
   private val generator = new AtomicInteger()
 
   private val announcedMap =
-    scala.collection.mutable.Map.empty[(QTableID, Long), Set[SerializedCubeID]]
+    scala.collection.mutable.Map.empty[(QTableId, Long), Set[SerializedCubeID]]
 
-  override def beginWrite(tableID: QTableID, revision: Long): Write = new LocalWrite(
+  override def beginWrite(tableId: QTableId, revision: Long): Write = new LocalWrite(
     generator.getAndIncrement().toString,
-    announcedMap.getOrElse((tableID, revision), Set.empty[SerializedCubeID]))
+    announcedMap.getOrElse((tableId, revision), Set.empty[SerializedCubeID]))
 
-  override def announce(tableID: QTableID, revision: Long, cubes: Seq[SerializedCubeID]): Unit = {
-    val announcedCubes = announcedMap.getOrElse((tableID, revision), Set.empty[SerializedCubeID])
-    announcedMap.update((tableID, revision), announcedCubes.union(cubes.toSet))
+  override def announce(tableId: QTableId, revision: Long, cubes: Seq[SerializedCubeID]): Unit = {
+    val announcedCubes = announcedMap.getOrElse((tableId, revision), Set.empty[SerializedCubeID])
+    announcedMap.update((tableId, revision), announcedCubes.union(cubes.toSet))
   }
 
   override def beginOptimization(
-      tableID: QTableID,
-      revision: Long,
-      cubeLimit: Integer): Optimization =
+                                  tableId: QTableId,
+                                  revision: Long,
+                                  cubeLimit: Integer): Optimization =
     new LocalOptimization(
       generator.getAndIncrement().toString,
-      announcedMap.getOrElse((tableID, revision), Set.empty[SerializedCubeID]))
+      announcedMap.getOrElse((tableId, revision), Set.empty[SerializedCubeID]))
 
   override def stop(): Unit = {}
 }

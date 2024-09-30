@@ -20,7 +20,7 @@ import io.qbeast.core.keeper.Optimization
 import io.qbeast.core.keeper.Write
 import io.qbeast.core.model.CubeId
 import io.qbeast.core.model.Point
-import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QTableId
 
 import java.util.UUID
 import scala.util.Random
@@ -33,16 +33,16 @@ object RandomKeeper extends Keeper {
   private val containersOneDimension =
     CubeId.containers(Point(Random.nextDouble())).take(100).map(_.string).toSet
 
-  override def beginWrite(tableID: QTableID, revision: Long): Write = {
+  override def beginWrite(tableId: QTableId, revision: Long): Write = {
     WriteImpl(UUID.randomUUID().toString, Set())
   }
 
-  override def announce(tableID: QTableID, revision: Long, cubes: Seq[String]): Unit = {}
+  override def announce(tableId: QTableId, revision: Long, cubes: Seq[String]): Unit = {}
 
   override def beginOptimization(
-      tableID: QTableID,
-      revision: Long,
-      cubeLimit: Integer): Optimization = {
+                                  tableId: QTableId,
+                                  revision: Long,
+                                  cubeLimit: Integer): Optimization = {
     val cubesToOptimize =
       containersOneDimension.filter(_ => Random.nextInt() % 2 == 0)
     OptimizationImpl(UUID.randomUUID().toString, cubesToOptimize)

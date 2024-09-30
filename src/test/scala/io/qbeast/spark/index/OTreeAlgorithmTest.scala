@@ -15,7 +15,7 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QTableId
 import io.qbeast.spark.index.QbeastColumns._
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.QbeastIntegrationTestSpec
@@ -101,7 +101,7 @@ class OTreeAlgorithmTest extends QbeastIntegrationTestSpec {
   def checkRDD(df: DataFrame): Unit =
     withQbeastAndSparkContext() { _ =>
       val rev = SparkRevisionFactory.createNewRevision(
-        QTableID("test"),
+        QTableId("test"),
         df.schema,
         QbeastOptions(Map("columnsToIndex" -> df.columns.mkString(","), "cubeSize" -> "10000")))
 

@@ -65,7 +65,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val columnsSchema = dataFrame.schema.filter(f => columnsToIndex.contains(f.name))
     val columnTransformers = createTransformers(columnsSchema)
     val emptyRevision =
-      Revision(0, 1000, QTableID("test"), 1000, columnTransformers, Seq.empty.toIndexedSeq)
+      Revision(0, 1000, QTableId("test"), 1000, columnTransformers, Seq.empty.toIndexedSeq)
 
     val dataFrameStats = getDataFrameStats(dataFrame, columnTransformers)
     val revision =
@@ -95,7 +95,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val columnsSchema = dataFrame.schema.filter(f => columnsToIndex.contains(f.name))
     val columnTransformers = createTransformers(columnsSchema)
     val emptyRevision =
-      Revision(0, 1000, QTableID("test"), 1000, columnTransformers, Seq.empty.toIndexedSeq)
+      Revision(0, 1000, QTableId("test"), 1000, columnTransformers, Seq.empty.toIndexedSeq)
 
     val dataFrameStats = getDataFrameStats(dataFrame.toDF(), columnTransformers)
     val revision =
@@ -113,7 +113,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val columnTransformers = createTransformers(columnsSchema)
 
     val emptyRevision =
-      Revision(0, 1000, QTableID("test"), 1000, columnTransformers, Seq.empty.toIndexedSeq)
+      Revision(0, 1000, QTableId("test"), 1000, columnTransformers, Seq.empty.toIndexedSeq)
 
     val dataFrameStats = getDataFrameStats(dataFrame, columnTransformers)
     val revisionChanges =
@@ -152,7 +152,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val columnTransformers = createTransformers(columnsSchema)
 
     val emptyRevision =
-      Revision(0, 1000, QTableID("test"), 1000, columnTransformers, Seq.empty.toIndexedSeq)
+      Revision(0, 1000, QTableId("test"), 1000, columnTransformers, Seq.empty.toIndexedSeq)
 
     val dataFrameStats = getDataFrameStats(data.toDF(), columnTransformers)
     val revision =
@@ -214,7 +214,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val columnTransformers = createTransformers(columnsSchema)
 
     val indexStatus = IndexStatus.empty(
-      Revision(0, 1000, QTableID("test"), 1000, columnTransformers, Seq.empty.toIndexedSeq))
+      Revision(0, 1000, QTableId("test"), 1000, columnTransformers, Seq.empty.toIndexedSeq))
 
     val dataFrameStats = getDataFrameStats(data.toDF(), columnTransformers)
     val numElements = dataFrameStats.getAs[Long]("count")
@@ -255,7 +255,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val columnTransformers = createTransformers(columnsSchema)
 
     val emptyRevision =
-      Revision(0, 1000, QTableID("test"), 1000, columnTransformers, Seq.empty.toIndexedSeq)
+      Revision(0, 1000, QTableId("test"), 1000, columnTransformers, Seq.empty.toIndexedSeq)
     val indexStatus = IndexStatus.empty(emptyRevision)
 
     val dataFrameStats = getDataFrameStats(data.toDF(), columnTransformers)
@@ -357,7 +357,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val columnTransformers = createTransformers(columnsSchema)
 
     val indexStatus = IndexStatus.empty(
-      Revision(0, 1000, QTableID("test"), 1000, columnTransformers, Seq.empty.toIndexedSeq))
+      Revision(0, 1000, QTableId("test"), 1000, columnTransformers, Seq.empty.toIndexedSeq))
 
     val dataFrameStats = getDataFrameStats(data.toDF(), columnTransformers)
     val numElements = dataFrameStats.getAs[Long]("count")

@@ -84,7 +84,7 @@ class QuerySpecBuilderTest extends QbeastIntegrationTestSpec with QueryTestSpec 
     val revision = Revision(
       1,
       System.currentTimeMillis(),
-      QTableID("test"),
+      QTableId("test"),
       100,
       columnTransformers,
       transformations)

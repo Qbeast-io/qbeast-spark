@@ -36,9 +36,9 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
 
 /**
- * Command to convert a parquet or a delta table into a qbeast table. The command creates the an
- * empty revision for the metadata, the qbeast options provided should be those with which the
- * user want to index the table. Partitioned tables are not supported.
+ * Command to convert a parquet or a delta table into a qbeast table. The command creates an empty
+ * revision for the metadata, the qbeast options provided should be those with which the user want
+ * to index the table. Partitioned tables are not supported.
  * @param identifier
  *   STRING, table identifier consisting of "format.`tablePath`" e.g. parquet.`/tmp/test/`
  * @param columnsToIndex
@@ -78,9 +78,9 @@ case class ConvertToQbeastCommand(
   }
 
   override def run(spark: SparkSession): Seq[Row] = {
-    val (fileFormat, tableId) = resolveTableFormat(spark)
+    val (fileFormat, tableIdentifier) = resolveTableFormat(spark)
 
-    val deltaLog = DeltaLog.forTable(spark, tableId.table)
+    val deltaLog = DeltaLog.forTable(spark, tableIdentifier.table)
     val unsafeVolatileSnapshot = deltaLog.update()
     val qbeastSnapshot = DeltaQbeastSnapshot(unsafeVolatileSnapshot)
     val isQbeast = qbeastSnapshot.loadAllRevisions.nonEmpty
@@ -92,7 +92,7 @@ case class ConvertToQbeastCommand(
         // Convert parquet to delta
         case "parquet" =>
           try {
-            spark.sql(s"CONVERT TO DELTA parquet.${tableId.quotedString}")
+            spark.sql(s"CONVERT TO DELTA parquet.${tableIdentifier.quotedString}")
           } catch {
             case e: AnalysisException =>
               val deltaMsg = e.getMessage()
@@ -105,11 +105,11 @@ case class ConvertToQbeastCommand(
       }
 
       // Convert delta to qbeast through metadata modification
-      val tableID = QTableID(tableId.table)
+      val tableId = QTableId(tableIdentifier.table)
       val schema = deltaLog.update().schema
 
-      SparkDeltaMetadataManager.updateMetadataWithTransaction(tableID, schema) {
-        val convRevision = stagingRevision(tableID, cubeSize, columnsToIndex)
+      SparkDeltaMetadataManager.updateMetadataWithTransaction(tableId, schema) {
+        val convRevision = stagingRevision(tableId, cubeSize, columnsToIndex)
         val revisionID = convRevision.revisionID
 
         // Add staging revision to Revision Map, set it as the latestRevision

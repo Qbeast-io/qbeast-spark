@@ -15,7 +15,7 @@
  */
 package io.qbeast.spark.internal.sources
 
-import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QTableId
 import io.qbeast.spark.table.IndexedTable
 import io.qbeast.spark.table.IndexedTableFactory
 import org.apache.log4j.Level
@@ -81,7 +81,7 @@ class QbeastDataSourceTest extends FixtureAnyFlatSpec with MockitoSugar with Mat
     when(table.save(any[DataFrame], any[Map[String, String]], anyBoolean())).thenReturn(relation)
 
     val tableFactory = mock[IndexedTableFactory]
-    when(tableFactory.getIndexedTable(any[QTableID]()))
+    when(tableFactory.getIndexedTable(any[QTableId]()))
       .thenReturn(table)
 
     val dataSource = new QbeastDataSource(tableFactory)

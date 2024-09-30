@@ -15,7 +15,7 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QTableId
 import io.qbeast.core.model.TableChanges
 import io.qbeast.spark.internal.QbeastOptions
 import org.apache.spark.sql.delta.actions.Action
@@ -26,12 +26,12 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.SaveMode
 
 class MetadataWriterTest(
-    tableID: QTableID,
+    tableId: QTableId,
     mode: SaveMode,
     deltaLog: DeltaLog,
     options: QbeastOptions,
     schema: StructType)
-    extends DeltaMetadataWriter(tableID, mode, deltaLog, options, schema) {
+    extends DeltaMetadataWriter(tableId, mode, deltaLog, options, schema) {
 
   // Make updateMetadata method public for test scope
   override def updateMetadata(
@@ -44,12 +44,12 @@ class MetadataWriterTest(
 object MetadataWriterTest {
 
   def apply(
-      tableID: QTableID,
+      tableId: QTableId,
       mode: SaveMode,
       deltaLog: DeltaLog,
       options: QbeastOptions,
       schema: StructType): MetadataWriterTest = {
-    new MetadataWriterTest(tableID, mode, deltaLog, options, schema)
+    new MetadataWriterTest(tableId, mode, deltaLog, options, schema)
   }
 
 }

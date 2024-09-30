@@ -16,7 +16,7 @@
 package io.qbeast.spark.internal.sources
 
 import io.qbeast.context.QbeastContext
-import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QTableId
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Student
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
@@ -34,7 +34,7 @@ class QbeastBaseRelationTest extends QbeastIntegrationTestSpec {
 
       df.write.format("qbeast").option("columnsToIndex", "id").save(tmpDir)
 
-      val indexedTable = QbeastContext.indexedTableFactory.getIndexedTable(QTableID(tmpDir))
+      val indexedTable = QbeastContext.indexedTableFactory.getIndexedTable(QTableId(tmpDir))
       QbeastBaseRelation
         .forQbeastTable(indexedTable) shouldBe a[HadoopFsRelation with InsertableRelation]
     })
@@ -46,7 +46,7 @@ class QbeastBaseRelationTest extends QbeastIntegrationTestSpec {
 
     df.write.format("qbeast").option("columnsToIndex", "id").save(tmpDir)
 
-    val indexedTable = QbeastContext.indexedTableFactory.getIndexedTable(QTableID(tmpDir))
+    val indexedTable = QbeastContext.indexedTableFactory.getIndexedTable(QTableId(tmpDir))
     val qbeastBaseRelation = QbeastBaseRelation.forQbeastTable(indexedTable)
 
     qbeastBaseRelation.asInstanceOf[InsertableRelation].insert(df, false)
@@ -64,7 +64,7 @@ class QbeastBaseRelationTest extends QbeastIntegrationTestSpec {
       "CREATE TABLE student (id INT, name STRING, age INT) USING qbeast " +
         "OPTIONS ('columnsToIndex'='id')")
 
-    val indexedTable = QbeastContext.indexedTableFactory.getIndexedTable(QTableID(tmpDir))
+    val indexedTable = QbeastContext.indexedTableFactory.getIndexedTable(QTableId(tmpDir))
     val qbeastBaseRelation =
       QbeastBaseRelation.forQbeastTableWithOptions(indexedTable, Map("columnsToIndex" -> "id"))
 
