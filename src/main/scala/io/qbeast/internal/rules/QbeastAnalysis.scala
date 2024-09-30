@@ -15,6 +15,7 @@
  */
 package io.qbeast.internal.rules
 
+import io.qbeast.internal.rules.QbeastAnalysisUtils._
 import io.qbeast.sources.v2.QbeastTableImpl
 import org.apache.spark.sql.catalyst.plans.logical.AppendData
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
@@ -22,8 +23,6 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.SparkSession
-
-import QbeastAnalysisUtils._
 
 /**
  * Analyzes and resolves the Spark Plan before Optimization

@@ -100,7 +100,7 @@ class QbeastCatalogTest extends QbeastIntegrationTestSpec with CatalogTestSuite 
     qbeastCatalog.loadTable(tableIdentifier).columns() shouldBe newColumns
   })
 
-  it should "list table" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
+  it should "list tables" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
     val qbeastCatalog = createQbeastCatalog(spark)
     qbeastCatalog.listTables(defaultNamespace) shouldBe Array()
   })
