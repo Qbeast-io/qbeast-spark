@@ -23,7 +23,7 @@ lazy val qbeastDelta = (project in file("./delta"))
   .settings(noWarningInConsole)
 
 lazy val qbeastSpark = (project in file("."))
-  .aggregate(qbeastCore, qbeastDelta)
+  .dependsOn(qbeastCore, qbeastDelta)
   .enablePlugins(ScalaUnidocPlugin)
   .settings(
     name := "qbeast-spark",
