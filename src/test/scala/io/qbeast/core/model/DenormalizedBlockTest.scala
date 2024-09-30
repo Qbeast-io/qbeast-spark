@@ -84,8 +84,7 @@ class DenormalizedBlockTest extends QbeastIntegrationTestSpec {
         IndexFile("f1.parquet", fileSize, 1, revision.revisionID, Vector(rootB1, c1B1)),
         IndexFile("f2.parquet", fileSize, 2, revision.revisionID, Vector(rootB2, c1B2))).toDS
 
-      val denormalizedBlock =
-        DenormalizedBlock.buildDataset(revision.revisionID, indexFilesDs)
+      val denormalizedBlock = DenormalizedBlock.buildDataset(indexFilesDs)
 
       denormalizedBlock.collect() should contain theSameElementsAs Vector(
         DenormalizedBlock(
