@@ -31,6 +31,10 @@ import io.qbeast.core.model.QDataType
 import io.qbeast.core.model.StringDataType
 import org.apache.spark.annotation.Experimental
 
+/**
+ * CDF Quantiles Transformation for String
+ */
+
 @Experimental
 @JsonSerialize(using = classOf[CDFStringQuantilesTransformationSerializer])
 @JsonDeserialize(using = classOf[CDFStringQuantilesTransformationDeserializer])

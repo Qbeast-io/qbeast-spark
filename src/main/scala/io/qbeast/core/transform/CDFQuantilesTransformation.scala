@@ -21,18 +21,20 @@ import org.apache.spark.annotation.Experimental
 import scala.collection.Searching._
 
 /**
- * A transformation that converts a value to a double between 0 and 1 based on the quantiles
- *
- * @param quantiles
- *   A set of quantiles that define the transformation
- * @param dataType
- *   The data type of the column
+ * A type of transformation that converts Any value to a Double between 0 and 1 based on the
+ * specified quantiles
  */
 @Experimental
 trait CDFQuantilesTransformation extends Transformation {
 
+  /**
+   * A sequence of quantiles including the extremes at 0 and 1
+   */
   val quantiles: IndexedSeq[Any]
 
+  /**
+   * The data type of the transformation
+   */
   val dataType: QDataType
 
   /**
@@ -44,7 +46,8 @@ trait CDFQuantilesTransformation extends Transformation {
   implicit def ordering: Ordering[Any]
 
   /**
-   * Maps the values to Double in case of Number and to text in case of String
+   * Performs any needed mapping to the value before searching it in the quantiles sequence
+   *
    * @return
    */
   def mapValue(value: Any): Any
@@ -52,10 +55,16 @@ trait CDFQuantilesTransformation extends Transformation {
   /**
    * Transforms a value to a Double between 0 and 1
    *
-   *   1. Checks if the value is null, if so, returns 0 2. Searches for the value in the quantiles
-   *      3. If the value is found, returns the current index divided by the length of the
-   *      quantiles 4. If the value is not found, returns the relative position of the insertion
-   *      point
+   *   1. Checks if the value is null, if so, returns 0
+   *
+   * 2. Searches for the value in the quantiles
+   *
+   * 3. If the value is found, returns the current index divided by the length of the quantiles
+   *
+   * 4. If the value is not found, returns the relative position of the insertion point
+   *
+   * WARNING: If the same number is repeated in the quantiles, the transformation will not always
+   * select the same index
    * @param value
    *   the value to convert
    * @return

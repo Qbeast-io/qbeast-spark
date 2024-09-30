@@ -31,6 +31,13 @@ import com.fasterxml.jackson.databind.SerializerProvider
 import io.qbeast.core.model.OrderedDataType
 import org.apache.spark.annotation.Experimental
 
+/**
+ * CDF Quantiles Transformation for Numeric types
+ * @param quantiles
+ *   A set of quantiles that define the transformation
+ * @param dataType
+ *   The data type of the column
+ */
 @Experimental
 @JsonSerialize(using = classOf[CDFNumericQuantilesTransformationSerializer])
 @JsonDeserialize(using = classOf[CDFNumericQuantilesTransformationDeserializer])

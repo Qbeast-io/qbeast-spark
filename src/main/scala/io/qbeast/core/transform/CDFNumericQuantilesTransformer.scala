@@ -19,6 +19,13 @@ import io.qbeast.core.model.OrderedDataType
 import org.apache.spark.annotation.Experimental
 import org.apache.spark.sql.AnalysisExceptionFactory
 
+/**
+ * CDF Quantile Transformer for Numeric Type
+ * @param columnName
+ *   the name of the column
+ * @param orderedDataType
+ *   the ordered data type
+ */
 @Experimental
 case class CDFNumericQuantilesTransformer(columnName: String, orderedDataType: OrderedDataType)
     extends CDFQuantilesTransformer {

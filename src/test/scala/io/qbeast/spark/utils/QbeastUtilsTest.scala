@@ -31,8 +31,7 @@ class QbeastUtilsTest extends QbeastIntegrationTestSpec {
 
   it should "include the extremes in the quantiles for numeric columns" in withQbeastContextSparkAndTmpDir(
     (spark, _s) => {
-      import spark.implicits._
-      val df = 1.to(100).toDF("age")
+      val df = spark.range(1, 101).toDF("age")
       val quantiles = QbeastUtils.computeQuantilesForColumn(df, "age", 4, 0.0)
 
       quantiles shouldBe "[1.0, 25.0, 50.0, 75.0, 100.0]"

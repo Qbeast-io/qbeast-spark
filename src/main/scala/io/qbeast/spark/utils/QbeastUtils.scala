@@ -49,6 +49,8 @@ object QbeastUtils extends Logging {
 
     val quantiles = df
       .select(columnName)
+      .na
+      .drop()
       .groupBy(stringPartitionColumn)
       .agg(min(columnName).alias(binStarts))
       .select(binStarts)

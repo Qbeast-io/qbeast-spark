@@ -21,6 +21,9 @@ import io.qbeast.core.model.StringDataType
 import org.apache.spark.annotation.Experimental
 import org.apache.spark.sql.AnalysisExceptionFactory
 
+/**
+ * Transformer for the CDF Quantiles Transformation
+ */
 @Experimental
 object CDFQuantilesTransformer extends TransformerType {
   override def transformerSimpleName: String = "quantiles"
@@ -51,13 +54,18 @@ object CDFQuantilesTransformer extends TransformerType {
 }
 
 /**
- * A transformer that calculates the CDF quantiles
+ * The Transformer that initializes the stats for the CDFQuantilesTransformation
  *
- * This type of Transformer can only be applied from Manual ColumnStats
+ * WARNING: This type of Transformer can only be applied from Manual ColumnStats Meaning that the
+ * stats are NOT computed by the system, and should by all means be initialized by the user
+ * Otherwise, it would throw an exception
  */
 @Experimental
 trait CDFQuantilesTransformer extends Transformer {
 
+  /**
+   * The name of the column transformer to retrieve the stats from
+   */
   val columnTransformerName: String = s"${columnName}_quantiles"
 
   /**
