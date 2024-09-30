@@ -344,12 +344,12 @@ object QbeastCatalogUtils extends Logging {
    * @param existingSessionCatalog
    */
   private def updateCatalog(
-                             tableID: QTableId,
-                             operation: CreationMode,
-                             table: CatalogTable,
-                             isPathTable: Boolean,
-                             existingTableOpt: Option[CatalogTable],
-                             existingSessionCatalog: SessionCatalog): Unit = {
+      tableID: QTableId,
+      operation: CreationMode,
+      table: CatalogTable,
+      isPathTable: Boolean,
+      existingTableOpt: Option[CatalogTable],
+      existingSessionCatalog: SessionCatalog): Unit = {
 
     operation match {
       case _ if isPathTable => // do nothing

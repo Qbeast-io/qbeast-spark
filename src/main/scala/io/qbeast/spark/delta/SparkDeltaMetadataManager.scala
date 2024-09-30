@@ -76,10 +76,10 @@ object SparkDeltaMetadataManager extends MetadataManager[StructType, FileAction,
   }
 
   override def hasConflicts(
-                             tableId: QTableId,
-                             revisionId: RevisionId,
-                             knownAnnounced: Set[CubeId],
-                             oldReplicatedSet: ReplicatedSet): Boolean = {
+      tableId: QTableId,
+      revisionId: RevisionId,
+      knownAnnounced: Set[CubeId],
+      oldReplicatedSet: ReplicatedSet): Boolean = {
 
     val snapshot = loadSnapshot(tableId)
     if (snapshot.isInitial) return false

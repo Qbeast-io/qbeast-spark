@@ -40,9 +40,9 @@ object LocalKeeper extends Keeper {
   }
 
   override def beginOptimization(
-                                  tableId: QTableId,
-                                  revision: Long,
-                                  cubeLimit: Integer): Optimization =
+      tableId: QTableId,
+      revision: Long,
+      cubeLimit: Integer): Optimization =
     new LocalOptimization(
       generator.getAndIncrement().toString,
       announcedMap.getOrElse((tableId, revision), Set.empty[SerializedCubeID]))

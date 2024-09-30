@@ -42,10 +42,10 @@ import scala.collection.mutable
  *   the Hadoop configuration
  */
 private[writer] class IndexFileWriter(
-                                       revisionId: RevisionId,
-                                       output: OutputWriter,
-                                       trackers: Seq[WriteTaskStatsTracker],
-                                       config: Configuration) {
+    revisionId: RevisionId,
+    output: OutputWriter,
+    trackers: Seq[WriteTaskStatsTracker],
+    config: Configuration) {
 
   private val file: IndexFileBuilder = new IndexFileBuilder().setRevisionId(revisionId)
 
