@@ -18,11 +18,10 @@ package io.qbeast.core.transform
 import org.apache.spark.annotation.Experimental
 import org.apache.spark.sql.AnalysisExceptionFactory
 
+@Experimental
 /**
  * A CDF Quantiles Transformer that calculates the CDF quantiles for a String column
  */
-@Experimental
-
 case class CDFStringQuantilesTransformer(columnName: String) extends CDFQuantilesTransformer {
 
   /**
