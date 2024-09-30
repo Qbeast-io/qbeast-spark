@@ -18,11 +18,9 @@ package io.qbeast.core.model
 import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.explode
-import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.functions.udf
 import org.apache.spark.sql.Dataset
 
-import scala.collection.immutable.SortedMap
 import scala.collection.immutable.SortedSet
 
 /**
@@ -61,10 +59,10 @@ case class DenormalizedBlock(
 
 private[qbeast] object DenormalizedBlock {
 
-  private[qbeast] def isLeaf(cubeStatuses: SortedSet[CubeId])(cubeId: CubeId): Boolean = {
+  private[qbeast] def isLeaf(cubeIds: SortedSet[CubeId])(cubeId: CubeId): Boolean = {
     // cubeStatuses are stored in a SortedMap with CubeIds ordered as if they were accessed
     // in a pre-order, DFS fashion.
-    val cubesIter = cubeStatuses.iteratorFrom(cubeId)
+    val cubesIter = cubeIds.iteratorFrom(cubeId)
     cubesIter.take(2).toList match {
       case List(cube, nextCube) =>
         // cubeId is in the tree and check the next cube
@@ -72,7 +70,7 @@ private[qbeast] object DenormalizedBlock {
         // cubeId is not in the tree, check the cube after it
         else !cubeId.isAncestorOf(cube)
       case List(cube) =>
-        // only one cube is larger than or equal to cubeId and it is the cubeId itself
+        // only one cube is larger than or equal to cubeId, and it is the cubeId itself
         if (cube == cubeId) true
         // cubeId is not in the map, check the cube after it
         else !cubeId.isAncestorOf(cube)
@@ -82,24 +80,27 @@ private[qbeast] object DenormalizedBlock {
     }
   }
 
-  def buildDataset(
-      revision: Revision,
-      cubeStatuses: SortedMap[CubeId, CubeStatus],
-      indexFilesDs: Dataset[IndexFile]): Dataset[DenormalizedBlock] = {
-    val spark = indexFilesDs.sparkSession
+  def buildDataset(indexFilesDS: Dataset[IndexFile]): Dataset[DenormalizedBlock] = {
+    val spark = indexFilesDS.sparkSession
     import spark.implicits._
-
-    val broadcastCubeStatuses = spark.sparkContext.broadcast(cubeStatuses.keySet)
+    val cubeIdsBuilder = SortedSet.newBuilder[CubeId]
+    indexFilesDS
+      .select(explode(col("blocks")).as("block"))
+      .select("block.cubeId.*")
+      .distinct()
+      .as[CubeId]
+      .collect()
+      .foreach(cubeId => cubeIdsBuilder += cubeId)
+    val cubeIds = spark.sparkContext.broadcast(cubeIdsBuilder.result())
     val isLeafUDF: UserDefinedFunction =
-      udf((cubeId: CubeId) => DenormalizedBlock.isLeaf(broadcastCubeStatuses.value)(cubeId))
-
-    indexFilesDs
+      udf((cubeId: CubeId) => DenormalizedBlock.isLeaf(cubeIds.value)(cubeId))
+    indexFilesDS
       .withColumn("block", explode(col("blocks")))
       .select(
         $"block.cubeId".as("cubeId"),
         isLeafUDF($"block.cubeId").as("isLeaf"),
         $"path".as("filePath"),
-        lit(revision.revisionID).as("revisionId"),
+        $"revisionID",
         $"size".as("fileSize"),
         $"modificationTime".as("fileModificationTime"),
         $"block.minWeight".as("minWeight"),
