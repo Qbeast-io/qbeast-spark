@@ -181,7 +181,7 @@ class QbeastTable private (
    *   IndexMetrics
    */
   def getIndexMetrics(revisionID: RevisionID, indexFiles: Dataset[IndexFile]): IndexMetrics = {
-    val denormalizedBlock = DenormalizedBlock.buildDataset(revisionID, indexFiles)
+    val denormalizedBlock = DenormalizedBlock.buildDataset(indexFiles)
     IndexMetrics(revision(revisionID), denormalizedBlock)
   }
 
@@ -212,7 +212,7 @@ class QbeastTable private (
   def getDenormalizedBlocks(
       revisionID: RevisionID,
       indexFiles: Dataset[IndexFile]): Dataset[DenormalizedBlock] = {
-    DenormalizedBlock.buildDataset(revisionID, indexFiles)
+    DenormalizedBlock.buildDataset(indexFiles)
   }
 
   def getDenormalizedBlocks(revisionID: RevisionID): Dataset[DenormalizedBlock] = {

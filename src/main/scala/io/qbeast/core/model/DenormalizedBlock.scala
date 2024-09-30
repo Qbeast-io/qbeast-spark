@@ -18,7 +18,6 @@ package io.qbeast.core.model
 import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.explode
-import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.functions.udf
 import org.apache.spark.sql.Dataset
 
@@ -71,7 +70,7 @@ private[qbeast] object DenormalizedBlock {
         // cubeId is not in the tree, check the cube after it
         else !cubeId.isAncestorOf(cube)
       case List(cube) =>
-        // only one cube is larger than or equal to cubeId and it is the cubeId itself
+        // only one cube is larger than or equal to cubeId, and it is the cubeId itself
         if (cube == cubeId) true
         // cubeId is not in the map, check the cube after it
         else !cubeId.isAncestorOf(cube)
@@ -81,9 +80,7 @@ private[qbeast] object DenormalizedBlock {
     }
   }
 
-  def buildDataset(
-      revisionID: RevisionID,
-      indexFilesDS: Dataset[IndexFile]): Dataset[DenormalizedBlock] = {
+  def buildDataset(indexFilesDS: Dataset[IndexFile]): Dataset[DenormalizedBlock] = {
     val spark = indexFilesDS.sparkSession
     import spark.implicits._
     val cubeIdsBuilder = SortedSet.newBuilder[CubeId]
@@ -103,7 +100,7 @@ private[qbeast] object DenormalizedBlock {
         $"block.cubeId".as("cubeId"),
         isLeafUDF($"block.cubeId").as("isLeaf"),
         $"path".as("filePath"),
-        lit(revisionID).as("revisionId"),
+        $"revisionID",
         $"size".as("fileSize"),
         $"modificationTime".as("fileModificationTime"),
         $"block.minWeight".as("minWeight"),
