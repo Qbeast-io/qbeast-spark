@@ -40,9 +40,9 @@ object RandomKeeper extends Keeper {
   override def announce(tableId: QTableId, revision: Long, cubes: Seq[String]): Unit = {}
 
   override def beginOptimization(
-                                  tableId: QTableId,
-                                  revision: Long,
-                                  cubeLimit: Integer): Optimization = {
+      tableId: QTableId,
+      revision: Long,
+      cubeLimit: Integer): Optimization = {
     val cubesToOptimize =
       containersOneDimension.filter(_ => Random.nextInt() % 2 == 0)
     OptimizationImpl(UUID.randomUUID().toString, cubesToOptimize)
