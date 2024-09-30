@@ -57,7 +57,6 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
     val elementCountBefore = qt.getIndexMetrics.elementCount
     qt.optimize()
 
-    qt.updateSnapshot()
     val mAfter = qt.getIndexMetrics
     val fragmentationAfter = mAfter.blockCount / mAfter.cubeCount.toDouble
     val elementCountAfter = mAfter.elementCount

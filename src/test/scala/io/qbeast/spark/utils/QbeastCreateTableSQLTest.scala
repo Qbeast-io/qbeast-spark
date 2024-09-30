@@ -109,7 +109,6 @@ class QbeastCreateTableSQLTest extends QbeastIntegrationTestSpec {
           "OPTIONS ('cubeSize'='50') " +
           s"LOCATION '$location'")
       data.writeTo("student_cube_change").append()
-      qbeastTable.updateSnapshot()
       qbeastTable.cubeSize() shouldBe 50
       spark.sql("SELECT * FROM student_cube_change").count() shouldBe data.count() * 2
     })

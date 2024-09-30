@@ -42,24 +42,12 @@ class QbeastTable private (
     indexedTableFactory: IndexedTableFactory)
     extends Serializable
     with StagingUtils {
+
   private val deltaLog: DeltaLog = DeltaLog.forTable(sparkSession, tableID.id)
 
-  private var qbeastSnapshotCache: Option[DeltaQbeastSnapshot] = None
-
   private def qbeastSnapshot: DeltaQbeastSnapshot = {
-    if (qbeastSnapshotCache.isEmpty) {
-      val snapshot = deltaLog.update()
-      qbeastSnapshotCache = Some(DeltaQbeastSnapshot(snapshot))
-    }
-    qbeastSnapshotCache.get
-  }
-
-  /**
-   * Update the snapshot of the table
-   */
-  def updateSnapshot(): Unit = {
     val snapshot = deltaLog.update()
-    qbeastSnapshotCache = Some(DeltaQbeastSnapshot(snapshot))
+    DeltaQbeastSnapshot(snapshot)
   }
 
   private def indexedTable: IndexedTable = indexedTableFactory.getIndexedTable(tableID)
