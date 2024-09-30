@@ -32,5 +32,5 @@ object TagUtils {
 
 object MetadataConfig {
   final val revision = "qbeast.revision"
-  final val lastRevisionId = "qbeast.lastRevisionID"
+  final val lastRevisionId = "qbeast.lastRevisionId"
 }

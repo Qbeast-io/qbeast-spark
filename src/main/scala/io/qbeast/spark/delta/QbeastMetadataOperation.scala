@@ -76,7 +76,7 @@ private[delta] trait QbeastMetadataOperation extends ImplicitMetadataOperation w
     val newRevisionId = newRevision.revisionId
 
     // Add staging revision, if necessary. The qbeast metadata configuration
-    // should always have a revision with RevisionID = stagingID.
+    // should always have a revision with RevisionId = stagingId.
     val stagingRevisionKey = s"$revision.$stagingId"
     val addStagingRevision =
       newRevisionId == 1 && !baseConfiguration.contains(stagingRevisionKey)
