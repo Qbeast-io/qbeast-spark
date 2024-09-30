@@ -20,7 +20,7 @@ qbeastTable.indexedColumns() // current indexed columns
 
 qbeastTable.cubeSize() // current cube size
 
-qbeastTable.revisionsIDs() // all the current Revision identifiers
+qbeastTable.allRevisionIDs() // all the current Revision identifiers
 
 qbeatsTable.lastRevisionID() // the last Revision identifier
 ```
@@ -154,6 +154,3 @@ depth avgCubeElementCount cubeCount blockCount cubeElementCountStd cubeElementCo
 ```
 
 `cubeElementCountStats` and `blockElementCountStats` are the same as in the previous section. The same metrics are displayed for each level of the index tree.
-
-### 4. `Map[CubeId, CubeStatus]`
-- More information can be extracted from the index tree through `metrics.cubeStatuses`
