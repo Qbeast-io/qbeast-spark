@@ -18,8 +18,10 @@ package io.qbeast.core.transform
 import io.qbeast.core.model.OrderedDataType
 import io.qbeast.core.model.QDataType
 import io.qbeast.core.model.StringDataType
+import org.apache.spark.annotation.Experimental
 import org.apache.spark.sql.AnalysisExceptionFactory
 
+@Experimental
 object CDFQuantilesTransformer extends TransformerType {
   override def transformerSimpleName: String = "quantiles"
 
@@ -53,6 +55,7 @@ object CDFQuantilesTransformer extends TransformerType {
  *
  * This type of Transformer can only be applied from Manual ColumnStats
  */
+@Experimental
 trait CDFQuantilesTransformer extends Transformer {
 
   val columnTransformerName: String = s"${columnName}_quantiles"

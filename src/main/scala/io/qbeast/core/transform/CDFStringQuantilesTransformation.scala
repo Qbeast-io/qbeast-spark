@@ -29,7 +29,9 @@ import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.SerializerProvider
 import io.qbeast.core.model.QDataType
 import io.qbeast.core.model.StringDataType
+import org.apache.spark.annotation.Experimental
 
+@Experimental
 @JsonSerialize(using = classOf[CDFStringQuantilesTransformationSerializer])
 @JsonDeserialize(using = classOf[CDFStringQuantilesTransformationDeserializer])
 case class CDFStringQuantilesTransformation(quantiles: IndexedSeq[String])

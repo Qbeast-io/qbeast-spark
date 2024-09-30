@@ -8,7 +8,7 @@ class CDFNumericQuantilesIndexingTest
     extends QbeastIntegrationTestSpec
     with CDFQuantilesTestUtils {
 
-  "Quantiles index" should "allow append without specifiying columnStats" in withSparkAndTmpDir(
+  "Quantiles index" should "allow append without specifying columnStats" in withSparkAndTmpDir(
     (spark, tmpDir) => {
 
       import spark.implicits._

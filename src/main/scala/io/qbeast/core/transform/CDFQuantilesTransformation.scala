@@ -16,7 +16,7 @@
 package io.qbeast.core.transform
 
 import io.qbeast.core.model.QDataType
-import org.apache.hadoop.classification.InterfaceStability.Evolving
+import org.apache.spark.annotation.Experimental
 
 import scala.collection.Searching._
 
@@ -28,7 +28,7 @@ import scala.collection.Searching._
  * @param dataType
  *   The data type of the column
  */
-@Evolving
+@Experimental
 trait CDFQuantilesTransformation extends Transformation {
 
   val quantiles: IndexedSeq[Any]

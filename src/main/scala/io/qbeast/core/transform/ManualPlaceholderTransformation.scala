@@ -18,7 +18,7 @@ package io.qbeast.core.transform
 /**
  * An Placeholder for Transformations that are not yet initialized
  *
- * This Placeholder is NEVER MEANT to be used as a final transformation When tryng to transform a
+ * This Placeholder is NEVER MEANT to be used as a final transformation When trying to transform a
  * value with the transform method, it will throw an UnsupportedOperationException
  */
 case class ManualPlaceholderTransformation(columnName: String, columnStatsNames: Seq[String])
