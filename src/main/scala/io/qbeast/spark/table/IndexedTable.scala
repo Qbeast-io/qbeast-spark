@@ -115,32 +115,32 @@ trait IndexedTable {
 
   /**
    * Analyzes the index for a given revision
-   * @param revisionID
+   * @param revisionId
    *   the identifier of revision to analyze
    * @return
    *   the cubes to analyze
    */
-  def analyze(revisionID: RevisionID): Seq[String]
+  def analyze(revisionId: RevisionId): Seq[String]
 
   /**
    * Optimizes a given index revision up to a given fraction.
-   * @param revisionID
+   * @param revisionId
    *   the identifier of revision to optimize
    * @param fraction
    *   the fraction of the index to optimize; this value should be between (0, 1].
    * @param options
    *   Optimization options where user metadata and pre-commit hooks are specified.
    */
-  def optimize(revisionID: RevisionID, fraction: Double, options: Map[String, String]): Unit
+  def optimize(revisionId: RevisionId, fraction: Double, options: Map[String, String]): Unit
 
   /**
    * Optimizes the given table for a given revision
-   * @param revisionID
+   * @param revisionId
    *   the identifier of revision to optimize
    * @param options
    *   Optimization options where user metadata and pre-commit hooks are specified.
    */
-  def optimize(revisionID: RevisionID, options: Map[String, String]): Unit
+  def optimize(revisionId: RevisionId, options: Map[String, String]): Unit
 
   /**
    * Optimizes the table by optimizing the data stored in the specified index files.
@@ -348,7 +348,7 @@ private[table] class IndexedTableImpl(
         // If the table exists and we are appending new data
         // 1. Load existing IndexStatus
         val options = QbeastOptions(verifyAndMergeProperties(parameters))
-        logDebug(s"Appending data to table $tableId with revision=${latestRevision.revisionID}")
+        logDebug(s"Appending data to table $tableId with revision=${latestRevision.revisionId}")
         if (isStaging(latestRevision)) { // If the existing Revision is Staging
           val revision = revisionFactory.createNewRevision(tableId, data.schema, options)
           (IndexStatus(revision), options)
@@ -384,8 +384,8 @@ private[table] class IndexedTableImpl(
             // If the new parameters does not create a different revision,
             // load the latest IndexStatus
             logDebug(
-              s"Loading latest revision for table $tableId with revision=${latestRevision.revisionID}")
-            (snapshot.loadIndexStatus(latestRevision.revisionID), options)
+              s"Loading latest revision for table $tableId with revision=${latestRevision.revisionId}")
+            (snapshot.loadIndexStatus(latestRevision.revisionId), options)
           }
         }
       } else {
@@ -432,14 +432,14 @@ private[table] class IndexedTableImpl(
       append: Boolean): BaseRelation = {
     logTrace(s"Begin: Writing data to table $tableId")
     val revision = indexStatus.revision
-    logDebug(s"Writing data to table $tableId with revision ${revision.revisionID}")
-    keeper.withWrite(tableId, revision.revisionID) { write =>
+    logDebug(s"Writing data to table $tableId with revision ${revision.revisionId}")
+    keeper.withWrite(tableId, revision.revisionId) { write =>
       var tries = DEFAULT_NUMBER_OF_RETRIES
       while (tries > 0) {
         val announcedSet = write.announcedCubes.map(indexStatus.revision.createCubeId)
         val updatedStatus = indexStatus.addAnnouncements(announcedSet)
         val replicatedSet = updatedStatus.replicatedSet
-        val revisionID = updatedStatus.revision.revisionID
+        val revisionId = updatedStatus.revision.revisionId
         try {
           doWrite(data, updatedStatus, options, append)
           tries = 0
@@ -447,7 +447,7 @@ private[table] class IndexedTableImpl(
           case cme: ConcurrentModificationException
               if metadataManager.hasConflicts(
                 tableId,
-                revisionID,
+                revisionId,
                 replicatedSet,
                 announcedSet) || tries == 0 =>
             // Nothing to do, the conflict is unsolvable
@@ -487,20 +487,20 @@ private[table] class IndexedTableImpl(
     logTrace(s"End: Writing data to table $tableId")
   }
 
-  override def analyze(revisionID: RevisionID): Seq[String] = {
-    val indexStatus = snapshot.loadIndexStatus(revisionID)
+  override def analyze(revisionId: RevisionId): Seq[String] = {
+    val indexStatus = snapshot.loadIndexStatus(revisionId)
     val cubesToAnnounce = indexManager.analyze(indexStatus).map(_.string)
-    keeper.announce(tableId, revisionID, cubesToAnnounce)
+    keeper.announce(tableId, revisionId, cubesToAnnounce)
     cubesToAnnounce
 
   }
 
   override def optimize(
-      revisionID: RevisionID,
+      revisionId: RevisionId,
       fraction: Double,
       options: Map[String, String]): Unit = {
     assert(fraction > 0d && fraction <= 1d)
-    val indexFiles = snapshot.loadIndexFiles(revisionID)
+    val indexFiles = snapshot.loadIndexFiles(revisionId)
     import indexFiles.sparkSession.implicits._
     val files = indexFiles.transform(filterSamplingFiles(fraction)).map(_.path).collect()
     optimize(files, options)
@@ -515,18 +515,18 @@ private[table] class IndexedTableImpl(
     }
   }
 
-  override def optimize(revisionID: RevisionID, options: Map[String, String]): Unit =
-    optimize(revisionID, 1.0, options)
+  override def optimize(revisionId: RevisionId, options: Map[String, String]): Unit =
+    optimize(revisionId, 1.0, options)
 
   override def optimize(files: Seq[String], options: Map[String, String]): Unit = {
     val paths = files.toSet
     val schema = metadataManager.loadCurrentSchema(tableId)
     snapshot.loadAllRevisions.foreach { revision =>
       val indexFiles = snapshot
-        .loadIndexFiles(revision.revisionID)
+        .loadIndexFiles(revision.revisionId)
         .filter(file => paths.contains(file.path))
       if (!indexFiles.isEmpty) {
-        val indexStatus = snapshot.loadIndexStatus(revision.revisionID)
+        val indexStatus = snapshot.loadIndexStatus(revision.revisionId)
         metadataManager.updateWithTransaction(
           tableId,
           schema,

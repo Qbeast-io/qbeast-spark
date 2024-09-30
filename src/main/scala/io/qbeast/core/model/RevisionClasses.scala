@@ -116,7 +116,7 @@ object Revision {
 
 /**
  * A revision of a QTable.
- * @param revisionID
+ * @param revisionId
  *   the identifier of the revision
  * @param timestamp
  *   the timestamp
@@ -130,7 +130,7 @@ object Revision {
  *   the space transformations
  */
 final case class Revision(
-    revisionID: RevisionID,
+    revisionId: RevisionId,
     timestamp: Long,
     tableId: QTableId,
     desiredCubeSize: Int,
@@ -229,9 +229,9 @@ case class RevisionChange(
    * @return
    */
   def createNewRevision: Revision = supersededRevision match {
-    case Revision(revisionID, _, tableId, desiredCubeSize, columnTransformers, transformations) =>
+    case Revision(revisionId, _, tableId, desiredCubeSize, columnTransformers, transformations) =>
       Revision(
-        revisionID + 1,
+        revisionId + 1,
         timestamp,
         tableId,
         desiredCubeSizeChange.getOrElse(desiredCubeSize),

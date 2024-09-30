@@ -131,7 +131,7 @@ case class BlockWriter(
         .setPath(path.getName)
         .setSize(fileStatus.getLen)
         .setModificationTime(fileStatus.getModificationTime)
-        .setRevisionId(revision.revisionID)
+        .setRevisionId(revision.revisionId)
         .result()
 
       logInfo(s"Adding file ${file.path}")

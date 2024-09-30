@@ -85,7 +85,7 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
             .setPath(UUID.randomUUID().toString)
             .setSize(i * 1000L)
             .setModificationTime(System.currentTimeMillis())
-            .setRevisionId(rev.revisionID)
+            .setRevisionId(rev.revisionId)
             .beginBlock()
             .setCubeId(cubeId)
             .setMaxWeight(maxWeight)

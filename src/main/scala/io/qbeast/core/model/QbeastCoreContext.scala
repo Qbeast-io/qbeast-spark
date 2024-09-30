@@ -69,14 +69,14 @@ trait RevisionFactory[DataSchema, QbeastOptions] {
    *   the schema
    * @param options
    *   the options
-   * @param oldRevision
-   *   the old revision
+   * @param oldRevisionId
+   *   the old RevisionId
    * @return
    */
   def createNextRevision(
       tableId: QTableId,
       schema: DataSchema,
       options: QbeastOptions,
-      oldRevision: RevisionID): Revision
+      oldRevisionId: RevisionId): Revision
 
 }

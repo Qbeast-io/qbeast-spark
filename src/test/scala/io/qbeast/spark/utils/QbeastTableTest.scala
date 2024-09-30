@@ -71,7 +71,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
         writeTestData(data, columnsToIndex, cubeSize, tmpDir)
 
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-        qbeastTable.latestRevisionID shouldBe 1L
+        qbeastTable.latestRevisionId shouldBe 1L
       }
     }
 
@@ -91,7 +91,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
         writeTestData(revision3, columnsToIndex, cubeSize, tmpDir, "append")
 
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-        qbeastTable.latestRevisionID shouldBe 3L
+        qbeastTable.latestRevisionId shouldBe 3L
       }
     }
 
@@ -101,7 +101,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
         val revision1 = createDF(spark)
         val columnsToIndex = Seq("age", "val2")
         val cubeSize = 100
-        // WRITE SOME DATA, adds revisionIDs 0 and 1
+        // WRITE SOME DATA, adds revisionIds 0 and 1
         writeTestData(revision1, columnsToIndex, cubeSize, tmpDir)
 
         val revision2 = revision1.withColumn("age", col("age") * 2)
@@ -112,7 +112,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
 
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
         // Including the staging revision
-        qbeastTable.allRevisionIDs should contain theSameElementsAs Seq(0L, 1L, 2L, 3L)
+        qbeastTable.allRevisionIds should contain theSameElementsAs Seq(0L, 1L, 2L, 3L)
       }
   }
 
@@ -122,7 +122,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
         val revision1 = createDF(spark)
         val columnsToIndex = Seq("age", "val2")
         val cubeSize = 100
-        // WRITE SOME DATA, adds revisionIDs 0 and 1
+        // WRITE SOME DATA, adds revisionIds 0 and 1
         writeTestData(revision1, columnsToIndex, cubeSize, tmpDir)
 
         val revision2 = revision1.withColumn("age", col("age") * 2)
@@ -136,12 +136,12 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
         revisions.size shouldBe 4
 
         val latestRevision = qbeastTable.latestRevision
-        latestRevision.revisionID shouldBe 3L
+        latestRevision.revisionId shouldBe 3L
         latestRevision.columnTransformers.map(_.columnName) shouldBe columnsToIndex
         latestRevision.desiredCubeSize shouldBe cubeSize
 
         val revision1Metadata = qbeastTable.revision(1L)
-        revision1Metadata.revisionID shouldBe 1L
+        revision1Metadata.revisionId shouldBe 1L
         revision1Metadata.columnTransformers.map(_.columnName) shouldBe columnsToIndex
         revision1Metadata.transformations.map(t =>
           t.asInstanceOf[LinearTransformation].maxNumber) shouldBe Seq(1000, 1000123)

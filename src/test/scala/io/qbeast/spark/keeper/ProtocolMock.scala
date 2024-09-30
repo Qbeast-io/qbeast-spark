@@ -142,7 +142,7 @@ class WritingProcess(context: ProtoTestContext)(implicit keeper: Keeper) extends
   var succeeded: Option[Boolean] = None
 
   override def run(): Unit = {
-    val winfo = keeper.beginWrite(tableId, rev.revisionID)
+    val winfo = keeper.beginWrite(tableId, rev.revisionId)
 
     val deltaLog = SparkDeltaMetadataManager.loadDeltaQbeastLog(tableId).deltaLog
     val mode = SaveMode.Append
@@ -167,7 +167,7 @@ class WritingProcess(context: ProtoTestContext)(implicit keeper: Keeper) extends
             case cme: ConcurrentModificationException
                 if SparkDeltaMetadataManager.hasConflicts(
                   tableId,
-                  rev.revisionID,
+                  rev.revisionId,
                   knownAnnounced,
                   Set.empty) || tries == 0 =>
               succeeded = Some(false)
@@ -192,7 +192,7 @@ class OptimizingProcessGood(context: ProtoTestContext)(implicit keeper: Keeper)
   import context._
 
   override def run(): Unit = {
-    val bo = keeper.beginOptimization(tableId, rev.revisionID)
+    val bo = keeper.beginOptimization(tableId, rev.revisionId)
 
     val deltaLog = SparkDeltaMetadataManager.loadDeltaQbeastLog(tableId).deltaLog
     val deltaSnapshot = deltaLog.update()
@@ -224,7 +224,7 @@ class OptimizingProcessBad(context: ProtoTestContext, args: Seq[String])(implici
   import context._
 
   override def run(): Unit = {
-    val bo = keeper.beginOptimization(tableId, rev.revisionID)
+    val bo = keeper.beginOptimization(tableId, rev.revisionId)
 
     val deltaLog = SparkDeltaMetadataManager.loadDeltaQbeastLog(tableId).deltaLog
     val deltaSnapshot = deltaLog.update()
@@ -257,7 +257,7 @@ class AnnouncerProcess(context: ProtoTestContext, args: Seq[String])(implicit ke
   import context._
 
   override def run(): Unit = {
-    keeper.announce(tableId, rev.revisionID, args)
+    keeper.announce(tableId, rev.revisionId, args)
   }
 
 }

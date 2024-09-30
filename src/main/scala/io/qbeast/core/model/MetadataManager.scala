@@ -32,7 +32,7 @@ trait MetadataManager[DataSchema, FileDescriptor, QbeastOptions] {
   /**
    * Gets the Snapshot for a given table
    * @param tableId
-   *   the QTableID
+   *   the QTableI
    * @return
    *   the current snapshot
    */
@@ -41,7 +41,7 @@ trait MetadataManager[DataSchema, FileDescriptor, QbeastOptions] {
   /**
    * Gets the Schema for a given table
    * @param tableId
-   *   the QTableID
+   *   the QTableId
    * @return
    *   the current schema
    */
@@ -50,7 +50,7 @@ trait MetadataManager[DataSchema, FileDescriptor, QbeastOptions] {
   /**
    * Writes and updates the metadata by using transaction control
    * @param tableId
-   *   the QTableID
+   *   the QTableId
    * @param schema
    *   the schema of the data
    * @param options
@@ -68,7 +68,7 @@ trait MetadataManager[DataSchema, FileDescriptor, QbeastOptions] {
    * Updates the table metadata by overwriting the metadata configurations with the provided
    * key-value pairs.
    * @param tableId
-   *   QTableID
+   *   QTableId
    * @param schema
    *   table schema
    * @param update
@@ -80,7 +80,7 @@ trait MetadataManager[DataSchema, FileDescriptor, QbeastOptions] {
   /**
    * Updates the Revision with the given RevisionChanges
    * @param tableId
-   *   the QTableID
+   *   the QTableId
    * @param revisionChange
    *   the collection of RevisionChanges
    */
@@ -89,7 +89,7 @@ trait MetadataManager[DataSchema, FileDescriptor, QbeastOptions] {
   /**
    * Updates the Table with the given TableChanges
    * @param tableId
-   *   the QTableID
+   *   the QTableId
    * @param tableChanges
    *   the collection of TableChanges
    */
@@ -100,9 +100,9 @@ trait MetadataManager[DataSchema, FileDescriptor, QbeastOptions] {
    * have been optimized, but they were not announced.
    *
    * @param tableId
-   *   the table ID
-   * @param revisionID
-   *   the revision ID
+   *   the QTableId
+   * @param revisionId
+   *   the RevisionId
    * @param knownAnnounced
    *   the cubes we know they were announced when the write operation started.
    * @param oldReplicatedSet
@@ -112,14 +112,14 @@ trait MetadataManager[DataSchema, FileDescriptor, QbeastOptions] {
    */
   def hasConflicts(
       tableId: QTableId,
-      revisionID: RevisionID,
+      revisionId: RevisionId,
       knownAnnounced: Set[CubeId],
       oldReplicatedSet: ReplicatedSet): Boolean
 
   /**
    * Checks if there's an existing log directory for the table
    * @param tableId
-   *   the table ID
+   *   the QTableId
    * @return
    */
   def existsLog(tableId: QTableId): Boolean

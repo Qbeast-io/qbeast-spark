@@ -32,7 +32,7 @@ private[spark] trait DeltaStagingUtils extends StagingUtils {
    * Condition for Staging AddFiles in the form of Spark sql Column
    */
   private val isStagingFileColumn: Column =
-    col("tags").isNull.or(col("tags.revision") === lit(stagingID.toString))
+    col("tags").isNull.or(col("tags.revision") === lit(stagingId.toString))
 
   /**
    * Extract current staging files from the snapshot
@@ -51,6 +51,6 @@ private[spark] trait DeltaStagingUtils extends StagingUtils {
    */
   def isStagingFile(a: AddFile): Boolean =
     a.tags == null || a.tags.isEmpty || a.tags
-      .getOrElse("revision", "") == stagingID.toString
+      .getOrElse("revision", "") == stagingId.toString
 
 }

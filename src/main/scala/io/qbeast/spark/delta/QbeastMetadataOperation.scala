@@ -20,7 +20,7 @@ import io.qbeast.core.model.Revision
 import io.qbeast.core.model.StagingUtils
 import io.qbeast.core.model.TableChanges
 import io.qbeast.spark.utils.MetadataConfig
-import io.qbeast.spark.utils.MetadataConfig.lastRevisionID
+import io.qbeast.spark.utils.MetadataConfig.lastRevisionId
 import io.qbeast.spark.utils.MetadataConfig.revision
 import org.apache.spark.sql.delta.schema.ImplicitMetadataOperation
 import org.apache.spark.sql.delta.schema.SchemaMergingUtils
@@ -58,7 +58,7 @@ private[delta] trait QbeastMetadataOperation extends ImplicitMetadataOperation w
 
   private def overwriteQbeastConfiguration(baseConfiguration: Configuration): Configuration = {
     val revisionKeys = baseConfiguration.keys.filter(_.startsWith(MetadataConfig.revision))
-    val other = baseConfiguration.keys.filter(_ == MetadataConfig.lastRevisionID)
+    val other = baseConfiguration.keys.filter(_ == MetadataConfig.lastRevisionId)
     val qbeastKeys = revisionKeys ++ other
     baseConfiguration -- qbeastKeys
   }
@@ -73,13 +73,13 @@ private[delta] trait QbeastMetadataOperation extends ImplicitMetadataOperation w
   private def updateQbeastRevision(
       baseConfiguration: Configuration,
       newRevision: Revision): Configuration = {
-    val newRevisionID = newRevision.revisionID
+    val newRevisionId = newRevision.revisionId
 
     // Add staging revision, if necessary. The qbeast metadata configuration
     // should always have a revision with RevisionID = stagingID.
-    val stagingRevisionKey = s"$revision.$stagingID"
+    val stagingRevisionKey = s"$revision.$stagingId"
     val addStagingRevision =
-      newRevisionID == 1 && !baseConfiguration.contains(stagingRevisionKey)
+      newRevisionId == 1 && !baseConfiguration.contains(stagingRevisionKey)
     val configuration =
       if (!addStagingRevision) baseConfiguration
       else {
@@ -93,15 +93,15 @@ private[delta] trait QbeastMetadataOperation extends ImplicitMetadataOperation w
             .copy(timestamp = newRevision.timestamp - 1)
 
         // Add the staging revision to the revisionMap without overwriting
-        // the latestRevisionID
+        // the latestRevisionId
         baseConfiguration
           .updated(stagingRevisionKey, mapper.writeValueAsString(stagingRev))
       }
 
     // Update latest revision id and add new revision to metadata
     configuration
-      .updated(lastRevisionID, newRevisionID.toString)
-      .updated(s"$revision.$newRevisionID", mapper.writeValueAsString(newRevision))
+      .updated(lastRevisionId, newRevisionId.toString)
+      .updated(s"$revision.$newRevisionId", mapper.writeValueAsString(newRevision))
   }
 
   def updateQbeastMetadata(
@@ -125,7 +125,7 @@ private[delta] trait QbeastMetadataOperation extends ImplicitMetadataOperation w
     // Merged schema will contain additional columns at the end
     val isNewSchema: Boolean = txn.metadata.schema != mergedSchema
     // Either the data triggered a new revision or the user specified options to amplify the ranges
-    val containsQbeastMetadata: Boolean = txn.metadata.configuration.contains(lastRevisionID)
+    val containsQbeastMetadata: Boolean = txn.metadata.configuration.contains(lastRevisionId)
 
     // TODO This whole class is starting to be messy, and contains a lot of IF then ELSE
     // TODO We should refactor QbeastMetadataOperation to make it more readable and usable
@@ -136,8 +136,8 @@ private[delta] trait QbeastMetadataOperation extends ImplicitMetadataOperation w
     // If the table exists, but the user added a new revision, we need to create a new revision
     val isUserUpdatedMetadata =
       containsQbeastMetadata &&
-        tableChanges.updatedRevision.revisionID == txn.metadata
-          .configuration(lastRevisionID)
+        tableChanges.updatedRevision.revisionId == txn.metadata
+          .configuration(lastRevisionId)
           .toInt + 1
 
     // Whether:

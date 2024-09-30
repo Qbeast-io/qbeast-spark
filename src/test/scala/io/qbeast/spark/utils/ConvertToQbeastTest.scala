@@ -81,8 +81,8 @@ class ConvertToQbeastTest
     assertLargeDatasetEquality(qbeastDf, sourceDf, orderedComparison = false)
 
     // All non-qbeast files are considered staging files and are placed
-    // directly into the staging revision(RevisionID = 0)
-    val indexStatus = getQbeastSnapshot(spark, tmpDir).loadIndexStatus(stagingID)
+    // directly into the staging revision(RevisionId = 0)
+    val indexStatus = getQbeastSnapshot(spark, tmpDir).loadIndexStatus(stagingId)
     indexStatus.cubesStatuses.size shouldBe 1
 
     val valuesToTransform = Vector(544496263, 76.96, "view")
@@ -100,8 +100,8 @@ class ConvertToQbeastTest
     assertLargeDatasetEquality(qbeastDf, sourceDf, orderedComparison = false)
 
     // All non-qbeast files are considered staging files and are placed
-    // directly into the staging revision(RevisionID = 0)
-    val indexStatus = getQbeastSnapshot(spark, tmpDir).loadIndexStatus(stagingID)
+    // directly into the staging revision(RevisionId = 0)
+    val indexStatus = getQbeastSnapshot(spark, tmpDir).loadIndexStatus(stagingId)
     indexStatus.cubesStatuses.size shouldBe 1
   })
 

@@ -61,10 +61,10 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
         val indexStatus = qbeastSnapshot.loadLatestIndexStatus
         val revision = indexStatus.revision
 
-        revision.revisionID shouldBe 1L
-        qbeastSnapshot.loadIndexStatus(revision.revisionID) shouldBe indexStatus
-        val latestRevisionID = qbeastSnapshot.loadLatestRevision.revisionID
-        qbeastSnapshot.loadIndexStatus(latestRevisionID) shouldBe indexStatus
+        revision.revisionId shouldBe 1L
+        qbeastSnapshot.loadIndexStatus(revision.revisionId) shouldBe indexStatus
+        val latestRevisionId = qbeastSnapshot.loadLatestRevision.revisionId
+        qbeastSnapshot.loadIndexStatus(latestRevisionId) shouldBe indexStatus
       }
     }
 
@@ -89,7 +89,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
           .columnTransformers
 
         val revision = qbeastSnapshot.loadLatestRevision
-        revision.revisionID shouldBe 1L
+        revision.revisionId shouldBe 1L
         revision.tableId shouldBe QTableId(tmpDir)
         revision.columnTransformers.map(_.columnName) shouldBe names
         revision.desiredCubeSize shouldBe cubeSize
@@ -199,8 +199,8 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
 
       val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
       val lastRev = qbeastSnapshot.loadLatestRevision
-      val files = qbeastSnapshot.loadRevisionFiles(lastRev.revisionID)
-      val cubeStatus = qbeastSnapshot.loadIndexStatus(lastRev.revisionID).cubesStatuses
+      val files = qbeastSnapshot.loadRevisionFiles(lastRev.revisionId)
+      val cubeStatus = qbeastSnapshot.loadIndexStatus(lastRev.revisionId).cubesStatuses
       cubeStatus.size should be > 50
       val filesToOptim =
         files.map(IndexFiles.fromAddFile(lastRev.columnTransformers.size))
@@ -254,7 +254,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
 
       val lastRev = qbeastSnapshot.loadLatestRevision
       val files = qbeastSnapshot.loadAllRevisions
-        .map(rev => qbeastSnapshot.loadRevisionFiles(rev.revisionID))
+        .map(rev => qbeastSnapshot.loadRevisionFiles(rev.revisionId))
         .foldLeft(spark.emptyDataset[AddFile])(_ union _)
       import spark.implicits._
       val filesToOptimize: Dataset[IndexFile] =
@@ -300,7 +300,7 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
         val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
         val lastRev = qbeastSnapshot.loadLatestRevision
-        val files = qbeastSnapshot.loadRevisionFiles(lastRev.revisionID)
+        val files = qbeastSnapshot.loadRevisionFiles(lastRev.revisionId)
 
         import spark.implicits._
         val filesToOptim =

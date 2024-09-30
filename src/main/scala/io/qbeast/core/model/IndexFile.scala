@@ -33,7 +33,7 @@ case class IndexFile(
     path: String,
     size: Long,
     modificationTime: Long,
-    revisionId: RevisionID,
+    revisionId: RevisionId,
     blocks: IISeq[Block])
     extends Serializable {
 

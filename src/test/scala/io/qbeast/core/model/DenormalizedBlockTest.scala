@@ -81,8 +81,8 @@ class DenormalizedBlockTest extends QbeastIntegrationTestSpec {
 
       val fileSize = 10L
       val indexFilesDs = Vector(
-        IndexFile("f1.parquet", fileSize, 1, revision.revisionID, Vector(rootB1, c1B1)),
-        IndexFile("f2.parquet", fileSize, 2, revision.revisionID, Vector(rootB2, c1B2))).toDS
+        IndexFile("f1.parquet", fileSize, 1, revision.revisionId, Vector(rootB1, c1B1)),
+        IndexFile("f2.parquet", fileSize, 2, revision.revisionId, Vector(rootB2, c1B2))).toDS
 
       val denormalizedBlock = DenormalizedBlock.buildDataset(indexFilesDs)
 
@@ -91,7 +91,7 @@ class DenormalizedBlockTest extends QbeastIntegrationTestSpec {
           cubeId = root,
           isLeaf = false,
           filePath = "f1.parquet",
-          revisionId = revision.revisionID,
+          revisionId = revision.revisionId,
           fileSize = fileSize,
           fileModificationTime = 1L,
           minWeight = Weight(0d),
@@ -102,7 +102,7 @@ class DenormalizedBlockTest extends QbeastIntegrationTestSpec {
           cubeId = root,
           isLeaf = false,
           filePath = "f2.parquet",
-          revisionId = revision.revisionID,
+          revisionId = revision.revisionId,
           fileSize = fileSize,
           fileModificationTime = 2L,
           minWeight = Weight(0d),
@@ -113,7 +113,7 @@ class DenormalizedBlockTest extends QbeastIntegrationTestSpec {
           cubeId = c1,
           isLeaf = true,
           filePath = "f1.parquet",
-          revisionId = revision.revisionID,
+          revisionId = revision.revisionId,
           fileSize = fileSize,
           fileModificationTime = 1L,
           minWeight = Weight(0.5),
@@ -124,7 +124,7 @@ class DenormalizedBlockTest extends QbeastIntegrationTestSpec {
           cubeId = c1,
           isLeaf = true,
           filePath = "f2.parquet",
-          revisionId = revision.revisionID,
+          revisionId = revision.revisionId,
           fileSize = fileSize,
           fileModificationTime = 2L,
           minWeight = Weight(0.45),

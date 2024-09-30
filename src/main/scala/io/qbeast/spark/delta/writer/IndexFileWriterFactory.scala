@@ -16,7 +16,7 @@
 package io.qbeast.spark.delta.writer
 
 import io.qbeast.core.model.QTableId
-import io.qbeast.core.model.RevisionID
+import io.qbeast.core.model.RevisionId
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapred.JobConf
 import org.apache.hadoop.mapred.TaskAttemptContextImpl
@@ -46,12 +46,12 @@ import java.util.UUID
  *   the Hadoop configuration in serializable form
  */
 private[writer] class IndexFileWriterFactory(
-                                              tableId: QTableId,
-                                              schema: StructType,
-                                              revisionId: RevisionID,
-                                              outputFactory: OutputWriterFactory,
-                                              trackers: Seq[WriteJobStatsTracker],
-                                              config: SerializableConfiguration)
+    tableId: QTableId,
+    schema: StructType,
+    revisionId: RevisionId,
+    outputFactory: OutputWriterFactory,
+    trackers: Seq[WriteJobStatsTracker],
+    config: SerializableConfiguration)
     extends Serializable {
 
   /**

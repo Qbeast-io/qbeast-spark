@@ -24,21 +24,21 @@ import org.apache.spark.sql.DataFrameUtils
 import org.apache.spark.sql.Dataset
 
 case class IndexMetrics(
-    revisionId: RevisionID,
-    elementCount: Long,
-    dimensionCount: Int,
-    desiredCubeSize: Int,
-    indexingColumns: String,
-    height: Int,
-    avgFanout: Double,
-    cubeElementCountStats: SizeStats,
-    blockElementCountStats: SizeStats,
-    fileBytesStats: SizeStats,
-    blockCountPerCubeStats: SizeStats,
-    blockCountPerFileStats: SizeStats,
-    innerCubeStats: String,
-    leafCubeStats: String,
-    denormalizedBlocks: Dataset[DenormalizedBlock]) {
+                         revisionId: RevisionId,
+                         elementCount: Long,
+                         dimensionCount: Int,
+                         desiredCubeSize: Int,
+                         indexingColumns: String,
+                         height: Int,
+                         avgFanout: Double,
+                         cubeElementCountStats: SizeStats,
+                         blockElementCountStats: SizeStats,
+                         fileBytesStats: SizeStats,
+                         blockCountPerCubeStats: SizeStats,
+                         blockCountPerFileStats: SizeStats,
+                         innerCubeStats: String,
+                         leafCubeStats: String,
+                         denormalizedBlocks: Dataset[DenormalizedBlock]) {
 
   def cubeCount: Long = cubeElementCountStats.count
 
@@ -155,7 +155,7 @@ object IndexMetrics {
         .first()
 
     IndexMetrics(
-      revisionId = revision.revisionID,
+      revisionId = revision.revisionId,
       elementCount = elementCount,
       dimensionCount = dimensionCount,
       desiredCubeSize = desiredCubeSize,

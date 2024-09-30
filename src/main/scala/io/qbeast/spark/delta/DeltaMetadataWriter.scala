@@ -16,7 +16,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model.QTableId
-import io.qbeast.core.model.RevisionID
+import io.qbeast.core.model.RevisionId
 import io.qbeast.core.model.TableChanges
 import io.qbeast.spark.delta.hook.PreCommitHook
 import io.qbeast.spark.delta.hook.PreCommitHook.PreCommitHookOutput
@@ -212,7 +212,7 @@ private[delta] case class DeltaMetadataWriter(
     deltaLog
       .update()
       .allFiles
-      .where(TagColumns.revision === lit(revision.revisionID.toString))
+      .where(TagColumns.revision === lit(revision.revisionId.toString))
       .collect()
       .map(IndexFiles.fromAddFile(dimensionCount))
       .flatMap(_.tryReplicateBlocks(deltaReplicatedSet))
@@ -222,8 +222,8 @@ private[delta] case class DeltaMetadataWriter(
 
   private def updateTransactionVersion(
       txn: OptimisticTransaction,
-      revisionID: RevisionID): SetTransaction = {
-    val transactionID = s"qbeast.${tableId.id}.$revisionID"
+      revisionId: RevisionId): SetTransaction = {
+    val transactionID = s"qbeast.${tableId.id}.$revisionId"
     val startingTnx = txn.txnVersion(transactionID)
     val newTransaction = startingTnx + 1
 
@@ -287,9 +287,9 @@ private[delta] case class DeltaMetadataWriter(
     }
 
     if (isOptimizeOperation) {
-      val revisionID = tableChanges.updatedRevision.revisionID
+      val revisionId = tableChanges.updatedRevision.revisionId
       val transactionRecord =
-        updateTransactionVersion(txn, revisionID)
+        updateTransactionVersion(txn, revisionId)
       val replicatedFiles = updateReplicatedFiles(tableChanges)
       allFileActions ++ replicatedFiles ++ Seq(transactionRecord)
     } else allFileActions

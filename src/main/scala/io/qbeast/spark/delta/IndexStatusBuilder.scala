@@ -46,7 +46,7 @@ private[delta] class IndexStatusBuilder(
    */
   def revisionFiles: Dataset[AddFile] =
     // this must be external to the lambda, to avoid SerializationErrors
-    qbeastSnapshot.loadRevisionFiles(revision.revisionID)
+    qbeastSnapshot.loadRevisionFiles(revision.revisionId)
 
   def build(): IndexStatus = {
     val cubeStatus =

@@ -19,7 +19,7 @@ import io.qbeast.core.model.CubeId
 import io.qbeast.core.model.IndexFile
 import io.qbeast.core.model.IndexFileBuilder
 import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
-import io.qbeast.core.model.RevisionID
+import io.qbeast.core.model.RevisionId
 import io.qbeast.core.model.Weight
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
@@ -42,10 +42,10 @@ import scala.collection.mutable
  *   the Hadoop configuration
  */
 private[writer] class IndexFileWriter(
-    revisionId: RevisionID,
-    output: OutputWriter,
-    trackers: Seq[WriteTaskStatsTracker],
-    config: Configuration) {
+                                       revisionId: RevisionId,
+                                       output: OutputWriter,
+                                       trackers: Seq[WriteTaskStatsTracker],
+                                       config: Configuration) {
 
   private val file: IndexFileBuilder = new IndexFileBuilder().setRevisionId(revisionId)
 

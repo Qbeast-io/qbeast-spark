@@ -44,7 +44,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
           Map(QbeastOptions.COLUMNS_TO_INDEX -> "a", QbeastOptions.CUBE_SIZE -> "10")))
 
     revision.tableId shouldBe qid
-    revision.revisionID shouldBe 0
+    revision.revisionId shouldBe 0
     revision.desiredCubeSize shouldBe 10
     revision.columnTransformers shouldBe Vector(LinearTransformer("a", LongDataType))
     revision.transformations shouldBe Vector.empty
@@ -63,7 +63,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
           Map(QbeastOptions.COLUMNS_TO_INDEX -> "a,b,c,d", QbeastOptions.CUBE_SIZE -> "10")))
 
     revision.tableId shouldBe qid
-    revision.revisionID shouldBe 0
+    revision.revisionId shouldBe 0
     revision.desiredCubeSize shouldBe 10
     revision.columnTransformers shouldBe Vector(
       LinearTransformer("a", LongDataType),
@@ -100,7 +100,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
 
     revision.tableId shouldBe qid
     // the reason while it's 1 is because columnStats are provided here
-    revision.revisionID shouldBe 1
+    revision.revisionId shouldBe 1
     revision.desiredCubeSize shouldBe 10
     revision.columnTransformers shouldBe Vector(LinearTransformer("a", LongDataType))
 
@@ -233,7 +233,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
 
       revision.tableId shouldBe qid
       // the reason while it's 1 is because columnStats are provided here
-      revision.revisionID shouldBe 1
+      revision.revisionId shouldBe 1
       revision.desiredCubeSize shouldBe 10
       revision.columnTransformers shouldBe Vector(
         LinearTransformer("a", LongDataType),
@@ -268,7 +268,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
             QbeastOptions.CUBE_SIZE -> "10")))
 
     revision.tableId shouldBe qid
-    revision.revisionID shouldBe 0
+    revision.revisionId shouldBe 0
     revision.desiredCubeSize shouldBe 10
     revision.columnTransformers shouldBe Vector(
       HashTransformer("a", LongDataType),

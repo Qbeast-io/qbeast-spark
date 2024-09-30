@@ -184,7 +184,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
 
     val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
     val revision = qbeastSnapshot.loadLatestRevision
-    val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
+    val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionId)
 
     val innerCubesLevel1 =
       indexStatus.cubesStatuses.keys.filter(cube =>
@@ -204,7 +204,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
       .toDS()
       .select(struct("*").as("cubeId"))
     val indexFiles: Dataset[DenormalizedBlock] =
-      QbeastTable.forPath(spark, tmpdir).getDenormalizedBlocks(revision.revisionID)
+      QbeastTable.forPath(spark, tmpdir).getDenormalizedBlocks(revision.revisionId)
     val matchFiles = indexFiles
       .join(matchCubes, "cubeId")
       .select("filePath")

@@ -22,7 +22,7 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 
 package object model {
   type NormalizedWeight = Double
-  type RevisionID = Long
+  type RevisionId = Long
 
   /**
    * ReplicatedSet is used to represent a set of CubeId's that had been replicated

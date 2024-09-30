@@ -18,7 +18,7 @@ package io.qbeast.spark.index
 import io.qbeast.core.model.QTableId
 import io.qbeast.core.model.Revision
 import io.qbeast.core.model.RevisionFactory
-import io.qbeast.core.model.RevisionID
+import io.qbeast.core.model.RevisionId
 import io.qbeast.core.transform.EmptyTransformation
 import io.qbeast.core.transform.Transformation
 import io.qbeast.spark.internal.QbeastOptions
@@ -30,9 +30,9 @@ import org.apache.spark.sql.types.StructType
 object SparkRevisionFactory extends RevisionFactory[StructType, QbeastOptions] {
 
   override def createNewRevision(
-                                  tableId: QTableId,
-                                  schema: StructType,
-                                  options: QbeastOptions): Revision = {
+      tableId: QTableId,
+      schema: StructType,
+      options: QbeastOptions): Revision = {
 
     val desiredCubeSize = options.cubeSize
     val columnsToIndex = options.columnsToIndexParsed
@@ -64,22 +64,22 @@ object SparkRevisionFactory extends RevisionFactory[StructType, QbeastOptions] {
         val firstRevision =
           Revision.firstRevision(tableId, desiredCubeSize, transformers, transformations)
 
-        // When all indexing columns have been provided with a boundary, update the RevisionID
-        // to 1 to avoid using the StagingRevisionID(0). It is possible for this RevisionID to
+        // When all indexing columns have been provided with a boundary, update the RevisionId
+        // to 1 to avoid using the StagingRevisionId(0). It is possible for this RevisionId
         // to be later updated to 2 if the actual column boundaries are larger that than the
         // provided values. In this case, we will have Revision 2 instead of Revision 1.
-        if (shouldCreateNewSpace) firstRevision.copy(revisionID = 1)
+        if (shouldCreateNewSpace) firstRevision.copy(revisionId = 1)
         else firstRevision
     }
   }
 
   override def createNextRevision(
-                                   tableId: QTableId,
-                                   schema: StructType,
-                                   options: QbeastOptions,
-                                   oldRevisionID: RevisionID): Revision = {
+      tableId: QTableId,
+      schema: StructType,
+      options: QbeastOptions,
+      oldRevisionId: RevisionId): Revision = {
     val revision = createNewRevision(tableId, schema, options)
-    revision.copy(revisionID = oldRevisionID + 1)
+    revision.copy(revisionId = oldRevisionId + 1)
   }
 
 }

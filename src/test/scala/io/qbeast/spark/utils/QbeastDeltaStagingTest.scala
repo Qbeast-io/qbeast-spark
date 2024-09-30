@@ -63,7 +63,7 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
       val snapshot = DeltaLog.forTable(spark, tmpDir).unsafeVolatileSnapshot
       val qs = DeltaQbeastSnapshot(snapshot)
       qs.loadAllRevisions.size shouldBe 2
-      qs.existsRevision(stagingID)
+      qs.existsRevision(stagingId)
     })
 
   it should "be readable using both formats after Analyze and Optimize" in withSparkAndTmpDir(
@@ -71,7 +71,7 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
       writeHybridTable(spark, tmpDir)
 
       // Optimize the staging revision
-      QbeastTable.forPath(spark, tmpDir).optimize(stagingID)
+      QbeastTable.forPath(spark, tmpDir).optimize(stagingId)
 
       // DataFrame should not change by optimizing the staging revision
       val qbeastDf = spark.read.format("qbeast").load(tmpDir)
@@ -83,7 +83,7 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
       // Should preserve standing staging revision behavior
       val snapshot = DeltaLog.forTable(spark, tmpDir).unsafeVolatileSnapshot
       val qbeastSnapshot = DeltaQbeastSnapshot(snapshot)
-      val stagingIndexStatus = qbeastSnapshot.loadIndexStatus(stagingID)
+      val stagingIndexStatus = qbeastSnapshot.loadIndexStatus(stagingId)
       stagingIndexStatus.cubesStatuses.size shouldBe 1
       stagingIndexStatus.replicatedOrAnnouncedSet.isEmpty shouldBe true
     })

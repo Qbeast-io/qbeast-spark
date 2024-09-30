@@ -18,7 +18,7 @@ package io.qbeast.spark.internal.commands
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.delta.SparkDeltaMetadataManager
-import io.qbeast.spark.utils.MetadataConfig.lastRevisionID
+import io.qbeast.spark.utils.MetadataConfig.lastRevisionId
 import io.qbeast.spark.utils.MetadataConfig.revision
 import io.qbeast.spark.utils.QbeastExceptionMessages.incorrectIdentifierFormat
 import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
@@ -110,12 +110,12 @@ case class ConvertToQbeastCommand(
 
       SparkDeltaMetadataManager.updateMetadataWithTransaction(tableId, schema) {
         val convRevision = stagingRevision(tableId, cubeSize, columnsToIndex)
-        val revisionID = convRevision.revisionID
+        val revisionId = convRevision.revisionId
 
         // Add staging revision to Revision Map, set it as the latestRevision
         Map(
-          lastRevisionID -> revisionID.toString,
-          s"$revision.$revisionID" -> mapper.writeValueAsString(convRevision)) ++ tableOptions
+          lastRevisionId -> revisionId.toString,
+          s"$revision.$revisionId" -> mapper.writeValueAsString(convRevision)) ++ tableOptions
       }
     }
 

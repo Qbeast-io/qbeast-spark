@@ -215,7 +215,7 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
 
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
         qbeastTable.indexedColumns() shouldBe autoColumnsToIndex
-        qbeastTable.latestRevisionID shouldBe 1L
+        qbeastTable.latestRevisionId shouldBe 1L
 
       }
   }

@@ -44,11 +44,11 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
   def execute(tablePath: Path): Seq[FileStatusWithMetadata] = {
 
     qbeastSnapshot.loadAllRevisions
-      .filter(_.revisionID > 0)
+      .filter(_.revisionId > 0)
       .flatMap { revision =>
-        val indexFiles: Dataset[IndexFile] = qbeastSnapshot.loadIndexFiles(revision.revisionID)
+        val indexFiles: Dataset[IndexFile] = qbeastSnapshot.loadIndexFiles(revision.revisionId)
         import indexFiles.sparkSession.implicits._
-        val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionID)
+        val indexStatus = qbeastSnapshot.loadIndexStatus(revision.revisionId)
         val querySpecs = querySpecBuilder.build(revision)
         querySpecs
           .map { querySpec =>

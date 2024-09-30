@@ -168,7 +168,7 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
 
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
         qbeastTable.indexedColumns() shouldBe Seq("name", "age", "id")
-        qbeastTable.latestRevisionID shouldBe 1L
+        qbeastTable.latestRevisionId shouldBe 1L
 
       }
   }

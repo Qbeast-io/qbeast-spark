@@ -20,16 +20,16 @@ import io.qbeast.core.transform.EmptyTransformer
 trait StagingUtils {
 
   /**
-   * RevisionID for the Staging Revision
+   * RevisionId for the Staging Revision
    */
-  protected val stagingID: RevisionID = 0L
+  protected val stagingId: RevisionId = 0L
 
-  protected def isStaging(revisionID: RevisionID): Boolean = {
-    revisionID == stagingID
+  protected def isStaging(revisionId: RevisionId): Boolean = {
+    revisionId == stagingId
   }
 
   protected def isStaging(revision: Revision): Boolean = {
-    isStaging(revision.revisionID) &&
+    isStaging(revision.revisionId) &&
     revision.columnTransformers.forall {
       case _: EmptyTransformer => true
       case _ => false
@@ -37,7 +37,7 @@ trait StagingUtils {
   }
 
   /**
-   * Initialize Revision for table conversion. The RevisionID for a converted table is 0.
+   * Initialize Revision for table conversion. The RevisionId for a converted table is 0.
    * EmptyTransformers and EmptyTransformations are used. This Revision should always be
    * superseded.
    */
@@ -49,7 +49,7 @@ trait StagingUtils {
     val emptyTransformations = emptyTransformers.map(_.makeTransformation(r => r))
 
     Revision(
-      stagingID,
+      stagingId,
       System.currentTimeMillis(),
       tableId,
       desiredCubeSize,

@@ -137,7 +137,7 @@ class QuerySpecBuilderTest extends QbeastIntegrationTestSpec with QueryTestSpec 
   "extractQuerySpace" should "filter Revision properly" in withSpark(_ => {
     // Revision space ranges: [0, 10], [10, 20], [20, 30], [30, 40]
     val revisions =
-      (0 to 3).map(i => createRevision(10 * i, 10 * (i + 1)).copy(revisionID = i + 1))
+      (0 to 3).map(i => createRevision(10 * i, 10 * (i + 1)).copy(revisionId = i + 1))
     val expressions =
       Seq(
         ("id < -1", 0),
@@ -162,7 +162,7 @@ class QuerySpecBuilderTest extends QbeastIntegrationTestSpec with QueryTestSpec 
   it should "retrieve all revisions with no filter expressions" in withSpark(_ => {
     // Revision space ranges: [0, 10], [10, 20], [20, 30], [30, 40]
     val revisions =
-      (0 to 3).map(i => createRevision(10 * i, 10 * (i + 1)).copy(revisionID = i + 1))
+      (0 to 3).map(i => createRevision(10 * i, 10 * (i + 1)).copy(revisionId = i + 1))
 
     revisions.count { revision =>
       val querySpec = new QuerySpecBuilder(Seq.empty).build(revision).head

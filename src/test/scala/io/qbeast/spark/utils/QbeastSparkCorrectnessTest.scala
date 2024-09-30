@@ -102,7 +102,7 @@ class QbeastSparkCorrectnessTest extends QbeastIntegrationTestSpec {
 
         // Include the staging revision
         qbeastSnapshot.loadAllRevisions.size shouldBe 2
-        qbeastSnapshot.loadLatestRevision.revisionID shouldBe 1L
+        qbeastSnapshot.loadLatestRevision.revisionId shouldBe 1L
 
       }
   }

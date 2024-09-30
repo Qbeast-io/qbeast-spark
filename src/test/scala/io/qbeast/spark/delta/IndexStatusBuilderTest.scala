@@ -38,7 +38,7 @@ class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {
       val indexStatus =
         DeltaQbeastSnapshot(deltaLog.update()).loadLatestIndexStatus
 
-      indexStatus.revision.revisionID shouldBe 1
+      indexStatus.revision.revisionId shouldBe 1
       indexStatus.cubesStatuses.map(_._2.elementCount).sum shouldBe 100000L
 
       indexStatus.replicatedSet shouldBe Set.empty
@@ -66,7 +66,7 @@ class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {
       .save(tmpDir)
     val secondIndexStatus = DeltaQbeastSnapshot(deltaLog.update()).loadLatestIndexStatus
 
-    secondIndexStatus.revision.revisionID shouldBe 1
+    secondIndexStatus.revision.revisionId shouldBe 1
     secondIndexStatus.announcedSet shouldBe Set.empty
     secondIndexStatus.replicatedSet shouldBe Set.empty
     secondIndexStatus.cubesStatuses.foreach { case (cube: CubeId, cubeStatus: CubeStatus) =>

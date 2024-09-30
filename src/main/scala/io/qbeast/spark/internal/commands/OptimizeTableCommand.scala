@@ -15,7 +15,7 @@
  */
 package io.qbeast.spark.internal.commands
 
-import io.qbeast.core.model.RevisionID
+import io.qbeast.core.model.RevisionId
 import io.qbeast.spark.table.IndexedTable
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
 import org.apache.spark.sql.Row
@@ -24,20 +24,20 @@ import org.apache.spark.sql.SparkSession
 /**
  * The Optimize Table command implementation
  *
- * @param revisionID
+ * @param revisionId
  *   the identifier of revision to optimize
  * @param indexedTable
  *   indexed table to optimize
  */
 case class OptimizeTableCommand(
-    revisionID: RevisionID,
+    revisionId: RevisionId,
     fraction: Double,
     indexedTable: IndexedTable,
     options: Map[String, String])
     extends LeafRunnableCommand {
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
-    indexedTable.optimize(revisionID, fraction, options)
+    indexedTable.optimize(revisionId, fraction, options)
     Seq.empty[Row]
   }
 

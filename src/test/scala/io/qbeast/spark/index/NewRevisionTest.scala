@@ -80,7 +80,7 @@ class NewRevisionTest
         val allWM =
           revisions
             .map(revision =>
-              qbeastSnapshot.loadIndexStatus(revision.revisionID).cubeNormalizedWeights)
+              qbeastSnapshot.loadIndexStatus(revision.revisionId).cubeNormalizedWeights)
         allWM.foreach(wm => wm should not be empty)
     }
 
@@ -172,7 +172,7 @@ class NewRevisionTest
         val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
         val transformation = qbeastSnapshot.loadLatestRevision.transformations.head
 
-        qbeastSnapshot.loadLatestRevision.revisionID shouldBe 1
+        qbeastSnapshot.loadLatestRevision.revisionId shouldBe 1
         transformation shouldBe a[LinearTransformation]
         transformation.asInstanceOf[LinearTransformation].minNumber shouldBe 0
         transformation.asInstanceOf[LinearTransformation].maxNumber shouldBe 20
@@ -204,7 +204,7 @@ class NewRevisionTest
         val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
         val transformation = qbeastSnapshot.loadLatestRevision.transformations.head
 
-        qbeastSnapshot.loadLatestRevision.revisionID shouldBe 1
+        qbeastSnapshot.loadLatestRevision.revisionId shouldBe 1
         transformation shouldBe a[LinearTransformation]
         transformation.asInstanceOf[LinearTransformation].minNumber shouldBe 0
         transformation.asInstanceOf[LinearTransformation].maxNumber shouldBe 20
@@ -238,7 +238,7 @@ class NewRevisionTest
         val revision = qbeastSnapshot.loadLatestRevision
         val transformation = revision.transformations.head
 
-        revision.revisionID should be > 0L
+        revision.revisionId should be > 0L
         transformation shouldBe a[LinearTransformation]
         transformation.asInstanceOf[LinearTransformation].minNumber shouldBe 1
         transformation.asInstanceOf[LinearTransformation].maxNumber shouldBe 10
@@ -273,7 +273,7 @@ class NewRevisionTest
 
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
       val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
-      val allRevisions = qbeastSnapshot.loadAllRevisions.sortBy(_.revisionID)
+      val allRevisions = qbeastSnapshot.loadAllRevisions.sortBy(_.revisionId)
 
       val firstWriteTransformation =
         allRevisions(1).transformations.head.asInstanceOf[LinearTransformation]
@@ -323,7 +323,7 @@ class NewRevisionTest
 
         val deltaLog = DeltaLog.forTable(spark, tmpDir)
         val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
-        val allRevisions = qbeastSnapshot.loadAllRevisions.sortBy(_.revisionID)
+        val allRevisions = qbeastSnapshot.loadAllRevisions.sortBy(_.revisionId)
 
         val firstWriteTransformation =
           allRevisions(1).transformations.head.asInstanceOf[LinearTransformation]

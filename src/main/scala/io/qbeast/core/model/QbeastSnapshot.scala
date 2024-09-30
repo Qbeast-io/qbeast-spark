@@ -55,12 +55,12 @@ trait QbeastSnapshot {
 
   /**
    * Obtains the latest IndexStatus for a given revision
-   * @param revisionID
-   *   the RevisionID
+   * @param revisionId
+   *   the RevisionId
    * @return
    *   the index status
    */
-  def loadIndexStatus(revisionID: RevisionID): IndexStatus
+  def loadIndexStatus(revisionId: RevisionId): IndexStatus
 
   /**
    * Loads the index files of the lates revision.
@@ -78,7 +78,7 @@ trait QbeastSnapshot {
    * @return
    *   the index files of the specified revision
    */
-  def loadIndexFiles(revisionId: RevisionID): Dataset[IndexFile]
+  def loadIndexFiles(revisionId: RevisionId): Dataset[IndexFile]
 
   /**
    * Obtains all Revisions
@@ -96,12 +96,12 @@ trait QbeastSnapshot {
 
   /**
    * Obtains the IndexStatus for a given revision
-   * @param revisionID
+   * @param revisionId
    *   the revision identifier
    * @return
    *   the index status
    */
-  def loadRevision(revisionID: RevisionID): Revision
+  def loadRevision(revisionId: RevisionId): Revision
 
   /**
    * Loads the first revision available at a given timestamp
