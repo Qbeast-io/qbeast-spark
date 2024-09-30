@@ -6,7 +6,7 @@ val mainVersion = "0.8.0-SNAPSHOT"
 lazy val qbeastCore = (project in file("./core"))
   .settings(
     name := "qbeast-core",
-    libraryDependencies ++= Seq(sparkSql % Provided, sparkml % Provided),
+    libraryDependencies ++= Seq(sparkCore % Provided, sparkSql % Provided, sparkml % Provided),
     Test / parallelExecution := false,
     assembly / test := {},
     assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false))
@@ -16,18 +16,19 @@ lazy val qbeastDelta = (project in file("./delta"))
   .dependsOn(qbeastCore)
   .settings(
     name := "qbeast-delta",
-    libraryDependencies ++= Seq(deltaSpark % Provided, sparkSql % Provided),
+    libraryDependencies ++= Seq(sparkCore % Provided, deltaSpark % Provided, sparkSql % Provided),
     Test / parallelExecution := false,
     assembly / test := {},
     assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = false))
   .settings(noWarningInConsole)
 
 lazy val qbeastSpark = (project in file("."))
-  .dependsOn(qbeastCore, qbeastDelta)
+  .aggregate(qbeastCore, qbeastDelta)
   .enablePlugins(ScalaUnidocPlugin)
   .settings(
     name := "qbeast-spark",
     libraryDependencies ++= Seq(
+      sparkCore % Provided,
       sparkSql % Provided,
       deltaSpark % Provided,
       sparkml % Test,
@@ -60,13 +61,6 @@ qbeastDelta / Compile / doc / scalacOptions ++= Seq(
   mainVersion,
   "-doc-footer",
   "Copyright 2022 Qbeast - Docs for version " + mainVersion + " of qbeast-delta")
-
-// Common metadata
-ThisBuild / version := mainVersion
-ThisBuild / organization := "io.qbeast"
-ThisBuild / organizationName := "Qbeast Analytics, S.L."
-ThisBuild / organizationHomepage := Some(url("https://qbeast.io/"))
-ThisBuild / startYear := Some(2021)
 
 // Common metadata
 ThisBuild / version := mainVersion
