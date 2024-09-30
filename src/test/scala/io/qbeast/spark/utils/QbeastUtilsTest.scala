@@ -29,13 +29,24 @@ class QbeastUtilsTest extends QbeastIntegrationTestSpec {
       quantiles shouldBe "['a', 'b', 'c']"
     })
 
-  it should "compute quantiles for Int" in withQbeastContextSparkAndTmpDir((spark, tmpDir) => {
-    import spark.implicits._
-    val df = Seq(1, 2, 3, 1, 2, 3, 1, 2, 3).toDF("age")
-    val quantiles = QbeastUtils.computeQuantilesForColumn(df, "age", 3)
+  it should "include the extremes in the quantiles for numeric columns" in withQbeastContextSparkAndTmpDir(
+    (spark, _s) => {
+      import spark.implicits._
+      val df = 1.to(100).toDF("age")
+      val quantiles = QbeastUtils.computeQuantilesForColumn(df, "age", 4, 0.0)
 
-    quantiles shouldBe "[1.0, 2.0, 3.0]"
-  })
+      quantiles shouldBe "[1.0, 25.0, 50.0, 75.0, 100.0]"
+    })
+
+  it should "throw error when numberOfQuantiles <= 1" in withQbeastContextSparkAndTmpDir(
+    (spark, _) => {
+      import spark.implicits._
+      val df = Seq("a", "b", "c", "a", "b", "c", "a", "b", "c").toDF("name")
+      an[IllegalArgumentException] shouldBe thrownBy(
+        QbeastUtils.computeQuantilesForColumn(df, "name", 1))
+      an[IllegalArgumentException] shouldBe thrownBy(
+        QbeastUtils.computeQuantilesForColumn(df, "name", 0))
+    })
 
   it should "throw error when the column does not exists" in withQbeastContextSparkAndTmpDir(
     (spark, _) => {

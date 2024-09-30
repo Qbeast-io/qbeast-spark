@@ -49,9 +49,6 @@ object QbeastUtils extends Logging {
 
     val quantiles = df
       .select(columnName)
-      .distinct()
-      .na
-      .drop()
       .groupBy(stringPartitionColumn)
       .agg(min(columnName).alias(binStarts))
       .select(binStarts)
@@ -69,7 +66,7 @@ object QbeastUtils extends Logging {
       columnName: String,
       numberOfQuantiles: Int,
       relativeError: Double): Array[Double] = {
-    val probabilities = (1 to numberOfQuantiles).map(_ / numberOfQuantiles.toDouble).toArray
+    val probabilities = (0 to numberOfQuantiles).map(_ / numberOfQuantiles.toDouble).toArray
     val reducedDF = df.select(columnName)
     val approxQuantile = reducedDF.stat.approxQuantile(columnName, probabilities, relativeError)
     log.info(s"Numeric Quantiles for column $columnName: ${approxQuantile.mkString(",")}")
@@ -110,6 +107,7 @@ object QbeastUtils extends Logging {
       columnName: String,
       numberOfQuantiles: Int = 50,
       relativeError: Double = 0.1): String = {
+    require(numberOfQuantiles > 1, "Number of quantiles must be greater than 1")
     // Check if the column exists
     if (!df.columns.contains(columnName)) {
       throw AnalysisExceptionFactory.create(s"Column $columnName does not exist in the dataframe")
