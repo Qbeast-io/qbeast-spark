@@ -81,7 +81,7 @@ trait CDFQuantilesTransformation extends Transformation {
       // When the index is not found, we return the relative position of the insertion point
       case InsertionPoint(insertionPoint) =>
         if (insertionPoint == 0) 0d
-        else if (insertionPoint == quantiles.length + 1) 1d
+        else if (insertionPoint == quantiles.length) 1d
         else (insertionPoint - 1).toDouble / (quantiles.length - 1)
     }
   }

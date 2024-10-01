@@ -102,15 +102,15 @@ class CDFStringQuantilesTransformationDeserializer
   override def deserialize(
       p: JsonParser,
       ctxt: DeserializationContext): CDFStringQuantilesTransformation = {
-    val histogramBuilder = IndexedSeq.newBuilder[String]
+    val quantilesBuilder = IndexedSeq.newBuilder[String]
 
     val tree: TreeNode = p.getCodec.readTree(p)
     tree.get("quantiles") match {
       case an: ArrayNode =>
-        (0 until an.size()).foreach(i => histogramBuilder += an.get(i).asText())
+        (0 until an.size()).foreach(i => quantilesBuilder += an.get(i).asText())
     }
 
-    CDFStringQuantilesTransformation(histogramBuilder.result())
+    CDFStringQuantilesTransformation(quantilesBuilder.result())
   }
 
 }
