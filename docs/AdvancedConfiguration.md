@@ -167,36 +167,53 @@ val columnStats =
      |"date_max":"${formatter.format(maxTimestamp)}" }""".stripMargin
 ```
 
-## String indexing via Histograms
+## Indexing via Quantile Based CDF
 
-The default **String** column transformation (`HashTransformation`) has limited range query supports since the lexicographic ordering of the String values are not preserved.
+> **WARNING**: This is an **Experimental Feature**, and the API might change in the near future.
 
-This can be addressed by introducing a custom **String** histogram in the form of sorted `Seq[String]`, and can lead to several improvements including:
+The default column transformation for Strings (`HashTransformation`) has limited range query supports since the lexicographic ordering of the String values are not preserved. On the numeric side, the default transformation is `LinearTransformation`, which is a simple linear transformation that preserves the ordering of the values.
+
+This can be addressed by introducing a custom Quantile Based sequence in the form of sorted `Seq`, and can lead to several improvements including:
 1. more efficient file-pruning because of its reduced file-level column min/max
 2. support for range queries on String columns
 3. improved overall query speed
 
-The following code snippet demonstrates the extraction of a **String** histogram from the source data:
+The following code snippet demonstrates the extraction of a Quantile-based CDF from the source data:
+
 ```scala
 import io.qbeast.spark.utils.QbeastUtils
 
-val brandStats = QbeastUtils.computeHistogramForColumn(df, "brand", 50)
-val statsStr = s"""{"brand_histogram":$brandStats}"""
+val columnQuantiles = QbeastUtils.computeQuantilesForColumn(df, "brand")
+val columnStats = s"""{"brand_quantiles":$columnQuantiles}"""
 
 (df
   .write
   .mode("overwrite")
   .format("qbeast")
-  .option("columnsToIndex", "brand:histogram")
-  .option("columnStats", statsStr)
-  .save(targetPath))
+  .option("columnsToIndex", "brand:quantiles")
+  .option("columnStats", columnStats)
+  .save("/tmp/qbeast_table_quantiles"))
 ```
-This is only necessary for the first write, if not otherwise made explicit, all subsequent appends will reuse the same histogram.
-Any new custom histogram provided during `appends` forces the creation of a new `Revision`.
 
-A default **String** histogram("a" t0 "z") will be used if the use of histogram is stated(`stringColName:string_hist`) with no histogram in `columnStats`.
-The default histogram can not supersede an existing `StringHashTransformation`.
+This is only necessary for the first write, if not otherwise made explicit, all subsequent appends will reuse the same quantile calculation.
+Any new custom quantiles provided during `appends` forces the creation of a new `Revision`.
 
+### How to configure quantiles computation
+The `computeQuantilesForColumn` method computes the quantiles for the specified column and returns a `Seq` of quantile values. The `Seq` is then serialized into a `String` and passed as a custom column transformation to the `columnsToIndex` option.
+
+You can **tune the number of quantiles and the relative error** for numeric columns using the QbeastUtils API.
+```scala
+val columnQuantiles =
+  QbeastUtils.computeQuantilesForColumn(df = df, columnName = columnName)
+val columnQuantilesNumberOfQuantiles =
+  QbeastUtils.computeQuantilesForColumn(df = df, columnName = columnName, numberOfQuantiles = 100)
+// For numeric columns, you can also specify the relative error
+// For String columns, the relativeError is ignored
+val columnQuantilesRelativeError =
+  QbeastUtils.computeQuantilesForColumn(df = df, columnName = columnName, relativeError = 0.3)
+val columnQuantilesNumAndError =
+  QbeastUtils.computeQuantilesForColumn(df = df, columnName = columnName, numberOfQuantiles = 100, relativeError = 0.3)
+```
 ## DefaultCubeSize
 
 If you don't specify the cubeSize at DataFrame level, the default value is used. This is set to 5M, so if you want to change it

@@ -28,7 +28,7 @@ import java.util.Locale
 object Transformer {
 
   private val transformersRegistry: Map[String, TransformerType] =
-    Seq(LinearTransformer, HashTransformer, HistogramTransformer)
+    Seq(LinearTransformer, HashTransformer, CDFQuantilesTransformer)
       .map(a => (a.transformerSimpleName, a))
       .toMap
 
@@ -145,27 +145,35 @@ trait Transformer extends Serializable {
 
 }
 
+trait ColumnStats extends Serializable {
+  val statsNames: Seq[String]
+  val statsSqlPredicates: Seq[String]
+}
+
+object ColumnStats {
+
+  def apply(names: Seq[String], predicates: Seq[String]): ColumnStats =
+    new ColumnStats {
+      override val statsNames: Seq[String] = names
+      override val statsSqlPredicates: Seq[String] = predicates
+    }
+
+}
+
 /**
  * Empty ColumnStats
  */
-object NoColumnStats extends ColumnStats(Nil, Nil)
+
+object NoColumnStats extends ColumnStats {
+  override val statsNames: Seq[String] = Nil
+  override val statsSqlPredicates: Seq[String] = Nil
+}
 
 /**
- * Stores the stats of the column
- * @param statsNames
+ * Manual ColumnStats type
+ * @param statsNames:
  *   the names of the stats
- * @param statsSqlPredicates
- *   the stats column predicates
  */
-case class ColumnStats(statsNames: Seq[String], statsSqlPredicates: Seq[String])
-    extends Serializable {
-
-  /**
-   * Gets the values of the stats
-   * @param row
-   *   the row of values
-   * @return
-   *   the stats values
-   */
-  def getValues(row: Map[String, Any]): Seq[Any] = statsNames.map(column => row(column))
+case class ManualColumnStats(statsNames: Seq[String]) extends ColumnStats {
+  override val statsSqlPredicates: Seq[String] = statsNames.map(name => s"null AS $name")
 }

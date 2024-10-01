@@ -1,8 +1,8 @@
 package io.qbeast.core.model
 
+import io.qbeast.core.transform.CDFStringQuantilesTransformer
 import io.qbeast.core.transform.HashTransformer
 import io.qbeast.core.transform.LinearTransformer
-import io.qbeast.core.transform.StringHistogramTransformer
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.types.FloatType
 import org.apache.spark.sql.types.LongType
@@ -60,10 +60,9 @@ class ColumnToIndexTest extends AnyFlatSpec with Matchers {
     val transformerString = columnToIndexHash.toTransformer(schema)
     transformerString shouldBe a[HashTransformer]
 
-    // Only StringHistogramTransformer is implemented
-    val columnToIndexHistogram = ColumnToIndex("c:histogram")
+    val columnToIndexHistogram = ColumnToIndex("c:quantiles")
     val transformerHistogram = columnToIndexHistogram.toTransformer(schema)
-    transformerHistogram shouldBe a[StringHistogramTransformer]
+    transformerHistogram shouldBe a[CDFStringQuantilesTransformer]
 
   }
 

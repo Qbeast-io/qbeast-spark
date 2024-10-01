@@ -20,29 +20,39 @@ import org.apache.spark.sql.AnalysisException
 
 class QbeastUtilsTest extends QbeastIntegrationTestSpec {
 
-  "QbeastUtils" should "compute histogram for string columns" in withQbeastContextSparkAndTmpDir(
+  "QbeastUtils" should "compute quantiles for string columns" in withQbeastContextSparkAndTmpDir(
     (spark, _) => {
       import spark.implicits._
       val df = Seq("a", "b", "c", "a", "b", "c", "a", "b", "c").toDF("name")
-      val hist = QbeastUtils.computeHistogramForColumn(df, "name")
+      val quantiles = QbeastUtils.computeQuantilesForColumn(df, "name")
 
-      hist shouldBe "['a','b','c']"
+      quantiles shouldBe "['a', 'b', 'c']"
     })
 
-  it should "compute histogram for Int" in withQbeastContextSparkAndTmpDir((spark, tmpDir) => {
-    import spark.implicits._
-    val df = Seq(1, 2, 3, 1, 2, 3, 1, 2, 3).toDF("age")
-    val hist = QbeastUtils.computeHistogramForColumn(df, "age")
+  it should "include the extremes in the quantiles for numeric columns" in withQbeastContextSparkAndTmpDir(
+    (spark, _s) => {
+      val df = spark.range(1, 101).toDF("age")
+      val quantiles = QbeastUtils.computeQuantilesForColumn(df, "age", 4, 0.0)
 
-    hist shouldBe "['1','2','3']"
-  })
+      quantiles shouldBe "[1.0, 25.0, 50.0, 75.0, 100.0]"
+    })
+
+  it should "throw error when numberOfQuantiles <= 1" in withQbeastContextSparkAndTmpDir(
+    (spark, _) => {
+      import spark.implicits._
+      val df = Seq("a", "b", "c", "a", "b", "c", "a", "b", "c").toDF("name")
+      an[IllegalArgumentException] shouldBe thrownBy(
+        QbeastUtils.computeQuantilesForColumn(df, "name", 1))
+      an[IllegalArgumentException] shouldBe thrownBy(
+        QbeastUtils.computeQuantilesForColumn(df, "name", 0))
+    })
 
   it should "throw error when the column does not exists" in withQbeastContextSparkAndTmpDir(
     (spark, _) => {
       import spark.implicits._
       val df = Seq("a").toDF("name")
       an[AnalysisException] shouldBe thrownBy(
-        QbeastUtils.computeHistogramForColumn(df, "non_existing_column"))
+        QbeastUtils.computeQuantilesForColumn(df, "non_existing_column"))
     })
 
 }

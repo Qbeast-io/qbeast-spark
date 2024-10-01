@@ -16,11 +16,15 @@
 package io.qbeast.core.transform
 
 import io.qbeast.core.model.DoubleDataType
-import io.qbeast.core.transform.HistogramTransformer.defaultStringHistogram
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.collection.immutable
+
 class EmptyTransformationTest extends AnyFlatSpec with Matchers {
+
+  val defaultStringQuantilesTest: immutable.IndexedSeq[String] =
+    (97 to 122).map(_.toChar.toString)
 
   it should "always map to the same value" in {
     val t = EmptyTransformation()
@@ -36,7 +40,7 @@ class EmptyTransformationTest extends AnyFlatSpec with Matchers {
     val et = EmptyTransformation()
     val ht = HashTransformation()
     val lt = LinearTransformation(1d, 1.1, DoubleDataType)
-    val sht = StringHistogramTransformation(defaultStringHistogram)
+    val sht = CDFStringQuantilesTransformation(defaultStringQuantilesTest)
 
     et.isSupersededBy(ht) shouldBe true
     et.isSupersededBy(lt) shouldBe true
@@ -47,7 +51,7 @@ class EmptyTransformationTest extends AnyFlatSpec with Matchers {
     val et = EmptyTransformation()
     val ht = HashTransformation()
     val lt = LinearTransformation(1d, 1.1, DoubleDataType)
-    val sht = StringHistogramTransformation(defaultStringHistogram)
+    val sht = CDFStringQuantilesTransformation(defaultStringQuantilesTest)
 
     et.merge(ht) shouldBe ht
     et.merge(lt) shouldBe lt
