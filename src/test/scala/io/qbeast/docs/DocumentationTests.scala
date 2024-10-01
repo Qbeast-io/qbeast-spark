@@ -62,7 +62,7 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
       import spark.implicits._
 
       // CREATE A TABLE
-      val data = Seq((1, "a"), (2, "b"), (3, "c")).toDF("id", "age")
+      val data = spark.range(100).map(i => (i, i.toString)) toDF ("id", "age")
       data.write.mode("overwrite").option("columnsToIndex", "id,age").saveAsTable("qbeast_table")
       val qbeast_df = spark.read.table("qbeast_table")
 
@@ -73,7 +73,7 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
         ignoreNullable = true)
 
       // APPEND TO A TABLE
-      val append = Seq((4, "d"), (5, "e")).toDF("id", "age")
+      val append = spark.range(100).map(i => (i, i.toString)) toDF ("id", "age")
       append.write.mode("append").insertInto("qbeast_table")
       val qbeast_df_appended = spark.read.table("qbeast_table")
 
