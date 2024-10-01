@@ -20,7 +20,7 @@ import io.qbeast.core.model.BroadcastedTableChanges
 import io.qbeast.core.transform.HashTransformation
 import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.T1
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.udf

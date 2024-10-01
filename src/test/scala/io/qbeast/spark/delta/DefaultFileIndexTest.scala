@@ -16,7 +16,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.LessThan

@@ -16,7 +16,7 @@
 package io.qbeast.spark.index
 
 import io.qbeast.core.model.Revision
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
 import org.apache.spark.sql.functions.max
 import org.apache.spark.sql.functions.min

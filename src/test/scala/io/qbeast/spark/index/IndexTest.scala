@@ -19,7 +19,7 @@ import io.qbeast.context.QbeastContext
 import io.qbeast.core.model._
 import io.qbeast.core.model.BroadcastedTableChanges
 import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
 import io.qbeast.TestClasses.Client4
 import org.apache.spark.sql.functions.col

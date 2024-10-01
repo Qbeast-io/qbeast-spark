@@ -16,8 +16,8 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.core.model.CubeId
-import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.QbeastTable
+import io.qbeast.table.QbeastTable
+import io.qbeast.QbeastIntegrationTestSpec
 import org.apache.spark.sql.SparkSession
 
 class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {

@@ -23,8 +23,8 @@ import io.qbeast.spark.delta.DeltaStagingDataManagerFactory
 import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.index.SparkRevisionFactory
-import io.qbeast.spark.table.IndexedTableFactoryImpl
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.table.IndexedTableFactoryImpl
+import io.qbeast.QbeastIntegrationTestSpec
 import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

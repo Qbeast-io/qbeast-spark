@@ -89,8 +89,8 @@ export SPARK_HOME=$PWD/spark-3.5.0-bin-hadoop3
 ```bash
 $SPARK_HOME/bin/spark-shell \
 --packages io.qbeast:qbeast-spark_2.12:0.7.0,io.delta:delta-spark_2.12:3.1.0 \
---conf spark.sql.extensions=io.qbeast.spark.delta.QbeastDeltaSparkSessionExtension \
---conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
+--conf spark.sql.extensions=io.qbeast.sql.QbeastSparkSessionExtension \
+--conf spark.sql.catalog.spark_catalog=io.qbeast.catalog.QbeastCatalog
 ```
 
 ### 2. Indexing a dataset
@@ -173,7 +173,7 @@ Go to the [Quickstart](./docs/Quickstart.md) or [notebook](docs/sample_pushdown_
 Get **insights** to the data using the `QbeastTable` interface!
 
 ```scala
-import io.qbeast.spark.QbeastTable
+import io.qbeast.table.QbeastTable
 
 val qbeastTable = QbeastTable.forPath(spark, tmpDir) 
 

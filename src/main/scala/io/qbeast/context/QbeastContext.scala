@@ -24,8 +24,8 @@ import io.qbeast.spark.delta.DeltaStagingDataManagerFactory
 import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.index.SparkRevisionFactory
-import io.qbeast.spark.table.IndexedTableFactory
-import io.qbeast.spark.table.IndexedTableFactoryImpl
+import io.qbeast.table.IndexedTableFactory
+import io.qbeast.table.IndexedTableFactoryImpl
 import org.apache.spark.scheduler.SparkListener
 import org.apache.spark.scheduler.SparkListenerApplicationEnd
 import org.apache.spark.sql.SparkSession

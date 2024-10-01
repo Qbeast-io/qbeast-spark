@@ -16,7 +16,7 @@
 package io.qbeast.spark.index
 
 import io.qbeast.core.transform.LinearTransformation
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
 import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec

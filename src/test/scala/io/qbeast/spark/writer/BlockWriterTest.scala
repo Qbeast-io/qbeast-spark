@@ -17,7 +17,7 @@ package io.qbeast.spark.writer
 
 import io.qbeast.core.model.CubeId
 import io.qbeast.spark.index.QbeastColumns._
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
 import org.apache.spark.sql.functions.col
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

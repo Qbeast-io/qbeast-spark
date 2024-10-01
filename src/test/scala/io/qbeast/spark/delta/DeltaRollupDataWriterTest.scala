@@ -23,7 +23,7 @@ import io.qbeast.core.transform.EmptyTransformer
 import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
 
 import scala.reflect.io.Path

@@ -18,7 +18,7 @@ package io.qbeast.spark.delta
 import com.fasterxml.jackson.core.JsonParseException
 import io.qbeast.core.model._
 import io.qbeast.spark.utils.TagUtils
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.actions.RemoveFile

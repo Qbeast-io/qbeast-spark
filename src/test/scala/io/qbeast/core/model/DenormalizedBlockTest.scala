@@ -16,7 +16,7 @@
 package io.qbeast.core.model
 
 import io.qbeast.core.transform.EmptyTransformer
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
 
 import scala.collection.immutable.SortedMap
 import scala.collection.immutable.SortedSet

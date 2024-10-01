@@ -15,8 +15,8 @@
  */
 package io.qbeast.spark.utils
 
-import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.QbeastTable
+import io.qbeast.table.QbeastTable
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestUtils._
 import org.apache.spark.sql.SparkSession
 

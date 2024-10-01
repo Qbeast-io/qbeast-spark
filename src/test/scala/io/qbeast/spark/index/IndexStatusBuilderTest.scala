@@ -20,7 +20,7 @@ import io.qbeast.core.model.CubeId
 import io.qbeast.core.model.CubeStatus
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.Weight
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
 
 class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {
 

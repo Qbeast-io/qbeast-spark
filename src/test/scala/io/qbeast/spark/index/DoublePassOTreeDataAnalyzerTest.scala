@@ -23,8 +23,8 @@ import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer._
 import io.qbeast.spark.index.QbeastColumns.weightColumnName
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
 import io.qbeast.spark.utils.SparkToQTypesUtils
-import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.IISeq
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructField

@@ -16,7 +16,7 @@
 package io.qbeast.spark.delta
 
 import io.delta.tables._
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession

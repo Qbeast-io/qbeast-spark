@@ -18,8 +18,8 @@ package io.qbeast.spark.index.query
 import io.qbeast.core.model._
 import io.qbeast.core.model.CubeStatus
 import io.qbeast.core.transform.EmptyTransformer
-import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.QbeastTable
+import io.qbeast.table.QbeastTable
+import io.qbeast.QbeastIntegrationTestSpec
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.functions.col
