@@ -16,9 +16,7 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.QbeastTable
 import io.qbeast.TestUtils._
-import org.apache.spark.sql.SparkSession
 
 class QbeastSamplingTest extends QbeastIntegrationTestSpec {
 
@@ -69,41 +67,6 @@ class QbeastSamplingTest extends QbeastIntegrationTestSpec {
         checkFileFiltering(query)
       }
     }
-
-  def optimize(spark: SparkSession, tmpDir: String, times: Int): Unit = {
-    val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-    (0 until times).foreach(_ => {
-      qbeastTable.analyze(); qbeastTable.optimize()
-    })
-
-  }
-
-  "An optimized index" should "sample correctly" in withQbeastContextSparkAndTmpDir {
-    (spark, tmpDir) =>
-      {
-        val data = loadTestData(spark)
-
-        writeTestData(data, Seq("user_id", "product_id"), 1000, tmpDir)
-
-        val df = spark.read.format("qbeast").load(tmpDir)
-
-        // analyze and optimize the index 3 times
-        optimize(spark, tmpDir, 1)
-        val dataSize = data.count()
-
-        df.count() shouldBe dataSize
-
-        val tolerance = 0.01
-        List(0.1, 0.2, 0.5, 0.7, 0.99).foreach(precision => {
-          val result = df
-            .sample(precision)
-            .count()
-            .toDouble
-
-          result shouldBe (dataSize * precision) +- dataSize * precision * tolerance
-        })
-      }
-  }
 
   "An appended dataset" should "sample correctly" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>

@@ -31,12 +31,13 @@ import org.apache.spark.sql.SparkSession
  */
 case class OptimizeTableCommand(
     revisionID: RevisionID,
+    fraction: Double,
     indexedTable: IndexedTable,
     options: Map[String, String])
     extends LeafRunnableCommand {
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
-    indexedTable.optimize(revisionID, options)
+    indexedTable.optimize(revisionID, fraction, options)
     Seq.empty[Row]
   }
 
