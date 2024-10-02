@@ -7,9 +7,5 @@ setuptools.setup(
     author="Qbeast",
     description="CI tool for OTree index visualization",
     packages=setuptools.find_packages(),
-    entry_points={
-        "console_scripts": [
-            "qviz = qviz:show_tree"
-        ]
-    }
+    entry_points={"console_scripts": ["qviz = qviz:show_tree"]},
 )
