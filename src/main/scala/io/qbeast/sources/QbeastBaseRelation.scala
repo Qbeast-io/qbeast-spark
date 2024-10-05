@@ -58,7 +58,6 @@ object QbeastBaseRelation {
     val spark = SparkSession.active
     val tableID = table.tableID
     val snapshot = QbeastContext.metadataManager.loadSnapshot(tableID)
-    val schema = QbeastContext.metadataManager.loadCurrentSchema(tableID)
     if (snapshot.isInitial) {
       // If the Table is initial, read empty relation
       // This could happen if we CREATE/REPLACE TABLE without inserting data
@@ -66,7 +65,7 @@ object QbeastBaseRelation {
       new HadoopFsRelation(
         EmptyFileIndex,
         partitionSchema = StructType(Seq.empty[StructField]),
-        dataSchema = schema,
+        dataSchema = snapshot.schema,
         bucketSpec = None,
         new ParquetFileFormat(),
         options)(spark) with InsertableRelation {
@@ -87,7 +86,7 @@ object QbeastBaseRelation {
       new HadoopFsRelation(
         fileIndex,
         partitionSchema = StructType(Seq.empty[StructField]),
-        dataSchema = schema,
+        dataSchema = snapshot.schema,
         bucketSpec = bucketSpec,
         file,
         parameters)(spark) with InsertableRelation {
