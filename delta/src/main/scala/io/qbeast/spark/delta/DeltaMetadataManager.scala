@@ -28,8 +28,6 @@ import org.apache.spark.sql.SparkSession
  */
 object DeltaMetadataManager extends MetadataManager {
 
-  private val deltaLogCache = scala.collection.mutable.Map[QTableID, DeltaLog]()
-
   override def updateWithTransaction(
       tableID: QTableID,
       schema: StructType,
@@ -74,7 +72,7 @@ object DeltaMetadataManager extends MetadataManager {
    * @return
    */
   def loadDeltaLog(tableID: QTableID): DeltaLog = {
-    deltaLogCache.getOrElseUpdate(tableID, DeltaLog.forTable(SparkSession.active, tableID.id))
+    DeltaLog.forTable(SparkSession.active, tableID.id)
   }
 
   override def hasConflicts(

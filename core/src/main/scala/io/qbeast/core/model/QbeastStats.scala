@@ -19,4 +19,4 @@ case class QbeastStats(
     numRecords: Long,
     minValues: Map[String, String],
     maxValues: Map[String, String],
-    nullCount: Map[String, Int])
+    nullCount: Map[String, String])

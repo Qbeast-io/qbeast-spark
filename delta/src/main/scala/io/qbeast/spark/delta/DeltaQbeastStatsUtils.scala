@@ -19,6 +19,7 @@ import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.core.JsonParseException
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.module.SimpleModule
+import com.fasterxml.jackson.databind.node.JsonNodeType
 import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.JsonDeserializer
 import com.fasterxml.jackson.databind.JsonMappingException
@@ -30,9 +31,12 @@ import io.qbeast.core.model.mapper
 import io.qbeast.core.model.QbeastStats
 
 private[delta] object QbeastStatsUtils {
-  private val module = new SimpleModule()
-  module.addSerializer(classOf[String], new ValueSerializer)
-  module.addDeserializer(classOf[String], new ValueDeserializer)
+
+  val module: SimpleModule = new SimpleModule()
+    .addSerializer(classOf[String], new ValueSerializer)
+    .addDeserializer(classOf[String], new ValueDeserializer)
+    .addDeserializer(classOf[Map[String, String]], new MapDeserializer)
+
   mapper.registerModule(module)
 
   def fromString(jsonString: String): Option[QbeastStats] = {
@@ -55,24 +59,49 @@ private[delta] object QbeastStatsUtils {
 
 }
 
-class ValueSerializer extends JsonSerializer[String] {
+class ValueSerializer extends JsonSerializer[Any] {
 
   override def serialize(
-      value: String,
+      value: Any,
       gen: JsonGenerator,
       serializers: SerializerProvider): Unit = {
-    try {
-      val intValue = value.toInt
-      gen.writeNumber(intValue)
-    } catch {
-      case _: NumberFormatException =>
-        try {
-          val doubleValue = value.toDouble
-          gen.writeNumber(doubleValue)
-        } catch {
-          case _: NumberFormatException =>
-            gen.writeString(value)
+    value match {
+      case m: Map[_, _] =>
+        gen.writeStartObject()
+        m.foreach { case (key, v) =>
+          gen.writeFieldName(key.toString)
+          v match {
+            case nestedMap: Map[_, _] =>
+              serialize(nestedMap, gen, serializers)
+            case s: String =>
+              try {
+                val jsonNode = mapper.readTree(s)
+                gen.writeTree(jsonNode)
+              } catch {
+                case _: Exception =>
+                  gen.writeString(s)
+              }
+            case i: Int => gen.writeNumber(i)
+            case l: Long => gen.writeNumber(l)
+            case d: Double => gen.writeNumber(d)
+            case other => gen.writeString(other.toString)
+          }
         }
+        gen.writeEndObject()
+
+      case s: String =>
+        try {
+          val jsonNode = mapper.readTree(s)
+          gen.writeTree(jsonNode)
+        } catch {
+          case _: Exception =>
+            gen.writeString(s)
+        }
+
+      case i: Int => gen.writeNumber(i)
+      case l: Long => gen.writeNumber(l)
+      case d: Double => gen.writeNumber(d)
+      case other => gen.writeString(other.toString)
     }
   }
 
@@ -89,6 +118,29 @@ class ValueDeserializer extends JsonDeserializer[String] {
     } else {
       throw new IllegalArgumentException("Unsupported JSON type for value")
     }
+  }
+
+}
+
+class MapDeserializer extends JsonDeserializer[Map[String, String]] {
+
+  override def deserialize(p: JsonParser, ctxt: DeserializationContext): Map[String, String] = {
+    val node = p.getCodec.readTree[JsonNode](p)
+    val mapBuilder = scala.collection.mutable.Map[String, String]()
+
+    if (node.isObject) {
+      node.fields().forEachRemaining { entry =>
+        val key = entry.getKey
+        val valueNode = entry.getValue
+        if (valueNode.getNodeType == JsonNodeType.OBJECT) {
+          mapBuilder(key) = valueNode.toString
+        } else {
+          mapBuilder(key) = valueNode.asText()
+        }
+      }
+    }
+
+    mapBuilder.toMap
   }
 
 }

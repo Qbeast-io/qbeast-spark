@@ -135,9 +135,9 @@ private[delta] object DeltaQbeastFileUtils {
    * @param action
    *   the action instance
    */
-  def fromAction(action: Action): QbeastFile = {
+  def fromAction(dimensionCount: Int)(action: Action): QbeastFile = {
     action match {
-      case addFile: AddFile => fromAddFile(1)(addFile)
+      case addFile: AddFile => fromAddFile(dimensionCount)(addFile)
       case removeFile: RemoveFile => fromRemoveFile(removeFile)
       case _ => null
     }
