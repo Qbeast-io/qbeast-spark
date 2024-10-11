@@ -15,8 +15,6 @@
  */
 package io.qbeast
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.github.mrpowers.spark.fast.tests.DatasetComparer
 import io.qbeast.context.QbeastContext
 import io.qbeast.context.QbeastContextImpl
@@ -215,21 +213,6 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
   def getQbeastSnapshot(dir: String): QbeastSnapshot = {
     val tableId = new QTableID(dir)
     QbeastContext.metadataManager.loadSnapshot(tableId)
-  }
-
-  def areJsonEqual(json1: String, json2: String): Boolean = {
-    val basicMapper = new ObjectMapper()
-
-    try {
-      val node1: JsonNode = basicMapper.readTree(json1)
-      val node2: JsonNode = basicMapper.readTree(json2)
-
-      node1.equals(node2)
-    } catch {
-      case e: Exception =>
-        println(s"Error parsing JSON: ${e.getMessage}")
-        false
-    }
   }
 
 }
