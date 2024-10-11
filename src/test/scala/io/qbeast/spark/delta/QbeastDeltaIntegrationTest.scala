@@ -63,10 +63,14 @@ class QbeastDeltaIntegrationTest extends QbeastIntegrationTestSpec {
       val stats =
         DeltaLog.forTable(spark, tmpDir).unsafeVolatileSnapshot.allFiles.collect().map(_.stats)
       stats.length shouldBe >(0)
-      stats.head shouldBe "{\"numRecords\":3,\"minValues\":{\"a\":\"A\",\"b\":1}," +
-        "\"maxValues\":{\"a\":\"C\",\"b\":3}," +
-        "\"nullCount\":{\"a\":0,\"b\":0}}"
 
+      val expectedStats =
+        """{"numRecords":3,"minValues":{"a":"A","b":1},
+          |"maxValues":{"a":"C","b":3},
+          |"nullCount":{"a":0,"b":0}}""".stripMargin
+
+
+      areJsonEqual(stats.head, expectedStats) shouldBe true
     })
 
   it should "not write stats when specified" in withExtendedSparkAndTmpDir(

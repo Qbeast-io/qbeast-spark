@@ -33,16 +33,9 @@ class DeltaQbeastStatsTest extends AnyFlatSpec with Matchers {
       val node1: JsonNode = basicMapper.readTree(json1)
       val node2: JsonNode = basicMapper.readTree(json2)
 
-      val normalizedJson1 =
-        basicMapper.writerWithDefaultPrettyPrinter().writeValueAsString(node1)
-      val normalizedJson2 =
-        basicMapper.writerWithDefaultPrettyPrinter().writeValueAsString(node2)
-
-      // Compare the normalized JSON strings
-      normalizedJson1 == normalizedJson2
+      node1.equals(node2)
     } catch {
       case e: Exception =>
-        // Handle any parsing errors
         println(s"Error parsing JSON: ${e.getMessage}")
         false
     }
@@ -103,7 +96,7 @@ class DeltaQbeastStatsTest extends AnyFlatSpec with Matchers {
 
     // Serialize back to JSON string and verify it matches the original
     val serializedJsonString = QbeastStatsUtils.toString(deserializedStats.get)
-    areJsonEqual(serializedJsonString, jsonString)
+    areJsonEqual(serializedJsonString, jsonString) shouldBe true
   }
 
 }
