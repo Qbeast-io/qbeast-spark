@@ -4,23 +4,75 @@ OFFSET = -2147483648.0  # Scala Int.MinValue
 RANGE = 2147483647.0 - OFFSET
 
 
+class Block:
+    def __init__(self, cube_id: str, element_count: int, min_weight: int, max_weight: int, file_path: str, file_bytes: int) -> None:
+        self.cube_id = cube_id
+        self.element_count = element_count
+        self.min_weight = self.normalize_weight(min_weight)
+        self.max_weight = self.normalize_weight(max_weight)
+        self.file_path = file_path
+        self.file_bytes = file_bytes
+
+    @staticmethod
+    def normalize_weight(weight: int) -> float:
+        """
+        Map Weight to NormalizedWeight
+        :param weight: Weight
+        :return: A Weight's corresponding NormalizedWeight
+        """
+        fraction = (weight - OFFSET) / RANGE
+        # We make sure fraction is within [0, 1]
+        normalized = max(0.0, min(1.0, fraction))
+        return float("{:.3f}".format(normalized))
+
+    @classmethod
+    def from_dict(cls, json_dict: dict, file_path: str, file_bytes: int) -> Block:
+        cube_id = json_dict["cubeId"]
+        element_count = json_dict["elementCount"]
+        min_weight = json_dict["minWeight"]
+        max_weight = json_dict["maxWeight"]
+        return cls(
+            cube_id=cube_id,
+            element_count=element_count,
+            min_weight=min_weight,
+            max_weight=max_weight,
+            file_path=file_path,
+            file_bytes=file_bytes
+        )
+
+    def is_sampled(self, fraction: float) -> bool:
+        """
+        Determine if the cube is to be included in sampling for a given fraction
+        :param fraction: sampling fraction between 0 and 1
+        :return: boolean determining if the cube is selected
+        """
+        assert 0 < fraction <= 1, f"Invalid fraction value: {fraction}, it must be between 0 and 1."
+        return self.min_weight <= fraction
+
+
 class Cube:
     def __init__(
         self,
-        cube_string: str,
-        max_weight: int,
-        element_count: int,
-        size: int,
+        cube_id: str,
         depth: int,
     ):
-        self.cube_string = cube_string
-        self.max_weight = normalize_weight(max_weight)
-        self.element_count = element_count
+        self.cube_id = cube_id
         self.depth = depth
-        self.size = size
+
+        self.max_weight = float("inf")
+        self.min_weight = float("inf")
+        self.element_count = 0
+        self.size = 0
         self.children = []
         self.blocks = []
         self.parent = None
+
+    def add(self, block: Block) -> None:
+        self.blocks.append(block)
+        self.max_weight = min(self.max_weight, block.max_weight)
+        self.min_weight = min(self.min_weight, block.min_weight)
+        self.element_count += block.element_count
+        self.size += block.file_bytes
 
     def link(self, that: Cube) -> None:
         """
@@ -34,56 +86,16 @@ class Cube:
 
     def is_child_of(self, that: Cube) -> bool:
         return (
-            self.is_not_root()
+            not self.is_root()
             and that.depth + 1 == self.depth
-            and self.cube_string.startswith(that.cube_string)
+            and self.cube_id.startswith(that.cube_id)
         )
 
-    def is_not_root(self) -> bool:
-        return bool(self.cube_string)
-
-    def get_elements_for_sampling(self, fraction: float) -> (dict, list[dict]):
-        """
-        Return cube and edges for drawing if the cube or any of its children are selected
-        for the given sampling fraction.
-        :param fraction: sampling fraction between [0, 1]
-        :return: styled node and edges for drawing depending on if they are selected for
-        sampling
-        """
-        selected = self.is_sampled(fraction)
-        name = self.cube_string or "root"
-        label = (name + " " if name == "root" else "") + str(self.max_weight)
-        node = {
-            "data": {"id": name, "label": label},
-            "selected": selected,
-            "classes": "sampled" if selected else "",
-        }
-
-        edges = []
-        for child in self.children:
-            selected_child = child.is_sampled(fraction)
-            edges.append(
-                {
-                    "data": {"source": name, "target": child.cube_string},
-                    "selected": selected_child,
-                    "classes": "sampled" if selected_child else "",
-                }
-            )
-
-        return node, edges
-
-    def is_sampled(self, fraction: float) -> bool:
-        """
-        Determine if the cube is to be included in sampling for a given fraction
-        :param fraction: sampling fraction between 0 and 1
-        :return: boolean determining if the cube is selected
-        """
-        return fraction > 0 and (
-            self.parent is None or self.parent.max_weight < fraction
-        )
+    def is_root(self) -> bool:
+        return self.depth == 0
 
     def __repr__(self) -> str:
-        return f"Cube: {self.cube_string}, count: {self.element_count}, maxWeight: {self.max_weight}"
+        return f"Cube: {self.cube_id}, count: {self.element_count}, maxWeight: {self.max_weight}"
 
 
 class SamplingInfo:
@@ -130,16 +142,3 @@ class SamplingInfo:
             self.total_size / 1024,
             size_count_percentage,
         )
-
-
-def normalize_weight(weight: int) -> float:
-    """
-    Map Weight to NormalizedWeight
-    :param weight: Weight
-    :return: weight's corresponding NormalizedWeight
-    """
-    fraction = (weight - OFFSET) / RANGE
-    # We make sure fraction is in range [0, 1] using max & min
-    normalized = max(0, min(1, fraction))
-
-    return float("{:.3f}".format(normalized))
