@@ -31,14 +31,14 @@ def show_tree(path: str, revision_id: int) -> None:
         revision_id > 0
     ), f"Invalid value for revision_id: {revision_id}, it must be > 0."
 
-    _, cubes, _, elements = process_table(path, revision_id)
+    cubes, elements = process_table(path, revision_id)
 
     # Callback that modifies the drawing elements
     @app.callback(Output("cyto-space", "elements"), Input("fraction", "value"))
-    def update_fraction_edges(fraction):
-        if fraction is None or fraction <= 0:
-            return elements
-        return get_nodes_and_edges(cubes, fraction)
+    def update_fraction_edges(fraction: float) -> list[dict]:
+        if fraction is not None and 0.0 < fraction <= 1.0:
+            return get_nodes_and_edges(cubes, fraction)
+        return elements
 
     app.layout = html.Div(
         [
@@ -49,7 +49,9 @@ def show_tree(path: str, revision_id: int) -> None:
                         style={"width": "50%", "display": "inline"},
                         children=[
                             "Sampling Fraction:",
-                            dcc.Input(id="fraction", type="number", step=0.01, value=0.02),
+                            dcc.Input(
+                                id="fraction", type="number", step=0.01, value=0.02
+                            ),
                         ],
                     )
                 ]
