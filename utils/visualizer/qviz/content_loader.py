@@ -1,7 +1,10 @@
 import json
 from collections import defaultdict
 from deltalake import DeltaTable
-from qviz.cube import Cube, Block, SamplingInfo
+
+from qviz.block import Block
+from qviz.cube import Cube
+from qviz.sampling_info import SamplingInfo
 
 
 def process_table(table_path: str, revision_id: int) -> tuple[dict, list[dict]]:

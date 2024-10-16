@@ -28,7 +28,7 @@ Launch a `Flask` serve with the following command and open the link with a brows
 
 ```bash
 # Run the tool on the test table
-poetry run qviz tests/resources/test_qviz
+poetry run qviz tests/resources/test_table/
 
 # optionally, specify the index revision(defaulted to 1)
 # qviz <table-path> --revision-id=2
