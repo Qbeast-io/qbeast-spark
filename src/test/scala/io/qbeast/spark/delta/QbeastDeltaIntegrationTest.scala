@@ -15,6 +15,8 @@
  */
 package io.qbeast.spark.delta
 
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.ObjectMapper
 import io.delta.tables._
 import io.qbeast.QbeastIntegrationTestSpec
 import org.apache.spark.sql.delta.DeltaLog
@@ -29,6 +31,21 @@ class QbeastDeltaIntegrationTest extends QbeastIntegrationTestSpec {
   def createSimpleTestData(spark: SparkSession): DataFrame = {
     import spark.implicits._
     Seq(("A", 1), ("B", 2), ("C", 3)).toDF("a", "b")
+  }
+
+  def areJsonEqual(json1: String, json2: String): Boolean = {
+    val basicMapper = new ObjectMapper()
+
+    try {
+      val node1: JsonNode = basicMapper.readTree(json1)
+      val node2: JsonNode = basicMapper.readTree(json2)
+
+      node1.equals(node2)
+    } catch {
+      case e: Exception =>
+        println(s"Error parsing JSON: ${e.getMessage}")
+        false
+    }
   }
 
   "Qbeast" should "output correctly Operation Metrics in Delta History" in
@@ -63,10 +80,13 @@ class QbeastDeltaIntegrationTest extends QbeastIntegrationTestSpec {
       val stats =
         DeltaLog.forTable(spark, tmpDir).unsafeVolatileSnapshot.allFiles.collect().map(_.stats)
       stats.length shouldBe >(0)
-      stats.head shouldBe "{\"numRecords\":3,\"minValues\":{\"a\":\"A\",\"b\":1}," +
-        "\"maxValues\":{\"a\":\"C\",\"b\":3}," +
-        "\"nullCount\":{\"a\":0,\"b\":0}}"
 
+      val expectedStats =
+        """{"numRecords":3,"minValues":{"a":"A","b":1},
+          |"maxValues":{"a":"C","b":3},
+          |"nullCount":{"a":0,"b":0}}""".stripMargin
+
+      areJsonEqual(stats.head, expectedStats) shouldBe true
     })
 
   it should "not write stats when specified" in withExtendedSparkAndTmpDir(

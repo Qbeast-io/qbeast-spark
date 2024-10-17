@@ -20,6 +20,7 @@ import io.qbeast.core.model.IndexFile
 import io.qbeast.core.model.PreCommitHook
 import io.qbeast.core.model.PreCommitHook.PreCommitHookOutput
 import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QbeastFile
 import io.qbeast.core.model.QbeastHookLoader
 import io.qbeast.core.model.RevisionID
 import io.qbeast.core.model.TableChanges
@@ -151,10 +152,9 @@ private[delta] case class DeltaMetadataWriter(
    * @return
    *   A Map[String, String] representing the combined outputs of all hooks.
    */
-  private def runPreCommitHooks(actions: Seq[Action]): PreCommitHookOutput = {
-    val qbeastActions = actions.map(DeltaQbeastFileUtils.fromAction)
+  private def runPreCommitHooks(actions: Seq[QbeastFile]): PreCommitHookOutput = {
     preCommitHooks.foldLeft(Map.empty[String, String]) { (acc, hook) =>
-      acc ++ hook.run(qbeastActions)
+      acc ++ hook.run(actions)
     }
   }
 
@@ -173,21 +173,24 @@ private[delta] case class DeltaMetadataWriter(
       // Register metrics to use in the Commit Info
       val statsTrackers = createStatsTrackers(txn)
       registerStatsTrackers(statsTrackers)
-      // Execute write
 
-      val (changes, indexFiles, deleteFiles) = writer
+      // Execute write
+      val (tableChanges, indexFiles, deleteFiles) = writer
       val addFiles = indexFiles.map(DeltaQbeastFileUtils.toAddFile(dataChange = true))
       val removeFiles = deleteFiles.map(DeltaQbeastFileUtils.toRemoveFile(dataChange = false))
 
       // Update Qbeast Metadata (replicated set, revision..)
-      var actions = updateMetadata(txn, changes, addFiles, removeFiles)
+      var actions = updateMetadata(txn, tableChanges, addFiles, removeFiles)
       // Set transaction identifier if specified
       for (txnVersion <- options.txnVersion; txnAppId <- options.txnAppId) {
         actions +:= SetTransaction(txnAppId, txnVersion, Some(System.currentTimeMillis()))
       }
 
       // Run pre-commit hooks
-      val tags = runPreCommitHooks(actions)
+      val revision = tableChanges.updatedRevision
+      val dimensionCount = revision.transformations.length
+      val qbeastActions = actions.map(DeltaQbeastFileUtils.fromAction(dimensionCount))
+      val tags = runPreCommitHooks(qbeastActions)
 
       // Commit the information to the DeltaLog
       val op =

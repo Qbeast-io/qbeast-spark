@@ -49,9 +49,9 @@ case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with De
    */
   override def isInitial: Boolean = snapshot.version == -1
 
-  override val schema: StructType = snapshot.metadata.schema
+  override lazy val schema: StructType = snapshot.metadata.schema
 
-  override val allFilesCount: Long = snapshot.allFiles.count
+  override lazy val allFilesCount: Long = snapshot.allFiles.count
 
   private val metadataMap: Map[String, String] = snapshot.metadata.configuration
 
