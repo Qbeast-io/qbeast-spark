@@ -17,8 +17,7 @@ cd qbeast-spark/utils/visualizer
 # Pyhton version should be 3.12
 python3 --version
 
-# Install tool and required dependencies
-brew install poetry
+# Install required dependencies
 poetry install 
 ```
 
