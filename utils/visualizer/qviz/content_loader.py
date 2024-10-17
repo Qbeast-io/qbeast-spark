@@ -8,6 +8,10 @@ from qviz.sampling_info import SamplingInfo
 
 
 def process_table(table_path: str, revision_id: int) -> tuple[dict, list[dict]]:
+    """
+    Load the table and revision, and populate the tree with cubes.
+    The elements to be displayed are the cube nodes and edges.
+    """
     delta_table = DeltaTable(table_path)
     revision = load_revision(delta_table, revision_id)
     cubes = load_revision_cubes(delta_table, revision)
@@ -17,6 +21,9 @@ def process_table(table_path: str, revision_id: int) -> tuple[dict, list[dict]]:
 
 
 def load_revision(delta_table: DeltaTable, revision_id: int) -> (dict, int):
+    """
+    Load revision metadata from the given revision ID.
+    """
     config = delta_table.metadata().configuration
     revision_key = f"qbeast.revision.{revision_id}"
     try:
@@ -34,6 +41,10 @@ def load_revision(delta_table: DeltaTable, revision_id: int) -> (dict, int):
 
 
 def load_revision_cubes(delta_table: DeltaTable, revision: dict) -> dict:
+    """
+    Load cubes from the given revision. Each cube contains a list of blocks, and one file
+    can contain multiple blocks.
+    """
     revision_id_str = str(revision["revisionID"])
     dimension_count = len(revision["columnTransformers"])
     symbol_count = (dimension_count + 5) // 6
@@ -56,6 +67,9 @@ def load_revision_cubes(delta_table: DeltaTable, revision: dict) -> dict:
 
 
 def populate_tree(all_cubes: dict) -> None:
+    """
+    Establish parent-child relationships between cubes
+    """
     max_level = 0
     level_cubes = defaultdict(list)
     for cube in all_cubes.values():
@@ -69,6 +83,9 @@ def populate_tree(all_cubes: dict) -> None:
 
 
 def get_nodes_and_edges(all_cubes: dict, fraction: float = -1.0) -> list[dict]:
+    """
+    Create nodes and edges for the tree. If fraction is provided, highlight sampled cubes and print sampling details.
+    """
     nodes = []
     edges = []
     sampling_info = SamplingInfo(fraction)
@@ -84,6 +101,9 @@ def get_nodes_and_edges(all_cubes: dict, fraction: float = -1.0) -> list[dict]:
 
 
 def get_node_and_edges_from_cube(cube: Cube, fraction: float) -> (dict, list[dict]):
+    """
+    Create a node and edges for a given cube. If fraction is provided, highlight sampled cubes.
+    """
     selected = cube.is_sampled(fraction)
     name = cube.cube_id or "root"
     label = (name + " " if name == "root" else "") + str(cube.max_weight)
