@@ -4,7 +4,7 @@ from deltalake import DeltaTable
 
 from qviz.block import Block
 from qviz.cube import Cube
-from qviz.sampling_info import SamplingInfo
+from qviz.sampling_info import SamplingInfoBuilder
 
 
 def process_table(table_path: str, revision_id: int) -> tuple[dict, list[dict]]:
@@ -88,15 +88,15 @@ def get_nodes_and_edges(all_cubes: dict, fraction: float = -1.0) -> list[dict]:
     """
     nodes = []
     edges = []
-    sampling_info = SamplingInfo(fraction)
+    sampling_info_builder = SamplingInfoBuilder(fraction)
     for cube in all_cubes.values():
         node, connections = get_node_and_edges_from_cube(cube, fraction)
         nodes.append(node)
         edges.extend(connections)
         if 0.0 < fraction <= 1.0:
-            sampling_info.update(cube)
+            sampling_info_builder.update(cube)
     if 0.0 < fraction <= 1.0:
-        print(sampling_info)
+        print(sampling_info_builder.result())
     return nodes + edges
 
 

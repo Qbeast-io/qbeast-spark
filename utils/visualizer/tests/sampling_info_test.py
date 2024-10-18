@@ -2,7 +2,7 @@ import unittest
 
 from qviz.block import File, Block
 from qviz.cube import Cube
-from qviz.sampling_info import SamplingInfo
+from qviz.sampling_info import SamplingInfoBuilder
 
 
 class TestSamplingInfo(unittest.TestCase):
@@ -29,38 +29,19 @@ class TestSamplingInfo(unittest.TestCase):
         self.another_cube = Cube(cube_id="B", depth=1)
         self.another_cube.add(self.another_block)
 
-        self.sampling_info = SamplingInfo(f=0.4)
+        self.sampling_info_builder = SamplingInfoBuilder(f=0.4)
 
     def test_update(self):
-        self.sampling_info.update(self.cube)
-        self.assertEqual(self.sampling_info.total_rows, 10)
-        self.assertEqual(self.sampling_info.total_bytes, 1000)
-        self.assertEqual(self.sampling_info.sampled_rows, 10)
-        self.assertEqual(self.sampling_info.sampled_bytes, 1000)
+        self.sampling_info_builder.update(self.cube)
+        sampling_info = self.sampling_info_builder.result()
+        self.assertEqual(sampling_info.total_rows, 10)
+        self.assertEqual(sampling_info.total_bytes, 1000)
+        self.assertEqual(sampling_info.sampled_rows, 10)
+        self.assertEqual(sampling_info.sampled_bytes, 1000)
 
-        self.sampling_info.update(self.another_cube)
-        self.assertEqual(self.sampling_info.total_rows, 30)
-        self.assertEqual(self.sampling_info.total_bytes, 3000)
-        self.assertEqual(self.sampling_info.sampled_rows, 10)
-        self.assertEqual(self.sampling_info.sampled_bytes, 1000)
-
-    def test_repr(self):
-        self.sampling_info.update(self.cube)
-        expected_repr = """Sampling Info:\
-        \n\tDisclaimer:
-        \tThe displayed sampling metrics are only for the chosen revisionId.
-        \tThe values will be different if the table contains multiple revisions.\
-        \n\tsample fraction: 0.4\
-        \n\tnumber of rows: 100/10, 1000.00%\
-        \n\tsample size: 0.00000/0.00000GB, 1000.00%"""
-        self.assertIn("Sampling Info:", repr(self.sampling_info))
-
-        self.sampling_info.update(self.another_cube)
-        expected_repr = """Sampling Info:\
-        \n\tDisclaimer:
-        \tThe displayed sampling metrics are only for the chosen revisionId.
-        \tThe values will be different if the table contains multiple revisions.\
-        \n\tsample fraction: 0.4\
-        \n\tnumber of rows: 200/20, 1000.00%\
-        \n\tsample size: 0.00000/0.00000GB, 1000.00%"""
-        self.assertIn("Sampling Info:", repr(self.sampling_info))
+        self.sampling_info_builder.update(self.another_cube)
+        sampling_info = self.sampling_info_builder.result()
+        self.assertEqual(sampling_info.total_rows, 30)
+        self.assertEqual(sampling_info.total_bytes, 3000)
+        self.assertEqual(sampling_info.sampled_rows, 10)
+        self.assertEqual(sampling_info.sampled_bytes, 1000)

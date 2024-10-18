@@ -18,6 +18,9 @@ class File:
         _num_rows = add_file["num_records"]
         return cls(_path, _bytes, _num_rows)
 
+    def __hash__(self) -> int:
+        return hash(self.path)
+
 
 class Block:
     def __init__(

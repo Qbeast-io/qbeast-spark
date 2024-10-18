@@ -15,7 +15,6 @@ class Cube:
         self.max_weight = float("inf")
         self.min_weight = float("inf")
         self.element_count = 0
-        self.size = 0
         self.children = []
         self.blocks = []
         self.parent = None
@@ -25,10 +24,13 @@ class Cube:
         self.max_weight = min(self.max_weight, block.max_weight)
         self.min_weight = min(self.min_weight, block.min_weight)
         self.element_count += block.element_count
-        self.size += block.file.bytes
 
     def is_sampled(self, fraction: float) -> bool:
         return any(block.is_sampled(fraction) for block in self.blocks)
+
+    @property
+    def size(self) -> int:
+        return sum({b.file.path: b.file.bytes for b in self.blocks}.values())
 
     def link(self, that: Cube) -> None:
         """
