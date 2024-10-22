@@ -22,7 +22,6 @@ import io.qbeast.spark.utils.QbeastExceptionMessages.incorrectIdentifierFormat
 import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
 import io.qbeast.spark.utils.QbeastExceptionMessages.unsupportedFormatExceptionMsg
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.QbeastTable
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.SparkSession

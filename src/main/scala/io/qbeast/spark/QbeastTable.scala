@@ -44,11 +44,18 @@ class QbeastTable private (
     with StagingUtils {
 
   /**
+   * The Delta Log for the Table
+   */
+  private val deltaLog: DeltaLog = DeltaLog.forTable(sparkSession, tableID.id)
+
+  /**
    * The QbeastSnapshot for the Table
    * @return
    */
-  private def qbeastSnapshot: QbeastSnapshot =
-    QbeastContext.metadataManager.loadSnapshot(tableID)
+  private def qbeastSnapshot: DeltaQbeastSnapshot = {
+    val snapshot = deltaLog.update()
+    DeltaQbeastSnapshot(snapshot)
+  }
 
   /**
    * The IndexedTable representation of the Table
