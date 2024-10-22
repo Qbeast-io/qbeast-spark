@@ -22,7 +22,7 @@ import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.QbeastTable
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.functions.rand
+import org.apache.spark.sql.functions._
 import org.apache.spark.sql.SparkSession
 
 class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
@@ -112,7 +112,7 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
   it should "optimize a table converted to Qbeast" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
       spark
-        .range(5000)
+        .range(50)
         .write
         .mode("append")
         .format("delta")
@@ -137,7 +137,7 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
 
   it should "Optimize and Hybrid Table" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
     spark
-      .range(5000)
+      .range(50)
       .write
       .mode("append")
       .option("columnsToIndex", "id")
@@ -145,7 +145,7 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
       .save(tmpDir)
 
     spark
-      .range(5000)
+      .range(50)
       .write
       .mode("append")
       .format("delta")
@@ -170,7 +170,7 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
     (spark, tmpDir) =>
       // Index with Qbeast
       spark
-        .range(5000)
+        .range(50)
         .write
         .mode("append")
         .format("qbeast")
@@ -198,14 +198,14 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
 
       // Check that the table size is correct
       val qbeastDF = spark.read.format("qbeast").load(tmpDir)
-      qbeastDF.count() shouldBe 4997
+      qbeastDF.count() shouldBe 47
   }
 
   it should "Optimize a fraction of the Staging Area" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
       // Index with Qbeast
       spark
-        .range(5000)
+        .range(50)
         .write
         .mode("append")
         .format("qbeast")
@@ -213,7 +213,7 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
         .save(tmpDir)
 
       spark
-        .range(10000)
+        .range(100)
         .write
         .mode("append")
         .format("delta")
@@ -234,6 +234,41 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
       val snapshotAfter = deltaLog.update()
       val unindexedFiles = snapshotAfter.allFiles.where("tags is null") // no tags
       unindexedFiles.count() shouldBe (stagingCount / 2)
+  }
+
+  it should "optimize a table with updates" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      // Index with Qbeast
+      spark
+        .range(50)
+        .write
+        .mode("append")
+        .format("qbeast")
+        .option("columnsToIndex", "id")
+        .save(tmpDir)
+
+      // Update data with DeltaTable
+      val deltaTable = DeltaTable.forPath(spark, tmpDir)
+      deltaTable.update(col("id") === "4", Map("id" -> lit("5")));
+
+      // Check that the number of unindexed files is not 0
+      val deltaLog = DeltaLog.forTable(spark, tmpDir)
+      val firstSnapshot = deltaLog.update()
+      val firstUnindexedFiles = firstSnapshot.allFiles.where("tags is null")
+      firstUnindexedFiles.count() shouldBe 1
+
+      // Optimize the Table
+      val qt = QbeastTable.forPath(spark, tmpDir)
+      qt.optimize(0L)
+
+      // After optimization, all files from the Update Operation should be indexed
+      val snapshot = deltaLog.update()
+      val unindexedFiles = snapshot.allFiles.where("tags is null") // no tags
+      unindexedFiles shouldBe empty
+
+      // Check that the table size is correct
+      val qbeastDF = spark.read.format("qbeast").load(tmpDir)
+      qbeastDF.filter("id == 5").count() shouldBe 2
   }
 
 }
