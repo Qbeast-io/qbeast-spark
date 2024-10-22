@@ -254,18 +254,34 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
       // Check that the number of unindexed files is not 0
       val deltaLog = DeltaLog.forTable(spark, tmpDir)
       val snapshot = deltaLog.update()
-      val stagingFiles = snapshot.allFiles.where("tags is null")
-      val stagingCount = stagingFiles.count()
-      stagingCount should be > 0L
+      val unindexedFilesBefore = snapshot.allFiles.where("tags is null")
+      val unindexedFilesCount = unindexedFilesBefore.count()
+      unindexedFilesCount should be > 0L
+      val unindexedFilesSize = unindexedFilesBefore.collect().map(_.size).sum
 
       // Optimize the Table with a 0.5 fraction
       val qt = QbeastTable.forPath(spark, tmpDir)
-      qt.optimize(revisionID = 0L, fraction = 0.5)
+      val fractionToOptimize = 0.5
+      qt.optimize(revisionID = 0L, fraction = fractionToOptimize)
 
       // After optimization, half of the Staging Area should be indexed
       val snapshotAfter = deltaLog.update()
-      val unindexedFiles = snapshotAfter.allFiles.where("tags is null") // no tags
-      unindexedFiles.count() shouldBe (stagingCount / 2)
+      val unindexedFilesAfter = snapshotAfter.allFiles.where("tags is null") // no tags
+      // Not all files should be indexed
+      unindexedFilesAfter should not be empty
+      // The number of unindexed files should be less than the original number
+      unindexedFilesAfter.count() shouldBe <(unindexedFilesCount)
+      // The size of the unindexed files should be less or equal than the missing fraction to optimize
+      val unindexedFilesSizeAfter = unindexedFilesAfter.collect().map(_.size).sum
+      unindexedFilesSizeAfter shouldBe >(0L)
+      unindexedFilesSizeAfter shouldBe <=(
+        ((1.0 - fractionToOptimize) * unindexedFilesSize).toLong)
+
+      // Second optimization should index the rest of the Staging Area
+      qt.optimize(revisionID = 0L, fraction = 0.5)
+      val snapshotAfter2 = deltaLog.update()
+      val unindexedFiles2 = snapshotAfter2.allFiles.where("tags is null") // no tags
+      unindexedFiles2 shouldBe empty
   }
 
   it should "optimize a table with updates" in withQbeastContextSparkAndTmpDir {
