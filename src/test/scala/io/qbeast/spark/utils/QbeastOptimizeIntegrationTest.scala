@@ -278,7 +278,7 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
         ((1.0 - fractionToOptimize) * unindexedFilesSize).toLong)
 
       // Second optimization should index the rest of the Staging Area
-      qt.optimize(revisionID = 0L, fraction = 0.5)
+      qt.optimize(revisionID = 0L, fraction = 1.0)
       val snapshotAfter2 = deltaLog.update()
       val unindexedFiles2 = snapshotAfter2.allFiles.where("tags is null") // no tags
       unindexedFiles2 shouldBe empty
