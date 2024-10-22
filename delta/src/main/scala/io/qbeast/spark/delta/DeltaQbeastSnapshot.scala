@@ -212,17 +212,17 @@ case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with De
    *   the Datasetframe
    */
 
-  override def loadDataframeFromIndexFiles(indexFile: Dataset[IndexFile]): DataFrame = {
+  override def loadDataframeFromIndexFiles(indexFiles: Dataset[IndexFile]): DataFrame = {
     if (snapshot.deletionVectorsSupported) {
 
       // TODO find a cleaner version to get a subset of data from the parquet considering the deleted parts.
       throw new UnsupportedOperationException("Deletion vectors are not supported yet")
     } else {
-      import indexFile.sparkSession.implicits._
+      import indexFiles.sparkSession.implicits._
       val rootPath = snapshot.path.getParent
-      val paths = indexFile.map(ifile => new Path(rootPath, ifile.path).toString).collect()
+      val paths = indexFiles.map(ifile => new Path(rootPath, ifile.path).toString).collect()
 
-      indexFile.sparkSession.read
+      indexFiles.sparkSession.read
         .schema(snapshot.schema)
         .parquet(paths: _*)
 

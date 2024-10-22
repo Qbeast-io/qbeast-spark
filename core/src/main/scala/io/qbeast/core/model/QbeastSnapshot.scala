@@ -31,6 +31,16 @@ trait QbeastSnapshot {
   def isInitial: Boolean
 
   /**
+   * Returns true if a revision with a specific revision identifier exists
+   *
+   * @param revisionID
+   *   the identifier of the revision
+   * @return
+   *   boolean
+   */
+  def existsRevision(revisionID: RevisionID): Boolean
+
+  /**
    * Returns the total number of data files in the snapshot.
    */
   def allFilesCount: Long
