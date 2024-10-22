@@ -44,18 +44,11 @@ class QbeastTable private (
     with StagingUtils {
 
   /**
-   * The Delta Log for the Table
-   */
-  private val deltaLog: DeltaLog = DeltaLog.forTable(sparkSession, tableID.id)
-
-  /**
    * The QbeastSnapshot for the Table
    * @return
    */
-  private def qbeastSnapshot: DeltaQbeastSnapshot = {
-    val snapshot = deltaLog.update()
-    DeltaQbeastSnapshot(snapshot)
-  }
+  private def qbeastSnapshot: QbeastSnapshot =
+    QbeastContext.metadataManager.loadSnapshot(tableID)
 
   /**
    * The IndexedTable representation of the Table
@@ -71,7 +64,7 @@ class QbeastTable private (
    *   the revision to check
    */
   private def checkRevisionAvailable(revisionID: RevisionID): Unit = {
-    if (!qbeastSnapshot.existsRevision(revisionID) && revisionID != stagingID) {
+    if (revisionID != stagingID && !qbeastSnapshot.existsRevision(revisionID)) {
       throw AnalysisExceptionFactory.create(
         s"Revision $revisionID does not exists. " +
           s"The latest revision available is $latestRevisionID")

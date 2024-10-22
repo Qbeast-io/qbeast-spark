@@ -31,6 +31,16 @@ trait QbeastSnapshot {
   def isInitial: Boolean
 
   /**
+   * Returns true if a revision with a specific revision identifier exists
+   *
+   * @param revisionID
+   *   the identifier of the revision
+   * @return
+   *   boolean
+   */
+  def existsRevision(revisionID: RevisionID): Boolean
+
+  /**
    * The current table description.
    * @return
    */
@@ -112,6 +122,11 @@ trait QbeastSnapshot {
    */
   def loadRevisionAt(timestamp: Long): Revision
 
-  def loadDataframeFromIndexFiles(indexFile: Dataset[IndexFile]): DataFrame
+  /**
+   * Loads the DataFrame from a set of index files
+   * @param indexFiles
+   * @return
+   */
+  def loadDataframeFromIndexFiles(indexFiles: Dataset[IndexFile]): DataFrame
 
 }
