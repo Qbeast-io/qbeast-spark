@@ -43,17 +43,35 @@ class QbeastTable private (
     extends Serializable
     with StagingUtils {
 
+  /**
+   * The Delta Log for the Table
+   */
   private val deltaLog: DeltaLog = DeltaLog.forTable(sparkSession, tableID.id)
 
+  /**
+   * The QbeastSnapshot for the Table
+   * @return
+   */
   private def qbeastSnapshot: DeltaQbeastSnapshot = {
     val snapshot = deltaLog.update()
     DeltaQbeastSnapshot(snapshot)
   }
 
+  /**
+   * The IndexedTable representation of the Table
+   * @return
+   */
   private def indexedTable: IndexedTable = indexedTableFactory.getIndexedTable(tableID)
 
+  /**
+   * Checks if the revision is available in the table.
+   *
+   * If the revision is not available, or is not the staging revision, an exception is thrown.
+   * @param revisionID
+   *   the revision to check
+   */
   private def checkRevisionAvailable(revisionID: RevisionID): Unit = {
-    if (!qbeastSnapshot.existsRevision(revisionID)) {
+    if (!qbeastSnapshot.existsRevision(revisionID) && revisionID != stagingID) {
       throw AnalysisExceptionFactory.create(
         s"Revision $revisionID does not exists. " +
           s"The latest revision available is $latestRevisionID")
@@ -122,10 +140,8 @@ class QbeastTable private (
    *   Optimization options where user metadata and pre-commit hooks are specified.
    */
   def optimize(revisionID: RevisionID, fraction: Double, options: Map[String, String]): Unit = {
-    if (!isStaging(revisionID)) {
-      checkRevisionAvailable(revisionID)
-      OptimizeTableCommand(revisionID, fraction, indexedTable, options).run(sparkSession)
-    }
+    checkRevisionAvailable(revisionID)
+    OptimizeTableCommand(revisionID, fraction, indexedTable, options).run(sparkSession)
   }
 
   def optimize(revisionID: RevisionID, fraction: Double): Unit = {
@@ -166,7 +182,7 @@ class QbeastTable private (
    *   Optimization options where user metadata and pre-commit hooks are specified.
    */
   def optimize(files: Seq[String], options: Map[String, String]): Unit =
-    indexedTable.optimize(files, options)
+    indexedTable.optimizeIndexFiles(files, options)
 
   def optimize(files: Seq[String]): Unit =
     optimize(files, Map.empty[String, String])
