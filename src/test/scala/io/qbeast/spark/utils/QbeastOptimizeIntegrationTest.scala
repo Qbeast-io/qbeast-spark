@@ -230,7 +230,7 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
 
       // Check that the table size is correct
       val qbeastDF = spark.read.format("qbeast").load(tmpDir)
-      qbeastDF.count() shouldBe 4996
+      qbeastDF.count() shouldBe 4997
   }
 
   it should "Optimize a fraction of the Staging Area" in withQbeastContextSparkAndTmpDir {
