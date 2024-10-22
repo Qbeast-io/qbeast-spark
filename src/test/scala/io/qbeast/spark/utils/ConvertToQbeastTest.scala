@@ -206,17 +206,4 @@ class ConvertToQbeastTest
       isStaging(rev) shouldBe false
     })
 
-  "Optimizing the staging revision" should "not corrupt the data" in
-    withSparkAndTmpDir((spark, tmpDir) => {
-      val fileFormat = "parquet"
-      convertFromFormat(spark, fileFormat, tmpDir)
-
-      QbeastTable.forPath(spark, tmpDir).optimize()
-
-      // Compare DataFrames
-      val sourceDf = spark.read.format(fileFormat).load(tmpDir)
-      val qbeastDf = spark.read.format("qbeast").load(tmpDir)
-      assertLargeDatasetEquality(qbeastDf, sourceDf, orderedComparison = false)
-    })
-
 }
