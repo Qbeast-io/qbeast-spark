@@ -243,6 +243,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
       val Seq(rb1, c1b1, c1b2) = IndexFile(
         path = tmpDir,
         size = 1L,
+        dataChange = true,
         modificationTime = 1L,
         revisionId = 1L,
         blocks = blocks).blocks

@@ -66,6 +66,7 @@ private[delta] object DeltaQbeastFileUtils {
       .setPath(addFile.path)
       .setSize(addFile.size)
       .setStats(stats)
+      .setDataChange(addFile.dataChange)
       .setModificationTime(addFile.modificationTime)
     addFile.getTag(TagUtils.revision) match {
       case Some(value) => builder.setRevisionId(value.toLong)
@@ -81,14 +82,12 @@ private[delta] object DeltaQbeastFileUtils {
   /**
    * Converts a given IndexFile instance to an AddFile instance.
    *
-   * @param dataChange
-   *   whether this index file represents a data change
    * @param indexFile
    *   the IndexFile instance
    * @return
    *   an AddFile instance
    */
-  def toAddFile(dataChange: Boolean)(indexFile: IndexFile): AddFile = {
+  def toAddFile(indexFile: IndexFile): AddFile = {
     val tags = Map(
       TagUtils.revision -> indexFile.revisionId.toString,
       TagUtils.blocks -> encodeBlocks(indexFile.blocks))
@@ -101,7 +100,7 @@ private[delta] object DeltaQbeastFileUtils {
       partitionValues = Map.empty[String, String],
       size = indexFile.size,
       modificationTime = indexFile.modificationTime,
-      dataChange = dataChange,
+      dataChange = indexFile.dataChange,
       stats = stats,
       tags = tags)
   }
@@ -110,22 +109,21 @@ private[delta] object DeltaQbeastFileUtils {
     DeleteFile(
       path = removeFile.path,
       size = removeFile.size.get,
+      dataChange = removeFile.dataChange,
       deletionTimestamp = removeFile.deletionTimestamp.get)
   }
 
   /**
    * Converts a given IndexFile instance to a RemoveFile instance.
    *
-   * @param dataChange
-   *   whether this file removal implies data change
    * @param deleteFile
    *   the DeleteFile instance
    */
-  def toRemoveFile(dataChange: Boolean)(deleteFile: DeleteFile): RemoveFile =
+  def toRemoveFile(deleteFile: DeleteFile): RemoveFile =
     RemoveFile(
       path = deleteFile.path,
       deletionTimestamp = Some(deleteFile.deletionTimestamp),
-      dataChange = dataChange,
+      dataChange = deleteFile.dataChange,
       partitionValues = Map.empty[String, String],
       size = Some(deleteFile.size))
 

@@ -23,8 +23,10 @@ sealed trait QbeastFile extends Serializable {
 
   def size: Long
 
+  def dataChange: Boolean
+
   override def toString: String = {
-    s"QbeastFile($path, $size)"
+    s"QbeastFile($path, $size, $dataChange)"
   }
 
 }
@@ -44,6 +46,7 @@ sealed trait QbeastFile extends Serializable {
 case class IndexFile(
     path: String,
     size: Long,
+    dataChange: Boolean,
     modificationTime: Long,
     revisionId: RevisionID,
     blocks: IISeq[Block],
@@ -84,7 +87,7 @@ case class IndexFile(
     val newBlocks = blocks.map { block =>
       if (cubeIds.contains(block.cubeId)) block.replicate() else block
     }
-    Some(IndexFile(path, size, newModificationTime, revisionId, newBlocks))
+    Some(IndexFile(path, size, dataChange, newModificationTime, revisionId, newBlocks))
   }
 
   override def toString: String = {
@@ -103,10 +106,11 @@ case class IndexFile(
  * @param deletionTimestamp
  *   the deletion timestamp
  */
-case class DeleteFile(path: String, size: Long, deletionTimestamp: Long) extends QbeastFile {
+case class DeleteFile(path: String, size: Long, dataChange: Boolean, deletionTimestamp: Long)
+    extends QbeastFile {
 
   override def toString: String = {
-    s"DeleteFile($path, $size, $deletionTimestamp)"
+    s"DeleteFile($path, $size, $dataChange, $deletionTimestamp)"
   }
 
 }

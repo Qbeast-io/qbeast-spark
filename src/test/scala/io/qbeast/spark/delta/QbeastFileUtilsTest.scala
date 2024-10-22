@@ -29,6 +29,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
     val indexFile = IndexFile(
       path = "path",
       size = 2L,
+      dataChange = true,
       modificationTime = 0L,
       revisionId = 1L,
       blocks = Seq(
@@ -40,7 +41,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
           1L,
           replicated = false)).toIndexedSeq)
 
-    val addFile = DeltaQbeastFileUtils.toAddFile(dataChange = true)(indexFile)
+    val addFile = DeltaQbeastFileUtils.toAddFile(indexFile)
     addFile.path shouldBe "path"
     addFile.size shouldBe 2L
     addFile.modificationTime shouldBe 0L
@@ -73,10 +74,9 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
   }
 
   it should "transform the DeleteFile to a RemoveFile" in withSpark { _ =>
-    val deleteFile = DeleteFile(path = "path", size = 2L, deletionTimestamp = 0L)
-
     val dataChange = false
-    val removeFile = DeltaQbeastFileUtils.toRemoveFile(dataChange = dataChange)(deleteFile)
+    val deleteFile = DeleteFile(path = "path", size = 2L, dataChange, deletionTimestamp = 0L)
+    val removeFile = DeltaQbeastFileUtils.toRemoveFile(deleteFile)
     removeFile.path shouldBe "path"
     removeFile.dataChange shouldBe dataChange
   }
@@ -93,6 +93,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
     val deleteFile = DeltaQbeastFileUtils.fromRemoveFile(removeFile)
     deleteFile.path shouldBe "path"
     deleteFile.size shouldBe 2L
+    deleteFile.dataChange shouldBe true
     deleteFile.deletionTimestamp shouldBe 0L
   }
 
@@ -100,6 +101,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
     val indexFile = IndexFile(
       path = "path",
       size = 2L,
+      dataChange = true,
       modificationTime = 0L,
       revisionId = 1L,
       blocks = Seq(
@@ -125,6 +127,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
     val indexFile = IndexFile(
       path = "path",
       size = 2L,
+      dataChange = true,
       modificationTime = 0L,
       revisionId = 1L,
       blocks = Seq(
