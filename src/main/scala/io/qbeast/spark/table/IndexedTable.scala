@@ -32,6 +32,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.COLUMN_SELECTOR_ENABLED
 import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
 import org.apache.spark.sql.delta.actions.FileAction
+import org.apache.spark.sql.functions._
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
@@ -502,19 +503,19 @@ private[table] class IndexedTableImpl(
     import revisionFilesDF.sparkSession.implicits._
     // Filter the Index Files by the fraction
     if (isStaging(revisionID)) { // If the revision is Staging, we should INDEX the staged data up to the fraction
-      val bytesToOptimize = revisionFilesDF.map(_.size).collect().sum * fraction
+      val bytesToOptimize = revisionFilesDF.agg(sum("size")).as[Long].first() * fraction
       logInfo(s"Total bytes to optimize in the Staging Area: $bytesToOptimize")
       val revisionFiles = revisionFilesDF.collect()
-      var filesToOptimize = Seq.empty[IndexFile]
-      var selectedBytesToOptimize = 0L
-      for (file <- revisionFiles) {
-        if (selectedBytesToOptimize < bytesToOptimize) {
-          filesToOptimize = filesToOptimize :+ file
-          selectedBytesToOptimize += file.size
-        }
-      }
-      logInfo(s"Total number of files to optimize in the Staging Area: ${filesToOptimize.size}")
-      val filesToOptimizeNames = filesToOptimize.map(_.path)
+      val filesToOptimize = Seq.newBuilder[String]
+      revisionFiles.foldLeft(0L)((acc, file) => {
+        if (acc < bytesToOptimize) {
+          filesToOptimize += file.path
+          acc + file.size
+        } else acc
+      })
+      val filesToOptimizeNames = filesToOptimize.result()
+      logInfo(
+        s"Total number of files to optimize in the Staging Area: ${filesToOptimizeNames.size}")
       optimizeUnindexedFiles(filesToOptimizeNames, options)
     } else { // If the revision is not Staging, we should optimize the index files up to the fraction
       val filesToOptimize = revisionFilesDF.transform(filterSamplingFiles(fraction))
@@ -541,9 +542,9 @@ private[table] class IndexedTableImpl(
     val files =
       snapshot.loadIndexFiles(stagingID).filter(f => unindexedFiles.contains(f.path))
     import files.sparkSession.implicits._
-    // 2. Load the Dataframe, the index status and the schema
+    // 2. Load the Dataframe, the latest index status and the schema
     val filesDF = snapshot.loadDataframeFromIndexFiles(files)
-    val indexStatus = snapshot.loadIndexStatus(stagingID)
+    val latestIndexStatus = snapshot.loadLatestIndexStatus
     val schema = metadataManager.loadCurrentSchema(tableID)
     // 3. In a transaction, update the table with the new data
     metadataManager.updateWithTransaction(
@@ -552,7 +553,7 @@ private[table] class IndexedTableImpl(
       optimizationOptions(options),
       append = true) {
       // Index the data with IndexManager
-      val (data, tableChanges) = indexManager.index(filesDF, indexStatus)
+      val (data, tableChanges) = indexManager.index(filesDF, latestIndexStatus)
       // Write the data with DataWriter
       val newFiles = dataWriter.write(tableID, schema, data, tableChanges)
       // Remove the Unindexed Files from the Log
