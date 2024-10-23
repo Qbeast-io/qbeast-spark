@@ -509,13 +509,13 @@ private[table] class IndexedTableImpl(
     assert(fraction > 0d && fraction <= 1d)
     log.info(s"Selecting files to Optimize for Revision $revisionID")
     // Load the Index Files for the given revision
-    val revisionFilesDF = snapshot.loadIndexFiles(revisionID)
-    import revisionFilesDF.sparkSession.implicits._
+    val revisionFilesDS = snapshot.loadIndexFiles(revisionID)
+    import revisionFilesDS.sparkSession.implicits._
     // Filter the Index Files by the fraction
     if (isStaging(revisionID)) { // If the revision is Staging, we should INDEX the staged data up to the fraction
-      val bytesToOptimize = revisionFilesDF.agg(sum("size")).as[Long].first() * fraction
+      val bytesToOptimize = revisionFilesDS.agg(sum("size")).as[Long].first() * fraction
       logInfo(s"Total bytes to optimize in the Staging Area: $bytesToOptimize")
-      val revisionFiles = revisionFilesDF.collect()
+      val revisionFiles = revisionFilesDS.collect()
       val filesToOptimize = Seq.newBuilder[String]
       revisionFiles.foldLeft(0L)((acc, file) => {
         if (acc < bytesToOptimize) {
@@ -528,7 +528,7 @@ private[table] class IndexedTableImpl(
         s"Total number of files to optimize in the Staging Area: ${filesToOptimizeNames.size}")
       optimizeUnindexedFiles(filesToOptimizeNames, options)
     } else { // If the revision is not Staging, we should optimize the index files up to the fraction
-      val filesToOptimize = revisionFilesDF.transform(filterSamplingFiles(fraction))
+      val filesToOptimize = revisionFilesDS.transform(filterSamplingFiles(fraction))
       val filesToOptimizeNames = filesToOptimize.map(_.path).collect()
       logInfo(s"Total Number of Files To Optimize: ${filesToOptimizeNames.size}")
       optimizeIndexFiles(filesToOptimizeNames, options)
@@ -577,8 +577,9 @@ private[table] class IndexedTableImpl(
   override def optimizeIndexFiles(files: Seq[String], options: Map[String, String]): Unit = {
     val paths = files.toSet
     val schema = metadataManager.loadCurrentSchema(tableID)
-    // For each Revision, we should optimize the matching files
-    snapshot.loadAllRevisions.foreach { revision =>
+    // For each Revision, excluding the Staging,
+    // we should optimize the matching files
+    snapshot.loadAllRevisions.filterNot(isStaging).foreach { revision =>
       // 1. Load the Index Files for the given revision
       val indexFiles = snapshot
         .loadIndexFiles(revision.revisionID)
