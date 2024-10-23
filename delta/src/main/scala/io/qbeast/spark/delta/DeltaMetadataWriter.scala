@@ -228,8 +228,10 @@ private[delta] case class DeltaMetadataWriter(
       .collect()
       .map(DeltaQbeastFileUtils.fromAddFile(dimensionCount))
       .flatMap(_.tryReplicateBlocks(deltaReplicatedSet))
-      .map(DeltaQbeastFileUtils.toAddFile)
-      .map(addFile => addFile.copy(dataChange = false))
+      .map(file => {
+        val addFile = DeltaQbeastFileUtils.toAddFile(file)
+        addFile.copy(dataChange = false)
+      })
       .toSeq
   }
 
