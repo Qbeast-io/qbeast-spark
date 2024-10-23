@@ -56,7 +56,7 @@ class QbeastTable private (
    *   the revision to check
    */
   private def checkRevisionAvailable(revisionID: RevisionID): Unit = {
-    if (revisionID != stagingID && !qbeastSnapshot.existsRevision(revisionID)) {
+    if (!isStaging(revisionID) && !qbeastSnapshot.existsRevision(revisionID)) {
       throw AnalysisExceptionFactory.create(
         s"Revision $revisionID does not exists. " +
           s"The latest revision available is $latestRevisionID")
