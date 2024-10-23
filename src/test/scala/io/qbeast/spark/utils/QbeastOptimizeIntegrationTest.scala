@@ -21,6 +21,7 @@ import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.QbeastTable
 import org.apache.spark.sql.delta.actions.Action
 import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.actions.CommitInfo
 import org.apache.spark.sql.delta.actions.RemoveFile
 import org.apache.spark.sql.delta.util.FileNames
 import org.apache.spark.sql.delta.DeltaLog
@@ -128,15 +129,16 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
       val snapshot = deltaLog.update()
       val conf = deltaLog.newDeltaHadoopConf()
 
-      val fileActions = deltaLog.store
+      deltaLog.store
         .read(FileNames.deltaFile(deltaLog.logPath, snapshot.version), conf)
         .map(Action.fromJson)
-
-      fileActions.foreach {
-        case addFile: AddFile => addFile.dataChange shouldBe false
-        case removeFile: RemoveFile => removeFile.dataChange shouldBe false
-        case _ => None
-      }
+        .collect({
+          case addFile: AddFile => addFile.dataChange shouldBe false
+          case removeFile: RemoveFile => removeFile.dataChange shouldBe false
+          case commitInfo: CommitInfo =>
+            commitInfo.isolationLevel shouldBe Some("SnapshotIsolation")
+          case _ => None
+        })
 
     }
 

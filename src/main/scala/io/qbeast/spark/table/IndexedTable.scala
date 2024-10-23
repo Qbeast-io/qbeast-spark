@@ -543,7 +543,9 @@ private[table] class IndexedTableImpl(
 
           val newFiles = dataWriter
             .write(tableID, schema, dataExtended, tableChanges)
-            .map(addFile => addFile.asInstanceOf[AddFile].copy(dataChange = false))
+            .collect { case addFile: AddFile =>
+              addFile.copy(dataChange = false)
+            }
 
           dataExtended.unpersist()
           (tableChanges, newFiles ++ removeFiles)
