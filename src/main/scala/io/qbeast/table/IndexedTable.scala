@@ -507,15 +507,16 @@ private[table] class IndexedTableImpl(
       fraction: Double,
       options: Map[String, String]): Unit = {
     assert(fraction > 0d && fraction <= 1d)
-    log.info(s"Selecting files to Optimize for Revision $revisionID")
+    log.info(s"Selecting Files to Optimize for Revision $revisionID")
     // Load the Index Files for the given revision
     val revisionFilesDS = snapshot.loadIndexFiles(revisionID)
     import revisionFilesDS.sparkSession.implicits._
     // Filter the Index Files by the fraction
     if (isStaging(revisionID)) { // If the revision is Staging, we should INDEX the staged data up to the fraction
-      val bytesToOptimize = revisionFilesDS.agg(sum("size")).as[Long].first() * fraction
-      logInfo(s"Total bytes to optimize in the Staging Area: $bytesToOptimize")
       val revisionFiles = revisionFilesDS.collect()
+      log.info(s"Total Number of Unindexed Files:  ${revisionFiles.size}")
+      val bytesToOptimize = revisionFiles.map(_.size).sum * fraction
+      logInfo(s"Total Bytes of Unindexed Files to Optimize: $bytesToOptimize")
       val filesToOptimize = Seq.newBuilder[String]
       revisionFiles.foldLeft(0L)((acc, file) => {
         if (acc < bytesToOptimize) {
@@ -524,13 +525,12 @@ private[table] class IndexedTableImpl(
         } else acc
       })
       val filesToOptimizeNames = filesToOptimize.result()
-      logInfo(
-        s"Total number of files to optimize in the Staging Area: ${filesToOptimizeNames.size}")
+      logInfo(s"Total Number of Unindexed Files to Optimize: ${filesToOptimizeNames.size}")
       optimizeUnindexedFiles(filesToOptimizeNames, options)
     } else { // If the revision is not Staging, we should optimize the index files up to the fraction
       val filesToOptimize = revisionFilesDS.transform(filterSamplingFiles(fraction))
       val filesToOptimizeNames = filesToOptimize.map(_.path).collect()
-      logInfo(s"Total Number of Files To Optimize: ${filesToOptimizeNames.size}")
+      logInfo(s"Total Number of Indexed Files To Optimize: ${filesToOptimizeNames.size}")
       optimizeIndexFiles(filesToOptimizeNames, options)
     }
   }
