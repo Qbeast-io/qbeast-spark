@@ -565,6 +565,7 @@ private[table] class IndexedTableImpl(
   }
 
   override def optimizeIndexFiles(files: Seq[String], options: Map[String, String]): Unit = {
+    if (files.isEmpty) return // Nothing to optimize
     val paths = files.toSet
     val schema = metadataManager.loadCurrentSchema(tableID)
     // For each Revision, excluding the Staging,
@@ -581,7 +582,6 @@ private[table] class IndexedTableImpl(
         // 3. In the same transaction
         metadataManager
           .updateWithTransaction(tableID, schema, optimizationOptions(options), append = true) {
-            //
             import indexFiles.sparkSession.implicits._
             // Optimize the data
             val (dataExtended, tableChanges) =
