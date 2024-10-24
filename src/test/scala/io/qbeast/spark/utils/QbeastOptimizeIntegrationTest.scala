@@ -23,8 +23,8 @@ import io.qbeast.spark.delta.SparkDeltaMetadataManager
 import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.QbeastTable
-import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.actions.Action
+import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.actions.CommitInfo
 import org.apache.spark.sql.delta.actions.RemoveFile
 import org.apache.spark.sql.delta.util.FileNames
