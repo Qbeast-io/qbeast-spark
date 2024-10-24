@@ -186,7 +186,7 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
       .toDS()
       .select(struct("*").as("cubeId"))
     val indexFiles: Dataset[DenormalizedBlock] =
-      QbeastTable.forPath(spark, tmpdir).getDenormalizedBlocks(Some(revision.revisionID))
+      QbeastTable.forPath(spark, tmpdir).getDenormalizedBlocks(revision.revisionID)
     val matchFiles = indexFiles
       .join(matchCubes, "cubeId")
       .select("filePath")

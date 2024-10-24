@@ -15,78 +15,129 @@
  */
 package io.qbeast.spark.utils
 
-import io.qbeast.core.model.CubeId
+import io.qbeast.core.model.IndexFile
 import io.qbeast.table.QbeastTable
 import io.qbeast.QbeastIntegrationTestSpec
+import org.apache.spark.sql.delta.actions.Action
+import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.actions.CommitInfo
+import org.apache.spark.sql.delta.actions.RemoveFile
+import org.apache.spark.sql.delta.util.FileNames
+import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.functions.rand
 import org.apache.spark.sql.SparkSession
 
 class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
 
-  def optimize(spark: SparkSession, tmpDir: String, times: Int): Unit = {
-    val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-    (0 until times).foreach(_ => { qbeastTable.analyze(); qbeastTable.optimize() })
-
+  def createTableWithMultipleAppends(spark: SparkSession, tmpDir: String): Unit = {
+    val options = Map(
+      "columnsToIndex" -> "col_1,col_2",
+      "cubeSize" -> "100",
+      "columnStats" ->
+        """{"col_1_min": 0.0, "col_1_max": 5000.0, "col_2_min": 0.0, "col_2_max": 5000.0}""")
+    spark
+      .range(5000)
+      .withColumn("col_1", rand() % 5000)
+      .withColumn("col_2", rand() % 5000)
+      .write
+      .format("qbeast")
+      .options(options)
+      .save(tmpDir)
+    spark
+      .range(5000)
+      .withColumn("col_1", rand() % 5000)
+      .withColumn("col_2", rand() % 5000)
+      .write
+      .mode("append")
+      .format("qbeast")
+      .save(tmpDir)
   }
 
-  "the Qbeast data source" should
-    "not replicate any point if there are optimizations" in withQbeastContextSparkAndTmpDir {
-      (spark, tmpDir) =>
-        {
-          val data = loadTestData(spark)
-          writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
+  behavior of "A fully optimized index"
 
-          val indexed = spark.read.format("parquet").load(tmpDir)
-          assertLargeDatasetEquality(indexed, data, orderedComparison = false)
+  it should "have no cube fragmentation" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
+    createTableWithMultipleAppends(spark, tmpDir)
+    val qt = QbeastTable.forPath(spark, tmpDir)
+    val elementCountBefore = qt.getIndexMetrics.elementCount
+    qt.optimize()
 
-        }
+    val mAfter = qt.getIndexMetrics
+    val fragmentationAfter = mAfter.blockCount / mAfter.cubeCount.toDouble
+    val elementCountAfter = mAfter.elementCount
+
+    fragmentationAfter shouldBe 1d
+    elementCountBefore shouldBe elementCountAfter
+  }
+
+  it should "sample correctly" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
+    createTableWithMultipleAppends(spark, tmpDir)
+    val df = spark.read.format("qbeast").load(tmpDir)
+    val dataSize = df.count()
+
+    val qt = QbeastTable.forPath(spark, tmpDir)
+    qt.optimize()
+
+    // Here, we use a tolerance of 5% because the total number of elements is relatively small
+    val tolerance = 0.05
+    List(0.1, 0.2, 0.5, 0.7, 0.99).foreach { f =>
+      val margin = dataSize * f * tolerance
+      val sampleSize = df.sample(f).count().toDouble
+      sampleSize shouldBe (dataSize * f) +- margin
     }
+  }
 
-  "An optimized index" should "sample correctly" in withQbeastContextSparkAndTmpDir {
+  "Optimizing with given fraction" should "improve sampling efficiency" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
-      {
-        val data = loadTestData(spark)
+      def getSampledFiles(fraction: Double): Seq[IndexFile] = {
+        val qs = getQbeastSnapshot(tmpDir)
+        qs.loadLatestIndexFiles
+          .filter(f => f.blocks.exists(_.minWeight.fraction <= fraction))
+          .collect()
+      }
 
-        writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
+      createTableWithMultipleAppends(spark, tmpDir)
+      val fraction: Double = 0.1
+      val filesBefore = getSampledFiles(fraction)
 
-        val df = spark.read.format("qbeast").load(tmpDir)
+      QbeastTable.forPath(spark, tmpDir).optimize(fraction)
 
-        // analyze and optimize the index 3 times
-        optimize(spark, tmpDir, 3)
-        val dataSize = data.count()
+      val filesAfter = getSampledFiles(fraction)
+      // We should be reading fewer files
+      filesAfter.size should be < filesBefore.size
+      // We should be reading fewer data
+      filesAfter.map(_.size).sum should be < filesBefore.map(_.size).sum
+      // We should be reading fewer blocks
+      filesAfter.map(_.blocks.size).sum should be < filesBefore.map(_.blocks.size).sum
+  }
 
-        df.count() shouldBe dataSize
+  "Table optimize" should "set the dataChange flag as false" in
+    withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
+      import spark.implicits._
 
-        val tolerance = 0.01
-        List(0.1, 0.2, 0.5, 0.7, 0.99).foreach(precision => {
-          val result = df
-            .sample(withReplacement = false, precision)
-            .count()
-            .toDouble
+      val df = spark.sparkContext.range(0, 10).toDF("id")
+      df.write
+        .mode("append")
+        .format("qbeast")
+        .option("columnsToIndex", "id")
+        .save(tmpDir)
 
-          result shouldBe (dataSize * precision) +- dataSize * precision * tolerance
+      QbeastTable.forPath(spark, tmpDir).optimize(1L, Map.empty[String, String])
+
+      val deltaLog = DeltaLog.forTable(spark, tmpDir)
+      val snapshot = deltaLog.update()
+      val conf = deltaLog.newDeltaHadoopConf()
+
+      deltaLog.store
+        .read(FileNames.deltaFile(deltaLog.logPath, snapshot.version), conf)
+        .map(Action.fromJson)
+        .collect({
+          case addFile: AddFile => addFile.dataChange shouldBe false
+          case removeFile: RemoveFile => removeFile.dataChange shouldBe false
+          case commitInfo: CommitInfo =>
+            commitInfo.isolationLevel shouldBe Some("SnapshotIsolation")
+          case _ => None
         })
-      }
-  }
 
-  it should "erase cube information when overwritten" in withQbeastContextSparkAndTmpDir {
-    (spark, tmpDir) =>
-      {
-        // val tmpDir = "/tmp/qbeast3"
-        val data = loadTestData(spark)
-
-        writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
-
-        // analyze and optimize the index 3 times
-        optimize(spark, tmpDir, 3)
-
-        // Overwrite table
-        writeTestData(data, Seq("user_id", "product_id"), 10000, tmpDir)
-
-        val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-
-        qbeastTable.analyze() shouldBe Seq(CubeId.root(2).string)
-
-      }
-  }
+    }
 
 }

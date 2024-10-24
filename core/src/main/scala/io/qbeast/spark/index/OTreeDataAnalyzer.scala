@@ -93,7 +93,10 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
       columnTransformers: IISeq[Transformer]): Row = {
     val columnStats = columnTransformers.map(_.stats)
     val columnsExpr = columnStats.flatMap(_.statsSqlPredicates)
-    data.selectExpr(columnsExpr ++ Seq("count(1) AS count"): _*).first()
+    logInfo("Selecting statistics for columns: " + columnsExpr.mkString(", "))
+    val row = data.selectExpr(columnsExpr ++ Seq("count(1) AS count"): _*).first()
+    logInfo("Statistics selected: " + row.mkString(", "))
+    row
   }
 
   /**

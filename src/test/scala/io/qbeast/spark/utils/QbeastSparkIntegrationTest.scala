@@ -53,7 +53,7 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
       }
     }
 
-  it should "work with SaveAsTable" in withQbeastContextSparkAndTmpWarehouse { (spark, tmpDir) =>
+  it should "work with SaveAsTable" in withQbeastContextSparkAndTmpWarehouse { (spark, _) =>
     {
 
       val data = createStudentsTestData(spark)
@@ -168,7 +168,7 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
 
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
         qbeastTable.indexedColumns() shouldBe Seq("name", "age", "id")
-        qbeastTable.latestRevisionID() shouldBe 1L
+        qbeastTable.latestRevisionID shouldBe 1L
 
       }
   }

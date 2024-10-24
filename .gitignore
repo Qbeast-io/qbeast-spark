@@ -2,6 +2,7 @@
 .bsp
 *.class
 *.log
+spark-warehouse
 
 # sbt specific
 .cache/

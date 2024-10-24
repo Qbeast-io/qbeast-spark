@@ -15,24 +15,17 @@
  */
 package io.qbeast.core.transform
 
-import io.qbeast.core.model.QDataType
-import io.qbeast.core.transform.HistogramTransformer.defaultStringHistogram
+import org.apache.spark.annotation.Experimental
+import org.apache.spark.sql.AnalysisExceptionFactory
 
-case class StringHistogramTransformer(columnName: String, dataType: QDataType)
-    extends HistogramTransformer {
-  private val columnHistogram = s"${columnName}_histogram"
-
-  /**
-   * Returns the stats
-   *
-   * @return
-   */
-  override def stats: ColumnStats = {
-    val defaultHistString = defaultStringHistogram.mkString("Array('", "', '", "')")
-    ColumnStats(
-      statsNames = columnHistogram :: Nil,
-      statsSqlPredicates = s"$defaultHistString AS $columnHistogram" :: Nil)
-  }
+/**
+ * CDF Quantile Transformer for Strings
+ *
+ * @param columnName
+ *   the name of the column
+ */
+@Experimental
+case class CDFStringQuantilesTransformer(columnName: String) extends CDFQuantilesTransformer {
 
   /**
    * Returns the Transformation given a row representation of the values
@@ -43,12 +36,19 @@ case class StringHistogramTransformer(columnName: String, dataType: QDataType)
    *   the transformation
    */
   override def makeTransformation(row: String => Any): Transformation = {
-    val hist = row(columnHistogram) match {
-      case h: Seq[_] => h.map(_.toString).toIndexedSeq
-      case _ => defaultStringHistogram
+    row(columnTransformerName) match {
+      case null => EmptyTransformation()
+      case q: Seq[_] if q.nonEmpty =>
+        val quantiles = q.map(_.toString).toIndexedSeq
+        CDFStringQuantilesTransformation(quantiles)
+      case q: Seq[_] if q.isEmpty =>
+        throw AnalysisExceptionFactory.create(
+          s"Quantiles for column $columnName size should be greater than 1")
+      case _ =>
+        throw AnalysisExceptionFactory.create(
+          s"Quantiles for column $columnName should be of type Array[String]")
     }
 
-    StringHistogramTransformation(hist)
   }
 
 }

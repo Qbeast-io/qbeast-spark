@@ -317,4 +317,33 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
       }
   }
 
+  it should "pushdown min-max filters on strings" in withSparkAndTmpDir((spark, tmpDir) => {
+    val data = loadTestData(spark)
+    writeTestData(data, Seq("brand"), 1000, tmpDir)
+
+    val df = spark.read.format("qbeast").load(tmpDir)
+
+    val filter = "(brand == 'versace')"
+    val query = df.filter(filter)
+    val originalQuery = data.filter(filter)
+
+    // Check filter pushdown for string search
+    checkFiltersArePushedDown(query)
+    query.queryExecution.executedPlan
+      .collectLeaves()
+      .filter(_.isInstanceOf[FileSourceScanExec])
+      .collectFirst {
+        case f: FileSourceScanExec if f.relation.location.isInstanceOf[DefaultFileIndex] =>
+          f.dataFilters.foreach(println)
+          val index = f.relation.location
+          val matchingFiles =
+            index.listFiles(f.partitionFilters, f.dataFilters).flatMap(_.files)
+          val allFiles = index.inputFiles
+          matchingFiles.length shouldBe <(allFiles.length)
+      }
+
+    // Assert the results are the same
+    assertSmallDatasetEquality(query, originalQuery, orderedComparison = false)
+  })
+
 }

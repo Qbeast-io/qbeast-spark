@@ -1,72 +1,51 @@
 import unittest
-from qviz.cube import Cube, SamplingInfo
+
+from qviz.block import Block, File
+from qviz.cube import Cube
 
 
 class TestCube(unittest.TestCase):
-    def test_is_not_root(self):
-        root = Cube("", 1, 1, 1, 0)
-        cube_level_1 = Cube("A", 1, 1, 1, 1)
+    def setUp(self):
+        self.file = File(path="test_path", bytes=1000, num_rows=10)
+        self.block = Block(
+            cube_id="A",
+            element_count=5,
+            min_weight=-1073741824,  # maps to 0.25 in normalize_weight
+            max_weight=1073741823,  # maps to 0.75 in normalize_weight
+            file=self.file,
+        )
+        self.cube = Cube(cube_id="A", depth=1)
 
-        self.assertFalse(root.is_not_root())
-        self.assertTrue(cube_level_1.is_not_root())
+    def test_add_block(self):
+        self.cube.add(self.block)
+        self.assertEqual(len(self.cube.blocks), 1)
+        self.assertEqual(self.cube.element_count, 5)
+        self.assertEqual(self.cube.size, 1000)
+        self.assertEqual(self.cube.min_weight, 0.25)
+        self.assertEqual(self.cube.max_weight, 0.75)
 
-    def test_link(self):
-        root = Cube("", 1, 1, 1, 0)
-        cube_level_1 = Cube("A", 1, 1, 1, 1)
-        cube_level_2 = Cube("AA", 1, 1, 1, 2)
-
-        cube_level_1.link(root)
-        self.assertTrue(cube_level_1.parent is root)
-        self.assertTrue(root.children[0] is cube_level_1)
-
-        cube_level_2.link(root)
-        self.assertTrue(cube_level_2.parent is not root)
-        self.assertTrue(len(root.children) == 1)
+        # Add another block
+        another_block = Block(
+            cube_id="A",
+            element_count=10,
+            min_weight=-2147483648,  # maps to 0.0 in normalize_weight
+            max_weight=0,  # maps to 1.0 in normalize_weight
+            file=File(path="another_test_path", bytes=2000, num_rows=20),
+        )
+        self.cube.add(another_block)
+        self.assertEqual(len(self.cube.blocks), 2)
+        self.assertEqual(self.cube.element_count, 15)
+        self.assertEqual(self.cube.size, 3000)
+        self.assertEqual(self.cube.min_weight, 0.0)
+        self.assertEqual(self.cube.max_weight, 0.5)
 
     def test_is_sampled(self):
-        root = Cube("", -1269647486, 100, 100, 0)  # max weight: 0.204
-        cube = Cube("A", 100, 100, 100, 1)  # max weight: 0.5
-        cube.link(root)
+        self.cube.add(self.block)
+        self.assertFalse(self.cube.is_sampled(0.1))
+        self.assertTrue(self.cube.is_sampled(0.3))
 
-        self.assertTrue(root.is_sampled(0.3))
-        self.assertTrue(cube.is_sampled(0.3))
-
-        self.assertTrue(root.is_sampled(0.1))
-        self.assertFalse(cube.is_sampled(0.1))
-
-    def test_get_elements_for_sampling(self):
-        root = Cube("", -1269647486, 100, 100, 0)  # max weight: 0.204
-        cube = Cube("A", 10000000000, 5, 5, 1)  # max weight 2.828
-        cube.link(root)
-
-        node, edges = root.get_elements_for_sampling(0.15)
-        self.assertTrue(node['data']['id'] == 'root')
-        self.assertTrue(node['selected'])
-        self.assertTrue(edges[0]['data']['source'] == 'root')
-        self.assertTrue(edges[0]['data']['target'] == 'A')
-        self.assertFalse(edges[0]['selected'])
-
-
-class TestSamplingInfo(unittest.TestCase):
-    def test_update(self):
-        root = Cube("", -1269647486, 100, 5, 0)  # max weight: 0.204
-        cube_level_1 = Cube("A", 100, 100, 5, 1)  # max weight: 0.5
-        cube_level_2 = Cube("A", 10000000000, 50, 1, 2)  # max weight 2.828
-
-        cube_level_1.link(root)
-        cube_level_2.link(cube_level_1)
-
-        f = 0.3
-        sampling_info = SamplingInfo(f)
-        sampling_info.update(root, root.is_sampled(f))
-        sampling_info.update(cube_level_1, cube_level_1.is_sampled(f))
-        sampling_info.update(cube_level_2, cube_level_2.is_sampled(f))
-
-        self.assertTrue(sampling_info.total_cubes == 3)
-        self.assertTrue(sampling_info.sampled_cubes == 2)
-
-        self.assertTrue(sampling_info.total_rows == 250)
-        self.assertTrue(sampling_info.sampled_rows == 200)
-
-        self.assertTrue(sampling_info.total_size == 11 / (1024 * 1024))
-        self.assertTrue(sampling_info.sampled_size == 10 / (1024 * 1024))
+    def test_link(self):
+        parent_cube = Cube(cube_id="", depth=0)
+        self.cube.link(parent_cube)
+        self.assertEqual(self.cube.parent, parent_cube)
+        self.assertIn(self.cube, parent_cube.children)
