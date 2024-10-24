@@ -19,6 +19,11 @@ import io.qbeast.core.model.IndexFile
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.spark.QbeastIntegrationTestSpec
 import io.qbeast.spark.QbeastTable
+import org.apache.spark.sql.delta.actions.Action
+import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.actions.CommitInfo
+import org.apache.spark.sql.delta.actions.RemoveFile
+import org.apache.spark.sql.delta.util.FileNames
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions.rand
 import org.apache.spark.sql.SparkSession
@@ -106,5 +111,35 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
       // We should be reading fewer blocks
       filesAfter.map(_.blocks.size).sum should be < filesBefore.map(_.blocks.size).sum
   }
+
+  "Table optimize" should "set the dataChange flag as false" in
+    withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
+      import spark.implicits._
+
+      val df = spark.sparkContext.range(0, 10).toDF("id")
+      df.write
+        .mode("append")
+        .format("qbeast")
+        .option("columnsToIndex", "id")
+        .save(tmpDir)
+
+      QbeastTable.forPath(spark, tmpDir).optimize(1L, Map.empty[String, String])
+
+      val deltaLog = DeltaLog.forTable(spark, tmpDir)
+      val snapshot = deltaLog.update()
+      val conf = deltaLog.newDeltaHadoopConf()
+
+      deltaLog.store
+        .read(FileNames.deltaFile(deltaLog.logPath, snapshot.version), conf)
+        .map(Action.fromJson)
+        .collect({
+          case addFile: AddFile => addFile.dataChange shouldBe false
+          case removeFile: RemoveFile => removeFile.dataChange shouldBe false
+          case commitInfo: CommitInfo =>
+            commitInfo.isolationLevel shouldBe Some("SnapshotIsolation")
+          case _ => None
+        })
+
+    }
 
 }

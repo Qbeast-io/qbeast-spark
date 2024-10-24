@@ -31,6 +31,7 @@ import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.COLUMN_SELECTOR_ENABLED
 import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
+import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
@@ -540,7 +541,12 @@ private[table] class IndexedTableImpl(
           val (dataExtended, tableChanges) =
             DoublePassOTreeDataAnalyzer.analyzeOptimize(data, indexStatus)
 
-          val newFiles = dataWriter.write(tableID, schema, dataExtended, tableChanges)
+          val newFiles = dataWriter
+            .write(tableID, schema, dataExtended, tableChanges)
+            .collect { case addFile: AddFile =>
+              addFile.copy(dataChange = false)
+            }
+
           dataExtended.unpersist()
           (tableChanges, newFiles ++ removeFiles)
         }
