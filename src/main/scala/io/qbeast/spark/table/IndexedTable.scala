@@ -31,6 +31,7 @@ import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.COLUMN_SELECTOR_ENABLED
 import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
+import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.actions.FileAction
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.types.StructType
@@ -577,22 +578,30 @@ private[table] class IndexedTableImpl(
       if (!indexFiles.isEmpty) {
         // 2. Load the Index Status for the given revision
         val indexStatus = snapshot.loadIndexStatus(revision.revisionID)
-        val data = snapshot.loadDataframeFromIndexFiles(indexFiles)
-        // 3. In the same transaction
-        metadataManager
-          .updateWithTransaction(tableID, schema, optimizationOptions(options), append = true) {
-            import indexFiles.sparkSession.implicits._
-            // Optimize the data
-            val (dataExtended, tableChanges) =
-              DoublePassOTreeDataAnalyzer.analyzeOptimize(data, indexStatus)
-            // Write the data
-            val newFiles = dataWriter.write(tableID, schema, dataExtended, tableChanges)
-            // Remove the files from the Log
-            val removeFiles =
-              indexFiles.map(IndexFiles.toRemoveFile(dataChange = false)).collect().toIndexedSeq
-            dataExtended.unpersist()
-            (tableChanges, newFiles ++ removeFiles)
-          }
+        metadataManager.updateWithTransaction(
+          tableID,
+          schema,
+          optimizationOptions(options),
+          append = true) {
+
+          import indexFiles.sparkSession.implicits._
+          val removeFiles =
+            indexFiles.map(IndexFiles.toRemoveFile(dataChange = false)).collect().toIndexedSeq
+
+          val data = snapshot.loadDataframeFromIndexFiles(indexFiles)
+
+          val (dataExtended, tableChanges) =
+            DoublePassOTreeDataAnalyzer.analyzeOptimize(data, indexStatus)
+
+          val newFiles = dataWriter
+            .write(tableID, schema, dataExtended, tableChanges)
+            .collect { case addFile: AddFile =>
+              addFile.copy(dataChange = false)
+            }
+
+          dataExtended.unpersist()
+          (tableChanges, newFiles ++ removeFiles)
+        }
       }
     }
   }

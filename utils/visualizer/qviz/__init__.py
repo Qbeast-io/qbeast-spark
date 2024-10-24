@@ -1,1 +1,1 @@
-from qviz.qviz import show_tree
+from qviz.qviz import show_tree as show_tree
