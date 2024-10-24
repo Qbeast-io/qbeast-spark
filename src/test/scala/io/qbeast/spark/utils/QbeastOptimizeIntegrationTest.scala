@@ -262,9 +262,8 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
       deltaTable.delete("id > 1 and id < 5")
 
       // Check that the number of unindexed files is not 0
-      val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val firstSnapshot = deltaLog.update()
-      val firstUnindexedFiles = firstSnapshot.allFiles.where("tags is null")
+      val qtableID = QTableID(tmpDir)
+      val firstUnindexedFiles = getUnindexedFilesFromDelta(qtableID)
       firstUnindexedFiles should not be empty
 
       // Optimize the Table
@@ -272,8 +271,7 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
       qt.optimize(0L)
 
       // After optimization, all files from the Delete Operation should be indexed
-      val snapshot = deltaLog.update()
-      val unindexedFiles = snapshot.allFiles.where("tags is null") // no tags
+      val unindexedFiles = getUnindexedFilesFromDelta(qtableID)
       unindexedFiles shouldBe empty
       // Check latest revision
       checkLatestRevisionAfterOptimize(spark, QTableID(tmpDir))
