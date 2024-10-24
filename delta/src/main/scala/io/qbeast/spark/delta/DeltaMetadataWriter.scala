@@ -176,8 +176,8 @@ private[delta] case class DeltaMetadataWriter(
 
       // Execute write
       val (tableChanges, indexFiles, deleteFiles) = writer
-      val addFiles = indexFiles.map(DeltaQbeastFileUtils.toAddFile(dataChange = true))
-      val removeFiles = deleteFiles.map(DeltaQbeastFileUtils.toRemoveFile(dataChange = false))
+      val addFiles = indexFiles.map(DeltaQbeastFileUtils.toAddFile)
+      val removeFiles = deleteFiles.map(DeltaQbeastFileUtils.toRemoveFile)
 
       // Update Qbeast Metadata (replicated set, revision..)
       var actions = updateMetadata(txn, tableChanges, addFiles, removeFiles)
@@ -228,7 +228,10 @@ private[delta] case class DeltaMetadataWriter(
       .collect()
       .map(DeltaQbeastFileUtils.fromAddFile(dimensionCount))
       .flatMap(_.tryReplicateBlocks(deltaReplicatedSet))
-      .map(DeltaQbeastFileUtils.toAddFile(dataChange = false))
+      .map(file => {
+        val addFile = DeltaQbeastFileUtils.toAddFile(file)
+        addFile.copy(dataChange = false)
+      })
       .toSeq
   }
 

@@ -515,6 +515,7 @@ private[table] class IndexedTableImpl(
               DeleteFile(
                 path = indexFile.path,
                 size = indexFile.size,
+                dataChange = false,
                 deletionTimestamp = currentTimeMillis())
             }
             .collect()
@@ -522,7 +523,9 @@ private[table] class IndexedTableImpl(
           val data = snapshot.loadDataframeFromIndexFiles(indexFiles)
           val (dataExtended, tableChanges) =
             DoublePassOTreeDataAnalyzer.analyzeOptimize(data, indexStatus)
-          val addFiles = dataWriter.write(tableID, schema, dataExtended, tableChanges)
+          val addFiles = dataWriter
+            .write(tableID, schema, dataExtended, tableChanges)
+            .map(addFile => addFile.copy(dataChange = false))
           dataExtended.unpersist()
           (tableChanges, addFiles, deleteFiles)
         }

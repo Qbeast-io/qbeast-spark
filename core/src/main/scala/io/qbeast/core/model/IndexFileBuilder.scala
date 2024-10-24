@@ -23,6 +23,7 @@ import scala.collection.immutable
 final class IndexFileBuilder {
   private var path: Option[String] = None
   private var size: Long = 0L
+  private var dataChange: Boolean = true
   private var modificationTime: Long = 0L
   private var revisionId: RevisionID = 0L
   private val blocks = immutable.Seq.newBuilder[VolatileBlock]
@@ -64,6 +65,19 @@ final class IndexFileBuilder {
    */
   def setStats(stats: Option[QbeastStats]): IndexFileBuilder = {
     this.stats = stats
+    this
+  }
+
+  /**
+   * Sets the data change.
+   *
+   * @param dataChange
+   *   whether this index file represents a data change
+   * @return
+   *   this instance
+   */
+  def setDataChange(dataChange: Boolean): IndexFileBuilder = {
+    this.dataChange = dataChange
     this
   }
 
@@ -117,6 +131,7 @@ final class IndexFileBuilder {
     IndexFile(
       filePath,
       size,
+      dataChange,
       modificationTime,
       revisionId,
       blocks.result().map(_.toBlock(filePath)),
