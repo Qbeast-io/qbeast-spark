@@ -575,6 +575,7 @@ private[table] class IndexedTableImpl(
   }
 
   override def optimizeIndexFiles(files: Seq[String], options: Map[String, String]): Unit = {
+    if (files.isEmpty) return // Nothing to optimize
     val paths = files.toSet
     val schema = metadataManager.loadCurrentSchema(tableID)
     // For each Revision, excluding the Staging,

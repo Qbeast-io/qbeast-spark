@@ -26,6 +26,7 @@ import org.apache.spark.sql.delta.actions.RemoveFile
 import org.apache.spark.sql.delta.util.FileNames
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 
 class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
@@ -142,6 +143,46 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
     }
 
   it should "optimize a table converted to Qbeast" in withQbeastContextSparkAndTmpDir {
+  /**
+   * Get the unindexed files from the last updated Snapshot
+   * @param deltaLog
+   * @return
+   */
+  def getUnindexedFilesFromDelta(qtableID: QTableID): Dataset[AddFile] = {
+    SparkDeltaMetadataManager.loadSnapshot(qtableID).loadStagingFiles()
+  }
+
+  /**
+   * Get the indexed files from the last updated Snapshot
+   * @param deltaLog
+   * @return
+   */
+  def getIndexedFilesFromDelta(qtableID: QTableID): Dataset[IndexFile] = {
+    SparkDeltaMetadataManager.loadSnapshot(qtableID).loadLatestIndexFiles
+  }
+
+  def getAllFilesFromDelta(spark: SparkSession, d: QTableID): Dataset[AddFile] = {
+    DeltaLog.forTable(spark, d.id).update().allFiles
+  }
+
+  def checkLatestRevisionAfterOptimize(spark: SparkSession, qTableID: QTableID): Unit = {
+    // Check that the revision of the files is correct
+    val indexedFiles = getIndexedFilesFromDelta(qTableID)
+    val qbeastTable = QbeastTable.forPath(spark, qTableID.id)
+    qbeastTable.allRevisions().size shouldBe 2L // 2 Revisions: 0L and 1L
+    qbeastTable.latestRevisionID shouldBe 1L
+    qbeastTable.indexedColumns() shouldBe Seq("id")
+    indexedFiles
+      .select("revisionId")
+      .distinct()
+      .count() shouldBe 1L // 1 Revision
+    indexedFiles
+      .select("revisionId")
+      .head()
+      .getLong(0) shouldBe 1L // The latest Revision
+  }
+
+  "Optimizing the Revision 0L" should "optimize a table converted to Qbeast" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
       spark
         .range(50)
@@ -153,21 +194,27 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
       ConvertToQbeastCommand(identifier = s"delta.`$tmpDir`", columnsToIndex = Seq("id"))
         .run(spark)
 
-      val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val firstSnapshot = deltaLog.update()
-      val firstUnindexedFiles = firstSnapshot.allFiles.where("tags is null")
-      firstUnindexedFiles.count() shouldBe firstSnapshot.allFiles.count()
+      val qtableID = QTableID(tmpDir)
+      val firstUnindexedFiles = getUnindexedFilesFromDelta(qtableID)
+      val allFiles = getAllFilesFromDelta(spark, qtableID)
+      firstUnindexedFiles.count() shouldBe allFiles.count()
       // Optimize the Table
       val qt = QbeastTable.forPath(spark, tmpDir)
       qt.optimize(0L)
 
       // After optimization, all files from the Legacy Table should be indexed
-      val snapshot = deltaLog.update()
-      val unindexedFiles = snapshot.allFiles.where("tags is null") // no tags
+      val unindexedFiles = getUnindexedFilesFromDelta(qtableID)
       unindexedFiles shouldBe empty
+      // Check that the indexed files are correct
+      val indexedFiles = getIndexedFilesFromDelta(qtableID)
+      val allFilesAfter = getAllFilesFromDelta(spark, qtableID)
+      indexedFiles.count() shouldBe allFilesAfter.count()
+
+      checkLatestRevisionAfterOptimize(spark, qtableID)
+
   }
 
-  it should "Optimize and Hybrid Table" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
+  it should "optimize and Hybrid Table" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
     spark
       .range(50)
       .write
@@ -183,9 +230,8 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
       .format("delta")
       .save(tmpDir) // Append data without indexing
 
-    val deltaLog = DeltaLog.forTable(spark, tmpDir)
-    val firstSnapshot = deltaLog.update()
-    val firstUnindexedFiles = firstSnapshot.allFiles.where("tags is null")
+    val qtableID = QTableID(tmpDir)
+    val firstUnindexedFiles = getUnindexedFilesFromDelta(qtableID)
     firstUnindexedFiles should not be empty
 
     // Optimize the Table
@@ -193,9 +239,11 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
     qt.optimize(0L)
 
     // After optimization, all files from the Hybrid Table should be indexed
-    val snapshot = deltaLog.update()
-    val unindexedFiles = snapshot.allFiles.where("tags is null") // no tags
+    val unindexedFiles = getUnindexedFilesFromDelta(qtableID)
     unindexedFiles shouldBe empty
+
+    // Check that the revision is correct
+    checkLatestRevisionAfterOptimize(spark, qtableID)
   }
 
   it should "optimize a table with Deletes" in withQbeastContextSparkAndTmpDir {
@@ -227,6 +275,8 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
       val snapshot = deltaLog.update()
       val unindexedFiles = snapshot.allFiles.where("tags is null") // no tags
       unindexedFiles shouldBe empty
+      // Check latest revision
+      checkLatestRevisionAfterOptimize(spark, QTableID(tmpDir))
 
       // Check that the table size is correct
       val qbeastDF = spark.read.format("qbeast").load(tmpDir)
@@ -252,9 +302,8 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
         .save(tmpDir) // Append data without indexing
 
       // Check that the number of unindexed files is not 0
-      val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val snapshot = deltaLog.update()
-      val unindexedFilesBefore = snapshot.allFiles.where("tags is null")
+      val qtableID = QTableID(tmpDir)
+      val unindexedFilesBefore = getUnindexedFilesFromDelta(qtableID)
       val unindexedFilesCount = unindexedFilesBefore.count()
       unindexedFilesCount should be > 0L
       val unindexedFilesSize = unindexedFilesBefore.collect().map(_.size).sum
@@ -265,8 +314,7 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
       qt.optimize(revisionID = 0L, fraction = fractionToOptimize)
 
       // After optimization, half of the Staging Area should be indexed
-      val snapshotAfter = deltaLog.update()
-      val unindexedFilesAfter = snapshotAfter.allFiles.where("tags is null") // no tags
+      val unindexedFilesAfter = getUnindexedFilesFromDelta(qtableID)
       // Not all files should be indexed
       unindexedFilesAfter should not be empty
       // The number of unindexed files should be less than the original number
@@ -279,8 +327,7 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
 
       // Second optimization should index the rest of the Staging Area
       qt.optimize(revisionID = 0L, fraction = 1.0)
-      val snapshotAfter2 = deltaLog.update()
-      val unindexedFiles2 = snapshotAfter2.allFiles.where("tags is null") // no tags
+      val unindexedFiles2 = getUnindexedFilesFromDelta(qtableID)
       unindexedFiles2 shouldBe empty
   }
 
@@ -300,9 +347,8 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
       deltaTable.update(col("id") === "4", Map("id" -> lit("5")));
 
       // Check that the number of unindexed files is not 0
-      val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val firstSnapshot = deltaLog.update()
-      val firstUnindexedFiles = firstSnapshot.allFiles.where("tags is null")
+      val qtableID = QTableID(tmpDir)
+      val firstUnindexedFiles = getUnindexedFilesFromDelta(qtableID)
       firstUnindexedFiles.count() shouldBe 1
 
       // Optimize the Table
@@ -310,8 +356,7 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
       qt.optimize(0L)
 
       // After optimization, all files from the Update Operation should be indexed
-      val snapshot = deltaLog.update()
-      val unindexedFiles = snapshot.allFiles.where("tags is null") // no tags
+      val unindexedFiles = getUnindexedFilesFromDelta(qtableID)
       unindexedFiles shouldBe empty
 
       // Check that the table size is correct
