@@ -140,7 +140,7 @@ trait IndexedTable {
    * @param options
    *   Optimization options where user metadata and pre-commit hooks are specified.
    */
-  def optimizeIndexFiles(indexFiles: Seq[String], options: Map[String, String]): Unit
+  def optimizeIndexedFiles(indexFiles: Seq[String], options: Map[String, String]): Unit
 
   /**
    * Optimizes the table by optimizing the data stored in the specified unindexed files.
@@ -556,7 +556,7 @@ private[table] class IndexedTableImpl(
     if (isStaging(revisionID)) { // If the revision is Staging, we should INDEX the staged data up to the fraction
       optimizeUnindexedFiles(selectUnindexedFilesToOptimize(fraction), options)
     } else { // If the revision is not Staging, we should optimize the index files up to the fraction
-      optimizeIndexFiles(selectIndexedFilesToOptimize(revisionID, fraction), options)
+      optimizeIndexedFiles(selectIndexedFilesToOptimize(revisionID, fraction), options)
     }
   }
 
@@ -605,7 +605,7 @@ private[table] class IndexedTableImpl(
     }
   }
 
-  override def optimizeIndexFiles(files: Seq[String], options: Map[String, String]): Unit = {
+  override def optimizeIndexedFiles(files: Seq[String], options: Map[String, String]): Unit = {
     if (files.isEmpty) return // Nothing to optimize
     val paths = files.toSet
     val schema = metadataManager.loadCurrentSchema(tableID)

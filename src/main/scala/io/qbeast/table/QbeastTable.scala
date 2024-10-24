@@ -167,7 +167,7 @@ class QbeastTable private (
    *   Optimization options where user metadata and pre-commit hooks are specified.
    */
   def optimize(files: Seq[String], options: Map[String, String]): Unit =
-    indexedTable.optimizeIndexFiles(files, options)
+    indexedTable.optimizeIndexedFiles(files, options)
 
   def optimize(files: Seq[String]): Unit =
     optimize(files, Map.empty[String, String])
