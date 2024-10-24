@@ -565,7 +565,13 @@ private[table] class IndexedTableImpl(
       // Index the data with IndexManager
       val (data, tableChanges) = indexManager.index(filesDF, latestIndexStatus)
       // Write the data with DataWriter
-      val newFiles = dataWriter.write(tableID, schema, data, tableChanges)
+      val newFiles =
+        dataWriter
+          .write(tableID, schema, data, tableChanges)
+          .collect { case addFile: AddFile =>
+            addFile.copy(dataChange = false)
+          }
+          .toIndexedSeq
       // Remove the Unindexed Files from the Log
       val removeFiles =
         files.map(IndexFiles.toRemoveFile(dataChange = false)).collect().toIndexedSeq
