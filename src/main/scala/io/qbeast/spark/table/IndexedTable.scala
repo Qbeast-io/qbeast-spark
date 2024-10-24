@@ -555,7 +555,13 @@ private[table] class IndexedTableImpl(
       // Index the data with IndexManager
       val (data, tableChanges) = indexManager.index(filesDF, latestIndexStatus)
       // Write the data with DataWriter
-      val newFiles = dataWriter.write(tableID, schema, data, tableChanges)
+      val newFiles =
+        dataWriter
+          .write(tableID, schema, data, tableChanges)
+          .collect { case addFile: AddFile =>
+            addFile.copy(dataChange = false)
+          }
+          .toIndexedSeq
       // Remove the Unindexed Files from the Log
       val removeFiles =
         files.map(IndexFiles.toRemoveFile(dataChange = false)).collect().toIndexedSeq
@@ -578,30 +584,28 @@ private[table] class IndexedTableImpl(
       if (!indexFiles.isEmpty) {
         // 2. Load the Index Status for the given revision
         val indexStatus = snapshot.loadIndexStatus(revision.revisionID)
-        metadataManager.updateWithTransaction(
-          tableID,
-          schema,
-          optimizationOptions(options),
-          append = true) {
+        metadataManager
+          .updateWithTransaction(tableID, schema, optimizationOptions(options), append = true) {
 
-          import indexFiles.sparkSession.implicits._
-          val removeFiles =
-            indexFiles.map(IndexFiles.toRemoveFile(dataChange = false)).collect().toIndexedSeq
+            import indexFiles.sparkSession.implicits._
+            val removeFiles =
+              indexFiles.map(IndexFiles.toRemoveFile(dataChange = false)).collect().toIndexedSeq
 
-          val data = snapshot.loadDataframeFromIndexFiles(indexFiles)
+            val data = snapshot.loadDataframeFromIndexFiles(indexFiles)
 
-          val (dataExtended, tableChanges) =
-            DoublePassOTreeDataAnalyzer.analyzeOptimize(data, indexStatus)
+            val (dataExtended, tableChanges) =
+              DoublePassOTreeDataAnalyzer.analyzeOptimize(data, indexStatus)
 
-          val newFiles = dataWriter
-            .write(tableID, schema, dataExtended, tableChanges)
-            .collect { case addFile: AddFile =>
-              addFile.copy(dataChange = false)
-            }
+            val newFiles = dataWriter
+              .write(tableID, schema, dataExtended, tableChanges)
+              .collect { case addFile: AddFile =>
+                addFile.copy(dataChange = false)
+              }
+              .toIndexedSeq
 
-          dataExtended.unpersist()
-          (tableChanges, newFiles ++ removeFiles)
-        }
+            dataExtended.unpersist()
+            (tableChanges, newFiles ++ removeFiles)
+          }
       }
     }
   }
