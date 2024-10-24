@@ -15,11 +15,10 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.delta.IndexFiles
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.context.QbeastContext
+import io.qbeast.core.model.QTableID
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 
@@ -50,11 +49,12 @@ class NormalizedWeightIntegrationTest extends QbeastIntegrationTestSpec {
 
         spark.read.format("qbeast").load(tmpDir).count() shouldBe cubeSize
 
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val files = deltaLog.update().allFiles
+        val tableId = new QTableID(tmpDir)
+        val snapshot = QbeastContext.metadataManager.loadSnapshot(tableId)
+        val files = snapshot.loadLatestIndexFiles
+
         files.count() shouldBe 1
         files.collect
-          .map(IndexFiles.fromAddFile(names.length))
           .flatMap(_.blocks)
           .foreach { block =>
             block.maxWeight.value shouldBe <=(Int.MaxValue)
@@ -75,8 +75,7 @@ class NormalizedWeightIntegrationTest extends QbeastIntegrationTestSpec {
           .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> cubeSize.toString))
           .save(tmpDir)
 
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = DeltaQbeastSnapshot(deltaLog.update())
+        val qbeastSnapshot = getQbeastSnapshot(tmpDir)
         val cubeNormalizedWeights =
           qbeastSnapshot.loadLatestIndexStatus.cubeNormalizedWeights
 

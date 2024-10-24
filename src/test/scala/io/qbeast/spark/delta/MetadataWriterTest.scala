@@ -19,7 +19,8 @@ import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.TableChanges
 import io.qbeast.spark.internal.QbeastOptions
 import org.apache.spark.sql.delta.actions.Action
-import org.apache.spark.sql.delta.actions.FileAction
+import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.actions.RemoveFile
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.delta.OptimisticTransaction
 import org.apache.spark.sql.types.StructType
@@ -37,7 +38,9 @@ class MetadataWriterTest(
   override def updateMetadata(
       txn: OptimisticTransaction,
       tableChanges: TableChanges,
-      newFiles: Seq[FileAction]): Seq[Action] = super.updateMetadata(txn, tableChanges, newFiles)
+      addFiles: Seq[AddFile],
+      removeFiles: Seq[RemoveFile]): Seq[Action] =
+    super.updateMetadata(txn, tableChanges, addFiles, removeFiles)
 
 }
 

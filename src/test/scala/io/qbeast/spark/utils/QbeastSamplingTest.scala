@@ -15,7 +15,7 @@
  */
 package io.qbeast.spark.utils
 
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestUtils._
 
 class QbeastSamplingTest extends QbeastIntegrationTestSpec {

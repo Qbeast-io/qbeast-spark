@@ -16,7 +16,7 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.LessThan
@@ -65,7 +65,7 @@ class DefaultFileIndexTest extends QbeastIntegrationTestSpec {
   private def newTahoeLogFileIndex(spark: SparkSession, path: String): TahoeLogFileIndex = {
     val log = DeltaLog.forTable(spark, path)
     val snapshot = log.update()
-    TahoeLogFileIndex(spark, log, new Path(path), snapshot, Seq.empty, false)
+    TahoeLogFileIndex(spark, log, new Path(path), snapshot, Seq.empty, isTimeTravelQuery = false)
   }
 
   "DefaultFileIndex" should "use Delta if the query does not have sampling clause" in withSparkAndTmpDir {

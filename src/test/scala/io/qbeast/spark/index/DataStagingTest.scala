@@ -15,15 +15,12 @@
  */
 package io.qbeast.spark.index
 
-import io.delta.tables.DeltaTable
+import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.StagingUtils
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.delta.StagingDataManager
-import io.qbeast.spark.internal.commands.ConvertToQbeastCommand
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.internal.commands.ConvertToQbeastCommand
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.T2
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
 import org.scalatest.PrivateMethodTester
@@ -36,11 +33,6 @@ class DataStagingTest
   def createDF(spark: SparkSession): DataFrame = {
     import spark.implicits._
     spark.range(10000).map(i => T2(i, i.toDouble)).toDF()
-  }
-
-  def getQbeastSnapshot(spark: SparkSession, dir: String): DeltaQbeastSnapshot = {
-    val deltaLog = DeltaLog.forTable(spark, dir)
-    DeltaQbeastSnapshot(deltaLog.update())
   }
 
   private val getCurrentStagingSize: PrivateMethod[Long] =
@@ -57,7 +49,7 @@ class DataStagingTest
         .option("cubeSize", "2000")
         .save(tmpDir)
 
-      val revisions = getQbeastSnapshot(spark, tmpDir).loadAllRevisions
+      val revisions = getQbeastSnapshot(tmpDir).loadAllRevisions
       revisions.size shouldBe 1
       isStaging(revisions.head) shouldBe true
     }
@@ -82,11 +74,12 @@ class DataStagingTest
         .option("cubeSize", "2000")
         .save(tmpDir)
 
-      val snapshot = getQbeastSnapshot(spark, tmpDir)
+      val snapshot = getQbeastSnapshot(tmpDir)
       val revisions = snapshot.loadAllRevisions
       revisions.size shouldBe 2
 
-      val stagingDataManager = new StagingDataManager(QTableID(tmpDir))
+      val stagingDataManager =
+        QbeastContext.stagingDataManagerBuilder.getManager(QTableID(tmpDir))
 
       val indexedDataSize = snapshot
         .loadIndexStatus(1)
@@ -123,11 +116,12 @@ class DataStagingTest
         .format("qbeast")
         .save(tmpDir)
 
-      val snapshot = getQbeastSnapshot(spark, tmpDir)
+      val snapshot = getQbeastSnapshot(tmpDir)
       val revisions = snapshot.loadAllRevisions
       revisions.size shouldBe 2
 
-      val stagingDataManager = new StagingDataManager(QTableID(tmpDir))
+      val stagingDataManager =
+        QbeastContext.stagingDataManagerBuilder.getManager(QTableID(tmpDir))
 
       val indexedDataSize = snapshot
         .loadIndexStatus(1)
@@ -139,26 +133,5 @@ class DataStagingTest
       stagingDataManager invokePrivate getCurrentStagingSize() shouldBe 0L
       indexedDataSize shouldBe 10001L
     }
-
-  it should "write userMetadata" in withExtendedSparkAndTmpDir(
-    sparkConfWithSqlAndCatalog
-      .set("spark.qbeast.index.stagingSizeInBytes", "1")) { (spark, tmpDir) =>
-    {
-      val df = createDF(spark)
-      df.write
-        .format("qbeast")
-        .option("columnsToIndex", "a,c")
-        .option("cubeSize", "2000")
-        .option("userMetadata", "userMetadata1")
-        .save(tmpDir)
-
-      val deltaTable = DeltaTable.forPath(spark, tmpDir)
-      val userMetadata =
-        deltaTable.history().orderBy("timestamp").select("userMetadata").first().getAs[String](0)
-
-      userMetadata shouldBe "userMetadata1"
-
-    }
-  }
 
 }

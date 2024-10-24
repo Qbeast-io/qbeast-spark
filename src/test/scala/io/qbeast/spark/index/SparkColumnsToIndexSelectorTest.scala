@@ -15,7 +15,7 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
 
 class SparkColumnsToIndexSelectorTest extends QbeastIntegrationTestSpec {
 

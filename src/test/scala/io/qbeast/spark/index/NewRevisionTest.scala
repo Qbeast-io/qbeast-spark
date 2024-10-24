@@ -16,10 +16,8 @@
 package io.qbeast.spark.index
 
 import io.qbeast.core.transform.LinearTransformation
-import io.qbeast.spark.delta
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -58,8 +56,7 @@ class NewRevisionTest
       val spaceMultipliers = List(1, 3, 8)
       spaceMultipliers.foreach(i => appendNewRevision(spark, tmpDir, i))
 
-      val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
+      val qbeastSnapshot = getQbeastSnapshot(tmpDir)
       val spaceRevisions = qbeastSnapshot.loadAllRevisions
 
       // Including the staging revision
@@ -73,8 +70,7 @@ class NewRevisionTest
         appendNewRevision(spark, tmpDir, 1)
         appendNewRevision(spark, tmpDir, 3)
 
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
+        val qbeastSnapshot = getQbeastSnapshot(tmpDir)
 
         val revisions = qbeastSnapshot.loadAllRevisions
         val allWM =
@@ -106,8 +102,7 @@ class NewRevisionTest
               Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> cubeSize.toString))
             .save(tmpDir)
 
-          val deltaLog = DeltaLog.forTable(spark, tmpDir)
-          val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
+          val qbeastSnapshot = getQbeastSnapshot(tmpDir)
 
           qbeastSnapshot.loadLatestRevision.desiredCubeSize shouldBe cubeSize
 
@@ -139,8 +134,7 @@ class NewRevisionTest
         .options(Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> cubeSize2.toString))
         .save(tmpDir)
 
-      val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
+      val qbeastSnapshot = getQbeastSnapshot(tmpDir)
 
       // Including the staging revision
       qbeastSnapshot.loadAllRevisions.size shouldBe 3
@@ -168,8 +162,7 @@ class NewRevisionTest
           .options(Map("columnsToIndex" -> names.mkString(","), "columnStats" -> stats))
           .save(tmpDir)
 
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
+        val qbeastSnapshot = getQbeastSnapshot(tmpDir)
         val transformation = qbeastSnapshot.loadLatestRevision.transformations.head
 
         qbeastSnapshot.loadLatestRevision.revisionID shouldBe 1
@@ -200,8 +193,7 @@ class NewRevisionTest
           .options(Map("columnsToIndex" -> names.mkString(","), "columnStats" -> stats))
           .save(tmpDir)
 
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
+        val qbeastSnapshot = getQbeastSnapshot(tmpDir)
         val transformation = qbeastSnapshot.loadLatestRevision.transformations.head
 
         qbeastSnapshot.loadLatestRevision.revisionID shouldBe 1
@@ -233,8 +225,7 @@ class NewRevisionTest
           .options(Map("columnsToIndex" -> names.mkString(","), "columnStats" -> stats))
           .save(tmpDir)
 
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
+        val qbeastSnapshot = getQbeastSnapshot(tmpDir)
         val revision = qbeastSnapshot.loadLatestRevision
         val transformation = revision.transformations.head
 
@@ -271,8 +262,7 @@ class NewRevisionTest
         .options(Map("columnsToIndex" -> names.mkString(","), "columnStats" -> stats))
         .save(tmpDir)
 
-      val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
+      val qbeastSnapshot = getQbeastSnapshot(tmpDir)
       val allRevisions = qbeastSnapshot.loadAllRevisions.sortBy(_.revisionID)
 
       val firstWriteTransformation =
@@ -321,8 +311,7 @@ class NewRevisionTest
           .option("columnStats", columnStats)
           .save(tmpDir)
 
-        val deltaLog = DeltaLog.forTable(spark, tmpDir)
-        val qbeastSnapshot = delta.DeltaQbeastSnapshot(deltaLog.update())
+        val qbeastSnapshot = getQbeastSnapshot(tmpDir)
         val allRevisions = qbeastSnapshot.loadAllRevisions.sortBy(_.revisionID)
 
         val firstWriteTransformation =

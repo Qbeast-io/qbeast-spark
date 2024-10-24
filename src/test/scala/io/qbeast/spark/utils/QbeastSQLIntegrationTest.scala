@@ -16,8 +16,8 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.spark.index.SparkColumnsToIndexSelector
-import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.QbeastTable
+import io.qbeast.table.QbeastTable
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Student
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.DataFrame

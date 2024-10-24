@@ -17,7 +17,6 @@ package io.qbeast
 
 import io.qbeast.spark.delta.DefaultFileIndex
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
-import io.qbeast.spark.QbeastIntegrationTestSpec
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.DataFrame
 

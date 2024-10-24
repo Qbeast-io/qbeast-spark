@@ -5,7 +5,7 @@ This API is implemented to interact with your QbeastTable.
 Creating an instance of QbeastTable is as easy as:
 
 ```scala
-import io.qbeast.spark.QbeastTable
+import io.qbeast.table.QbeastTable
 
 val qbeastTable = QbeastTable.forPath(spark, "path/to/qbeast/table")
 ```

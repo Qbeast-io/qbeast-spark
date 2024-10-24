@@ -19,7 +19,7 @@ import io.qbeast.core.model._
 import io.qbeast.core.transform.HashTransformation
 import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.core.transform.Transformer
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
 import org.apache.spark.sql.functions.expr
 
 class QuerySpecBuilderTest extends QbeastIntegrationTestSpec with QueryTestSpec {

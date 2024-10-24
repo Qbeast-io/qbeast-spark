@@ -16,9 +16,8 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.core.model.IndexFile
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
-import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.QbeastTable
+import io.qbeast.table.QbeastTable
+import io.qbeast.QbeastIntegrationTestSpec
 import org.apache.spark.sql.delta.actions.Action
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.actions.CommitInfo
@@ -89,21 +88,20 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
 
   "Optimizing with given fraction" should "improve sampling efficiency" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
-      def getSampledFiles(deltaLog: DeltaLog, fraction: Double): Seq[IndexFile] = {
-        val qs = DeltaQbeastSnapshot(deltaLog.update())
+      def getSampledFiles(fraction: Double): Seq[IndexFile] = {
+        val qs = getQbeastSnapshot(tmpDir)
         qs.loadLatestIndexFiles
           .filter(f => f.blocks.exists(_.minWeight.fraction <= fraction))
           .collect()
       }
 
       createTableWithMultipleAppends(spark, tmpDir)
-      val deltaLog = DeltaLog.forTable(spark, tmpDir)
       val fraction: Double = 0.1
-      val filesBefore = getSampledFiles(deltaLog, fraction)
+      val filesBefore = getSampledFiles(fraction)
 
       QbeastTable.forPath(spark, tmpDir).optimize(fraction)
 
-      val filesAfter = getSampledFiles(deltaLog, fraction)
+      val filesAfter = getSampledFiles(fraction)
       // We should be reading fewer files
       filesAfter.size should be < filesBefore.size
       // We should be reading fewer data

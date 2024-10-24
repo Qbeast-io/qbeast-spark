@@ -17,13 +17,14 @@ package io.qbeast.context
 
 import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.keeper.LocalKeeper
-import io.qbeast.spark.delta.writer.RollupDataWriter
-import io.qbeast.spark.delta.SparkDeltaMetadataManager
+import io.qbeast.spark.delta.DeltaMetadataManager
+import io.qbeast.spark.delta.DeltaRollupDataWriter
+import io.qbeast.spark.delta.DeltaStagingDataManagerFactory
 import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.index.SparkRevisionFactory
-import io.qbeast.spark.table.IndexedTableFactoryImpl
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.table.IndexedTableFactoryImpl
+import io.qbeast.QbeastIntegrationTestSpec
 import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -35,8 +36,9 @@ class QbeastContextTest extends AnyFlatSpec with Matchers with QbeastIntegration
     val indexedTableFactory = new IndexedTableFactoryImpl(
       keeper,
       SparkOTreeManager,
-      SparkDeltaMetadataManager,
-      RollupDataWriter,
+      DeltaMetadataManager,
+      DeltaRollupDataWriter,
+      DeltaStagingDataManagerFactory,
       SparkRevisionFactory,
       SparkColumnsToIndexSelector)
     val unmanaged = new QbeastContextImpl(
@@ -56,8 +58,9 @@ class QbeastContextTest extends AnyFlatSpec with Matchers with QbeastIntegration
     val indexedTableFactory = new IndexedTableFactoryImpl(
       keeper,
       SparkOTreeManager,
-      SparkDeltaMetadataManager,
-      RollupDataWriter,
+      DeltaMetadataManager,
+      DeltaRollupDataWriter,
+      DeltaStagingDataManagerFactory,
       SparkRevisionFactory,
       SparkColumnsToIndexSelector)
     val unmanaged = new QbeastContextImpl(
