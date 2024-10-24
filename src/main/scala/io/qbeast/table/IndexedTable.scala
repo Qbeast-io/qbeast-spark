@@ -502,36 +502,61 @@ private[table] class IndexedTableImpl(
 
   }
 
+  /**
+   * Selects the unindexed files to optimize based on the fraction
+   * @param fraction
+   *   the fraction of the data to optimize
+   * @return
+   */
+  private[table] def selectUnindexedFilesToOptimize(fraction: Double): Seq[String] = {
+    val revisionFilesDS = snapshot.loadIndexFiles(stagingID)
+    // 1. Collect the revision files ordered by modification time
+    val revisionFiles = revisionFilesDS.orderBy("modificationTime").collect()
+    log.info(s"Total Number of Unindexed Files:  ${revisionFiles.size}")
+    // 2. Calculate the total bytes of the files to optimize based on the fraction
+    val bytesToOptimize = revisionFiles.map(_.size).sum * fraction
+    logInfo(s"Total Bytes of Unindexed Files to Optimize: $bytesToOptimize")
+    // 3. Accumulate the files to optimize until the bytesToOptimize is reached
+    val filesToOptimize = Seq.newBuilder[String]
+    revisionFiles.foldLeft(0L)((acc, file) => {
+      if (acc < bytesToOptimize) {
+        filesToOptimize += file.path
+        acc + file.size
+      } else acc
+    })
+    val filesToOptimizeNames = filesToOptimize.result()
+    logInfo(s"Total Number of Unindexed Files to Optimize: ${filesToOptimizeNames.size}")
+    filesToOptimizeNames
+  }
+
+  /**
+   * Selects the indexed files to optimize based on the fraction
+   * @param revisionID
+   * @param fraction
+   * @return
+   */
+  private[table] def selectIndexedFilesToOptimize(
+      revisionID: RevisionID,
+      fraction: Double): Seq[String] = {
+    val revisionFilesDS = snapshot.loadIndexFiles(revisionID)
+    import revisionFilesDS.sparkSession.implicits._
+    val filesToOptimize = revisionFilesDS.transform(filterSamplingFiles(fraction))
+    val filesToOptimizeNames = filesToOptimize.map(_.path).collect()
+    logInfo(s"Total Number of Indexed Files To Optimize: ${filesToOptimizeNames.size}")
+    filesToOptimizeNames
+  }
+
   override def optimize(
       revisionID: RevisionID,
       fraction: Double,
       options: Map[String, String]): Unit = {
     assert(fraction > 0d && fraction <= 1d)
     log.info(s"Selecting Files to Optimize for Revision $revisionID")
-    // Load the Index Files for the given revision
-    val revisionFilesDS = snapshot.loadIndexFiles(revisionID)
-    import revisionFilesDS.sparkSession.implicits._
     // Filter the Index Files by the fraction
     if (isStaging(revisionID)) { // If the revision is Staging, we should INDEX the staged data up to the fraction
-      val revisionFiles = revisionFilesDS.collect()
-      log.info(s"Total Number of Unindexed Files:  ${revisionFiles.size}")
-      val bytesToOptimize = revisionFiles.map(_.size).sum * fraction
-      logInfo(s"Total Bytes of Unindexed Files to Optimize: $bytesToOptimize")
-      val filesToOptimize = Seq.newBuilder[String]
-      revisionFiles.foldLeft(0L)((acc, file) => {
-        if (acc < bytesToOptimize) {
-          filesToOptimize += file.path
-          acc + file.size
-        } else acc
-      })
-      val filesToOptimizeNames = filesToOptimize.result()
-      logInfo(s"Total Number of Unindexed Files to Optimize: ${filesToOptimizeNames.size}")
-      optimizeUnindexedFiles(filesToOptimizeNames, options)
+      optimizeUnindexedFiles(selectUnindexedFilesToOptimize(fraction), options)
     } else { // If the revision is not Staging, we should optimize the index files up to the fraction
-      val filesToOptimize = revisionFilesDS.transform(filterSamplingFiles(fraction))
-      val filesToOptimizeNames = filesToOptimize.map(_.path).collect()
-      logInfo(s"Total Number of Indexed Files To Optimize: ${filesToOptimizeNames.size}")
-      optimizeIndexFiles(filesToOptimizeNames, options)
+      optimizeIndexFiles(selectIndexedFilesToOptimize(revisionID, fraction), options)
     }
   }
 
