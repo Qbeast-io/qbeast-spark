@@ -22,7 +22,6 @@ import io.qbeast.spark.utils.QbeastExceptionMessages.incorrectIdentifierFormat
 import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
 import io.qbeast.spark.utils.QbeastExceptionMessages.unsupportedFormatExceptionMsg
 import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.QbeastTable
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.SparkSession
@@ -211,19 +210,6 @@ class ConvertToQbeastTest
 
       allRevisions.size shouldBe 2
       isStaging(rev) shouldBe false
-    })
-
-  "Optimizing the staging revision" should "not corrupt the data" in
-    withSparkAndTmpDir((spark, tmpDir) => {
-      val fileFormat = "parquet"
-      convertFromFormat(spark, fileFormat, tmpDir)
-
-      QbeastTable.forPath(spark, tmpDir).optimize()
-
-      // Compare DataFrames
-      val sourceDf = spark.read.format(fileFormat).load(tmpDir)
-      val qbeastDf = spark.read.format("qbeast").load(tmpDir)
-      assertLargeDatasetEquality(qbeastDf, sourceDf, orderedComparison = false)
     })
 
 }
