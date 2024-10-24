@@ -18,8 +18,9 @@ package io.qbeast.spark.index
 import io.qbeast.core.model._
 import io.qbeast.core.model.BroadcastedTableChanges
 import io.qbeast.core.transform.HashTransformation
+import io.qbeast.core.transform.HashTransformer
 import io.qbeast.core.transform.LinearTransformation
-import io.qbeast.spark.internal.QbeastOptions
+import io.qbeast.core.transform.LinearTransformer
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.T1
 import org.apache.spark.sql.functions.col
@@ -36,10 +37,16 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
     import spark.implicits._
     val qid = QTableID("t")
     val df = spark.range(11).map(a => T1(a, a.toString, a.toDouble))
-    val rev = SparkRevisionFactory.createNewRevision(
+    val rev = Revision(
+      0,
+      System.currentTimeMillis(),
       qid,
-      df.schema,
-      QbeastOptions(Map(QbeastOptions.COLUMNS_TO_INDEX -> "a,b,c")))
+      50,
+      Vector(
+        LinearTransformer("a", IntegerDataType),
+        LinearTransformer("b", LongDataType),
+        LinearTransformer("c", DoubleDataType)),
+      Vector.empty)
 
     val indexStatus = IndexStatus(rev)
     val tableChanges = BroadcastedTableChanges(None, indexStatus, Map.empty, Map.empty)
@@ -59,10 +66,16 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
     import spark.implicits._
     val qid = QTableID("t")
     val df = spark.range(11).map(a => T1(a, a.toString, a.toDouble))
-    val rev = SparkRevisionFactory.createNewRevision(
+    val rev = Revision(
+      0,
+      System.currentTimeMillis(),
       qid,
-      df.schema,
-      QbeastOptions(Map(QbeastOptions.COLUMNS_TO_INDEX -> "a,b,c")))
+      50,
+      Vector(
+        LinearTransformer("a", IntegerDataType),
+        HashTransformer("b", StringDataType),
+        LinearTransformer("c", DoubleDataType)),
+      Vector.empty)
     val indexStatus = IndexStatus(rev)
 
     val revisionChange =
@@ -93,10 +106,16 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
     import spark.implicits._
     val qid = QTableID("t")
     val df = spark.range(11).map(a => T1(a, a.toString, a.toDouble))
-    val rev = SparkRevisionFactory.createNewRevision(
+    val rev = Revision(
+      0,
+      System.currentTimeMillis(),
       qid,
-      df.schema,
-      QbeastOptions(Map(QbeastOptions.COLUMNS_TO_INDEX -> "a:hashing,b:hashing,c:hashing")))
+      50,
+      Vector(
+        HashTransformer("a", IntegerDataType),
+        HashTransformer("b", StringDataType),
+        HashTransformer("c", DoubleDataType)),
+      Vector.empty)
     val indexStatus = IndexStatus(rev)
 
     val revisionChange =

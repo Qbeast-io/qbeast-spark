@@ -52,8 +52,8 @@ case class LinearTransformer(columnName: String, dataType: QDataType) extends Tr
 
   override def stats: ColumnStats =
     ColumnStats(
-      statsNames = Seq(colMax, colMin),
-      statsSqlPredicates = Seq(s"max($columnName) AS $colMax", s"min($columnName) AS $colMin"))
+      names = Seq(colMax, colMin),
+      predicates = Seq(s"max($columnName) AS $colMax", s"min($columnName) AS $colMin"))
 
   override def makeTransformation(row: String => Any): Transformation = {
     val minAux = row(colMin)

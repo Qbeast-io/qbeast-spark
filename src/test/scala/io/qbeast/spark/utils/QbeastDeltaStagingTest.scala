@@ -68,10 +68,8 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
     (spark, tmpDir) => {
       writeHybridTable(spark, tmpDir)
 
-      // Analyze and Optimize the staging revision
-      val table = QbeastTable.forPath(spark, tmpDir)
-      table.analyze(stagingID)
-      table.optimize(stagingID, Map.empty[String, String])
+      // Optimize the staging revision
+      QbeastTable.forPath(spark, tmpDir).optimize(stagingID)
 
       // DataFrame should not change by optimizing the staging revision
       val qbeastDf = spark.read.format("qbeast").load(tmpDir)

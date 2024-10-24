@@ -13,91 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.index
+package io.qbeast.spark.index.model.transformer
 
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
-import org.apache.spark.sql.delta.skipping.MultiDimClusteringFunctions
-import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.functions.abs
-import org.apache.spark.sql.functions.ascii
-import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.functions.min
-import org.apache.spark.sql.functions.substring
-import org.apache.spark.sql.functions.sum
-import org.apache.spark.sql.functions.to_date
-import org.apache.spark.sql.functions.to_timestamp
-import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.functions._
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec {
-
-  /**
-   * Compute String column histogram.
-   * @param columnName
-   *   String column name
-   * @param numBins
-   *   number of bins for the histogram
-   * @param df
-   *   DataFrame
-   * @return
-   *   Sorted String histogram as a String
-   */
-  def getStringHistogramStr(columnName: String, numBins: Int, df: DataFrame): String = {
-    val binStarts = "__bin_starts"
-    val stringPartitionColumn =
-      MultiDimClusteringFunctions.range_partition_id(col(columnName), numBins)
-
-    df
-      .select(columnName)
-      .distinct()
-      .groupBy(stringPartitionColumn)
-      .agg(min(columnName).alias(binStarts))
-      .select(binStarts)
-      .orderBy(binStarts)
-      .collect()
-      .map(r => s"'${r.getAs[String](0)}'")
-      .mkString("[", ",", "]")
-  }
-
-  /**
-   * Compute weighted encoding distance for files: (ascii(string_col_max.head) -
-   * ascii(string_col_min.head)) * numRecords
-   */
-  def computeColumnEncodingDist(
-      spark: SparkSession,
-      tablePath: String,
-      columnName: String): Long = {
-    import spark.implicits._
-
-    val dl = DeltaLog.forTable(spark, tablePath)
-    val js = dl
-      .update()
-      .allFiles
-      .select("stats")
-      .collect()
-      .map(r => r.getAs[String](0))
-      .mkString("[", ",", "]")
-    val stats = spark.read.json(Seq(js).toDS())
-
-    stats
-      .select(
-        col(s"maxValues.$columnName").alias("__max"),
-        col(s"minValues.$columnName").alias("__min"),
-        col("numRecords"))
-      .withColumn("__max_start", substring(col("__max"), 0, 1))
-      .withColumn("__min_start", substring(col("__min"), 0, 1))
-      .withColumn("__max_ascii", ascii(col("__max_start")))
-      .withColumn("__min_ascii", ascii(col("__min_start")))
-      .withColumn("dist", abs(col("__max_ascii") - col("__min_ascii")) * col("numRecords"))
-      .select("dist")
-      .agg(sum("dist"))
-      .first()
-      .getAs[Long](0)
-  }
 
   // Write source data indexing all columns and read it back
   private def writeAndReadDF(source: Dataset[_], tmpDir: String, spark: SparkSession) = {
@@ -422,37 +348,6 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
         indexed.where(filter).count() shouldBe source.where(filter).count()
       })
 
-    })
-
-  it should "create better file-level min-max with a String histogram" in withSparkAndTmpDir(
-    (spark, tmpDir) => {
-      val histPath = tmpDir + "/string_hist/"
-      val hashPath = tmpDir + "/string_hash/"
-      val colName = "brand"
-
-      val df = loadTestData(spark)
-
-      val colHistStr = getStringHistogramStr(colName, 50, df)
-      val statsStr = s"""{"${colName}_histogram":$colHistStr}"""
-
-      df.write
-        .mode("overwrite")
-        .format("qbeast")
-        .option("cubeSize", "30000")
-        .option("columnsToIndex", s"$colName:histogram")
-        .option("columnStats", statsStr)
-        .save(histPath)
-      val histDist = computeColumnEncodingDist(spark, histPath, colName)
-
-      df.write
-        .mode("overwrite")
-        .format("qbeast")
-        .option("columnsToIndex", colName)
-        .option("cubeSize", "30000")
-        .save(hashPath)
-      val hashDist = computeColumnEncodingDist(spark, hashPath, colName)
-
-      histDist should be < hashDist
     })
 
 }

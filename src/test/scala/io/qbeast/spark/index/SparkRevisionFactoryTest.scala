@@ -16,9 +16,13 @@
 package io.qbeast.spark.index
 
 import io.qbeast.core.model._
+import io.qbeast.core.transform.CDFNumericQuantilesTransformation
+import io.qbeast.core.transform.CDFNumericQuantilesTransformer
+import io.qbeast.core.transform.EmptyTransformation
 import io.qbeast.core.transform.HashTransformer
 import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.core.transform.LinearTransformer
+import io.qbeast.core.transform.ManualPlaceholderTransformation
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.T3
@@ -45,7 +49,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
     revision.revisionID shouldBe 0
     revision.desiredCubeSize shouldBe 10
     revision.columnTransformers shouldBe Vector(LinearTransformer("a", LongDataType))
-    revision.transformations shouldBe Vector.empty
+    revision.transformations shouldBe Vector(EmptyTransformation())
 
   })
 
@@ -68,7 +72,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
       LinearTransformer("b", DoubleDataType),
       HashTransformer("c", StringDataType),
       LinearTransformer("d", FloatDataType))
-    revision.transformations shouldBe Vector.empty
+    revision.transformations shouldBe Vector.fill(4)(EmptyTransformation())
 
     val revisionExplicit =
       SparkRevisionFactory.createNewRevision(
@@ -271,8 +275,43 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
       HashTransformer("b", DoubleDataType),
       HashTransformer("c", StringDataType),
       HashTransformer("d", FloatDataType))
-    revision.transformations shouldBe Vector.empty
+    revision.transformations shouldBe Vector.fill(4)(EmptyTransformation())
 
   })
+
+  it should "create new revision with quantiles from columnStats" in withSpark(spark => {
+    import spark.implicits._
+    val schema = spark.range(1).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).schema
+    val numericQuantiles = (0 to 10).map(_.toDouble)
+    val revision =
+      SparkRevisionFactory.createNewRevision(
+        QTableID("t"),
+        schema,
+        QbeastOptions(
+          Map(
+            QbeastOptions.COLUMNS_TO_INDEX -> "a:quantiles",
+            QbeastOptions.STATS -> s"""{"a_quantiles":[${numericQuantiles.mkString(", ")}]}""")))
+
+    revision.revisionID shouldBe 1L
+    revision.columnTransformers shouldBe Vector(CDFNumericQuantilesTransformer("a", LongDataType))
+    revision.transformations shouldBe Vector(
+      CDFNumericQuantilesTransformation(numericQuantiles, LongDataType))
+  })
+
+  it should "create a new ManualPlaceholderTransformation when no quantiles are defined" in withSpark(
+    spark => {
+      import spark.implicits._
+      val schema = spark.range(1).map(i => T3(i, i * 2.0, s"$i", i * 1.2f)).schema
+      val revision =
+        SparkRevisionFactory.createNewRevision(
+          QTableID("t"),
+          schema,
+          QbeastOptions(Map(QbeastOptions.COLUMNS_TO_INDEX -> "a:quantiles")))
+      revision.revisionID shouldBe 0L
+      revision.columnTransformers shouldBe Vector(
+        CDFNumericQuantilesTransformer("a", LongDataType))
+      revision.transformations shouldBe Vector(
+        ManualPlaceholderTransformation("a", Seq("a_quantiles")))
+    })
 
 }

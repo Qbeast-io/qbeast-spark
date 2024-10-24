@@ -33,6 +33,7 @@ import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 
 import java.lang.System.currentTimeMillis
@@ -121,9 +122,22 @@ trait IndexedTable {
   def analyze(revisionID: RevisionID): Seq[String]
 
   /**
+   * Optimizes a given index revision up to a given fraction.
+   * @param revisionID
+   *   the identifier of revision to optimize
+   * @param fraction
+   *   the fraction of the index to optimize; this value should be between (0, 1].
+   * @param options
+   *   Optimization options where user metadata and pre-commit hooks are specified.
+   */
+  def optimize(revisionID: RevisionID, fraction: Double, options: Map[String, String]): Unit
+
+  /**
    * Optimizes the given table for a given revision
    * @param revisionID
    *   the identifier of revision to optimize
+   * @param options
+   *   Optimization options where user metadata and pre-commit hooks are specified.
    */
   def optimize(revisionID: RevisionID, options: Map[String, String]): Unit
 
@@ -132,6 +146,8 @@ trait IndexedTable {
    *
    * @param files
    *   the index files to optimize
+   * @param options
+   *   Optimization options where user metadata and pre-commit hooks are specified.
    */
   def optimize(files: Seq[String], options: Map[String, String]): Unit
 }
@@ -488,12 +504,28 @@ private[table] class IndexedTableImpl(
 
   }
 
-  override def optimize(revisionID: RevisionID, options: Map[String, String]): Unit = {
+  override def optimize(
+      revisionID: RevisionID,
+      fraction: Double,
+      options: Map[String, String]): Unit = {
+    assert(fraction > 0d && fraction <= 1d)
     val indexFiles = snapshot.loadIndexFiles(revisionID)
     import indexFiles.sparkSession.implicits._
-    val files = snapshot.loadIndexFiles(revisionID).map(_.path).as[String].collect()
+    val files = indexFiles.transform(filterSamplingFiles(fraction)).map(_.path).collect()
     optimize(files, options)
   }
+
+  private[table] def filterSamplingFiles(
+      fraction: Double): Dataset[IndexFile] => Dataset[IndexFile] = indexFiles => {
+    if (fraction == 1.0) indexFiles
+    else {
+      indexFiles
+        .filter(f => f.blocks.exists(_.minWeight.fraction <= fraction))
+    }
+  }
+
+  override def optimize(revisionID: RevisionID, options: Map[String, String]): Unit =
+    optimize(revisionID, 1.0, options)
 
   override def optimize(files: Seq[String], options: Map[String, String]): Unit = {
     val paths = files.toSet

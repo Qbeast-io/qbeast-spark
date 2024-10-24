@@ -3,9 +3,7 @@ from dash.dependencies import Input, Output
 import dash_cytoscape as cyto
 import click
 
-from qviz.content_loader import process_table_delta_log
-from qviz.drawing_elements import process_add_files, populate_tree, get_nodes_and_edges
-
+from qviz.content_loader import process_table, get_nodes_and_edges
 
 cyto.load_extra_layouts()
 LAYOUT_NAME = "dagre"
@@ -29,53 +27,51 @@ def show_tree(path: str, revision_id: int) -> None:
     index revision, so if there are more than one revision, the results will
     be inaccurate.
     """
-    assert revision_id > 0, f"Invalid value for revision_id: {revision_id}, it must be > 0."
+    assert (
+        revision_id > 0
+    ), f"Invalid value for revision_id: {revision_id}, it must be > 0."
 
-    # Gather revision AddFiles from the table _delta_log/
-    add_files, metadata = process_table_delta_log(path, str(revision_id))
-    # Process build Cubes from AddFiles
-    cubes = process_add_files(add_files, metadata)
-    # Populate the index by creating parent-child references
-    _ = populate_tree(cubes)
-    # Gather drawing elements from populated cubes
-    elements = get_nodes_and_edges(cubes)
+    cubes, elements = process_table(path, revision_id)
 
     # Callback that modifies the drawing elements
-    @app.callback(Output('cyto-space', 'elements'), Input('fraction', 'value'))
-    def update_fraction_edges(fraction):
-        if fraction is None or fraction <= 0:
-            return elements
-        return get_nodes_and_edges(cubes, fraction)
+    @app.callback(Output("cyto-space", "elements"), Input("fraction", "value"))
+    def update_fraction_edges(fraction: float) -> list[dict]:
+        if fraction is not None and 0.0 < fraction <= 1.0:
+            return get_nodes_and_edges(cubes, fraction)
+        return elements
 
-    app.layout = html.Div([
-        html.P("OTree Index"),
-        html.Div([
+    app.layout = html.Div(
+        [
+            html.P("OTree Index"),
             html.Div(
-                style={'width': '50%', 'display': 'inline'},
-                children=['Sampling Fraction:', dcc.Input(id='fraction', type='number')]
-            )
-        ]),
-        cyto.Cytoscape(
-            id='cyto-space',
-            elements=elements,
-            layout={'name': LAYOUT_NAME, 'roots': '#root'},
-            style={'width': '100%', 'height': '1000px'},
-            stylesheet=[
-                # Display cube max_weight for reach node
-                {'selector': 'nodes',
-                 'style': {
-                     'label': 'data(label)'
-                 }
-                 },
-                # Highlight sampled nodes and edges
-                {'selector': '.sampled',
-                 'style': {
-                     'background-color': 'blue',
-                     'line-color': 'blue'
-                 }
-                 }
-            ]
-        )
-    ])
+                [
+                    html.Div(
+                        style={"width": "50%", "display": "inline"},
+                        children=[
+                            "Sampling Fraction:",
+                            dcc.Input(
+                                id="fraction", type="number", step=0.01, value=0.02
+                            ),
+                        ],
+                    )
+                ]
+            ),
+            cyto.Cytoscape(
+                id="cyto-space",
+                elements=elements,
+                layout={"name": LAYOUT_NAME, "roots": "#root"},
+                style={"width": "100%", "height": "1000px"},
+                stylesheet=[
+                    # Display cube max_weight for reach node
+                    {"selector": "nodes", "style": {"label": "data(label)"}},
+                    # Highlight sampled nodes and edges
+                    {
+                        "selector": ".sampled",
+                        "style": {"background-color": "blue", "line-color": "blue"},
+                    },
+                ],
+            ),
+        ]
+    )
 
     app.run_server(debug=True)

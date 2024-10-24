@@ -72,7 +72,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
         writeTestData(data, columnsToIndex, cubeSize, tmpDir)
 
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-        qbeastTable.latestRevisionID() shouldBe 1L
+        qbeastTable.latestRevisionID shouldBe 1L
       }
     }
 
@@ -92,7 +92,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
         writeTestData(revision3, columnsToIndex, cubeSize, tmpDir, "append")
 
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
-        qbeastTable.latestRevisionID() shouldBe 3L
+        qbeastTable.latestRevisionID shouldBe 3L
       }
     }
 
@@ -113,8 +113,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
 
         val qbeastTable = QbeastTable.forPath(spark, tmpDir)
         // Including the staging revision
-        qbeastTable.revisionsIDs().size shouldBe 4
-        qbeastTable.revisionsIDs() == Seq(0L, 1L, 2L, 3L)
+        qbeastTable.allRevisionIDs should contain theSameElementsAs Seq(0L, 1L, 2L, 3L)
       }
   }
 
@@ -163,7 +162,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
         writeTestData(data, columnsToIndex, cubeSize, tmpDir)
 
         val qt = QbeastTable.forPath(spark, tmpDir)
-        val metrics = qt.getIndexMetrics(Some(1L))
+        val metrics = qt.getIndexMetrics(1L)
 
         metrics.revisionId shouldBe 1L
         metrics.elementCount shouldBe 1001
@@ -197,7 +196,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
       val cubeSize = 5000 // large cube size to make sure all elements are stored in the root
       writeTestData(data, columnsToIndex, cubeSize, tmpDir)
 
-      val metrics = QbeastTable.forPath(spark, tmpDir).getIndexMetrics(Some(1L))
+      val metrics = QbeastTable.forPath(spark, tmpDir).getIndexMetrics(1L)
 
       metrics.revisionId shouldBe 1L
       metrics.elementCount shouldBe 1001
@@ -228,7 +227,7 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
       data.repartition(numFiles).write.mode("append").format("delta").save(tmpDir)
       ConvertToQbeastCommand(s"delta.`$tmpDir`", columnsToIndex, cubeSize).run(spark)
 
-      val metrics = QbeastTable.forPath(spark, tmpDir).getIndexMetrics(Some(0L))
+      val metrics = QbeastTable.forPath(spark, tmpDir).getIndexMetrics(0L)
 
       metrics.revisionId shouldBe 0L
       metrics.elementCount shouldBe 0L

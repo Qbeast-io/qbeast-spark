@@ -16,13 +16,7 @@
 package io.qbeast.table
 
 import io.qbeast.context.QbeastContext
-import io.qbeast.core.model.DenormalizedBlock
-import io.qbeast.core.model.QTableID
-import io.qbeast.core.model.QbeastSnapshot
-import io.qbeast.core.model.Revision
-import io.qbeast.core.model.RevisionID
-import io.qbeast.core.model.StagingUtils
-import io.qbeast.internal.commands.AnalyzeTableCommand
+import io.qbeast.core.model._
 import io.qbeast.internal.commands.OptimizeTableCommand
 import io.qbeast.spark.utils.IndexMetrics
 import org.apache.spark.sql.AnalysisExceptionFactory
@@ -41,7 +35,7 @@ import org.apache.spark.sql.SparkSession
  */
 class QbeastTable private (
     sparkSession: SparkSession,
-    tableID: QTableID,
+    val tableID: QTableID,
     indexedTableFactory: IndexedTableFactory)
     extends Serializable
     with StagingUtils {
@@ -50,90 +44,43 @@ class QbeastTable private (
 
   private def indexedTable: IndexedTable = indexedTableFactory.getIndexedTable(tableID)
 
-  private def latestRevisionAvailable = qbeastSnapshot.loadLatestRevision
-
-  private def latestRevisionAvailableID = latestRevisionAvailable.revisionID
-
   private def checkRevisionAvailable(revisionID: RevisionID): Unit = {
     if (!qbeastSnapshot.existsRevision(revisionID)) {
       throw AnalysisExceptionFactory.create(
         s"Revision $revisionID does not exists. " +
-          s"The latest revision available is $latestRevisionAvailableID")
+          s"The latest revision available is $latestRevisionID")
     }
   }
 
   /**
-   * The optimize operation should read the data of those cubes announced and replicate it in
-   * their children
-   * @param revisionID
-   *   the identifier of the revision to optimize. If doesn't exist or none is specified, would be
-   *   the last available
+   * Returns all available revisions in the table.
    */
-  def optimize(revisionID: RevisionID, options: Map[String, String]): Unit = {
-    if (!isStaging(revisionID)) {
-      checkRevisionAvailable(revisionID)
-      OptimizeTableCommand(revisionID, indexedTable, options)
-        .run(sparkSession)
-    }
-  }
-
-  def optimize(revisionID: RevisionID): Unit = {
-    optimize(revisionID, Map.empty[String, String])
-  }
-
-  def optimize(options: Map[String, String]): Unit = {
-    optimize(latestRevisionAvailableID, options)
-  }
-
-  def optimize(): Unit = {
-    optimize(Map.empty[String, String])
-  }
+  def allRevisions(): Seq[Revision] = qbeastSnapshot.loadAllRevisions
 
   /**
-   * Optimizes the data stored in the index files specified by paths relative to the table
-   * directory.
-   *
-   * @param files
-   *   the index files to optimize
+   * Returns all available RevisionIDs in the table.
    */
-  def optimize(files: Seq[String], options: Map[String, String]): Unit =
-    indexedTable.optimize(files, options)
-
-  def optimize(files: Seq[String]): Unit =
-    optimize(files, Map.empty[String, String])
+  def allRevisionIDs(): Seq[RevisionID] = allRevisions().map(_.revisionID)
 
   /**
-   * The analyze operation should analyze the index structure and find the cubes that need
-   * optimization
+   * Returns the revision with the given revisionID.
    * @param revisionID
-   *   the identifier of the revision to optimize. If doesn't exist or none is specified, would be
-   *   the last available
-   * @return
-   *   the sequence of cubes to optimize in string representation
+   *   RevisionID
    */
-  def analyze(revisionID: RevisionID): Seq[String] = {
-    if (isStaging(revisionID)) Seq.empty
-    else {
-      checkRevisionAvailable(revisionID)
-      AnalyzeTableCommand(revisionID, indexedTable)
-        .run(sparkSession)
-        .map(_.getString(0))
-    }
+  def revision(revisionID: RevisionID): Revision = {
+    checkRevisionAvailable(revisionID)
+    qbeastSnapshot.loadRevision(revisionID)
   }
 
-  def analyze(): Seq[String] = {
-    if (isStaging(latestRevisionAvailableID)) Seq.empty
-    else analyze(latestRevisionAvailableID)
-  }
+  def latestRevision: Revision = qbeastSnapshot.loadLatestRevision
+
+  def latestRevisionID: RevisionID = latestRevision.revisionID
 
   /**
-   * Outputs the indexed columns of the table
+   * Returns the indexing columns of the given revision.
    * @param revisionID
-   *   the identifier of the revision. If doesn't exist or none is specified, would be the last
-   *   available
-   * @return
+   *   RevisionID
    */
-
   def indexedColumns(revisionID: RevisionID): Seq[String] = {
     checkRevisionAvailable(revisionID)
     qbeastSnapshot
@@ -142,126 +89,139 @@ class QbeastTable private (
       .map(_.columnName)
   }
 
-  /**
-   * Outputs the indexed columns of the table
-   * @return
-   */
-  def indexedColumns(): Seq[String] = {
-    latestRevisionAvailable.columnTransformers.map(_.columnName)
-  }
+  def indexedColumns(): Seq[String] =
+    latestRevision.columnTransformers.map(_.columnName)
 
   /**
-   * Outputs the cubeSize of the table
+   * Returns the desired cube size of the given revision.
    * @param revisionID
-   *   the identifier of the revision. If doesn't exist or none is specified, would be the last
-   *   available
-   * @return
+   *   RevisionID
    */
   def cubeSize(revisionID: RevisionID): Int = {
     checkRevisionAvailable(revisionID)
     qbeastSnapshot.loadRevision(revisionID).desiredCubeSize
-
   }
 
-  def cubeSize(): Int =
-    latestRevisionAvailable.desiredCubeSize
+  def cubeSize(): Int = latestRevision.desiredCubeSize
 
   /**
-   * Outputs all the revision identifiers available for the table
-   * @return
-   */
-  def revisionsIDs(): Seq[RevisionID] = {
-    qbeastSnapshot.loadAllRevisions.map(_.revisionID)
-  }
-
-  /**
-   * Outputs all the revision information available for the table
-   * @return
-   */
-  def allRevisions(): Seq[Revision] = {
-    qbeastSnapshot.loadAllRevisions
-  }
-
-  /**
-   * Outputs the revision information for the latest revision available
-   * @return
-   */
-  def latestRevision: Revision = {
-    latestRevisionAvailable
-  }
-
-  /**
-   * Outputs the revision information for a given identifier
+   * Optimizes a given index revision up to a given fraction.
    * @param revisionID
-   *   the identifier of the revision
-   * @return
+   *   the identifier of revision to optimize
+   * @param fraction
+   *   the fraction of the index to optimize; this value should be between (0, 1].
+   * @param options
+   *   Optimization options where user metadata and pre-commit hooks are specified.
    */
-  def revision(revisionID: RevisionID): Revision = {
-    checkRevisionAvailable(revisionID)
-    qbeastSnapshot.loadRevision(revisionID)
+  def optimize(revisionID: RevisionID, fraction: Double, options: Map[String, String]): Unit = {
+    if (!isStaging(revisionID)) {
+      checkRevisionAvailable(revisionID)
+      OptimizeTableCommand(revisionID, fraction, indexedTable, options).run(sparkSession)
+    }
+  }
+
+  def optimize(revisionID: RevisionID, fraction: Double): Unit = {
+    optimize(revisionID, fraction, Map.empty[String, String])
+  }
+
+  def optimize(revisionID: RevisionID, options: Map[String, String]): Unit = {
+    optimize(revisionID, 1.0, options)
+  }
+
+  def optimize(revisionID: RevisionID): Unit = {
+    optimize(revisionID, 1.0, Map.empty[String, String])
+  }
+
+  def optimize(fraction: Double, options: Map[String, String]): Unit = {
+    optimize(latestRevisionID, fraction, options)
+  }
+
+  def optimize(fraction: Double): Unit = {
+    optimize(latestRevisionID, fraction, Map.empty[String, String])
+  }
+
+  def optimize(options: Map[String, String]): Unit = {
+    optimize(latestRevisionID, 1.0, options)
+  }
+
+  def optimize(): Unit = {
+    optimize(latestRevisionID, 1.0, Map.empty[String, String])
   }
 
   /**
-   * Outputs the identifier of the latest revision available
-   * @return
+   * Optimizes the data stored in the index files specified by paths relative to the table
+   * directory.
+   *
+   * @param files
+   *   the index files to optimize
+   * @param options
+   *   Optimization options where user metadata and pre-commit hooks are specified.
    */
-  def latestRevisionID(): RevisionID = {
-    latestRevisionAvailableID
-  }
+  def optimize(files: Seq[String], options: Map[String, String]): Unit =
+    indexedTable.optimize(files, options)
+
+  def optimize(files: Seq[String]): Unit =
+    optimize(files, Map.empty[String, String])
 
   /**
    * Gather an overview of the index for a given revision
    * @param revisionID
-   *   optional RevisionID
+   *   RevisionID
+   * @param indexFiles
+   *   Dataset of IndexFile
    * @return
+   *   IndexMetrics
    */
-  def getIndexMetrics(revisionID: Option[RevisionID] = None): IndexMetrics = {
-
-    val indexStatus = revisionID match {
-      case Some(id) => qbeastSnapshot.loadIndexStatus(id)
-      case None => qbeastSnapshot.loadLatestIndexStatus
-    }
-    val indexFiles = revisionID match {
-      case Some(id) => qbeastSnapshot.loadIndexFiles(id)
-      case None => qbeastSnapshot.loadLatestIndexFiles
-    }
-
-    val revision = indexStatus.revision
-    val cubeStatuses = indexStatus.cubesStatuses
-    val denormalizedBlock = DenormalizedBlock.buildDataset(revision, cubeStatuses, indexFiles)
-
-    IndexMetrics(revision, denormalizedBlock)
+  def getIndexMetrics(revisionID: RevisionID, indexFiles: Dataset[IndexFile]): IndexMetrics = {
+    val denormalizedBlock = DenormalizedBlock.buildDataset(indexFiles)
+    IndexMetrics(revision(revisionID), denormalizedBlock)
   }
 
   /**
-   * Gather a dataset containing all the important information about the index structure.
+   * Gather an overview of the index for the given RevisionID
+   * @return
+   *   IndexMetrics
+   */
+  def getIndexMetrics(revisionID: RevisionID): IndexMetrics = {
+    val indexFiles = qbeastSnapshot.loadIndexFiles(revisionID)
+    getIndexMetrics(revisionID, indexFiles)
+  }
+
+  def getIndexMetrics: IndexMetrics = {
+    getIndexMetrics(latestRevisionID)
+  }
+
+  /**
+   * Gather a dataset containing all DenormalizedBlocks for a given revision.
    *
    * @param revisionID
-   *   optional RevisionID
+   *   RevisionID
+   * @param indexFiles
+   *   Dataset of IndexFile
    * @return
+   *   Dataset of DenormalizedBlock
    */
-  def getDenormalizedBlocks(revisionID: Option[RevisionID] = None): Dataset[DenormalizedBlock] = {
-    val indexStatus = revisionID match {
-      case Some(id) => qbeastSnapshot.loadIndexStatus(id)
-      case None => qbeastSnapshot.loadLatestIndexStatus
-    }
-    val indexFiles = revisionID match {
-      case Some(id) => qbeastSnapshot.loadIndexFiles(id)
-      case None => qbeastSnapshot.loadLatestIndexFiles
-    }
+  def getDenormalizedBlocks(
+      revisionID: RevisionID,
+      indexFiles: Dataset[IndexFile]): Dataset[DenormalizedBlock] = {
+    DenormalizedBlock.buildDataset(indexFiles)
+  }
 
-    val revision = indexStatus.revision
-    val cubeStatuses = indexStatus.cubesStatuses
-    DenormalizedBlock.buildDataset(revision, cubeStatuses, indexFiles)
+  def getDenormalizedBlocks(revisionID: RevisionID): Dataset[DenormalizedBlock] = {
+    val indexFiles = qbeastSnapshot.loadIndexFiles(revisionID)
+    getDenormalizedBlocks(revisionID, indexFiles)
+  }
 
+  def getDenormalizedBlocks: Dataset[DenormalizedBlock] = {
+    getDenormalizedBlocks(latestRevisionID)
   }
 
 }
 
 object QbeastTable {
 
-  def forPath(sparkSession: SparkSession, path: String): QbeastTable = {
-    new QbeastTable(sparkSession, new QTableID(path), QbeastContext.indexedTableFactory)
+  def forPath(spark: SparkSession, path: String): QbeastTable = {
+    new QbeastTable(spark, new QTableID(path), QbeastContext.indexedTableFactory)
   }
 
 }

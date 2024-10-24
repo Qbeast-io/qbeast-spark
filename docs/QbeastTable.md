@@ -20,25 +20,31 @@ qbeastTable.indexedColumns() // current indexed columns
 
 qbeastTable.cubeSize() // current cube size
 
-qbeastTable.revisionsIDs() // all the current Revision identifiers
+qbeastTable.allRevisionIDs() // all the current Revision identifiers
 
 qbeatsTable.lastRevisionID() // the last Revision identifier
 ```
 
 ## Table Operations
-Through `QbeastTable` you can also execute `Optimize` operation. This command is used to **optimize the files in the table**, merging those small blocks into bigger ones to maintain an even distribution.
+Through `QbeastTable` you can also execute the `Optimize` operation. This command is used to **rearrange the files in the table** according to the dictates of the index to render queries more efficient. 
 
-These are the 3 ways of executing the `optimize` operation:
+These are a few different ways of executing the `optimize` operation, with the input parameters being:
+1. `revisionID`: The revision number you want to optimize, the default is the latest revision.
+2. `fraction`: The fraction of the data of the specified revision you want to optimize.
+3. `options`: A map of options of the optimization. You can specify the `userMetadata` as well as configurations for `io.qbeast.spark.delta.hook.PreCommitHook.`
 
 ```scala
+// Optimizing 10% of the data from Revision number 2, and stores some user metadata
+qbeastTable.optmize(2L, 0.1, Map["userMetadata" -> "user-metadata-for-optimization"])
 
-qbeastTable.optimize() // Optimizes the last Revision Available.
-// This does NOT include previous Revision's optimizations.
+// Optimizing all data from a given Revision
+qbeastTable.optimize(2L)
 
-qbeastTable.optimize(2L) // Optimizes the Revision number 2.
+// Optimizing the latest available Revision.
+qbeastTable.optimize()
 
-qbeastTable.optimize(Seq("file1", "file2")) // Optimizes the specific files
-
+// Optimizes the specific files
+qbeastTable.optimize(Seq("file1", "file2"))
 ```
 
 ## Index Metrics
@@ -148,6 +154,3 @@ depth avgCubeElementCount cubeCount blockCount cubeElementCountStd cubeElementCo
 ```
 
 `cubeElementCountStats` and `blockElementCountStats` are the same as in the previous section. The same metrics are displayed for each level of the index tree.
-
-### 4. `Map[CubeId, CubeStatus]`
-- More information can be extracted from the index tree through `metrics.cubeStatuses`
