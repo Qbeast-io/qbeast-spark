@@ -60,7 +60,7 @@ package object config {
 
   private[config] val tableFormat: ConfigEntry[String] =
     ConfigBuilder("spark.qbeast.tableFormat")
-      .version("0.2.0")
+      .version("0.8.0")
       .stringConf
       .createWithDefault("delta")
 
