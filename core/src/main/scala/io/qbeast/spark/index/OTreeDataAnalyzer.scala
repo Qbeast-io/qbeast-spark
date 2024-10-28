@@ -368,11 +368,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
     val dataFrameStats = getDataFrameStats(dataFrame, columnTransformers)
 
     val numElements = dataFrameStats.getAs[Long]("count")
-    if (numElements == 0) {
-      throw new RuntimeException(
-        "The DataFrame is empty, why are you trying to index an empty dataset?")
-    }
-
     val spaceChanges =
       if (isReplication) None
       else calculateRevisionChanges(dataFrameStats, indexStatus.revision)

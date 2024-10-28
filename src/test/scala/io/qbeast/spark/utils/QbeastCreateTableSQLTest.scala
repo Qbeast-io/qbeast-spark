@@ -139,4 +139,12 @@ class QbeastCreateTableSQLTest extends QbeastIntegrationTestSpec {
 
     })
 
+  it should "create empty table" in withQbeastContextSparkAndTmpDir((spark, tmpDir) => {
+    spark.sql(
+      "CREATE TABLE qbeast_table (a STRING, b INT) USING qbeast OPTIONS ('columnsToIndex'='a,b')")
+    val df = spark.sql("SELECT * FROM qbeast_table")
+    df.count() shouldBe 0
+    df.schema.fields.map(_.name) should contain theSameElementsAs Seq("a", "b")
+  })
+
 }
