@@ -108,8 +108,8 @@ class IndexedTableTest extends QbeastIntegrationTestSpec {
         indexedTable.save(firstData, firstIndexingParameters, true)
 
         val qbeastTable = QbeastTable.forPath(spark, location)
-        qbeastTable.allRevisions().size shouldBe 1
-        qbeastTable.latestRevisionID shouldBe 0L
+        qbeastTable.allRevisions().size shouldBe 2L // First empty revision + append
+        qbeastTable.latestRevisionID shouldBe 1L
         qbeastTable.latestRevision.columnTransformers.map(_.columnName) shouldBe List("id")
 
         val data = createStudentsTestData(spark)
