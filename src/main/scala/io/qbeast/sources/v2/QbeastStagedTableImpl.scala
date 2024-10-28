@@ -16,7 +16,6 @@
 package io.qbeast.sources.v2
 
 import io.qbeast.catalog.CreationMode
-import io.qbeast.catalog.QbeastCatalogUtils
 import io.qbeast.spark.internal.sources.catalog.QbeastCatalogUtils
 import io.qbeast.table.IndexedTableFactory
 import org.apache.spark.sql.catalyst.catalog.SessionCatalog
