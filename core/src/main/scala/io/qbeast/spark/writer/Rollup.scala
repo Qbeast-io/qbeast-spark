@@ -54,18 +54,22 @@ private[writer] class Rollup(limit: Double) {
    *   the rollup result
    */
   def compute(): Map[CubeId, CubeId] = {
-    val queue = new mutable.PriorityQueue()(Ordering.by[CubeId, Int](_.depth))
+    val queue: mutable.PriorityQueue[CubeId] =
+      new mutable.PriorityQueue()(Ordering.by[CubeId, Int](_.depth))
     groups.keys.foreach(queue.enqueue(_))
     while (queue.nonEmpty) {
       val cubeId = queue.dequeue()
-      val group = groups(cubeId)
+      val group: Group = groups(cubeId)
       if (group.size < limit && !cubeId.isRoot) {
-        val Some(parentCubeId) = cubeId.parent
-        if (groups.contains(parentCubeId)) {
-          groups(parentCubeId).add(group)
+        val nextInLine = cubeId.nextSibling match {
+          case Some(a) => a
+          case None => cubeId.parent.get
+        }
+        if (groups.contains(nextInLine)) {
+          groups(nextInLine).add(group)
         } else {
-          groups.put(parentCubeId, group)
-          queue.enqueue(parentCubeId)
+          groups.put(nextInLine, group)
+          queue.enqueue(nextInLine)
         }
         groups.remove(cubeId)
       }
