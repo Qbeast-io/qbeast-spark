@@ -1,10 +1,10 @@
 package io.qbeast.spark.table
 
-import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.QTableID
-import io.qbeast.TestClasses.Student
 import io.qbeast.table.QbeastTable
+import io.qbeast.QbeastIntegrationTestSpec
+import io.qbeast.TestClasses.Student
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.types.StructField
