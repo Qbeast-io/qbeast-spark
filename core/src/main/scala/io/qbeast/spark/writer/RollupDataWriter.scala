@@ -58,7 +58,7 @@ object RollupDataWriter
       data: DataFrame,
       tableChanges: TableChanges): IISeq[FileAction] = {
     // If there is no data, return an empty sequence of files
-    if(data.isEmpty) return Seq.empty[FileAction].toIndexedSeq
+    if (data.isEmpty) return Seq.empty[FileAction].toIndexedSeq
 
     val extendedData = extendDataWithCubeToRollup(data, tableChanges)
     val revision = tableChanges.updatedRevision
