@@ -16,7 +16,7 @@
 package io.qbeast.core.model
 
 import io.qbeast.core.transform.EmptyTransformer
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
 
 import scala.collection.immutable.SortedSet
 
@@ -81,8 +81,20 @@ class DenormalizedBlockTest extends QbeastIntegrationTestSpec {
 
       val fileSize = 10L
       val indexFilesDs = Vector(
-        IndexFile("f1.parquet", fileSize, 1, revision.revisionID, Vector(rootB1, c1B1)),
-        IndexFile("f2.parquet", fileSize, 2, revision.revisionID, Vector(rootB2, c1B2))).toDS
+        IndexFile(
+          "f1.parquet",
+          fileSize,
+          dataChange = true,
+          1,
+          revision.revisionID,
+          Vector(rootB1, c1B1)),
+        IndexFile(
+          "f2.parquet",
+          fileSize,
+          dataChange = true,
+          2,
+          revision.revisionID,
+          Vector(rootB2, c1B2))).toDS
 
       val denormalizedBlock = DenormalizedBlock.buildDataset(indexFilesDs)
 

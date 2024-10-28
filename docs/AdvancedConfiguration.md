@@ -11,7 +11,7 @@ However, you can also handle different Catalogs simultaneously.
 ### 1. Unified Catalog
 
 ```bash
---conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
+--conf spark.sql.catalog.spark_catalog=io.qbeast.catalog.QbeastCatalog
 ```
 
 Using the `spark_catalog` configuration, you can write **qbeast** and **delta** ( or upcoming formats ;) ) tables into the `default` namespace.
@@ -32,7 +32,7 @@ For using **more than one Catalog in the same session**, you can set it up in a 
 
 ```bash
 --conf spark.sql.catalog.spark_catalog = org.apache.spark.sql.delta.catalog.DeltaCatalog \
---conf spark.sql.catalog.qbeast_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
+--conf spark.sql.catalog.qbeast_catalog=io.qbeast.catalog.QbeastCatalog
 ```
 
 Notice the `QbeastCatalog` conf parameter is not anymore `spark_catalog`, but has a customized name like `qbeast_catalog`. Each table written using the **qbeast** implementation, should have the prefix `qbeast_catalog`. 
@@ -181,7 +181,7 @@ This can be addressed by introducing a custom Quantile Based sequence in the for
 The following code snippet demonstrates the extraction of a Quantile-based CDF from the source data:
 
 ```scala
-import io.qbeast.spark.utils.QbeastUtils
+import io.qbeast.utils.QbeastUtils
 
 val columnQuantiles = QbeastUtils.computeQuantilesForColumn(df, "brand")
 val columnStats = s"""{"brand_quantiles":$columnQuantiles}"""
@@ -312,7 +312,7 @@ df
 
 ```scala
 // Hooks for Optimizations
-import io.qbeast.spark.QbeastTable
+import io.qbeast.table.QbeastTable
 val qt = QbeastTable.forPath(spark, tablePath)
 val options = Map(
   "qbeastPreCommitHook.myHook1" -> classOf[SimpleHook].getCanonicalName,
@@ -327,7 +327,7 @@ QbeastTable.forTable(sparkSession, tablePath) methods that returns a Dataset[Den
 contains all indexed metadata in an easy-to-analyze format.
 
 ```scala
-import io.qbeast.spark.QbeastTable
+import io.qbeast.table.QbeastTable
 val qt = QbeastTable.forPath(spark, tablePath)
 val dnb = qt.getDenormalizedBlocks()
 dnb.select("filePath").distinct.count() // number of files

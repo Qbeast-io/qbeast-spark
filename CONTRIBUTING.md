@@ -108,7 +108,7 @@ The following log levels are used to track code behaviour:
      def writeWithTransaction(writer: => (TableChanges, Seq[FileAction])): Unit = {
       // [...] Code to write the transaction [...]
       if (txn.appId == appId && version <= txn.version) {
-        val message = s"Transaction ${version} from application ${appId} is already completed," +
+        val message = s"Transaction $version from application $appId is already completed," +
           " the requested write is ignored"
         logWarn(message)
         return
@@ -131,7 +131,7 @@ The following log levels are used to track code behaviour:
   if (isNewRevision(options)) {
     // Merging revisions code
     logDebug(
-      s"Merging transformations for table ${tableID} with cubeSize=${newRevisionCubeSize}")
+      s"Merging transformations for table $tableID with cubeSize=$newRevisionCubeSize")
     // Code to merge revisions
    }
    ```
@@ -144,9 +144,9 @@ The following log levels are used to track code behaviour:
         indexStatus: IndexStatus,
         options: QbeastOptions,
         append: Boolean): Unit = {
-      logTrace(s"Begin: Writing data to table ${tableID}")
+      logTrace(s"Begin: Writing data to table $tableID")
       // [...] Code to write the data [...]
-      logTrace(s"End: Writing data to table ${tableID}")
+      logTrace(s"End: Writing data to table $tableID")
      }
      ```
 
@@ -191,10 +191,10 @@ For example:
 sbt assembly
 
 $SPARK_HOME/bin/spark-shell \
---jars ./target/scala-2.12/qbeast-spark-assembly-0.6.0.jar \
+--jars ./target/scala-2.12/qbeast-spark-assembly-0.8.0-SNAPSHOT.jar \
 --packages io.delta:delta-spark_2.12:3.1.0 \
---conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
---conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
+--conf spark.sql.extensions=io.qbeast.sql.QbeastSparkSessionExtension \
+--conf spark.sql.catalog.spark_catalog=io.qbeast.catalog.QbeastCatalog
 ```
 
 ### 4. Publishing artefacts in the local repository
@@ -280,8 +280,8 @@ To publish a new version of the qbeast-spark project, follow these steps:
 export QBEAST_SPARK_VERSION=0.6.0-SNAPSHOT
 $SPARK_350/bin/spark-shell --repositories https://s01.oss.sonatype.org/content/repositories/snapshots \
 --packages io.delta:delta-spark_2.12:3.1.0,io.qbeast:qbeast-spark_2.12:$QBEAST_SPARK_VERSION \
---conf spark.sql.extensions=io.qbeast.spark.internal.QbeastSparkSessionExtension \
---conf spark.sql.catalog.spark_catalog=io.qbeast.spark.internal.sources.catalog.QbeastCatalog
+--conf spark.sql.extensions=io.qbeast.sql.QbeastSparkSessionExtension \
+--conf spark.sql.catalog.spark_catalog=io.qbeast.catalog.QbeastCatalog
 
 ```
 6. If everything is ok, change the `build.sbt` with the corresponding version and publish the RC.

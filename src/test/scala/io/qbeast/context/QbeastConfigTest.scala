@@ -15,7 +15,7 @@
  */
 package io.qbeast.context
 
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
 import org.apache.spark.qbeast.config
 import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec

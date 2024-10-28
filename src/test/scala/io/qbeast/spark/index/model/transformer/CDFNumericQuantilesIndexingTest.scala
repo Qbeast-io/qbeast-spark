@@ -1,8 +1,8 @@
 package io.qbeast.spark.index.model.transformer
 
 import io.qbeast.core.transform.CDFNumericQuantilesTransformation
-import io.qbeast.spark.QbeastIntegrationTestSpec
-import io.qbeast.spark.QbeastTable
+import io.qbeast.table.QbeastTable
+import io.qbeast.QbeastIntegrationTestSpec
 
 class CDFNumericQuantilesIndexingTest
     extends QbeastIntegrationTestSpec

@@ -15,7 +15,7 @@
  */
 package io.qbeast.spark.index.model.transformer
 
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.Dataset
@@ -38,7 +38,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
       .load(tmpDir)
   }
 
-  "Qbeast spark" should "Index tables with string" in withSparkAndTmpDir((spark, tmpDir) => {
+  "Qbeast spark" should "index tables with string" in withSparkAndTmpDir((spark, tmpDir) => {
 
     import spark.implicits._
     val source = spark

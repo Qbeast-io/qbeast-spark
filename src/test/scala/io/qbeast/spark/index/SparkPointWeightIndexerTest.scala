@@ -21,7 +21,7 @@ import io.qbeast.core.transform.HashTransformation
 import io.qbeast.core.transform.HashTransformer
 import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.core.transform.LinearTransformer
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.T1
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.udf

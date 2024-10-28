@@ -15,7 +15,7 @@
  */
 package io.qbeast.core.model
 
-import io.qbeast.spark.QbeastIntegrationTestSpec
+import io.qbeast.QbeastIntegrationTestSpec
 
 /**
  * Tests of NormalizedWeight.
