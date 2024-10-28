@@ -15,10 +15,12 @@
  */
 package io.qbeast.spark.internal.sources.catalog
 
+import io.qbeast.catalog.CreationMode
+import io.qbeast.catalog.TableCreationMode
 import io.qbeast.core.model.QTableID
-import io.qbeast.spark.internal.sources.v2.QbeastTableImpl
-import io.qbeast.spark.table.IndexedTable
-import io.qbeast.spark.table.IndexedTableFactory
+import io.qbeast.sources.v2.QbeastTableImpl
+import io.qbeast.table.IndexedTable
+import io.qbeast.table.IndexedTableFactory
 import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.fs.Path
 import org.apache.spark.internal.Logging
