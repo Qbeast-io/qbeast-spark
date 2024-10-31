@@ -156,7 +156,8 @@ class WritingProcess(context: ProtoTestContext)(implicit keeper: Keeper) extends
         deltaLog.withNewTransaction(None, Some(deltaLog.update())) { txn =>
           enteredTransaction()
           val (changes, addFiles, removeFiles) = writer
-          val finalActions = metadataWriter.updateMetadata(txn, changes, addFiles, removeFiles)
+          val finalActions =
+            metadataWriter.updateMetadata(txn, changes, addFiles, removeFiles, Map.empty)
           simulatePause()
           try {
             txn.commit(finalActions, DeltaOperations.Write(mode))
@@ -205,7 +206,8 @@ class OptimizingProcessGood(context: ProtoTestContext)(implicit keeper: Keeper)
         enteredTransaction()
         val (changes, addFiles, removeFiles) = optimizer
         simulatePause()
-        val finalActions = metadataWriter.updateMetadata(tnx, changes, addFiles, removeFiles)
+        val finalActions =
+          metadataWriter.updateMetadata(tnx, changes, addFiles, removeFiles, Map.empty)
         tnx.commit(finalActions, DeltaOperations.ManualUpdate)
         bo.end(cubesToOptimize.map(_.string))
       })
@@ -238,7 +240,8 @@ class OptimizingProcessBad(context: ProtoTestContext, args: Seq[String])(implici
         enteredTransaction()
         val (changes, addFiles, removeFiles) = optimizer
         simulatePause()
-        val finalActions = metadataWriter.updateMetadata(tnx, changes, addFiles, removeFiles)
+        val finalActions =
+          metadataWriter.updateMetadata(tnx, changes, addFiles, removeFiles, Map.empty)
         tnx.commit(finalActions, DeltaOperations.ManualUpdate)
         bo.end(cubesToOptimize)
       })

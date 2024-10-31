@@ -39,8 +39,9 @@ class MetadataWriterTest(
       txn: OptimisticTransaction,
       tableChanges: TableChanges,
       addFiles: Seq[AddFile],
-      removeFiles: Seq[RemoveFile]): Seq[Action] =
-    super.updateMetadata(txn, tableChanges, addFiles, removeFiles)
+      removeFiles: Seq[RemoveFile],
+      extraConfiguration: Configuration): Seq[Action] =
+    super.updateMetadata(txn, tableChanges, addFiles, removeFiles, extraConfiguration)
 
 }
 
