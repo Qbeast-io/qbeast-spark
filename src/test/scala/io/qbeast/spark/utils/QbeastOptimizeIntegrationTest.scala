@@ -16,8 +16,11 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.core.model.IndexFile
+import io.qbeast.core.model.QTableID
+import io.qbeast.spark.delta.DeltaMetadataManager
 import io.qbeast.table.QbeastTable
 import io.qbeast.QbeastIntegrationTestSpec
+import io.qbeast.internal.commands.ConvertToQbeastCommand
 import org.apache.spark.sql.delta.actions.Action
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.actions.CommitInfo
@@ -141,14 +144,13 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
 
     }
 
-  it should "optimize a table converted to Qbeast" in withQbeastContextSparkAndTmpDir {
   /**
    * Get the unindexed files from the last updated Snapshot
    * @param deltaLog
    * @return
    */
-  def getUnindexedFilesFromDelta(qtableID: QTableID): Dataset[AddFile] = {
-    SparkDeltaMetadataManager.loadSnapshot(qtableID).loadStagingFiles()
+  def getUnindexedFilesFromDelta(qtableID: QTableID): Dataset[IndexFile] = {
+    DeltaMetadataManager.loadSnapshot(qtableID).loadIndexFiles(0L) // Revision 0L
   }
 
   /**
@@ -157,7 +159,7 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
    * @return
    */
   def getIndexedFilesFromDelta(qtableID: QTableID): Dataset[IndexFile] = {
-    SparkDeltaMetadataManager.loadSnapshot(qtableID).loadLatestIndexFiles
+    DeltaMetadataManager.loadSnapshot(qtableID).loadLatestIndexFiles
   }
 
   def getAllFilesFromDelta(spark: SparkSession, d: QTableID): Dataset[AddFile] = {

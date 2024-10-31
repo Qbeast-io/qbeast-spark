@@ -587,21 +587,29 @@ private[table] class IndexedTableImpl(
       schema,
       optimizationOptions(options),
       append = true) {
+      // Remove the Unindexed Files from the Log
+      val deleteFiles: IISeq[DeleteFile] = files
+        .map { indexFile =>
+          DeleteFile(
+            path = indexFile.path,
+            size = indexFile.size,
+            dataChange = false,
+            deletionTimestamp = currentTimeMillis())
+        }
+        .collect()
+        .toIndexedSeq
       // Index the data with IndexManager
       val (data, tableChanges) = indexManager.index(filesDF, latestIndexStatus)
       // Write the data with DataWriter
-      val newFiles =
+      val newFiles: IISeq[IndexFile] =
         dataWriter
           .write(tableID, schema, data, tableChanges)
-          .collect { case addFile: AddFile =>
-            addFile.copy(dataChange = false)
+          .collect { case indexFile: IndexFile =>
+            indexFile.copy(dataChange = false)
           }
           .toIndexedSeq
-      // Remove the Unindexed Files from the Log
-      val removeFiles =
-        files.map(IndexFiles.toRemoveFile(dataChange = false)).collect().toIndexedSeq
       // Commit
-      (tableChanges, newFiles ++ removeFiles)
+      (tableChanges, newFiles, deleteFiles)
     }
   }
 
@@ -619,35 +627,34 @@ private[table] class IndexedTableImpl(
       if (!indexFiles.isEmpty) {
         // 2. Load the Index Status for the given revision
         val indexStatus = snapshot.loadIndexStatus(revision.revisionID)
-        val data = snapshot.loadDataframeFromIndexFiles(indexFiles)
         // 3. In the same transaction
-        metadataManager.updateWithTransaction(
-          tableID,
-          schema,
-          optimizationOptions(options),
-          append = true) {
-          import indexFiles.sparkSession.implicits._
-          val deleteFiles: IISeq[DeleteFile] = indexFiles
-            .map { indexFile =>
-              DeleteFile(
-                path = indexFile.path,
-                size = indexFile.size,
-                dataChange = false,
-                deletionTimestamp = currentTimeMillis())
-            }
-            .collect()
-            .toIndexedSeq
-          val data = snapshot.loadDataframeFromIndexFiles(indexFiles)
-          val (dataExtended, tableChanges) =
-            DoublePassOTreeDataAnalyzer.analyzeOptimize(data, indexStatus)
-          val addFiles = dataWriter
-            .write(tableID, schema, dataExtended, tableChanges)
-            .collect { case indexFile: IndexFile =>
-              indexFile.copy(dataChange = false)
-            }
-          dataExtended.unpersist()
-          (tableChanges, addFiles, deleteFiles)
-        }
+        metadataManager
+          .updateWithTransaction(tableID, schema, optimizationOptions(options), append = true) {
+            import indexFiles.sparkSession.implicits._
+            val deleteFiles: IISeq[DeleteFile] = indexFiles
+              .map { indexFile =>
+                DeleteFile(
+                  path = indexFile.path,
+                  size = indexFile.size,
+                  dataChange = false,
+                  deletionTimestamp = currentTimeMillis())
+              }
+              .collect()
+              .toIndexedSeq
+            // 1. Load the data from the Index Files
+            val data = snapshot.loadDataframeFromIndexFiles(indexFiles)
+            // 2. Optimize the data with IndexManager
+            val (dataExtended, tableChanges) =
+              DoublePassOTreeDataAnalyzer.analyzeOptimize(data, indexStatus)
+            // 3. Write the data with DataWriter
+            val addFiles = dataWriter
+              .write(tableID, schema, dataExtended, tableChanges)
+              .collect { case indexFile: IndexFile =>
+                indexFile.copy(dataChange = false)
+              }
+            dataExtended.unpersist()
+            (tableChanges, addFiles, deleteFiles)
+          }
       }
     }
   }
