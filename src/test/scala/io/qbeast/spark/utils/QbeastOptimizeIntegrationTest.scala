@@ -17,10 +17,10 @@ package io.qbeast.spark.utils
 
 import io.qbeast.core.model.IndexFile
 import io.qbeast.core.model.QTableID
+import io.qbeast.internal.commands.ConvertToQbeastCommand
 import io.qbeast.spark.delta.DeltaMetadataManager
 import io.qbeast.table.QbeastTable
 import io.qbeast.QbeastIntegrationTestSpec
-import io.qbeast.internal.commands.ConvertToQbeastCommand
 import org.apache.spark.sql.delta.actions.Action
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.actions.CommitInfo
