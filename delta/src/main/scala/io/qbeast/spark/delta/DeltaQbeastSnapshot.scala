@@ -243,8 +243,15 @@ case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with De
 
   /**
    * Lists the files present in the staging area
+   * @param fileIndex
+   *   FileIndex instance
+   * @param partitionFilters
+   *   Partition filters
+   * @param dataFilters
+   *   Data filters
+   *
    * @return
-   *   the FileIndex
+   *   Sequence of FileStatusWithMetadata
    */
   override def listStagingAreaFiles(
       fileIndex: FileIndex,

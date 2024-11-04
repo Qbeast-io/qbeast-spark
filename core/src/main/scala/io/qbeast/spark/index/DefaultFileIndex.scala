@@ -31,16 +31,18 @@ import org.apache.spark.sql.SparkSession
 /**
  * Default implementation of the FileIndex.
  *
- * @param target
- *   the target file index implemented by Delta
+ * @param qbeastSnapshot
+ *   the qbeast snapshot instance
  */
-class DefaultFileIndex private (qbeastSnapshot: QbeastSnapshot, target: FileIndex)
+class DefaultFileIndex private (qbeastSnapshot: QbeastSnapshot)
     extends FileIndex
     with QueryFiltersUtils
     with Logging
     with Serializable {
 
-  override def rootPaths: Seq[Path] = target.rootPaths
+  private val targetFileIndex = qbeastSnapshot.loadFileIndex()
+
+  override def rootPaths: Seq[Path] = targetFileIndex.rootPaths
 
   override def listFiles(
       partitionFilters: Seq[Expression],
@@ -51,7 +53,7 @@ class DefaultFileIndex private (qbeastSnapshot: QbeastSnapshot, target: FileInde
     } else {
       DefaultListFilesStrategy
     }
-    strategy.listFiles(target, partitionFilters, dataFilters)
+    strategy.listFiles(targetFileIndex, partitionFilters, dataFilters)
   }
 
   private def logFilters(
@@ -65,13 +67,13 @@ class DefaultFileIndex private (qbeastSnapshot: QbeastSnapshot, target: FileInde
     logInfo(s"DefaultFileIndex data filters (exec id $execId): $dataFiltersInfo")
   }
 
-  override def inputFiles: Array[String] = target.inputFiles
+  override def inputFiles: Array[String] = targetFileIndex.inputFiles
 
-  override def refresh(): Unit = target.refresh()
+  override def refresh(): Unit = targetFileIndex.refresh()
 
-  override def sizeInBytes: Long = target.sizeInBytes
+  override def sizeInBytes: Long = targetFileIndex.sizeInBytes
 
-  override def partitionSchema: StructType = target.partitionSchema
+  override def partitionSchema: StructType = targetFileIndex.partitionSchema
 }
 
 /**
@@ -88,7 +90,7 @@ object DefaultFileIndex {
    *   a new instance
    */
   def apply(qbeastSnapshot: QbeastSnapshot): DefaultFileIndex = {
-    new DefaultFileIndex(qbeastSnapshot, qbeastSnapshot.loadFileIndex())
+    new DefaultFileIndex(qbeastSnapshot)
   }
 
 }
