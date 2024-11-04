@@ -40,7 +40,8 @@ case class SamplingListFilesStrategy(snapshot: QbeastSnapshot)
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
 
-    val files = listIndexFiles(partitionFilters, dataFilters)
+    val files = snapshot.listStagingAreaFiles(partitionFilters, dataFilters) ++
+      listIndexFiles(partitionFilters, dataFilters)
     logFilteredFiles(files)
     Seq(PartitionDirectory(new GenericInternalRow(Array.empty[Any]), files))
   }

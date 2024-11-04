@@ -17,7 +17,9 @@ package io.qbeast.core.model
 
 import io.qbeast.IISeq
 import org.apache.hadoop.fs.Path
+import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.execution.datasources.FileIndex
+import org.apache.spark.sql.execution.datasources.FileStatusWithMetadata
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Dataset
@@ -147,6 +149,15 @@ trait QbeastSnapshot {
    *   the Datasetframe
    */
   def loadDataframeFromIndexFiles(indexFile: Dataset[IndexFile]): DataFrame
+
+  /**
+   * Lists the files present in the staging area
+   * @return
+   *   the FileIndex
+   */
+  def listStagingAreaFiles(
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): Seq[FileStatusWithMetadata]
 
   /**
    * Loads the file index
