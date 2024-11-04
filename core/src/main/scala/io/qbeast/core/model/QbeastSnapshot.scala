@@ -156,6 +156,7 @@ trait QbeastSnapshot {
    *   the FileIndex
    */
   def listStagingAreaFiles(
+      fileIndex: FileIndex,
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[FileStatusWithMetadata]
 

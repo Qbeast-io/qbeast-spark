@@ -247,11 +247,12 @@ case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with De
    *   the FileIndex
    */
   override def listStagingAreaFiles(
+      fileIndex: FileIndex,
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[FileStatusWithMetadata] = {
 
-    val target = loadFileIndex().asInstanceOf[TahoeLogFileIndex]
-    target
+    fileIndex
+      .asInstanceOf[TahoeLogFileIndex]
       .matchingFiles(partitionFilters, dataFilters)
       .filter(isStagingFile)
       .map(file =>
