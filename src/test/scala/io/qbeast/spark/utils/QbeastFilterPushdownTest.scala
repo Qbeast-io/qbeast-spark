@@ -15,9 +15,9 @@
  */
 package io.qbeast.spark.utils
 
+import io.qbeast.spark.index.DefaultFileIndex
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestUtils._
-import io.qbeast.spark.index.DefaultFileIndex
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.functions.avg
 import org.apache.spark.sql.functions.col

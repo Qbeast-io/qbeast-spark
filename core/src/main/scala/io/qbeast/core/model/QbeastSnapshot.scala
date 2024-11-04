@@ -27,6 +27,9 @@ import org.apache.spark.sql.Dataset
  */
 trait QbeastSnapshot {
 
+  /**
+   * The base path of the table.
+   */
   def basePath: Path
 
   /**
