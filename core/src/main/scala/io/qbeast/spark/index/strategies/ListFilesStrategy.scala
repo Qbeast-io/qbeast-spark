@@ -13,17 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.delta
+package io.qbeast.spark.index.strategies
 
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.delta.files.TahoeLogFileIndex
+import org.apache.spark.sql.execution.datasources.FileIndex
 import org.apache.spark.sql.execution.datasources.PartitionDirectory
 
 /**
  * List files strategy abstraction allows to implement different approaches to compute the set of
  * files contributing to the query results.
  */
-private[delta] trait ListFilesStrategy {
+trait ListFilesStrategy {
 
   /**
    * Lists the files from the given index applying the provided filters.
@@ -38,7 +38,7 @@ private[delta] trait ListFilesStrategy {
    *   a sequence of partition directories
    */
   def listFiles(
-      target: TahoeLogFileIndex,
+      target: FileIndex,
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[PartitionDirectory]
 

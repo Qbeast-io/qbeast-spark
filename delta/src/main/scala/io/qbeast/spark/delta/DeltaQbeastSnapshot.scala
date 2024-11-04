@@ -22,8 +22,10 @@ import io.qbeast.spark.utils.TagColumns
 import io.qbeast.IISeq
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.files.TahoeLogFileIndex
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.delta.Snapshot
+import org.apache.spark.sql.execution.datasources.FileIndex
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
@@ -38,6 +40,8 @@ import org.apache.spark.sql.SparkSession
  *   the table ID
  */
 case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with DeltaStagingUtils {
+
+  override val basePath: Path = new Path(tableID.id)
 
   override val snapshot: Snapshot =
     DeltaLog.forTable(SparkSession.active, tableID.id).update()
@@ -233,5 +237,15 @@ case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with De
    * Loads Staging AddFiles
    */
   private def loadStagingFiles(): Dataset[AddFile] = stagingFiles()
+
+  override def loadFileIndex(): FileIndex = {
+    TahoeLogFileIndex(
+      SparkSession.active,
+      snapshot.deltaLog,
+      basePath,
+      snapshot,
+      Seq.empty,
+      isTimeTravelQuery = false)
+  }
 
 }

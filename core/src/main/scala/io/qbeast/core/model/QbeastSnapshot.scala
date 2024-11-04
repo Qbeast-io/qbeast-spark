@@ -16,6 +16,8 @@
 package io.qbeast.core.model
 
 import io.qbeast.IISeq
+import org.apache.hadoop.fs.Path
+import org.apache.spark.sql.execution.datasources.FileIndex
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Dataset
@@ -24,6 +26,8 @@ import org.apache.spark.sql.Dataset
  * A snapshot of the Qbeast table state.
  */
 trait QbeastSnapshot {
+
+  def basePath: Path
 
   /**
    * The current state of the snapshot.
@@ -140,5 +144,12 @@ trait QbeastSnapshot {
    *   the Datasetframe
    */
   def loadDataframeFromIndexFiles(indexFile: Dataset[IndexFile]): DataFrame
+
+  /**
+   * Loads the file index
+   * @return
+   *   the FileIndex
+   */
+  def loadFileIndex(): FileIndex
 
 }

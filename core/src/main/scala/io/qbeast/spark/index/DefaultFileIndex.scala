@@ -13,14 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.delta
+package io.qbeast.spark.index
 
+import io.qbeast.core.model.QbeastSnapshot
 import io.qbeast.spark.index.query.QueryFiltersUtils
+import io.qbeast.spark.index.strategies.DefaultListFilesStrategy
+import io.qbeast.spark.index.strategies.SamplingListFilesStrategy
 import org.apache.hadoop.fs.Path
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.delta.files.TahoeLogFileIndex
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.datasources.FileIndex
 import org.apache.spark.sql.execution.datasources.PartitionDirectory
 import org.apache.spark.sql.execution.SQLExecution
@@ -33,7 +34,7 @@ import org.apache.spark.sql.SparkSession
  * @param target
  *   the target file index implemented by Delta
  */
-class DefaultFileIndex private (target: TahoeLogFileIndex)
+class DefaultFileIndex private (qbeastSnapshot: QbeastSnapshot, target: FileIndex)
     extends FileIndex
     with QueryFiltersUtils
     with Logging
@@ -46,7 +47,7 @@ class DefaultFileIndex private (target: TahoeLogFileIndex)
       dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
     logFilters(partitionFilters, dataFilters)
     val strategy = if (haveQbeastWeightExpression(dataFilters)) {
-      SamplingListFilesStrategy
+      SamplingListFilesStrategy(qbeastSnapshot)
     } else {
       DefaultListFilesStrategy
     }
@@ -56,7 +57,7 @@ class DefaultFileIndex private (target: TahoeLogFileIndex)
   private def logFilters(
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Unit = {
-    val context = target.spark.sparkContext
+    val context = SparkSession.active.sparkContext
     val execId = context.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
     val partitionFiltersInfo = partitionFilters.map(_.toString).mkString(" ")
     logInfo(s"DefaultFileIndex partition filters (exec id $execId): $partitionFiltersInfo")
@@ -81,19 +82,13 @@ object DefaultFileIndex {
   /**
    * Creates a new instance from given spark session and path.
    *
-   * @param spark
-   *   the Spark session
-   * @param path
-   *   the table path
+   * @param qbeastSnapshot
+   *   a qbeast snapshot instance
    * @return
    *   a new instance
    */
-  def apply(spark: SparkSession, path: Path): DefaultFileIndex = {
-    val log = DeltaLog.forTable(spark, path)
-    val snapshot = log.update()
-    val target =
-      TahoeLogFileIndex(spark, log, path, snapshot, Seq.empty, isTimeTravelQuery = false)
-    new DefaultFileIndex(target)
+  def apply(qbeastSnapshot: QbeastSnapshot): DefaultFileIndex = {
+    new DefaultFileIndex(qbeastSnapshot, qbeastSnapshot.loadFileIndex())
   }
 
 }
