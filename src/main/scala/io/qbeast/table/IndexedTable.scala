@@ -572,10 +572,11 @@ private[table] class IndexedTableImpl(
   override def optimizeUnindexedFiles(
       unindexedFiles: Seq[String],
       options: Map[String, String]): Unit = {
-    if (unindexedFiles.isEmpty) return // Nothing to optimize
+    val unindexedFilesPaths = unindexedFiles.toSet
+    if (unindexedFilesPaths.isEmpty) return // Nothing to optimize
     // 1. Load the files from the Staging ID (Unindexed)
     val files =
-      snapshot.loadIndexFiles(stagingID).filter(f => unindexedFiles.contains(f.path))
+      snapshot.loadIndexFiles(stagingID).filter(f => unindexedFilesPaths.contains(f.path))
     import files.sparkSession.implicits._
     // 2. Load the Dataframe, the latest index status and the schema
     val filesDF = snapshot.loadDataframeFromIndexFiles(files)

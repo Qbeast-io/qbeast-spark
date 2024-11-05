@@ -41,7 +41,7 @@ Through `QbeastTable` you can also execute the `Optimize` operation. This comman
 #### Examples of Manual Optimization
 ```scala
 // Optimizing 10% of the data from Revision number 2, and stores some user metadata
-qbeastTable.optmize(2L, 0.1, Map["userMetadata" -> "user-metadata-for-optimization"])
+qbeastTable.optimize(2L, 0.1, Map["userMetadata" -> "user-metadata-for-optimization"])
 
 // Optimizing all data from a given Revision
 qbeastTable.optimize(2L)
@@ -56,11 +56,11 @@ qbeastTable.optimize(Seq("file1", "file2"))
 ### Optimization of Unindexed Files
 
 There are some use cases in which a Table could have several **Unindexed Files**.
-- **Staging Data**: Enabling the Staging Area gives the possibility to **ingest data without indexing it**. Since very small appends could produce overhead during the write process, the new data would be commited to the table without reorganization. Every time the staging are size is reached, the data is indexed using the latest state of the Table. 
-- **Table Converted To Qbeast**: An existing `parquet` or `delta` Table can be converted to a `qbeast` Table through the `ConvertToQbeastCommand`. Since the table can be very big, the conversion only adds a metadata commit to the Log, indicating that from that point onwards the appends would be indexed with Qbeast.
+- **Staging Data**: Enabling the Staging Area gives the possibility to **ingest data without indexing it**. Since very small appends could produce overhead during the write process, the new data would be commited to the table without reorganization. Every time the staging area size is reached, the data could be indexed using the latest state of the Table. 
+- **Table Converted To Qbeast**: An existing `parquet` or `delta` Table can be converted to a `qbeast` Table through the `ConvertToQbeastCommand`. Since the table can be very big, the conversion only adds a metadata commit to the Log, indicating that from that point onwards the appends could be indexed with Qbeast.
 - **External Table Writers**: External writers can write data to the table in the underlying format (delta, hudi or iceberg)
 
-All the sets of Unindexed Files are mapped to a revision number 0. For manually indexing these files, you can use the `optimize` method with the `revisionId` parameter set to 0.
+All the Unindexed Files are mapped to a revision number 0. For manually indexing these files, you can use the `optimize` method with the `revisionId` parameter set to 0.
 
 #### Examples of Manual Optimization of Unindexed Files
 ```scala
