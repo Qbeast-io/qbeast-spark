@@ -17,7 +17,7 @@ package io.qbeast.internal.rules
 
 import io.qbeast.core.model.Weight
 import io.qbeast.core.model.WeightRange
-import io.qbeast.spark.delta.DefaultFileIndex
+import io.qbeast.spark.index.DefaultFileIndex
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.IndexedColumns

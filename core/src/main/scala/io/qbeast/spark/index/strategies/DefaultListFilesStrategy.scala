@@ -13,20 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.delta
+package io.qbeast.spark.index.strategies
 
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.delta.files.TahoeLogFileIndex
+import org.apache.spark.sql.execution.datasources.FileIndex
 import org.apache.spark.sql.execution.datasources.PartitionDirectory
 
 /**
  * Default implementation of the ListFilesStrategy which simply applies Delta filtering based on
  * min/max and other stats.
  */
-private[delta] object DefaultListFilesStrategy extends ListFilesStrategy with Serializable {
+object DefaultListFilesStrategy extends ListFilesStrategy with Serializable {
 
   override def listFiles(
-      target: TahoeLogFileIndex,
+      target: FileIndex,
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[PartitionDirectory] =
     target.listFiles(partitionFilters, dataFilters)

@@ -67,7 +67,7 @@ private[delta] case class DeltaMetadataWriter(
     deltaLog: DeltaLog,
     qbeastOptions: QbeastOptions,
     schema: StructType)
-    extends QbeastMetadataOperation
+    extends DeltaMetadataOperation
     with DeltaCommand
     with Logging {
 
