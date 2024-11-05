@@ -17,6 +17,7 @@ package io.qbeast.catalog
 
 import io.qbeast.sources.v2.QbeastStagedTableImpl
 import io.qbeast.sources.v2.QbeastTableImpl
+import io.qbeast.spark.internal.sources.catalog.QbeastCatalogUtils
 import io.qbeast.QbeastIntegrationTestSpec
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.connector.catalog.CatalogExtension

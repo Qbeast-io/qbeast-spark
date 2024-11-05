@@ -18,7 +18,9 @@ package io.qbeast.spark.utils
 import io.qbeast.table.QbeastTable
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Student
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
 
 import scala.util.Random
@@ -171,6 +173,28 @@ class QbeastSparkIntegrationTest extends QbeastIntegrationTestSpec {
         qbeastTable.latestRevisionID shouldBe 1L
 
       }
+  }
+
+  it should "work with empty dataframe" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
+    {
+      val schema = StructType.fromDDL("id INT, name STRING, age INT")
+      val data = spark
+        .createDataFrame(spark.sharedState.sparkContext.emptyRDD[Row], schema)
+      data.write.format("qbeast").option("columnsToIndex", "id").save(tmpDir)
+
+      val indexed = spark.read.format("qbeast").load(tmpDir)
+
+      indexed.columns.toSet shouldBe data.columns.toSet
+      val qbeastTable = QbeastTable.forPath(spark, tmpDir)
+      qbeastTable.indexedColumns() shouldBe Seq("id")
+      qbeastTable.latestRevisionID shouldBe 0L
+
+      val append = createStudentsTestData(spark)
+      append.write.format("qbeast").mode("append").save(tmpDir)
+
+      val indexedAppend = spark.read.format("qbeast").load(tmpDir)
+      indexedAppend.count() shouldBe append.count()
+    }
   }
 
 }

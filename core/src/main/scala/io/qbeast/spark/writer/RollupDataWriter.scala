@@ -46,6 +46,7 @@ trait RollupDataWriter extends DataWriter {
       data: DataFrame,
       tableChanges: TableChanges,
       trackers: Seq[WriteJobStatsTracker]): IISeq[(IndexFile, TaskStats)] = {
+    if (data.isEmpty) return Seq.empty[(IndexFile, TaskStats)].toIndexedSeq
     val extendedData = extendDataWithCubeToRollup(data, tableChanges)
     val revision = tableChanges.updatedRevision
     val getCubeMaxWeight = { cubeId: CubeId =>

@@ -83,6 +83,15 @@ object SparkOTreeManager extends IndexManager with Serializable with Logging {
       dataFrame: DataFrame,
       indexStatus: IndexStatus,
       isReplication: Boolean): (DataFrame, TableChanges) = {
+    // If the DataFrame is empty, we return an empty table changes
+    if (dataFrame.isEmpty) {
+      logInfo("Indexing empty Dataframe. Returning empty table changes.")
+      val emptyTableChanges =
+        BroadcastedTableChanges(None, indexStatus, Map.empty, Map.empty, Set.empty[CubeId])
+      return (dataFrame, emptyTableChanges)
+    }
+
+    // Begin Indexing
     logTrace(s"Begin: Index with revision ${indexStatus.revision}")
     // Analyze the data and compute weight and estimated weight map of the result
     val (weightedDataFrame, tc) =

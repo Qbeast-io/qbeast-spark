@@ -20,6 +20,7 @@ import io.qbeast.internal.commands.AlterTableSetPropertiesQbeastCommand
 import io.qbeast.internal.commands.AlterTableUnsetPropertiesQbeastCommand
 import io.qbeast.sources.v2.QbeastStagedTableImpl
 import io.qbeast.sources.v2.QbeastTableImpl
+import io.qbeast.spark.internal.sources.catalog.QbeastCatalogUtils
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.analysis.NoSuchDatabaseException
 import org.apache.spark.sql.catalyst.analysis.NoSuchNamespaceException
