@@ -31,11 +31,11 @@ qbeatsTable.lastRevisionID() // the last Revision identifier
 Through `QbeastTable` you can also execute the `Optimize` operation. This command is used to **rearrange the files in the table** according to the dictates of the index to render queries more efficient. 
 
 #### Paramaters of Manual Optimization
-| Parameter    | Description                                                                                               | Default            |
-|--------------|-----------------------------------------------------------------------------------------------------------|--------------------|
-| `revisionID` | The revision number you want to optimize.                                                                 | Latest revision    |
-| `fraction`   | The fraction of the data of the specified revision you want to optimize.                                  | None specified     |
-| `options`    | A map of options for optimization. You can specify `userMetadata` and configurations for `PreCommitHook`. | None specified     |
+| Parameter    | Description                                                                                               | Default         |
+|--------------|-----------------------------------------------------------------------------------------------------------|-----------------|
+| `revisionID` | The revision number you want to optimize.                                                                 | Latest revision |
+| `fraction`   | The fraction of the data of the specified revision you want to optimize.                                  | 1.0             |
+| `options`    | A map of options for optimization. You can specify `userMetadata` and configurations for `PreCommitHook`. | None specified  |
 
 
 #### Examples of Manual Optimization
