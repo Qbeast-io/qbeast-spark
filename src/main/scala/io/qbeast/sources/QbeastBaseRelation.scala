@@ -16,10 +16,9 @@
 package io.qbeast.sources
 
 import io.qbeast.context.QbeastContext
-import io.qbeast.spark.delta.DefaultFileIndex
+import io.qbeast.spark.index.DefaultFileIndex
 import io.qbeast.spark.index.EmptyFileIndex
 import io.qbeast.table.IndexedTable
-import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
@@ -56,8 +55,7 @@ object QbeastBaseRelation {
       options: Map[String, String]): BaseRelation = {
 
     val spark = SparkSession.active
-    val tableID = table.tableID
-    val snapshot = QbeastContext.metadataManager.loadSnapshot(tableID)
+    val snapshot = QbeastContext.metadataManager.loadSnapshot(table.tableID)
     if (snapshot.isInitial) {
       // If the Table is initial, read empty relation
       // This could happen if we CREATE/REPLACE TABLE without inserting data
@@ -75,8 +73,7 @@ object QbeastBaseRelation {
       }
     } else {
       // If the table contains data, initialize it
-      val path = new Path(tableID.id)
-      val fileIndex = DefaultFileIndex(spark, path)
+      val qbeastFileIndex = DefaultFileIndex(snapshot)
       val bucketSpec: Option[BucketSpec] = None
       val file = new ParquetFileFormat()
 
@@ -84,7 +81,7 @@ object QbeastBaseRelation {
       val parameters = table.verifyAndMergeProperties(options)
 
       new HadoopFsRelation(
-        fileIndex,
+        qbeastFileIndex,
         partitionSchema = StructType(Seq.empty[StructField]),
         dataSchema = snapshot.schema,
         bucketSpec = bucketSpec,
@@ -112,8 +109,7 @@ object QbeastBaseRelation {
   def forQbeastTableWithOptions(
       indexedTable: IndexedTable,
       withOptions: Map[String, String]): BaseRelation = {
-    val spark = SparkSession.active
-    createRelation(spark.sqlContext, indexedTable, withOptions)
+    createRelation(SparkSession.active.sqlContext, indexedTable, withOptions)
   }
 
 }

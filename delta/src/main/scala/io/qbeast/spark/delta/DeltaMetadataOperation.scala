@@ -37,7 +37,7 @@ import org.apache.spark.sql.SparkSession
 /**
  * Qbeast metadata changes on a Delta Table.
  */
-private[delta] trait QbeastMetadataOperation extends ImplicitMetadataOperation with StagingUtils {
+private[delta] trait DeltaMetadataOperation extends ImplicitMetadataOperation with StagingUtils {
 
   type Configuration = Map[String, String]
 
@@ -149,7 +149,7 @@ private[delta] trait QbeastMetadataOperation extends ImplicitMetadataOperation w
     // TODO Ideally, we should delegate this process to the underlying format
 
     // Append on an empty table
-    val isNewWriteAppend = (!isOverwriteMode && txn.readVersion == -1)
+    val isNewWriteAppend = !isOverwriteMode && txn.readVersion == -1
     // If the table exists, but the user added a new revision, we need to create a new revision
     val isUserUpdatedMetadata =
       containsQbeastMetadata &&

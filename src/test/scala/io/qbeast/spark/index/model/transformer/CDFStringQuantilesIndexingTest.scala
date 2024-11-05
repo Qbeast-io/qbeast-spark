@@ -1,9 +1,8 @@
 package io.qbeast.spark.index.model.transformer
 
-import io.qbeast.spark.delta.DefaultFileIndex
+import io.qbeast.spark.index.DefaultFileIndex
 import io.qbeast.utils.QbeastUtils
 import io.qbeast.QbeastIntegrationTestSpec
-import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.DataFrame
 import org.scalatest.flatspec.AnyFlatSpec
@@ -90,7 +89,8 @@ class CDFStringQuantilesIndexingTest
       .save(hashPath)
 
     // TOTAL FILES
-    val totalFilesQuantiles = DefaultFileIndex(spark, new Path(quantilesPath)).inputFiles.length
+    val snapshot = getQbeastSnapshot(quantilesPath)
+    val totalFilesQuantiles = DefaultFileIndex(snapshot).inputFiles.length
 
     // FILTER QUERIES
     val conditionExpr = "brand == 'versace'"
