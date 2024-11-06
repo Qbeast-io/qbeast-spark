@@ -26,16 +26,22 @@ qbeatsTable.lastRevisionID() // the last Revision identifier
 ```
 
 ## Table Operations
+
+### Optimization
 Through `QbeastTable` you can also execute the `Optimize` operation. This command is used to **rearrange the files in the table** according to the dictates of the index to render queries more efficient. 
 
-These are a few different ways of executing the `optimize` operation, with the input parameters being:
-1. `revisionID`: The revision number you want to optimize, the default is the latest revision.
-2. `fraction`: The fraction of the data of the specified revision you want to optimize.
-3. `options`: A map of options of the optimization. You can specify the `userMetadata` as well as configurations for `io.qbeast.spark.delta.hook.PreCommitHook.`
+#### Paramaters of Manual Optimization
+| Parameter    | Description                                                                                               | Default         |
+|--------------|-----------------------------------------------------------------------------------------------------------|-----------------|
+| `revisionID` | The revision number you want to optimize.                                                                 | Latest revision |
+| `fraction`   | The fraction of the data of the specified revision you want to optimize.                                  | 1.0             |
+| `options`    | A map of options for optimization. You can specify `userMetadata` and configurations for `PreCommitHook`. | None specified  |
 
+
+#### Examples of Manual Optimization
 ```scala
 // Optimizing 10% of the data from Revision number 2, and stores some user metadata
-qbeastTable.optmize(2L, 0.1, Map["userMetadata" -> "user-metadata-for-optimization"])
+qbeastTable.optimize(2L, 0.1, Map["userMetadata" -> "user-metadata-for-optimization"])
 
 // Optimizing all data from a given Revision
 qbeastTable.optimize(2L)
@@ -45,6 +51,25 @@ qbeastTable.optimize()
 
 // Optimizes the specific files
 qbeastTable.optimize(Seq("file1", "file2"))
+```
+
+### Optimization of Unindexed Files
+
+There are some use cases in which a Table could have several **Unindexed Files**.
+- **Staging Data**: Enabling the Staging Area gives the possibility to **ingest data without indexing it**. Since very small appends could produce overhead during the write process, the new data would be commited to the table without reorganization. Every time the staging area size is reached, the data could be indexed using the latest state of the Table. 
+- **Table Converted To Qbeast**: An existing `parquet` or `delta` Table can be converted to a `qbeast` Table through the `ConvertToQbeastCommand`. Since the table can be very big, the conversion only adds a metadata commit to the Log, indicating that from that point onwards the appends could be indexed with Qbeast.
+- **External Table Writers**: External writers can write data to the table in the underlying format (delta, hudi or iceberg)
+
+All the Unindexed Files are mapped to a revision number 0. For manually indexing these files, you can use the `optimize` method with the `revisionId` parameter set to 0.
+
+#### Examples of Manual Optimization of Unindexed Files
+```scala
+qbeastTable.optimize(revisionId = 0L)
+
+// If the table is very large, 
+// we recommend to use the fraction configuration 
+// to decide the percentage of unindexed ddta to optimize
+qbeastTable.optimize(revisionId = 0L, fraction = 0.5)
 ```
 
 ## Index Metrics

@@ -68,6 +68,7 @@ class PreCommitHookIntegrationTest extends QbeastIntegrationTestSpec {
       val indexedTable = QbeastContext.indexedTableFactory.getIndexedTable(QTableID(tmpDir))
       indexedTable.optimize(
         1L,
+        1.0,
         Map(
           s"$PRE_COMMIT_HOOKS_PREFIX.hook_1" -> classOf[SimpleHook].getCanonicalName,
           s"$PRE_COMMIT_HOOKS_PREFIX.hook_1.arg" -> "k1:v1",
