@@ -24,16 +24,13 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.jsontype.TypeSerializer
 import com.fasterxml.jackson.databind.node.DoubleNode
 import com.fasterxml.jackson.databind.node.IntNode
+import com.fasterxml.jackson.databind.node.NullNode
 import com.fasterxml.jackson.databind.node.NumericNode
 import com.fasterxml.jackson.databind.node.TextNode
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.SerializerProvider
 import io.qbeast.core.model._
-
-import java.sql.Date
-import java.sql.Timestamp
-import java.time.Instant
 
 @JsonSerialize(using = classOf[IdentityTransformationSerializer])
 @JsonDeserialize(using = classOf[IdentityTransformationDeserializer])
@@ -43,13 +40,7 @@ case class IdentityTransformation(identityValue: Any, orderedDataType: OrderedDa
   import orderedDataType.ordering._
 
   @inline
-  override def transform(value: Any): Double = value match {
-    case v: Number if v == identityValue => 0.0
-    case v: Timestamp if v == identityValue => 0.0
-    case v: Date if v == identityValue => 0.0
-    case v: Instant if v == identityValue => 0.0
-    case null => 0.0
-  }
+  override def transform(value: Any): Double = 0d
 
   override def isSupersededBy(newTransformation: Transformation): Boolean =
     newTransformation match {
@@ -98,6 +89,7 @@ class IdentityTransformationSerializer
       case v: Long => gen.writeNumberField("identityValue", v)
       case v: Int => gen.writeNumberField("identityValue", v)
       case v: Float => gen.writeNumberField("identityValue", v)
+      case null => gen.writeNullField("identityValue")
     }
     gen.writeObjectField("orderedDataType", value.orderedDataType)
     gen.writeEndObject()
@@ -132,7 +124,7 @@ class IdentityTransformationDeserializer
       case (DecimalDataType, decimal: DoubleNode) => decimal.asDouble
       case (TimestampDataType, timestamp: NumericNode) => timestamp.asLong
       case (DateDataType, date: NumericNode) => date.asLong
-      case (_, null) => null
+      case (_, _: NullNode) => null
       case (a, b) =>
         throw new IllegalArgumentException(s"Invalid data type  ($a,$b) ${b.getClass} ")
     }
