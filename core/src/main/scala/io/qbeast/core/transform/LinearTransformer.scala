@@ -58,20 +58,17 @@ case class LinearTransformer(columnName: String, dataType: QDataType) extends Tr
   override def makeTransformation(row: String => Any): Transformation = {
     val minAux = row(colMin)
     val maxAux = row(colMax)
-    if (minAux == null && maxAux == null) {
-      // If all values are null,
-      // we return a Transformation where null values are transformed to 0
-      NullToZeroTransformation
-    } else if (minAux == maxAux) {
-      // If both values are equal we return an IdentityTransformation
-      IdentityToZeroTransformation(minAux)
-    } else { // otherwise we pick the min and max
+    if (minAux == maxAux) {
+      val identityValue = getValue(minAux)
+      dataType match {
+        case ordered: OrderedDataType => IdentityTransformation(identityValue, ordered)
+      }
+    } else {
+      // otherwise we pick the min and max
       val min = getValue(minAux)
       val max = getValue(maxAux)
       dataType match {
-        case ordered: OrderedDataType =>
-          LinearTransformation(min, max, ordered)
-
+        case ordered: OrderedDataType => LinearTransformation(min, max, ordered)
       }
     }
 
