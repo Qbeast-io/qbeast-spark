@@ -39,7 +39,6 @@ case class IdentityTransformation(identityValue: Any, orderedDataType: OrderedDa
 
   import orderedDataType.ordering._
 
-  @inline
   override def transform(value: Any): Double = 0.0
 
   override def isSupersededBy(newTransformation: Transformation): Boolean =
