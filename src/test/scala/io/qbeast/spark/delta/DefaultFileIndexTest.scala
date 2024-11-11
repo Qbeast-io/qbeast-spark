@@ -15,6 +15,7 @@
  */
 package io.qbeast.spark.delta
 
+import io.qbeast.spark.index.DefaultFileIndex
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
 import io.qbeast.QbeastIntegrationTestSpec
 import org.apache.hadoop.fs.Path
@@ -58,8 +59,9 @@ class DefaultFileIndexTest extends QbeastIntegrationTestSpec {
     }
   }
 
-  private def newDefaultFileIndex(spark: SparkSession, path: String): DefaultFileIndex = {
-    DefaultFileIndex(spark, new Path(path))
+  private def newDefaultFileIndex(path: String): DefaultFileIndex = {
+    val snapshot = getQbeastSnapshot(path)
+    DefaultFileIndex(snapshot)
   }
 
   private def newTahoeLogFileIndex(spark: SparkSession, path: String): TahoeLogFileIndex = {
@@ -71,7 +73,7 @@ class DefaultFileIndexTest extends QbeastIntegrationTestSpec {
   "DefaultFileIndex" should "use Delta if the query does not have sampling clause" in withSparkAndTmpDir {
     (spark, tmpDir) =>
       createTestTable(spark, tmpDir, 1000, 10)
-      val index = newDefaultFileIndex(spark, tmpDir)
+      val index = newDefaultFileIndex(tmpDir)
       val tahoeIndex = newTahoeLogFileIndex(spark, tmpDir)
       val filters = Seq(LessThan(AttributeReference("a", IntegerType)(), Literal(10)))
       index.listFiles(Seq.empty, filters) shouldBe tahoeIndex.listFiles(Seq.empty, filters)
@@ -80,7 +82,7 @@ class DefaultFileIndexTest extends QbeastIntegrationTestSpec {
   it should "use staging area if the query has a sampling clause" in withSparkAndTmpDir {
     (spark, tmpDir) =>
       createTestTable(spark, tmpDir, 1000, 10, staging = true)
-      val index = newDefaultFileIndex(spark, tmpDir)
+      val index = newDefaultFileIndex(tmpDir)
       val tahoeIndex = newTahoeLogFileIndex(spark, tmpDir)
       val filters = Seq(
         LessThan(AttributeReference("a", IntegerType)(), Literal(10)),
@@ -97,7 +99,7 @@ class DefaultFileIndexTest extends QbeastIntegrationTestSpec {
   it should "use Qbeast index if the query has a sampling clause" in withSparkAndTmpDir {
     (spark, tmpDir) =>
       createTestTable(spark, tmpDir, 1000, 10)
-      val index = newDefaultFileIndex(spark, tmpDir)
+      val index = newDefaultFileIndex(tmpDir)
       val filters = Seq(
         LessThan(AttributeReference("a", IntegerType)(), Literal(10)),
         LessThanOrEqual(
@@ -114,28 +116,28 @@ class DefaultFileIndexTest extends QbeastIntegrationTestSpec {
 
   it should "get input files from Delta" in withSparkAndTmpDir { (spark, tmpDir) =>
     createTestTable(spark, tmpDir, 10)
-    val index = newDefaultFileIndex(spark, tmpDir)
+    val index = newDefaultFileIndex(tmpDir)
     val tahoeIndex = newTahoeLogFileIndex(spark, tmpDir)
     index.inputFiles.toSet shouldBe tahoeIndex.inputFiles.toSet
   }
 
   it should "get root paths from Delta" in withSparkAndTmpDir { (spark, tmpDir) =>
     createTestTable(spark, tmpDir, 10)
-    val index = newDefaultFileIndex(spark, tmpDir)
+    val index = newDefaultFileIndex(tmpDir)
     val tahoeIndex = newTahoeLogFileIndex(spark, tmpDir)
     index.rootPaths.toSet shouldBe tahoeIndex.rootPaths.toSet
   }
 
   it should "get size in bytes from Delta" in withSparkAndTmpDir { (spark, tmpDir) =>
     createTestTable(spark, tmpDir, 10)
-    val index = newDefaultFileIndex(spark, tmpDir)
+    val index = newDefaultFileIndex(tmpDir)
     val tahoeIndex = newTahoeLogFileIndex(spark, tmpDir)
     index.sizeInBytes shouldBe tahoeIndex.sizeInBytes
   }
 
   it should "get partition schema from Delta" in withSparkAndTmpDir { (spark, tmpDir) =>
     createTestTable(spark, tmpDir, 10)
-    val index = newDefaultFileIndex(spark, tmpDir)
+    val index = newDefaultFileIndex(tmpDir)
     val tahoeIndex = newTahoeLogFileIndex(spark, tmpDir)
     index.partitionSchema shouldBe tahoeIndex.partitionSchema
   }

@@ -68,14 +68,13 @@ class CDFNumericQuantilesIndexingTest
 
       // Get the QbeastTable
       val qbeastTable = QbeastTable.forPath(spark, path)
-      val allRevisions = qbeastTable.allRevisions()
-      allRevisions.foreach(println)
-      allRevisions.size shouldBe 3
+      val allRevisions = qbeastTable.allRevisions().sortBy(_.revisionID)
+      allRevisions.size shouldBe 3 // Revision 0, 1, 2
 
       // Check that the first and last revisions have the correct transformations
 
       // The first revision should have the original quantiles
-      val firstRevision = allRevisions(1)
+      val firstRevision = allRevisions(1) // first revision
       val firstRevisionTransformations = firstRevision.transformations
       firstRevisionTransformations.size shouldBe 1
       firstRevisionTransformations.head shouldBe a[CDFNumericQuantilesTransformation]
@@ -84,7 +83,7 @@ class CDFNumericQuantilesIndexingTest
         .quantiles shouldBe Seq(0.1, 0.4, 0.7, 0.9)
 
       // The last revision should have the new quantiles
-      val latestRevision = allRevisions(2) // latest revision
+      val latestRevision = allRevisions.last // latest revision
       val latestRevisionTransformations = latestRevision.transformations
       latestRevisionTransformations.size shouldBe 1
       latestRevisionTransformations.head shouldBe a[CDFNumericQuantilesTransformation]

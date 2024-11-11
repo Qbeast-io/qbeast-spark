@@ -19,6 +19,7 @@ import io.qbeast.core.model.mapper
 import io.qbeast.core.model.Revision
 import io.qbeast.core.model.StagingUtils
 import io.qbeast.core.model.TableChanges
+import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.utils.MetadataConfig
 import io.qbeast.spark.utils.MetadataConfig.lastRevisionID
 import io.qbeast.spark.utils.MetadataConfig.revision
@@ -36,7 +37,7 @@ import org.apache.spark.sql.SparkSession
 /**
  * Qbeast metadata changes on a Delta Table.
  */
-private[delta] trait QbeastMetadataOperation extends ImplicitMetadataOperation with StagingUtils {
+private[delta] trait DeltaMetadataOperation extends ImplicitMetadataOperation with StagingUtils {
 
   type Configuration = Map[String, String]
 
@@ -104,12 +105,28 @@ private[delta] trait QbeastMetadataOperation extends ImplicitMetadataOperation w
       .updated(s"$revision.$newRevisionID", mapper.writeValueAsString(newRevision))
   }
 
+  /**
+   * Update Qbeast Metadata
+   * @param txn
+   *   OptimisticTransaction
+   * @param schema
+   *   the schema of the table
+   * @param isOverwriteMode
+   *   whether the write mode is overwrite
+   * @param rearrangeOnly
+   *   whether the operation is only to rearrange the table
+   * @param tableChanges
+   *   the changes in the table
+   * @param qbeastOptions
+   *   the Qbeast options to update
+   */
   def updateQbeastMetadata(
       txn: OptimisticTransaction,
       schema: StructType,
       isOverwriteMode: Boolean,
       rearrangeOnly: Boolean,
-      tableChanges: TableChanges): Unit = {
+      tableChanges: TableChanges,
+      qbeastOptions: QbeastOptions): Unit = {
 
     val spark = SparkSession.active
 
@@ -132,7 +149,7 @@ private[delta] trait QbeastMetadataOperation extends ImplicitMetadataOperation w
     // TODO Ideally, we should delegate this process to the underlying format
 
     // Append on an empty table
-    val isNewWriteAppend = (!isOverwriteMode && txn.readVersion == -1)
+    val isNewWriteAppend = !isOverwriteMode && txn.readVersion == -1
     // If the table exists, but the user added a new revision, we need to create a new revision
     val isUserUpdatedMetadata =
       containsQbeastMetadata &&
@@ -154,10 +171,14 @@ private[delta] trait QbeastMetadataOperation extends ImplicitMetadataOperation w
       else txn.metadata.configuration
 
     // Qbeast configuration metadata
-    val (configuration, hasRevisionUpdate) =
+    val (qbeastConfiguration, hasRevisionUpdate) =
       if (isNewRevision || isOverwriteMode || tableChanges.isOptimizeOperation)
         (updateQbeastRevision(baseConfiguration, latestRevision), true)
       else (baseConfiguration, false)
+    val qbeastExtraWriteOptions = qbeastOptions.extraOptions
+    val qbeastWriteProperties = qbeastOptions.writeProperties
+    // Merge the qbeast configuration with the extra configuration and the write properties
+    val configuration = qbeastConfiguration ++ qbeastWriteProperties ++ qbeastExtraWriteOptions
 
     if (!txn.deltaLog.tableExists) {
       super.updateMetadata(

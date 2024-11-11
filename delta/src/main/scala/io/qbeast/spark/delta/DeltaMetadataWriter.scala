@@ -67,21 +67,21 @@ private[delta] case class DeltaMetadataWriter(
     deltaLog: DeltaLog,
     qbeastOptions: QbeastOptions,
     schema: StructType)
-    extends QbeastMetadataOperation
+    extends DeltaMetadataOperation
     with DeltaCommand
     with Logging {
 
-  private val options = {
+  private val deltaOptions = {
     val optionsMap = qbeastOptions.toMap ++ Map("path" -> tableID.id)
     new DeltaOptions(optionsMap, SparkSession.active.sessionState.conf)
   }
 
   private def isOverwriteOperation: Boolean = mode == SaveMode.Overwrite
 
-  override protected val canMergeSchema: Boolean = options.canMergeSchema
+  override protected val canMergeSchema: Boolean = deltaOptions.canMergeSchema
 
   override protected val canOverwriteSchema: Boolean =
-    options.canOverwriteSchema && isOverwriteOperation && options.replaceWhere.isEmpty
+    deltaOptions.canOverwriteSchema && isOverwriteOperation && deltaOptions.replaceWhere.isEmpty
 
   private val sparkSession = SparkSession.active
 
@@ -161,7 +161,8 @@ private[delta] case class DeltaMetadataWriter(
   def writeWithTransaction(writer: => (TableChanges, Seq[IndexFile], Seq[DeleteFile])): Unit = {
     val oldTransactions = deltaLog.unsafeVolatileSnapshot.setTransactions
     // If the transaction was completed before then no operation
-    for (txn <- oldTransactions; version <- options.txnVersion; appId <- options.txnAppId) {
+    for (txn <- oldTransactions; version <- deltaOptions.txnVersion;
+      appId <- deltaOptions.txnAppId) {
       if (txn.appId == appId && version <= txn.version) {
         val message = s"Transaction $version from application $appId is already completed," +
           " the requested write is ignored"
@@ -180,9 +181,10 @@ private[delta] case class DeltaMetadataWriter(
       val removeFiles = deleteFiles.map(DeltaQbeastFileUtils.toRemoveFile)
 
       // Update Qbeast Metadata (replicated set, revision..)
-      var actions = updateMetadata(txn, tableChanges, addFiles, removeFiles)
+      var actions =
+        updateMetadata(txn, tableChanges, addFiles, removeFiles, qbeastOptions.extraOptions)
       // Set transaction identifier if specified
-      for (txnVersion <- options.txnVersion; txnAppId <- options.txnAppId) {
+      for (txnVersion <- deltaOptions.txnVersion; txnAppId <- deltaOptions.txnAppId) {
         actions +:= SetTransaction(txnAppId, txnVersion, Some(System.currentTimeMillis()))
       }
 
@@ -194,7 +196,7 @@ private[delta] case class DeltaMetadataWriter(
 
       // Commit the information to the DeltaLog
       val op =
-        DeltaOperations.Write(mode, None, options.replaceWhere, options.userMetadata)
+        DeltaOperations.Write(mode, None, deltaOptions.replaceWhere, deltaOptions.userMetadata)
       txn.commit(actions = actions, op = op, tags = tags)
     }
   }
@@ -256,6 +258,8 @@ private[delta] case class DeltaMetadataWriter(
    *   files to add
    * @param removeFiles
    *   files to remove
+   * @param extraConfiguration
+   *   extra configuration to apply
    * @return
    *   the sequence of file actions to save in the commit log(add, remove...)
    */
@@ -263,7 +267,8 @@ private[delta] case class DeltaMetadataWriter(
       txn: OptimisticTransaction,
       tableChanges: TableChanges,
       addFiles: Seq[AddFile],
-      removeFiles: Seq[RemoveFile]): Seq[Action] = {
+      removeFiles: Seq[RemoveFile],
+      extraConfiguration: Configuration): Seq[Action] = {
 
     if (txn.readVersion > -1) {
       // This table already exists, check if the insert is valid.
@@ -275,14 +280,20 @@ private[delta] case class DeltaMetadataWriter(
         DeltaLog.assertRemovable(txn.snapshot)
       }
     }
-    val rearrangeOnly = options.rearrangeOnly
+    val rearrangeOnly = deltaOptions.rearrangeOnly
 
     val isOptimizeOperation: Boolean = tableChanges.isOptimizeOperation
 
     // The Metadata can be updated only once in a single transaction
     // If a new space revision or a new replicated set is detected,
     // we update everything in the same operation
-    updateQbeastMetadata(txn, schema, isOverwriteOperation, rearrangeOnly, tableChanges)
+    updateQbeastMetadata(
+      txn,
+      schema,
+      isOverwriteOperation,
+      rearrangeOnly,
+      tableChanges,
+      qbeastOptions)
 
     if (txn.readVersion < 0) {
       // Initialize the log path

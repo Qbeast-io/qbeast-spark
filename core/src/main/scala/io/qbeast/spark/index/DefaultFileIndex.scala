@@ -13,14 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.delta
+package io.qbeast.spark.index
 
+import io.qbeast.core.model.QbeastSnapshot
 import io.qbeast.spark.index.query.QueryFiltersUtils
+import io.qbeast.spark.index.strategies.DefaultListFilesStrategy
+import io.qbeast.spark.index.strategies.SamplingListFilesStrategy
 import org.apache.hadoop.fs.Path
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.delta.files.TahoeLogFileIndex
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.datasources.FileIndex
 import org.apache.spark.sql.execution.datasources.PartitionDirectory
 import org.apache.spark.sql.execution.SQLExecution
@@ -30,33 +31,35 @@ import org.apache.spark.sql.SparkSession
 /**
  * Default implementation of the FileIndex.
  *
- * @param target
- *   the target file index implemented by Delta
+ * @param qbeastSnapshot
+ *   the qbeast snapshot instance
  */
-class DefaultFileIndex private (target: TahoeLogFileIndex)
+class DefaultFileIndex private (qbeastSnapshot: QbeastSnapshot)
     extends FileIndex
     with QueryFiltersUtils
     with Logging
     with Serializable {
 
-  override def rootPaths: Seq[Path] = target.rootPaths
+  private val targetFileIndex = qbeastSnapshot.loadFileIndex()
+
+  override def rootPaths: Seq[Path] = targetFileIndex.rootPaths
 
   override def listFiles(
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
     logFilters(partitionFilters, dataFilters)
     val strategy = if (haveQbeastWeightExpression(dataFilters)) {
-      SamplingListFilesStrategy
+      SamplingListFilesStrategy(qbeastSnapshot)
     } else {
       DefaultListFilesStrategy
     }
-    strategy.listFiles(target, partitionFilters, dataFilters)
+    strategy.listFiles(targetFileIndex, partitionFilters, dataFilters)
   }
 
   private def logFilters(
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Unit = {
-    val context = target.spark.sparkContext
+    val context = SparkSession.active.sparkContext
     val execId = context.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
     val partitionFiltersInfo = partitionFilters.map(_.toString).mkString(" ")
     logInfo(s"DefaultFileIndex partition filters (exec id $execId): $partitionFiltersInfo")
@@ -64,13 +67,13 @@ class DefaultFileIndex private (target: TahoeLogFileIndex)
     logInfo(s"DefaultFileIndex data filters (exec id $execId): $dataFiltersInfo")
   }
 
-  override def inputFiles: Array[String] = target.inputFiles
+  override def inputFiles: Array[String] = targetFileIndex.inputFiles
 
-  override def refresh(): Unit = target.refresh()
+  override def refresh(): Unit = targetFileIndex.refresh()
 
-  override def sizeInBytes: Long = target.sizeInBytes
+  override def sizeInBytes: Long = targetFileIndex.sizeInBytes
 
-  override def partitionSchema: StructType = target.partitionSchema
+  override def partitionSchema: StructType = targetFileIndex.partitionSchema
 }
 
 /**
@@ -81,19 +84,13 @@ object DefaultFileIndex {
   /**
    * Creates a new instance from given spark session and path.
    *
-   * @param spark
-   *   the Spark session
-   * @param path
-   *   the table path
+   * @param qbeastSnapshot
+   *   a qbeast snapshot instance
    * @return
    *   a new instance
    */
-  def apply(spark: SparkSession, path: Path): DefaultFileIndex = {
-    val log = DeltaLog.forTable(spark, path)
-    val snapshot = log.update()
-    val target =
-      TahoeLogFileIndex(spark, log, path, snapshot, Seq.empty, isTimeTravelQuery = false)
-    new DefaultFileIndex(target)
+  def apply(qbeastSnapshot: QbeastSnapshot): DefaultFileIndex = {
+    new DefaultFileIndex(qbeastSnapshot)
   }
 
 }
