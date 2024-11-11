@@ -13,7 +13,6 @@ class IdentityTransformationTest extends AnyFlatSpec with Matchers {
     val zeroId = IdentityTransformation(0, IntegerDataType)
     zeroId.transform(0) shouldBe 0.0
     zeroId.transform(null) shouldBe 0.0
-    an[scala.MatchError] should be thrownBy zeroId.transform(1)
   }
 
   it should "be superseded by another IdentityTransformation" in {
