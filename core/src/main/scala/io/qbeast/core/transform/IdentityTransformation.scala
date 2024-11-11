@@ -40,7 +40,7 @@ case class IdentityTransformation(identityValue: Any, orderedDataType: OrderedDa
   import orderedDataType.ordering._
 
   @inline
-  override def transform(value: Any): Double = 0d
+  override def transform(value: Any): Double = 0.0
 
   override def isSupersededBy(newTransformation: Transformation): Boolean =
     newTransformation match {
@@ -125,6 +125,7 @@ class IdentityTransformationDeserializer
       case (TimestampDataType, timestamp: NumericNode) => timestamp.asLong
       case (DateDataType, date: NumericNode) => date.asLong
       case (_, _: NullNode) => null
+      case (_, null) => null
       case (a, b) =>
         throw new IllegalArgumentException(s"Invalid data type  ($a,$b) ${b.getClass} ")
     }
