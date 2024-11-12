@@ -60,6 +60,8 @@ class QbeastColumnsTest extends AnyFlatSpec with Matchers {
     columns1.hasCubeToReplicateColumn shouldBe false
     columns1.cubeToRollupColumnIndex shouldBe -1
     columns1.hasCubeToRollupColumn shouldBe false
+    columns1.filenameColumnIndex shouldBe -1
+    columns1.hasFilenameColumn shouldBe false
 
     val schema2 = StructType(
       Seq(
@@ -68,7 +70,9 @@ class QbeastColumnsTest extends AnyFlatSpec with Matchers {
         StructField("B", StringType),
         StructField(QbeastColumns.cubeToReplicateColumnName, BinaryType),
         StructField("C", StringType),
-        StructField(QbeastColumns.cubeToRollupColumnName, BinaryType)))
+        StructField(QbeastColumns.cubeToRollupColumnName, BinaryType),
+        StructField("D", StringType),
+        StructField(QbeastColumns.filenameColumnName, StringType)))
     val columns2 = QbeastColumns(schema2)
     columns2.weightColumnIndex shouldBe -1
     columns2.hasWeightColumn shouldBe false
@@ -82,6 +86,8 @@ class QbeastColumnsTest extends AnyFlatSpec with Matchers {
     columns2.hasCubeToReplicateColumn shouldBe true
     columns2.cubeToRollupColumnIndex shouldBe 5
     columns2.hasCubeToRollupColumn shouldBe true
+    columns2.filenameColumnIndex shouldBe 7
+    columns2.hasFilenameColumn shouldBe true
   }
 
   it should "implement contains correctly" in {
