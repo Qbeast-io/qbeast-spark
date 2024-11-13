@@ -1,5 +1,6 @@
 package io.qbeast.core.transform
 
+import io.qbeast.core.model.mapper
 import io.qbeast.core.model.IntegerDataType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -13,6 +14,26 @@ class IdentityTransformationTest extends AnyFlatSpec with Matchers {
     val zeroId = IdentityTransformation(0, IntegerDataType)
     zeroId.transform(0) shouldBe 0.0
     zeroId.transform(null) shouldBe 0.0
+  }
+
+  it should "serialize and deserialize correctly" in {
+    val idZero = IdentityTransformation(0, IntegerDataType)
+    val jsonZero = s"""{"className":"io.qbeast.core.transform.IdentityTransformation",
+                  |"identityValue":0,
+                  |"orderedDataType":"IntegerDataType"}""".stripMargin.replace("\n", "")
+    mapper.writeValueAsString(idZero) shouldBe jsonZero
+    mapper.readValue[IdentityTransformation](
+      jsonZero,
+      classOf[IdentityTransformation]) shouldBe idZero
+
+    val idNull = IdentityTransformation(null, IntegerDataType)
+    val jsonNull = s"""{"className":"io.qbeast.core.transform.IdentityTransformation",
+                      |"identityValue":null,
+                      |"orderedDataType":"IntegerDataType"}""".stripMargin.replace("\n", "")
+    mapper.writeValueAsString(idNull) shouldBe jsonNull
+    mapper.readValue[IdentityTransformation](
+      jsonNull,
+      classOf[IdentityTransformation]) shouldBe idNull
   }
 
   it should "be superseded by another IdentityTransformation" in {

@@ -15,6 +15,7 @@
  */
 package io.qbeast.core.transform
 
+import io.qbeast.core.model.mapper
 import io.qbeast.core.model.IntegerDataType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -58,6 +59,23 @@ class LinearTransformationTest extends AnyFlatSpec with Matchers {
     val linearT = LinearTransformation(0, 10000, IntegerDataType)
     linearT.nullValue.asInstanceOf[Int] should be > 0
     linearT.nullValue.asInstanceOf[Int] should be <= 10000
+  }
+
+  it should "serialize and deserialize correctly" in {
+    val className = "io.qbeast.core.transform.LinearTransformation"
+    val minNumber = -10
+    val maxNumber = 10
+    val nullValue = 0
+    val orderedDataType = IntegerDataType
+
+    val linear = LinearTransformation(minNumber, maxNumber, nullValue, orderedDataType)
+    val json = s"""{"className":"$className",
+         |"minNumber":$minNumber,
+         |"maxNumber":$maxNumber,
+         |"nullValue":$nullValue,
+         |"orderedDataType":"${orderedDataType.name}"}""".stripMargin.replace("\n", "")
+    mapper.writeValueAsString(linear) shouldBe json
+    mapper.readValue[LinearTransformation](json, classOf[LinearTransformation]) shouldBe linear
   }
 
   it should "be superseded by LinearTransformations" in {
