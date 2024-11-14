@@ -56,11 +56,11 @@ class TransformerTest extends AnyFlatSpec with Matchers {
     val dataType = IntegerDataType
     val transformer = Transformer(columnName, dataType)
 
-    val transformation = Map("a_min" -> 0, "a_max" -> 1)
     transformer
-      .makeTransformation(transformation) should matchPattern {
+      .makeTransformation(Map("a_min" -> 0, "a_max" -> 1)) should matchPattern {
       case LinearTransformation(0, 1, _, IntegerDataType) =>
     }
+
   }
 
   it should "create the correct Transformation(IdentityTransformation)" in {
@@ -78,6 +78,15 @@ class TransformerTest extends AnyFlatSpec with Matchers {
       case IdentityTransformation(null, IntegerDataType) =>
     }
 
+    transformer
+      .makeTransformation(Map("a_min" -> null, "a_max" -> 1)) should matchPattern {
+      case IdentityTransformation(1, IntegerDataType) =>
+    }
+
+    transformer
+      .makeTransformation(Map("a_min" -> 1, "a_max" -> null)) should matchPattern {
+      case IdentityTransformation(1, IntegerDataType) =>
+    }
   }
 
   it should "create the correct Transformation(LinearTransformation with Timestamp)" in {

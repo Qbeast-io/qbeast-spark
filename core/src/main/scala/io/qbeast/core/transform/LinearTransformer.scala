@@ -55,23 +55,17 @@ case class LinearTransformer(columnName: String, dataType: QDataType) extends Tr
       names = Seq(colMax, colMin),
       predicates = Seq(s"max($columnName) AS $colMax", s"min($columnName) AS $colMin"))
 
-  override def makeTransformation(row: String => Any): Transformation = {
-    val minAux = row(colMin)
-    val maxAux = row(colMax)
-    if (minAux == maxAux) {
-      val identityValue = getValue(minAux)
-      dataType match {
-        case ordered: OrderedDataType => IdentityTransformation(identityValue, ordered)
-      }
-    } else {
-      // otherwise we pick the min and max
-      val min = getValue(minAux)
-      val max = getValue(maxAux)
-      dataType match {
-        case ordered: OrderedDataType => LinearTransformation(min, max, ordered)
-      }
-    }
-
+  override def makeTransformation(row: String => Any): Transformation = dataType match {
+    case ordered: OrderedDataType =>
+      val min = getValue(row(colMin))
+      val max = getValue(row(colMax))
+      if (min == max || min == null || max == null) {
+        val identityValue = if (min == null) max else min
+        IdentityTransformation(identityValue, ordered)
+      } else LinearTransformation(min, max, ordered)
+    case _ =>
+      throw new IllegalArgumentException(
+        s"LinearTransformer does not support dataType: $dataType")
   }
 
   override protected def transformerType: TransformerType = LinearTransformer
