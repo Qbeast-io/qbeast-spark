@@ -54,7 +54,7 @@ object DeltaRollupDataWriter extends RollupDataWriter with DeltaStatsCollectionU
     val fileStatsTracker = getFileStatsTracker(tableId, data)
     val trackers = statsTrackers ++ fileStatsTracker
 
-    val extendedData = extendDataWithCubeToRollup(data, tableChanges)
+    val extendedData = extendDataWithFileUUID(data, tableChanges)
     val filesAndStats = doWrite(tableId, schema, extendedData, tableChanges, trackers)
 
     val stats = filesAndStats.map(_._2)
