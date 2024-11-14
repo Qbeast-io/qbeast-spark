@@ -189,23 +189,23 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
   }
 
-  it should "not compute weight for descendent of leaf cubes" in {
-    val c0 = CubeId.root(2)
-    val c1 = c0.firstChild
+  it should "not compute weight for descendents of leaf cubes" in {
+    val root = CubeId.root(2)
+    val c1 = root.firstChild
     val c2 = c1.firstChild
+    val c3 = c2.firstChild
 
-    skipCube(c0, Map.empty, isReplication = false) shouldBe false
+    skipCube(root, Map.empty) shouldBe false
 
-    skipCube(c1, Map(c0 -> 0.9), isReplication = false) shouldBe false
+    skipCube(c1, Map(root -> 0.9)) shouldBe false
 
-    skipCube(c2, Map(c0 -> 0.9, c1 -> 1d), isReplication = false) shouldBe true
+    skipCube(c2, Map(root -> 0.9, c1 -> 1d)) shouldBe true
 
-    skipCube(c2, Map(c0 -> 0.9, c1 -> 1d), isReplication = true) shouldBe false
+    skipCube(c3, Map(root -> 0.9, c1 -> 1d)) shouldBe true
   }
 
   it should "compute root for all partitions" in withSpark { spark =>
     import spark.implicits._
-
     // Repartition the data to make sure no empty partitions
     // The amount of data we have for each partition is much smaller
     // than the bufferCapacity
@@ -219,33 +219,34 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val dataFrameStats = getDataFrameStats(data.toDF(), columnTransformers)
     val numElements = dataFrameStats.getAs[Long]("count")
 
-    val newRevision =
+    val revisionToUse =
       calculateRevisionChanges(dataFrameStats, indexStatus.revision).get.createNewRevision
 
     val weightedDataFrame = data.withColumn(weightColumnName, qbeastHash(rand()))
 
     // Compute partition-level cube domains
-    val partitionCubeDomains: Dataset[CubeDomain] =
+    val inputDataPartitionCubeDomains: Dataset[CubeDomain] =
       weightedDataFrame
         .transform(
           computePartitionCubeDomains(
             numElements,
-            newRevision,
+            revisionToUse,
             indexStatus,
-            isReplication = false))
+            isReplication = false,
+            isNewRevision = true))
 
-    val cubeCount = partitionCubeDomains
+    val cubeCount = inputDataPartitionCubeDomains
       .groupBy("cubeBytes")
       .count()
       .map { row =>
         val bytes = row.getAs[Array[Byte]](0)
         val cnt = row.getAs[Long](1)
-        (newRevision.createCubeId(bytes), cnt)
+        (revisionToUse.createCubeId(bytes), cnt)
       }
       .collect()
       .toMap
 
-    val root = newRevision.createCubeIdRoot()
+    val root = revisionToUse.createCubeIdRoot()
     cubeCount(root).toInt shouldBe 50
   }
 
@@ -262,37 +263,32 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val numElements = dataFrameStats.getAs[Long]("count")
 
     // The revision to use
-    val newRevision =
+    val revisionToUse =
       calculateRevisionChanges(dataFrameStats, indexStatus.revision).get.createNewRevision
 
     // Add a random weight column
     val weightedDataFrame = data.withColumn(weightColumnName, qbeastHash(rand()))
 
-    // Compute partition-level cube domains
-    val partitionCubeDomains: Dataset[CubeDomain] =
+    // Compute cube domains for the input data
+    val inputDataCubeDomains: Map[CubeId, Double] =
       weightedDataFrame
         .transform(
-          computePartitionCubeDomains(
+          computeInputDataCubeDomains(
             numElements,
-            newRevision,
+            revisionToUse,
             indexStatus,
-            isReplication = false))
-
-    // Compute global cube domains for the current write
-    val globalCubeDomains: Map[CubeId, Double] =
-      partitionCubeDomains
-        .transform(computeGlobalCubeDomains(newRevision))
+            isNewRevision = true))
         .collect()
         .toMap
 
     // Cube domains should monotonically decrease
     checkDecreasingBranchDomain(
-      newRevision.createCubeIdRoot(),
-      globalCubeDomains,
+      revisionToUse.createCubeIdRoot(),
+      inputDataCubeDomains,
       10002d) shouldBe true
 
     // Root should be present in all partitions, its global domain should be the elementCount
-    globalCubeDomains(newRevision.createCubeIdRoot()).toLong shouldBe numElements
+    inputDataCubeDomains(revisionToUse.createCubeIdRoot()).toLong shouldBe numElements
   }
 
   it should "compute existing cube domains correctly" in {
@@ -362,47 +358,51 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val dataFrameStats = getDataFrameStats(data.toDF(), columnTransformers)
     val numElements = dataFrameStats.getAs[Long]("count")
 
-    val newRevision =
+    val revisionToUse =
       calculateRevisionChanges(dataFrameStats, indexStatus.revision).get.createNewRevision
 
     val weightedDataFrame = data.withColumn(weightColumnName, qbeastHash(rand()))
 
-    // Compute partition-level cube domains
-    val partitionCubeDomains: Dataset[CubeDomain] =
-      weightedDataFrame.transform(
-        computePartitionCubeDomains(numElements, newRevision, indexStatus, isReplication = false))
-
-    // Compute global cube domains for the current write
-    val globalCubeDomains =
-      partitionCubeDomains
-        .transform(computeGlobalCubeDomains(newRevision))
+    // Compute cube domains for the input data
+    val inputDataCubeDomains: Map[CubeId, Double] =
+      weightedDataFrame
+        .transform(
+          computeInputDataCubeDomains(
+            numElements,
+            revisionToUse,
+            indexStatus,
+            isNewRevision = true))
         .collect()
         .toMap
 
     // Merge globalCubeDomain with the existing cube domains
-    val mergedCubeDomains: Map[CubeId, Double] =
-      mergeNewAndOldCubeDomains(globalCubeDomains, indexStatus)
+    val updatedCubeDomains: Map[CubeId, Double] =
+      computeUpdatedCubeDomains(inputDataCubeDomains, indexStatus, isNewRevision = true)
 
     // Populate NormalizedWeight level-wise from top to bottom
-    val estimatedCubeWeights: Map[CubeId, Weight] =
-      estimateCubeWeights(mergedCubeDomains.toSeq, indexStatus, isReplication = false)
+    val updatedCubeWeights: Map[CubeId, Weight] =
+      estimateUpdatedCubeWeights(
+        updatedCubeDomains.toSeq,
+        indexStatus,
+        revisionToUse,
+        isNewRevision = true)
 
     // Cubes with a weight lager than 1d should not have children
-    val leafCubesByWeight = estimatedCubeWeights.filter(cw => cw._2.fraction >= 1d).keys
+    val leafCubesByWeight = updatedCubeWeights.filter(cw => cw._2.fraction >= 1d).keys
     leafCubesByWeight.exists(cube =>
-      cube.children.exists(estimatedCubeWeights.contains)) shouldBe false
+      cube.children.exists(updatedCubeWeights.contains)) shouldBe false
 
     // Test estimatedCubeWeights is monotonically increasing in all branches
-    estimatedCubeWeights.toSeq
+    updatedCubeWeights.toSeq
       .sortBy(_._1)
       .foreach { case (cube, weight) =>
         cube.children
-          .filter(estimatedCubeWeights.contains)
-          .foreach(child => weight < estimatedCubeWeights(child))
+          .filter(updatedCubeWeights.contains)
+          .foreach(child => weight < updatedCubeWeights(child))
       }
   }
 
-  "computeBlockSizes" should "should calculate correct block sizes" in {
+  "computeInputDataBlockElementCounts" should "should calculate correct block element counts" in {
     // Sample data
     val root = CubeId.root(2)
     val kids = root.children // 1000 => Domain  2655 -> ebs(deltaW-> 0.1 * 100) =>10
@@ -413,10 +413,10 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val ca = cKids.next() // 500 -> ebs(deltaW -> 0.1 * 50) => 5
     val cb = cKids.next() // 600 -> ebs(deltaW -> 0.2* 60) => 11
 
-    val globalCubeDomainChanges: Map[CubeId, Double] =
+    val inputDataCubeDomains: Map[CubeId, Double] =
       Map(root -> 100d, a -> 52d, b -> 35d, c -> 100d, ca -> 50d, cb -> 60d)
 
-    val estimatedCubeWeights: Map[CubeId, Weight] =
+    val updatedCubeWeights: Map[CubeId, Weight] =
       Map(
         root -> Weight(0.1),
         a -> Weight(0.2),
@@ -431,7 +431,9 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
 
     // Call the method
     val result =
-      DoublePassOTreeDataAnalyzer.computeBlockSizes(globalCubeDomainChanges, estimatedCubeWeights)
+      DoublePassOTreeDataAnalyzer.computeInputDataBlockElementCounts(
+        inputDataCubeDomains,
+        updatedCubeWeights)
 
     // Assert the results
     result shouldBe expectedBlockSizes
