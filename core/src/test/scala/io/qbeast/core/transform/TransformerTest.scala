@@ -51,19 +51,45 @@ class TransformerTest extends AnyFlatSpec with Matchers {
 
   }
 
-  it should "makeTransformation" in {
+  "makeTransformation" should "create the correct Transformation(LinearTransformation)" in {
     val columnName = "a"
     val dataType = IntegerDataType
     val transformer = Transformer(columnName, dataType)
 
-    val transformation = Map("a_min" -> 0, "a_max" -> 1)
     transformer
-      .makeTransformation(transformation) should matchPattern {
+      .makeTransformation(Map("a_min" -> 0, "a_max" -> 1)) should matchPattern {
       case LinearTransformation(0, 1, _, IntegerDataType) =>
+    }
+
+  }
+
+  it should "create the correct Transformation(IdentityTransformation)" in {
+    val columnName = "a"
+    val dataType = IntegerDataType
+    val transformer = Transformer(columnName, dataType)
+
+    transformer
+      .makeTransformation(Map("a_min" -> 0, "a_max" -> 0)) should matchPattern {
+      case IdentityTransformation(0, IntegerDataType) =>
+    }
+
+    transformer
+      .makeTransformation(Map("a_min" -> null, "a_max" -> null)) should matchPattern {
+      case IdentityTransformation(null, IntegerDataType) =>
+    }
+
+    transformer
+      .makeTransformation(Map("a_min" -> null, "a_max" -> 1)) should matchPattern {
+      case IdentityTransformation(1, IntegerDataType) =>
+    }
+
+    transformer
+      .makeTransformation(Map("a_min" -> 1, "a_max" -> null)) should matchPattern {
+      case IdentityTransformation(1, IntegerDataType) =>
     }
   }
 
-  it should "makeTransformation with Timestamp data type" in {
+  it should "create the correct Transformation(LinearTransformation with Timestamp)" in {
     val columnName = "a"
     val dataType = TimestampDataType
     val transformer = Transformer(columnName, dataType)
@@ -81,7 +107,7 @@ class TransformerTest extends AnyFlatSpec with Matchers {
 
   }
 
-  it should "makeTransformation with Date data type" in {
+  it should "create the correct Transformation(LinearTransformation with Date)" in {
     val columnName = "a"
     val dataType = DateDataType
     val transformer = Transformer(columnName, dataType)
@@ -99,7 +125,7 @@ class TransformerTest extends AnyFlatSpec with Matchers {
 
   }
 
-  it should "makeTransformation with String quantiles" in {
+  it should "create the correct Transformation(CDFStringQuantilesTransformation)" in {
     val columnName = "s"
     val dataType = StringDataType
     val transformer = Transformer("quantiles", columnName, dataType)
@@ -107,10 +133,21 @@ class TransformerTest extends AnyFlatSpec with Matchers {
 
     val quantiles = Seq("str_1", "str_2", "str_3", "str_4", "str_5", "str_6")
     val transformation = Map(s"${columnName}_quantiles" -> quantiles)
-    transformer.makeTransformation(transformation) match {
-      case _ @CDFStringQuantilesTransformation(quantilesT) =>
-        quantiles == quantilesT shouldBe true
-      case _ => fail("should always be CDFSringQuantilesTransformation")
+    transformer.makeTransformation(transformation) should matchPattern {
+      case CDFStringQuantilesTransformation(qt) if qt == quantiles =>
+    }
+
+  }
+
+  it should "create the correct Transformation(CDFNumericQuantilesTransformation)" in {
+    val columnName = "a"
+    val transformer = Transformer("quantiles", columnName, IntegerDataType)
+    transformer shouldBe a[CDFNumericQuantilesTransformer]
+
+    val quantiles = (1 to 100).map(_.toDouble)
+    val transformation = Map(s"${columnName}_quantiles" -> quantiles)
+    transformer.makeTransformation(transformation) should matchPattern {
+      case CDFNumericQuantilesTransformation(qt, _) if qt == quantiles =>
     }
 
   }

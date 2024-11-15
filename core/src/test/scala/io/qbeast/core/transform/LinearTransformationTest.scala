@@ -15,9 +15,12 @@
  */
 package io.qbeast.core.transform
 
+import io.qbeast.core.model.mapper
 import io.qbeast.core.model.IntegerDataType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import scala.annotation.nowarn
 
 class LinearTransformationTest extends AnyFlatSpec with Matchers {
 
@@ -58,77 +61,116 @@ class LinearTransformationTest extends AnyFlatSpec with Matchers {
     linearT.nullValue.asInstanceOf[Int] should be <= 10000
   }
 
-  it should "merge transformations correctly" in {
-    val nullValue = 5000
-    val linearT = LinearTransformation(0, 10000, nullValue, IntegerDataType)
+  it should "serialize and deserialize correctly" in {
+    val className = "io.qbeast.core.transform.LinearTransformation"
+    val minNumber = -10
+    val maxNumber = 10
+    val nullValue = 0
+    val orderedDataType = IntegerDataType
 
-    linearT.merge(
-      LinearTransformation(0, 90000, 70725, IntegerDataType)) shouldBe LinearTransformation(
-      0,
-      90000,
-      70725,
-      IntegerDataType)
+    val linear = LinearTransformation(minNumber, maxNumber, nullValue, orderedDataType)
+    val json = s"""{"className":"$className",
+         |"minNumber":$minNumber,
+         |"maxNumber":$maxNumber,
+         |"nullValue":$nullValue,
+         |"orderedDataType":"${orderedDataType.name}"}""".stripMargin.replace("\n", "")
+    mapper.writeValueAsString(linear) shouldBe json
+    mapper.readValue[LinearTransformation](json, classOf[LinearTransformation]) shouldBe linear
+  }
 
-    linearT.merge(
-      LinearTransformation(-100, 10000, 600, IntegerDataType)) shouldBe LinearTransformation(
-      -100,
-      10000,
-      600,
-      IntegerDataType)
+  it should "be superseded by LinearTransformations" in {
+    val linearT = LinearTransformation(-10, 10, 0, IntegerDataType)
+    linearT.isSupersededBy(LinearTransformation(-10, 10, 0, IntegerDataType)) shouldBe false
+    linearT.isSupersededBy(LinearTransformation(-20, 10, 0, IntegerDataType)) shouldBe true
+    linearT.isSupersededBy(LinearTransformation(-10, 20, 0, IntegerDataType)) shouldBe true
+  }
 
-    linearT.merge(
-      LinearTransformation(-100, 90000, 57890, IntegerDataType)) shouldBe LinearTransformation(
-      -100,
-      90000,
-      57890,
-      IntegerDataType)
+  it should "merge with LinearTransformations" in {
+    val linearT = LinearTransformation(-10, 10, 0, IntegerDataType)
+    // [-10, 10] + [-20, 0] => [-20, 10]
+    linearT.merge(LinearTransformation(-20, 0, 0, IntegerDataType)) should matchPattern {
+      case LinearTransformation(-20, 10, _, IntegerDataType) =>
+    }
+    // [-10, 10] + [0, 20] => [-10, 20]
+    linearT.merge(LinearTransformation(0, 20, 0, IntegerDataType)) should matchPattern {
+      case LinearTransformation(-10, 20, _, IntegerDataType) =>
+    }
+    // [-10, 10] + [-20, 20] => [-20, 20]
+    linearT.merge(LinearTransformation(-20, 20, 0, IntegerDataType)) should matchPattern {
+      case LinearTransformation(-20, 20, _, IntegerDataType) =>
+    }
+  }
 
-    linearT.merge(LinearTransformation(6, 9, 7, IntegerDataType)) shouldBe LinearTransformation(
-      0,
-      10000,
-      7,
-      IntegerDataType)
+  it should "be superseded by IdentityTransformations" in {
+    val linearT = LinearTransformation(-10, 10, 0, IntegerDataType)
+    linearT.isSupersededBy(IdentityTransformation(null, IntegerDataType)) shouldBe false
+    linearT.isSupersededBy(IdentityTransformation(0, IntegerDataType)) shouldBe false
+    linearT.isSupersededBy(IdentityTransformation(-20, IntegerDataType)) shouldBe true
+    linearT.isSupersededBy(IdentityTransformation(20, IntegerDataType)) shouldBe true
+  }
+
+  it should "merge with IdentityTransformations" in {
+    val linearT = LinearTransformation(-10, 10, 0, IntegerDataType)
+    // [null] + [-10, 10] => [-10, 10]
+    linearT.merge(IdentityTransformation(null, IntegerDataType)) should matchPattern {
+      case LinearTransformation(-10, 10, _, IntegerDataType) =>
+    }
+    // [1] + [-10, 10] => [-10, 10]
+    linearT.merge(IdentityTransformation(1, IntegerDataType)) should matchPattern {
+      case LinearTransformation(-10, 10, _, IntegerDataType) =>
+    }
+    // [-20] + [-10, 10] => [-20, 10]
+    linearT.merge(IdentityTransformation(-20, IntegerDataType)) should matchPattern {
+      case LinearTransformation(-20, 10, _, IntegerDataType) =>
+    }
+    // [20] + [-10, 10] => [-10, 20]
+    linearT.merge(IdentityTransformation(20, IntegerDataType)) should matchPattern {
+      case LinearTransformation(-10, 20, _, IntegerDataType) =>
+    }
 
   }
 
-  it should "merge IdentityTransformations correctly" in {
-    val nullValue = 5000
-    val linearT = LinearTransformation(0, 10000, nullValue, IntegerDataType)
-
-    var otherNullValue =
-      LinearTransformationUtils.generateRandomNumber(0, 90000, Option(42.toLong))
-    linearT.merge(IdentityToZeroTransformation(90000)) shouldBe LinearTransformation(
-      0,
-      90000,
-      otherNullValue,
-      IntegerDataType)
-
-    otherNullValue =
-      LinearTransformationUtils.generateRandomNumber(-100, 10000, Option(42.toLong))
-    linearT.merge(IdentityToZeroTransformation(-100)) shouldBe LinearTransformation(
-      -100,
-      10000,
-      otherNullValue,
-      IntegerDataType)
-
-    otherNullValue = LinearTransformationUtils.generateRandomNumber(0, 10000, Option(42.toLong))
-    linearT.merge(IdentityToZeroTransformation(10)) shouldBe LinearTransformation(
-      0,
-      10000,
-      otherNullValue,
-      IntegerDataType)
+  it should "be superseded by IdentityToZeroTransformations" in {
+    @nowarn("cat=deprecation") def test(): Unit = {
+      val linearT = LinearTransformation(-10, 10, 0, IntegerDataType)
+      linearT.isSupersededBy(IdentityToZeroTransformation(1)) shouldBe false
+      linearT.isSupersededBy(IdentityToZeroTransformation(-20)) shouldBe true
+      linearT.isSupersededBy(IdentityToZeroTransformation(20)) shouldBe true
+    }
+    test()
   }
 
-  it should "detect new transformations that superseed" in {
-    val nullValue = 5000
-    val linearT = LinearTransformation(0, 10000, nullValue, IntegerDataType)
+  it should "merge with IdentityToZeroTransformations" in {
+    @nowarn("cat=deprecation") def test(): Unit = {
+      val linearT = LinearTransformation(-10, 10, 0, IntegerDataType)
+      linearT.merge(IdentityToZeroTransformation(1)) should matchPattern {
+        case LinearTransformation(-10, 10, _, IntegerDataType) =>
+      }
+      linearT.merge(IdentityToZeroTransformation(-20)) should matchPattern {
+        case LinearTransformation(-20, 10, _, IntegerDataType) =>
+      }
+      linearT.merge(IdentityToZeroTransformation(20)) should matchPattern {
+        case LinearTransformation(-10, 20, _, IntegerDataType) =>
+      }
+    }
+    test()
+  }
 
-    linearT.isSupersededBy(IdentityToZeroTransformation(90000)) shouldBe true
+  it should "not by superseded by NullToZeroTransformation" in {
+    @nowarn("cat=deprecation") def test(): Unit = {
+      LinearTransformation(-10, 10, 0, IntegerDataType).isSupersededBy(
+        NullToZeroTransformation) shouldBe false
+    }
+    test()
 
-    linearT.isSupersededBy(IdentityToZeroTransformation(-100)) shouldBe true
+  }
 
-    linearT.isSupersededBy(IdentityToZeroTransformation(10)) shouldBe false
-
+  it should "merge with NullToZeroTransformation" in {
+    @nowarn("cat=deprecation") def test(): Unit = {
+      val linearT = LinearTransformation(-10, 10, 0, IntegerDataType)
+      linearT.merge(NullToZeroTransformation) shouldBe linearT
+    }
+    test()
   }
 
 }

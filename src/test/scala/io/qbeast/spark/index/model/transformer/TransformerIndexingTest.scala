@@ -15,6 +15,12 @@
  */
 package io.qbeast.spark.index.model.transformer
 
+import io.qbeast.core.model.LongDataType
+import io.qbeast.core.model.QTableID
+import io.qbeast.core.transform.IdentityTransformation
+import io.qbeast.core.transform.LinearTransformation
+import io.qbeast.core.transform.LinearTransformer
+import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
 import org.apache.spark.sql.functions._
@@ -324,7 +330,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
   it should "don't miss records when indexing null string" in withSparkAndTmpDir(
     (spark, tmpDir) => {
 
-      // Reproducing a particular Github Archive dataset
+      // Reproducing a particular GitHub Archive dataset
       // with all null values in one column
       // and poor cardinality (4 groups) in the other
       import spark.implicits._
@@ -348,6 +354,70 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
         indexed.where(filter).count() shouldBe source.where(filter).count()
       })
 
+    })
+
+  it should
+    "be able to handle an alternating identity append sequence: " +
+    "[null] + [identity_1] + [null] + [identity_2]" in withSparkAndTmpDir((spark, tmpDir) => {
+      import spark.implicits._
+      val nullDf = spark.range(100).map(_ => TestNull(None, None, None))
+      val identityDf_1 = spark.range(100).map(_ => TestNull(None, None, Some(1L)))
+      val identityDf_2 = spark.range(100).map(_ => TestNull(None, None, Some(10L)))
+      // IdentityTransformation(null, _)
+      nullDf.write
+        .mode("overwrite")
+        .option("columnsToIndex", "c")
+        .option("cubeSize", "1000")
+        .format("qbeast")
+        .save(tmpDir)
+
+      // IdentityTransformation(1, _)
+      identityDf_1.write.mode("append").format("qbeast").save(tmpDir)
+
+      // IdentityTransformation(1, _)
+      nullDf.write.mode("append").format("qbeast").save(tmpDir)
+
+      // LinearTransformation(1, 10, _, _)
+      identityDf_2.write.mode("append").format("qbeast").save(tmpDir)
+
+      val snapshot = DeltaQbeastSnapshot(QTableID(tmpDir))
+      val Seq(_, idNullRev, idOneRev, linearRev) = snapshot.loadAllRevisions.sortBy(_.revisionID)
+      idNullRev.columnTransformers.head should matchPattern { case _: LinearTransformer => }
+      idNullRev.transformations.head should matchPattern {
+        case IdentityTransformation(null, LongDataType) =>
+      }
+
+      idOneRev.columnTransformers.head should matchPattern { case _: LinearTransformer => }
+      idOneRev.transformations.head should matchPattern {
+        case IdentityTransformation(1L, LongDataType) =>
+      }
+
+      linearRev.columnTransformers.head should matchPattern { case _: LinearTransformer => }
+      linearRev.transformations.head should matchPattern {
+        case LinearTransformation(1L, 10L, _, LongDataType) =>
+      }
+    })
+
+  it should "be able to handle identity + regular appends" in withSparkAndTmpDir(
+    (spark, tmpDir) => {
+      import spark.implicits._
+
+      val identityDf = spark.range(100).map(_ => TestNull(None, None, Some(-1L)))
+      identityDf.write
+        .mode("overwrite")
+        .option("columnsToIndex", "c")
+        .option("cubeSize", "1000")
+        .format("qbeast")
+        .save(tmpDir)
+
+      val regularDf = spark.range(100).map(i => TestNull(None, None, Some(i.toLong)))
+      regularDf.write.mode("append").format("qbeast").save(tmpDir)
+
+      val revision = DeltaQbeastSnapshot(QTableID(tmpDir)).loadLatestRevision
+      revision.columnTransformers.head should matchPattern { case _: LinearTransformer => }
+      revision.transformations.head should matchPattern {
+        case LinearTransformation(-1L, 99L, _, LongDataType) =>
+      }
     })
 
 }
