@@ -249,4 +249,25 @@ class IndexTest
     }
   }
 
+  it should "work with appends that are always out of range" in withSparkAndTmpDir(
+    (spark, tmpDir) => {
+      var offset = 10000
+      spark
+        .range(offset)
+        .toDF("id")
+        .write
+        .mode("append")
+        .format("qbeast")
+        .option("columnsToIndex", "id")
+        .option("cubeSize", "100")
+        .save(tmpDir)
+      val appendSize = 10
+      val numAppends = 10
+      (1 to numAppends).foreach { i =>
+        val df = spark.range(offset, offset + appendSize).toDF("id")
+        df.write.mode("append").format("qbeast").save(tmpDir)
+        offset += appendSize
+      }
+    })
+
 }
