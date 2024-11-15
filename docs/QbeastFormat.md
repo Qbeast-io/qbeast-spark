@@ -1,206 +1,179 @@
 # Data Lakehouse with Qbeast Format
 
-Based on Delta Lake transaction log protocol, we introduce some changes in order to enable **multi-dimensional indexing** and **efficient sampling** to the current implementation. 
-# Lakehouse and Delta log
-To address many issues with a two-tier **data lake + warehouse** architecture, open format storage layers such as **Delta Lake** use transaction logs on top of object stores for metadata management and to achieve primarily `ACID` properties and table versioning.
+Qbeast-spark in built on top of Delta Lake to enable **multidimensional indexing** and **efficient sampling**.
 
-A **transaction log** in Delta Lake holds information about what objects comprise a table and is stored in the same object store and named as `_delta_log/`. Actions such as `Add` and `Remove` are stored in `JSON` or `parquet` files in chronological order and are consulted before any I/O operation to **reconstruct the latest state of the table**. The actual data objects are stored in `parquet` format.
+We extend the Delta Lake format by storing additional index metadata such as `Revision,` `CubeId,` and `Blocks` in the `/_delta_log.`
+
+They are created during the write operation and are consulted during the read operation to **reconstruct the latest state of the index**.
+
+
+# Lakehouse and Delta Log
+To address many issues with a two-tier **data lake + warehouse** architecture, open table formats such as **Delta Lake** use transaction logs on top of object stores for metadata management and to achieve primarily `ACID` properties and table versioning.
+
+A **transaction log (`_delta_log/`)** in Delta Lake holds information about what objects comprise a table and is stored in the same object store.
+Actions such as `Add` and `Remove` are stored in `JSON` or `parquet` files in chronological order and are accessed before any I/O operation to **reconstruct the latest state of the table**.
+The actual data objects are stored in `parquet` format.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Qbeast-io/qbeast-spark/main/docs/images/delta.png" width="600" height="500" />
 </p>
 
-Following each write transaction is the creation of a new log file. **Table-level transaction atomicity** is achieved by following the `put-if-absent` protocol for log file naming - only one client can create a log file with a particular name when attempted by multiple users. Each action record in the log has a field `modificationTime` as **timestamp**, which forms the basis for `snapshot isolation` for read transactions. Check [here](https://github.com/delta-io/delta/blob/master/PROTOCOL.md) for more details about Delta Lake logs.
+Following each write transaction is the creation of a new log file. **Table-level transaction atomicity** is achieved by following the `put-if-absent` protocol for log file naming - only one client can create a log file with a particular name when attempted by multiple users.
+Each action record in the log has a field `modificationTime` as **timestamp**, which forms the basis for `snapshot isolation` for read transactions. Check [here](https://github.com/delta-io/delta/blob/master/PROTOCOL.md) for more details about Delta Lake logs.
 
 <br/>
 
-# Qbeast-spark on Delta
+# Qbeast-spark
 
-Qbeast format **extends the Delta Lake Format**, so the data is stored in Parquet
-files and the Index Metadata is stored in the Delta log. 
+Qbeast format **extends the Delta Lake Format**, so the data is stored in **Parquet** files and the Index Metadata is stored in the **delta log**.
 
-In more details:
+Qbeast organizes the table data into different Revisions (OTrees, an enhanced version of QuadTrees) that are characterized by different parameters:
 
-* the `schema`, `index columns`, `revisions` and other
-  information which is common for all the blocks is stored in the `metaData`
-  attribute of the Delta log header.
-  ### MetaData of Qbeast on the Delta Log
-  ```json
-  {
-  "metaData": {
-    "id": "aa43874a-9688-4d14-8168-e16088641fdb",
+| Term                  | Description                                          | Example Value          |
+|-----------------------|------------------------------------------------------|------------------------|
+| `indexing columns`    | the columns that are indexed                         | price, product_name    |
+| `column stats`        | the min-max values, quantiles of the indexed columns | (price_min, price_max) |
+| `column transformers` | the transformation applied to the indexed columns    | linear, hash           |
+| `desired cube size`   | the capacity of tree nodes                           | 5000                   |
+
+In this case, the data is indexed by the columns `price` and `product_name` with a desired cube size of 5000.
+We map the indexed columns to a multidimensional space, where each dimension is normalized to the range `[0, 1]`.
+The `price` column is transformed linearly using a min/max scaler, and the `product_name` column is hashed.
+
+The data organized into different tree nodes (cubes) according to their position within the space, as well as their `weight.`
+The coordinates of a records determines the space partition it belongs be, and the `weight` of a record is randomly assigned and dictates its position within the same tree branch.
+
+The transformers and transformations determine how records are indexed:
+
+| Type                  | Transformer                     | Transformation                    | Description                                            | Example Input Column Stats                     |
+|-----------------------|---------------------------------|-----------------------------------|--------------------------------------------------------|------------------------------------------------|
+| linear                | LinearTransformer               | LinearTransformation              | Applies a min/max scaler to the column values          | Optional: {"col_1_min":0, "col_1_max":1}       |                                   
+| linear                | LinearTransformer               | IdentityTransformation            | Maps column values to 0                                | None                                           |
+| quantile(string)      | CDFStringQuantilesTransformer   | CDFStringQuantilesTransformation  | Maps column values to their relative, sorted positions | Required: {"col_1_quantiles": ["a", "b", "c"]} |
+| quantile(numeric)     | CDFNumericQuantilesTransformer  | CDFNumericQuantilesTransformation | Maps column values to their relative, sorted positions | Required: {"col_1_quantiles": [1,2,3,4,5]}     |
+| hash                  | HashTransformer                 | HashTransformation                | Maps column values to their Murmur hash                | None                                           |
+
+
+Example:
+```scala
+df
+ .write
+ .mode("overwrite")
+ .format("qbeast")
+ .option("cubeSize", 5000)
+ .option("columnsToIndex", "price:linear,product_name:quantile,user_id:hash") 
+ .option("columnStats", """{"price_min":0, "price_max":1000, "product_name_quantiles":["product_1","product_100","product_3223"]""")
+ .save("/tmp/qb-testing")
+```
+
+Here, we are writing a DataFrame to a Qbeast table with the columns `price`, `product_name`, and `user_id` indexed.
+
+The `price` column is linearly transformed a min/max range of [0, 1000].
+
+The `product_name` column is transformed using the following quantiles: `["product_1","product_100","product_3223"].`
+
+The values from the `user_id` column are hashed.
+
+If we don't provide the **price** min/max here, the system will calculate the min/max values from the input data.
+`IdentityTransformation` will be used if the price column has only one value.
+
+**If appending a new DataFrame `df2` to the same table, and its values for any indexed column exceed the range of their corresponding existing transformations, the system will create a new revision with the extended Transformations.**
+
+For example, adding a new batch of data with `price` values ranging from 1000 to 2000 will create a new revision with a `price` min/max range of `[0, 2000]`.
+
+Revision information are stored in the `_delta_log` in the forms of `metadata.configuration:`
+
+```json
+{
+"metaData": {
+  "id": "aa43874a-9688-4d14-8168-e16088641fdb",
+  ...
+  "configuration": {
+    "qbeast.lastRevisionID": "1",
+    "qbeast.revision.1": "{\"revisionID\":1,\"timestamp\":1637851757680,\"tableID\":\"/tmp/example-table\",\"desiredCubeSize\":5000,\"columnTransformers\":..}",
     ...
-    // THIS IS THE QBEAST METADATA: INCLUDES REVISION ID, 
-    // COLUMNS, DESIRED CUBE SIZE, ETC.
-    "configuration": {
-      "qbeast.lastRevisionID": "1",
-      "qbeast.revision.1": "{\"revisionID\":1,\"timestamp\":1637851757680,\"tableID\":\"/tmp/qb-testing1584592925006274975\",\"desiredCubeSize\":10000,\"columnTransformers\":..}"
-    },
-    "createdTime": 1637851765848
-  }
-  ```
-* the information about individual blocks of indexed data is stored in the `tags`
-  attribute of the `add` entries of the Delta log.
-  ### AddFile of Qbeast on the Delta Log
-  ```json
-  // ALL INFO IN THE TAGS ATTRIBUTE
-  "tags": { 
-  "revision": "1",
-  "blocks": "[
-    {
-      \"cube\": \"w\",
-      \"minWeight\": 2,
-      \"maxWeight\": 3,
-      \"replicated\": false,
-      \"elementCount\": 4
-    },
-    {
-      \"cube\": \"wg\",
-      \"minWeight\": 5,
-      \"maxWeight\": 6,
-      \"replicated\": false,
-      \"elementCount\": 7
-    },
-  ]"}
-  ```
+  },
+  ...
+}
+```
+`qbeast.revision.1:`
+```json
+{
+    "revisionID": 1,
+    "timestamp": 1637851757680,
+    "tableID": "/tmp/example-table/",
+    "desiredCubeSize": 5000,
+    "columnTransformers": [
+      {
+        "className": "io.qbeast.core.transform.LinearTransformer",
+        "columnName": "price",
+        "dataType": "DoubleDataType"
+      },
+      {
+        "className": "io.qbeast.core.transform.CDFStringQuantilesTransformer",
+        "columnName": "product_name"
+      },
+      {
+        "className": "io.qbeast.core.transform.HashTransformer",
+        "columnName": "user_id",
+        "dataType": "IntegerDataType"
+      }
+    ],
+    "transformations": [
+      {
+        "className": "io.qbeast.core.transform.LinearTransformation",
+        "minNumber": 0,
+        "maxNumber": 100,
+        "nullValue": 43,
+        "orderedDataType": "DoubleDataType"
+      },
+      {
+        "className": "io.qbeast.core.transform.CDFStringQuantilesTransformation",
+        "quantiles": [
+          "product_1",
+          "product_100",
+          "product_3223"
+        ]
+      },
+      {
+        "className": "io.qbeast.core.transform.HashTransformation",
+        "nullValue": -1809672334
+      }
+    ]
+}
 
-Let's take a look to the Index metadata to understand what is written in the Delta Log JSON files.
+```
 
-## Index Metadata
+Each Revision corresponds to an OTree index with a space partition defined by its column transformations.
 
-At a high level:
+The data for each Revision is organized by cubes, which are the nodes of the OTree index.
+Each cube contains blocks of data written in different instances, and the blocks themselves are stored in the Parquet files.
 
-- the index consists of one or more `Otree` instances (search trees) that contain `cubes` (or nodes). 
-- Each cube is made of `blocks` that contain the actual data written by the user. 
-
->All records from the log are of **file-level** information.
-
-
-## AddFile changes
-
-Here you can see the changes on the `AddFile` **`tags`** information
+`AddFile`s in Delta Lake are used to mark the addition of new files to the table. We use its `tags` attribute to store the metadata of the blocks of data written in the files.
 
 ```JSON
-"tags": {
+{"tags": {
   "revision": "1",
-  "blocks": "[
+  "blocks": [
     {
-      \"cube\": \"w\",
-      \"minWeight\": 2,
-      \"maxWeight\": 3,
-      \"replicated\": false,
-      \"elementCount\": 4
-    },
+      "cube": "w",
+      "minWeight": 2,
+      "maxWeight": 3,
+      "elementCount": 4,
+      "replicated": false
+    }, 
     {
-      \"cube\": \"wg\",
-      \"minWeight\": 5,
-      \"maxWeight\": 6,
-      \"replicated\": false,
-      \"elementCount\": 7
-    },
-  ]" 
-}
-```
-
-| Term           | Description                                                                                                                                                 |
-|----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `revision`     | A revision establishes the min-max range for each indexed column, amongst other metadata (creation timestamp, cube size...).                                |
-| `blocks`       | A **list of the blocks** that are stored inside the file. Can belong to different cubes.*                                                                   |
-| `cube`         | The **String representation of the Cube ID**.                                                                                                               |
-| `minWeight`    | The minimum weight of the block.                                                                                                                            |
-| `maxWeight`    | The maximum weight of the block.                                                                                                                            |
-| `elementCount` | The number of elements in the block.                                                                                                                        |
-| `replicated`   | A flag that indicates **if the block is replicated**. Replication is [**not available** from v0.6.0](https://github.com/Qbeast-io/qbeast-spark/issues/282). |
-
-> *Blocks are not directly addressed from the file reader. Check issue [#322](https://github.com/Qbeast-io/qbeast-spark/issues/322) for more info
-
-## MetaData changes
-
-And here the changes on `Metadata` `configuration` map
-
-```json
-{
-  "metaData": {
-    "id": "aa43874a-9688-4d14-8168-e16088641fdb",
-    ...
-    "configuration": {
-      "qbeast.lastRevisionID": "1",
-      "qbeast.revision.1": "{\"revisionID\":1,\"timestamp\":1637851757680,\"tableID\":\"/tmp/qb-testing1584592925006274975\",\"desiredCubeSize\":10000,\"columnTransformers\":..}"
-    },
-    "createdTime": 1637851765848
-  }
-}
-
-```
-We store two different values:
-
-
-| Term                    | Description                                                                                                     |
-|-------------------------|-----------------------------------------------------------------------------------------------------------------|
-| `qbeast.lastRevisionID` | A pointer to the last revision available. This last revision's min-max includes the space for the whole dataset. |
-| `qb.revision.$number`   | The metadata of the Revision, in `JSON` style.                                                                    |
-
-## Revision
-
-A closer look to the Revision Schema:
-
-```json
-
-{
-  "revisionID":1, // Incremental ID
-  "timestamp":1637851757680, // Time of creation
-  "tableID":"/tmp/qb-testing1584592925006274975", // Table ID
-  "desiredCubeSize":10000, // Desired cube size, in rows
-  "columnTransformers":[
-    {
-      "className":"io.qbeast.core.transform.LinearTransformer",
-      "columnName":"user_id",
-      "dataType":"IntegerDataType"
-    },
-    {
-      "className":"io.qbeast.core.transform.LinearTransformer",
-      "columnName":"product_id",
-      "dataType":"IntegerDataType"
+      "cube": "wg",
+      "minWeight": 5,
+      "maxWeight": 6,
+      "elementCount": 7,
+      "replicated": false
     }
-  ],
-  "transformations":[
-    {
-      "className":"io.qbeast.core.transform.LinearTransformation",
-      "minNumber":315309190,
-      "maxNumber":566280860,
-      "nullValue":476392009,
-      "orderedDataType":"IntegerDataType"
-    },
-    {
-      "className":"io.qbeast.core.transform.LinearTransformation",
-      "minNumber":1000978,
-      "maxNumber":60500010,
-      "nullValue":6437856,
-      "orderedDataType":"IntegerDataType"}
   ]
-}
-
+}}
 ```
 
-In Revision, you can find different information about the tree status and configuration:
-
-| Term                            | Description                                                                                                                                           |
-|---------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `revisionID`                    | The ID of the Revision. Used on the AddFile tags to identify the revision of a particular file.                                                       |
-| `timestamp`                     | The time when the revision was created.                                                                                                               |
-| `tableID`                       | The identifier of the table that the revision belongs to.                                                                                             |
-| `desiredCubeSize`               | The cube size from the option `cubeSize`.                                                                                                             |
-| `columnTransformers`            | The metadata of the different columns indexed with the option `columnsToIndex`.                                                                       |
-| `columnTransformers.columnName` | The **name of the column**.                                                                                                                           |
-| `columnTransformers.dataType`   | The **data type of the column**.                                                                                                                      |
-| `transformations`               | Classes to **map original values of columns indexed into the [0.0, 1.9) space**. Contains the `min` and `max` values for each column of the Revision. |
-| `transformations.className`     | The type of transformation (could be `Linear`, `Hash`...).                                                                                            |
-| `transformations.minNumber`     | The **minimum value of the data in the revision**.                                                                                                    |
-| `transformations.maxNumber`     | The **maximum value of the data in the revision**.                                                                                                    |
-| `transformations.nullValue`     | The **value that represents the `null`** in the space.                                                                                                |
-
-
-In this case, we index columns `user_id` and `product_id` (which are both `Integers`) with a linear transformation. This means that they will not suffer any transformation besides the normalization.
+In this case, we have two blocks of data(`w` and `wg`) written in the file, each with a different weight range and number of elements.
 
 ### Staging Revision and ConvertToQbeastCommand
 The introduction of **the Staging Revision enables reading and writing tables in a hybrid `qbeast + delta` state.**
@@ -284,3 +257,4 @@ revisions.foreach(revision =>
 
 
 > Analyze and Replication operations are **NOT available from version 0.6.0**. Read all the reasoning and changes on the [Qbeast Format 0.6.0](./QbeastFormatChanges.md) document.
+
