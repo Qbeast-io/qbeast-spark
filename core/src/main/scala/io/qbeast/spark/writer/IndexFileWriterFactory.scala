@@ -27,8 +27,6 @@ import org.apache.spark.sql.execution.datasources.WriteJobStatsTracker
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.SerializableConfiguration
 
-import java.util.UUID
-
 /**
  * Factory for creating IndexFileWriter instances.
  *
@@ -60,8 +58,8 @@ private[writer] class IndexFileWriterFactory(
    * @return
    *   a new IndexFileWriter instance
    */
-  def createIndexFileWriter(): IndexFileWriter = {
-    val path = new Path(tableId.id, s"${UUID.randomUUID()}.parquet").toString
+  def createIndexFileWriter(fileName: String): IndexFileWriter = {
+    val path = new Path(tableId.id, fileName).toString
     val jobConfig = new JobConf(config.value)
     val taskId = new TaskAttemptID("", 0, TaskType.REDUCE, 0, 0)
     val context = new TaskAttemptContextImpl(jobConfig, taskId)

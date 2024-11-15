@@ -29,6 +29,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.util.SerializableConfiguration
 
+import java.util.UUID
 import scala.collection.mutable
 
 /**
@@ -37,17 +38,16 @@ import scala.collection.mutable
 trait RollupDataWriter extends DataWriter {
 
   type GetCubeMaxWeight = CubeId => Weight
-  type Extract = InternalRow => (InternalRow, Weight, CubeId, CubeId)
+  type Extract = InternalRow => (InternalRow, Weight, CubeId, String)
   type WriteRows = Iterator[InternalRow] => Iterator[(IndexFile, TaskStats)]
 
-  protected def internalWrite(
+  protected def doWrite(
       tableId: QTableID,
       schema: StructType,
-      data: DataFrame,
+      extendedData: DataFrame,
       tableChanges: TableChanges,
       trackers: Seq[WriteJobStatsTracker]): IISeq[(IndexFile, TaskStats)] = {
-    if (data.isEmpty) return Seq.empty[(IndexFile, TaskStats)].toIndexedSeq
-    val extendedData = extendDataWithCubeToRollup(data, tableChanges)
+
     val revision = tableChanges.updatedRevision
     val getCubeMaxWeight = { cubeId: CubeId =>
       tableChanges.cubeWeight(cubeId).getOrElse(Weight.MaxValue)
@@ -55,7 +55,7 @@ trait RollupDataWriter extends DataWriter {
     val writeRows =
       getWriteRows(tableId, schema, extendedData, revision, getCubeMaxWeight, trackers)
     extendedData
-      .repartition(col(QbeastColumns.cubeToRollupColumnName))
+      .repartition(col(QbeastColumns.fileUUIDColumnName))
       .queryExecution
       .executedPlan
       .execute()
@@ -76,11 +76,12 @@ trait RollupDataWriter extends DataWriter {
     val writerFactory =
       getIndexFileWriterFactory(tableId, schema, extendedData, revisionId, trackers)
     extendedRows => {
-      val writers = mutable.Map.empty[CubeId, IndexFileWriter]
+      val writers = mutable.Map.empty[String, IndexFileWriter]
       extendedRows.foreach { extendedRow =>
-        val (row, weight, cubeId, rollupCubeId) = extract(extendedRow)
+        val (row, weight, cubeId, filename) = extract(extendedRow)
         val cubeMaxWeight = getCubeMaxWeight(cubeId)
-        val writer = writers.getOrElseUpdate(rollupCubeId, writerFactory.createIndexFileWriter())
+        val writer =
+          writers.getOrElseUpdate(filename, writerFactory.createIndexFileWriter(filename))
         writer.write(row, weight, cubeId, cubeMaxWeight)
       }
       writers.values.iterator.map(_.close())
@@ -100,9 +101,12 @@ trait RollupDataWriter extends DataWriter {
       val weight = Weight(extendedRow.getInt(qbeastColumns.weightColumnIndex))
       val cubeIdBytes = extendedRow.getBinary(qbeastColumns.cubeColumnIndex)
       val cubeId = revision.createCubeId(cubeIdBytes)
-      val rollupCubeIdBytes = extendedRow.getBinary(qbeastColumns.cubeToRollupColumnIndex)
-      val rollupCubeId = revision.createCubeId(rollupCubeIdBytes)
-      (row, weight, cubeId, rollupCubeId)
+      val filename = {
+        if (qbeastColumns.hasFilenameColumn)
+          extendedRow.getString(qbeastColumns.filenameColumnIndex)
+        else extendedRow.getString(qbeastColumns.fileUUIDColumnIndex) + ".parquet"
+      }
+      (row, weight, cubeId, filename)
     }
   }
 
@@ -119,13 +123,14 @@ trait RollupDataWriter extends DataWriter {
     new IndexFileWriterFactory(tableId, schema, revisionId, outputFactory, trackers, config)
   }
 
-  private def extendDataWithCubeToRollup(
-      data: DataFrame,
-      tableChanges: TableChanges): DataFrame = {
+  protected def extendDataWithFileUUID(data: DataFrame, tableChanges: TableChanges): DataFrame = {
     val rollup = computeRollup(tableChanges)
-    data.withColumn(
-      QbeastColumns.cubeToRollupColumnName,
-      getRollupCubeIdUDF(tableChanges.updatedRevision, rollup)(col(QbeastColumns.cubeColumnName)))
+    val cubeUUIDs = rollup.values.toSeq.distinct.map(c => c -> UUID.randomUUID().toString).toMap
+    val rollupCubeUUIDs: Map[CubeId, String] = rollup.map { case (cubeId, rollupCubeId) =>
+      cubeId -> cubeUUIDs(rollupCubeId)
+    }
+    val uuidUDF = getFileUUIDUDF(tableChanges.updatedRevision, rollupCubeUUIDs)
+    data.withColumn(QbeastColumns.fileUUIDColumnName, uuidUDF(col(QbeastColumns.cubeColumnName)))
   }
 
   def computeRollup(tableChanges: TableChanges): Map[CubeId, CubeId] = {
@@ -138,21 +143,22 @@ trait RollupDataWriter extends DataWriter {
     rollup.compute()
   }
 
-  private def getRollupCubeIdUDF(
+  private def getFileUUIDUDF(
       revision: Revision,
-      rollup: Map[CubeId, CubeId]): UserDefinedFunction = udf({ cubeIdBytes: Array[Byte] =>
-    val cubeId = revision.createCubeId(cubeIdBytes)
-    var rollupCubeId = rollup.get(cubeId)
-    var parentCubeId = cubeId.parent
-    while (rollupCubeId.isEmpty) {
-      parentCubeId match {
-        case Some(value) =>
-          rollupCubeId = rollup.get(value)
-          parentCubeId = value.parent
-        case None => rollupCubeId = Some(cubeId)
+      rollupCubeUUIDs: Map[CubeId, String]): UserDefinedFunction =
+    udf({ cubeIdBytes: Array[Byte] =>
+      val cubeId = revision.createCubeId(cubeIdBytes)
+      var fileUUID = rollupCubeUUIDs.get(cubeId)
+      var parentCubeId = cubeId.parent
+      while (fileUUID.isEmpty) {
+        parentCubeId match {
+          case Some(value) =>
+            fileUUID = rollupCubeUUIDs.get(value)
+            parentCubeId = value.parent
+          case None =>
+        }
       }
-    }
-    rollupCubeId.get.bytes
-  })
+      fileUUID
+    })
 
 }

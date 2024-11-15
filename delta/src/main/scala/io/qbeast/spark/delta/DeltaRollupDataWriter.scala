@@ -22,7 +22,6 @@ import io.qbeast.spark.writer.StatsTracker
 import io.qbeast.spark.writer.TaskStats
 import io.qbeast.IISeq
 import org.apache.hadoop.fs.Path
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.stats.DeltaFileStatistics
 import org.apache.spark.sql.delta.stats.DeltaJobStatisticsTracker
@@ -40,15 +39,14 @@ import java.net.URI
  */
 object DeltaRollupDataWriter extends RollupDataWriter with DeltaStatsCollectionUtils {
 
-  override type GetCubeMaxWeight = CubeId => Weight
-  override type Extract = InternalRow => (InternalRow, Weight, CubeId, CubeId)
-  override type WriteRows = Iterator[InternalRow] => Iterator[(IndexFile, TaskStats)]
-
   override def write(
       tableId: QTableID,
       schema: StructType,
       data: DataFrame,
       tableChanges: TableChanges): IISeq[IndexFile] = {
+
+    if (data.isEmpty) return Seq.empty[IndexFile].toIndexedSeq
+
     val revision = tableChanges.updatedRevision
     val dimensionCount = revision.transformations.length
 
@@ -56,7 +54,9 @@ object DeltaRollupDataWriter extends RollupDataWriter with DeltaStatsCollectionU
     val fileStatsTracker = getFileStatsTracker(tableId, data)
     val trackers = statsTrackers ++ fileStatsTracker
 
-    val filesAndStats = internalWrite(tableId, schema, data, tableChanges, trackers)
+    val extendedData = extendDataWithFileUUID(data, tableChanges)
+    val filesAndStats = doWrite(tableId, schema, extendedData, tableChanges, trackers)
+
     val stats = filesAndStats.map(_._2)
     processStats(stats, statsTrackers, fileStatsTracker)
     filesAndStats
