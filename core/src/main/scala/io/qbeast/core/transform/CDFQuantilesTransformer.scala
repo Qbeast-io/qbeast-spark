@@ -66,7 +66,7 @@ trait CDFQuantilesTransformer extends Transformer {
   /**
    * The name of the column transformer to retrieve the stats from
    */
-  val columnTransformerName: String = s"${columnName}_quantiles"
+  def columnTransformerName: String = s"${columnName}_quantiles"
 
   /**
    * Returns the stats
