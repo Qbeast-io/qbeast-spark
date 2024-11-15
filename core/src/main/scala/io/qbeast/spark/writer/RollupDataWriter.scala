@@ -125,8 +125,11 @@ trait RollupDataWriter extends DataWriter {
 
   protected def extendDataWithFileUUID(data: DataFrame, tableChanges: TableChanges): DataFrame = {
     val rollup = computeRollup(tableChanges)
-    val rollupCubeUUIDs = computeCubeUUIDs(rollup)
-    val uuidUDF = getFileUUIDUDF(tableChanges.updatedRevision, rollup, rollupCubeUUIDs)
+    val cubeUUIDs = rollup.values.toSeq.distinct.map(c => c -> UUID.randomUUID().toString).toMap
+    val rollupCubeUUIDs: Map[CubeId, String] = rollup.map { case (cubeId, rollupCubeId) =>
+      cubeId -> cubeUUIDs(rollupCubeId)
+    }
+    val uuidUDF = getFileUUIDUDF(tableChanges.updatedRevision, rollupCubeUUIDs)
     data.withColumn(QbeastColumns.fileUUIDColumnName, uuidUDF(col(QbeastColumns.cubeColumnName)))
   }
 
@@ -140,33 +143,22 @@ trait RollupDataWriter extends DataWriter {
     rollup.compute()
   }
 
-  private def computeCubeUUIDs(rollup: Map[CubeId, CubeId]): Map[CubeId, String] = {
-    val uuidCache = mutable.Map[CubeId, String]()
-    rollup.foreach { case (_, cubeToRollupId) =>
-      if (!uuidCache.contains(cubeToRollupId)) {
-        uuidCache(cubeToRollupId) = UUID.randomUUID().toString
-      }
-    }
-    uuidCache.toMap
-  }
-
   private def getFileUUIDUDF(
       revision: Revision,
-      rollup: Map[CubeId, CubeId],
       rollupCubeUUIDs: Map[CubeId, String]): UserDefinedFunction =
     udf({ cubeIdBytes: Array[Byte] =>
       val cubeId = revision.createCubeId(cubeIdBytes)
-      var rollupCubeId = rollup.get(cubeId)
+      var fileUUID = rollupCubeUUIDs.get(cubeId)
       var parentCubeId = cubeId.parent
-      while (rollupCubeId.isEmpty) {
+      while (fileUUID.isEmpty) {
         parentCubeId match {
           case Some(value) =>
-            rollupCubeId = rollup.get(value)
+            fileUUID = rollupCubeUUIDs.get(value)
             parentCubeId = value.parent
-          case None => rollupCubeId = Some(cubeId)
+          case None =>
         }
       }
-      rollupCubeUUIDs.get(rollupCubeId.get)
+      fileUUID
     })
 
 }
