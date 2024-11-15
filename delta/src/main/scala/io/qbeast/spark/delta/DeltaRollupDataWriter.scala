@@ -43,7 +43,8 @@ object DeltaRollupDataWriter extends RollupDataWriter with DeltaStatsCollectionU
       tableId: QTableID,
       schema: StructType,
       data: DataFrame,
-      tableChanges: TableChanges): IISeq[IndexFile] = {
+      tableChanges: TableChanges,
+      commitTime: String): IISeq[IndexFile] = {
 
     if (data.isEmpty) return Seq.empty[IndexFile].toIndexedSeq
 

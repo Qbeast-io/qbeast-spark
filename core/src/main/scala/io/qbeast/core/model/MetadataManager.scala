@@ -58,7 +58,8 @@ trait MetadataManager {
       tableID: QTableID,
       schema: StructType,
       options: QbeastOptions,
-      append: Boolean)(writer: => (TableChanges, IISeq[IndexFile], IISeq[DeleteFile])): Unit
+      append: Boolean)(
+      writer: String => (TableChanges, IISeq[IndexFile], IISeq[DeleteFile])): Unit
 
   /**
    * Updates the table metadata by overwriting the metadata configurations with the provided
