@@ -267,8 +267,55 @@ case class IndexStatus(
     cubesStatuses: SortedMap[CubeId, CubeStatus] = SortedMap.empty)
     extends Serializable {
 
-  def cubeNormalizedWeights: Map[CubeId, NormalizedWeight] =
-    cubesStatuses.mapValues(_.normalizedWeight)
+  def cubeNormalizedWeights(): Map[CubeId, NormalizedWeight] =
+    cubesStatuses.map { case (cubeId, status) => cubeId -> status.normalizedWeight }
+
+  def cubeMaxWeights(): Map[CubeId, Weight] =
+    cubesStatuses.map { case (cubeId, status) => cubeId -> status.maxWeight }
+
+  def cubeElementCounts(): Map[CubeId, Long] =
+    cubesStatuses.map { case (cubeId, status) => cubeId -> status.elementCount }
+
+  /**
+   * Compute domain sizes for each cube from the existing index. The domain of a given cube c is
+   * computed as a fraction f of its parent domain, with f being the ratio between c's tree size
+   * and its parent's subtree size.
+   */
+  def cubeDomains(): Map[CubeId, Double] = {
+    var treeSizes = cubeElementCounts().mapValues(_.toDouble)
+    val levelCubes = treeSizes.keys.groupBy(_.depth)
+    val (minLevel, maxLevel) = (levelCubes.keys.min, levelCubes.keys.max)
+    // cube sizes -> tree sizes
+    (maxLevel until minLevel by -1) foreach { level =>
+      levelCubes(level).foreach { cube =>
+        val treeSize = treeSizes.getOrElse(cube, 0d)
+        cube.parent match {
+          case Some(parent) =>
+            val parentTreeSize = treeSizes.getOrElse(parent, 0d) + treeSize
+            treeSizes += parent -> parentTreeSize
+          case _ => ()
+        }
+      }
+    }
+    // tree sizes -> cube domain
+    var cubeDomains = Map.empty[CubeId, Double]
+    (minLevel to maxLevel) foreach { level =>
+      levelCubes(level).groupBy(_.parent).foreach {
+        case (None, topCubes) =>
+          topCubes.foreach(c => cubeDomains += (c -> treeSizes.getOrElse(c, 0d)))
+        case (Some(parent), children) =>
+          val parentDomain = cubeDomains.getOrElse(parent, 0d)
+          val childTreeSizes = children.map(c => (c, treeSizes.getOrElse(c, 0d)))
+          val subtreeSize = childTreeSizes.map(_._2).sum
+          childTreeSizes.foreach { case (c, ts) =>
+            val f = ts / subtreeSize
+            val domain = f * parentDomain
+            cubeDomains += (c -> domain)
+          }
+      }
+    }
+    cubeDomains
+  }
 
 }
 

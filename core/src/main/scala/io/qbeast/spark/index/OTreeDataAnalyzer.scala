@@ -159,7 +159,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
       // The index should be built from scratch if it is a new revision
       val startingCubeWeights =
         if (isNewRevision) Map.empty[CubeId, Weight]
-        else indexStatus.cubesStatuses.mapValues(_.maxWeight).map(identity)
+        else indexStatus.cubeMaxWeights()
       val broadcastExistingCubeWeights = spark.sparkContext.broadcast(startingCubeWeights)
 
       val selected = weightedDataFrame.select(cols.map(col): _*)
@@ -182,9 +182,11 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
 
     }
 
-  // Compute cube domains for the input data. It starts with building an OTree for each input data
-  // partition, the result of which is a Dataset of (CubeId, domain) pairs from all partitions. The
-  // cube domains from all partitions are then merged using a group by cube and sum.
+  /**
+   * Compute cube domains for the input data. It starts with building an OTree for each input data
+   * partition, the result of which is a Dataset of (CubeId, domain) pairs from all partitions.
+   * The cube domains from all partitions are then merged using a group by cube and sum. *
+   */
   private[index] def computeInputDataCubeDomains(
       numElements: Long,
       revision: Revision,
@@ -211,54 +213,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
     }
 
   /**
-   * Compute domain value for each cube from the existing index. The domain of a given cube is
-   * computed as a fraction of its parent domain proportional to the ratio between its own tree
-   * size and its parent subtree size.
-   * @param cubesStatuses
-   *   CubeStatus for all existing cubes
-   * @return
-   */
-  private[index] def computeExistingCubeDomains(
-      cubesStatuses: Map[CubeId, CubeStatus]): Map[CubeId, Double] = {
-    var treeSizes = cubesStatuses.mapValues(cs => cs.elementCount.toDouble)
-
-    val levelCubes = treeSizes.keys.groupBy(_.depth)
-    val (minLevel, maxLevel) = (levelCubes.keys.min, levelCubes.keys.max)
-
-    // cube sizes -> tree sizes
-    (maxLevel until minLevel by -1) foreach { level =>
-      levelCubes(level).foreach { cube =>
-        val treeSize = treeSizes.getOrElse(cube, 0d)
-        cube.parent match {
-          case Some(parent) =>
-            val parentTreeSize = treeSizes.getOrElse(parent, 0d) + treeSize
-            treeSizes += parent -> parentTreeSize
-          case _ => ()
-        }
-      }
-    }
-
-    // tree sizes -> cube domain
-    var cubeDomains = Map.empty[CubeId, Double]
-    (minLevel to maxLevel) foreach { level =>
-      levelCubes(level).groupBy(_.parent).foreach {
-        case (None, topCubes) =>
-          topCubes.foreach(c => cubeDomains += (c -> treeSizes.getOrElse(c, 0d)))
-        case (Some(parent), children) =>
-          val parentDomain = cubeDomains.getOrElse(parent, 0d)
-          val childTreeSizes = children.map(c => (c, treeSizes.getOrElse(c, 0d)))
-          val subtreeSize = childTreeSizes.map(_._2).sum
-          childTreeSizes.foreach { case (c, ts) =>
-            val f = ts / subtreeSize
-            val domain = f * parentDomain
-            cubeDomains += (c -> domain)
-          }
-      }
-    }
-    cubeDomains
-  }
-
-  /**
    * Update the OTree index cube domains by merging the existing cube domains with that from the
    * input data.
    */
@@ -268,7 +222,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
       isNewRevision: Boolean): Map[CubeId, Double] = {
     if (isNewRevision || indexStatus.cubesStatuses.isEmpty) inputDataCubeDomains
     else {
-      val existingCubeDomains = computeExistingCubeDomains(indexStatus.cubesStatuses)
+      val existingCubeDomains = indexStatus.cubeDomains()
       (existingCubeDomains.keys ++ inputDataCubeDomains.keys).map { cubeId: CubeId =>
         val existingDomain = existingCubeDomains.getOrElse(cubeId, 0d)
         val addedDomain = inputDataCubeDomains.getOrElse(cubeId, 0d)

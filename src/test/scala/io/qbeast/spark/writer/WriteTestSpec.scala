@@ -53,8 +53,7 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
     .toMap
 
   val indexData: immutable.IndexedSeq[IndexData] =
-    weightMap.toIndexedSeq.map(ids =>
-      IndexData(Random.nextInt(), ids._1.bytes, ids._2.fraction, "FLOODED"))
+    weightMap.toIndexedSeq.map(ids => IndexData(Random.nextInt(), ids._1.bytes, ids._2.fraction))
 
   import spark.implicits._
   val indexed: DataFrame = indexData.toDF("id", cubeColumnName, weightColumnName)
