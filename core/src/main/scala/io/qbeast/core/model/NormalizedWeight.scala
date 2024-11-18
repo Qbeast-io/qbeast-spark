@@ -62,23 +62,6 @@ object NormalizedWeight {
   }
 
   /**
-   * Merges two given weights.
-   *
-   * @param weight
-   *   the weight
-   * @param otherWeight
-   *   the other weight
-   * @return
-   *   the merged weight
-   */
-  def merge(weight: NormalizedWeight, otherWeight: NormalizedWeight): NormalizedWeight =
-    if (weight != 0.0 && otherWeight != 0.0) {
-      weight * otherWeight / (weight + otherWeight)
-    } else {
-      math.max(weight, otherWeight)
-    }
-
-  /**
    * Converts a given normalized weight to a simple weight.
    *
    * @param weight
