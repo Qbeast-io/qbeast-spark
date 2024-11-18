@@ -106,14 +106,4 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
       Map.empty,
       isOptimizationOperation = false)
 
-  val writer: BlockWriter = BlockWriter(
-    dataPath = tmpDir,
-    schema = data.schema,
-    schemaIndex = indexed.schema,
-    factory = factory,
-    serConf = serConf,
-    statsTrackers = Seq.empty,
-    qbeastColumns = qbeastColumns,
-    tableChanges = tableChanges)
-
 }
