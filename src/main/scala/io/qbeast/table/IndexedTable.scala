@@ -15,7 +15,6 @@
  */
 package io.qbeast.table
 
-import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model._
 import io.qbeast.core.model.RevisionFactory
 import io.qbeast.internal.commands.ConvertToQbeastCommand
@@ -169,8 +168,6 @@ trait IndexedTableFactory {
 
 /**
  * Implementation of IndexedTableFactory.
- * @param keeper
- *   the keeper
  * @param indexManager
  *   the index manager
  * @param metadataManager
@@ -181,7 +178,6 @@ trait IndexedTableFactory {
  *   the revision builder
  */
 final class IndexedTableFactoryImpl(
-    private val keeper: Keeper,
     private val indexManager: IndexManager,
     private val metadataManager: MetadataManager,
     private val dataWriter: DataWriter,
@@ -193,7 +189,6 @@ final class IndexedTableFactoryImpl(
   override def getIndexedTable(tableID: QTableID): IndexedTable =
     new IndexedTableImpl(
       tableID,
-      keeper,
       indexManager,
       metadataManager,
       dataWriter,
@@ -223,7 +218,6 @@ final class IndexedTableFactoryImpl(
  */
 private[table] class IndexedTableImpl(
     val tableID: QTableID,
-    private val keeper: Keeper,
     private val indexManager: IndexManager,
     private val metadataManager: MetadataManager,
     private val dataWriter: DataWriter,
@@ -433,31 +427,26 @@ private[table] class IndexedTableImpl(
     logTrace(s"Begin: Writing data to table $tableID")
     val revision = indexStatus.revision
     logDebug(s"Writing data to table $tableID with revision ${revision.revisionID}")
-    keeper.withWrite(tableID, revision.revisionID) { write =>
-      var tries = DEFAULT_NUMBER_OF_RETRIES
-      while (tries > 0) {
-        val announcedSet = write.announcedCubes.map(indexStatus.revision.createCubeId)
-        val updatedStatus = indexStatus.addAnnouncements(announcedSet)
-        val replicatedSet = updatedStatus.replicatedSet
-        val revisionID = updatedStatus.revision.revisionID
-        try {
-          doWrite(data, updatedStatus, options, append)
-          tries = 0
-        } catch {
-          case cme: ConcurrentModificationException
-              if metadataManager.hasConflicts(
-                tableID,
-                revisionID,
-                replicatedSet,
-                announcedSet) || tries == 0 =>
-            // Nothing to do, the conflict is unsolvable
-            throw cme
-          case _: ConcurrentModificationException =>
-            // Trying one more time if the conflict is solvable
-            tries -= 1
-        }
-
+    var tries = DEFAULT_NUMBER_OF_RETRIES
+    while (tries > 0) {
+      val revisionID = indexStatus.revision.revisionID
+      try {
+        doWrite(data, indexStatus, options, append)
+        tries = 0
+      } catch {
+        case cme: ConcurrentModificationException
+            if metadataManager.hasConflicts(
+              tableID,
+              revisionID,
+              Set.empty,
+              Set.empty) || tries == 0 =>
+          // Nothing to do, the conflict is unsolvable
+          throw cme
+        case _: ConcurrentModificationException =>
+          // Trying one more time if the conflict is solvable
+          tries -= 1
       }
+
     }
     clearCaches()
     val result = createQbeastBaseRelation()
@@ -497,7 +486,6 @@ private[table] class IndexedTableImpl(
   override def analyze(revisionID: RevisionID): Seq[String] = {
     val indexStatus = snapshot.loadIndexStatus(revisionID)
     val cubesToAnnounce = indexManager.analyze(indexStatus).map(_.string)
-    keeper.announce(tableID, revisionID, cubesToAnnounce)
     cubesToAnnounce
 
   }
