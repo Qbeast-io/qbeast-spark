@@ -54,20 +54,17 @@ trait Transformation extends Serializable {
    * Merges two transformations. The domain of the resulting transformation is the union of this
    *
    * @param other
+   *   the other transformation to merge with this one
    * @return
    *   a new Transformation that contains both this and other.
    */
   def merge(other: Transformation): Transformation
 }
 
-trait OrdinalTransformation extends Transformation {
-  def ordering: Ordering[Any]
-
-}
-
 /**
  * Identity transformation.
  */
+@deprecated("Use IdentityTransformation instead", "0.8.0")
 case class IdentityToZeroTransformation(identityValue: Any) extends Transformation {
 
   @inline
@@ -80,15 +77,20 @@ case class IdentityToZeroTransformation(identityValue: Any) extends Transformati
 
   }
 
-  override def isSupersededBy(newTransformation: Transformation): Boolean = false
+  override def isSupersededBy(newTransformation: Transformation): Boolean =
+    newTransformation match {
+      case IdentityToZeroTransformation(newIdValue) => newIdValue != identityValue
+      case _ => true
+    }
 
-  override def merge(other: Transformation): Transformation = this
+  override def merge(other: Transformation): Transformation = other
 
 }
 
 /**
  * Zero value for nulls transformation.
  */
+@deprecated("Use IdentityTransformation instead", "0.8.0")
 object NullToZeroTransformation extends Transformation {
 
   @inline
@@ -96,8 +98,13 @@ object NullToZeroTransformation extends Transformation {
     case null => 0.0
   }
 
-  override def isSupersededBy(newTransformation: Transformation): Boolean = false
+  override def isSupersededBy(newTransformation: Transformation): Boolean = {
+    newTransformation match {
+      case NullToZeroTransformation => false
+      case _ => true
+    }
+  }
 
-  override def merge(other: Transformation): Transformation = this
+  override def merge(other: Transformation): Transformation = other
 
 }

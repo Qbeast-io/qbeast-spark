@@ -91,37 +91,18 @@ case class LinearTransformation(
 
   /**
    * Merges two transformations. The domain of the resulting transformation is the union of this
-   * and the other transformation. The range of the resulting transformation is the intersection
-   * of this and the other transformation, which can be a LinearTransformation or
-   * IdentityTransformation
-   * @param other
-   * @return
-   *   a new Transformation that contains both this and other.
+   * and the other transformation.
    */
   override def merge(other: Transformation): Transformation = {
     other match {
-      case LinearTransformation(otherMin, otherMax, otherNullValue, otherOrdering)
+      case LinearTransformation(otherMin, otherMax, _, otherOrdering)
           if orderedDataType == otherOrdering =>
-        LinearTransformation(
-          min(minNumber, otherMin),
-          max(maxNumber, otherMax),
-          otherNullValue,
-          orderedDataType)
-          .asInstanceOf[Transformation]
+        LinearTransformation(min(minNumber, otherMin), max(maxNumber, otherMax), orderedDataType)
+      case IdentityTransformation(newVal, otherType) if orderedDataType == otherType =>
+        LinearTransformation(min(minNumber, newVal), max(maxNumber, newVal), orderedDataType)
       case IdentityToZeroTransformation(newVal) =>
-        val otherNullValue =
-          LinearTransformationUtils.generateRandomNumber(
-            min(minNumber, newVal),
-            max(maxNumber, newVal),
-            Option(42.toLong))
-        val orderedDataType = this.orderedDataType
-        LinearTransformation(
-          min(minNumber, newVal),
-          max(maxNumber, newVal),
-          otherNullValue,
-          orderedDataType)
-          .asInstanceOf[Transformation]
-
+        LinearTransformation(min(minNumber, newVal), max(maxNumber, newVal), orderedDataType)
+      case _ => this
     }
   }
 
@@ -137,10 +118,56 @@ case class LinearTransformation(
       case LinearTransformation(newMin, newMax, _, otherOrdering)
           if orderedDataType == otherOrdering =>
         gt(minNumber, newMin) || lt(maxNumber, newMax)
-      case IdentityToZeroTransformation(newVal) =>
+      case IdentityTransformation(newVal, otherType)
+          if otherType == orderedDataType && newVal != null =>
         gt(minNumber, newVal) || lt(maxNumber, newVal)
+      case IdentityToZeroTransformation(newVal) => gt(minNumber, newVal) || lt(maxNumber, newVal)
       case _ => false
     }
+
+}
+
+object LinearTransformation {
+
+  /**
+   * Creates a LinearTransformation that has random value for the nulls within the [minNumber,
+   * maxNumber] range
+   * @param minNumber
+   *   the minimum value of the transformation
+   * @param maxNumber
+   *   the maximum value of the transformation
+   * @param orderedDataType
+   *   the ordered data type of the transformation
+   * @param seed
+   *   the seed to generate the random null value
+   * @return
+   */
+  def apply(
+      minNumber: Any,
+      maxNumber: Any,
+      orderedDataType: OrderedDataType,
+      seed: Option[Long] = None): LinearTransformation = {
+    val randomNull = generateRandomNumber(minNumber, maxNumber, seed)
+    LinearTransformation(minNumber, maxNumber, randomNull, orderedDataType)
+  }
+
+  /**
+   * Creates a LinearTransformationUtils object that contains useful functions that can be used
+   * outside the LinearTransformation class.
+   */
+  private[transform] def generateRandomNumber(min: Any, max: Any, seed: Option[Long]): Any = {
+    val r = if (seed.isDefined) new Random(seed.get) else new Random()
+    val random = r.nextDouble()
+    (min, max) match {
+      case (min: Double, max: Double) => min + (random * (max - min))
+      case (min: Long, max: Long) => min + (random * (max - min)).toLong
+      case (min: Int, max: Int) => min + (random * (max - min)).toInt
+      case (min: Float, max: Float) => min + (random * (max - min)).toFloat
+      case _ =>
+        throw new IllegalArgumentException("Cannot generate random number for " +
+          s"(min:type, max:type) = ($min: ${min.getClass.getName}, $max: ${max.getClass.getName})")
+    }
+  }
 
 }
 
@@ -186,29 +213,6 @@ class LinearTransformationSerializer
 
 }
 
-object LinearTransformation {
-
-  /**
-   * Creates a LinearTransformation that has random value for the nulls within the [minNumber,
-   * maxNumber] range
-   * @param minNumber
-   * @param maxNumber
-   * @param orderedDataType
-   * @param seed
-   * @return
-   */
-
-  def apply(
-      minNumber: Any,
-      maxNumber: Any,
-      orderedDataType: OrderedDataType,
-      seed: Option[Long] = None): LinearTransformation = {
-    val randomNull = LinearTransformationUtils.generateRandomNumber(minNumber, maxNumber, seed)
-    LinearTransformation(minNumber, maxNumber, randomNull, orderedDataType)
-  }
-
-}
-
 class LinearTransformationDeserializer
     extends StdDeserializer[LinearTransformation](classOf[LinearTransformation]) {
 
@@ -248,36 +252,6 @@ class LinearTransformationDeserializer
       LinearTransformation(min, max, odt, seed = Some(hash))
     } else LinearTransformation(min, max, nullValue, odt)
 
-  }
-
-}
-
-object LinearTransformationUtils {
-
-  /**
-   * Creates a LinearTransformationUtils object that contains useful functions that can be used
-   * outside of the LinearTransformation class.
-   * @param minNumber
-   * @param maxNumber
-   * @param orderedDataType
-   * @param seed
-   * @return
-   */
-
-  def generateRandomNumber(min: Any, max: Any, seed: Option[Long]): Any = {
-    val r = if (seed.isDefined) new Random(seed.get) else new Random()
-    val random = r.nextDouble()
-
-    (min, max) match {
-      case (min: Double, max: Double) => min + (random * (max - min))
-      case (min: Long, max: Long) => min + (random * (max - min)).toLong
-      case (min: Int, max: Int) => min + (random * (max - min)).toInt
-      case (min: Float, max: Float) => min + (random * (max - min)).toFloat
-      case (min, max) =>
-        throw new IllegalArgumentException(
-          s"Cannot generate random number for type ${min.getClass.getName}")
-
-    }
   }
 
 }
