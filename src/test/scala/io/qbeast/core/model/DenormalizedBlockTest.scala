@@ -63,11 +63,11 @@ class DenormalizedBlockTest extends QbeastIntegrationTestSpec {
       import spark.implicits._
 
       val root = CubeId.root(2)
-      val rootB1 = Block("f1.parquet", root, Weight(0d), Weight(0.5), 1, replicated = false)
-      val rootB2 = Block("f2.parquet", root, Weight(0d), Weight(0.45), 1, replicated = false)
+      val rootB1 = Block("f1.parquet", root, Weight(0d), Weight(0.5), 1)
+      val rootB2 = Block("f2.parquet", root, Weight(0d), Weight(0.45), 1)
       val c1 = root.firstChild
-      val c1B1 = Block("f1.parquet", c1, Weight(0.5), Weight(1.0), 1, replicated = false)
-      val c1B2 = Block("f2.parquet", c1, Weight(0.45), Weight(1.0), 1, replicated = false)
+      val c1B1 = Block("f1.parquet", c1, Weight(0.5), Weight(1.0), 1)
+      val c1B2 = Block("f2.parquet", c1, Weight(0.45), Weight(1.0), 1)
 
       val t = EmptyTransformer("")
       val revision =
@@ -108,8 +108,7 @@ class DenormalizedBlockTest extends QbeastIntegrationTestSpec {
           fileModificationTime = 1L,
           minWeight = Weight(0d),
           maxWeight = Weight(0.5),
-          blockElementCount = 1L,
-          blockReplicated = false),
+          blockElementCount = 1L),
         DenormalizedBlock(
           cubeId = root,
           isLeaf = false,
@@ -119,8 +118,7 @@ class DenormalizedBlockTest extends QbeastIntegrationTestSpec {
           fileModificationTime = 2L,
           minWeight = Weight(0d),
           maxWeight = Weight(0.45),
-          blockElementCount = 1L,
-          blockReplicated = false),
+          blockElementCount = 1L),
         DenormalizedBlock(
           cubeId = c1,
           isLeaf = true,
@@ -130,8 +128,7 @@ class DenormalizedBlockTest extends QbeastIntegrationTestSpec {
           fileModificationTime = 1L,
           minWeight = Weight(0.5),
           maxWeight = Weight(1.0),
-          blockElementCount = 1L,
-          blockReplicated = false),
+          blockElementCount = 1L),
         DenormalizedBlock(
           cubeId = c1,
           isLeaf = true,
@@ -141,8 +138,7 @@ class DenormalizedBlockTest extends QbeastIntegrationTestSpec {
           fileModificationTime = 2L,
           minWeight = Weight(0.45),
           maxWeight = Weight(1.0),
-          blockElementCount = 1L,
-          blockReplicated = false))
+          blockElementCount = 1L))
   }
 
 }

@@ -47,7 +47,6 @@ class CubeDomainsBuilderTest extends AnyFlatSpec with Matchers with PrivateMetho
     // The default setting creates a groupCubeSize of 40
     CubeDomainsBuilder(
       existingCubeWeights,
-      replicatedOrAnnouncedSet,
       desiredCubeSize,
       numPartitions,
       elementCount,

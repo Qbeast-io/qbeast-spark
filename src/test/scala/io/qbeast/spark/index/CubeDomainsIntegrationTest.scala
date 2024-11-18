@@ -85,7 +85,7 @@ class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
     val qbeastSnapshot = getQbeastSnapshot(tmpDir)
     val cubeWeights = qbeastSnapshot.loadLatestIndexStatus.cubesStatuses
 
-    cubeWeights.values.foreach { case CubeStatus(_, weight, _, _, _) =>
+    cubeWeights.values.foreach { case CubeStatus(_, weight, _, _) =>
       weight shouldBe >(Weight.MinValue)
       weight shouldBe <=(Weight.MaxValue)
     }

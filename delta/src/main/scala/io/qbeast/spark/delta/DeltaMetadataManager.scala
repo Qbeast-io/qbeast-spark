@@ -75,21 +75,6 @@ object DeltaMetadataManager extends MetadataManager {
     DeltaLog.forTable(SparkSession.active, tableID.id)
   }
 
-  override def hasConflicts(
-      tableID: QTableID,
-      revisionID: RevisionID,
-      knownAnnounced: Set[CubeId],
-      oldReplicatedSet: ReplicatedSet): Boolean = {
-
-    val snapshot = loadSnapshot(tableID)
-    if (snapshot.isInitial) return false
-
-    val newReplicatedSet = snapshot.loadIndexStatus(revisionID).replicatedSet
-    val deltaReplicatedSet = newReplicatedSet -- oldReplicatedSet
-    val diff = deltaReplicatedSet -- knownAnnounced
-    diff.nonEmpty
-  }
-
   /**
    * Checks if there's an existing log directory for the table
    *

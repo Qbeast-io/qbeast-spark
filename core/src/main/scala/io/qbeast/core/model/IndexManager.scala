@@ -15,7 +15,6 @@
  */
 package io.qbeast.core.model
 
-import io.qbeast.IISeq
 import org.apache.spark.sql.DataFrame
 
 /**
@@ -33,25 +32,5 @@ trait IndexManager {
    *   the changes of the index and reorganization of data
    */
   def index(data: DataFrame, indexStatus: IndexStatus): (DataFrame, TableChanges)
-
-  /**
-   * Optimizes the index
-   * @param data
-   *   the data of the index
-   * @param indexStatus
-   *   the current index status
-   * @return
-   *   the changes on the index and reorganization of data
-   */
-  def optimize(data: DataFrame, indexStatus: IndexStatus): (DataFrame, TableChanges)
-
-  /**
-   * Analyzes the current index status
-   * @param indexStatus
-   *   the current index status
-   * @return
-   *   the sequence of cubes that should be optimized for improving performance
-   */
-  def analyze(indexStatus: IndexStatus): IISeq[CubeId]
 
 }

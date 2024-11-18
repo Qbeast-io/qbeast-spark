@@ -16,7 +16,7 @@
 package io.qbeast.spark.index
 
 import io.qbeast.core.model._
-import io.qbeast.core.model.BroadcastedTableChanges
+import io.qbeast.core.model.BroadcastTableChanges
 import io.qbeast.core.transform.HashTransformation
 import io.qbeast.core.transform.HashTransformer
 import io.qbeast.core.transform.LinearTransformation
@@ -49,12 +49,17 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
       Vector.empty)
 
     val indexStatus = IndexStatus(rev)
-    val tableChanges = BroadcastedTableChanges(None, indexStatus, Map.empty, Map.empty)
+    val tableChanges = BroadcastTableChanges(
+      None,
+      indexStatus,
+      Map.empty,
+      Map.empty,
+      isOptimizationOperation = false)
     val r = udf(() => {
       Random.nextInt
     })
     val df2 = df.withColumn(QbeastColumns.weightColumnName, r())
-    val spwi = new SparkPointWeightIndexer(tableChanges, false)
+    val spwi = new SparkPointWeightIndexer(tableChanges)
 
     the[SparkException] thrownBy {
       df2.transform(spwi.buildIndex).select(col(QbeastColumns.cubeColumnName)).distinct.first()
@@ -88,13 +93,18 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
           Some(LinearTransformation(0, 10, IntegerDataType)),
           Some(HashTransformation()),
           Some(LinearTransformation(0.0, 10.0, DoubleDataType))))
-    val tc = BroadcastedTableChanges(Some(revisionChange), indexStatus, Map.empty, Map.empty)
+    val tc = BroadcastTableChanges(
+      Some(revisionChange),
+      indexStatus,
+      Map.empty,
+      Map.empty,
+      isOptimizationOperation = false)
 
     val r = udf(() => {
       Random.nextInt
     })
     val df2 = df.withColumn(QbeastColumns.weightColumnName, r())
-    val spwi = new SparkPointWeightIndexer(tc, false)
+    val spwi = new SparkPointWeightIndexer(tc)
     val root =
       df2.transform(spwi.buildIndex).select(col(QbeastColumns.cubeColumnName)).distinct.first()
 
@@ -128,13 +138,18 @@ class SparkPointWeightIndexerTest extends QbeastIntegrationTestSpec {
           Some(HashTransformation()),
           Some(HashTransformation()),
           Some(HashTransformation())))
-    val tc = BroadcastedTableChanges(Some(revisionChange), indexStatus, Map.empty, Map.empty)
+    val tc = BroadcastTableChanges(
+      Some(revisionChange),
+      indexStatus,
+      Map.empty,
+      Map.empty,
+      isOptimizationOperation = false)
 
     val r = udf(() => {
       Random.nextInt
     })
     val df2 = df.withColumn(QbeastColumns.weightColumnName, r())
-    val spwi = new SparkPointWeightIndexer(tc, false)
+    val spwi = new SparkPointWeightIndexer(tc)
     val root =
       df2.transform(spwi.buildIndex).select(col(QbeastColumns.cubeColumnName)).distinct.first()
 

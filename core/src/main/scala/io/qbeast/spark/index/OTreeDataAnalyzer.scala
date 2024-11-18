@@ -18,7 +18,6 @@ package io.qbeast.spark.index
 import io.qbeast.core.model._
 import io.qbeast.core.transform.Transformer
 import io.qbeast.spark.index.QbeastColumns.cubeColumnName
-import io.qbeast.spark.index.QbeastColumns.cubeToReplicateColumnName
 import io.qbeast.spark.index.QbeastColumns.weightColumnName
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
 import io.qbeast.IISeq
@@ -40,19 +39,15 @@ trait OTreeDataAnalyzer {
   /**
    * This method calculates the required indexes updates required after adding to the index the
    * new data.
+   *
    * @param data
    *   the data to index
    * @param indexStatus
    *   the current status of the index
-   * @param isReplication
-   *   either we are replicating the elements or not
    * @return
    *   the changes to the index
    */
-  def analyzeAppend(
-      data: DataFrame,
-      indexStatus: IndexStatus,
-      isReplication: Boolean): (DataFrame, TableChanges)
+  def analyzeAppend(data: DataFrame, indexStatus: IndexStatus): (DataFrame, TableChanges)
 
   /**
    * This method calculates that new cube id association of the provided data once it is
@@ -151,39 +146,28 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
       numElements: Long,
       revision: Revision,
       indexStatus: IndexStatus,
-      isReplication: Boolean,
       isNewRevision: Boolean): DataFrame => Dataset[CubeDomain] =
     (weightedDataFrame: DataFrame) => {
       val spark = SparkSession.active
       import spark.implicits._
 
-      val indexColumns =
-        if (isReplication) Seq(weightColumnName, cubeToReplicateColumnName)
-        else Seq(weightColumnName)
-      val cols = revision.columnTransformers.map(_.columnName) ++ indexColumns
+      val cols = revision.columnTransformers.map(_.columnName) :+ weightColumnName
       val numPartitions: Int = weightedDataFrame.rdd.getNumPartitions
       val bufferCapacity: Long = CUBE_WEIGHTS_BUFFER_CAPACITY
 
-      // Broadcast large objects for CubeDomainsBuilder. The index should be built from scratch
-      // if it is a new revision
+      // Broadcast large objects for CubeDomainsBuilder.
+      // The index should be built from scratch if it is a new revision
       val startingCubeWeights =
         if (isNewRevision) Map.empty[CubeId, Weight]
         else indexStatus.cubesStatuses.mapValues(_.maxWeight).map(identity)
-      val existingReplicatedOrAnnouncedSet =
-        if (isNewRevision) Set.empty[CubeId]
-        else indexStatus.replicatedOrAnnouncedSet
       val broadcastExistingCubeWeights = spark.sparkContext.broadcast(startingCubeWeights)
-      val broadcastReplicatedOrAnnouncedSet =
-        spark.sparkContext.broadcast(existingReplicatedOrAnnouncedSet)
 
       val selected = weightedDataFrame.select(cols.map(col): _*)
       val weightIndex = selected.schema.fieldIndex(weightColumnName)
-
       selected
         .mapPartitions(rows => {
           val domains = CubeDomainsBuilder(
             existingCubeWeights = broadcastExistingCubeWeights.value,
-            replicatedOrAnnouncedSet = broadcastReplicatedOrAnnouncedSet.value,
             desiredCubeSize = revision.desiredCubeSize,
             numPartitions = numPartitions,
             numElements = numElements,
@@ -191,11 +175,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
           rows.foreach { row =>
             val point = RowUtils.rowValuesToPoint(row, revision)
             val weight = Weight(row.getAs[Int](weightIndex))
-            if (isReplication) {
-              val parentBytes = row.getAs[Array[Byte]](cubeToReplicateColumnName)
-              val parent = Some(revision.createCubeId(parentBytes))
-              domains.update(point, weight, parent)
-            } else domains.update(point, weight)
+            domains.update(point, weight)
           }
           domains.result().iterator
         })
@@ -219,7 +199,6 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
             numElements: Long,
             revision: Revision,
             indexStatus: IndexStatus,
-            isReplication = false,
             isNewRevision))
 
       // Merge the cube domains from all partitions
@@ -227,11 +206,8 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
       inputPartitionCubeDomains
         .groupBy("cubeBytes")
         .agg(sum("domain"))
-        .map { row =>
-          val bytes = row.getAs[Array[Byte]](0)
-          val domain = row.getAs[Double](1)
-          (revision.createCubeId(bytes), domain)
-        }
+        .as[(Array[Byte], Double)]
+        .map { row => (revision.createCubeId(row._1), row._2) }
     }
 
   /**
@@ -361,20 +337,12 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
 
   override def analyzeAppend(
       dataFrame: DataFrame,
-      indexStatus: IndexStatus,
-      isReplication: Boolean): (DataFrame, TableChanges) = {
-    logTrace(
-      s"""Begin: Analyzing the input data with
-         | existing revision: ${indexStatus.revision},
-         | isReplication:$isReplication""".stripMargin
-        .replaceAll("\n", " "))
-
+      indexStatus: IndexStatus): (DataFrame, TableChanges) = {
+    logTrace(s"Begin: Analyzing the input data with existing revision: ${indexStatus.revision}")
     // Compute the statistics for the indexedColumns
     val dataFrameStats = getDataFrameStats(dataFrame, indexStatus.revision.columnTransformers)
     val numElements = dataFrameStats.getAs[Long]("count")
-    val spaceChanges =
-      if (isReplication) None
-      else calculateRevisionChanges(dataFrameStats, indexStatus.revision)
+    val spaceChanges = calculateRevisionChanges(dataFrameStats, indexStatus.revision)
     val (isNewRevision, revisionToUse) = spaceChanges match {
       case None => (false, indexStatus.revision)
       case Some(revisionChange) => (true, revisionChange.createNewRevision)
@@ -407,25 +375,20 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
         revisionToUse,
         isNewRevision)
 
+    // Compute the number of elements in each block for the current append
+    logDebug(s"Estimating the number of elements in each block")
     val inputDataBlockElementCounts =
       computeInputDataBlockElementCounts(inputDataCubeDomains, updatedCubeWeights)
 
     // Gather the new changes
-    val tableChanges = BroadcastedTableChanges(
+    val tableChanges = BroadcastTableChanges(
       spaceChanges,
       indexStatus,
       updatedCubeWeights,
       inputDataBlockElementCounts,
-      if (isReplication) indexStatus.cubesToOptimize
-      else Set.empty[CubeId])
-
-    val result = (weightedDataFrame, tableChanges)
-    logTrace(
-      s"""End: Analyzing the input data with
-         | existing revision: ${indexStatus.revision},
-         | isReplication:$isReplication""".stripMargin
-        .replaceAll("\n", " "))
-    result
+      isOptimizationOperation = false)
+    logTrace(s"End: Analyzing the input data with existing revision: ${indexStatus.revision}")
+    (weightedDataFrame, tableChanges)
   }
 
   private[index] def computeInputDataBlockElementCounts(
@@ -452,7 +415,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
   def analyzeOptimize(
       dataToOptimize: DataFrame,
       indexStatus: IndexStatus): (DataFrame, TableChanges) = {
-
+    val spark = dataToOptimize.sparkSession
     val revision = indexStatus.revision
     logTrace(s"""Begin: Analyze Optimize for index with
                 |revision=$revision""".stripMargin.replaceAll("\n", " "))
@@ -460,8 +423,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
     // Add a random weight column
     val weightedDataFrame = dataToOptimize.transform(addRandomWeight(revision))
 
-    val spark = dataToOptimize.sparkSession
-    val cubeMaxWeightsB: Broadcast[Map[CubeId, Weight]] =
+    val cubeMaxWeightsBroadcast: Broadcast[Map[CubeId, Weight]] =
       spark.sparkContext.broadcast(indexStatus.cubesStatuses.mapValues(_.maxWeight).map(identity))
 
     val indexedColumns = revision.columnTransformers.map(_.columnName)
@@ -469,30 +431,28 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
     val dataFrameWithCube = weightedDataFrame
       .withColumn(
         QbeastColumns.cubeColumnName,
-        getCubeIdUDF(revision, cubeMaxWeightsB)(
+        getCubeIdUDF(revision, cubeMaxWeightsBroadcast)(
           struct(indexedColumns.map(col): _*),
           col(QbeastColumns.weightColumnName)))
       .cache()
 
-    import weightedDataFrame.sparkSession.implicits._
-    val nColumns = indexedColumns.length
+    import spark.implicits._
     val optimizedDataBlockSizes: Map[CubeId, Long] = dataFrameWithCube
       .groupBy(cubeColumnName)
       .count()
       .as[(Array[Byte], Long)]
+      .map(row => revision.createCubeId(row._1) -> row._2)
       .collect()
-      .map(row => CubeId(nColumns, row._1) -> row._2)
       .toMap
-    val optimizedDataBlockSizeBroadcast: Broadcast[Map[CubeId, Long]] =
+    val optimizedBlockElementCountsBroadcast =
       spark.sparkContext.broadcast(optimizedDataBlockSizes)
     val tableChanges =
-      BroadcastedTableChanges.create(
+      BroadcastTableChanges.create(
+        None,
         indexStatus,
-        cubeMaxWeightsB,
-        optimizedDataBlockSizeBroadcast,
-        Set.empty,
-        Set.empty,
-        None)
+        cubeMaxWeightsBroadcast,
+        optimizedBlockElementCountsBroadcast,
+        isOptimizationOperation = true)
     (dataFrameWithCube, tableChanges)
   }
 

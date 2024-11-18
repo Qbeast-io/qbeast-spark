@@ -232,11 +232,11 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
       val c1 = root.firstChild
 
       val rootBlock =
-        Block(tmpDir, CubeId(2, root.string), Weight(0.0), Weight(0.1), 1, replicated = false)
+        Block(tmpDir, CubeId(2, root.string), Weight(0.0), Weight(0.1), 1)
       val c1Block1 =
-        Block(tmpDir, CubeId(2, c1.string), Weight(0.1), Weight(0.2), 1, replicated = false)
+        Block(tmpDir, CubeId(2, c1.string), Weight(0.1), Weight(0.2), 1)
       val c1Block2 =
-        Block(tmpDir, CubeId(2, c1.string), Weight(0.7), Weight(0.8), 1, replicated = false)
+        Block(tmpDir, CubeId(2, c1.string), Weight(0.7), Weight(0.8), 1)
 
       val blocks = Seq(rootBlock, c1Block1, c1Block2).toIndexedSeq
 

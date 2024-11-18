@@ -255,40 +255,20 @@ case class RevisionChange(
 
 /**
  * Container for the current status of the index
+ *
  * @param revision
  *   the revision
- * @param replicatedSet
- *   the set of cubes in a replicated state
- * @param announcedSet
- *   the set of cubes in an announced state
  * @param cubesStatuses
  *   the map containing the status (maxWeight and files) of each cube
  */
 
 case class IndexStatus(
     revision: Revision,
-    replicatedSet: ReplicatedSet = Set.empty,
-    announcedSet: Set[CubeId] = Set.empty,
     cubesStatuses: SortedMap[CubeId, CubeStatus] = SortedMap.empty)
     extends Serializable {
 
-  def addAnnouncements(newAnnouncedSet: Set[CubeId]): IndexStatus = {
-    copy(announcedSet = announcedSet ++ newAnnouncedSet)
-  }
-
-  def cubesToOptimize: Set[CubeId] = announcedSet.diff(replicatedSet)
-
-  /**
-   * the set of cubes that has surpass their capacity
-   * @return
-   */
-  def overflowedSet: Set[CubeId] =
-    cubesStatuses.filter(_._2.maxWeight != Weight.MaxValue).keySet
-
   def cubeNormalizedWeights: Map[CubeId, NormalizedWeight] =
     cubesStatuses.mapValues(_.normalizedWeight)
-
-  def replicatedOrAnnouncedSet: Set[CubeId] = replicatedSet ++ announcedSet
 
 }
 
@@ -299,24 +279,18 @@ object CubeStatus {
       maxWeight: Weight,
       normalizedWeight: NormalizedWeight,
       blocks: IISeq[Block]): CubeStatus = {
-    new CubeStatus(
-      cubeId,
-      maxWeight,
-      normalizedWeight,
-      blocks.forall(_.replicated),
-      blocks.map(_.elementCount).sum)
+    new CubeStatus(cubeId, maxWeight, normalizedWeight, blocks.map(_.elementCount).sum)
   }
 
 }
 
 /**
  * Container for the status information of a cube
+ *
  * @param maxWeight
  *   the max weight of the cube
  * @param normalizedWeight
  *   the normalized weight of the cube
- * @param replicated
- *   whether the cube is replicated
  * @param elementCount
  *   the number of elements in the cube
  */
@@ -324,7 +298,6 @@ case class CubeStatus(
     cubeId: CubeId,
     maxWeight: Weight,
     normalizedWeight: NormalizedWeight,
-    replicated: Boolean,
     elementCount: Long)
     extends Serializable {}
 
@@ -337,11 +310,8 @@ object IndexStatus {
 
 trait TableChanges {
   val isNewRevision: Boolean
-  val isOptimizeOperation: Boolean
+  val isOptimizationOperation: Boolean
   val updatedRevision: Revision
-  val deltaReplicatedSet: Set[CubeId]
-  val announcedOrReplicatedSet: Set[CubeId]
-  def cubeState(cubeId: CubeId): String
   def cubeWeight(cubeId: CubeId): Option[Weight]
-  def deltaBlockElementCount: Map[CubeId, Long]
+  def inputBlockElementCounts: Map[CubeId, Long]
 }

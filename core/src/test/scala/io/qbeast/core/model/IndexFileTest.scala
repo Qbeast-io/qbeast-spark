@@ -63,30 +63,6 @@ class IndexFileTest extends AnyFlatSpec with Matchers {
     file.hasCubeData(cubeId.firstChild) shouldBe false
   }
 
-  it should "replicate the specified blocks correctly" in {
-    val cubeId = CubeId.root(1)
-    val file = new IndexFileBuilder()
-      .setPath("path")
-      .setSize(1L)
-      .setModificationTime(2L)
-      .setRevisionId(3L)
-      .beginBlock()
-      .setCubeId(cubeId)
-      .setElementCount(4L)
-      .endBlock()
-      .beginBlock()
-      .setCubeId(cubeId.firstChild)
-      .setElementCount(5L)
-      .endBlock()
-      .result()
-
-    val replicatedFile = file.tryReplicateBlocks(Set(cubeId)).get
-    replicatedFile.blocks.filter(_.cubeId == cubeId).foreach(_.replicated shouldBe true)
-    replicatedFile.blocks.filterNot(_.cubeId == cubeId).foreach(_.replicated shouldBe false)
-
-    file.tryReplicateBlocks(Set(cubeId.firstChild.nextSibling.get)).isEmpty shouldBe true
-  }
-
   it should "convert to string with toString" in {
     val cubeId = CubeId.root(1)
     val file = new IndexFileBuilder()

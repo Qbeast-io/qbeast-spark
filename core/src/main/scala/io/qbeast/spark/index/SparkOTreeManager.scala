@@ -16,7 +16,6 @@
 package io.qbeast.spark.index
 
 import io.qbeast.core.model._
-import io.qbeast.IISeq
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.DataFrame
 
@@ -34,78 +33,25 @@ object SparkOTreeManager extends IndexManager with Serializable with Logging {
    * @return
    *   the changes to the index
    */
-  override def index(data: DataFrame, indexStatus: IndexStatus): (DataFrame, TableChanges) =
-    index(data, indexStatus, isReplication = false)
-
-  /**
-   * Optimizes the index
-   * @param data
-   *   the data to optimize
-   * @param indexStatus
-   *   the current status of the index
-   * @return
-   *   the changes to the index
-   */
-  override def optimize(data: DataFrame, indexStatus: IndexStatus): (DataFrame, TableChanges) =
-    index(data, indexStatus, isReplication = true)
-
-  /**
-   * Analyzes the index
-   * @param indexStatus
-   *   the current status of the index
-   * @return
-   *   the cubes to optimize
-   */
-  override def analyze(indexStatus: IndexStatus): IISeq[CubeId] = {
-    findCubesToOptimize(indexStatus)
-  }
-
-  // PRIVATE METHODS //
-
-  private def findCubesToOptimize(indexStatus: IndexStatus): IISeq[CubeId] = {
-    val overflowedSet = indexStatus.overflowedSet
-    val replicatedSet = indexStatus.replicatedSet
-
-    val cubesToOptimize = overflowedSet
-      .filter(cube => {
-        !replicatedSet.contains(cube) && (cube.parent match {
-          case None => true
-          case Some(p) => replicatedSet.contains(p)
-        })
-      })
-
-    if (cubesToOptimize.isEmpty && replicatedSet.isEmpty) {
-      Seq(indexStatus.revision.createCubeIdRoot()).toIndexedSeq
-    } else cubesToOptimize.toIndexedSeq
-  }
-
-  private def index(
-      dataFrame: DataFrame,
-      indexStatus: IndexStatus,
-      isReplication: Boolean): (DataFrame, TableChanges) = {
+  override def index(data: DataFrame, indexStatus: IndexStatus): (DataFrame, TableChanges) = {
     // If the DataFrame is empty, we return an empty table changes
-    if (dataFrame.isEmpty) {
+    if (data.isEmpty) {
       logInfo("Indexing empty Dataframe. Returning empty table changes.")
       val emptyTableChanges =
-        BroadcastedTableChanges(None, indexStatus, Map.empty, Map.empty, Set.empty[CubeId])
-      return (dataFrame, emptyTableChanges)
+        BroadcastTableChanges(
+          None,
+          indexStatus,
+          Map.empty,
+          Map.empty,
+          isOptimizationOperation = false)
+      return (data, emptyTableChanges)
     }
-
-    // Begin Indexing
-    logTrace(s"Begin: Index with revision ${indexStatus.revision}")
-    // Analyze the data and compute weight and estimated weight map of the result
-    val (weightedDataFrame, tc) =
-      DoublePassOTreeDataAnalyzer.analyzeAppend(dataFrame, indexStatus, isReplication)
-
-    val pointWeightIndexer = new SparkPointWeightIndexer(tc, isReplication)
-
-    // Add cube and state information to the dataframe
-    val indexedDataFrame =
-      weightedDataFrame.transform(pointWeightIndexer.buildIndex)
-
-    val result = (indexedDataFrame, tc)
-    logTrace(s"End: Index with revision ${indexStatus.revision}")
-    result
+    // Analyze the data, add weight column, compute cube domains, and compute cube weights
+    val (weightedDataFrame, tc) = DoublePassOTreeDataAnalyzer.analyzeAppend(data, indexStatus)
+    val pointWeightIndexer = new SparkPointWeightIndexer(tc)
+    // Add cube column
+    val indexedDataFrame = weightedDataFrame.transform(pointWeightIndexer.buildIndex)
+    (indexedDataFrame, tc)
   }
 
 }

@@ -15,18 +15,10 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.DeleteFile
-import io.qbeast.core.model.IndexFile
-import io.qbeast.core.model.PreCommitHook
+import io.qbeast.core.model._
 import io.qbeast.core.model.PreCommitHook.PreCommitHookOutput
-import io.qbeast.core.model.QTableID
-import io.qbeast.core.model.QbeastFile
-import io.qbeast.core.model.QbeastHookLoader
-import io.qbeast.core.model.RevisionID
-import io.qbeast.core.model.TableChanges
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
-import io.qbeast.spark.utils.TagColumns
 import io.qbeast.spark.writer.StatsTracker.registerStatsTrackers
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.delta.actions._
@@ -37,7 +29,6 @@ import org.apache.spark.sql.delta.DeltaOptions
 import org.apache.spark.sql.delta.OptimisticTransaction
 import org.apache.spark.sql.execution.datasources.BasicWriteJobStatsTracker
 import org.apache.spark.sql.execution.datasources.WriteJobStatsTracker
-import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.SaveMode
@@ -219,34 +210,6 @@ private[delta] case class DeltaMetadataWriter(
     }
   }
 
-  private def updateReplicatedFiles(tableChanges: TableChanges): Seq[Action] = {
-    val revision = tableChanges.updatedRevision
-    val dimensionCount = revision.transformations.length
-    val deltaReplicatedSet = tableChanges.deltaReplicatedSet
-    deltaLog
-      .update()
-      .allFiles
-      .where(TagColumns.revision === lit(revision.revisionID.toString))
-      .collect()
-      .map(DeltaQbeastFileUtils.fromAddFile(dimensionCount))
-      .flatMap(_.tryReplicateBlocks(deltaReplicatedSet))
-      .map(file => {
-        val addFile = DeltaQbeastFileUtils.toAddFile(file)
-        addFile.copy(dataChange = false)
-      })
-      .toSeq
-  }
-
-  private def updateTransactionVersion(
-      txn: OptimisticTransaction,
-      revisionID: RevisionID): SetTransaction = {
-    val transactionID = s"qbeast.${tableID.id}.$revisionID"
-    val startingTnx = txn.txnVersion(transactionID)
-    val newTransaction = startingTnx + 1
-
-    SetTransaction(transactionID, newTransaction, Some(System.currentTimeMillis()))
-  }
-
   /**
    * Writes metadata of the table
    *
@@ -280,9 +243,7 @@ private[delta] case class DeltaMetadataWriter(
         DeltaLog.assertRemovable(txn.snapshot)
       }
     }
-    val rearrangeOnly = deltaOptions.rearrangeOnly
-
-    val isOptimizeOperation: Boolean = tableChanges.isOptimizeOperation
+    val rearrangeOnly = deltaOptions.rearrangeOnly && tableChanges.isOptimizationOperation
 
     // The Metadata can be updated only once in a single transaction
     // If a new space revision or a new replicated set is detected,
@@ -298,31 +259,17 @@ private[delta] case class DeltaMetadataWriter(
     if (txn.readVersion < 0) {
       // Initialize the log path
       val fs = deltaLog.logPath.getFileSystem(sparkSession.sessionState.newHadoopConf)
-
       fs.mkdirs(deltaLog.logPath)
     }
 
     val deletedFiles = mode match {
-      case SaveMode.Overwrite =>
-        txn.filterFiles().map(_.remove)
+      case SaveMode.Overwrite => txn.filterFiles().map(_.remove)
       case _ => removeFiles
     }
 
-    val allFileActions = if (rearrangeOnly) {
-      addFiles.map(_.copy(dataChange = !rearrangeOnly)) ++
-        deletedFiles.map(_.copy(dataChange = !rearrangeOnly))
-    } else {
-      addFiles ++ deletedFiles
-    }
-
-    if (isOptimizeOperation) {
-      val revisionID = tableChanges.updatedRevision.revisionID
-      val transactionRecord =
-        updateTransactionVersion(txn, revisionID)
-      val replicatedFiles = updateReplicatedFiles(tableChanges)
-      allFileActions ++ replicatedFiles ++ Seq(transactionRecord)
-    } else allFileActions
-
+    if (rearrangeOnly) {
+      addFiles.map(_.copy(dataChange = false)) ++ deletedFiles.map(_.copy(dataChange = false))
+    } else addFiles ++ deletedFiles
   }
 
 }

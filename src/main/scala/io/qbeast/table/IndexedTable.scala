@@ -112,16 +112,8 @@ trait IndexedTable {
   def load(): BaseRelation
 
   /**
-   * Analyzes the index for a given revision
-   * @param revisionID
-   *   the identifier of revision to analyze
-   * @return
-   *   the cubes to analyze
-   */
-  def analyze(revisionID: RevisionID): Seq[String]
-
-  /**
    * Optimizes a given index revision up to a given fraction.
+   *
    * @param revisionID
    *   the identifier of revision to optimize
    * @param fraction
@@ -203,8 +195,6 @@ final class IndexedTableFactoryImpl(
  *
  * @param tableID
  *   the table identifier
- * @param keeper
- *   the keeper
  * @param indexManager
  *   the index manager
  * @param metadataManager
@@ -429,17 +419,11 @@ private[table] class IndexedTableImpl(
     logDebug(s"Writing data to table $tableID with revision ${revision.revisionID}")
     var tries = DEFAULT_NUMBER_OF_RETRIES
     while (tries > 0) {
-      val revisionID = indexStatus.revision.revisionID
       try {
         doWrite(data, indexStatus, options, append)
         tries = 0
       } catch {
-        case cme: ConcurrentModificationException
-            if metadataManager.hasConflicts(
-              tableID,
-              revisionID,
-              Set.empty,
-              Set.empty) || tries == 0 =>
+        case cme: ConcurrentModificationException if tries == 0 =>
           // Nothing to do, the conflict is unsolvable
           throw cme
         case _: ConcurrentModificationException =>
@@ -483,13 +467,6 @@ private[table] class IndexedTableImpl(
     logTrace(s"End: Writing data to table $tableID")
   }
 
-  override def analyze(revisionID: RevisionID): Seq[String] = {
-    val indexStatus = snapshot.loadIndexStatus(revisionID)
-    val cubesToAnnounce = indexManager.analyze(indexStatus).map(_.string)
-    cubesToAnnounce
-
-  }
-
   /**
    * Selects the unindexed files to optimize based on the fraction
    * @param fraction
@@ -500,7 +477,7 @@ private[table] class IndexedTableImpl(
     val revisionFilesDS = snapshot.loadIndexFiles(stagingID)
     // 1. Collect the revision files ordered by modification time
     val revisionFiles = revisionFilesDS.orderBy("modificationTime").collect()
-    log.info(s"Total Number of Unindexed Files:  ${revisionFiles.size}")
+    log.info(s"Total Number of Unindexed Files:  ${revisionFiles.length}")
     // 2. Calculate the total bytes of the files to optimize based on the fraction
     val bytesToOptimize = revisionFiles.map(_.size).sum * fraction
     logInfo(s"Total Bytes of Unindexed Files to Optimize: $bytesToOptimize")
@@ -530,7 +507,7 @@ private[table] class IndexedTableImpl(
     import revisionFilesDS.sparkSession.implicits._
     val filesToOptimize = revisionFilesDS.transform(filterSamplingFiles(fraction))
     val filesToOptimizeNames = filesToOptimize.map(_.path).collect()
-    logInfo(s"Total Number of Indexed Files To Optimize: ${filesToOptimizeNames.size}")
+    logInfo(s"Total Number of Indexed Files To Optimize: ${filesToOptimizeNames.length}")
     filesToOptimizeNames
   }
 

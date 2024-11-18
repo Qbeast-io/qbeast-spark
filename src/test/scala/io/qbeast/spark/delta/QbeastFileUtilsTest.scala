@@ -32,14 +32,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
       dataChange = true,
       modificationTime = 0L,
       revisionId = 1L,
-      blocks = Seq(
-        Block(
-          "path",
-          CubeId.root(2),
-          Weight(1L),
-          Weight(2L),
-          1L,
-          replicated = false)).toIndexedSeq)
+      blocks = Seq(Block("path", CubeId.root(2), Weight(1L), Weight(2L), 1L)).toIndexedSeq)
 
     val addFile = DeltaQbeastFileUtils.toAddFile(indexFile)
     addFile.path shouldBe "path"
@@ -47,7 +40,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
     addFile.modificationTime shouldBe 0L
     addFile.getTag(TagUtils.revision) shouldBe Some("1")
     addFile.getTag(TagUtils.blocks) shouldBe Some(
-      """[{"cubeId":"","minWeight":2147483647,"maxWeight":2147483647,"elementCount":1,"replicated":false}]""")
+      """[{"cubeId":"","minWeight":2147483647,"maxWeight":2147483647,"elementCount":1}]""")
 
   }
 
@@ -61,7 +54,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
       stats = null,
       tags = Map(
         TagUtils.revision -> "1",
-        TagUtils.blocks -> """[{"cubeId":"","minWeight":2147483647,"maxWeight":2147483647,"elementCount":1,"replicated":false}]"""))
+        TagUtils.blocks -> """[{"cubeId":"","minWeight":2147483647,"maxWeight":2147483647,"elementCount":1}]"""))
 
     val indexFile = DeltaQbeastFileUtils.fromAddFile(2)(addFile)
     indexFile.path shouldBe "path"
@@ -70,7 +63,6 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
     indexFile.revisionId shouldBe 1L
     indexFile.blocks.head.cubeId shouldBe CubeId.root(2)
     indexFile.blocks.head.elementCount shouldBe 1L
-    indexFile.blocks.head.replicated shouldBe false
   }
 
   it should "transform the DeleteFile to a RemoveFile" in withSpark { _ =>
@@ -104,14 +96,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
       dataChange = true,
       modificationTime = 0L,
       revisionId = 1L,
-      blocks = Seq(
-        Block(
-          "path",
-          CubeId.root(2),
-          Weight(1L),
-          Weight(2L),
-          1L,
-          replicated = false)).toIndexedSeq)
+      blocks = Seq(Block("path", CubeId.root(2), Weight(1L), Weight(2L), 1L)).toIndexedSeq)
 
     val indexPath = new Path("/absolute/")
     val indexStatus = DeltaQbeastFileUtils.toFileStatus(indexPath)(indexFile)
@@ -130,14 +115,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
       dataChange = true,
       modificationTime = 0L,
       revisionId = 1L,
-      blocks = Seq(
-        Block(
-          "path",
-          CubeId.root(2),
-          Weight(1L),
-          Weight(2L),
-          1L,
-          replicated = false)).toIndexedSeq)
+      blocks = Seq(Block("path", CubeId.root(2), Weight(1L), Weight(2L), 1L)).toIndexedSeq)
 
     val indexPath = new Path("/absolute/")
     val indexStatus =
@@ -163,7 +141,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
           TagUtils.revision -> "1",
           TagUtils.blocks -> // WRONG BLOCK START
             """{"cubeId":"","minWeight":2147483647,
-              |"maxWeight":2147483647,"elementCount":1,"replicated":false}]""".stripMargin))
+              |"maxWeight":2147483647,"elementCount":1}]""".stripMargin))
 
       an[JsonParseException] shouldBe thrownBy(DeltaQbeastFileUtils.fromAddFile(2)(addFile))
   }
@@ -181,7 +159,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
           TagUtils.revision -> "wrong_revision",
           TagUtils.blocks ->
             """[{"cubeId":"","minWeight":2147483647,
-              |"maxWeight":2147483647,"elementCount":1,"replicated":false}""".stripMargin))
+              |"maxWeight":2147483647,"elementCount":1}""".stripMargin))
 
       an[NumberFormatException] shouldBe thrownBy(DeltaQbeastFileUtils.fromAddFile(2)(addFile))
   }

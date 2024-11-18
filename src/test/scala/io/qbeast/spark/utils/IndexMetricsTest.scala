@@ -75,8 +75,7 @@ class IndexMetricsTest extends QbeastIntegrationTestSpec {
         23456789L,
         Weight.MaxValue,
         Weight.MaxValue,
-        100,
-        blockReplicated = false),
+        100),
       DenormalizedBlock(
         rootCubeId,
         isLeaf = true,
@@ -86,8 +85,7 @@ class IndexMetricsTest extends QbeastIntegrationTestSpec {
         23456789L,
         Weight.MaxValue,
         Weight.MaxValue,
-        150,
-        blockReplicated = false),
+        150),
       DenormalizedBlock(
         child1CubeId,
         isLeaf = false,
@@ -97,8 +95,7 @@ class IndexMetricsTest extends QbeastIntegrationTestSpec {
         23456789L,
         Weight.MaxValue,
         Weight.MaxValue,
-        200,
-        blockReplicated = true),
+        200),
       DenormalizedBlock(
         child2CubeId,
         isLeaf = false,
@@ -108,8 +105,7 @@ class IndexMetricsTest extends QbeastIntegrationTestSpec {
         23456789L,
         Weight.MaxValue,
         Weight.MaxValue,
-        250,
-        blockReplicated = true)).toDS()
+        250)).toDS()
 
     // Assuming computeCubeStats is accessible and correctly implemented
     val statsString = IndexMetrics.computeCubeStats(denormalizedBlocks)

@@ -15,7 +15,7 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.BroadcastedTableChanges
+import io.qbeast.core.model.BroadcastTableChanges
 import io.qbeast.core.model.IndexStatus
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.Revision
@@ -70,11 +70,12 @@ class DeltaRollupDataWriterTest extends QbeastIntegrationTestSpec {
       val c1 = root.children.next()
       val c2 = c1.nextSibling.get
 
-      val tc = BroadcastedTableChanges(
+      val tc = BroadcastTableChanges(
         None,
         IndexStatus.empty(revision),
         Map.empty,
-        Map(root -> 20L, c1 -> 1L, c2 -> 20L))
+        Map(root -> 20L, c1 -> 1L, c2 -> 20L),
+        isOptimizationOperation = false)
 
       val rollup = DeltaRollupDataWriter.computeRollup(tc)
       rollup shouldBe Map(root -> root, c1 -> root, c2 -> c2)

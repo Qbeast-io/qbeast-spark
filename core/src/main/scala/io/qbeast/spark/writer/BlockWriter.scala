@@ -16,7 +16,6 @@
 package io.qbeast.spark.writer
 
 import io.qbeast.core.model.CubeId
-import io.qbeast.core.model.CubeState
 import io.qbeast.core.model.IndexFile
 import io.qbeast.core.model.IndexFileBuilder
 import io.qbeast.core.model.IndexFileBuilder.BlockBuilder
@@ -83,10 +82,8 @@ case class BlockWriter(
     val contexts = mutable.Map.empty[CubeId, BlockContext]
     rows.foreach { row =>
       val cubeId = revision.createCubeId(row.getBinary(qbeastColumns.cubeColumnIndex))
-
-      val state = tableChanges.cubeState(cubeId)
       val maxWeight = tableChanges.cubeWeight(cubeId).getOrElse(Weight.MaxValue)
-      val context = contexts.getOrElseUpdate(cubeId, buildWriter(cubeId, state, maxWeight))
+      val context = contexts.getOrElseUpdate(cubeId, buildWriter(cubeId, maxWeight))
 
       // The row with only the original columns
       val cleanRow = Seq.newBuilder[Any]
@@ -148,13 +145,11 @@ case class BlockWriter(
    * Creates the context to write a new cube in a new file and collect stats
    * @param cubeId
    *   a cube identifier
-   * @param state
-   *   the status of cube
    * @param maxWeight
    *   the maximum weight of the cube
    * @return
    */
-  private def buildWriter(cubeId: CubeId, state: String, maxWeight: Weight): BlockContext = {
+  private def buildWriter(cubeId: CubeId, maxWeight: Weight): BlockContext = {
     val blockStatsTracker = statsTrackers.map(_.newTaskInstance())
     val writtenPath = new Path(dataPath, s"${UUID.randomUUID()}.parquet")
     val writer: OutputWriter = factory.newInstance(
@@ -167,7 +162,6 @@ case class BlockWriter(
       .beginBlock()
       .setCubeId(cubeId)
       .setMaxWeight(maxWeight)
-      .setReplicated(state == CubeState.ANNOUNCED)
     blockStatsTracker.foreach(_.newFile(writtenPath.toString)) // Update stats trackers
     new BlockContext(builder, writer, writtenPath, blockStatsTracker)
   }

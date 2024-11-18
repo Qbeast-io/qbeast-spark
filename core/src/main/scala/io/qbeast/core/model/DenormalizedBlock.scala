@@ -42,8 +42,6 @@ import scala.collection.immutable.SortedSet
  *   The block maximum weight
  * @param blockElementCount
  *   The number of elements in the block
- * @param blockReplicated
- *   Whether the block is replicated or not
  */
 case class DenormalizedBlock(
     cubeId: CubeId,
@@ -54,8 +52,7 @@ case class DenormalizedBlock(
     fileModificationTime: Long,
     minWeight: Weight,
     maxWeight: Weight,
-    blockElementCount: Long,
-    blockReplicated: Boolean)
+    blockElementCount: Long)
 
 private[qbeast] object DenormalizedBlock {
 
@@ -105,8 +102,7 @@ private[qbeast] object DenormalizedBlock {
         $"modificationTime".as("fileModificationTime"),
         $"block.minWeight".as("minWeight"),
         $"block.maxWeight".as("maxWeight"),
-        $"block.elementCount".as("blockElementCount"),
-        $"block.replicated".as("blockReplicated"))
+        $"block.elementCount".as("blockElementCount"))
       .as[DenormalizedBlock]
   }
 

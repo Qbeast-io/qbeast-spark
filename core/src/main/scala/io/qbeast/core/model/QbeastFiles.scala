@@ -71,25 +71,6 @@ case class IndexFile(
    */
   def hasCubeData(cubeId: CubeId): Boolean = blocks.exists(_.cubeId == cubeId)
 
-  /**
-   * Tries to replicate the blocks that belong to the specified cubes
-   *
-   * @param cubeIds
-   *   cube identifiers
-   * @return
-   *   an instance with corresponding blocks replicated or None if there are no such blocks
-   */
-  def tryReplicateBlocks(cubeIds: Set[CubeId]): Option[IndexFile] = {
-    if (!blocks.exists(block => cubeIds.contains(block.cubeId))) {
-      return None
-    }
-    val newModificationTime = System.currentTimeMillis()
-    val newBlocks = blocks.map { block =>
-      if (cubeIds.contains(block.cubeId)) block.replicate() else block
-    }
-    Some(IndexFile(path, size, dataChange, newModificationTime, revisionId, newBlocks))
-  }
-
   override def toString: String = {
     s"IndexFile($path, $size, $modificationTime, $revisionId, $blocks)"
   }

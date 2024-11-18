@@ -58,7 +58,6 @@ class NormalizedWeightIntegrationTest extends QbeastIntegrationTestSpec {
           .flatMap(_.blocks)
           .foreach { block =>
             block.maxWeight.value shouldBe <=(Int.MaxValue)
-            block.replicated shouldBe false
           }
     }
 

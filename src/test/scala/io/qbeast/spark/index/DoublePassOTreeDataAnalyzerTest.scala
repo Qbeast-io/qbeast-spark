@@ -232,7 +232,6 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
             numElements,
             revisionToUse,
             indexStatus,
-            isReplication = false,
             isNewRevision = true))
 
     val cubeCount = inputDataPartitionCubeDomains
