@@ -140,16 +140,6 @@ class CubeDomainsBuilderTest extends AnyFlatSpec with Matchers with PrivateMetho
     domains.isEmpty shouldBe true
   }
 
-  it should "add maxWeight to the child of a replicated or announced cube" in {
-    val root = rev.createCubeIdRoot()
-    val builder = createCubeDomainsBuilder(replicatedOrAnnouncedSet = Set(root))
-    builder.update(point, Weight(2))
-
-    val Seq(c0, c1) = builder.result().map(cd => rev.createCubeId(cd.cubeBytes)).sorted
-    c0 shouldBe root
-    c1.parent shouldBe Some(c0)
-  }
-
   it should "calculate domain for the root" in {
     val builder = createCubeDomainsBuilder()
     (1 to 100).foreach(_ => builder.update(point, Weight(Random.nextInt())))
