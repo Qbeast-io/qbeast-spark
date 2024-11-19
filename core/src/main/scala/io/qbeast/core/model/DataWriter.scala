@@ -42,6 +42,6 @@ trait DataWriter {
       schema: StructType,
       data: DataFrame,
       tableChanges: TableChanges,
-      commitTime: String): IISeq[IndexFile]
+      commitStartTime: String): IISeq[IndexFile]
 
 }

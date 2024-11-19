@@ -486,9 +486,10 @@ private[table] class IndexedTableImpl(
         val schema = dataToWrite.schema
         val deleteFiles = removeFiles.toIndexedSeq
         metadataManager.updateWithTransaction(tableID, schema, options, append) {
-          commitTime: String =>
+          commitStartTime: String =>
             val (qbeastData, tableChanges) = indexManager.index(dataToWrite, indexStatus)
-            val addFiles = dataWriter.write(tableID, schema, qbeastData, tableChanges, commitTime)
+            val addFiles =
+              dataWriter.write(tableID, schema, qbeastData, tableChanges, commitStartTime)
             (tableChanges, addFiles, deleteFiles)
         }
     }
@@ -588,7 +589,7 @@ private[table] class IndexedTableImpl(
       tableID,
       schema,
       optimizationOptions(options),
-      append = true) { commitTime: String =>
+      append = true) { commitStartTime: String =>
       // Remove the Unindexed Files from the Log
       val deleteFiles: IISeq[DeleteFile] = files
         .map { indexFile =>
@@ -605,7 +606,7 @@ private[table] class IndexedTableImpl(
       // Write the data with DataWriter
       val newFiles: IISeq[IndexFile] =
         dataWriter
-          .write(tableID, schema, data, tableChanges, commitTime)
+          .write(tableID, schema, data, tableChanges, commitStartTime)
           .collect { case indexFile: IndexFile =>
             indexFile.copy(dataChange = false)
           }
