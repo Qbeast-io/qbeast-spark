@@ -486,10 +486,10 @@ private[table] class IndexedTableImpl(
         val schema = dataToWrite.schema
         val deleteFiles = removeFiles.toIndexedSeq
         metadataManager.updateWithTransaction(tableID, schema, options, append) {
-          commitStartTime: String =>
+          transactionStartTime: String =>
             val (qbeastData, tableChanges) = indexManager.index(dataToWrite, indexStatus)
             val addFiles =
-              dataWriter.write(tableID, schema, qbeastData, tableChanges, commitStartTime)
+              dataWriter.write(tableID, schema, qbeastData, tableChanges, transactionStartTime)
             (tableChanges, addFiles, deleteFiles)
         }
     }
@@ -589,7 +589,7 @@ private[table] class IndexedTableImpl(
       tableID,
       schema,
       optimizationOptions(options),
-      append = true) { commitStartTime: String =>
+      append = true) { transactionStartTime: String =>
       // Remove the Unindexed Files from the Log
       val deleteFiles: IISeq[DeleteFile] = files
         .map { indexFile =>
@@ -606,7 +606,7 @@ private[table] class IndexedTableImpl(
       // Write the data with DataWriter
       val newFiles: IISeq[IndexFile] =
         dataWriter
-          .write(tableID, schema, data, tableChanges, commitStartTime)
+          .write(tableID, schema, data, tableChanges, transactionStartTime)
           .collect { case indexFile: IndexFile =>
             indexFile.copy(dataChange = false)
           }
@@ -633,7 +633,7 @@ private[table] class IndexedTableImpl(
         // 3. In the same transaction
         metadataManager
           .updateWithTransaction(tableID, schema, optimizationOptions(options), append = true) {
-            commitTime: String =>
+            transactionStartTime: String =>
               import indexFiles.sparkSession.implicits._
               val deleteFiles: IISeq[DeleteFile] = indexFiles
                 .map { indexFile =>
@@ -652,7 +652,7 @@ private[table] class IndexedTableImpl(
                 DoublePassOTreeDataAnalyzer.analyzeOptimize(data, indexStatus)
               // 3. Write the data with DataWriter
               val addFiles = dataWriter
-                .write(tableID, schema, dataExtended, tableChanges, commitTime)
+                .write(tableID, schema, dataExtended, tableChanges, transactionStartTime)
                 .collect { case indexFile: IndexFile =>
                   indexFile.copy(dataChange = false)
                 }

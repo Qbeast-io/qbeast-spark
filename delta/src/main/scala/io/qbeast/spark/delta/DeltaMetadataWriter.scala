@@ -177,8 +177,8 @@ private[delta] case class DeltaMetadataWriter(
       registerStatsTrackers(statsTrackers)
 
       // Execute write
-      val commitStartTime = txn.txnStartTimeNs.toString
-      val (tableChanges, indexFiles, deleteFiles) = writer(commitStartTime)
+      val transactionStartTime = txn.txnStartTimeNs.toString
+      val (tableChanges, indexFiles, deleteFiles) = writer(transactionStartTime)
       val addFiles = indexFiles.map(DeltaQbeastFileUtils.toAddFile)
       val removeFiles = deleteFiles.map(DeltaQbeastFileUtils.toRemoveFile)
 
