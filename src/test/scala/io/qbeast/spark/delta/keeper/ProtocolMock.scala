@@ -144,8 +144,9 @@ class WritingProcess(context: ProtoTestContext)(implicit keeper: Keeper) extends
     val winfo = keeper.beginWrite(tableID, rev.revisionID)
 
     val deltaLog = DeltaMetadataManager.loadDeltaLog(tableID)
-    val mode = SaveMode.Append
-    val metadataWriter = MetadataWriterTest(tableID, mode, deltaLog, QbeastOptions.empty, schema)
+
+    val metadataWriter =
+      MetadataWriterTest(tableID, WriteMode.Append, deltaLog, QbeastOptions.empty, schema)
 
     var tries = 2
     try {
@@ -160,7 +161,7 @@ class WritingProcess(context: ProtoTestContext)(implicit keeper: Keeper) extends
             metadataWriter.updateMetadata(txn, changes, addFiles, removeFiles, Map.empty)
           simulatePause()
           try {
-            txn.commit(finalActions, DeltaOperations.Write(mode))
+            txn.commit(finalActions, DeltaOperations.Write(SaveMode.Append))
             tries = 0
             succeeded = Some(true)
           } catch {
@@ -196,8 +197,8 @@ class OptimizingProcessGood(context: ProtoTestContext)(implicit keeper: Keeper)
 
     val deltaLog = DeltaMetadataManager.loadDeltaLog(tableID)
     val deltaSnapshot = deltaLog.update()
-    val mode = SaveMode.Append
-    val metadataWriter = MetadataWriterTest(tableID, mode, deltaLog, QbeastOptions.empty, schema)
+    val metadataWriter =
+      MetadataWriterTest(tableID, WriteMode.Append, deltaLog, QbeastOptions.empty, schema)
     val cubesToOptimize = bo.cubesToOptimize.map(rev.createCubeId)
 
     try {
@@ -229,8 +230,8 @@ class OptimizingProcessBad(context: ProtoTestContext, args: Seq[String])(implici
 
     val deltaLog = DeltaMetadataManager.loadDeltaLog(tableID)
     val deltaSnapshot = deltaLog.update()
-    val mode = SaveMode.Append
-    val metadataWriter = MetadataWriterTest(tableID, mode, deltaLog, QbeastOptions.empty, schema)
+    val metadataWriter =
+      MetadataWriterTest(tableID, WriteMode.Append, deltaLog, QbeastOptions.empty, schema)
 
     val cubesToOptimize = args.toSet
 

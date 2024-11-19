@@ -24,6 +24,8 @@ import io.qbeast.core.model.QbeastFile
 import io.qbeast.core.model.QbeastHookLoader
 import io.qbeast.core.model.RevisionID
 import io.qbeast.core.model.TableChanges
+import io.qbeast.core.model.WriteMode
+import io.qbeast.core.model.WriteMode.WriteModeValue
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
 import io.qbeast.spark.utils.TagColumns
@@ -63,7 +65,7 @@ import scala.collection.mutable.ListBuffer
  */
 private[delta] case class DeltaMetadataWriter(
     tableID: QTableID,
-    mode: SaveMode,
+    writeMode: WriteModeValue,
     deltaLog: DeltaLog,
     qbeastOptions: QbeastOptions,
     schema: StructType)
@@ -76,7 +78,12 @@ private[delta] case class DeltaMetadataWriter(
     new DeltaOptions(optionsMap, SparkSession.active.sessionState.conf)
   }
 
-  private def isOverwriteOperation: Boolean = mode == SaveMode.Overwrite
+  private def isOverwriteOperation: Boolean = writeMode == WriteMode.Overwrite
+
+  private def isOptimizeOperation: Boolean = writeMode == WriteMode.Optimize
+
+  private def saveMode =
+    if (!isOverwriteOperation || isOptimizeOperation) SaveMode.Append else SaveMode.Overwrite
 
   override protected val canMergeSchema: Boolean = deltaOptions.canMergeSchema
 
@@ -198,7 +205,11 @@ private[delta] case class DeltaMetadataWriter(
 
       // Commit the information to the DeltaLog
       val op =
-        DeltaOperations.Write(mode, None, deltaOptions.replaceWhere, deltaOptions.userMetadata)
+        DeltaOperations.Write(
+          saveMode,
+          None,
+          deltaOptions.replaceWhere,
+          deltaOptions.userMetadata)
       txn.commit(actions = actions, op = op, tags = tags)
     }
   }
@@ -274,11 +285,11 @@ private[delta] case class DeltaMetadataWriter(
 
     if (txn.readVersion > -1) {
       // This table already exists, check if the insert is valid.
-      if (mode == SaveMode.ErrorIfExists) {
+      if (saveMode == SaveMode.ErrorIfExists) {
         throw AnalysisExceptionFactory.create(s"Path '${deltaLog.dataPath}' already exists.'")
-      } else if (mode == SaveMode.Ignore) {
+      } else if (saveMode == SaveMode.Ignore) {
         return Nil
-      } else if (mode == SaveMode.Overwrite) {
+      } else if (saveMode == SaveMode.Overwrite) {
         DeltaLog.assertRemovable(txn.snapshot)
       }
     }
@@ -304,7 +315,7 @@ private[delta] case class DeltaMetadataWriter(
       fs.mkdirs(deltaLog.logPath)
     }
 
-    val deletedFiles = mode match {
+    val deletedFiles = saveMode match {
       case SaveMode.Overwrite =>
         txn.filterFiles().map(_.remove)
       case _ => removeFiles

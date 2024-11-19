@@ -15,6 +15,7 @@
  */
 package io.qbeast.core.model
 
+import io.qbeast.core.model.WriteMode.WriteModeValue
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.IISeq
 import org.apache.spark.sql.types.StructType
@@ -58,7 +59,7 @@ trait MetadataManager {
       tableID: QTableID,
       schema: StructType,
       options: QbeastOptions,
-      append: Boolean)(
+      writeMode: WriteModeValue)(
       writer: String => (TableChanges, IISeq[IndexFile], IISeq[DeleteFile])): Unit
 
   /**
