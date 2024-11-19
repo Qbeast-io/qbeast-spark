@@ -486,9 +486,11 @@ private[table] class IndexedTableImpl(
         val schema = dataToWrite.schema
         val deleteFiles = removeFiles.toIndexedSeq
         metadataManager.updateWithTransaction(tableID, schema, options, append) {
-          val (qbeastData, tableChanges) = indexManager.index(dataToWrite, indexStatus)
-          val addFiles = dataWriter.write(tableID, schema, qbeastData, tableChanges)
-          (tableChanges, addFiles, deleteFiles)
+          transactionStartTime: String =>
+            val (qbeastData, tableChanges) = indexManager.index(dataToWrite, indexStatus)
+            val addFiles =
+              dataWriter.write(tableID, schema, qbeastData, tableChanges, transactionStartTime)
+            (tableChanges, addFiles, deleteFiles)
         }
     }
     logTrace(s"End: Writing data to table $tableID")
@@ -587,7 +589,7 @@ private[table] class IndexedTableImpl(
       tableID,
       schema,
       optimizationOptions(options),
-      append = true) {
+      append = true) { transactionStartTime: String =>
       // Remove the Unindexed Files from the Log
       val deleteFiles: IISeq[DeleteFile] = files
         .map { indexFile =>
@@ -604,7 +606,7 @@ private[table] class IndexedTableImpl(
       // Write the data with DataWriter
       val newFiles: IISeq[IndexFile] =
         dataWriter
-          .write(tableID, schema, data, tableChanges)
+          .write(tableID, schema, data, tableChanges, transactionStartTime)
           .collect { case indexFile: IndexFile =>
             indexFile.copy(dataChange = false)
           }
@@ -631,30 +633,31 @@ private[table] class IndexedTableImpl(
         // 3. In the same transaction
         metadataManager
           .updateWithTransaction(tableID, schema, optimizationOptions(options), append = true) {
-            import indexFiles.sparkSession.implicits._
-            val deleteFiles: IISeq[DeleteFile] = indexFiles
-              .map { indexFile =>
-                DeleteFile(
-                  path = indexFile.path,
-                  size = indexFile.size,
-                  dataChange = false,
-                  deletionTimestamp = currentTimeMillis())
-              }
-              .collect()
-              .toIndexedSeq
-            // 1. Load the data from the Index Files
-            val data = snapshot.loadDataframeFromIndexFiles(indexFiles)
-            // 2. Optimize the data with IndexManager
-            val (dataExtended, tableChanges) =
-              DoublePassOTreeDataAnalyzer.analyzeOptimize(data, indexStatus)
-            // 3. Write the data with DataWriter
-            val addFiles = dataWriter
-              .write(tableID, schema, dataExtended, tableChanges)
-              .collect { case indexFile: IndexFile =>
-                indexFile.copy(dataChange = false)
-              }
-            dataExtended.unpersist()
-            (tableChanges, addFiles, deleteFiles)
+            transactionStartTime: String =>
+              import indexFiles.sparkSession.implicits._
+              val deleteFiles: IISeq[DeleteFile] = indexFiles
+                .map { indexFile =>
+                  DeleteFile(
+                    path = indexFile.path,
+                    size = indexFile.size,
+                    dataChange = false,
+                    deletionTimestamp = currentTimeMillis())
+                }
+                .collect()
+                .toIndexedSeq
+              // 1. Load the data from the Index Files
+              val data = snapshot.loadDataframeFromIndexFiles(indexFiles)
+              // 2. Optimize the data with IndexManager
+              val (dataExtended, tableChanges) =
+                DoublePassOTreeDataAnalyzer.analyzeOptimize(data, indexStatus)
+              // 3. Write the data with DataWriter
+              val addFiles = dataWriter
+                .write(tableID, schema, dataExtended, tableChanges, transactionStartTime)
+                .collect { case indexFile: IndexFile =>
+                  indexFile.copy(dataChange = false)
+                }
+              dataExtended.unpersist()
+              (tableChanges, addFiles, deleteFiles)
           }
       }
     }

@@ -41,6 +41,7 @@ trait DataWriter {
       tableID: QTableID,
       schema: StructType,
       data: DataFrame,
-      tableChanges: TableChanges): IISeq[IndexFile]
+      tableChanges: TableChanges,
+      transactionStartTime: String): IISeq[IndexFile]
 
 }

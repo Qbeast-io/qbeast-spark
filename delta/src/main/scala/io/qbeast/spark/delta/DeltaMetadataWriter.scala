@@ -158,7 +158,8 @@ private[delta] case class DeltaMetadataWriter(
     }
   }
 
-  def writeWithTransaction(writer: => (TableChanges, Seq[IndexFile], Seq[DeleteFile])): Unit = {
+  def writeWithTransaction(
+      writer: String => (TableChanges, Seq[IndexFile], Seq[DeleteFile])): Unit = {
     val oldTransactions = deltaLog.unsafeVolatileSnapshot.setTransactions
     // If the transaction was completed before then no operation
     for (txn <- oldTransactions; version <- deltaOptions.txnVersion;
@@ -176,7 +177,8 @@ private[delta] case class DeltaMetadataWriter(
       registerStatsTrackers(statsTrackers)
 
       // Execute write
-      val (tableChanges, indexFiles, deleteFiles) = writer
+      val transactionStartTime = txn.txnStartTimeNs.toString
+      val (tableChanges, indexFiles, deleteFiles) = writer(transactionStartTime)
       val addFiles = indexFiles.map(DeltaQbeastFileUtils.toAddFile)
       val removeFiles = deleteFiles.map(DeltaQbeastFileUtils.toRemoveFile)
 
