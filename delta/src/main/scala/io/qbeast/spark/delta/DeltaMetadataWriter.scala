@@ -171,7 +171,7 @@ private[delta] case class DeltaMetadataWriter(
       val addFiles = indexFiles.map(DeltaQbeastFileUtils.toAddFile)
       val removeFiles = deleteFiles.map(DeltaQbeastFileUtils.toRemoveFile)
 
-      // Update Qbeast Metadata (replicated set, revision..)
+      // Update Qbeast Metadata, e.g., Revision
       var actions =
         updateMetadata(txn, tableChanges, addFiles, removeFiles, qbeastOptions.extraOptions)
       // Set transaction identifier if specified
@@ -245,8 +245,7 @@ private[delta] case class DeltaMetadataWriter(
     }
     val rearrangeOnly = deltaOptions.rearrangeOnly && tableChanges.isOptimizationOperation
 
-    // The Metadata can be updated only once in a single transaction
-    // If a new space revision or a new replicated set is detected,
+    // The Metadata can be updated only once in a single transaction. If a new space revision is detected,
     // we update everything in the same operation
     updateQbeastMetadata(
       txn,

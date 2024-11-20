@@ -30,19 +30,19 @@ A sample operator, present in many **query engines**, can retrieve a **randomly*
 However, although the result of a sample operation is a subset of the desired size, the price for generating such a subset is generally **not** lower - we first load **the entire dataset** into memory, and only then a random selection is used for the subset generation.
 
 ## OTree "Index"
-Built on top of a recursive space division algorithm, the OTree "Index" adopts a **data denormalization** methodology to empower both **multi-dimensional indexing** and **efficient data sampling** at the same time. It arranges the data and its **replicas** in a multi-dimensional tree, with no need for a separate structure for the index, for the architecture of the **data arrangement** itself already plays the role.
+Built on top of a recursive space division algorithm, the OTree "Index" adopts a **data denormalization** methodology to empower both **multi-dimensional indexing** and **efficient data sampling** at the same time. It arranges the data in a multi-dimensional tree, with no need for a separate structure for the index, for the architecture of the **data arrangement** itself already plays the role.
 
-In a nutshell, we distribute our data and replicas among a **multi-dimensional** tree, where each cube gets to have a random subset of it. We can access this fraction through a parameter called `maxWeight`, and all cubes also have one of the three possible **states** that determine their **READ** and **WRITE** protocols.
+In a nutshell, we distribute our data among a **multi-dimensional** tree, where each cube gets to have a random subset of it. We can access this fraction through a parameter called `maxWeight.`
 
 In this case, all cubes store **actual** data and don't use pointers.
 
-The rest of the page describes the theoretical details about the OTree, including cube states and their READ and WRITE protocols, how data replication is conducted.
+The rest of the page describes the theoretical details about the READ and WRITE protocols of OTree.
 
 ### Terminologies
 - `cube`: similar to a node in a tree data structure, except it defines a confined **n-dimensional** space, with `n` being the number of indexed columns.
   
 
-- `payload`: elements stored in a cube that won't be cut off after **replication**
+- `payload`: elements stored in a cube.
 
   
 - `offset`: where the excess elements are stored for cubes with `size ≥ desired_capacity`.
@@ -99,4 +99,4 @@ The rest of the page describes the theoretical details about the OTree, includin
     - `maxWeight <= w`: go to the correct child cube among `cube 00`, `cube 01`, `cube 02`, and `cube 03`, and recheck the condition.
     
 
-- Unlike the traditional space division algorithm, we don't split the cube immediately when exceeding the capacity during writes. The **optimization** of the cube, and the index in general, is handled by a separate procedure.
+- Unlike the traditional space division algorithm, we don't split the cube immediately when exceeding the capacity during writes.

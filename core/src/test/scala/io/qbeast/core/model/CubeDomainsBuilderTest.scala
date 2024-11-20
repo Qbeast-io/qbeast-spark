@@ -39,7 +39,6 @@ class CubeDomainsBuilderTest extends AnyFlatSpec with Matchers with PrivateMetho
 
   private def createCubeDomainsBuilder(
       existingCubeWeights: Map[CubeId, Weight] = Map.empty,
-      replicatedOrAnnouncedSet: Set[CubeId] = Set.empty,
       desiredCubeSize: Int = rev.desiredCubeSize,
       numPartitions: Int = 10,
       elementCount: Long = 100L,

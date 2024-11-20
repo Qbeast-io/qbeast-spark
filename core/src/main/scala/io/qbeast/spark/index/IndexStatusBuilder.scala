@@ -41,7 +41,7 @@ class IndexStatusBuilder(qbeastSnapshot: QbeastSnapshot, revision: Revision)
   }
 
   def stagingCubeStatuses: SortedMap[CubeId, CubeStatus] = {
-    // Staging files should not be replicated, and all files belong to the root.
+    // All staging files belong to the root.
     // All staging blocks have elementCount=0 as no qbeast tags are present.
     val root = revision.createCubeIdRoot()
     SortedMap(root -> CubeStatus(root, Weight.MaxValue, Weight.MaxValue.fraction, 0L))
