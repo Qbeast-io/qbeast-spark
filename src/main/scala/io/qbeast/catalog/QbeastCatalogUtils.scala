@@ -106,6 +106,21 @@ object QbeastCatalogUtils extends Logging {
     }
   }
 
+  /**
+   * Verifies and adjusts the schema of a catalog table based on the provided indexed (external)
+   * table.
+   *
+   * @param indexedTable
+   *   The indexed table to verify against
+   *
+   * @param table
+   *   The catalog table being created or verified. It may be an external table (with a provided
+   *   schema or not) or a managed table. Its schema may be empty if the user has not specified
+   *   one in the creation command.
+   *
+   * @return
+   *   The table with a verified or adjusted schema if valid
+   */
   private def verifySchema(indexedTable: IndexedTable, table: CatalogTable): CatalogTable = {
 
     val indexedTableExists = indexedTable.exists
@@ -132,7 +147,7 @@ object QbeastCatalogUtils extends Logging {
         throw AnalysisExceptionFactory
           .create(
             "Trying to create a managed table with a different schema. " +
-              "Do you want to want to ALTER TABLE first?")
+              "Do you want to ALTER TABLE first?")
       }
       table
     }
@@ -281,26 +296,26 @@ object QbeastCatalogUtils extends Logging {
     updateLog(spark, indexedTable, dataFrame, schema, allProperties, tableCreationMode)
 
     // 2. Update the existing session catalog with the Qbeast table information
-    updateCatalog(
-      qTableID,
-      tableCreationMode,
-      table,
-      isPathTable,
-      existingTableOpt,
-      existingSessionCatalog)
+    updateCatalog(tableCreationMode, table, isPathTable, existingTableOpt, existingSessionCatalog)
   }
 
   /**
    * Based on DeltaCatalog updateCatalog private method, it maintains the consistency of creating
-   * a table calling the spark session catalog.
+   * a table by calling the Spark session catalog.
+   *
    * @param operation
+   *   The type of operation being performed (e.g., CREATE, REPLACE).
    * @param table
+   *   The `CatalogTable` representing the table definition being created or updated.
    * @param isPathTable
+   *   A boolean indicating if the table is identified by a path rather than a catalog name.
    * @param existingTableOpt
+   *   An optional `CatalogTable` representing an existing table with the same identifier, if
+   *   present.
    * @param existingSessionCatalog
+   *   A boolean indicating if the table exists in the session catalog.
    */
   private def updateCatalog(
-      tableID: QTableID,
       operation: CreationMode,
       table: CatalogTable,
       isPathTable: Boolean,
@@ -321,7 +336,7 @@ object QbeastCatalogUtils extends Logging {
         // REPLACE the metadata of the table with the new one
         existingSessionCatalog.alterTable(table)
       case TableCreationMode.REPLACE_TABLE =>
-        // Throw an exception if the table to replace does not exists
+        // Throw an exception if the table to replace does not exist
         val ident = Identifier.of(table.identifier.database.toArray, table.identifier.table)
         throw new CannotReplaceMissingTableException(ident)
       case TableCreationMode.CREATE_OR_REPLACE =>
