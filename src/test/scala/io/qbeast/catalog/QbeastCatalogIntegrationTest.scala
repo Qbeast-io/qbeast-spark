@@ -16,25 +16,28 @@
 package io.qbeast.catalog
 
 import io.qbeast.QbeastIntegrationTestSpec
+import org.apache.spark.qbeast.config.DEFAULT_TABLE_FORMAT
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.SparkConf
 
 class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with CatalogTestSuite {
 
   "QbeastCatalog" should
-    "coexist with Delta table" in withTmpDir(tmpDir =>
+    "coexist with the table-format catalog" in withTmpDir(tmpDir =>
       withExtendedSpark(sparkConf = new SparkConf()
         .setMaster("local[8]")
-        .set("spark.sql.extensions", "io.qbeast.sql.QbeastSparkSessionExtension")
         .set("spark.sql.warehouse.dir", tmpDir)
+        .set("spark.sql.extensions", "io.qbeast.sql.QbeastSparkSessionExtension")
         .set("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
         .set("spark.sql.catalog.qbeast_catalog", "io.qbeast.catalog.QbeastCatalog"))(spark => {
 
         val data = createTestData(spark)
 
-        data.write.format("delta").saveAsTable("delta_table") // delta catalog
+        val tableFormat = DEFAULT_TABLE_FORMAT
+        val table_name = s"${tableFormat}_table"
+
+        data.write.format(tableFormat).saveAsTable(table_name)
 
         data.write
           .format("qbeast")
@@ -44,7 +47,7 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
         val tables = spark.sessionState.catalog.listTables("default")
         tables.size shouldBe 2
 
-        val deltaTable = spark.read.table("delta_table")
+        val deltaTable = spark.read.table(table_name)
         val qbeastTable = spark.read.table("qbeast_catalog.default.qbeast_table")
 
         assertSmallDatasetEquality(
@@ -56,12 +59,15 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
       }))
 
   it should
-    "coexist with Delta table in the same catalog" in withQbeastContextSparkAndTmpWarehouse(
+    "coexist with table in the same catalog" in withQbeastContextSparkAndTmpWarehouse(
       (spark, _) => {
 
         val data = createTestData(spark)
 
-        data.write.format("delta").saveAsTable("delta_table") // delta catalog
+        val tableFormat = DEFAULT_TABLE_FORMAT
+        val table_name = s"${tableFormat}_table"
+
+        data.write.format(tableFormat).saveAsTable(table_name) // delta catalog
 
         data.write
           .format("qbeast")
@@ -71,7 +77,7 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
         val tables = spark.sessionState.catalog.listTables("default")
         tables.size shouldBe 2
 
-        val deltaTable = spark.read.table("delta_table")
+        val deltaTable = spark.read.table(table_name)
         val qbeastTable = spark.read.table("qbeast_table")
 
         assertSmallDatasetEquality(
@@ -234,45 +240,47 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
 
     })
 
-  it should "persist altered properties on the _delta_log" in withQbeastContextSparkAndTmpWarehouse(
+  it should "persist altered properties on the table log" in withQbeastContextSparkAndTmpWarehouse(
     (spark, tmpDir) => {
 
       spark.sql("CREATE TABLE t1(id INT) USING qbeast TBLPROPERTIES ('columnsToIndex'= 'id')")
       spark.sql("ALTER TABLE t1 SET TBLPROPERTIES ('k' = 'v')")
 
-      // Check the delta log info
-      val deltaLog = DeltaLog.forTable(spark, TableIdentifier("t1"))
-      val snapshot = deltaLog.update()
-      val properties = snapshot.getProperties
+      val tableIdentifier = TableIdentifier("t1")
+      val tableMetadata = spark.sessionState.catalog.getTableMetadata(tableIdentifier)
+
+      val snapshot = getQbeastSnapshot(tableMetadata.location.toString)
+      val properties = snapshot.loadProperties
 
       properties should contain key "k"
       properties("k") shouldBe "v"
 
     })
 
-  it should "persist UNSET properties in _delta_catalog" in withQbeastContextSparkAndTmpWarehouse(
-    (spark, _) => {
+  it should "persist UNSET properties" in withQbeastContextSparkAndTmpWarehouse((spark, _) => {
 
-      spark.sql(
-        "CREATE TABLE t1(id INT) " +
-          "USING qbeast " +
-          "TBLPROPERTIES ('columnsToIndex'= 'id')")
+    spark.sql(
+      "CREATE TABLE t1(id INT) " +
+        "USING qbeast " +
+        "TBLPROPERTIES ('columnsToIndex'= 'id')")
 
-      spark.sql("ALTER TABLE t1 SET TBLPROPERTIES ('k' = 'v')")
+    spark.sql("ALTER TABLE t1 SET TBLPROPERTIES ('k' = 'v')")
 
-      val deltaLog = DeltaLog.forTable(spark, TableIdentifier("t1"))
-      val snapshot = deltaLog.update()
-      val properties = snapshot.getProperties
+    val tableIdentifier = TableIdentifier("t1")
+    val tableMetadata = spark.sessionState.catalog.getTableMetadata(tableIdentifier)
 
-      properties should contain key "k"
-      properties("k") shouldBe "v"
+    val snapshot = getQbeastSnapshot(tableMetadata.location.toString)
+    val properties = snapshot.loadProperties
 
-      spark.sql("ALTER TABLE t1 UNSET TBLPROPERTIES ('k')")
+    properties should contain key "k"
+    properties("k") shouldBe "v"
 
-      // Check the delta log info
-      val updatedProperties = deltaLog.update().getProperties
-      updatedProperties should not contain key("k")
-    })
+    spark.sql("ALTER TABLE t1 UNSET TBLPROPERTIES ('k')")
+
+    val updatedSnapshot = getQbeastSnapshot(tableMetadata.location.toString)
+    val updatedProperties = updatedSnapshot.loadProperties
+    updatedProperties should not contain key("k")
+  })
 
   it should "ensure consistency with the session catalog" in withQbeastContextSparkAndTmpWarehouse(
     (spark, tmpDir) => {
@@ -284,25 +292,28 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
           "USING qbeast " +
           "TBLPROPERTIES ('columnsToIndex'= 'id')")
       spark.sql("ALTER TABLE t1 SET TBLPROPERTIES ('k' = 'v')")
-      // Check the delta log info
-      val deltaLog = DeltaLog.forTable(spark, TableIdentifier("t1"))
-      val catalog = spark.sessionState.catalog
+
+      val tableIdentifier = TableIdentifier("t1")
+      val tableMetadata = spark.sessionState.catalog.getTableMetadata(tableIdentifier)
+
+      val snapshot = getQbeastSnapshot(tableMetadata.location.toString)
+      val properties = snapshot.loadProperties
+
       val showProperties = spark.sql("SHOW TBLPROPERTIES t1").as[(String, String)].collect().toMap
 
-      val snapshot = deltaLog.update()
-      val properties = snapshot.getProperties
-      val catalogProperties =
-        catalog.getTableMetadata(TableIdentifier("t1")).properties
+      val catalog = spark.sessionState.catalog
+      val catalogProperties = catalog.getTableMetadata(tableIdentifier).properties
+
       properties should contain key "k"
       catalogProperties should contain key "k"
       showProperties should contain key "k"
 
       spark.sql("ALTER TABLE t1 UNSET TBLPROPERTIES ('k')")
-      // Check the delta log info
-      val updatedSnapshot = deltaLog.update()
-      val updatedProperties = updatedSnapshot.getProperties
+
+      val updatedSnapshot = getQbeastSnapshot(tableMetadata.location.toString)
+      val updatedProperties = updatedSnapshot.loadProperties
       val updatedCatalogProperties =
-        catalog.getTableMetadata(TableIdentifier("t1")).properties
+        catalog.getTableMetadata(tableIdentifier).properties
       val updatedShowProperties =
         spark.sql("SHOW TBLPROPERTIES t1").as[(String, String)].collect().toMap
 
@@ -318,10 +329,8 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
         s"CREATE TABLE t1(id INT) USING qbeast LOCATION '$tmpDir' " +
           "TBLPROPERTIES('k' = 'v', 'columnsToIndex' = 'id')")
 
-      // Check the delta log info
-      val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val snapshot = deltaLog.update()
-      val properties = snapshot.getProperties
+      val snapshot = getQbeastSnapshot(tmpDir)
+      val properties = snapshot.loadProperties
 
       properties should contain key "columnsToIndex"
       properties should contain key "k"

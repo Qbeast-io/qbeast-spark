@@ -31,6 +31,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.COLUMN_SELECTOR_ENABLED
 import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
 import org.apache.spark.sql.sources.BaseRelation
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Dataset
@@ -50,6 +51,13 @@ trait IndexedTable {
    *   the table physically exists.
    */
   def exists: Boolean
+
+  /**
+   * Returns the schema of the table, if any
+   * @return
+   *   the schema
+   */
+  def schema: StructType
 
   /**
    * Returns whether the table contains Qbeast metadata
@@ -243,6 +251,8 @@ private[table] class IndexedTableImpl(
   private def latestRevision: Revision = snapshot.loadLatestRevision
 
   override def exists: Boolean = !snapshot.isInitial
+
+  override def schema: StructType = snapshot.schema
 
   override def hasQbeastMetadata: Boolean = try {
     snapshot.loadLatestRevision
