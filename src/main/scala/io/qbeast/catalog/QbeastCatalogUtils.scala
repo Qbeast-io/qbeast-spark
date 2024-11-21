@@ -13,15 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.internal.sources.catalog
+package io.qbeast.catalog
 
-import io.qbeast.catalog.CreationMode
-import io.qbeast.catalog.TableCreationMode
 import io.qbeast.core.model.QTableID
 import io.qbeast.sources.v2.QbeastTableImpl
 import io.qbeast.table.IndexedTable
 import io.qbeast.table.IndexedTableFactory
-import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.fs.Path
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.analysis.CannotReplaceMissingTableException
@@ -32,7 +29,6 @@ import org.apache.spark.sql.connector.catalog.Identifier
 import org.apache.spark.sql.connector.catalog.SparkCatalogV2Util
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.datasources.DataSource
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
@@ -110,21 +106,30 @@ object QbeastCatalogUtils extends Logging {
     }
   }
 
-  private def verifySchema(
-      spark: SparkSession,
-      fs: FileSystem,
-      path: Path,
-      table: CatalogTable): CatalogTable = {
+  /**
+   * Verifies and adjusts the schema of a catalog table based on the provided indexed (external)
+   * table.
+   *
+   * @param indexedTable
+   *   The indexed table to verify against
+   *
+   * @param table
+   *   The catalog table being created or verified. It may be an external table (with a provided
+   *   schema or not) or a managed table. Its schema may be empty if the user has not specified
+   *   one in the creation command.
+   *
+   * @return
+   *   The table with a verified or adjusted schema if valid
+   */
+  private def verifySchema(indexedTable: IndexedTable, table: CatalogTable): CatalogTable = {
 
-    val isTablePopulated = table.tableType == CatalogTableType.EXTERNAL && fs
-      .exists(path) && fs.listStatus(path).nonEmpty
-    // Users did not specify the schema. We expect the schema exists in Delta.
+    val indexedTableExists = indexedTable.exists
+
     if (table.schema.isEmpty) {
+      // Users did not specify the schema. We expect the schema exists
       if (table.tableType == CatalogTableType.EXTERNAL) {
-        if (fs.exists(path) && fs.listStatus(path).nonEmpty) {
-          val existingSchema =
-            DeltaLog.forTable(spark, path.toString).unsafeVolatileSnapshot.metadata.schema
-          table.copy(schema = existingSchema)
+        if (indexedTableExists) {
+          table.copy(schema = indexedTable.schema)
         } else {
           throw AnalysisExceptionFactory
             .create(
@@ -138,15 +143,11 @@ object QbeastCatalogUtils extends Logging {
               "Do you want to create it as EXTERNAL?")
       }
     } else {
-      if (isTablePopulated) {
-        val existingSchema =
-          DeltaLog.forTable(spark, path.toString).unsafeVolatileSnapshot.metadata.schema
-        if (existingSchema != table.schema) {
-          throw AnalysisExceptionFactory
-            .create(
-              "Trying to create a managed table with a different schema. " +
-                "Do you want to want to ALTER TABLE first?")
-        }
+      if (indexedTableExists && indexedTable.schema != table.schema) {
+        throw AnalysisExceptionFactory
+          .create(
+            "Trying to create a managed table with a different schema. " +
+              "Do you want to ALTER TABLE first?")
       }
       table
     }
@@ -289,35 +290,32 @@ object QbeastCatalogUtils extends Logging {
       comment = commentOpt)
 
     // Verify the schema if it's an external table
-    val tableLocation = new Path(loc)
-    val hadoopConf = spark.sharedState.sparkContext.hadoopConfiguration
-    val fs = tableLocation.getFileSystem(hadoopConf)
-    val table = verifySchema(spark, fs, tableLocation, t)
+    val table = verifySchema(indexedTable, t)
 
     // 1. Update the Log in the File System
     updateLog(spark, indexedTable, dataFrame, schema, allProperties, tableCreationMode)
 
     // 2. Update the existing session catalog with the Qbeast table information
-    updateCatalog(
-      qTableID,
-      tableCreationMode,
-      table,
-      isPathTable,
-      existingTableOpt,
-      existingSessionCatalog)
+    updateCatalog(tableCreationMode, table, isPathTable, existingTableOpt, existingSessionCatalog)
   }
 
   /**
    * Based on DeltaCatalog updateCatalog private method, it maintains the consistency of creating
-   * a table calling the spark session catalog.
+   * a table by calling the Spark session catalog.
+   *
    * @param operation
+   *   The type of operation being performed (e.g., CREATE, REPLACE).
    * @param table
+   *   The `CatalogTable` representing the table definition being created or updated.
    * @param isPathTable
+   *   A boolean indicating if the table is identified by a path rather than a catalog name.
    * @param existingTableOpt
+   *   An optional `CatalogTable` representing an existing table with the same identifier, if
+   *   present.
    * @param existingSessionCatalog
+   *   A boolean indicating if the table exists in the session catalog.
    */
   private def updateCatalog(
-      tableID: QTableID,
       operation: CreationMode,
       table: CatalogTable,
       isPathTable: Boolean,
@@ -338,7 +336,7 @@ object QbeastCatalogUtils extends Logging {
         // REPLACE the metadata of the table with the new one
         existingSessionCatalog.alterTable(table)
       case TableCreationMode.REPLACE_TABLE =>
-        // Throw an exception if the table to replace does not exists
+        // Throw an exception if the table to replace does not exist
         val ident = Identifier.of(table.identifier.database.toArray, table.identifier.table)
         throw new CannotReplaceMissingTableException(ident)
       case TableCreationMode.CREATE_OR_REPLACE =>
