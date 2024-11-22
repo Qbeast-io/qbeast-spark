@@ -15,33 +15,13 @@
  */
 package io.qbeast.core.model
 
-import io.qbeast.IISeq
-import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.DataFrame
-
 /**
- * Data Writer template
+ * Names of possible write modes
  */
-trait DataWriter {
 
-  /**
-   * Write the index data to the files
-   * @param tableID
-   *   the table identifier
-   * @param schema
-   *   the schema of the data
-   * @param data
-   *   the data to write
-   * @param tableChanges
-   *   the changes of the index
-   * @return
-   *   the sequence of files written
-   */
-  def write(
-      tableID: QTableID,
-      schema: StructType,
-      data: DataFrame,
-      tableChanges: TableChanges,
-      transactionStartTime: String): IISeq[IndexFile]
-
+object WriteMode {
+  type WriteModeValue = String
+  final val Append: WriteModeValue = "APPEND"
+  final val Overwrite: WriteModeValue = "OVERWRITE"
+  final val Optimize: WriteModeValue = "OPTIMIZE"
 }

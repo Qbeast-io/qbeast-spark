@@ -17,6 +17,7 @@ package io.qbeast.spark.delta
 
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.TableChanges
+import io.qbeast.core.model.WriteMode.WriteModeValue
 import io.qbeast.spark.internal.QbeastOptions
 import org.apache.spark.sql.delta.actions.Action
 import org.apache.spark.sql.delta.actions.AddFile
@@ -24,11 +25,10 @@ import org.apache.spark.sql.delta.actions.RemoveFile
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.delta.OptimisticTransaction
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.SaveMode
 
 class MetadataWriterTest(
     tableID: QTableID,
-    mode: SaveMode,
+    mode: WriteModeValue,
     deltaLog: DeltaLog,
     options: QbeastOptions,
     schema: StructType)
@@ -49,7 +49,7 @@ object MetadataWriterTest {
 
   def apply(
       tableID: QTableID,
-      mode: SaveMode,
+      mode: WriteModeValue,
       deltaLog: DeltaLog,
       options: QbeastOptions,
       schema: StructType): MetadataWriterTest = {

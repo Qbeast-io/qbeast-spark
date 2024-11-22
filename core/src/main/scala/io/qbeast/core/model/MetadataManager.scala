@@ -15,6 +15,7 @@
  */
 package io.qbeast.core.model
 
+import io.qbeast.core.model.WriteMode.WriteModeValue
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.IISeq
 import org.apache.spark.sql.types.StructType
@@ -51,14 +52,15 @@ trait MetadataManager {
    *   the schema of the data
    * @param options
    *   the update options
-   * @param append
-   *   the append flag
+   * @param writeMode
+   *   the write mode
    */
   def updateWithTransaction(
       tableID: QTableID,
       schema: StructType,
       options: QbeastOptions,
-      append: Boolean)(writer: => (TableChanges, IISeq[IndexFile], IISeq[DeleteFile])): Unit
+      writeMode: WriteModeValue)(
+      writer: String => (TableChanges, IISeq[IndexFile], IISeq[DeleteFile])): Unit
 
   /**
    * Updates the table metadata by overwriting the metadata configurations with the provided

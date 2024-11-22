@@ -30,6 +30,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.COLUMN_SELECTOR_ENABLED
 import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
 import org.apache.spark.sql.sources.BaseRelation
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Dataset
@@ -49,6 +50,13 @@ trait IndexedTable {
    *   the table physically exists.
    */
   def exists: Boolean
+
+  /**
+   * Returns the schema of the table, if any
+   * @return
+   *   the schema
+   */
+  def schema: StructType
 
   /**
    * Returns whether the table contains Qbeast metadata
@@ -136,7 +144,9 @@ trait IndexedTable {
   /**
    * Optimizes the table by optimizing the data stored in the specified unindexed files.
    * @param unindexedFiles
+   *   the unindexed files to optimize
    * @param options
+   *   Optimization options where user metadata and pre-commit hooks are specified.
    */
   def optimizeUnindexedFiles(unindexedFiles: Seq[String], options: Map[String, String]): Unit
 }
@@ -227,6 +237,8 @@ private[table] class IndexedTableImpl(
   private def latestRevision: Revision = snapshot.loadLatestRevision
 
   override def exists: Boolean = !snapshot.isInitial
+
+  override def schema: StructType = snapshot.schema
 
   override def hasQbeastMetadata: Boolean = try {
     snapshot.loadLatestRevision
@@ -458,10 +470,13 @@ private[table] class IndexedTableImpl(
       case StagingResolution(dataToWrite, removeFiles, false) =>
         val schema = dataToWrite.schema
         val deleteFiles = removeFiles.toIndexedSeq
-        metadataManager.updateWithTransaction(tableID, schema, options, append) {
-          val (qbeastData, tableChanges) = indexManager.index(dataToWrite, indexStatus)
-          val addFiles = dataWriter.write(tableID, schema, qbeastData, tableChanges)
-          (tableChanges, addFiles, deleteFiles)
+        val writeMode = if (append) WriteMode.Append else WriteMode.Overwrite
+        metadataManager.updateWithTransaction(tableID, schema, options, writeMode) {
+          transactionStartTime: String =>
+            val (qbeastData, tableChanges) = indexManager.index(dataToWrite, indexStatus)
+            val addFiles =
+              dataWriter.write(tableID, schema, qbeastData, tableChanges, transactionStartTime)
+            (tableChanges, addFiles, deleteFiles)
         }
     }
     logTrace(s"End: Writing data to table $tableID")
@@ -497,7 +512,9 @@ private[table] class IndexedTableImpl(
   /**
    * Selects the indexed files to optimize based on the fraction
    * @param revisionID
+   *   the revision identifier
    * @param fraction
+   *   the fraction of the data to optimize
    * @return
    */
   private[table] def selectIndexedFilesToOptimize(
@@ -552,7 +569,7 @@ private[table] class IndexedTableImpl(
       tableID,
       schema,
       optimizationOptions(options),
-      append = true) {
+      WriteMode.Optimize) { transactionStartTime: String =>
       // Remove the Unindexed Files from the Log
       val deleteFiles: IISeq[DeleteFile] = files
         .map { indexFile =>
@@ -569,7 +586,7 @@ private[table] class IndexedTableImpl(
       // Write the data with DataWriter
       val newFiles: IISeq[IndexFile] =
         dataWriter
-          .write(tableID, schema, data, tableChanges)
+          .write(tableID, schema, data, tableChanges, transactionStartTime)
           .collect { case indexFile: IndexFile =>
             indexFile.copy(dataChange = false)
           }
@@ -595,7 +612,11 @@ private[table] class IndexedTableImpl(
         val indexStatus = snapshot.loadIndexStatus(revision.revisionID)
         // 3. In the same transaction
         metadataManager
-          .updateWithTransaction(tableID, schema, optimizationOptions(options), append = true) {
+          .updateWithTransaction(
+            tableID,
+            schema,
+            optimizationOptions(options),
+            WriteMode.Optimize) { transactionStartTime: String =>
             import indexFiles.sparkSession.implicits._
             val deleteFiles: IISeq[DeleteFile] = indexFiles
               .map { indexFile =>
@@ -614,7 +635,7 @@ private[table] class IndexedTableImpl(
               DoublePassOTreeDataAnalyzer.analyzeOptimize(data, indexStatus)
             // 3. Write the data with DataWriter
             val addFiles = dataWriter
-              .write(tableID, schema, dataExtended, tableChanges)
+              .write(tableID, schema, dataExtended, tableChanges, transactionStartTime)
               .collect { case indexFile: IndexFile =>
                 indexFile.copy(dataChange = false)
               }
