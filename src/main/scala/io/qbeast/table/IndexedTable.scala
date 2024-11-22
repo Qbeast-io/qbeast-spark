@@ -19,7 +19,6 @@ import io.qbeast.core.model._
 import io.qbeast.core.model.RevisionFactory
 import io.qbeast.internal.commands.ConvertToQbeastCommand
 import io.qbeast.sources.QbeastBaseRelation
-import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
 import io.qbeast.spark.internal.QbeastOptions.optimizationOptions
@@ -631,8 +630,7 @@ private[table] class IndexedTableImpl(
             // 1. Load the data from the Index Files
             val data = snapshot.loadDataframeFromIndexFiles(indexFiles)
             // 2. Optimize the data with IndexManager
-            val (dataExtended, tableChanges) =
-              DoublePassOTreeDataAnalyzer.analyzeOptimize(data, indexStatus)
+            val (dataExtended, tableChanges) = indexManager.optimize(data, indexStatus)
             // 3. Write the data with DataWriter
             val addFiles = dataWriter
               .write(tableID, schema, dataExtended, tableChanges, transactionStartTime)

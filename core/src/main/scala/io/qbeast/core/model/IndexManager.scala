@@ -33,4 +33,14 @@ trait IndexManager {
    */
   def index(data: DataFrame, indexStatus: IndexStatus): (DataFrame, TableChanges)
 
+  /**
+   * Optimizes the input data by reassigning cubes according to the current index status
+   * @param data
+   *   the data to optimize
+   * @param indexStatus
+   *   the current index status
+   * @return
+   *   the optimized data and the changes of the index
+   */
+  def optimize(data: DataFrame, indexStatus: IndexStatus): (DataFrame, TableChanges)
 }

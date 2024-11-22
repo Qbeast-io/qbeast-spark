@@ -37,11 +37,10 @@ private class SparkPointWeightIndexer(tableChanges: TableChanges) extends Serial
   }
 
   def buildIndex: DataFrame => DataFrame = (weightedDataFrame: DataFrame) => {
-    val revision = tableChanges.updatedRevision
-    val columnsToIndex = revision.columnTransformers.map(_.columnName)
-    val singleCubeBytesArray =
-      findTargetCubeBytesUDF(struct(columnsToIndex.map(col): _*), col(weightColumnName))
-    weightedDataFrame.withColumn(cubeColumnName, explode(singleCubeBytesArray))
+    val indexedColumns = revision.columnTransformers.map(_.columnName).map(col)
+    val cubeBytes = explode(
+      findTargetCubeBytesUDF(struct(indexedColumns: _*), col(weightColumnName)))
+    weightedDataFrame.withColumn(cubeColumnName, cubeBytes)
   }
 
 }

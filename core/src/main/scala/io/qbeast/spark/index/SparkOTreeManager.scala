@@ -16,6 +16,9 @@
 package io.qbeast.spark.index
 
 import io.qbeast.core.model._
+import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer.addRandomWeight
+import io.qbeast.spark.index.QbeastColumns.cubeColumnName
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.DataFrame
 
@@ -46,11 +49,65 @@ object SparkOTreeManager extends IndexManager with Serializable with Logging {
       return (data, emptyTableChanges)
     }
     // Analyze the data, add weight column, compute cube domains, and compute cube weights
-    val (weightedDataFrame, tc) = DoublePassOTreeDataAnalyzer.analyzeAppend(data, indexStatus)
-    val pointWeightIndexer = new SparkPointWeightIndexer(tc)
+    val (weightedDataFrame, tc) = DoublePassOTreeDataAnalyzer.analyze(data, indexStatus)
+
     // Add cube column
+    val pointWeightIndexer = new SparkPointWeightIndexer(tc)
     val indexedDataFrame = weightedDataFrame.transform(pointWeightIndexer.buildIndex)
     (indexedDataFrame, tc)
+  }
+
+  /**
+   * Optimizes the input data by reassigning cubes according to the current index status
+   *
+   * @param data
+   *   the data to optimize
+   * @param indexStatus
+   *   the current index status
+   * @return
+   *   the optimized data and the changes of the index
+   */
+  override def optimize(data: DataFrame, indexStatus: IndexStatus): (DataFrame, TableChanges) = {
+    val spark = data.sparkSession
+    val revision = indexStatus.revision
+    logTrace(s"""Begin: Analyze Optimize for index with
+                |revision=$revision""".stripMargin.replaceAll("\n", " "))
+
+    // Add a random weight column
+    val weightedDataFrame = data.transform(addRandomWeight(revision))
+
+    val cubeMaxWeightsBroadcast: Broadcast[Map[CubeId, Weight]] =
+      spark.sparkContext.broadcast(indexStatus.cubeMaxWeights())
+
+    // Add cube column
+    val pointWeightIndexer = new SparkPointWeightIndexer(new TableChanges {
+      override val isNewRevision: Boolean = false
+      override val updatedRevision: Revision = revision
+      override def cubeWeight(cubeId: CubeId): Option[Weight] =
+        cubeMaxWeightsBroadcast.value.get(cubeId)
+      override def inputBlockElementCounts: Map[CubeId, Long] = Map.empty
+    })
+    val indexedDataFrame = pointWeightIndexer.buildIndex(weightedDataFrame)
+
+    import spark.implicits._
+    val optimizedDataBlockSizes: Map[CubeId, Long] = indexedDataFrame
+      .groupBy(cubeColumnName)
+      .count()
+      .as[(Array[Byte], Long)]
+      .map(row => revision.createCubeId(row._1) -> row._2)
+      .collect()
+      .toMap
+
+    val optimizedBlockElementCountsBroadcast =
+      spark.sparkContext.broadcast(optimizedDataBlockSizes)
+
+    val tableChanges = BroadcastTableChanges(
+      isNewRevision = false,
+      revision,
+      cubeMaxWeightsBroadcast,
+      optimizedBlockElementCountsBroadcast)
+
+    (indexedDataFrame, tableChanges)
   }
 
 }
