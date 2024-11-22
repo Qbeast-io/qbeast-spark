@@ -21,50 +21,8 @@ import org.apache.spark.sql.SparkSession
 /**
  * Container for the table changes
  */
-
-object BroadcastTableChanges {
-
-  def apply(
-      revisionChanges: Option[RevisionChange],
-      existingIndexStatus: IndexStatus,
-      updatedCubeNormalizedWeights: Map[CubeId, Weight],
-      inputBlockElementCounts: Map[CubeId, Long],
-      isOptimizationOperation: Boolean): TableChanges = {
-    val sparkContext = SparkSession.active.sparkContext
-
-    BroadcastTableChanges.create(
-      revisionChanges,
-      existingIndexStatus,
-      sparkContext.broadcast(updatedCubeNormalizedWeights),
-      sparkContext.broadcast(inputBlockElementCounts),
-      isOptimizationOperation)
-  }
-
-  def create(
-      revisionChanges: Option[RevisionChange],
-      existingIndexStatus: IndexStatus,
-      updatedCubeNormalizedWeightsBroadcast: Broadcast[Map[CubeId, Weight]],
-      inputBlockElementCountsBroadcast: Broadcast[Map[CubeId, Long]],
-      isOptimizationOperation: Boolean): TableChanges = {
-
-    val updatedRevision = revisionChanges match {
-      case Some(newRev) => newRev.createNewRevision
-      case None => existingIndexStatus.revision
-    }
-
-    BroadcastTableChanges(
-      isNewRevision = revisionChanges.isDefined,
-      isOptimizationOperation = isOptimizationOperation,
-      updatedRevision = updatedRevision,
-      cubeWeightsBroadcast = updatedCubeNormalizedWeightsBroadcast,
-      inputBlockElementCountsBroadcast = inputBlockElementCountsBroadcast)
-  }
-
-}
-
 case class BroadcastTableChanges private[model] (
     isNewRevision: Boolean,
-    isOptimizationOperation: Boolean,
     updatedRevision: Revision,
     cubeWeightsBroadcast: Broadcast[Map[CubeId, Weight]],
     inputBlockElementCountsBroadcast: Broadcast[Map[CubeId, Long]])
@@ -75,5 +33,28 @@ case class BroadcastTableChanges private[model] (
 
   override def inputBlockElementCounts: Map[CubeId, Long] =
     inputBlockElementCountsBroadcast.value
+
+}
+
+object BroadcastTableChanges {
+
+  def apply(
+      revisionChanges: Option[RevisionChange],
+      existingIndexStatus: IndexStatus,
+      updatedCubeWeights: Map[CubeId, Weight],
+      inputBlockElementCounts: Map[CubeId, Long]): TableChanges = {
+    val sparkContext = SparkSession.active.sparkContext
+    val (updatedRevision, isNewRevision) = revisionChanges match {
+      case Some(newRev) => (newRev.createNewRevision, true)
+      case None => (existingIndexStatus.revision, false)
+    }
+    val cubeWeightsBroadcast = sparkContext.broadcast(updatedCubeWeights)
+    val inputBlockElementCountsBroadcast = sparkContext.broadcast(inputBlockElementCounts)
+    BroadcastTableChanges(
+      isNewRevision = isNewRevision,
+      updatedRevision = updatedRevision,
+      cubeWeightsBroadcast = cubeWeightsBroadcast,
+      inputBlockElementCountsBroadcast = inputBlockElementCountsBroadcast)
+  }
 
 }

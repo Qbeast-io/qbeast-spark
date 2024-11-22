@@ -99,11 +99,6 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
   val indexStatus: IndexStatus = IndexStatus(rev, cubeStatuses)
 
   val tableChanges: TableChanges =
-    BroadcastTableChanges(
-      None,
-      IndexStatus(rev),
-      updatedCubeNormalizedWeights = weightMap,
-      Map.empty,
-      isOptimizationOperation = false)
+    BroadcastTableChanges(None, IndexStatus(rev), weightMap, Map.empty[CubeId, Long])
 
 }

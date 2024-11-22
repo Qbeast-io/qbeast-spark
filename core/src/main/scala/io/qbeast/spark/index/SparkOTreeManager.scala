@@ -41,9 +41,8 @@ object SparkOTreeManager extends IndexManager with Serializable with Logging {
         BroadcastTableChanges(
           None,
           indexStatus,
-          Map.empty,
-          Map.empty,
-          isOptimizationOperation = false)
+          Map.empty[CubeId, Weight],
+          Map.empty[CubeId, Long])
       return (data, emptyTableChanges)
     }
     // Analyze the data, add weight column, compute cube domains, and compute cube weights

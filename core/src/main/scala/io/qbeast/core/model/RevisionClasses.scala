@@ -357,7 +357,6 @@ object IndexStatus {
 
 trait TableChanges {
   val isNewRevision: Boolean
-  val isOptimizationOperation: Boolean
   val updatedRevision: Revision
   def cubeWeight(cubeId: CubeId): Option[Weight]
   def inputBlockElementCounts: Map[CubeId, Long]

@@ -339,8 +339,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
       spaceChanges,
       indexStatus,
       updatedCubeWeights,
-      inputDataBlockElementCounts,
-      isOptimizationOperation = false)
+      inputDataBlockElementCounts)
     logTrace(s"End: Analyzing the input data with existing revision: ${indexStatus.revision}")
     (weightedDataFrame, tableChanges)
   }
@@ -378,7 +377,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
     val weightedDataFrame = dataToOptimize.transform(addRandomWeight(revision))
 
     val cubeMaxWeightsBroadcast: Broadcast[Map[CubeId, Weight]] =
-      spark.sparkContext.broadcast(indexStatus.cubesStatuses.mapValues(_.maxWeight).map(identity))
+      spark.sparkContext.broadcast(indexStatus.cubeMaxWeights())
 
     val indexedColumns = revision.columnTransformers.map(_.columnName)
     // TODO there function should be rewritten to be faster.
@@ -400,13 +399,12 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
       .toMap
     val optimizedBlockElementCountsBroadcast =
       spark.sparkContext.broadcast(optimizedDataBlockSizes)
-    val tableChanges =
-      BroadcastTableChanges.create(
-        None,
-        indexStatus,
-        cubeMaxWeightsBroadcast,
-        optimizedBlockElementCountsBroadcast,
-        isOptimizationOperation = true)
+    val tableChanges = BroadcastTableChanges(
+      isNewRevision = false,
+      revision,
+      cubeMaxWeightsBroadcast,
+      optimizedBlockElementCountsBroadcast)
+
     (dataFrameWithCube, tableChanges)
   }
 

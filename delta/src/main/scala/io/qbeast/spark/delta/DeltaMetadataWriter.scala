@@ -262,7 +262,7 @@ private[delta] case class DeltaMetadataWriter(
         DeltaLog.assertRemovable(txn.snapshot)
       }
     }
-    val rearrangeOnly = tableChanges.isOptimizationOperation
+    val rearrangeOnly = isOptimizeOperation
 
     val (newConfiguration, hasRevisionUpdate) = updateConfiguration(
       txn.metadata.configuration,
