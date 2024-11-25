@@ -36,8 +36,6 @@ class PointWeightIndexerTest extends AnyFlatSpec with Matchers {
     override def cubeWeight(cubeId: CubeId): Option[Weight] = mapCubeWeights.get(cubeId)
 
     override def inputBlockElementCounts: Map[CubeId, Long] = Map.empty
-
-    override val isOptimizationOperation: Boolean = false
   }
 
   "findTargetCubeBytes" should "return the root cube if cube weights is empty" in {
