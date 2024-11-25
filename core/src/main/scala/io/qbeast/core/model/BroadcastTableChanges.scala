@@ -42,7 +42,7 @@ object BroadcastTableChanges {
       revisionChanges: Option[RevisionChange],
       existingIndexStatus: IndexStatus,
       updatedCubeWeights: Map[CubeId, Weight],
-      inputBlockElementCounts: Map[CubeId, Long]): TableChanges = {
+      inputBlockElementCounts: Map[CubeId, Long]): BroadcastTableChanges = {
     val sparkContext = SparkSession.active.sparkContext
     val (updatedRevision, isNewRevision) = revisionChanges match {
       case Some(newRev) => (newRev.createNewRevision, true)

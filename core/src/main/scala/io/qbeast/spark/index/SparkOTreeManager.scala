@@ -18,7 +18,6 @@ package io.qbeast.spark.index
 import io.qbeast.core.model._
 import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer.addRandomWeight
 import io.qbeast.spark.index.QbeastColumns.cubeColumnName
-import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.DataFrame
 
@@ -75,19 +74,15 @@ object SparkOTreeManager extends IndexManager with Serializable with Logging {
 
     // Add a random weight column
     val weightedDataFrame = data.transform(addRandomWeight(revision))
-
-    val cubeMaxWeightsBroadcast: Broadcast[Map[CubeId, Weight]] =
-      spark.sparkContext.broadcast(indexStatus.cubeMaxWeights())
+    val tcForIndexing = BroadcastTableChanges(
+      isNewRevision = false,
+      revision,
+      spark.sparkContext.broadcast(indexStatus.cubeMaxWeights()),
+      spark.sparkContext.broadcast(Map.empty[CubeId, Long]))
 
     // Add cube column
-    val pointWeightIndexer = new SparkPointWeightIndexer(new TableChanges {
-      override val isNewRevision: Boolean = false
-      override val updatedRevision: Revision = revision
-      override def cubeWeight(cubeId: CubeId): Option[Weight] =
-        cubeMaxWeightsBroadcast.value.get(cubeId)
-      override def inputBlockElementCounts: Map[CubeId, Long] = Map.empty
-    })
-    val indexedDataFrame = pointWeightIndexer.buildIndex(weightedDataFrame)
+    val pointWeightIndexer = new SparkPointWeightIndexer(tcForIndexing)
+    val indexedDataFrame = weightedDataFrame.transform(pointWeightIndexer.buildIndex)
 
     import spark.implicits._
     val optimizedDataBlockSizes: Map[CubeId, Long] = indexedDataFrame
@@ -98,16 +93,10 @@ object SparkOTreeManager extends IndexManager with Serializable with Logging {
       .collect()
       .toMap
 
-    val optimizedBlockElementCountsBroadcast =
-      spark.sparkContext.broadcast(optimizedDataBlockSizes)
-
-    val tableChanges = BroadcastTableChanges(
-      isNewRevision = false,
-      revision,
-      cubeMaxWeightsBroadcast,
-      optimizedBlockElementCountsBroadcast)
-
-    (indexedDataFrame, tableChanges)
+    (
+      indexedDataFrame,
+      tcForIndexing.copy(inputBlockElementCountsBroadcast =
+        spark.sparkContext.broadcast(optimizedDataBlockSizes)))
   }
 
 }
