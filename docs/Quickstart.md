@@ -121,13 +121,13 @@ $SPARK_HOME/bin/spark-sql \
 Spark Configuration can help improving writing and reading performance. Here are a few configuration for qbeast. 
 
 
-| **Configuration**                               | **Definition**                                               | **Default** |
-|-------------------------------------------------|--------------------------------------------------------------|-------------|
-| `spark.qbeast.index.defaultCubeSize`            | Default cube size for all datasets written in the session.   | 5000000     |
-| `spark.qbeast.index.cubeWeightsBufferCapacity`  | Default buffer capacity for intermediate results.            | 100         |
-| `spark.qbeast.index.columnsToIndex.auto`        | Automatically select columns to index.                       | false       |
-| `spark.qbeast.index.columnsToIndex.auto.max`    | Maximum number of columns to index automatically.            | 10          |
-| `spark.qbeast.index.numberOfRetries`            | Number of retries for writing data.                          | 2           |
+| **Configuration**                              | **Definition**                                               | **Default** |
+|------------------------------------------------|--------------------------------------------------------------|-------------|
+| `spark.qbeast.index.defaultCubeSize`           | Default cube size for all datasets written in the session.   | 5000000     |
+| `spark.qbeast.index.cubeDomainsBufferCapacity` | Default buffer capacity for intermediate results.            | 100000      |
+| `spark.qbeast.index.columnsToIndex.auto`       | Automatically select columns to index.                       | false       |
+| `spark.qbeast.index.columnsToIndex.auto.max`   | Maximum number of columns to index automatically.            | 10          |
+| `spark.qbeast.index.numberOfRetries`           | Number of retries for writing data.                          | 2           |
 
 Consult the [Qbeast-Spark advanced configuration](AdvancedConfiguration.md) for more information.
 

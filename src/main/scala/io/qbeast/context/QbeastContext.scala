@@ -18,7 +18,6 @@ package io.qbeast.context
 import io.qbeast.core.model._
 import io.qbeast.spark.delta.DeltaMetadataManager
 import io.qbeast.spark.delta.DeltaRollupDataWriter
-import io.qbeast.spark.delta.DeltaStagingDataManagerFactory
 import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.index.SparkRevisionFactory
@@ -78,9 +77,6 @@ object QbeastContext extends QbeastContext with QbeastCoreContext {
 
   override def dataWriter: DataWriter = DeltaRollupDataWriter
 
-  override def stagingDataManagerBuilder: StagingDataManagerFactory =
-    DeltaStagingDataManagerFactory
-
   override def revisionBuilder: RevisionFactory = SparkRevisionFactory
 
   override def columnSelector: ColumnsToIndexSelector = SparkColumnsToIndexSelector
@@ -129,7 +125,6 @@ object QbeastContext extends QbeastContext with QbeastCoreContext {
       indexManager,
       metadataManager,
       dataWriter,
-      stagingDataManagerBuilder,
       revisionBuilder,
       columnSelector)
 

@@ -223,28 +223,26 @@ for testing or production purposes, you can do it through Spark Configuration:
 --conf spark.qbeast.index.defaultCubeSize=100000
 ```
 
-## CubeWeightsBufferCapacity
+## CubeDomainsBufferCapacity
 
-### Trade-off between memory pressure and index quality
+The parallel indexing algorithm can be divided into two stages: the estimation of index metadata and its usage to assign rows to cubes.
+During the first stage, separate smaller OTrees are built in parallel, and their metadata (cube domains) are extracted and merged into a single index.
 
-The current indexing algorithm uses a greedy approach to estimate the data distribution without additional shuffling.
-Still, there's a tradeoff between the goodness of such estimation and the memory required during the computation.
-The cubeWeightsBufferCapacity property controls such tradeoff by defining the maximum number of elements stored in
-a memory buffer when indexing. It basically follows the next formula, which you can see in the method
-`estimateGroupCubeSize()` from `io.qbeast.core.model.CubeWeights.scala`:
+Spark intrinsically divides the dataset into partitions, and all records in a partition are used to build a local tree.
+If your spark partitions are too large to fit in memory, `CubeDomainsBufferCapacity` can be used to limit the buffer size when building local trees.
+
+If the partition has 1000 records and the buffer capacity is 100. You will create 10 local trees, each with 100 records.
+
+This value is also used to determine the group cube size, i.e., the cube size of the local trees:
 ```
 numGroups = MAX(numPartitions, (numElements / cubeWeightsBufferCapacity))
 groupCubeSize = desiredCubeSize / numGroups
 ```
 
-As you can infer from the formula, the number of working groups used when scanning the dataset influences the quality
-of the data distribution. A lower number of groups will result in a higher index precision, while having more groups
-and fewer elements per group will lead to worse indexes.
-
 You can change this number through the Spark Configuration:
 
 ```shell
---conf spark.qbeast.index.cubeWeightsBufferCapacity=10000
+--conf spark.qbeast.index.cubeDomainsBufferCapacity=10000
 ```
 
 ## NumberOfRetries
@@ -253,25 +251,6 @@ You can change the number of retries for the LocalKeeper in order to test it.
 
 ```shell
 --conf spark.qbeast.index.numberOfRetries=10000
-```
-
-## Data Staging
-You can set up the `SparkSession` with a **data staging area** for all your Qbeast table writes.
-
-A staging area is where you can put the data you don't yet want to index but still want to be available for your queries.
-To activate staging, set the following configuration to a non-negative value.
-
-```scala
---conf spark.qbeast.index.stagingSizeInBytes=1000000000
-```
-When the staging area is not full, all writes are staged without indexing(written in `delta`).
-When the staging size reaches the defined value, the current data is merged with the staged data and written at once.
-
-The feature can be helpful when your workflow does frequent small appends. Setting up a staging area makes sure that all index appends are at least of the staging size.
-
-We can empty the staging area with a given write by setting the staging size to `0`:
-```scala
---conf spark.qbeast.index.stagingSizeInBytes=0
 ```
 
 ## Pre-commit Hooks
@@ -293,7 +272,6 @@ The same method returns a `Map[String, String],` which will be used as `tags` fo
   }
 }
 ```
-
 
 1. You can use more than one hook, as shown in the case below: `myHook1`, and `myHook2.`
 2. For each hook you want to use, provide their class names with the option name: `qbeastPreCommitHook.<custom-hook-name>.`
@@ -321,6 +299,7 @@ val options = Map(
 )
 qt.optimize(filesToOptimize, options)
 ```
+
 ## Advanced Index metadata analysis
 In addition to the IndexMetrics class, we provide handy access to the low-level details of the Qbeast index through the  
 QbeastTable.forTable(sparkSession, tablePath) methods that returns a Dataset[DenormalizedBlock] which

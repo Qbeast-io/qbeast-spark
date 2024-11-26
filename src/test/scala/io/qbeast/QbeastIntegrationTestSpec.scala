@@ -23,7 +23,6 @@ import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.QbeastSnapshot
 import io.qbeast.spark.delta.DeltaMetadataManager
 import io.qbeast.spark.delta.DeltaRollupDataWriter
-import io.qbeast.spark.delta.DeltaStagingDataManagerFactory
 import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.index.SparkRevisionFactory
@@ -156,7 +155,6 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
         SparkOTreeManager,
         DeltaMetadataManager,
         DeltaRollupDataWriter,
-        DeltaStagingDataManagerFactory,
         SparkRevisionFactory,
         SparkColumnsToIndexSelector)
       val context = new QbeastContextImpl(spark.sparkContext.getConf, indexedTableFactory)

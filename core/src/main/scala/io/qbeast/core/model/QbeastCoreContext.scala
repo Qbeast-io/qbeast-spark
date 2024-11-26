@@ -25,7 +25,6 @@ trait QbeastCoreContext {
   def metadataManager: MetadataManager
   def dataWriter: DataWriter
   def indexManager: IndexManager
-  def stagingDataManagerBuilder: StagingDataManagerFactory
   def revisionBuilder: RevisionFactory
   def columnSelector: ColumnsToIndexSelector
 }

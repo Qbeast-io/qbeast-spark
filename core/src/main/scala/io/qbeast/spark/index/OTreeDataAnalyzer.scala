@@ -21,7 +21,7 @@ import io.qbeast.spark.index.QbeastColumns.weightColumnName
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
 import io.qbeast.IISeq
 import org.apache.spark.internal.Logging
-import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
+import org.apache.spark.qbeast.config.CUBE_DOMAINS_BUFFER_CAPACITY
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Dataset
@@ -134,7 +134,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
 
       val cols = revision.columnTransformers.map(_.columnName) :+ weightColumnName
       val numPartitions: Int = weightedDataFrame.rdd.getNumPartitions
-      val bufferCapacity: Long = CUBE_WEIGHTS_BUFFER_CAPACITY
+      val bufferCapacity: Long = CUBE_DOMAINS_BUFFER_CAPACITY
 
       // Broadcast large objects for CubeDomainsBuilder.
       // The index should be built from scratch if it is a new revision

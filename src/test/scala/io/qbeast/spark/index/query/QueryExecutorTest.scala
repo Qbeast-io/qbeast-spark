@@ -127,14 +127,10 @@ class QueryExecutorTest extends QbeastIntegrationTestSpec with QueryTestSpec {
       .toSet
     val matchFiles = queryExecutor.execute(new Path(tmpDir)).map(_.getPath.getName).toSet
 
-    println(allFiles)
-    println(matchFiles)
-
     val diff = allFiles -- matchFiles
     diff.size shouldBe 0
     matchFiles.size shouldBe allFiles.size
     matchFiles shouldBe allFiles
-
   })
 
   it should "skip blocks with maxWeight < weightRange.from" in withSparkAndTmpDir(

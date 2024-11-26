@@ -46,23 +46,6 @@ class QbeastSparkTxnTest extends QbeastIntegrationTestSpec {
     transaction.version shouldBe 1
   }
 
-  it should "save SetTransaction action in the log while staging data" in withExtendedSparkAndTmpDir(
-    sparkConfWithSqlAndCatalog.set("spark.qbeast.index.stagingSizeInBytes", "1000000")) {
-    (spark, tmpDir) =>
-      val data = makeDataFrame(spark)
-      data.write
-        .format("qbeast")
-        .option(QbeastOptions.COLUMNS_TO_INDEX, "id")
-        .option(QbeastOptions.CUBE_SIZE, 1)
-        .option(QbeastOptions.TXN_APP_ID, "test")
-        .option(QbeastOptions.TXN_VERSION, "1")
-        .save(tmpDir)
-      val transaction =
-        DeltaLog.forTable(spark, tmpDir).unsafeVolatileSnapshot.setTransactions.head
-      transaction.appId shouldBe "test"
-      transaction.version shouldBe 1
-  }
-
   it should "ignore already processed transaction while indexing data" in withExtendedSparkAndTmpDir(
     sparkConfWithSqlAndCatalog) { (spark, tmpDir) =>
     val data = makeDataFrame(spark)
@@ -86,32 +69,6 @@ class QbeastSparkTxnTest extends QbeastIntegrationTestSpec {
       .mode(SaveMode.Append)
       .save(tmpDir)
     spark.read.format("qbeast").load(tmpDir).count() shouldBe data.count()
-  }
-
-  it should "ignore already processed transaction while staging data" in withExtendedSparkAndTmpDir(
-    sparkConfWithSqlAndCatalog.set("spark.qbeast.index.stagingSizeInBytes", "1000000")) {
-    (spark, tmpDir) =>
-      val data = makeDataFrame(spark)
-      data.write
-        .format("qbeast")
-        .option(QbeastOptions.COLUMNS_TO_INDEX, "id")
-        .option(QbeastOptions.CUBE_SIZE, 1)
-        .option(QbeastOptions.TXN_APP_ID, "test")
-        .option(QbeastOptions.TXN_VERSION, "2")
-        .save(tmpDir)
-      data.write
-        .format("qbeast")
-        .option(QbeastOptions.TXN_APP_ID, "test")
-        .option(QbeastOptions.TXN_VERSION, "1")
-        .mode(SaveMode.Append)
-        .save(tmpDir)
-      data.write
-        .format("qbeast")
-        .option(QbeastOptions.TXN_APP_ID, "test")
-        .option(QbeastOptions.TXN_VERSION, "2")
-        .mode(SaveMode.Append)
-        .save(tmpDir)
-      spark.read.format("qbeast").load(tmpDir).count() shouldBe data.count()
   }
 
   it should "process transaction with different appId while indexing data" in withExtendedSparkAndTmpDir(
@@ -152,46 +109,6 @@ class QbeastSparkTxnTest extends QbeastIntegrationTestSpec {
     spark.read.format("qbeast").load(tmpDir).count() shouldBe data.count() * 2
   }
 
-  it should "process transaction with different appId while staging data" in withExtendedSparkAndTmpDir(
-    sparkConfWithSqlAndCatalog.set("spark.qbeast.index.stagingSizeInBytes", "1000000")) {
-    (spark, tmpDir) =>
-      val data = makeDataFrame(spark)
-      data.write
-        .format("qbeast")
-        .option(QbeastOptions.COLUMNS_TO_INDEX, "id")
-        .option(QbeastOptions.CUBE_SIZE, 1)
-        .option(QbeastOptions.TXN_APP_ID, "test")
-        .option(QbeastOptions.TXN_VERSION, "1")
-        .save(tmpDir)
-      data.write
-        .format("qbeast")
-        .option(QbeastOptions.TXN_APP_ID, "test2")
-        .option(QbeastOptions.TXN_VERSION, "1")
-        .mode(SaveMode.Append)
-        .save(tmpDir)
-      spark.read.format("qbeast").load(tmpDir).count() shouldBe data.count() * 2
-  }
-
-  it should "process transaction with different version while staging data" in withExtendedSparkAndTmpDir(
-    sparkConfWithSqlAndCatalog.set("spark.qbeast.index.stagingSizeInBytes", "1000000")) {
-    (spark, tmpDir) =>
-      val data = makeDataFrame(spark)
-      data.write
-        .format("qbeast")
-        .option(QbeastOptions.COLUMNS_TO_INDEX, "id")
-        .option(QbeastOptions.CUBE_SIZE, 1)
-        .option(QbeastOptions.TXN_APP_ID, "test")
-        .option(QbeastOptions.TXN_VERSION, "1")
-        .save(tmpDir)
-      data.write
-        .format("qbeast")
-        .option(QbeastOptions.TXN_APP_ID, "test")
-        .option(QbeastOptions.TXN_VERSION, "2")
-        .mode(SaveMode.Append)
-        .save(tmpDir)
-      spark.read.format("qbeast").load(tmpDir).count() shouldBe data.count() * 2
-  }
-
   it should "process implicit transaction while indexing data" in withExtendedSparkAndTmpDir(
     sparkConfWithSqlAndCatalog) { (spark, tmpDir) =>
     val data = makeDataFrame(spark)
@@ -207,24 +124,6 @@ class QbeastSparkTxnTest extends QbeastIntegrationTestSpec {
       .mode(SaveMode.Append)
       .save(tmpDir)
     spark.read.format("qbeast").load(tmpDir).count() shouldBe data.count() * 2
-  }
-
-  it should "process implicit transaction while staging data" in withExtendedSparkAndTmpDir(
-    sparkConfWithSqlAndCatalog.set("spark.qbeast.index.stagingSizeInBytes", "1000000")) {
-    (spark, tmpDir) =>
-      val data = makeDataFrame(spark)
-      data.write
-        .format("qbeast")
-        .option(QbeastOptions.COLUMNS_TO_INDEX, "id")
-        .option(QbeastOptions.CUBE_SIZE, 1)
-        .option(QbeastOptions.TXN_APP_ID, "test")
-        .option(QbeastOptions.TXN_VERSION, "1")
-        .save(tmpDir)
-      data.write
-        .format("qbeast")
-        .mode(SaveMode.Append)
-        .save(tmpDir)
-      spark.read.format("qbeast").load(tmpDir).count() shouldBe data.count() * 2
   }
 
   private def makeDataFrame(spark: SparkSession): DataFrame = {
