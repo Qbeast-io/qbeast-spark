@@ -53,7 +53,7 @@ object Transformer {
         throw AnalysisExceptionFactory.create(
           "Transformer type 'histogram' is deprecated. Use 'quantiles' instead")
       case None =>
-        throw AnalysisExceptionFactory.create(
+        throw new NoSuchElementException(
           s"Unknown transformer type: $transformerTypeName. Available transformers are: ${transformersRegistry.keys
               .mkString(", ")}")
     }
