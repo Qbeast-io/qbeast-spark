@@ -38,19 +38,19 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
       "columnsToIndex" -> "col_1,col_2",
       "cubeSize" -> "100",
       "columnStats" ->
-        """{"col_1_min": 0.0, "col_1_max": 5000.0, "col_2_min": 0.0, "col_2_max": 5000.0}""")
+        """{"col_1_min": 0.0, "col_1_max": 10000.0, "col_2_min": 0.0, "col_2_max": 10000.0}""")
     spark
-      .range(5000)
-      .withColumn("col_1", rand() % 5000)
-      .withColumn("col_2", rand() % 5000)
+      .range(10000)
+      .withColumn("col_1", rand() % 10000)
+      .withColumn("col_2", rand() % 10000)
       .write
       .format("qbeast")
       .options(options)
       .save(tmpDir)
     spark
-      .range(5000)
-      .withColumn("col_1", rand() % 5000)
-      .withColumn("col_2", rand() % 5000)
+      .range(10000)
+      .withColumn("col_1", rand() % 10000)
+      .withColumn("col_2", rand() % 10000)
       .write
       .mode("append")
       .format("qbeast")
