@@ -427,8 +427,8 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
       val histogramTablePath = "src/test/resources/string-histogram-table"
       val histogramTable = QbeastTable.forPath(spark, histogramTablePath)
       val latestRevision = histogramTable.latestRevision
-      println(latestRevision.columnTransformers.head.toString)
-      println(latestRevision.transformations.head)
+      latestRevision.columnTransformers.head.toString should startWith("StringHistogramTransformer")
+      latestRevision.transformations.head.toString should startWith("StringHistogramTransformation")
       val histogramTableDF = spark.read
         .format("qbeast")
         .load(histogramTablePath)
