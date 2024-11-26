@@ -21,9 +21,11 @@ import io.qbeast.core.transform.IdentityTransformation
 import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.core.transform.LinearTransformer
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
+import io.qbeast.table.QbeastTable
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
@@ -418,6 +420,40 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
       revision.transformations.head should matchPattern {
         case LinearTransformation(-1L, 99L, _, LongDataType) =>
       }
+    })
+
+  it should "be able to read depecrated StringHistogramTransfromation" in withSparkAndTmpDir(
+    (spark, tmpDir) => {
+      val histogramTablePath = "src/test/resources/string-histogram-table"
+      val histogramTable = QbeastTable.forPath(spark, histogramTablePath)
+      val latestRevision = histogramTable.latestRevision
+      println(latestRevision.columnTransformers.head.toString)
+      println(latestRevision.transformations.head)
+      val histogramTableDF = spark.read
+        .format("qbeast")
+        .load(histogramTablePath)
+      val deltaTableDF = spark.read
+        .format("delta")
+        .load(histogramTablePath)
+      histogramTableDF.count() shouldBe deltaTableDF.count()
+
+      val filteredBrandQbeast = histogramTableDF.filter("brand = 'versace'")
+      val filteredBrandDelta = deltaTableDF.filter("brand = 'versace'")
+
+      filteredBrandQbeast.count() shouldBe filteredBrandDelta.count()
+    })
+
+  it should "throw an exception when using 'histogram' transformer type" in withSparkAndTmpDir(
+    (spark, tmpDir) => {
+      import spark.implicits._
+      val df = spark.range(5).map(i => s"$i").toDF("id_string")
+      an[AnalysisException] should be thrownBy {
+        df.write
+          .format("qbeast")
+          .option("columnsToIndex", "id_string:histogram")
+          .save(tmpDir)
+      }
+
     })
 
 }

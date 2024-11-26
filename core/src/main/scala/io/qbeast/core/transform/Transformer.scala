@@ -19,6 +19,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 import io.qbeast.core.model.OrderedDataType
 import io.qbeast.core.model.QDataType
 import io.qbeast.core.model.StringDataType
+import org.apache.spark.sql.AnalysisExceptionFactory
 
 import java.util.Locale
 
@@ -46,7 +47,16 @@ object Transformer {
   def apply(transformerTypeName: String, columnName: String, dataType: QDataType): Transformer = {
 
     val tt = transformerTypeName.toLowerCase(Locale.ROOT)
-    transformersRegistry(tt)(columnName, dataType)
+    transformersRegistry.get(tt) match {
+      case Some(transformer) => transformer(columnName, dataType)
+      case None if (transformerTypeName == "histogram") =>
+        throw AnalysisExceptionFactory.create(
+          "Transformer type 'histogram' is deprecated. Use 'quantiles' instead")
+      case None =>
+        throw AnalysisExceptionFactory.create(
+          s"Unknown transformer type: $transformerTypeName. Available transformers are: ${transformersRegistry.keys
+              .mkString(", ")}")
+    }
   }
 
   /**
