@@ -38,7 +38,7 @@ private[delta] trait DeltaMetadataOperation
    * @param schema
    *   the schema of the table
    * @param isOverwriteMode
-   *   whether the write mode is overwrite
+   *   whether the write mode is 'overwrite'
    * @param rearrangeOnly
    *   whether the operation is only to rearrange the table
    * @param configuration

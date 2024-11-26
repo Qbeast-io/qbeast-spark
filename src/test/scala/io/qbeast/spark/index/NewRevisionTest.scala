@@ -73,10 +73,8 @@ class NewRevisionTest
         val qbeastSnapshot = getQbeastSnapshot(tmpDir)
 
         val revisions = qbeastSnapshot.loadAllRevisions
-        val allWM =
-          revisions
-            .map(revision =>
-              qbeastSnapshot.loadIndexStatus(revision.revisionID).cubeNormalizedWeights)
+        val allWM = revisions.map(revision =>
+          qbeastSnapshot.loadIndexStatus(revision.revisionID).cubeNormalizedWeights())
         allWM.foreach(wm => wm should not be empty)
     }
 

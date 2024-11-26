@@ -52,15 +52,11 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
     .map(i => (CubeId.container(point, i), NormalizedWeight.toWeight(Random.nextDouble())))
     .toMap
 
-  val announcedSet: Set[CubeId] = Set.empty
-  val replicatedSet: Set[CubeId] = Set.empty
-
   val indexData: immutable.IndexedSeq[IndexData] =
-    weightMap.toIndexedSeq.map(ids =>
-      IndexData(Random.nextInt(), ids._1.bytes, ids._2.fraction, "FLOODED"))
+    weightMap.toIndexedSeq.map(ids => IndexData(Random.nextInt(), ids._1.bytes, ids._2.fraction))
 
   import spark.implicits._
-  val indexed: DataFrame = indexData.toDF("id", cubeColumnName, weightColumnName, stateColumnName)
+  val indexed: DataFrame = indexData.toDF("id", cubeColumnName, weightColumnName)
 
   val data: DataFrame = indexed.select("id")
 
@@ -78,7 +74,7 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
 
   val cubeStatuses: SortedMap[CubeId, CubeStatus] = {
     val cubeStatusesSeq = weightMap.toIndexedSeq.map { case (cubeId: CubeId, maxWeight: Weight) =>
-      val files = (1 to 4)
+      val blocks = (1 to 4)
         .map { i =>
           // Create a Block under the revision
           new IndexFileBuilder()
@@ -90,34 +86,19 @@ case class WriteTestSpec(numDistinctCubes: Int, spark: SparkSession, tmpDir: Str
             .setCubeId(cubeId)
             .setMaxWeight(maxWeight)
             .setElementCount(i * 10L)
-            .setReplicated(false)
             .endBlock()
             .result()
         }
         .flatMap(_.blocks)
-      (cubeId, CubeStatus(cubeId, maxWeight, maxWeight.fraction, files))
+      (cubeId, CubeStatus(cubeId, maxWeight, maxWeight.fraction, blocks))
     }
 
     SortedMap(cubeStatusesSeq: _*)
   }
 
-  val indexStatus: IndexStatus = IndexStatus(rev, Set.empty, Set.empty, cubeStatuses)
+  val indexStatus: IndexStatus = IndexStatus(rev, cubeStatuses)
 
   val tableChanges: TableChanges =
-    BroadcastedTableChanges(
-      None,
-      IndexStatus(rev),
-      deltaNormalizedCubeWeights = weightMap,
-      Map.empty)
-
-  val writer: BlockWriter = BlockWriter(
-    dataPath = tmpDir,
-    schema = data.schema,
-    schemaIndex = indexed.schema,
-    factory = factory,
-    serConf = serConf,
-    statsTrackers = Seq.empty,
-    qbeastColumns = qbeastColumns,
-    tableChanges = tableChanges)
+    BroadcastTableChanges(None, IndexStatus(rev), weightMap, Map.empty[CubeId, Long])
 
 }

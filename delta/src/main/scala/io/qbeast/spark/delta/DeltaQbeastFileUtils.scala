@@ -174,7 +174,6 @@ private[delta] object DeltaQbeastFileUtils {
       generator.writeNumberField("minWeight", block.minWeight.value)
       generator.writeNumberField("maxWeight", block.maxWeight.value)
       generator.writeNumberField("elementCount", block.elementCount)
-      generator.writeBooleanField("replicated", block.replicated)
       generator.writeEndObject()
     }
     generator.writeEndArray()
@@ -216,7 +215,7 @@ private[delta] object DeltaQbeastFileUtils {
         case "minWeight" => builder.setMinWeight(Weight(parser.getValueAsInt()))
         case "maxWeight" => builder.setMaxWeight(Weight(parser.getValueAsInt()))
         case "elementCount" => builder.setElementCount(parser.getValueAsLong())
-        case "replicated" => builder.setReplicated(parser.getValueAsBoolean())
+        case "replicated" => // ignore
         case name => throw new JsonParseException(parser, s"Unexpected field '$name'")
       }
       parser.nextToken()

@@ -144,7 +144,7 @@ trait MetadataOperation extends StagingUtils {
 
     // Qbeast configuration metadata
     val (qbeastConfiguration, hasRevisionUpdate) =
-      if (isNewRevision || isOverwriteMode || tableChanges.isOptimizeOperation)
+      if (isNewRevision || isOverwriteMode)
         (updateQbeastRevision(baseConfiguration, latestRevision), true)
       else (baseConfiguration, false)
     val qbeastExtraWriteOptions = qbeastOptions.extraOptions

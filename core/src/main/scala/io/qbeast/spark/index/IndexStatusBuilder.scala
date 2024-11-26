@@ -28,13 +28,8 @@ import scala.collection.immutable.SortedMap
  *   the QbeastSnapshot
  * @param revision
  *   the revision
- * @param announcedSet
- *   the announced set available for the revision
  */
-class IndexStatusBuilder(
-    qbeastSnapshot: QbeastSnapshot,
-    revision: Revision,
-    announcedSet: Set[CubeId] = Set.empty)
+class IndexStatusBuilder(qbeastSnapshot: QbeastSnapshot, revision: Revision)
     extends Serializable
     with StagingUtils {
 
@@ -42,23 +37,14 @@ class IndexStatusBuilder(
     val cubeStatus =
       if (isStaging(revision)) stagingCubeStatuses
       else indexCubeStatuses
-
-    val replicatedSet =
-      cubeStatus.valuesIterator.filter(_.replicated).map(_.cubeId).toSet
-
-    IndexStatus(
-      revision = revision,
-      replicatedSet = replicatedSet,
-      announcedSet = announcedSet,
-      cubesStatuses = cubeStatus)
+    IndexStatus(revision = revision, cubesStatuses = cubeStatus)
   }
 
   def stagingCubeStatuses: SortedMap[CubeId, CubeStatus] = {
-    // Staging files should not be replicated, and all files belong to the root.
+    // All staging files belong to the root.
     // All staging blocks have elementCount=0 as no qbeast tags are present.
     val root = revision.createCubeIdRoot()
-    SortedMap(
-      root -> CubeStatus(root, Weight.MaxValue, Weight.MaxValue.fraction, replicated = false, 0L))
+    SortedMap(root -> CubeStatus(root, Weight.MaxValue, Weight.MaxValue.fraction, 0L))
   }
 
   /**
@@ -76,10 +62,7 @@ class IndexStatusBuilder(
     val cubeStatuses = revisionAddFiles
       .flatMap(_.blocks)
       .groupBy($"cubeId")
-      .agg(
-        min($"maxWeight.value").as("maxWeightInt"),
-        sum($"elementCount").as("elementCount"),
-        min(col("replicated")).as("replicated"))
+      .agg(min($"maxWeight.value").as("maxWeightInt"), sum($"elementCount").as("elementCount"))
       .withColumn(
         "normalizedWeight",
         when(

@@ -18,8 +18,6 @@ package io.qbeast
 import com.github.mrpowers.spark.fast.tests.DatasetComparer
 import io.qbeast.context.QbeastContext
 import io.qbeast.context.QbeastContextImpl
-import io.qbeast.core.keeper.Keeper
-import io.qbeast.core.keeper.LocalKeeper
 import io.qbeast.core.model.IndexManager
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.QbeastSnapshot
@@ -144,11 +142,7 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
     withTmpDir(tmpDir => withSpark(spark => testCode(spark, tmpDir)))
 
   /**
-   * Runs a given test code with a QbeastContext instance. The specified Keeper instance is used
-   * to customize the QbeastContext.
-   *
-   * @param keeper
-   *   the keeper
+   * Runs a given test code with a QbeastContext instance.
    * @param testCode
    *   the test code
    * @tparam T
@@ -156,18 +150,16 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
    * @return
    *   the test result
    */
-  def withQbeastAndSparkContext[T](keeper: Keeper = LocalKeeper)(
-      testCode: SparkSession => T): T = {
+  def withQbeastAndSparkContext[T]()(testCode: SparkSession => T): T = {
     withSpark { spark =>
       val indexedTableFactory = new IndexedTableFactoryImpl(
-        keeper,
         SparkOTreeManager,
         DeltaMetadataManager,
         DeltaRollupDataWriter,
         DeltaStagingDataManagerFactory,
         SparkRevisionFactory,
         SparkColumnsToIndexSelector)
-      val context = new QbeastContextImpl(spark.sparkContext.getConf, keeper, indexedTableFactory)
+      val context = new QbeastContextImpl(spark.sparkContext.getConf, indexedTableFactory)
       try {
         QbeastContext.setUnmanaged(context)
         testCode(spark)

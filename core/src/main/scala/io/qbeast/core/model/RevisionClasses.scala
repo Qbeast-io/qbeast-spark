@@ -255,40 +255,67 @@ case class RevisionChange(
 
 /**
  * Container for the current status of the index
+ *
  * @param revision
  *   the revision
- * @param replicatedSet
- *   the set of cubes in a replicated state
- * @param announcedSet
- *   the set of cubes in an announced state
  * @param cubesStatuses
  *   the map containing the status (maxWeight and files) of each cube
  */
 
 case class IndexStatus(
     revision: Revision,
-    replicatedSet: ReplicatedSet = Set.empty,
-    announcedSet: Set[CubeId] = Set.empty,
     cubesStatuses: SortedMap[CubeId, CubeStatus] = SortedMap.empty)
     extends Serializable {
 
-  def addAnnouncements(newAnnouncedSet: Set[CubeId]): IndexStatus = {
-    copy(announcedSet = announcedSet ++ newAnnouncedSet)
-  }
+  def cubeNormalizedWeights(): Map[CubeId, NormalizedWeight] =
+    cubesStatuses.map { case (cubeId, status) => cubeId -> status.normalizedWeight }
 
-  def cubesToOptimize: Set[CubeId] = announcedSet.diff(replicatedSet)
+  def cubeMaxWeights(): Map[CubeId, Weight] =
+    cubesStatuses.map { case (cubeId, status) => cubeId -> status.maxWeight }
+
+  def cubeElementCounts(): Map[CubeId, Long] =
+    cubesStatuses.map { case (cubeId, status) => cubeId -> status.elementCount }
 
   /**
-   * the set of cubes that has surpass their capacity
-   * @return
+   * Compute domain sizes for each cube from the existing index. The domain of a given cube c is
+   * computed as a fraction f of its parent domain, with f being the ratio between c's tree size
+   * and its parent's subtree size.
    */
-  def overflowedSet: Set[CubeId] =
-    cubesStatuses.filter(_._2.maxWeight != Weight.MaxValue).keySet
-
-  def cubeNormalizedWeights: Map[CubeId, NormalizedWeight] =
-    cubesStatuses.mapValues(_.normalizedWeight)
-
-  def replicatedOrAnnouncedSet: Set[CubeId] = replicatedSet ++ announcedSet
+  def cubeDomains(): Map[CubeId, Double] = {
+    var treeSizes = cubeElementCounts().mapValues(_.toDouble)
+    val levelCubes = treeSizes.keys.groupBy(_.depth)
+    val (minLevel, maxLevel) = (levelCubes.keys.min, levelCubes.keys.max)
+    // cube sizes -> tree sizes
+    (maxLevel until minLevel by -1) foreach { level =>
+      levelCubes(level).foreach { cube =>
+        val treeSize = treeSizes.getOrElse(cube, 0d)
+        cube.parent match {
+          case Some(parent) =>
+            val parentTreeSize = treeSizes.getOrElse(parent, 0d) + treeSize
+            treeSizes += parent -> parentTreeSize
+          case _ => ()
+        }
+      }
+    }
+    // tree sizes -> cube domain
+    var cubeDomains = Map.empty[CubeId, Double]
+    (minLevel to maxLevel) foreach { level =>
+      levelCubes(level).groupBy(_.parent).foreach {
+        case (None, topCubes) =>
+          topCubes.foreach(c => cubeDomains += (c -> treeSizes.getOrElse(c, 0d)))
+        case (Some(parent), children) =>
+          val parentDomain = cubeDomains.getOrElse(parent, 0d)
+          val childTreeSizes = children.map(c => (c, treeSizes.getOrElse(c, 0d)))
+          val subtreeSize = childTreeSizes.map(_._2).sum
+          childTreeSizes.foreach { case (c, ts) =>
+            val f = ts / subtreeSize
+            val domain = f * parentDomain
+            cubeDomains += (c -> domain)
+          }
+      }
+    }
+    cubeDomains
+  }
 
 }
 
@@ -299,24 +326,18 @@ object CubeStatus {
       maxWeight: Weight,
       normalizedWeight: NormalizedWeight,
       blocks: IISeq[Block]): CubeStatus = {
-    new CubeStatus(
-      cubeId,
-      maxWeight,
-      normalizedWeight,
-      blocks.forall(_.replicated),
-      blocks.map(_.elementCount).sum)
+    new CubeStatus(cubeId, maxWeight, normalizedWeight, blocks.map(_.elementCount).sum)
   }
 
 }
 
 /**
  * Container for the status information of a cube
+ *
  * @param maxWeight
  *   the max weight of the cube
  * @param normalizedWeight
  *   the normalized weight of the cube
- * @param replicated
- *   whether the cube is replicated
  * @param elementCount
  *   the number of elements in the cube
  */
@@ -324,7 +345,6 @@ case class CubeStatus(
     cubeId: CubeId,
     maxWeight: Weight,
     normalizedWeight: NormalizedWeight,
-    replicated: Boolean,
     elementCount: Long)
     extends Serializable {}
 
@@ -337,11 +357,7 @@ object IndexStatus {
 
 trait TableChanges {
   val isNewRevision: Boolean
-  val isOptimizeOperation: Boolean
   val updatedRevision: Revision
-  val deltaReplicatedSet: Set[CubeId]
-  val announcedOrReplicatedSet: Set[CubeId]
-  def cubeState(cubeId: CubeId): String
   def cubeWeight(cubeId: CubeId): Option[Weight]
-  def deltaBlockElementCount: Map[CubeId, Long]
+  def inputBlockElementCounts: Map[CubeId, Long]
 }

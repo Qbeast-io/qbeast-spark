@@ -82,7 +82,6 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
       val qbeastSnapshot = getQbeastSnapshot(tmpDir)
       val stagingIndexStatus = qbeastSnapshot.loadIndexStatus(stagingID)
       stagingIndexStatus.cubesStatuses.size shouldBe 1
-      stagingIndexStatus.replicatedOrAnnouncedSet.isEmpty shouldBe true
     })
 
   it should "sample correctly" in withSparkAndTmpDir((spark, tmpDir) => {

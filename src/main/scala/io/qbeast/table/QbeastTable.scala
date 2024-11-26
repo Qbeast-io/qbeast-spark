@@ -202,23 +202,18 @@ class QbeastTable private (
 
   /**
    * Gather a dataset containing all DenormalizedBlocks for a given revision.
-   *
-   * @param revisionID
-   *   RevisionID
    * @param indexFiles
    *   Dataset of IndexFile
    * @return
    *   Dataset of DenormalizedBlock
    */
-  def getDenormalizedBlocks(
-      revisionID: RevisionID,
-      indexFiles: Dataset[IndexFile]): Dataset[DenormalizedBlock] = {
+  def getDenormalizedBlocks(indexFiles: Dataset[IndexFile]): Dataset[DenormalizedBlock] = {
     DenormalizedBlock.buildDataset(indexFiles)
   }
 
   def getDenormalizedBlocks(revisionID: RevisionID): Dataset[DenormalizedBlock] = {
     val indexFiles = qbeastSnapshot.loadIndexFiles(revisionID)
-    getDenormalizedBlocks(revisionID, indexFiles)
+    getDenormalizedBlocks(indexFiles)
   }
 
   def getDenormalizedBlocks: Dataset[DenormalizedBlock] = {

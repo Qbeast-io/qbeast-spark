@@ -15,10 +15,8 @@
  */
 package io.qbeast.spark.utils
 
-import io.qbeast.core.model.CubeStatus
 import io.qbeast.core.model.IndexFile
 import io.qbeast.core.model.QTableID
-import io.qbeast.spark.index.IndexStatusBuilder
 import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.QbeastIntegrationTestSpec
@@ -29,7 +27,6 @@ import org.apache.spark.sql.functions.rand
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
-import org.scalatest.AppendedClues.convertToClueful
 
 class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
 
@@ -138,41 +135,6 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
           qbeastSnapshot.loadRevisionAt(invalidRevisionTimestamp))
 
       }
-    }
-
-  "Overflowed set" should
-    "contain only cubes that surpass desiredCubeSize" in withQbeastContextSparkAndTmpDir {
-      (spark, tmpDir) =>
-        {
-
-          val df = createDF(100000)
-          val names = List("age", "val2")
-          val cubeSize = 10000
-          df.write
-            .format("qbeast")
-            .mode("overwrite")
-            .options(
-              Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> cubeSize.toString))
-            .save(tmpDir)
-
-          val qbeastSnapshot = getQbeastSnapshot(tmpDir)
-          val builder =
-            new IndexStatusBuilder(
-              qbeastSnapshot,
-              qbeastSnapshot.loadLatestIndexStatus.revision,
-              Set.empty)
-          val revisionState = builder.indexCubeStatuses
-
-          val overflowed = qbeastSnapshot.loadLatestIndexStatus.overflowedSet
-
-          revisionState
-            .filter { case (cube, _) => overflowed.contains(cube) }
-            .foreach { case (cube, CubeStatus(_, weight, _, _, elementCount)) =>
-              elementCount should be > (cubeSize * 0.9).toLong withClue
-                "assertion failed in cube " + cube +
-                " where size is " + size + " and weight is " + weight
-            }
-        }
     }
 
   "loadDataframeFromData" should " correct the a table from a list of files" in {

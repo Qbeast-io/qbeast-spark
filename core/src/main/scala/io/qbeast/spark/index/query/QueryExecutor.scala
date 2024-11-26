@@ -109,35 +109,20 @@ class QueryExecutor(querySpecBuilder: QuerySpecBuilder, qbeastSnapshot: QbeastSn
       // 4. empty, the currentCube is the right-most cube in the tree and it is not in cubesStatuses
       if (cubeIter.hasNext) { // cases 1 to 3
         cubeIter.next() match {
-          case (cube, CubeStatus(_, maxWeight, _, _, _)) if cube == currentCube => // Case 1
-            if (querySpec.weightRange.to <= maxWeight) {
-              // cube maxWeight is larger than or equal to the sample fraction (weightRange.to),
-              // that currentCube is the last cube to visit from the current branch - all blocks
-              // are to be retrieved and no more cubes from the branch should be visited.
-              outputCubeIds += cube
-            } else {
-              // Otherwise,
-              // 1. if the currentCube is REPLICATED, we skip the cube
-              // 2. if the state is ANNOUNCED, ignore the After Announcement elements
-              // 3. if FLOODED, retrieve all files from the cube
-              val isReplicated = indexStatus.replicatedSet.contains(cube)
-
-              if (!isReplicated) {
-                outputCubeIds += cube
-              }
-              val nextLevel = cube.children
-                .filter(querySpec.querySpace.intersectsWith)
+          case (cube, CubeStatus(_, maxWeight, _, _)) if cube == currentCube => // Case 1
+            outputCubeIds += cube
+            if (querySpec.weightRange.to > maxWeight) {
+              // The current cube maxWeight is smaller than the sample fraction (weightRange.to),
+              // that currentCube is NOT the last cube to visit from the current branch - child
+              // cubes are added to the queue and should be visited later.
+              val nextLevel = cube.children.filter(querySpec.querySpace.intersectsWith)
               stack.pushAll(nextLevel)
-
             }
-
           case (cube, _) if currentCube.isAncestorOf(cube) => // Case 2
             // cube is a descendant of currentCube, and currentCube is missing.
             // We proceed navigating the subtree.
-            val nextLevel = currentCube.children
-              .filter(querySpec.querySpace.intersectsWith)
+            val nextLevel = currentCube.children.filter(querySpec.querySpace.intersectsWith)
             stack.pushAll(nextLevel)
-
           case _ => // Case 3
         }
       }
