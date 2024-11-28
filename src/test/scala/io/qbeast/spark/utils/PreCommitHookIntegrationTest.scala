@@ -7,10 +7,6 @@ import io.qbeast.core.model.PreCommitHook.PreCommitHookOutput
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.QbeastFile
 import io.qbeast.QbeastIntegrationTestSpec
-import org.apache.spark.sql.delta.actions.Action
-import org.apache.spark.sql.delta.actions.CommitInfo
-import org.apache.spark.sql.delta.util.FileNames
-import org.apache.spark.sql.delta.DeltaLog
 
 private class SimpleHook(kv: String) extends PreCommitHook {
   override val name: String = "SimpleHook"
@@ -42,16 +38,8 @@ class PreCommitHookIntegrationTest extends QbeastIntegrationTestSpec {
         .option(s"$PRE_COMMIT_HOOKS_PREFIX.hook_2.arg", "k2:v2")
         .save(tmpDir)
 
-      val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val snapshot = deltaLog.update()
-      val conf = deltaLog.newDeltaHadoopConf()
-
-      val infoTags = deltaLog.store
-        .read(FileNames.deltaFile(deltaLog.logPath, snapshot.version), conf)
-        .map(Action.fromJson)
-        .collect { case commitInfo: CommitInfo => commitInfo.tags }
-
-      infoTags shouldBe Some(Map("k1" -> "v1", "k2" -> "v2")) :: Nil
+      val snapshot = getQbeastSnapshot(tmpDir)
+      snapshot.loadLastCommitTags shouldBe Map("k1" -> "v1", "k2" -> "v2")
     }
 
   it should "run a simple hook and save its outputs to CommitInfo during an optimization" in
@@ -75,16 +63,8 @@ class PreCommitHookIntegrationTest extends QbeastIntegrationTestSpec {
           s"$PRE_COMMIT_HOOKS_PREFIX.hook_2" -> classOf[SimpleHook].getCanonicalName,
           s"$PRE_COMMIT_HOOKS_PREFIX.hook_2.arg" -> "k2:v2"))
 
-      val deltaLog = DeltaLog.forTable(spark, tmpDir)
-      val snapshot = deltaLog.update()
-      val conf = deltaLog.newDeltaHadoopConf()
-
-      val infoTags = deltaLog.store
-        .read(FileNames.deltaFile(deltaLog.logPath, snapshot.version), conf)
-        .map(Action.fromJson)
-        .collect { case commitInfo: CommitInfo => commitInfo.tags }
-
-      infoTags shouldBe Some(Map("k1" -> "v1", "k2" -> "v2")) :: Nil
+      val snapshot = getQbeastSnapshot(tmpDir)
+      snapshot.loadLastCommitTags shouldBe Map("k1" -> "v1", "k2" -> "v2")
     }
 
 }

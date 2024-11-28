@@ -56,6 +56,18 @@ trait QbeastSnapshot {
   def loadDescription: String
 
   /**
+   * The current table configuration.
+   * @return
+   */
+  def loadConfiguration: Map[String, String]
+
+  /**
+   * The last commit tags.
+   * @return
+   */
+  def loadLastCommitTags: Map[String, String]
+
+  /**
    * The current table properties of the snapshot.
    * @return
    */
