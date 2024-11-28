@@ -445,7 +445,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
 
   })
 
-  it should "transform histogram transformers and transformations with quantiles" in withSparkAndTmpDir(
+  it should "replace Histogram Transformations with CDFQuantiles" in withSparkAndTmpDir(
     (spark, tmpDir) => {
       import spark.implicits._
       val histogramTablePath = s"$tmpDir/histogram-table"
