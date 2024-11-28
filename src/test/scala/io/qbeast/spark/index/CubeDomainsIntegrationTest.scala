@@ -23,7 +23,7 @@ import io.qbeast.core.model.Weight
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
-import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
+import org.apache.spark.qbeast.config.CUBE_DOMAINS_BUFFER_CAPACITY
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
@@ -93,7 +93,7 @@ class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
 
   it should "respect the lower bound for groupCubeSize(1000)" in withSpark { _ =>
     val numElements =
-      DEFAULT_CUBE_SIZE * CUBE_WEIGHTS_BUFFER_CAPACITY / CubeDomainsBuilder.minGroupCubeSize
+      DEFAULT_CUBE_SIZE * CUBE_DOMAINS_BUFFER_CAPACITY / CubeDomainsBuilder.minGroupCubeSize
     val numPartitions = 1
     val estimateGroupCubeSize = PrivateMethod[Int]('estimateGroupCubeSize)
 
@@ -102,21 +102,21 @@ class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
       DEFAULT_CUBE_SIZE,
       numPartitions,
       numElements * 1000,
-      CUBE_WEIGHTS_BUFFER_CAPACITY) shouldBe CubeDomainsBuilder.minGroupCubeSize
+      CUBE_DOMAINS_BUFFER_CAPACITY) shouldBe CubeDomainsBuilder.minGroupCubeSize
 
     // numElements = 5e8 => groupCubeSize = 1000
     CubeDomainsBuilder invokePrivate estimateGroupCubeSize(
       DEFAULT_CUBE_SIZE,
       numPartitions,
       numElements,
-      CUBE_WEIGHTS_BUFFER_CAPACITY) shouldBe CubeDomainsBuilder.minGroupCubeSize
+      CUBE_DOMAINS_BUFFER_CAPACITY) shouldBe CubeDomainsBuilder.minGroupCubeSize
 
     // numElements = 5e6 < 5e8 => groupCubeSize > 1000
     CubeDomainsBuilder invokePrivate estimateGroupCubeSize(
       DEFAULT_CUBE_SIZE,
       numPartitions,
       numElements / 100,
-      CUBE_WEIGHTS_BUFFER_CAPACITY) shouldBe >(CubeDomainsBuilder.minGroupCubeSize)
+      CUBE_DOMAINS_BUFFER_CAPACITY) shouldBe >(CubeDomainsBuilder.minGroupCubeSize)
   }
 
 }

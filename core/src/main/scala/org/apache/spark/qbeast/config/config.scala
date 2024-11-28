@@ -17,7 +17,6 @@ package org.apache.spark.qbeast
 
 import org.apache.spark.internal.config.ConfigBuilder
 import org.apache.spark.internal.config.ConfigEntry
-import org.apache.spark.internal.config.OptionalConfigEntry
 import org.apache.spark.sql.SparkSession
 
 package object config {
@@ -28,8 +27,8 @@ package object config {
       .intConf
       .createWithDefault(5000000)
 
-  private[config] val cubeWeightsBufferCapacity: ConfigEntry[Long] =
-    ConfigBuilder("spark.qbeast.index.cubeWeightsBufferCapacity")
+  private[config] val cubeDomainsBufferCapacity: ConfigEntry[Long] =
+    ConfigBuilder("spark.qbeast.index.cubeDomainsBufferCapacity")
       .version("0.2.0")
       .longConf
       .createWithDefault(100000L)
@@ -39,12 +38,6 @@ package object config {
       .version("0.2.0")
       .intConf
       .createWithDefault(2)
-
-  private[config] val stagingSizeInBytes: OptionalConfigEntry[Long] =
-    ConfigBuilder("spark.qbeast.index.stagingSizeInBytes")
-      .version("0.2.0")
-      .longConf
-      .createOptional
 
   private[config] val columnsToIndexSelectorEnabled: ConfigEntry[Boolean] =
     ConfigBuilder("spark.qbeast.index.columnsToIndex.auto")
@@ -73,11 +66,8 @@ package object config {
   def DEFAULT_TABLE_FORMAT: String = SparkSession.active.sparkContext.conf
     .get(tableFormat)
 
-  def CUBE_WEIGHTS_BUFFER_CAPACITY: Long = SparkSession.active.sparkContext.conf
-    .get(cubeWeightsBufferCapacity)
-
-  def STAGING_SIZE_IN_BYTES: Option[Long] =
-    SparkSession.active.sparkContext.conf.get(stagingSizeInBytes)
+  def CUBE_DOMAINS_BUFFER_CAPACITY: Long = SparkSession.active.sparkContext.conf
+    .get(cubeDomainsBufferCapacity)
 
   def COLUMN_SELECTOR_ENABLED: Boolean =
     SparkSession.active.sparkContext.conf.get(columnsToIndexSelectorEnabled)

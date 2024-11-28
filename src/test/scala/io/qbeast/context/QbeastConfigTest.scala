@@ -25,16 +25,16 @@ class QbeastConfigTest extends AnyFlatSpec with Matchers with QbeastIntegrationT
 
   "Qbeast config" should "use default configurations" in withSpark { _ =>
     config.DEFAULT_CUBE_SIZE shouldBe 5000000
-    config.CUBE_WEIGHTS_BUFFER_CAPACITY shouldBe 100000
+    config.CUBE_DOMAINS_BUFFER_CAPACITY shouldBe 100000
   }
 
   it should "change configurations accordingly" in withExtendedSpark(
     sparkConfWithSqlAndCatalog
       .set("spark.qbeast.index.defaultCubeSize", "1000")
-      .set("spark.qbeast.index.cubeWeightsBufferCapacity", "1000")
+      .set("spark.qbeast.index.cubeDomainsBufferCapacity", "1000")
       .set("spark.qbeast.index.numberOfRetries", "10")) { _ =>
     config.DEFAULT_CUBE_SIZE shouldBe 1000
-    config.CUBE_WEIGHTS_BUFFER_CAPACITY shouldBe 1000
+    config.CUBE_DOMAINS_BUFFER_CAPACITY shouldBe 1000
     config.DEFAULT_NUMBER_OF_RETRIES shouldBe 10
 
   }

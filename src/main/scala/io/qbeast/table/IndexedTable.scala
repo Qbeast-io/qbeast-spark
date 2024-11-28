@@ -17,7 +17,6 @@ package io.qbeast.table
 
 import io.qbeast.core.model._
 import io.qbeast.core.model.RevisionFactory
-import io.qbeast.internal.commands.ConvertToQbeastCommand
 import io.qbeast.sources.QbeastBaseRelation
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
@@ -33,7 +32,6 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.SparkSession
 
 import java.lang.System.currentTimeMillis
 import java.util.ConcurrentModificationException
@@ -182,7 +180,6 @@ final class IndexedTableFactoryImpl(
     private val indexManager: IndexManager,
     private val metadataManager: MetadataManager,
     private val dataWriter: DataWriter,
-    private val stagingDataManagerFactory: StagingDataManagerFactory,
     private val revisionFactory: RevisionFactory,
     private val columnSelector: ColumnsToIndexSelector)
     extends IndexedTableFactory {
@@ -193,7 +190,6 @@ final class IndexedTableFactoryImpl(
       indexManager,
       metadataManager,
       dataWriter,
-      stagingDataManagerFactory,
       revisionFactory,
       columnSelector)
 
@@ -220,7 +216,6 @@ private[table] class IndexedTableImpl(
     private val indexManager: IndexManager,
     private val metadataManager: MetadataManager,
     private val dataWriter: DataWriter,
-    private val stagingDataManagerFactory: StagingDataManagerFactory,
     private val revisionFactory: RevisionFactory,
     private val columnSelector: ColumnsToIndexSelector)
     extends IndexedTable
@@ -340,7 +335,7 @@ private[table] class IndexedTableImpl(
     logTrace(s"Begin: save table $tableID")
     val (indexStatus, options) =
       if (exists && append) {
-        // If the table exists and we are appending new data
+        // If the table exists, and we are appending new data
         // 1. Load existing IndexStatus
         val options = QbeastOptions(verifyAndMergeProperties(parameters))
         logDebug(s"Appending data to table $tableID with revision=${latestRevision.revisionID}")
@@ -455,28 +450,14 @@ private[table] class IndexedTableImpl(
       options: QbeastOptions,
       append: Boolean): Unit = {
     logTrace(s"Begin: Writing data to table $tableID")
-    val stagingDataManager: StagingDataManager = stagingDataManagerFactory.getManager(tableID)
-    stagingDataManager.updateWithStagedData(data) match {
-      case r: StagingResolution if r.sendToStaging =>
-        stagingDataManager.stageData(data, indexStatus, options, append)
-        if (snapshot.isInitial) {
-          val colsToIndex = indexStatus.revision.columnTransformers.map(_.columnName)
-          val dcs = indexStatus.revision.desiredCubeSize
-          ConvertToQbeastCommand(s"${options.tableFormat}.`${tableID.id}`", colsToIndex, dcs)
-            .run(SparkSession.active)
-        }
-
-      case StagingResolution(dataToWrite, removeFiles, false) =>
-        val schema = dataToWrite.schema
-        val deleteFiles = removeFiles.toIndexedSeq
-        val writeMode = if (append) WriteMode.Append else WriteMode.Overwrite
-        metadataManager.updateWithTransaction(tableID, schema, options, writeMode) {
-          transactionStartTime: String =>
-            val (qbeastData, tableChanges) = indexManager.index(dataToWrite, indexStatus)
-            val addFiles =
-              dataWriter.write(tableID, schema, qbeastData, tableChanges, transactionStartTime)
-            (tableChanges, addFiles, deleteFiles)
-        }
+    val schema = data.schema
+    val writeMode = if (append) WriteMode.Append else WriteMode.Overwrite
+    metadataManager.updateWithTransaction(tableID, schema, options, writeMode) {
+      transactionStartTime: String =>
+        val (qbeastData, tableChanges) = indexManager.index(data, indexStatus)
+        val addFiles =
+          dataWriter.write(tableID, schema, qbeastData, tableChanges, transactionStartTime)
+        (tableChanges, addFiles, Vector.empty[DeleteFile])
     }
     logTrace(s"End: Writing data to table $tableID")
   }
