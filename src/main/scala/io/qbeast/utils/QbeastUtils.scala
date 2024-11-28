@@ -15,6 +15,17 @@
  */
 package io.qbeast.utils
 
+import io.qbeast.context.QbeastContext
+import io.qbeast.core.model.mapper
+import io.qbeast.core.model.Revision
+import io.qbeast.core.model.StringDataType
+import io.qbeast.core.transform.CDFQuantilesTransformer
+import io.qbeast.core.transform.CDFStringQuantilesTransformation
+import io.qbeast.core.transform.StringHistogramTransformation
+import io.qbeast.core.transform.StringHistogramTransformer
+import io.qbeast.spark.utils.MetadataConfig.revision
+import io.qbeast.table.QbeastTable
+import org.apache.spark.annotation.Experimental
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.delta.skipping.MultiDimClusteringFunctions
 import org.apache.spark.sql.functions.col
@@ -130,6 +141,46 @@ object QbeastUtils extends Logging {
     }
     // Return the quantiles as a string
     quantilesArray.mkString("[", ", ", "]")
+  }
+
+  @Experimental
+  def updateTransformationTypes(revision: Revision): Revision = {
+    val updatedTransformers = revision.columnTransformers.map {
+      case s: StringHistogramTransformer =>
+        CDFQuantilesTransformer(s.columnName, StringDataType)
+      case other => other
+    }
+    val updatedTransformations = revision.transformations.map {
+      case s: StringHistogramTransformation =>
+        CDFStringQuantilesTransformation(s.histogram)
+      case other => other
+    }
+
+    revision.copy(
+      columnTransformers = updatedTransformers,
+      transformations = updatedTransformations)
+  }
+
+  @Experimental
+  def updateTransformationTypes(qbeastTable: QbeastTable): Unit = {
+    // 1. Get te Latest Snapshot of the Table
+    val latestSnapshot = qbeastTable.getLatestSnapshot()
+    // 2. Load all the Revisions Present
+    val allRevisions = latestSnapshot.loadAllRevisions
+    // 3. Update all the Revisions with the new Transformation Types
+    val allRevisionsUpdated = allRevisions.map(updateTransformationTypes)
+    // 4. Commit the new Metadata Update
+    QbeastContext.metadataManager.updateMetadataWithTransaction(
+      qbeastTable.tableID,
+      latestSnapshot.schema) {
+      val newMetadata = allRevisionsUpdated
+        .map(revisionUpdated =>
+          s"$revision.${revisionUpdated.revisionID}" -> mapper.writeValueAsString(
+            revisionUpdated))
+        .toMap
+      newMetadata
+    }
+
   }
 
 }

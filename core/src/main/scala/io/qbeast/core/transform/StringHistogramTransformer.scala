@@ -18,7 +18,7 @@ package io.qbeast.core.transform
 import io.qbeast.core.model.QDataType
 import io.qbeast.core.transform.HistogramTransformer.defaultStringHistogram
 
-@deprecated("Use CDFStringQuantilesTransformer instead", "0.8.0")
+@deprecated("Use CDFStringQuantilesTransformer instead", since = "0.8.0")
 case class StringHistogramTransformer(columnName: String, dataType: QDataType)
     extends HistogramTransformer {
   private val columnHistogram = s"${columnName}_histogram"

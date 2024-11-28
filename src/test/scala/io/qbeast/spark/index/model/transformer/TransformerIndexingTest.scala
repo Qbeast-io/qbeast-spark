@@ -17,20 +17,27 @@ package io.qbeast.spark.index.model.transformer
 
 import io.qbeast.core.model.LongDataType
 import io.qbeast.core.model.QTableID
+import io.qbeast.core.transform.CDFStringQuantilesTransformation
+import io.qbeast.core.transform.CDFStringQuantilesTransformer
 import io.qbeast.core.transform.IdentityTransformation
 import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.core.transform.LinearTransformer
+import io.qbeast.core.transform.StringHistogramTransformation
+import io.qbeast.core.transform.StringHistogramTransformer
 import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.table.QbeastTable
+import io.qbeast.utils.QbeastUtils
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.annotation.nowarn
+
+@nowarn("cat=deprecation")
 class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec {
 
   // Write source data indexing all columns and read it back
@@ -422,7 +429,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
       }
     })
 
-  it should "be able to read depecrated StringHistogramTransfromation" in withSparkAndTmpDir(
+  it should "be able to write with depecrated StringHistogramTransfromation" in withSparkAndTmpDir(
     (spark, tmpDir) => {
       val histogramTablePath = "src/test/resources/string-histogram-table"
       val histogramTable = QbeastTable.forPath(spark, histogramTablePath)
@@ -445,16 +452,44 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
       filteredBrandQbeast.count() shouldBe filteredBrandDelta.count()
     })
 
-  it should "throw an exception when using 'histogram' transformer type" in withSparkAndTmpDir(
+  it should "allow using 'histogram' transformer type" in withSparkAndTmpDir((spark, tmpDir) => {
+    import spark.implicits._
+    val histogramTablePath = s"$tmpDir/histogram-table"
+    val df = spark.range(5).map(i => s"$i").toDF("id_string")
+    df.write
+      .format("qbeast")
+      .option("columnsToIndex", "id_string:histogram")
+      .save(histogramTablePath)
+
+    val histogramTable = QbeastTable.forPath(spark, histogramTablePath)
+    val latestRevision = histogramTable.latestRevision
+    latestRevision.columnTransformers.head shouldBe a[StringHistogramTransformer]
+    latestRevision.transformations.head shouldBe a[StringHistogramTransformation]
+
+  })
+
+  it should "transform histogram transformers and transformations with quantiles" in withSparkAndTmpDir(
     (spark, tmpDir) => {
       import spark.implicits._
+      val histogramTablePath = s"$tmpDir/histogram-table"
       val df = spark.range(5).map(i => s"$i").toDF("id_string")
-      an[AnalysisException] should be thrownBy {
-        df.write
-          .format("qbeast")
-          .option("columnsToIndex", "id_string:histogram")
-          .save(tmpDir)
-      }
+      df.write
+        .format("qbeast")
+        .option("columnsToIndex", "id_string:histogram")
+        .save(histogramTablePath)
+
+      val histogramTable = QbeastTable.forPath(spark, histogramTablePath)
+      val latestRevision = histogramTable.latestRevision
+      latestRevision.columnTransformers.head shouldBe a[StringHistogramTransformer]
+      latestRevision.transformations.head shouldBe a[StringHistogramTransformation]
+
+      // Update transformation types
+      QbeastUtils.updateTransformationTypes(histogramTable)
+
+      histogramTable.latestRevision.columnTransformers.head shouldBe a[
+        CDFStringQuantilesTransformer]
+      histogramTable.latestRevision.transformations.head shouldBe a[
+        CDFStringQuantilesTransformation]
 
     })
 

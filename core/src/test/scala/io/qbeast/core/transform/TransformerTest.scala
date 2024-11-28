@@ -24,7 +24,9 @@ import org.scalatest.matchers.should.Matchers
 
 import java.sql.Date
 import java.sql.Timestamp
+import scala.annotation.nowarn
 
+@nowarn("cat=deprecation")
 class TransformerTest extends AnyFlatSpec with Matchers {
 
   behavior of "Transformer"
@@ -122,6 +124,22 @@ class TransformerTest extends AnyFlatSpec with Matchers {
     resTransformation.minNumber shouldBe minTimestamp.getTime
     resTransformation.maxNumber shouldBe maxTimestamp.getTime
     resTransformation.orderedDataType shouldBe DateDataType
+
+  }
+
+  it should "makeTransformation with String histograms" in {
+    val columnName = "s"
+    val dataType = StringDataType
+    val transformer = Transformer("histogram", columnName, dataType)
+    transformer shouldBe a[StringHistogramTransformer]
+
+    val hist = Seq("str_1", "str_2", "str_3", "str_4", "str_5", "str_6")
+    val transformation = Map(s"${columnName}_histogram" -> hist)
+    transformer.makeTransformation(transformation) match {
+      case _ @StringHistogramTransformation(histogram) =>
+        histogram == hist shouldBe true
+      case _ => fail("should always be StringHistogramTransformation")
+    }
 
   }
 

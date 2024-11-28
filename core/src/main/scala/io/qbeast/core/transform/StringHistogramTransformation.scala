@@ -82,6 +82,7 @@ case class StringHistogramTransformation(histogram: IndexedSeq[String])
         if (isDefault) !nt.isDefault
         else if (nt.isDefault) false
         else !(histogram == hist)
+      case _: CDFStringQuantilesTransformation => true // Always superseded by quantiles
       case _ => false
     }
 
@@ -95,6 +96,7 @@ case class StringHistogramTransformation(histogram: IndexedSeq[String])
    */
   override def merge(other: Transformation): Transformation = other match {
     case _: StringHistogramTransformation => other
+    case _: CDFStringQuantilesTransformation => other
     case _ => this
   }
 
