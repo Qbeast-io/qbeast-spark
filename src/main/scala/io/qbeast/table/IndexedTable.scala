@@ -282,8 +282,7 @@ private[table] class IndexedTableImpl(
   private def isNewRevision(qbeastOptions: QbeastOptions): Boolean = {
 
     // TODO feature: columnsToIndex may change between revisions
-    val columnsToIndexParsed = qbeastOptions.columnsToIndexParsed
-    val columnsToIndex = columnsToIndexParsed.map(_.columnName)
+    val columnsToIndex = qbeastOptions.columnsToIndex
     val currentColumnsToIndex = latestRevision.columnTransformers.map(_.columnName)
     val isNewColumns = !latestRevision.matchColumns(columnsToIndex)
     if (isNewColumns) {
@@ -291,7 +290,6 @@ private[table] class IndexedTableImpl(
         s"Columns to index '${columnsToIndex.mkString(",")}' do not match " +
           s"existing index ${currentColumnsToIndex.mkString(",")}.")
     }
-    
     // Checks if the desiredCubeSize is different from the existing one
     val isNewCubeSize = latestRevision.desiredCubeSize != qbeastOptions.cubeSize
     // Checks if the user-provided column boundaries would trigger the creation of
