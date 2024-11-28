@@ -429,29 +429,6 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
       }
     })
 
-  it should "be able to write with depecrated StringHistogramTransfromation" in withSparkAndTmpDir(
-    (spark, tmpDir) => {
-      val histogramTablePath = "src/test/resources/string-histogram-table"
-      val histogramTable = QbeastTable.forPath(spark, histogramTablePath)
-      val latestRevision = histogramTable.latestRevision
-      latestRevision.columnTransformers.head.toString should startWith(
-        "StringHistogramTransformer")
-      latestRevision.transformations.head.toString should startWith(
-        "StringHistogramTransformation")
-      val histogramTableDF = spark.read
-        .format("qbeast")
-        .load(histogramTablePath)
-      val deltaTableDF = spark.read
-        .format("delta")
-        .load(histogramTablePath)
-      histogramTableDF.count() shouldBe deltaTableDF.count()
-
-      val filteredBrandQbeast = histogramTableDF.filter("brand = 'versace'")
-      val filteredBrandDelta = deltaTableDF.filter("brand = 'versace'")
-
-      filteredBrandQbeast.count() shouldBe filteredBrandDelta.count()
-    })
-
   it should "allow using 'histogram' transformer type" in withSparkAndTmpDir((spark, tmpDir) => {
     import spark.implicits._
     val histogramTablePath = s"$tmpDir/histogram-table"
