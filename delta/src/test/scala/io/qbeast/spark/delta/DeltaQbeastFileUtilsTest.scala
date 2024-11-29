@@ -18,14 +18,15 @@ package io.qbeast.spark.delta
 import com.fasterxml.jackson.core.JsonParseException
 import io.qbeast.core.model._
 import io.qbeast.spark.utils.TagUtils
-import io.qbeast.QbeastIntegrationTestSpec
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.actions.RemoveFile
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
+class DeltaQbeastFileUtilsTest extends AnyFlatSpec with Matchers {
 
-  "IndexFiles" should "be able to create an AddFile instance from IndexFile" in withSpark { _ =>
+  "IndexFiles" should "be able to create an AddFile instance from IndexFile" in {
     val indexFile = IndexFile(
       path = "path",
       size = 2L,
@@ -44,7 +45,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
 
   }
 
-  it should "be able to create an IndexFile instance from an AddFile" in withSpark { _ =>
+  it should "be able to create an IndexFile instance from an AddFile" in {
     val addFile = AddFile(
       path = "path",
       partitionValues = Map(),
@@ -65,7 +66,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
     indexFile.blocks.head.elementCount shouldBe 1L
   }
 
-  it should "transform the DeleteFile to a RemoveFile" in withSpark { _ =>
+  it should "transform the DeleteFile to a RemoveFile" in {
     val dataChange = false
     val deleteFile = DeleteFile(path = "path", size = 2L, dataChange, deletionTimestamp = 0L)
     val removeFile = DeltaQbeastFileUtils.toRemoveFile(deleteFile)
@@ -73,7 +74,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
     removeFile.dataChange shouldBe dataChange
   }
 
-  it should "transform the RemoveFile to a DeleteFile" in withSpark { _ =>
+  it should "transform the RemoveFile to a DeleteFile" in {
     val removeFile = RemoveFile(
       path = "path",
       partitionValues = Map(),
@@ -89,7 +90,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
     deleteFile.deletionTimestamp shouldBe 0L
   }
 
-  it should "be able to create a FileStatus from an IndexFile" in withSpark { _ =>
+  it should "be able to create a FileStatus from an IndexFile" in {
     val indexFile = IndexFile(
       path = "path",
       size = 2L,
@@ -108,7 +109,7 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
 
   }
 
-  it should "be able to create a FileStatusWithMetadata from IndexFile" in withSpark { _ =>
+  it should "be able to create a FileStatusWithMetadata from IndexFile" in {
     val indexFile = IndexFile(
       path = "path",
       size = 2L,
@@ -128,40 +129,38 @@ class QbeastFileUtilsTest extends QbeastIntegrationTestSpec {
 
   }
 
-  it should "throw error when trying to create an IndexFile with a wrong block format start" in withSpark {
-    _ =>
-      val addFile = AddFile(
-        path = "path",
-        partitionValues = Map(),
-        size = 2L,
-        modificationTime = 0L,
-        dataChange = true,
-        stats = null,
-        tags = Map(
-          TagUtils.revision -> "1",
-          TagUtils.blocks -> // WRONG BLOCK START
-            """{"cubeId":"","minWeight":2147483647,
+  it should "throw error when trying to create an IndexFile with a wrong block format start" in {
+    val addFile = AddFile(
+      path = "path",
+      partitionValues = Map(),
+      size = 2L,
+      modificationTime = 0L,
+      dataChange = true,
+      stats = null,
+      tags = Map(
+        TagUtils.revision -> "1",
+        TagUtils.blocks -> // WRONG BLOCK START
+          """{"cubeId":"","minWeight":2147483647,
               |"maxWeight":2147483647,"elementCount":1}]""".stripMargin))
 
-      an[JsonParseException] shouldBe thrownBy(DeltaQbeastFileUtils.fromAddFile(2)(addFile))
+    an[JsonParseException] shouldBe thrownBy(DeltaQbeastFileUtils.fromAddFile(2)(addFile))
   }
 
-  it should "throw error when trying to create an IndexFile with a wrong block format end" in withSpark {
-    _ =>
-      val addFile = AddFile(
-        path = "path",
-        partitionValues = Map(),
-        size = 2L,
-        modificationTime = 0L,
-        dataChange = true,
-        stats = null,
-        tags = Map(
-          TagUtils.revision -> "wrong_revision",
-          TagUtils.blocks ->
-            """[{"cubeId":"","minWeight":2147483647,
+  it should "throw error when trying to create an IndexFile with a wrong block format end" in {
+    val addFile = AddFile(
+      path = "path",
+      partitionValues = Map(),
+      size = 2L,
+      modificationTime = 0L,
+      dataChange = true,
+      stats = null,
+      tags = Map(
+        TagUtils.revision -> "wrong_revision",
+        TagUtils.blocks ->
+          """[{"cubeId":"","minWeight":2147483647,
               |"maxWeight":2147483647,"elementCount":1}""".stripMargin))
 
-      an[NumberFormatException] shouldBe thrownBy(DeltaQbeastFileUtils.fromAddFile(2)(addFile))
+    an[NumberFormatException] shouldBe thrownBy(DeltaQbeastFileUtils.fromAddFile(2)(addFile))
   }
 
 }

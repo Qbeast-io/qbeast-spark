@@ -24,7 +24,7 @@ import io.qbeast.QbeastIntegrationTestSpec
 
 class IndexStatusBuilderTest extends QbeastIntegrationTestSpec {
 
-  "IndexBuilder" should "build cube information from DeltaLog" in withSparkAndTmpDir(
+  "IndexBuilder" should "build cube information from table log" in withSparkAndTmpDir(
     (spark, tmpDir) => {
       val data = spark.range(100000).toDF("id")
 

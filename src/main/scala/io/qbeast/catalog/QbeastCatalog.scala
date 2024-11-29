@@ -37,6 +37,7 @@ import org.apache.spark.sql.SparkCatalogUtils
 import org.apache.spark.sql.SparkSession
 
 import java.util
+import scala.annotation.nowarn
 import scala.collection.JavaConverters._
 
 /**
@@ -117,6 +118,7 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
       properties: util.Map[String, String]): Table =
     createTable(ident, SparkCatalogV2Util.v2ColumnsToStructType(columns), partitions, properties)
 
+  @nowarn("msg=method createTable in trait TableCatalog is deprecated")
   override def createTable(
       ident: Identifier,
       schema: StructType,
@@ -140,7 +142,7 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
     } else {
       getSessionCatalog(properties.asScala.toMap).createTable(
         ident,
-        SparkCatalogV2Util.structTypeToV2Columns(schema),
+        schema,
         partitions,
         properties)
     }
@@ -254,7 +256,9 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
   /**
    * Code extracted from DeltaCatalog alterTable operation
    * @param ident
+   *  table identifier
    * @param changes
+   *  table changes
    * @return
    */
   override def alterTable(ident: Identifier, changes: TableChange*): Table = {

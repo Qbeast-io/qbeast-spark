@@ -19,6 +19,7 @@ import io.qbeast.core.model._
 import io.qbeast.core.model.WriteMode.WriteModeValue
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.IISeq
+import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.SparkSession
@@ -84,7 +85,9 @@ object DeltaMetadataManager extends MetadataManager {
    * @return
    */
   override def existsLog(tableID: QTableID): Boolean = {
-    loadDeltaLog(tableID).tableExists
+    val path = new Path(tableID.id, "_delta_log")
+    val fs = path.getFileSystem(SparkSession.active.sessionState.newHadoopConf())
+    fs.exists(path)
   }
 
   /**
