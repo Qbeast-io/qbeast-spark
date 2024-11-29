@@ -62,10 +62,10 @@ trait QbeastSnapshot {
   def loadConfiguration: Map[String, String]
 
   /**
-   * The last commit tags.
+   * The last commit tags added by the PreCommitHooks.
    * @return
    */
-  def loadLastCommitTags: Map[String, String]
+  def loadLatestPreCommitHookInfo: Map[String, String]
 
   /**
    * The current table properties of the snapshot.

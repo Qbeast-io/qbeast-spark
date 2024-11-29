@@ -39,7 +39,7 @@ class PreCommitHookIntegrationTest extends QbeastIntegrationTestSpec {
         .save(tmpDir)
 
       val snapshot = getQbeastSnapshot(tmpDir)
-      snapshot.loadLastCommitTags shouldBe Map("k1" -> "v1", "k2" -> "v2")
+      snapshot.loadLatestPreCommitHookInfo shouldBe Map("k1" -> "v1", "k2" -> "v2")
     }
 
   it should "run a simple hook and save its outputs to CommitInfo during an optimization" in
@@ -64,7 +64,7 @@ class PreCommitHookIntegrationTest extends QbeastIntegrationTestSpec {
           s"$PRE_COMMIT_HOOKS_PREFIX.hook_2.arg" -> "k2:v2"))
 
       val snapshot = getQbeastSnapshot(tmpDir)
-      snapshot.loadLastCommitTags shouldBe Map("k1" -> "v1", "k2" -> "v2")
+      snapshot.loadLatestPreCommitHookInfo shouldBe Map("k1" -> "v1", "k2" -> "v2")
     }
 
 }

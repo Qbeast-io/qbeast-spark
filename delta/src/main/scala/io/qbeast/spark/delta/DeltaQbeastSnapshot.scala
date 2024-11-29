@@ -89,10 +89,10 @@ case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with De
   override def loadConfiguration: Map[String, String] = metadataMap
 
   /**
-   * The last commit tags
+   * The last commit tags added by the PreCommitHooks.
    * @return
    */
-  override def loadLastCommitTags: Map[String, String] = {
+  override def loadLatestPreCommitHookInfo: Map[String, String] = {
     val conf = deltaLog.newDeltaHadoopConf()
     val infoTags = deltaLog.store
       .read(FileNames.deltaFile(deltaLog.logPath, snapshot.version), conf)
