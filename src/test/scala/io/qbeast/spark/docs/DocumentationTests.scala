@@ -150,7 +150,7 @@ class DocumentationTests extends QbeastIntegrationTestSpec {
       val qbeast_df = spark.read.format("qbeast").load(qbeast_table_path)
 
       val qbeastSnapshot = getQbeastSnapshot(qbeast_table_path)
-      val totalNumberOfFiles = qbeastSnapshot.allFilesCount
+      val totalNumberOfFiles = qbeastSnapshot.numOfFiles
 
       totalNumberOfFiles should be > 1L withClue
         "Total number of files in pushdown notebook changes to " + totalNumberOfFiles

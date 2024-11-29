@@ -26,7 +26,7 @@ import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.delta.OptimisticTransaction
 import org.apache.spark.sql.types.StructType
 
-class MetadataWriterTest(
+class MetadataWriterDeltaTest(
     tableID: QTableID,
     mode: WriteModeValue,
     deltaLog: DeltaLog,
@@ -45,15 +45,15 @@ class MetadataWriterTest(
 
 }
 
-object MetadataWriterTest {
+object MetadataWriterDeltaTest {
 
   def apply(
       tableID: QTableID,
       mode: WriteModeValue,
       deltaLog: DeltaLog,
       options: QbeastOptions,
-      schema: StructType): MetadataWriterTest = {
-    new MetadataWriterTest(tableID, mode, deltaLog, options, schema)
+      schema: StructType): MetadataWriterDeltaTest = {
+    new MetadataWriterDeltaTest(tableID, mode, deltaLog, options, schema)
   }
 
 }
