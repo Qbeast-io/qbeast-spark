@@ -17,10 +17,15 @@ package io.qbeast.utils
 
 import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.mapper
+import io.qbeast.core.model.OrderedDataType
 import io.qbeast.core.model.Revision
 import io.qbeast.core.model.StringDataType
 import io.qbeast.core.transform.CDFQuantilesTransformer
 import io.qbeast.core.transform.CDFStringQuantilesTransformation
+import io.qbeast.core.transform.IdentityToZeroTransformation
+import io.qbeast.core.transform.IdentityTransformation
+import io.qbeast.core.transform.LinearTransformer
+import io.qbeast.core.transform.NullToZeroTransformation
 import io.qbeast.core.transform.StringHistogramTransformation
 import io.qbeast.core.transform.StringHistogramTransformer
 import io.qbeast.spark.utils.MetadataConfig.revision
@@ -34,6 +39,8 @@ import org.apache.spark.sql.types.NumericType
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
+
+import scala.annotation.nowarn
 
 /**
  * Utility object for indexing methods outside the box
@@ -144,21 +151,28 @@ object QbeastUtils extends Logging {
   }
 
   @Experimental
+  @nowarn("cat=deprecation")
   def updateTransformationTypes(revision: Revision): Revision = {
     val updatedTransformers = revision.columnTransformers.map {
       case s: StringHistogramTransformer =>
         CDFQuantilesTransformer(s.columnName, StringDataType)
       case other => other
     }
-    val updatedTransformations = revision.transformations.map {
-      case s: StringHistogramTransformation =>
-        CDFStringQuantilesTransformation(s.histogram)
-      case other => other
-    }
-
-    revision.copy(
-      columnTransformers = updatedTransformers,
-      transformations = updatedTransformations)
+    val updatedTransformations = revision.transformations
+      .zip(revision.columnTransformers)
+      .map {
+        case (s: StringHistogramTransformation, _) =>
+          CDFStringQuantilesTransformation(s.histogram)
+        case (i: IdentityToZeroTransformation, linearTransformer: LinearTransformer) =>
+          IdentityTransformation(
+            i.identityValue,
+            linearTransformer.dataType.asInstanceOf[OrderedDataType])
+        case (_ @NullToZeroTransformation, linearTransformer: LinearTransformer) =>
+          IdentityTransformation(null, linearTransformer.dataType.asInstanceOf[OrderedDataType])
+        case (otherTransformation, _) => otherTransformation
+      }
+    revision
+      .copy(columnTransformers = updatedTransformers, transformations = updatedTransformations)
   }
 
   @Experimental
