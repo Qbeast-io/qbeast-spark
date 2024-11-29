@@ -23,11 +23,8 @@ import io.qbeast.IISeq
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.delta.actions.Action
 import org.apache.spark.sql.delta.actions.AddFile
-import org.apache.spark.sql.delta.actions.CommitInfo
 import org.apache.spark.sql.delta.files.TahoeLogFileIndex
-import org.apache.spark.sql.delta.util.FileNames
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.execution.datasources.FileIndex
@@ -62,7 +59,7 @@ case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with De
 
   override lazy val schema: StructType = snapshot.metadata.schema
 
-  override lazy val allFilesCount: Long = snapshot.allFiles.count
+  override lazy val numOfFiles: Long = snapshot.numOfFiles
 
   private val metadataMap: Map[String, String] = snapshot.metadata.configuration
 
@@ -87,19 +84,6 @@ case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with De
    * @return
    */
   override def loadConfiguration: Map[String, String] = metadataMap
-
-  /**
-   * The last commit tags added by the PreCommitHooks.
-   * @return
-   */
-  override def loadLatestPreCommitHookInfo: Map[String, String] = {
-    val conf = deltaLog.newDeltaHadoopConf()
-    val infoTags = deltaLog.store
-      .read(FileNames.deltaFile(deltaLog.logPath, snapshot.version), conf)
-      .map(Action.fromJson)
-      .collect { case commitInfo: CommitInfo => commitInfo.tags }
-    infoTags.head.getOrElse(Map.empty)
-  }
 
   /**
    * Constructs revision dictionary

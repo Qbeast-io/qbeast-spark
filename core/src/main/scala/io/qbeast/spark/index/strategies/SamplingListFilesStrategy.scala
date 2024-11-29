@@ -59,7 +59,7 @@ case class SamplingListFilesStrategy(snapshot: QbeastSnapshot)
     {
       val context = SparkSession.active.sparkContext
       val execId = context.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
-      val count = snapshot.allFilesCount
+      val count = snapshot.numOfFiles
       val filteredCount = count - files.length
       val filteredPercent = (filteredCount.toDouble / count) * 100.0
       val info = f"$filteredCount of $count ($filteredPercent%.2f%%)"

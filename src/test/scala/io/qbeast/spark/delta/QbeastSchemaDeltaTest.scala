@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.utils
+package io.qbeast.spark.delta
 
 import io.qbeast.QbeastIntegrationTestSpec
-import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.AnalysisException
 
 /**
  * Test for checking the correctness of the output schemas when Appending Data through INSERT INTO
  */
-class QbeastSchemaTest extends QbeastIntegrationTestSpec {
+class QbeastSchemaDeltaTest extends QbeastIntegrationTestSpec {
 
   "Qbeast" should "detect when schemas does not match on INSERT INTO" in
     withQbeastContextSparkAndTmpWarehouse((spark, _) => {
@@ -145,8 +145,8 @@ class QbeastSchemaTest extends QbeastIntegrationTestSpec {
 
       import spark.implicits._
 
-      spark.sql(
-        "CREATE TABLE student (id INT) USING qbeast " +
+        spark.sql(
+          "CREATE TABLE student (id INT) USING qbeast " +
           "OPTIONS ('columnsToIndex'='id')")
 
       val dfExtraCol = Seq((1, "John"), (2, "Doe")).toDF("id", "name")
@@ -175,7 +175,7 @@ class QbeastSchemaTest extends QbeastIntegrationTestSpec {
 
       import spark.implicits._
 
-      val df = Seq(1, 2).toDF("id")
+        val df = Seq(1, 2).toDF("id")
       val path = s"$tmpDir/student"
       df.write
         .format("qbeast")

@@ -42,7 +42,7 @@ trait QbeastSnapshot {
   /**
    * Returns the total number of data files in the snapshot.
    */
-  def allFilesCount: Long
+  def numOfFiles: Long
 
   /**
    * Provides the schema of the dataset for this snapshot.
@@ -60,12 +60,6 @@ trait QbeastSnapshot {
    * @return
    */
   def loadConfiguration: Map[String, String]
-
-  /**
-   * The last commit tags added by the PreCommitHooks.
-   * @return
-   */
-  def loadLatestPreCommitHookInfo: Map[String, String]
 
   /**
    * The current table properties of the snapshot.
