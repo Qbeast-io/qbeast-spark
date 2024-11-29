@@ -46,8 +46,9 @@ case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with De
 
   override val basePath: Path = new Path(tableID.id)
 
-  override val snapshot: Snapshot =
-    DeltaLog.forTable(SparkSession.active, tableID.id).update()
+  private val deltaLog: DeltaLog = DeltaLog.forTable(SparkSession.active, tableID.id)
+
+  override val snapshot: Snapshot = deltaLog.update()
 
   /**
    * The current state of the snapshot.
@@ -58,7 +59,7 @@ case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with De
 
   override lazy val schema: StructType = snapshot.metadata.schema
 
-  override lazy val allFilesCount: Long = snapshot.allFiles.count
+  override lazy val numOfFiles: Long = snapshot.numOfFiles
 
   private val metadataMap: Map[String, String] = snapshot.metadata.configuration
 
@@ -77,6 +78,12 @@ case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with De
    * @return
    */
   override def loadDescription: String = snapshot.metadata.description
+
+  /**
+   * The current table configuration.
+   * @return
+   */
+  override def loadConfiguration: Map[String, String] = metadataMap
 
   /**
    * Constructs revision dictionary
@@ -213,10 +220,10 @@ case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with De
 
   /**
    * Loads the dataset of qbeast blocks from index files
-   * @param indexFile
+   * @param indexFiles
    *   A dataset of index files
    * @return
-   *   the Datasetframe
+   *   the DataFrame
    */
 
   override def loadDataframeFromIndexFiles(indexFiles: Dataset[IndexFile]): DataFrame = {

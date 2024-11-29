@@ -1,4 +1,4 @@
-package io.qbeast.spark.utils
+package io.qbeast.spark.delta
 
 import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.PreCommitHook
@@ -24,7 +24,7 @@ private class SimpleHook(kv: String) extends PreCommitHook {
 
 }
 
-class PreCommitHookIntegrationTest extends QbeastIntegrationTestSpec {
+class PreCommitHookDeltaTest extends QbeastIntegrationTestSpec {
 
   "PreCommitHook" should "run simple hooks and save their outputs to CommitInfo during writes" in
     withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
