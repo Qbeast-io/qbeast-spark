@@ -16,8 +16,8 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.QbeastIntegrationTestSpec
-import org.apache.spark.sql.Row
 import org.apache.spark.sql.AnalysisException
+import org.apache.spark.sql.Row
 
 /**
  * Test for checking the correctness of the output schemas when Appending Data through INSERT INTO
@@ -145,8 +145,8 @@ class QbeastSchemaDeltaTest extends QbeastIntegrationTestSpec {
 
       import spark.implicits._
 
-        spark.sql(
-          "CREATE TABLE student (id INT) USING qbeast " +
+      spark.sql(
+        "CREATE TABLE student (id INT) USING qbeast " +
           "OPTIONS ('columnsToIndex'='id')")
 
       val dfExtraCol = Seq((1, "John"), (2, "Doe")).toDF("id", "name")
@@ -175,7 +175,7 @@ class QbeastSchemaDeltaTest extends QbeastIntegrationTestSpec {
 
       import spark.implicits._
 
-        val df = Seq(1, 2).toDF("id")
+      val df = Seq(1, 2).toDF("id")
       val path = s"$tmpDir/student"
       df.write
         .format("qbeast")
