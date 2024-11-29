@@ -41,7 +41,7 @@ import scala.annotation.nowarn
 import scala.collection.JavaConverters._
 
 /**
- * QbeastCatalog is a CatalogExtension that supports Namespaces and the CREATION and/or
+ * QbeastCatalog is a CatalogExtenssion that supports Namespaces and the CREATION and/or
  * REPLACEMENT of table QbeastCatalog uses a session catalog of type T to delegate high-level
  * operations
  */
@@ -56,16 +56,16 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
 
   private val deltaCatalog: DeltaCatalog = new DeltaCatalog()
 
-  private var delegatedCatalog: Option[CatalogPlugin] = None
+  private var delegatedCatalog: CatalogPlugin = null
 
-  private var catalogName: Option[String] = None
+  private var catalogName: String = null
 
   /**
    * Gets the delegated catalog of the session
    * @return
    */
   private def getDelegatedCatalog: T = {
-    val sessionCatalog = delegatedCatalog.get match {
+    val sessionCatalog = delegatedCatalog match {
       case null =>
         // In this case, any catalog has been delegated, so we need to search for the default
         SparkCatalogUtils.getV2SessionCatalog(SparkSession.active)
@@ -332,17 +332,17 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
 
   override def initialize(name: String, options: CaseInsensitiveStringMap): Unit = {
     // Initialize the catalog with the corresponding name
-    this.catalogName = Option(name)
+    this.catalogName = name
     // Initialize the catalog in any other provider that we can integrate with
     this.deltaCatalog.initialize(name, options)
   }
 
-  override def name(): String = catalogName.orNull
+  override def name(): String = catalogName
 
   override def setDelegateCatalog(delegate: CatalogPlugin): Unit = {
     // Check if the delegating catalog has Table and SupportsNamespace properties
     if (delegate.isInstanceOf[TableCatalog] && delegate.isInstanceOf[SupportsNamespaces]) {
-      this.delegatedCatalog = Option(delegate)
+      this.delegatedCatalog = delegate
       // Set delegated catalog in any other provider that we can integrate with
       this.deltaCatalog.setDelegateCatalog(delegate)
     } else throw new IllegalArgumentException("Invalid session catalog: " + delegate)
