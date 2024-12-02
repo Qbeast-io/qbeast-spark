@@ -67,7 +67,7 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
         val tableFormat = DEFAULT_TABLE_FORMAT
         val table_name = s"${tableFormat}_table"
 
-        data.write.format(tableFormat).saveAsTable(table_name) // delta catalog
+        data.write.format(tableFormat).saveAsTable(table_name) // table format catalog
 
         data.write
           .format("qbeast")

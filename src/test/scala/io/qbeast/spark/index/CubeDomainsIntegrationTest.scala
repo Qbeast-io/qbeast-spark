@@ -31,8 +31,7 @@ import org.scalatest.PrivateMethodTester
 
 class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateMethodTester {
 
-  def createDF(size: Int): Dataset[Client3] = {
-    val spark = SparkSession.active
+  def createDF(spark: SparkSession, size: Int): Dataset[Client3] = {
     import spark.implicits._
 
     1.to(size)
@@ -45,7 +44,7 @@ class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
     "reflect the estimation through the Delta Commit Log" in withQbeastContextSparkAndTmpDir {
       (spark, tmpDir) =>
         withOTreeAlgorithm { oTreeAlgorithm =>
-          val df = createDF(100000)
+          val df = createDF(spark, 100000)
           val names = List("age", "val2")
           val indexStatus = IndexStatus(
             SparkRevisionFactory
@@ -73,7 +72,7 @@ class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
     }
 
   it should "respect the (0.0, 1.0] range" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
-    val df = createDF(100000)
+    val df = createDF(spark, 100000)
     val names = List("age", "val2")
 
     df.write

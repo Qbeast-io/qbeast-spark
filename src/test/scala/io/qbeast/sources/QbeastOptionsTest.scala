@@ -78,7 +78,7 @@ class QbeastOptionsTest extends QbeastIntegrationTestSpec {
     an[AnalysisException] shouldBe thrownBy(QbeastOptions.checkQbeastProperties(Map.empty))
   }
 
-  it should "return a map with all the configurations including Delta specifics" in withSpark {
+  it should "return a map with all the configurations including format specifics" in withSpark {
     _ =>
       // Initial optionsMap
       val optionsMap = Map(

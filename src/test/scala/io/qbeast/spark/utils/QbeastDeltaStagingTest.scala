@@ -39,7 +39,7 @@ class QbeastDeltaStagingTest extends QbeastIntegrationTestSpec with StagingUtils
       .option("cubeSize", "5000")
       .save(dir)
 
-    // Create hybrid table by appending delta data
+    // Create hybrid table by appending data
     val ddf = (qDataSize until qDataSize + dDataSize).map(i => T2(i, i)).toDF("a", "b")
     ddf
       .repartition(numSparkPartitions)

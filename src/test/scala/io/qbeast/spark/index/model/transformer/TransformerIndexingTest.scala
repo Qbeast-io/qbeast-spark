@@ -16,11 +16,9 @@
 package io.qbeast.spark.index.model.transformer
 
 import io.qbeast.core.model.LongDataType
-import io.qbeast.core.model.QTableID
 import io.qbeast.core.transform.IdentityTransformation
 import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.core.transform.LinearTransformer
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
 import org.apache.spark.sql.functions._
@@ -380,7 +378,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
       // LinearTransformation(1, 10, _, _)
       identityDf_2.write.mode("append").format("qbeast").save(tmpDir)
 
-      val snapshot = DeltaQbeastSnapshot(QTableID(tmpDir))
+      val snapshot = getQbeastSnapshot(tmpDir)
       val Seq(_, idNullRev, idOneRev, linearRev) = snapshot.loadAllRevisions.sortBy(_.revisionID)
       idNullRev.columnTransformers.head should matchPattern { case _: LinearTransformer => }
       idNullRev.transformations.head should matchPattern {
@@ -413,7 +411,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
       val regularDf = spark.range(100).map(i => TestNull(None, None, Some(i.toLong)))
       regularDf.write.mode("append").format("qbeast").save(tmpDir)
 
-      val revision = DeltaQbeastSnapshot(QTableID(tmpDir)).loadLatestRevision
+      val revision = getQbeastSnapshot(tmpDir).loadLatestRevision
       revision.columnTransformers.head should matchPattern { case _: LinearTransformer => }
       revision.transformations.head should matchPattern {
         case LinearTransformation(-1L, 99L, _, LongDataType) =>
