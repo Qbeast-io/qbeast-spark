@@ -15,6 +15,22 @@
  */
 package io.qbeast.utils
 
+import io.qbeast.context.QbeastContext
+import io.qbeast.core.model.mapper
+import io.qbeast.core.model.OrderedDataType
+import io.qbeast.core.model.Revision
+import io.qbeast.core.model.StringDataType
+import io.qbeast.core.transform.CDFQuantilesTransformer
+import io.qbeast.core.transform.CDFStringQuantilesTransformation
+import io.qbeast.core.transform.IdentityToZeroTransformation
+import io.qbeast.core.transform.IdentityTransformation
+import io.qbeast.core.transform.LinearTransformer
+import io.qbeast.core.transform.NullToZeroTransformation
+import io.qbeast.core.transform.StringHistogramTransformation
+import io.qbeast.core.transform.StringHistogramTransformer
+import io.qbeast.spark.utils.MetadataConfig.revision
+import io.qbeast.table.QbeastTable
+import org.apache.spark.annotation.Experimental
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.delta.skipping.MultiDimClusteringFunctions
 import org.apache.spark.sql.functions.col
@@ -23,6 +39,8 @@ import org.apache.spark.sql.types.NumericType
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
+
+import scala.annotation.nowarn
 
 /**
  * Utility object for indexing methods outside the box
@@ -130,6 +148,73 @@ object QbeastUtils extends Logging {
     }
     // Return the quantiles as a string
     quantilesArray.mkString("[", ", ", "]")
+  }
+
+  @Experimental
+  @nowarn("cat=deprecation")
+  def updateTransformationTypes(revision: Revision): Revision = {
+    val updatedTransformers = revision.columnTransformers.map {
+      case s: StringHistogramTransformer =>
+        CDFQuantilesTransformer(s.columnName, StringDataType)
+      case other => other
+    }
+    val updatedTransformations = revision.transformations
+      .zip(revision.columnTransformers)
+      .map {
+        case (s: StringHistogramTransformation, _) =>
+          CDFStringQuantilesTransformation(s.histogram)
+        case (i: IdentityToZeroTransformation, linearTransformer: LinearTransformer) =>
+          IdentityTransformation(
+            i.identityValue,
+            linearTransformer.dataType.asInstanceOf[OrderedDataType])
+        case (_ @NullToZeroTransformation, linearTransformer: LinearTransformer) =>
+          IdentityTransformation(null, linearTransformer.dataType.asInstanceOf[OrderedDataType])
+        case (otherTransformation, _) => otherTransformation
+      }
+    revision
+      .copy(columnTransformers = updatedTransformers, transformations = updatedTransformations)
+  }
+
+  @Experimental
+  @nowarn("cat=deprecation")
+  def shouldUpdateRevision(revision: Revision): Boolean = {
+    revision.transformations.exists {
+      case _: StringHistogramTransformation | _: IdentityToZeroTransformation |
+          NullToZeroTransformation =>
+        true
+      case _ => false
+    }
+  }
+
+  @Experimental
+  def updateTransformationTypes(qbeastTable: QbeastTable): Unit = {
+    // 1. Get te Latest Snapshot of the Table
+    val latestSnapshot = qbeastTable.getLatestSnapshot()
+    // 2. Load all the Revisions Present
+    val allRevisions = latestSnapshot.loadAllRevisions
+    // 3. Check if there are any revisionsToUpdate
+    val revisionsToUpdate = allRevisions.filter(shouldUpdateRevision)
+    // If there are no revisions to update, return
+    if (revisionsToUpdate.isEmpty) {
+      log.info("No Revisions to Update")
+      return
+    }
+    // 4. Update all the Revisions with the new Transformation Types
+    val allRevisionsUpdated = revisionsToUpdate.map(updateTransformationTypes)
+    log.info(
+      s"Updating Revisions ${allRevisionsUpdated.map(_.revisionID).toString()} with new Transformation Types")
+    // 4. Commit the new Metadata Update
+    QbeastContext.metadataManager.updateMetadataWithTransaction(
+      qbeastTable.tableID,
+      latestSnapshot.schema) {
+      val newMetadata = allRevisionsUpdated
+        .map(revisionUpdated =>
+          s"$revision.${revisionUpdated.revisionID}" -> mapper.writeValueAsString(
+            revisionUpdated))
+        .toMap
+      newMetadata
+    }
+
   }
 
 }

@@ -220,6 +220,10 @@ class QbeastTable private (
     getDenormalizedBlocks(latestRevisionID)
   }
 
+  def getLatestSnapshot(): QbeastSnapshot = {
+    qbeastSnapshot
+  }
+
 }
 
 object QbeastTable {
