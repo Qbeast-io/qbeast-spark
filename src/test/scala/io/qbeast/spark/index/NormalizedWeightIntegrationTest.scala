@@ -58,7 +58,6 @@ class NormalizedWeightIntegrationTest extends QbeastIntegrationTestSpec {
           .flatMap(_.blocks)
           .foreach { block =>
             block.maxWeight.value shouldBe <=(Int.MaxValue)
-            block.replicated shouldBe false
           }
     }
 
@@ -76,8 +75,7 @@ class NormalizedWeightIntegrationTest extends QbeastIntegrationTestSpec {
           .save(tmpDir)
 
         val qbeastSnapshot = getQbeastSnapshot(tmpDir)
-        val cubeNormalizedWeights =
-          qbeastSnapshot.loadLatestIndexStatus.cubeNormalizedWeights
+        val cubeNormalizedWeights = qbeastSnapshot.loadLatestIndexStatus.cubeNormalizedWeights()
 
         cubeNormalizedWeights.foreach(cubeInfo => cubeInfo._2 shouldBe 2.0)
     }

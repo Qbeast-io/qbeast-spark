@@ -50,14 +50,12 @@ like the following:
       \"cube\": \"w\",
       \"minWeight\": 2,
       \"maxWeight\": 3,
-      \"replicated\": false,
       \"elementCount\": 4
     },
     {
       \"cube\": \"wg\",
       \"minWeight\": 5,
       \"maxWeight\": 6,
-      \"replicated\": false,
       \"elementCount\": 7
     },
   ]" 

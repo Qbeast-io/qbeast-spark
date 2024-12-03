@@ -137,7 +137,7 @@ trait RollupDataWriter extends DataWriter {
     // TODO introduce desiredFileSize in Revision and parameters
     val desiredFileSize = tableChanges.updatedRevision.desiredCubeSize
     val rollup = new Rollup(desiredFileSize)
-    tableChanges.deltaBlockElementCount.foreach { case (cubeId, blockSize) =>
+    tableChanges.inputBlockElementCounts.foreach { case (cubeId, blockSize) =>
       rollup.populate(cubeId, blockSize)
     }
     rollup.compute()
@@ -158,7 +158,7 @@ trait RollupDataWriter extends DataWriter {
           case None =>
         }
       }
-      fileUUID
+      fileUUID.get
     })
 
 }

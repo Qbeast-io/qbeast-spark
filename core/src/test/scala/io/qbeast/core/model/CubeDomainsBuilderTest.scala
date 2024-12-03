@@ -39,7 +39,6 @@ class CubeDomainsBuilderTest extends AnyFlatSpec with Matchers with PrivateMetho
 
   private def createCubeDomainsBuilder(
       existingCubeWeights: Map[CubeId, Weight] = Map.empty,
-      replicatedOrAnnouncedSet: Set[CubeId] = Set.empty,
       desiredCubeSize: Int = rev.desiredCubeSize,
       numPartitions: Int = 10,
       elementCount: Long = 100L,
@@ -47,7 +46,6 @@ class CubeDomainsBuilderTest extends AnyFlatSpec with Matchers with PrivateMetho
     // The default setting creates a groupCubeSize of 40
     CubeDomainsBuilder(
       existingCubeWeights,
-      replicatedOrAnnouncedSet,
       desiredCubeSize,
       numPartitions,
       elementCount,
@@ -139,16 +137,6 @@ class CubeDomainsBuilderTest extends AnyFlatSpec with Matchers with PrivateMetho
     val domains = builder.result()
 
     domains.isEmpty shouldBe true
-  }
-
-  it should "add maxWeight to the child of a replicated or announced cube" in {
-    val root = rev.createCubeIdRoot()
-    val builder = createCubeDomainsBuilder(replicatedOrAnnouncedSet = Set(root))
-    builder.update(point, Weight(2))
-
-    val Seq(c0, c1) = builder.result().map(cd => rev.createCubeId(cd.cubeBytes)).sorted
-    c0 shouldBe root
-    c1.parent shouldBe Some(c0)
   }
 
   it should "calculate domain for the root" in {

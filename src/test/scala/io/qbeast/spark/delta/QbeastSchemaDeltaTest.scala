@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.utils
+package io.qbeast.spark.delta
 
 import io.qbeast.QbeastIntegrationTestSpec
 import org.apache.spark.sql.AnalysisException
@@ -22,7 +22,7 @@ import org.apache.spark.sql.Row
 /**
  * Test for checking the correctness of the output schemas when Appending Data through INSERT INTO
  */
-class QbeastSchemaTest extends QbeastIntegrationTestSpec {
+class QbeastSchemaDeltaTest extends QbeastIntegrationTestSpec {
 
   "Qbeast" should "detect when schemas does not match on INSERT INTO" in
     withQbeastContextSparkAndTmpWarehouse((spark, _) => {

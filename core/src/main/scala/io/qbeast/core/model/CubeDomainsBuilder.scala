@@ -49,7 +49,6 @@ object CubeDomainsBuilder {
 
   def apply(
       existingCubeWeights: Map[CubeId, Weight],
-      replicatedOrAnnouncedSet: Set[CubeId],
       desiredCubeSize: Int,
       numPartitions: Int,
       numElements: Long,
@@ -57,31 +56,29 @@ object CubeDomainsBuilder {
     val groupCubeSize =
       estimateGroupCubeSize(desiredCubeSize, numPartitions, numElements, bufferCapacity)
     val factory = new WeightAndCountFactory(existingCubeWeights)
-    new CubeDomainsBuilder(groupCubeSize, bufferCapacity, factory, replicatedOrAnnouncedSet)
+    new CubeDomainsBuilder(groupCubeSize, bufferCapacity, factory)
   }
 
 }
 
 /**
  * Builder for creating cube domains.
+ *
  * @param groupCubeSize
  *   the desired number of elements for each cube in the local index
  * @param bufferCapacity
  *   the buffer capacity to store the cube weights in memory
  * @param weightAndCountFactory
  *   the factory for WeightAndCount
- * @param replicatedOrAnnouncedSet
- *   the announced or replicated cubes' identifiers
  */
 class CubeDomainsBuilder protected (
     private val groupCubeSize: Int,
     private val bufferCapacity: Long,
-    private val weightAndCountFactory: WeightAndCountFactory,
-    private val replicatedOrAnnouncedSet: Set[CubeId] = Set.empty)
+    private val weightAndCountFactory: WeightAndCountFactory)
     extends Serializable {
 
-  private val byWeight = Ordering.by[PointWeightAndParent, Weight](_.weight).reverse
-  private val queue = new mutable.PriorityQueue[PointWeightAndParent]()(byWeight)
+  private val byWeight = Ordering.by[PointAndWeight, Weight](_.weight).reverse
+  private val queue = new mutable.PriorityQueue[PointAndWeight]()(byWeight)
   private var resultBuffer = Seq.empty[CubeDomain]
 
   /**
@@ -91,13 +88,11 @@ class CubeDomainsBuilder protected (
    *   the point
    * @param weight
    *   the weight
-   * @param parent
-   *   the parent cube identifier used to find the container cube if available
    * @return
    *   this instance
    */
-  def update(point: Point, weight: Weight, parent: Option[CubeId] = None): CubeDomainsBuilder = {
-    queue.enqueue(PointWeightAndParent(point, weight, parent))
+  def update(point: Point, weight: Weight): CubeDomainsBuilder = {
+    queue.enqueue(PointAndWeight(point, weight))
     if (queue.size >= bufferCapacity) {
       resultBuffer ++= resultInternal()
     }
@@ -126,11 +121,8 @@ class CubeDomainsBuilder protected (
   private def computeWeightsAndSizes(): Map[CubeId, WeightAndTreeSize] = {
     val weights = mutable.Map.empty[CubeId, WeightAndCount]
     while (queue.nonEmpty) {
-      val PointWeightAndParent(point, weight, parent) = queue.dequeue()
-      val containers = parent match {
-        case Some(parentCubeId) => CubeId.containers(point, parentCubeId)
-        case None => CubeId.containers(point)
-      }
+      val PointAndWeight(point, weight) = queue.dequeue()
+      val containers = CubeId.containers(point)
       var continue = true
       while (continue && containers.hasNext) {
         val cubeId = containers.next()
@@ -138,7 +130,7 @@ class CubeDomainsBuilder protected (
           weights.getOrElseUpdate(cubeId, weightAndCountFactory.create(cubeId))
         if (weightAndCount.shouldInclude(weight, groupCubeSize)) {
           weightAndCount.update(weight)
-          continue = replicatedOrAnnouncedSet.contains(cubeId)
+          continue = false
         }
       }
     }
@@ -326,10 +318,8 @@ private class InnerCubeWeightAndCount(existingWeight: Weight)
  *   the point
  * @param weight
  *   the weight
- * @param parent
- *   the parent
  */
-private case class PointWeightAndParent(point: Point, weight: Weight, parent: Option[CubeId])
+private case class PointAndWeight(point: Point, weight: Weight)
 
 /**
  * NormalizedWeight and tree size of a given cube, with tree size defined as the sum of its own

@@ -23,7 +23,7 @@ import io.qbeast.core.model.Weight
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
-import org.apache.spark.qbeast.config.CUBE_WEIGHTS_BUFFER_CAPACITY
+import org.apache.spark.qbeast.config.CUBE_DOMAINS_BUFFER_CAPACITY
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
@@ -31,8 +31,7 @@ import org.scalatest.PrivateMethodTester
 
 class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateMethodTester {
 
-  def createDF(size: Int): Dataset[Client3] = {
-    val spark = SparkSession.active
+  def createDF(spark: SparkSession, size: Int): Dataset[Client3] = {
     import spark.implicits._
 
     1.to(size)
@@ -45,7 +44,7 @@ class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
     "reflect the estimation through the Delta Commit Log" in withQbeastContextSparkAndTmpDir {
       (spark, tmpDir) =>
         withOTreeAlgorithm { oTreeAlgorithm =>
-          val df = createDF(100000)
+          val df = createDF(spark, 100000)
           val names = List("age", "val2")
           val indexStatus = IndexStatus(
             SparkRevisionFactory
@@ -73,7 +72,7 @@ class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
     }
 
   it should "respect the (0.0, 1.0] range" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
-    val df = createDF(100000)
+    val df = createDF(spark, 100000)
     val names = List("age", "val2")
 
     df.write
@@ -85,7 +84,7 @@ class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
     val qbeastSnapshot = getQbeastSnapshot(tmpDir)
     val cubeWeights = qbeastSnapshot.loadLatestIndexStatus.cubesStatuses
 
-    cubeWeights.values.foreach { case CubeStatus(_, weight, _, _, _) =>
+    cubeWeights.values.foreach { case CubeStatus(_, weight, _, _) =>
       weight shouldBe >(Weight.MinValue)
       weight shouldBe <=(Weight.MaxValue)
     }
@@ -93,7 +92,7 @@ class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
 
   it should "respect the lower bound for groupCubeSize(1000)" in withSpark { _ =>
     val numElements =
-      DEFAULT_CUBE_SIZE * CUBE_WEIGHTS_BUFFER_CAPACITY / CubeDomainsBuilder.minGroupCubeSize
+      DEFAULT_CUBE_SIZE * CUBE_DOMAINS_BUFFER_CAPACITY / CubeDomainsBuilder.minGroupCubeSize
     val numPartitions = 1
     val estimateGroupCubeSize = PrivateMethod[Int]('estimateGroupCubeSize)
 
@@ -102,21 +101,21 @@ class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
       DEFAULT_CUBE_SIZE,
       numPartitions,
       numElements * 1000,
-      CUBE_WEIGHTS_BUFFER_CAPACITY) shouldBe CubeDomainsBuilder.minGroupCubeSize
+      CUBE_DOMAINS_BUFFER_CAPACITY) shouldBe CubeDomainsBuilder.minGroupCubeSize
 
     // numElements = 5e8 => groupCubeSize = 1000
     CubeDomainsBuilder invokePrivate estimateGroupCubeSize(
       DEFAULT_CUBE_SIZE,
       numPartitions,
       numElements,
-      CUBE_WEIGHTS_BUFFER_CAPACITY) shouldBe CubeDomainsBuilder.minGroupCubeSize
+      CUBE_DOMAINS_BUFFER_CAPACITY) shouldBe CubeDomainsBuilder.minGroupCubeSize
 
     // numElements = 5e6 < 5e8 => groupCubeSize > 1000
     CubeDomainsBuilder invokePrivate estimateGroupCubeSize(
       DEFAULT_CUBE_SIZE,
       numPartitions,
       numElements / 100,
-      CUBE_WEIGHTS_BUFFER_CAPACITY) shouldBe >(CubeDomainsBuilder.minGroupCubeSize)
+      CUBE_DOMAINS_BUFFER_CAPACITY) shouldBe >(CubeDomainsBuilder.minGroupCubeSize)
   }
 
 }

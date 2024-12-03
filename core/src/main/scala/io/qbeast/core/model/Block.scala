@@ -17,6 +17,7 @@ package io.qbeast.core.model
 
 /**
  * Block of elements stored in the physical index file.
+ *
  * @param filePath
  *   the path to the file containing the block
  * @param cubeId
@@ -27,30 +28,17 @@ package io.qbeast.core.model
  *   the maximum element weight
  * @param elementCount
  *   the number of elements in the block
- * @param replicated
- *   boolean stating whether the block is replicated
  */
 case class Block(
     filePath: String,
     cubeId: CubeId,
     minWeight: Weight,
     maxWeight: Weight,
-    elementCount: Long,
-    replicated: Boolean)
+    elementCount: Long)
     extends Serializable {
 
-  /**
-   * Replicates the block.
-   *
-   * @return
-   *   the copy of the block with the replicated attribute set to true
-   */
-  def replicate(): Block =
-    if (replicated) this
-    else Block(filePath, cubeId, minWeight, maxWeight, elementCount, replicated = true)
-
   override def toString: String = {
-    s"Block($filePath, $cubeId, $minWeight, $maxWeight, $elementCount, $replicated)"
+    s"Block($filePath, $cubeId, $minWeight, $maxWeight, $elementCount)"
   }
 
 }

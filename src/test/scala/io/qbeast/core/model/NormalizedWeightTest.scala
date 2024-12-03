@@ -22,14 +22,7 @@ import io.qbeast.QbeastIntegrationTestSpec
  */
 class NormalizedWeightTest extends QbeastIntegrationTestSpec {
 
-  "NormalizedWeight" should "support merge with other maxWeight" in {
-    NormalizedWeight.merge(2.0, 3.0) shouldBe 1.2
-    NormalizedWeight.merge(0.0, 1.0) shouldBe 1.0
-    NormalizedWeight.merge(1.0, 0.0) shouldBe 1.0
-    NormalizedWeight.merge(0.0, 0.0) shouldBe 0.0
-  }
-
-  it should "support conversion to Weight" in {
+  "NormalizedWeight" should "support conversion to Weight" in {
     NormalizedWeight.toWeight(2.0) shouldBe Weight.MaxValue
     NormalizedWeight.toWeight(0.5) shouldBe Weight(0.5)
   }
@@ -40,25 +33,6 @@ class NormalizedWeightTest extends QbeastIntegrationTestSpec {
 
   it should "support creation from desired and actual cube sizes" in {
     NormalizedWeight(3, 2) shouldBe 1.5
-  }
-
-  it should "estimate correctly unbalanced distribution actual" in {
-
-    def testDistribution(unbalancedDistribution: List[Int], desiredSize: Int = 10): Unit = {
-      val total = unbalancedDistribution.sum
-      val idealLoad = desiredSize.toDouble / total
-      unbalancedDistribution
-        .map(NormalizedWeight(desiredSize, _))
-        .reduce(NormalizedWeight.merge) shouldBe idealLoad +- (0.01 * idealLoad)
-    }
-    testDistribution(List(10, 10, 10, 2, 1, 10, 10, 1))
-    testDistribution(List(10, 10, 10, 2, 1, 10, 10, 1), desiredSize = 1000)
-
-    testDistribution(List(1000), desiredSize = 10)
-
-    testDistribution(List(1000), desiredSize = 10000)
-    testDistribution(List(1000, 1), desiredSize = 100)
-
   }
 
   it should "compute NormalizedWeight from MaxWeight Column" in withSpark(spark => {

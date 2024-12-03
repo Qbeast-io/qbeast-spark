@@ -16,11 +16,12 @@
 package io.qbeast.core.model
 
 /**
- * Names of possible states of the cube
+ * Names of possible write modes
  */
 
-object CubeState {
-  type CubeStateValue = String
-  final val FLOODED: CubeStateValue = "FLOODED"
-  final val ANNOUNCED: CubeStateValue = "ANNOUNCED"
+object WriteMode {
+  type WriteModeValue = String
+  final val Append: WriteModeValue = "APPEND"
+  final val Overwrite: WriteModeValue = "OVERWRITE"
+  final val Optimize: WriteModeValue = "OPTIMIZE"
 }

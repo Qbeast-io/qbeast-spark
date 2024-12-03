@@ -30,7 +30,7 @@ object TestClasses {
   case class TestLong(a: Long, b: Long, c: Long)
   case class TestNull(a: Option[String], b: Option[Double], c: Option[Long])
 
-  case class IndexData(id: Long, cube: Array[Byte], weight: Double, state: String)
+  case class IndexData(id: Long, cube: Array[Byte], weight: Double)
 
   case class Client1(id: Option[Long], name: Option[String], age: Option[Int])
 

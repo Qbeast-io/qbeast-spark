@@ -29,35 +29,17 @@ class PointWeightIndexer(val tableChanges: TableChanges) extends Serializable {
    *   the point
    * @param weight
    *   the point weight
-   * @param parentCubeId
-   *   the parent cube identifier to find the cubes containing the point (exclusive).
    * @return
    *   the target cube identifiers
    */
-  def findTargetCubeIds(
-      point: Point,
-      weight: Weight,
-      parentCubeId: Option[CubeId] = None): Seq[CubeId] = {
-    val builder = Seq.newBuilder[CubeId]
-    val containers = parentCubeId match {
-      case Some(parent) => CubeId.containers(point, parent)
-      case None => CubeId.containers(point)
-    }
-    var continue = true
-    while (continue && containers.hasNext) {
-      val cubeId = containers.next()
+  def findTargetCubeBytes(point: Point, weight: Weight): Array[Byte] = {
+    val cubeId = CubeId.containers(point).find { cubeId =>
       tableChanges.cubeWeight(cubeId) match {
-        case Some(cubeWeight) if weight <= cubeWeight =>
-          builder += cubeId
-          continue = tableChanges.announcedOrReplicatedSet.contains(cubeId)
-        case None =>
-          builder += cubeId
-          continue = false
-        case _ =>
-          ()
+        case Some(cubeWeight) => weight <= cubeWeight
+        case None => true
       }
     }
-    builder.result()
+    cubeId.get.bytes
   }
 
 }

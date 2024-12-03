@@ -36,7 +36,6 @@ class BlockTest extends AnyFlatSpec with Matchers {
       .setElementCount(4L)
       .setMinWeight(Weight.MinValue)
       .setMaxWeight(Weight.MaxValue)
-      .setReplicated(false)
       .endBlock()
       // block2
       .beginBlock()
@@ -44,7 +43,6 @@ class BlockTest extends AnyFlatSpec with Matchers {
       .setElementCount(4L)
       .setMinWeight(Weight.MinValue)
       .setMaxWeight(Weight.MaxValue)
-      .setReplicated(false)
       .endBlock()
       // block3
       .beginBlock()
@@ -52,7 +50,6 @@ class BlockTest extends AnyFlatSpec with Matchers {
       .setElementCount(5L)
       .setMinWeight(Weight.MinValue)
       .setMaxWeight(Weight.MaxValue)
-      .setReplicated(false)
       .endBlock()
       // block4
       .beginBlock()
@@ -60,7 +57,6 @@ class BlockTest extends AnyFlatSpec with Matchers {
       .setElementCount(4L)
       .setMinWeight(Weight.MinValue)
       .setMaxWeight(Weight.MaxValue)
-      .setReplicated(false)
       .endBlock()
       .result()
 
@@ -80,7 +76,6 @@ class BlockTest extends AnyFlatSpec with Matchers {
       .setElementCount(4L)
       .setMinWeight(Weight.MinValue)
       .setMaxWeight(Weight.MaxValue)
-      .setReplicated(false)
       .endBlock()
       .result()
 
@@ -91,35 +86,6 @@ class BlockTest extends AnyFlatSpec with Matchers {
     block1.equals(block3) shouldBe false
     block1.equals(block4) shouldBe false
     block1.equals(block5) shouldBe false
-  }
-
-  it should "replicate correctly" in {
-    val cubeId = CubeId.root(1)
-    val file = new IndexFileBuilder()
-      .setPath("path")
-      .setSize(1L)
-      .setModificationTime(2L)
-      .setRevisionId(3L)
-      .beginBlock()
-      .setCubeId(cubeId)
-      .setElementCount(4L)
-      .setMinWeight(Weight.MinValue)
-      .setMaxWeight(Weight.MaxValue)
-      .setReplicated(false)
-      .endBlock()
-      .result()
-
-    val block = file.blocks.head
-    val replicatedBlock = block.replicate()
-    replicatedBlock.filePath shouldBe block.filePath
-    replicatedBlock.cubeId shouldBe block.cubeId
-    replicatedBlock.elementCount shouldBe block.elementCount
-    replicatedBlock.minWeight shouldBe block.minWeight
-    replicatedBlock.maxWeight shouldBe block.maxWeight
-    replicatedBlock.replicated shouldBe true
-
-    replicatedBlock.replicate() shouldBe replicatedBlock
-
   }
 
   it should "convert to string with toString" in {
@@ -134,7 +100,6 @@ class BlockTest extends AnyFlatSpec with Matchers {
       .setElementCount(4L)
       .setMinWeight(Weight.MinValue)
       .setMaxWeight(Weight.MaxValue)
-      .setReplicated(false)
       .endBlock()
       .result()
 

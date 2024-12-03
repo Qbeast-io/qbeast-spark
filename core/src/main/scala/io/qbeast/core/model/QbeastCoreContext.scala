@@ -15,7 +15,6 @@
  */
 package io.qbeast.core.model
 
-import io.qbeast.core.keeper.Keeper
 import io.qbeast.spark.internal.QbeastOptions
 import org.apache.spark.sql.types.StructType
 
@@ -26,11 +25,8 @@ trait QbeastCoreContext {
   def metadataManager: MetadataManager
   def dataWriter: DataWriter
   def indexManager: IndexManager
-  def stagingDataManagerBuilder: StagingDataManagerFactory
   def revisionBuilder: RevisionFactory
   def columnSelector: ColumnsToIndexSelector
-  def keeper: Keeper
-
 }
 
 /**

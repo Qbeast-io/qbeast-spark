@@ -153,7 +153,6 @@ object IndexFileBuilder {
     private var minWeight: Option[Weight] = None
     private var maxWeight: Option[Weight] = None
     private var elementCount: Long = 0L
-    private var replicated: Boolean = false
 
     /**
      * Sets the cube identifier.
@@ -233,17 +232,6 @@ object IndexFileBuilder {
     def incrementElementCount(): BlockBuilder = setElementCount(elementCount + 1)
 
     /**
-     * Sets replicated flag
-     *
-     * @param replicated
-     *   the replicated flag value to set
-     */
-    def setReplicated(replicated: Boolean): BlockBuilder = {
-      this.replicated = replicated
-      this
-    }
-
-    /**
      * Ends the block.
      *
      * @return
@@ -254,8 +242,7 @@ object IndexFileBuilder {
         cubeId.get,
         minWeight.getOrElse(Weight.MinValue),
         maxWeight.getOrElse(Weight.MaxValue),
-        elementCount,
-        replicated))
+        elementCount))
 
   }
 
@@ -265,11 +252,10 @@ case class VolatileBlock(
     cubeId: CubeId,
     minWeight: Weight,
     maxWeight: Weight,
-    elementCount: Long,
-    replicated: Boolean) {
+    elementCount: Long) {
 
   def toBlock(filePath: String): Block = {
-    Block(filePath, cubeId, minWeight, maxWeight, elementCount, replicated)
+    Block(filePath, cubeId, minWeight, maxWeight, elementCount)
   }
 
 }

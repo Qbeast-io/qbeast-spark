@@ -16,11 +16,12 @@
 package io.qbeast.spark.delta
 
 import io.qbeast.core.model._
+import io.qbeast.core.model.WriteMode.WriteModeValue
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.IISeq
+import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
 
 /**
@@ -32,24 +33,25 @@ object DeltaMetadataManager extends MetadataManager {
       tableID: QTableID,
       schema: StructType,
       options: QbeastOptions,
-      append: Boolean)(writer: => (TableChanges, IISeq[IndexFile], IISeq[DeleteFile])): Unit = {
+      writeMode: WriteModeValue)(
+      writer: String => (TableChanges, IISeq[IndexFile], IISeq[DeleteFile])): Unit = {
 
     val deltaLog = loadDeltaLog(tableID)
-    val mode = if (append) SaveMode.Append else SaveMode.Overwrite
-
     val metadataWriter =
-      DeltaMetadataWriter(tableID, mode, deltaLog, options, schema)
+      DeltaMetadataWriter(tableID, writeMode, deltaLog, options, schema)
 
     metadataWriter.writeWithTransaction(writer)
   }
 
-  override def updateMetadataWithTransaction(tableID: QTableID, schema: StructType)(
-      update: => Configuration): Unit = {
+  override def updateMetadataWithTransaction(
+      tableID: QTableID,
+      schema: StructType,
+      overwrite: Boolean)(update: => Configuration): Unit = {
     val deltaLog = loadDeltaLog(tableID)
     val metadataWriter =
-      DeltaMetadataWriter(tableID, mode = SaveMode.Append, deltaLog, QbeastOptions.empty, schema)
+      DeltaMetadataWriter(tableID, WriteMode.Append, deltaLog, QbeastOptions.empty, schema)
 
-    metadataWriter.updateMetadataWithTransaction(update)
+    metadataWriter.updateMetadataWithTransaction(update, overwrite)
 
   }
 
@@ -75,21 +77,6 @@ object DeltaMetadataManager extends MetadataManager {
     DeltaLog.forTable(SparkSession.active, tableID.id)
   }
 
-  override def hasConflicts(
-      tableID: QTableID,
-      revisionID: RevisionID,
-      knownAnnounced: Set[CubeId],
-      oldReplicatedSet: ReplicatedSet): Boolean = {
-
-    val snapshot = loadSnapshot(tableID)
-    if (snapshot.isInitial) return false
-
-    val newReplicatedSet = snapshot.loadIndexStatus(revisionID).replicatedSet
-    val deltaReplicatedSet = newReplicatedSet -- oldReplicatedSet
-    val diff = deltaReplicatedSet -- knownAnnounced
-    diff.nonEmpty
-  }
-
   /**
    * Checks if there's an existing log directory for the table
    *
@@ -98,7 +85,9 @@ object DeltaMetadataManager extends MetadataManager {
    * @return
    */
   override def existsLog(tableID: QTableID): Boolean = {
-    loadDeltaLog(tableID).tableExists
+    val path = new Path(tableID.id, "_delta_log")
+    val fs = path.getFileSystem(SparkSession.active.sessionState.newHadoopConf())
+    fs.exists(path)
   }
 
   /**

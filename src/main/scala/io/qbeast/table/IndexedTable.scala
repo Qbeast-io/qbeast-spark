@@ -15,12 +15,9 @@
  */
 package io.qbeast.table
 
-import io.qbeast.core.keeper.Keeper
 import io.qbeast.core.model._
 import io.qbeast.core.model.RevisionFactory
-import io.qbeast.internal.commands.ConvertToQbeastCommand
 import io.qbeast.sources.QbeastBaseRelation
-import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
 import io.qbeast.spark.internal.QbeastOptions.optimizationOptions
@@ -31,10 +28,10 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.COLUMN_SELECTOR_ENABLED
 import org.apache.spark.qbeast.config.DEFAULT_NUMBER_OF_RETRIES
 import org.apache.spark.sql.sources.BaseRelation
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.SparkSession
 
 import java.lang.System.currentTimeMillis
 import java.util.ConcurrentModificationException
@@ -50,6 +47,13 @@ trait IndexedTable {
    *   the table physically exists.
    */
   def exists: Boolean
+
+  /**
+   * Returns the schema of the table, if any
+   * @return
+   *   the schema
+   */
+  def schema: StructType
 
   /**
    * Returns whether the table contains Qbeast metadata
@@ -113,16 +117,8 @@ trait IndexedTable {
   def load(): BaseRelation
 
   /**
-   * Analyzes the index for a given revision
-   * @param revisionID
-   *   the identifier of revision to analyze
-   * @return
-   *   the cubes to analyze
-   */
-  def analyze(revisionID: RevisionID): Seq[String]
-
-  /**
    * Optimizes a given index revision up to a given fraction.
+   *
    * @param revisionID
    *   the identifier of revision to optimize
    * @param fraction
@@ -145,7 +141,9 @@ trait IndexedTable {
   /**
    * Optimizes the table by optimizing the data stored in the specified unindexed files.
    * @param unindexedFiles
+   *   the unindexed files to optimize
    * @param options
+   *   Optimization options where user metadata and pre-commit hooks are specified.
    */
   def optimizeUnindexedFiles(unindexedFiles: Seq[String], options: Map[String, String]): Unit
 }
@@ -169,8 +167,6 @@ trait IndexedTableFactory {
 
 /**
  * Implementation of IndexedTableFactory.
- * @param keeper
- *   the keeper
  * @param indexManager
  *   the index manager
  * @param metadataManager
@@ -181,11 +177,9 @@ trait IndexedTableFactory {
  *   the revision builder
  */
 final class IndexedTableFactoryImpl(
-    private val keeper: Keeper,
     private val indexManager: IndexManager,
     private val metadataManager: MetadataManager,
     private val dataWriter: DataWriter,
-    private val stagingDataManagerFactory: StagingDataManagerFactory,
     private val revisionFactory: RevisionFactory,
     private val columnSelector: ColumnsToIndexSelector)
     extends IndexedTableFactory {
@@ -193,11 +187,9 @@ final class IndexedTableFactoryImpl(
   override def getIndexedTable(tableID: QTableID): IndexedTable =
     new IndexedTableImpl(
       tableID,
-      keeper,
       indexManager,
       metadataManager,
       dataWriter,
-      stagingDataManagerFactory,
       revisionFactory,
       columnSelector)
 
@@ -208,8 +200,6 @@ final class IndexedTableFactoryImpl(
  *
  * @param tableID
  *   the table identifier
- * @param keeper
- *   the keeper
  * @param indexManager
  *   the index manager
  * @param metadataManager
@@ -223,11 +213,9 @@ final class IndexedTableFactoryImpl(
  */
 private[table] class IndexedTableImpl(
     val tableID: QTableID,
-    private val keeper: Keeper,
     private val indexManager: IndexManager,
     private val metadataManager: MetadataManager,
     private val dataWriter: DataWriter,
-    private val stagingDataManagerFactory: StagingDataManagerFactory,
     private val revisionFactory: RevisionFactory,
     private val columnSelector: ColumnsToIndexSelector)
     extends IndexedTable
@@ -243,6 +231,8 @@ private[table] class IndexedTableImpl(
   private def latestRevision: Revision = snapshot.loadLatestRevision
 
   override def exists: Boolean = !snapshot.isInitial
+
+  override def schema: StructType = snapshot.schema
 
   override def hasQbeastMetadata: Boolean = try {
     snapshot.loadLatestRevision
@@ -345,7 +335,7 @@ private[table] class IndexedTableImpl(
     logTrace(s"Begin: save table $tableID")
     val (indexStatus, options) =
       if (exists && append) {
-        // If the table exists and we are appending new data
+        // If the table exists, and we are appending new data
         // 1. Load existing IndexStatus
         val options = QbeastOptions(verifyAndMergeProperties(parameters))
         logDebug(s"Appending data to table $tableID with revision=${latestRevision.revisionID}")
@@ -433,31 +423,20 @@ private[table] class IndexedTableImpl(
     logTrace(s"Begin: Writing data to table $tableID")
     val revision = indexStatus.revision
     logDebug(s"Writing data to table $tableID with revision ${revision.revisionID}")
-    keeper.withWrite(tableID, revision.revisionID) { write =>
-      var tries = DEFAULT_NUMBER_OF_RETRIES
-      while (tries > 0) {
-        val announcedSet = write.announcedCubes.map(indexStatus.revision.createCubeId)
-        val updatedStatus = indexStatus.addAnnouncements(announcedSet)
-        val replicatedSet = updatedStatus.replicatedSet
-        val revisionID = updatedStatus.revision.revisionID
-        try {
-          doWrite(data, updatedStatus, options, append)
-          tries = 0
-        } catch {
-          case cme: ConcurrentModificationException
-              if metadataManager.hasConflicts(
-                tableID,
-                revisionID,
-                replicatedSet,
-                announcedSet) || tries == 0 =>
-            // Nothing to do, the conflict is unsolvable
-            throw cme
-          case _: ConcurrentModificationException =>
-            // Trying one more time if the conflict is solvable
-            tries -= 1
-        }
-
+    var tries = DEFAULT_NUMBER_OF_RETRIES
+    while (tries > 0) {
+      try {
+        doWrite(data, indexStatus, options, append)
+        tries = 0
+      } catch {
+        case cme: ConcurrentModificationException if tries == 0 =>
+          // Nothing to do, the conflict is unsolvable
+          throw cme
+        case _: ConcurrentModificationException =>
+          // Trying one more time if the conflict is solvable
+          tries -= 1
       }
+
     }
     clearCaches()
     val result = createQbeastBaseRelation()
@@ -471,35 +450,16 @@ private[table] class IndexedTableImpl(
       options: QbeastOptions,
       append: Boolean): Unit = {
     logTrace(s"Begin: Writing data to table $tableID")
-    val stagingDataManager: StagingDataManager = stagingDataManagerFactory.getManager(tableID)
-    stagingDataManager.updateWithStagedData(data) match {
-      case r: StagingResolution if r.sendToStaging =>
-        stagingDataManager.stageData(data, indexStatus, options, append)
-        if (snapshot.isInitial) {
-          val colsToIndex = indexStatus.revision.columnTransformers.map(_.columnName)
-          val dcs = indexStatus.revision.desiredCubeSize
-          ConvertToQbeastCommand(s"${options.tableFormat}.`${tableID.id}`", colsToIndex, dcs)
-            .run(SparkSession.active)
-        }
-
-      case StagingResolution(dataToWrite, removeFiles, false) =>
-        val schema = dataToWrite.schema
-        val deleteFiles = removeFiles.toIndexedSeq
-        metadataManager.updateWithTransaction(tableID, schema, options, append) {
-          val (qbeastData, tableChanges) = indexManager.index(dataToWrite, indexStatus)
-          val addFiles = dataWriter.write(tableID, schema, qbeastData, tableChanges)
-          (tableChanges, addFiles, deleteFiles)
-        }
+    val schema = data.schema
+    val writeMode = if (append) WriteMode.Append else WriteMode.Overwrite
+    metadataManager.updateWithTransaction(tableID, schema, options, writeMode) {
+      transactionStartTime: String =>
+        val (qbeastData, tableChanges) = indexManager.index(data, indexStatus)
+        val addFiles =
+          dataWriter.write(tableID, schema, qbeastData, tableChanges, transactionStartTime)
+        (tableChanges, addFiles, Vector.empty[DeleteFile])
     }
     logTrace(s"End: Writing data to table $tableID")
-  }
-
-  override def analyze(revisionID: RevisionID): Seq[String] = {
-    val indexStatus = snapshot.loadIndexStatus(revisionID)
-    val cubesToAnnounce = indexManager.analyze(indexStatus).map(_.string)
-    keeper.announce(tableID, revisionID, cubesToAnnounce)
-    cubesToAnnounce
-
   }
 
   /**
@@ -512,7 +472,7 @@ private[table] class IndexedTableImpl(
     val revisionFilesDS = snapshot.loadIndexFiles(stagingID)
     // 1. Collect the revision files ordered by modification time
     val revisionFiles = revisionFilesDS.orderBy("modificationTime").collect()
-    log.info(s"Total Number of Unindexed Files:  ${revisionFiles.size}")
+    log.info(s"Total Number of Unindexed Files:  ${revisionFiles.length}")
     // 2. Calculate the total bytes of the files to optimize based on the fraction
     val bytesToOptimize = revisionFiles.map(_.size).sum * fraction
     logInfo(s"Total Bytes of Unindexed Files to Optimize: $bytesToOptimize")
@@ -532,7 +492,9 @@ private[table] class IndexedTableImpl(
   /**
    * Selects the indexed files to optimize based on the fraction
    * @param revisionID
+   *   the revision identifier
    * @param fraction
+   *   the fraction of the data to optimize
    * @return
    */
   private[table] def selectIndexedFilesToOptimize(
@@ -542,7 +504,7 @@ private[table] class IndexedTableImpl(
     import revisionFilesDS.sparkSession.implicits._
     val filesToOptimize = revisionFilesDS.transform(filterSamplingFiles(fraction))
     val filesToOptimizeNames = filesToOptimize.map(_.path).collect()
-    logInfo(s"Total Number of Indexed Files To Optimize: ${filesToOptimizeNames.size}")
+    logInfo(s"Total Number of Indexed Files To Optimize: ${filesToOptimizeNames.length}")
     filesToOptimizeNames
   }
 
@@ -587,7 +549,7 @@ private[table] class IndexedTableImpl(
       tableID,
       schema,
       optimizationOptions(options),
-      append = true) {
+      WriteMode.Optimize) { transactionStartTime: String =>
       // Remove the Unindexed Files from the Log
       val deleteFiles: IISeq[DeleteFile] = files
         .map { indexFile =>
@@ -604,7 +566,7 @@ private[table] class IndexedTableImpl(
       // Write the data with DataWriter
       val newFiles: IISeq[IndexFile] =
         dataWriter
-          .write(tableID, schema, data, tableChanges)
+          .write(tableID, schema, data, tableChanges, transactionStartTime)
           .collect { case indexFile: IndexFile =>
             indexFile.copy(dataChange = false)
           }
@@ -630,7 +592,11 @@ private[table] class IndexedTableImpl(
         val indexStatus = snapshot.loadIndexStatus(revision.revisionID)
         // 3. In the same transaction
         metadataManager
-          .updateWithTransaction(tableID, schema, optimizationOptions(options), append = true) {
+          .updateWithTransaction(
+            tableID,
+            schema,
+            optimizationOptions(options),
+            WriteMode.Optimize) { transactionStartTime: String =>
             import indexFiles.sparkSession.implicits._
             val deleteFiles: IISeq[DeleteFile] = indexFiles
               .map { indexFile =>
@@ -645,11 +611,10 @@ private[table] class IndexedTableImpl(
             // 1. Load the data from the Index Files
             val data = snapshot.loadDataframeFromIndexFiles(indexFiles)
             // 2. Optimize the data with IndexManager
-            val (dataExtended, tableChanges) =
-              DoublePassOTreeDataAnalyzer.analyzeOptimize(data, indexStatus)
+            val (dataExtended, tableChanges) = indexManager.optimize(data, indexStatus)
             // 3. Write the data with DataWriter
             val addFiles = dataWriter
-              .write(tableID, schema, dataExtended, tableChanges)
+              .write(tableID, schema, dataExtended, tableChanges, transactionStartTime)
               .collect { case indexFile: IndexFile =>
                 indexFile.copy(dataChange = false)
               }

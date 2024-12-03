@@ -15,18 +15,16 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.core.model.DeleteFile
-import io.qbeast.core.model.IndexFile
-import io.qbeast.core.model.PreCommitHook
+import io.qbeast.core.model._
 import io.qbeast.core.model.PreCommitHook.PreCommitHookOutput
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.QbeastFile
 import io.qbeast.core.model.QbeastHookLoader
-import io.qbeast.core.model.RevisionID
 import io.qbeast.core.model.TableChanges
+import io.qbeast.core.model.WriteMode
+import io.qbeast.core.model.WriteMode.WriteModeValue
 import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
-import io.qbeast.spark.utils.TagColumns
 import io.qbeast.spark.writer.StatsTracker.registerStatsTrackers
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.delta.actions._
@@ -37,7 +35,6 @@ import org.apache.spark.sql.delta.DeltaOptions
 import org.apache.spark.sql.delta.OptimisticTransaction
 import org.apache.spark.sql.execution.datasources.BasicWriteJobStatsTracker
 import org.apache.spark.sql.execution.datasources.WriteJobStatsTracker
-import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.SaveMode
@@ -52,7 +49,7 @@ import scala.collection.mutable.ListBuffer
  *
  * @param tableID
  *   the table identifier
- * @param mode
+ * @param writeMode
  *   SaveMode of the writeMetadata
  * @param deltaLog
  *   deltaLog associated to the table
@@ -63,7 +60,7 @@ import scala.collection.mutable.ListBuffer
  */
 private[delta] case class DeltaMetadataWriter(
     tableID: QTableID,
-    mode: SaveMode,
+    writeMode: WriteModeValue,
     deltaLog: DeltaLog,
     qbeastOptions: QbeastOptions,
     schema: StructType)
@@ -76,7 +73,12 @@ private[delta] case class DeltaMetadataWriter(
     new DeltaOptions(optionsMap, SparkSession.active.sessionState.conf)
   }
 
-  private def isOverwriteOperation: Boolean = mode == SaveMode.Overwrite
+  private def isOverwriteOperation: Boolean = writeMode == WriteMode.Overwrite
+
+  private def isOptimizeOperation: Boolean = writeMode == WriteMode.Optimize
+
+  private def saveMode =
+    if (!isOverwriteOperation || isOptimizeOperation) SaveMode.Append else SaveMode.Overwrite
 
   override protected val canMergeSchema: Boolean = deltaOptions.canMergeSchema
 
@@ -158,7 +160,8 @@ private[delta] case class DeltaMetadataWriter(
     }
   }
 
-  def writeWithTransaction(writer: => (TableChanges, Seq[IndexFile], Seq[DeleteFile])): Unit = {
+  def writeWithTransaction(
+      writer: String => (TableChanges, Seq[IndexFile], Seq[DeleteFile])): Unit = {
     val oldTransactions = deltaLog.unsafeVolatileSnapshot.setTransactions
     // If the transaction was completed before then no operation
     for (txn <- oldTransactions; version <- deltaOptions.txnVersion;
@@ -176,11 +179,12 @@ private[delta] case class DeltaMetadataWriter(
       registerStatsTrackers(statsTrackers)
 
       // Execute write
-      val (tableChanges, indexFiles, deleteFiles) = writer
+      val transactionStartTime = txn.txnStartTimeNs.toString
+      val (tableChanges, indexFiles, deleteFiles) = writer(transactionStartTime)
       val addFiles = indexFiles.map(DeltaQbeastFileUtils.toAddFile)
       val removeFiles = deleteFiles.map(DeltaQbeastFileUtils.toRemoveFile)
 
-      // Update Qbeast Metadata (replicated set, revision..)
+      // Update Qbeast Metadata, e.g., Revision
       var actions =
         updateMetadata(txn, tableChanges, addFiles, removeFiles, qbeastOptions.extraOptions)
       // Set transaction identifier if specified
@@ -196,55 +200,32 @@ private[delta] case class DeltaMetadataWriter(
 
       // Commit the information to the DeltaLog
       val op =
-        DeltaOperations.Write(mode, None, deltaOptions.replaceWhere, deltaOptions.userMetadata)
+        DeltaOperations.Write(
+          saveMode,
+          None,
+          deltaOptions.replaceWhere,
+          deltaOptions.userMetadata)
       txn.commit(actions = actions, op = op, tags = tags)
     }
   }
 
-  def updateMetadataWithTransaction(update: => Configuration): Unit = {
+  def updateMetadataWithTransaction(config: => Configuration, overwrite: Boolean): Unit = {
     deltaLog.withNewTransaction(None, Some(deltaLog.update())) { txn =>
       if (txn.metadata.partitionColumns.nonEmpty) {
         throw AnalysisExceptionFactory.create(partitionedTableExceptionMsg)
       }
+      val updatedConfig =
+        if (overwrite) config
+        else
+          config.foldLeft(txn.metadata.configuration) { case (accConf, (k, v)) =>
+            accConf.updated(k, v)
+          }
 
-      val config = update
-      val updatedConfig = config.foldLeft(txn.metadata.configuration) { case (accConf, (k, v)) =>
-        accConf.updated(k, v)
-      }
       val updatedMetadata = txn.metadata.copy(configuration = updatedConfig)
-
       val op = DeltaOperations.SetTableProperties(config)
       txn.updateMetadata(updatedMetadata)
       txn.commit(Seq.empty, op)
     }
-  }
-
-  private def updateReplicatedFiles(tableChanges: TableChanges): Seq[Action] = {
-    val revision = tableChanges.updatedRevision
-    val dimensionCount = revision.transformations.length
-    val deltaReplicatedSet = tableChanges.deltaReplicatedSet
-    deltaLog
-      .update()
-      .allFiles
-      .where(TagColumns.revision === lit(revision.revisionID.toString))
-      .collect()
-      .map(DeltaQbeastFileUtils.fromAddFile(dimensionCount))
-      .flatMap(_.tryReplicateBlocks(deltaReplicatedSet))
-      .map(file => {
-        val addFile = DeltaQbeastFileUtils.toAddFile(file)
-        addFile.copy(dataChange = false)
-      })
-      .toSeq
-  }
-
-  private def updateTransactionVersion(
-      txn: OptimisticTransaction,
-      revisionID: RevisionID): SetTransaction = {
-    val transactionID = s"qbeast.${tableID.id}.$revisionID"
-    val startingTnx = txn.txnVersion(transactionID)
-    val newTransaction = startingTnx + 1
-
-    SetTransaction(transactionID, newTransaction, Some(System.currentTimeMillis()))
   }
 
   /**
@@ -270,59 +251,47 @@ private[delta] case class DeltaMetadataWriter(
       removeFiles: Seq[RemoveFile],
       extraConfiguration: Configuration): Seq[Action] = {
 
-    if (txn.readVersion > -1) {
+    val isNewTable = txn.readVersion == -1
+
+    if (!isNewTable) {
       // This table already exists, check if the insert is valid.
-      if (mode == SaveMode.ErrorIfExists) {
+      if (saveMode == SaveMode.ErrorIfExists) {
         throw AnalysisExceptionFactory.create(s"Path '${deltaLog.dataPath}' already exists.'")
-      } else if (mode == SaveMode.Ignore) {
+      } else if (saveMode == SaveMode.Ignore) {
         return Nil
-      } else if (mode == SaveMode.Overwrite) {
+      } else if (saveMode == SaveMode.Overwrite) {
         DeltaLog.assertRemovable(txn.snapshot)
       }
     }
-    val rearrangeOnly = deltaOptions.rearrangeOnly
+    val rearrangeOnly = isOptimizeOperation
 
-    val isOptimizeOperation: Boolean = tableChanges.isOptimizeOperation
+    val (newConfiguration, hasRevisionUpdate) = updateConfiguration(
+      txn.metadata.configuration,
+      isNewTable,
+      isOverwriteOperation,
+      tableChanges,
+      qbeastOptions)
 
     // The Metadata can be updated only once in a single transaction
     // If a new space revision or a new replicated set is detected,
     // we update everything in the same operation
-    updateQbeastMetadata(
+    updateTableMetadata(
       txn,
       schema,
       isOverwriteOperation,
       rearrangeOnly,
-      tableChanges,
-      qbeastOptions)
+      newConfiguration,
+      hasRevisionUpdate)
 
-    if (txn.readVersion < 0) {
-      // Initialize the log path
-      val fs = deltaLog.logPath.getFileSystem(sparkSession.sessionState.newHadoopConf)
+    if (isNewTable) deltaLog.createLogDirectory()
 
-      fs.mkdirs(deltaLog.logPath)
-    }
+    val deletedFiles = if (isOverwriteOperation && !isNewTable) {
+      txn.filterFiles().map(_.remove)
+    } else removeFiles
 
-    val deletedFiles = mode match {
-      case SaveMode.Overwrite =>
-        txn.filterFiles().map(_.remove)
-      case _ => removeFiles
-    }
-
-    val allFileActions = if (rearrangeOnly) {
-      addFiles.map(_.copy(dataChange = !rearrangeOnly)) ++
-        deletedFiles.map(_.copy(dataChange = !rearrangeOnly))
-    } else {
-      addFiles ++ deletedFiles
-    }
-
-    if (isOptimizeOperation) {
-      val revisionID = tableChanges.updatedRevision.revisionID
-      val transactionRecord =
-        updateTransactionVersion(txn, revisionID)
-      val replicatedFiles = updateReplicatedFiles(tableChanges)
-      allFileActions ++ replicatedFiles ++ Seq(transactionRecord)
-    } else allFileActions
-
+    if (rearrangeOnly) {
+      addFiles.map(_.copy(dataChange = false)) ++ deletedFiles.map(_.copy(dataChange = false))
+    } else addFiles ++ deletedFiles
   }
 
 }

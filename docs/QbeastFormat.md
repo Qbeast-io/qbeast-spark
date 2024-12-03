@@ -158,15 +158,13 @@ The list of Blocks contained in a file can be found in the `tags` attribute of t
       "cube": "w",
       "minWeight": 2,
       "maxWeight": 3,
-      "elementCount": 4,
-      "replicated": false
+      "elementCount": 4
     }, 
     {
       "cube": "wg",
       "minWeight": 5,
       "maxWeight": 6,
-      "elementCount": 7,
-      "replicated": false
+      "elementCount": 7
     }
   ]
 }}
