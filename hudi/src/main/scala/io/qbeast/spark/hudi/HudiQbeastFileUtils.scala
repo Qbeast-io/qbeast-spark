@@ -77,12 +77,10 @@ object HudiQbeastFileUtils {
     val path = stat.getPath
     val size = stat.getFileSizeInBytes
     val modificationTime = FSUtils.getCommitTime(path).toLong
-    val dataChange = stat.getTotalWriteBytes > 0
 
     val builder = new IndexFileBuilder()
       .setPath(path)
       .setSize(size)
-      .setDataChange(dataChange)
       .setModificationTime(modificationTime)
 
     extraMetadata.get(MetadataConfig.blocks) match {

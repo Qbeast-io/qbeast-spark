@@ -89,8 +89,8 @@ import scala.collection.JavaConverters._
  *
  * @param tableID
  *   the table identifier
- * @param mode
- *   SaveMode of the writeMetadata
+ * @param writeMode
+ *   writeMode of the metadata
  * @param metaClient
  *   metaClient associated to the table
  * @param qbeastOptions
@@ -427,7 +427,7 @@ private[hudi] case class HudiMetadataWriter(
         DeleteFile(
           path = indexFile.path,
           size = indexFile.size,
-          dataChange = false,
+          dataChange = true,
           deletionTimestamp = currentTimeMillis())
       }.toIndexedSeq
     } else deleteFiles
@@ -542,7 +542,7 @@ private[hudi] case class HudiMetadataWriter(
   private def addSchemaEvolutionParameters(
       parameters: Map[String, String],
       internalSchemaOpt: scala.Option[InternalSchema],
-      writeSchemaOpt: scala.Option[Schema] = None): Map[String, String] = {
+      writeSchemaOpt: scala.Option[Schema]): Map[String, String] = {
     val schemaEvolutionEnable = if (internalSchemaOpt.isDefined) "true" else "false"
 
     val schemaValidateEnable =
