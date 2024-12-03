@@ -87,4 +87,25 @@ class TransformationsUtilsTest extends QbeastIntegrationTestSpec {
 
     })
 
+  it should "maintain original transformations if there's no changes" in withSparkAndTmpDir(
+    (spark, tmpDir) => {
+      import spark.implicits._
+      val tablePath = s"$tmpDir/table"
+      val df = spark.range(5).map(i => (s"$i", i)).toDF("id_string", "id")
+      df.write
+        .format("qbeast")
+        .option("columnsToIndex", "id_string,id")
+        .save(tablePath)
+
+      val table = QbeastTable.forPath(spark, tablePath)
+      val revisionBefore = table.latestRevision
+
+      // Update transformation types
+      QbeastUtils.updateTransformationTypes(table)
+
+      val revisionAfter = table.latestRevision
+      revisionAfter shouldBe equal(revisionBefore)
+
+    })
+
 }

@@ -176,13 +176,33 @@ object QbeastUtils extends Logging {
   }
 
   @Experimental
+  @nowarn("cat=deprecation")
+  def shouldUpdateRevision(revision: Revision): Boolean = {
+    revision.transformations.exists {
+      case _: StringHistogramTransformation | _: IdentityToZeroTransformation |
+          NullToZeroTransformation =>
+        true
+      case _ => false
+    }
+  }
+
+  @Experimental
   def updateTransformationTypes(qbeastTable: QbeastTable): Unit = {
     // 1. Get te Latest Snapshot of the Table
     val latestSnapshot = qbeastTable.getLatestSnapshot()
     // 2. Load all the Revisions Present
     val allRevisions = latestSnapshot.loadAllRevisions
-    // 3. Update all the Revisions with the new Transformation Types
-    val allRevisionsUpdated = allRevisions.map(updateTransformationTypes)
+    // 3. Check if there are any revisionsToUpdate
+    val revisionsToUpdate = allRevisions.filter(shouldUpdateRevision)
+    // If there are no revisions to update, return
+    if (revisionsToUpdate.isEmpty) {
+      log.info("No Revisions to Update")
+      return
+    }
+    // 4. Update all the Revisions with the new Transformation Types
+    val allRevisionsUpdated = revisionsToUpdate.map(updateTransformationTypes)
+    log.info(
+      s"Updating Revisions ${allRevisionsUpdated.map(_.revisionID).toString()} with new Transformation Types")
     // 4. Commit the new Metadata Update
     QbeastContext.metadataManager.updateMetadataWithTransaction(
       qbeastTable.tableID,
