@@ -104,7 +104,7 @@ class TransformationsUtilsTest extends QbeastIntegrationTestSpec {
       QbeastUtils.updateTransformationTypes(table)
 
       val revisionAfter = table.latestRevision
-      revisionAfter shouldBe equal(revisionBefore)
+      revisionAfter shouldBe revisionBefore
 
     })
 
