@@ -162,7 +162,7 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
   def withQbeastAndSparkContext[T]()(testCode: SparkSession => T): T = {
     withSpark { spark =>
       val indexedTableFactory = new IndexedTableFactoryImpl(
-        SparkOTreeManager,
+        QbeastContext.indexManager,
         QbeastContext.metadataManager,
         QbeastContext.dataWriter,
         SparkRevisionFactory,

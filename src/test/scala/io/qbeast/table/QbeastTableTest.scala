@@ -21,6 +21,7 @@ import io.qbeast.spark.utils.SizeStats
 import io.qbeast.spark.utils.Tabulator
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
+import org.apache.spark.qbeast.config.DEFAULT_TABLE_FORMAT
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
@@ -224,8 +225,9 @@ class QbeastTableTest extends QbeastIntegrationTestSpec {
       val numFiles = 10
 
       // Add 10 file to the staging revision
-      data.repartition(numFiles).write.mode("append").format("delta").save(tmpDir)
-      ConvertToQbeastCommand(s"delta.`$tmpDir`", columnsToIndex, cubeSize).run(spark)
+      val tableFormat = DEFAULT_TABLE_FORMAT
+      data.repartition(numFiles).write.mode("append").format(tableFormat).save(tmpDir)
+      ConvertToQbeastCommand(s"$tableFormat.`$tmpDir`", columnsToIndex, cubeSize).run(spark)
 
       val metrics = QbeastTable.forPath(spark, tmpDir).getIndexMetrics(0L)
 
