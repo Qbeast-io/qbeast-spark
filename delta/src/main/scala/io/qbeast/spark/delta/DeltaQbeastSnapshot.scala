@@ -20,12 +20,15 @@ import io.qbeast.spark.index.IndexStatusBuilder
 import io.qbeast.spark.utils.MetadataConfig
 import io.qbeast.spark.utils.TagColumns
 import io.qbeast.IISeq
+import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.fs.Path
+import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.files.TahoeLogFileIndex
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.execution.datasources.FileIndex
+import org.apache.spark.sql.execution.datasources.FileStatusWithMetadata
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
@@ -244,6 +247,37 @@ case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with De
    * Loads Staging AddFiles
    */
   private def loadStagingFiles(): Dataset[AddFile] = stagingFiles()
+
+  /**
+   * Lists the un-indexed files
+   * @param fileIndex
+   *   FileIndex instance
+   * @param partitionFilters
+   *   Partition filters
+   * @param dataFilters
+   *   Data filters
+   *
+   * @return
+   *   Sequence of FileStatusWithMetadata
+   */
+  override def listUnindexedFiles(
+      fileIndex: FileIndex,
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): Seq[FileStatusWithMetadata] = {
+
+    fileIndex
+      .asInstanceOf[TahoeLogFileIndex]
+      .matchingFiles(partitionFilters, dataFilters)
+      .filter(isStagingFile)
+      .map(file =>
+        new FileStatus(file.size, false, 0, 1, file.modificationTime, getAbsolutePath(file)))
+      .map(file => FileStatusWithMetadata(file, Map.empty))
+  }
+
+  private def getAbsolutePath(file: AddFile): Path = {
+    val path = file.toPath
+    if (path.isAbsolute) path else new Path(basePath, path)
+  }
 
   /**
    * Loads the file index
