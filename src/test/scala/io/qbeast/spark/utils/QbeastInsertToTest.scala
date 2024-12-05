@@ -43,6 +43,7 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
 
         // Insert using a SELECT statement
         spark.sql("insert into table t select * from t_lower")
+        spark.catalog.refreshTable("t")
         val dataInserted = spark.sql("SELECT * FROM t")
         assertSmallDatasetEquality(
           dataInserted,
@@ -75,6 +76,7 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
 
         // Insert using a FROM statement
         spark.sql("insert into table t from t_lower select *")
+        spark.catalog.refreshTable("t")
         val dataInserted = spark.sql("SELECT * FROM t")
         assertSmallDatasetEquality(
           dataInserted,
@@ -104,6 +106,7 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
 
         // Multi-Row Insert Using a VALUES Clause
         spark.sql("insert into table t (value) values (4),(5)")
+        spark.catalog.refreshTable("t")
         val dataInserted = spark.sql("SELECT * FROM t")
         assertSmallDatasetEquality(
           dataInserted,
@@ -133,6 +136,7 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
 
         // Single Row Insert Using a VALUES Clause
         spark.sql("insert into table t (value) values (4)")
+        spark.catalog.refreshTable("t")
         val dataInserted = spark.sql("SELECT * FROM t")
         assertSmallDatasetEquality(
           dataInserted,
@@ -163,7 +167,7 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
 
         // Insert using a TABLE statement
         spark.sql("INSERT INTO initial TABLE toInsert")
-
+        spark.catalog.refreshTable("initial")
         val dataInserted = spark.sql("SELECT * FROM initial")
         assertSmallDatasetEquality(
           dataInserted,
@@ -193,7 +197,7 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
 
         // Insert using a COLUMN LIST
         spark.sql("INSERT INTO initial (a, b) VALUES ('5', 5), ('6', 6)")
-
+        spark.catalog.refreshTable("initial")
         val dataInserted = spark.sql("SELECT * FROM initial")
         assertSmallDatasetEquality(
           dataInserted,
@@ -236,7 +240,7 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
 
         // Overwrite using a VALUE clause
         spark.sql("INSERT OVERWRITE initial VALUES ('5', 5), ('6', 6)")
-
+        spark.catalog.refreshTable("initial")
         val dataInserted = spark.sql("SELECT * FROM initial")
         assertSmallDatasetEquality(
           dataInserted,
@@ -267,7 +271,7 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
 
         // Overwrite using a SELECT statement
         spark.sql("INSERT OVERWRITE initial SELECT a, b FROM toInsert")
-
+        spark.catalog.refreshTable("initial")
         val dataInserted = spark.sql("SELECT * FROM initial")
         assertSmallDatasetEquality(
           dataInserted,
@@ -298,7 +302,7 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
 
         // Overwrite using a TABLE statement
         spark.sql("INSERT OVERWRITE initial TABLE toInsert")
-
+        spark.catalog.refreshTable("initial")
         val dataInserted = spark.sql("SELECT * FROM initial")
         assertSmallDatasetEquality(
           dataInserted,
@@ -329,7 +333,7 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
 
         // Overwrite using a FROM statement
         spark.sql("INSERT OVERWRITE initial FROM toInsert SELECT *")
-
+        spark.catalog.refreshTable("initial")
         val dataInserted = spark.sql("SELECT * FROM initial")
         assertSmallDatasetEquality(
           dataInserted,
@@ -362,13 +366,13 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
 
         // Insert using a TABLE statement on real data
         spark.sql("INSERT INTO initial TABLE toInsert")
-
+        spark.catalog.refreshTable("initial")
         spark
           .sql("""SELECT * FROM initial
             |WHERE product_id == 1 and brand == 'qbeast' and
             |price == 9.99 and user_id == 1""".stripMargin.replaceAll("\n", " "))
           .count shouldBe 1
-
+        spark.catalog.refreshTable("initial")
         spark.sql("SELECT * FROM initial").count shouldBe initialData.count + 1
       }
     }
@@ -396,7 +400,7 @@ class QbeastInsertToTest extends QbeastIntegrationTestSpec {
 
         // Overwrite using a TABLE statement on real data
         spark.sql("INSERT OVERWRITE initial TABLE toInsert")
-
+        spark.catalog.refreshTable("initial")
         val dataInserted = spark.sql("SELECT * FROM initial")
         assertSmallDatasetEquality(
           dataInserted,

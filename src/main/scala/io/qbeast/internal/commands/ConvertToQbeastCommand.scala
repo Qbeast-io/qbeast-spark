@@ -25,6 +25,7 @@ import io.qbeast.spark.utils.QbeastExceptionMessages.unsupportedFormatExceptionM
 import org.apache.hadoop.fs.Path
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
+import org.apache.spark.qbeast.config.DEFAULT_TABLE_FORMAT
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
 import org.apache.spark.sql.AnalysisException
@@ -65,35 +66,39 @@ case class ConvertToQbeastCommand(
   override def run(spark: SparkSession): Seq[Row] = {
     val (fileFormat, tableId) = resolveTableFormat(spark)
 
-    val tableID = QTableID(tableId.table)
-    val qbeastSnapshot = QbeastContext.metadataManager.loadSnapshot(tableID)
+    val qTableID = QTableID(tableId.table)
+    val qbeastSnapshot = QbeastContext.metadataManager.loadSnapshot(qTableID)
     val isQbeast = qbeastSnapshot.loadAllRevisions.nonEmpty
 
     if (isQbeast) {
       logInfo("The table you are trying to convert is already a qbeast table")
     } else {
       fileFormat match {
-        // Convert parquet to delta
         case "parquet" =>
-          try {
-            spark.sql(s"CONVERT TO DELTA parquet.${tableId.quotedString}")
-          } catch {
-            case e: AnalysisException =>
-              val deltaMsg = e.getMessage()
-              throw AnalysisExceptionFactory.create(
-                partitionedTableExceptionMsg +
-                  s"Failed to convert the parquet table into delta: $deltaMsg")
+          DEFAULT_TABLE_FORMAT match {
+            case "delta" =>
+              try {
+                spark.sql(s"CONVERT TO DELTA parquet.${tableId.quotedString}")
+              } catch {
+                case e: AnalysisException =>
+                  val deltaMsg = e.getMessage()
+                  throw AnalysisExceptionFactory.create(
+                    partitionedTableExceptionMsg +
+                      s"Failed to convert the parquet table into delta: $deltaMsg")
+              }
+            case _ =>
+              throw new IllegalArgumentException(
+                s"ConvertToQbeastCommand for table format $DEFAULT_TABLE_FORMAT not found")
           }
         case "delta" =>
         case _ => throw AnalysisExceptionFactory.create(unsupportedFormatExceptionMsg(fileFormat))
       }
 
-      // Convert delta to qbeast through metadata modification
-
+      // Convert to qbeast through metadata modification
       val schema = qbeastSnapshot.schema
 
-      QbeastContext.metadataManager.updateMetadataWithTransaction(tableID, schema) {
-        val convRevision = stagingRevision(tableID, cubeSize, columnsToIndex)
+      QbeastContext.metadataManager.updateMetadataWithTransaction(qTableID, schema) {
+        val convRevision = stagingRevision(qTableID, cubeSize, columnsToIndex)
         val revisionID = convRevision.revisionID
 
         // Add staging revision to Revision Map, set it as the latestRevision

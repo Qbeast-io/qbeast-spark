@@ -81,24 +81,6 @@ trait MetadataManager {
       overwrite: Boolean = false)(update: => Configuration): Unit
 
   /**
-   * Updates the Revision with the given RevisionChanges
-   * @param tableID
-   *   the QTableID
-   * @param revisionChange
-   *   the collection of RevisionChanges
-   */
-  def updateRevision(tableID: QTableID, revisionChange: RevisionChange): Unit
-
-  /**
-   * Updates the Table with the given TableChanges
-   * @param tableID
-   *   the QTableID
-   * @param tableChanges
-   *   the collection of TableChanges
-   */
-  def updateTable(tableID: QTableID, tableChanges: TableChanges): Unit
-
-  /**
    * Checks if there's an existing log directory for the table
    * @param tableID
    *   the table ID
