@@ -34,10 +34,8 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
 
         val data = createTestData(spark)
 
-        val tableFormat = DEFAULT_TABLE_FORMAT
-        val table_name = s"${tableFormat}_table"
-
-        data.write.format(tableFormat).saveAsTable(table_name)
+        val table_name = s"${DEFAULT_TABLE_FORMAT}_table"
+        data.write.format(DEFAULT_TABLE_FORMAT).saveAsTable(table_name)
 
         data.write
           .format("qbeast")
@@ -64,10 +62,8 @@ class QbeastCatalogIntegrationTest extends QbeastIntegrationTestSpec with Catalo
 
         val data = createTestData(spark)
 
-        val tableFormat = DEFAULT_TABLE_FORMAT
-        val table_name = s"${tableFormat}_table"
-
-        data.write.format(tableFormat).saveAsTable(table_name) // table format catalog
+        val table_name = s"${DEFAULT_TABLE_FORMAT}_table"
+        data.write.format(DEFAULT_TABLE_FORMAT).saveAsTable(table_name) // table format catalog
 
         data.write
           .format("qbeast")

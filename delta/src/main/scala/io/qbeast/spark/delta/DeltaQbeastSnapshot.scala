@@ -249,7 +249,7 @@ case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with De
   private def loadStagingFiles(): Dataset[AddFile] = stagingFiles()
 
   /**
-   * Lists the files present in the staging area
+   * Lists the un-indexed files
    * @param fileIndex
    *   FileIndex instance
    * @param partitionFilters
@@ -260,7 +260,7 @@ case class DeltaQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with De
    * @return
    *   Sequence of FileStatusWithMetadata
    */
-  override def listStagingAreaFiles(
+  override def listUnindexedFiles(
       fileIndex: FileIndex,
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[FileStatusWithMetadata] = {

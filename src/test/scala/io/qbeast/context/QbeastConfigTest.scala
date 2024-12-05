@@ -25,32 +25,70 @@ class QbeastConfigTest extends AnyFlatSpec with Matchers with QbeastIntegrationT
 
   "Qbeast config" should "use default configurations" in withSpark { _ =>
     config.DEFAULT_CUBE_SIZE shouldBe 5000000
-    config.CUBE_DOMAINS_BUFFER_CAPACITY shouldBe 100000
+    config.CUBE_DOMAINS_BUFFER_CAPACITY shouldBe 100000L
+    config.DEFAULT_NUMBER_OF_RETRIES shouldBe 2
+    config.COLUMN_SELECTOR_ENABLED shouldBe false
+    config.MAX_NUM_COLUMNS_TO_INDEX shouldBe 3
+    config.DEFAULT_TABLE_FORMAT shouldBe "delta"
   }
 
   it should "change configurations accordingly" in withExtendedSpark(
     sparkConfWithSqlAndCatalog
       .set("spark.qbeast.index.defaultCubeSize", "1000")
-      .set("spark.qbeast.index.cubeDomainsBufferCapacity", "1000")
-      .set("spark.qbeast.index.numberOfRetries", "10")) { _ =>
+      .set("spark.qbeast.index.cubeDomainsBufferCapacity", "2000")
+      .set("spark.qbeast.index.numberOfRetries", "5")
+      .set("spark.qbeast.index.columnsToIndex.auto", "true")
+      .set("spark.qbeast.index.columnsToIndex.auto.max", "10")
+      .set("spark.qbeast.tableFormat", "delta")) { _ =>
     config.DEFAULT_CUBE_SIZE shouldBe 1000
-    config.CUBE_DOMAINS_BUFFER_CAPACITY shouldBe 1000
-    config.DEFAULT_NUMBER_OF_RETRIES shouldBe 10
-
+    config.CUBE_DOMAINS_BUFFER_CAPACITY shouldBe 2000L
+    config.DEFAULT_NUMBER_OF_RETRIES shouldBe 5
+    config.COLUMN_SELECTOR_ENABLED shouldBe true
+    config.MAX_NUM_COLUMNS_TO_INDEX shouldBe 10
+    config.DEFAULT_TABLE_FORMAT shouldBe "delta"
   }
 
-  "Spark.qbeast.keeper" should "not be defined" in withSpark { _ =>
-    val keeperString = SparkSession.active.sparkContext.getConf
-      .getOption("spark.qbeast.keeper")
-    keeperString shouldBe None
+  it should "handle missing or default values for unset configurations" in withSpark { _ =>
+    SparkSession.active.sparkContext.getConf
+      .getOption("spark.qbeast.index.defaultCubeSize") shouldBe None
+    SparkSession.active.sparkContext.getConf
+      .getOption("spark.qbeast.index.cubeDomainsBufferCapacity") shouldBe None
+    SparkSession.active.sparkContext.getConf
+      .getOption("spark.qbeast.index.numberOfRetries") shouldBe None
+    SparkSession.active.sparkContext.getConf
+      .getOption("spark.qbeast.index.columnsToIndex.auto") shouldBe None
+    SparkSession.active.sparkContext.getConf
+      .getOption("spark.qbeast.index.columnsToIndex.auto.max") shouldBe None
+    SparkSession.active.sparkContext.getConf
+      .getOption("spark.qbeast.tableFormat") shouldBe None
   }
 
-  it should "be defined" in withExtendedSpark(
+  it should "handle invalid input gracefully for all configurations" in withExtendedSpark(
     sparkConfWithSqlAndCatalog
-      .set("spark.qbeast.keeper", "myKeeper")) { spark =>
-    val keeperString = spark.sparkContext.getConf.getOption("spark.qbeast.keeper")
-    keeperString.get shouldBe "myKeeper"
-
+      .set("spark.qbeast.index.defaultCubeSize", "invalid")
+      .set("spark.qbeast.index.cubeDomainsBufferCapacity", "invalid")
+      .set("spark.qbeast.index.numberOfRetries", "invalid")
+      .set("spark.qbeast.index.columnsToIndex.auto", "invalid")
+      .set("spark.qbeast.index.columnsToIndex.auto.max", "invalid")
+      .set("spark.qbeast.tableFormat", "invalid")) { _ =>
+    intercept[IllegalArgumentException] {
+      config.DEFAULT_CUBE_SIZE
+    }
+    intercept[IllegalArgumentException] {
+      config.CUBE_DOMAINS_BUFFER_CAPACITY
+    }
+    intercept[IllegalArgumentException] {
+      config.DEFAULT_NUMBER_OF_RETRIES
+    }
+    intercept[IllegalArgumentException] {
+      config.COLUMN_SELECTOR_ENABLED
+    }
+    intercept[IllegalArgumentException] {
+      config.MAX_NUM_COLUMNS_TO_INDEX
+    }
+    intercept[IllegalArgumentException] {
+      config.DEFAULT_TABLE_FORMAT
+    }
   }
 
 }

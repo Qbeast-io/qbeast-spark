@@ -15,7 +15,11 @@
  */
 package io.qbeast.spark.delta
 
+import io.qbeast.core.model.IndexFile
 import io.qbeast.QbeastIntegrationTestSpec
+import org.apache.hadoop.fs.Path
+import org.apache.spark.sql.functions.input_file_name
+import org.apache.spark.sql.functions.rand
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.Row
 
@@ -216,5 +220,60 @@ class QbeastSchemaDeltaTest extends QbeastIntegrationTestSpec {
         .fieldNames shouldBe dfExtraCol.schema.fieldNames
 
     })
+
+  "loadDataframeFromIndexFiles" should "work properly with evolving schema" in {
+    withSparkAndTmpDir { (spark, tmpDir) =>
+      import spark.implicits._
+
+      val cubeSize = 100
+      val options =
+        Map("columnsToIndex" -> "id", "cubeSize" -> cubeSize.toString)
+      spark
+        .range(100)
+        .filter("id % 2 = 0")
+        .write
+        .format("qbeast")
+        .mode("overwrite")
+        .options(options)
+        .save(tmpDir)
+
+      spark
+        .range(100)
+        .filter("id % 2 = 1")
+        .withColumn("rand", rand())
+        .write
+        .option("mergeSchema", "true")
+        .format("qbeast")
+        .mode("append")
+        .options(options)
+        .save(tmpDir)
+
+      spark.read.format("qbeast").load(tmpDir).count.toInt shouldBe 100
+
+      val qbeastSnapshot = getQbeastSnapshot(tmpDir)
+
+      val filesToOptimize = qbeastSnapshot.loadAllRevisions
+        .map(rev => qbeastSnapshot.loadIndexFiles(rev.revisionID))
+        .foldLeft(spark.emptyDataset[IndexFile])(_ union _)
+      val allData = qbeastSnapshot.loadDataframeFromIndexFiles(filesToOptimize)
+      allData.count.toInt shouldBe 100
+
+      val data = spark.read.format("qbeast").load(tmpDir)
+      // I'm selecting only the old file with the first schema with only 1 column
+      val filePath =
+        data.filter("id % 2 = 0").select(input_file_name()).distinct().as[String].first()
+
+      spark.read.parquet(filePath).columns shouldBe Seq("id")
+
+      val fileName = new Path(filePath).getName
+
+      val subSet =
+        qbeastSnapshot.loadDataframeFromIndexFiles(filesToOptimize.filter(_.path == fileName))
+
+      subSet.schema shouldBe data.schema
+      subSet.columns shouldBe Seq("id", "rand")
+
+    }
+  }
 
 }

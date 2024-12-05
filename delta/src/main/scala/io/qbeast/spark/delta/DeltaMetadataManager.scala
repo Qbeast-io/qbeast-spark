@@ -63,10 +63,6 @@ object DeltaMetadataManager extends MetadataManager {
     loadDeltaLog(tableID).update().schema
   }
 
-  override def updateRevision(tableID: QTableID, revisionChange: RevisionChange): Unit = {}
-
-  override def updateTable(tableID: QTableID, tableChanges: TableChanges): Unit = {}
-
   /**
    * Returns the DeltaQbeastLog for the table
    * @param tableID

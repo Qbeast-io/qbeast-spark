@@ -55,6 +55,7 @@ package object config {
     ConfigBuilder("spark.qbeast.tableFormat")
       .version("0.8.0")
       .stringConf
+      .checkValues(Set("delta"))
       .createWithDefault("delta")
 
   def DEFAULT_NUMBER_OF_RETRIES: Int = SparkSession.active.sparkContext.conf
