@@ -16,11 +16,12 @@
 package io.qbeast.spark.index.model.transformer
 
 import io.qbeast.core.model.LongDataType
-import io.qbeast.core.model.QTableID
 import io.qbeast.core.transform.IdentityTransformation
 import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.core.transform.LinearTransformer
-import io.qbeast.spark.delta.DeltaQbeastSnapshot
+import io.qbeast.core.transform.StringHistogramTransformation
+import io.qbeast.core.transform.StringHistogramTransformer
+import io.qbeast.table.QbeastTable
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
 import org.apache.spark.sql.functions._
@@ -29,6 +30,9 @@ import org.apache.spark.sql.SparkSession
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.annotation.nowarn
+
+@nowarn("cat=deprecation")
 class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec {
 
   // Write source data indexing all columns and read it back
@@ -380,7 +384,7 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
       // LinearTransformation(1, 10, _, _)
       identityDf_2.write.mode("append").format("qbeast").save(tmpDir)
 
-      val snapshot = DeltaQbeastSnapshot(QTableID(tmpDir))
+      val snapshot = getQbeastSnapshot(tmpDir)
       val Seq(_, idNullRev, idOneRev, linearRev) = snapshot.loadAllRevisions.sortBy(_.revisionID)
       idNullRev.columnTransformers.head should matchPattern { case _: LinearTransformer => }
       idNullRev.transformations.head should matchPattern {
@@ -413,11 +417,27 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
       val regularDf = spark.range(100).map(i => TestNull(None, None, Some(i.toLong)))
       regularDf.write.mode("append").format("qbeast").save(tmpDir)
 
-      val revision = DeltaQbeastSnapshot(QTableID(tmpDir)).loadLatestRevision
+      val revision = getQbeastSnapshot(tmpDir).loadLatestRevision
       revision.columnTransformers.head should matchPattern { case _: LinearTransformer => }
       revision.transformations.head should matchPattern {
         case LinearTransformation(-1L, 99L, _, LongDataType) =>
       }
     })
+
+  it should "allow using 'histogram' transformer type" in withSparkAndTmpDir((spark, tmpDir) => {
+    import spark.implicits._
+    val histogramTablePath = s"$tmpDir/histogram-table"
+    val df = spark.range(5).map(i => s"$i").toDF("id_string")
+    df.write
+      .format("qbeast")
+      .option("columnsToIndex", "id_string:histogram")
+      .save(histogramTablePath)
+
+    val histogramTable = QbeastTable.forPath(spark, histogramTablePath)
+    val latestRevision = histogramTable.latestRevision
+    latestRevision.columnTransformers.head shouldBe a[StringHistogramTransformer]
+    latestRevision.transformations.head shouldBe a[StringHistogramTransformation]
+
+  })
 
 }

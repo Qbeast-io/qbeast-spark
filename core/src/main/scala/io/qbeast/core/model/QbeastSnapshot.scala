@@ -42,7 +42,7 @@ trait QbeastSnapshot {
   /**
    * Returns the total number of data files in the snapshot.
    */
-  def allFilesCount: Long
+  def numOfFiles: Long
 
   /**
    * Provides the schema of the dataset for this snapshot.
@@ -54,6 +54,12 @@ trait QbeastSnapshot {
    * @return
    */
   def loadDescription: String
+
+  /**
+   * The current table configuration.
+   * @return
+   */
+  def loadConfiguration: Map[String, String]
 
   /**
    * The current table properties of the snapshot.

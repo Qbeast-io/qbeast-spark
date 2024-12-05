@@ -19,16 +19,19 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 import io.qbeast.core.model.OrderedDataType
 import io.qbeast.core.model.QDataType
 import io.qbeast.core.model.StringDataType
+import org.apache.spark.internal.Logging
 
 import java.util.Locale
+import scala.annotation.nowarn
 
 /**
  * Transformer object that choose the right transformation function
  */
-object Transformer {
+@nowarn("cat=deprecation")
+object Transformer extends Logging {
 
   private val transformersRegistry: Map[String, TransformerType] =
-    Seq(LinearTransformer, HashTransformer, CDFQuantilesTransformer)
+    Seq(LinearTransformer, HashTransformer, CDFQuantilesTransformer, HistogramTransformer)
       .map(a => (a.transformerSimpleName, a))
       .toMap
 
@@ -46,7 +49,17 @@ object Transformer {
   def apply(transformerTypeName: String, columnName: String, dataType: QDataType): Transformer = {
 
     val tt = transformerTypeName.toLowerCase(Locale.ROOT)
-    transformersRegistry(tt)(columnName, dataType)
+    transformersRegistry.get(tt) match {
+      case Some(transformer)
+          if transformer.transformerSimpleName == HistogramTransformer.transformerSimpleName =>
+        log.warn("'histogram' type is deprecated. Use 'quantiles' instead.")
+        transformer(columnName, dataType)
+      case Some(transformer) => transformer(columnName, dataType)
+      case None =>
+        throw new NoSuchElementException(
+          s"Unknown transformer type: $transformerTypeName. Available transformers are: ${transformersRegistry.keys
+              .mkString(", ")}")
+    }
   }
 
   /**

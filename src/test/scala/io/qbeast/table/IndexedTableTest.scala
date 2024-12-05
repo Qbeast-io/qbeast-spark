@@ -1,8 +1,7 @@
-package io.qbeast.spark.table
+package io.qbeast.table
 
 import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.QTableID
-import io.qbeast.table.QbeastTable
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Student
 import org.apache.spark.sql.types.IntegerType
@@ -41,7 +40,7 @@ class IndexedTableTest extends QbeastIntegrationTestSpec {
       val emptyDFWithSchema = spark
         .createDataFrame(spark.sharedState.sparkContext.emptyRDD[Row], schemaStudents)
 
-      indexedTable.save(emptyDFWithSchema, indexOptions, true)
+      indexedTable.save(emptyDFWithSchema, indexOptions, append = true)
 
       val qbeastTable = QbeastTable.forPath(spark, location)
       qbeastTable.allRevisions().size shouldBe 1
@@ -59,12 +58,12 @@ class IndexedTableTest extends QbeastIntegrationTestSpec {
 
       val indexOptions = Map("columnsToIndex" -> "id,name")
       val studentsData = createStudentsTestData(spark)
-      indexedTable.save(studentsData, indexOptions, true)
+      indexedTable.save(studentsData, indexOptions, append = true)
 
       // overwrite with empty df
       val emptyDFWithSchema = spark
         .createDataFrame(spark.sharedState.sparkContext.emptyRDD[Row], schemaStudents)
-      indexedTable.save(emptyDFWithSchema, indexOptions, false)
+      indexedTable.save(emptyDFWithSchema, indexOptions, append = false)
 
       val qbeastTable = QbeastTable.forPath(spark, location)
       qbeastTable.allRevisions().size shouldBe 1
@@ -85,7 +84,7 @@ class IndexedTableTest extends QbeastIntegrationTestSpec {
 
       val data = createStudentsTestData(spark)
       val indexingParameters = Map("columnsToIndex" -> "id,name")
-      indexedTable.save(data, indexingParameters, true)
+      indexedTable.save(data, indexingParameters, append = true)
 
       val qbeastTable = QbeastTable.forPath(spark, location)
       qbeastTable.allRevisions().size shouldBe 2 // First empty revision + append
@@ -105,7 +104,7 @@ class IndexedTableTest extends QbeastIntegrationTestSpec {
 
         val firstData = createStudentsTestData(spark)
         val firstIndexingParameters = Map("columnsToIndex" -> "id")
-        indexedTable.save(firstData, firstIndexingParameters, true)
+        indexedTable.save(firstData, firstIndexingParameters, append = true)
 
         val qbeastTable = QbeastTable.forPath(spark, location)
         qbeastTable.allRevisions().size shouldBe 2L // First empty revision + append
@@ -114,7 +113,7 @@ class IndexedTableTest extends QbeastIntegrationTestSpec {
 
         val data = createStudentsTestData(spark)
         val indexingParameters = Map("columnsToIndex" -> "id,name")
-        indexedTable.save(data, indexingParameters, false)
+        indexedTable.save(data, indexingParameters, append = false)
 
         qbeastTable.allRevisions().size shouldBe 2L // First empty revision + append
         qbeastTable.latestRevisionID shouldBe 1L

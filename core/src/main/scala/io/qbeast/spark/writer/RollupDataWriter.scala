@@ -158,7 +158,7 @@ trait RollupDataWriter extends DataWriter {
           case None =>
         }
       }
-      fileUUID
+      fileUUID.get
     })
 
 }

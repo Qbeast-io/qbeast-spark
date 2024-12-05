@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.utils
+package io.qbeast.spark.delta
 
 import io.qbeast.core.model.StagingUtils
 import io.qbeast.internal.commands.ConvertToQbeastCommand
@@ -25,7 +25,7 @@ import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.SparkSession
 import org.scalatest.PrivateMethodTester
 
-class ConvertToQbeastTest
+class ConvertToQbeastDeltaTest
     extends QbeastIntegrationTestSpec
     with PrivateMethodTester
     with StagingUtils {
