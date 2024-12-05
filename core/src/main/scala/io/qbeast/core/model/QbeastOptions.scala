@@ -18,17 +18,18 @@ package io.qbeast.core.model
 import io.qbeast.core.model.PreCommitHook.getHookArgName
 import io.qbeast.core.model.PreCommitHook.PRE_COMMIT_HOOKS_PREFIX
 import io.qbeast.core.model.QbeastOptions.COLUMNS_TO_INDEX
+import io.qbeast.core.model.QbeastOptions.COLUMN_STATS
 import io.qbeast.core.model.QbeastOptions.CUBE_SIZE
-import io.qbeast.core.model.QbeastOptions.STATS
 import io.qbeast.core.model.QbeastOptions.TABLE_FORMAT
+import io.qbeast.core.model.QbeastOptions.TXN_APP_ID
+import io.qbeast.core.model.QbeastOptions.TXN_VERSION
 import io.qbeast.spark.index.ColumnsToIndex
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
 import org.apache.spark.qbeast.config.DEFAULT_TABLE_FORMAT
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
 import org.apache.spark.sql.AnalysisExceptionFactory
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.SparkSession
 
+import java.util.Locale
 import scala.util.matching.Regex
 
 /**
@@ -38,7 +39,7 @@ import scala.util.matching.Regex
  *   A sequence of column names to index.
  * @param cubeSize
  *   The number of desired elements per cube.
- * @param stats
+ * @param columnStats
  *   Optional DataFrame containing statistics for the indexing columns.
  * @param txnAppId
  *   Optional transaction application ID.
@@ -59,13 +60,12 @@ case class QbeastOptions(
     columnsToIndex: Seq[String],
     cubeSize: Int,
     tableFormat: String,
-    statsString: Option[String],
-    stats: Option[DataFrame],
-    txnAppId: Option[String],
-    txnVersion: Option[String],
-    userMetadata: Option[String],
-    mergeSchema: Option[String],
-    overwriteSchema: Option[String],
+    columnStats: Option[String] = None,
+    txnAppId: Option[String] = None,
+    txnVersion: Option[String] = None,
+    userMetadata: Option[String] = None,
+    mergeSchema: Option[String] = None,
+    overwriteSchema: Option[String] = None,
     hookInfo: Seq[HookInfo] = Nil,
     extraOptions: Map[String, String] = Map.empty[String, String]) {
 
@@ -74,7 +74,7 @@ case class QbeastOptions(
     properties += COLUMNS_TO_INDEX -> columnsToIndex.mkString(",")
     properties += CUBE_SIZE -> cubeSize.toString
     properties += TABLE_FORMAT -> tableFormat
-    properties += STATS -> statsString.getOrElse("")
+    properties += COLUMN_STATS -> columnStats.getOrElse("")
     properties.result()
   }
 
@@ -86,9 +86,15 @@ case class QbeastOptions(
 
   def toMap: CaseInsensitiveMap[String] = {
     val options = Map.newBuilder[String, String]
+    options += COLUMNS_TO_INDEX -> columnsToIndex.mkString(",")
+    options += CUBE_SIZE -> cubeSize.toString
+    options += TABLE_FORMAT -> tableFormat
+    if (columnStats.nonEmpty) {
+      options += COLUMN_STATS -> columnStats.get
+    }
     for (txnAppId <- txnAppId; txnVersion <- txnVersion) {
-      options += "txnAppId" -> txnAppId
-      options += "txnVersion" -> txnVersion
+      options += TXN_APP_ID -> txnAppId
+      options += TXN_VERSION -> txnVersion
     }
     if (userMetadata.nonEmpty) {
       options += "userMetadata" -> userMetadata.get
@@ -102,12 +108,6 @@ case class QbeastOptions(
     if (hookInfo.nonEmpty) {
       hookInfo.foreach { options ++= _.toMap }
     }
-
-    options += COLUMNS_TO_INDEX -> columnsToIndex.mkString(",")
-    options += CUBE_SIZE -> cubeSize.toString
-    options += TABLE_FORMAT -> tableFormat
-    options += STATS -> statsString.getOrElse("")
-
     CaseInsensitiveMap(options.result())
   }
 
@@ -118,24 +118,26 @@ case class QbeastOptions(
  */
 
 object QbeastOptions {
+  val PATH: String = "path"
   val COLUMNS_TO_INDEX: String = "columnsToIndex"
   val CUBE_SIZE: String = "cubeSize"
   val TABLE_FORMAT: String = "tableFormat"
-  val PATH: String = "path"
-  val STATS: String = "columnStats"
-  val TXN_APP_ID: String = "txnAppId"
-  val TXN_VERSION: String = "txnVersion"
-  val USER_METADATA: String = "userMetadata"
+  val COLUMN_STATS: String = "columnStats"
   val MERGE_SCHEMA: String = "mergeSchema"
   val OVERWRITE_SCHEMA: String = "overwriteSchema"
 
+  // Delta Lake specific options
+  val TXN_APP_ID: String = "txnAppId"
+  val TXN_VERSION: String = "txnVersion"
+  val USER_METADATA: String = "userMetadata"
+
   // All the write option keys
-  val qbeastOptionKeys = Set(
+  val qbeastOptionKeys: Set[String] = Set(
     COLUMNS_TO_INDEX,
     CUBE_SIZE,
     TABLE_FORMAT,
     PATH,
-    STATS,
+    COLUMN_STATS,
     TXN_APP_ID,
     TXN_VERSION,
     USER_METADATA,
@@ -179,29 +181,18 @@ object QbeastOptions {
     }
 
   /**
-   * Get the column stats from the options This stats should be in a JSON formatted string with
-   * the following schema {columnName_min:value, columnName_max:value, ...}
+   * Get the column stats from the options. This provided column stats should be in a JSON
+   * formatted string with the following schema {"columnName_min":value, "columnName_max":value,
+   * "columnName_quantiles": [...], ...}
    * @param options
    *   the options passed on the dataframe
    * @return
    */
-  private def getStats(options: Map[String, String]): Option[DataFrame] = {
-    val spark = SparkSession.active
+  private def getColumnStats(options: Map[String, String]): Option[String] =
+    options.get(COLUMN_STATS)
 
-    options.get(STATS) match {
-      case Some(value) =>
-        import spark.implicits._
-        val ds = Seq(value).toDS()
-        val df = spark.read
-          .option("inferTimestamp", "true")
-          .option("timestampFormat", "yyyy-MM-dd HH:mm:ss.SSSSSS'Z'")
-          .json(ds)
-        Some(df)
-      case None => None
-    }
-  }
-
-  private def getTxnAppId(options: Map[String, String]): Option[String] = options.get(TXN_APP_ID)
+  private def getTxnAppId(options: Map[String, String]): Option[String] =
+    options.get(TXN_APP_ID)
 
   private def getTxnVersion(options: Map[String, String]): Option[String] =
     options.get(TXN_VERSION)
@@ -256,15 +247,14 @@ object QbeastOptions {
     val columnsToIndex = getColumnsToIndex(options)
     val desiredCubeSize = getDesiredCubeSize(options)
     val tableFormat = getTableFormat(options)
-    val statsString = options.get(STATS)
-    val stats = getStats(options)
+    val columnStats = getColumnStats(options)
     val txnAppId = getTxnAppId(options)
     val txnVersion = getTxnVersion(options)
     val userMetadata = getUserMetadata(options)
     val mergeSchema = getMergeSchema(options)
     val overwriteSchema = getOverwriteSchema(options)
     val hookInfo = getHookInfo(options)
-    // Filter out the qbeast options, and leave: COLUMNSTOINDEX, CUBESIZE, AND STATS
+    // Filter out the qbeast options, and leave: COLUMNS_TO_INDEX, CUBE_SIZE, AND STATS
     // Plus the user metadata, merge schema, and overwrite schema
     val caseSensitiveMap = options.originalMap
     val extraOptions =
@@ -275,8 +265,7 @@ object QbeastOptions {
       columnsToIndex,
       desiredCubeSize,
       tableFormat,
-      statsString,
-      stats,
+      columnStats,
       txnAppId,
       txnVersion,
       userMetadata,
@@ -312,7 +301,6 @@ object QbeastOptions {
       None,
       None,
       None,
-      None,
       userMetadata,
       None,
       None,
@@ -332,7 +320,6 @@ object QbeastOptions {
       None,
       None,
       None,
-      None,
       None)
 
   def loadTableIDFromParameters(parameters: Map[String, String]): QTableID = {
@@ -345,7 +332,8 @@ object QbeastOptions {
 
   def checkQbeastProperties(parameters: Map[String, String]): Unit = {
     require(
-      parameters.contains("columnsToIndex") || parameters.contains("columnstoindex"),
+      parameters.contains(COLUMNS_TO_INDEX) || parameters.contains(
+        COLUMNS_TO_INDEX.toLowerCase(Locale.ROOT)),
       throw AnalysisExceptionFactory.create("'columnsToIndex is not specified"))
   }
 
