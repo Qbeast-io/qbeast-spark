@@ -13,18 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.internal
+package io.qbeast.core.model
 
-import io.qbeast.core.model.ColumnToIndex
-import io.qbeast.core.model.HookInfo
 import io.qbeast.core.model.PreCommitHook.getHookArgName
 import io.qbeast.core.model.PreCommitHook.PRE_COMMIT_HOOKS_PREFIX
-import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QbeastOptions.COLUMNS_TO_INDEX
+import io.qbeast.core.model.QbeastOptions.CUBE_SIZE
+import io.qbeast.core.model.QbeastOptions.STATS
+import io.qbeast.core.model.QbeastOptions.TABLE_FORMAT
 import io.qbeast.spark.index.ColumnsToIndex
-import io.qbeast.spark.internal.QbeastOptions.COLUMNS_TO_INDEX
-import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
-import io.qbeast.spark.internal.QbeastOptions.STATS
-import io.qbeast.spark.internal.QbeastOptions.TABLE_FORMAT
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
 import org.apache.spark.qbeast.config.DEFAULT_TABLE_FORMAT
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap

@@ -23,7 +23,6 @@ import io.qbeast.core.model.QbeastHookLoader
 import io.qbeast.core.model.TableChanges
 import io.qbeast.core.model.WriteMode
 import io.qbeast.core.model.WriteMode.WriteModeValue
-import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.utils.QbeastExceptionMessages.partitionedTableExceptionMsg
 import io.qbeast.spark.writer.StatsTracker.registerStatsTrackers
 import org.apache.spark.internal.Logging

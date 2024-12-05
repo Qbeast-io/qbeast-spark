@@ -16,13 +16,12 @@
 package io.qbeast.table
 
 import io.qbeast.core.model._
+import io.qbeast.core.model.QbeastOptions.checkQbeastProperties
+import io.qbeast.core.model.QbeastOptions.optimizationOptions
+import io.qbeast.core.model.QbeastOptions.COLUMNS_TO_INDEX
+import io.qbeast.core.model.QbeastOptions.CUBE_SIZE
 import io.qbeast.core.model.RevisionFactory
 import io.qbeast.sources.QbeastBaseRelation
-import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
-import io.qbeast.spark.internal.QbeastOptions.optimizationOptions
-import io.qbeast.spark.internal.QbeastOptions.COLUMNS_TO_INDEX
-import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
 import io.qbeast.IISeq
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.COLUMN_SELECTOR_ENABLED

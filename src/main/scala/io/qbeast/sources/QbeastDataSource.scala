@@ -16,8 +16,8 @@
 package io.qbeast.sources
 
 import io.qbeast.context.QbeastContext
+import io.qbeast.core.model.QbeastOptions
 import io.qbeast.sources.v2.QbeastTableImpl
-import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.table.IndexedTableFactory
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.fs.Path

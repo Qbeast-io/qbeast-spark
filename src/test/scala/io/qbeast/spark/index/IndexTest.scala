@@ -18,7 +18,6 @@ package io.qbeast.spark.index
 import io.qbeast.context.QbeastContext
 import io.qbeast.core.model._
 import io.qbeast.core.model.BroadcastTableChanges
-import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
 import io.qbeast.TestClasses.Client4

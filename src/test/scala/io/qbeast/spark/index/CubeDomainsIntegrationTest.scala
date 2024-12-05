@@ -19,8 +19,8 @@ import io.qbeast.core.model.CubeDomainsBuilder
 import io.qbeast.core.model.CubeStatus
 import io.qbeast.core.model.IndexStatus
 import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QbeastOptions
 import io.qbeast.core.model.Weight
-import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
 import org.apache.spark.qbeast.config.CUBE_DOMAINS_BUFFER_CAPACITY

@@ -15,7 +15,7 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.{QTableID, QbeastOptions}
 import io.qbeast.core.model.Revision
 import io.qbeast.core.model.RevisionFactory
 import io.qbeast.core.model.RevisionID
@@ -23,7 +23,6 @@ import io.qbeast.core.transform.EmptyTransformation
 import io.qbeast.core.transform.ManualColumnStats
 import io.qbeast.core.transform.ManualPlaceholderTransformation
 import io.qbeast.core.transform.Transformation
-import io.qbeast.spark.internal.QbeastOptions
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.Row
 
