@@ -549,7 +549,7 @@ private[table] class IndexedTableImpl(
     metadataManager.updateWithTransaction(
       tableID,
       schema,
-      optimizationOptions(options),
+      optimizationOptions(options, latestIndexStatus.revision),
       WriteMode.Optimize) { transactionStartTime: String =>
       // Remove the Unindexed Files from the Log
       val deleteFiles: IISeq[DeleteFile] = files
@@ -596,7 +596,7 @@ private[table] class IndexedTableImpl(
           .updateWithTransaction(
             tableID,
             schema,
-            optimizationOptions(options),
+            optimizationOptions(options, revision),
             WriteMode.Optimize) { transactionStartTime: String =>
             import indexFiles.sparkSession.implicits._
             val deleteFiles: IISeq[DeleteFile] = indexFiles

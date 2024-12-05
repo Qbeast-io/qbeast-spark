@@ -21,8 +21,6 @@ import io.qbeast.core.model.QbeastOptions.COLUMNS_TO_INDEX
 import io.qbeast.core.model.QbeastOptions.COLUMN_STATS
 import io.qbeast.core.model.QbeastOptions.CUBE_SIZE
 import io.qbeast.core.model.QbeastOptions.TABLE_FORMAT
-import io.qbeast.core.model.QbeastOptions.TXN_APP_ID
-import io.qbeast.core.model.QbeastOptions.TXN_VERSION
 import io.qbeast.spark.index.ColumnsToIndex
 import org.apache.spark.qbeast.config.DEFAULT_CUBE_SIZE
 import org.apache.spark.qbeast.config.DEFAULT_TABLE_FORMAT
@@ -30,6 +28,7 @@ import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
 import org.apache.spark.sql.AnalysisExceptionFactory
 
 import java.util.Locale
+import scala.collection.mutable
 import scala.util.matching.Regex
 
 /**
@@ -41,16 +40,6 @@ import scala.util.matching.Regex
  *   The number of desired elements per cube.
  * @param columnStats
  *   Optional DataFrame containing statistics for the indexing columns.
- * @param txnAppId
- *   Optional transaction application ID.
- * @param txnVersion
- *   Optional transaction version.
- * @param userMetadata
- *   Optional user-provided metadata for each CommitInfo.
- * @param mergeSchema
- *   Optional flag indicating whether to merge the schema.
- * @param overwriteSchema
- *   Optional flag indicating whether to overwrite the schema.
  * @param hookInfo
  *   A sequence of HookInfo objects representing the hooks to be executed.
  * @param extraOptions
@@ -61,11 +50,6 @@ case class QbeastOptions(
     cubeSize: Int,
     tableFormat: String,
     columnStats: Option[String] = None,
-    txnAppId: Option[String] = None,
-    txnVersion: Option[String] = None,
-    userMetadata: Option[String] = None,
-    mergeSchema: Option[String] = None,
-    overwriteSchema: Option[String] = None,
     hookInfo: Seq[HookInfo] = Nil,
     extraOptions: Map[String, String] = Map.empty[String, String]) {
 
@@ -92,23 +76,10 @@ case class QbeastOptions(
     if (columnStats.nonEmpty) {
       options += COLUMN_STATS -> columnStats.get
     }
-    for (txnAppId <- txnAppId; txnVersion <- txnVersion) {
-      options += TXN_APP_ID -> txnAppId
-      options += TXN_VERSION -> txnVersion
-    }
-    if (userMetadata.nonEmpty) {
-      options += "userMetadata" -> userMetadata.get
-    }
-    if (mergeSchema.nonEmpty) {
-      options += "mergeSchema" -> mergeSchema.get
-    }
-    if (overwriteSchema.nonEmpty) {
-      options += "overwriteSchema" -> overwriteSchema.get
-    }
     if (hookInfo.nonEmpty) {
       hookInfo.foreach { options ++= _.toMap }
     }
-    CaseInsensitiveMap(options.result())
+    CaseInsensitiveMap(options.result() ++ extraOptions)
   }
 
 }
@@ -123,26 +94,10 @@ object QbeastOptions {
   val CUBE_SIZE: String = "cubeSize"
   val TABLE_FORMAT: String = "tableFormat"
   val COLUMN_STATS: String = "columnStats"
-  val MERGE_SCHEMA: String = "mergeSchema"
-  val OVERWRITE_SCHEMA: String = "overwriteSchema"
-
-  // Delta Lake specific options
-  val TXN_APP_ID: String = "txnAppId"
-  val TXN_VERSION: String = "txnVersion"
-  val USER_METADATA: String = "userMetadata"
 
   // All the write option keys
-  val qbeastOptionKeys: Set[String] = Set(
-    COLUMNS_TO_INDEX,
-    CUBE_SIZE,
-    TABLE_FORMAT,
-    PATH,
-    COLUMN_STATS,
-    TXN_APP_ID,
-    TXN_VERSION,
-    USER_METADATA,
-    MERGE_SCHEMA,
-    OVERWRITE_SCHEMA)
+  val qbeastOptionKeys: Set[String] =
+    Set(PATH, COLUMNS_TO_INDEX, CUBE_SIZE, TABLE_FORMAT, COLUMN_STATS)
 
   /**
    * Gets the columns to index from the options
@@ -166,7 +121,6 @@ object QbeastOptions {
    *   the options passed on the dataframe
    * @return
    */
-
   private def getDesiredCubeSize(options: Map[String, String]): Int = {
     options.get(CUBE_SIZE) match {
       case Some(value) => value.toInt
@@ -190,21 +144,6 @@ object QbeastOptions {
    */
   private def getColumnStats(options: Map[String, String]): Option[String] =
     options.get(COLUMN_STATS)
-
-  private def getTxnAppId(options: Map[String, String]): Option[String] =
-    options.get(TXN_APP_ID)
-
-  private def getTxnVersion(options: Map[String, String]): Option[String] =
-    options.get(TXN_VERSION)
-
-  private def getUserMetadata(options: Map[String, String]): Option[String] =
-    options.get(USER_METADATA)
-
-  private def getMergeSchema(options: Map[String, String]): Option[String] =
-    options.get(MERGE_SCHEMA)
-
-  private def getOverwriteSchema(options: Map[String, String]): Option[String] =
-    options.get(OVERWRITE_SCHEMA)
 
   /**
    * This function is used to extract the information about hooks from the provided options. A
@@ -248,29 +187,16 @@ object QbeastOptions {
     val desiredCubeSize = getDesiredCubeSize(options)
     val tableFormat = getTableFormat(options)
     val columnStats = getColumnStats(options)
-    val txnAppId = getTxnAppId(options)
-    val txnVersion = getTxnVersion(options)
-    val userMetadata = getUserMetadata(options)
-    val mergeSchema = getMergeSchema(options)
-    val overwriteSchema = getOverwriteSchema(options)
     val hookInfo = getHookInfo(options)
-    // Filter out the qbeast options, and leave: COLUMNS_TO_INDEX, CUBE_SIZE, AND STATS
-    // Plus the user metadata, merge schema, and overwrite schema
-    val caseSensitiveMap = options.originalMap
+    // Filter non-qbeast-related options
     val extraOptions =
-      caseSensitiveMap.filterKeys(key =>
+      options.originalMap.filterKeys(key =>
         !qbeastOptionKeys.contains(key) && !key.startsWith(PRE_COMMIT_HOOKS_PREFIX))
-
     QbeastOptions(
       columnsToIndex,
       desiredCubeSize,
       tableFormat,
       columnStats,
-      txnAppId,
-      txnVersion,
-      userMetadata,
-      mergeSchema,
-      overwriteSchema,
       hookInfo,
       extraOptions)
   }
@@ -290,37 +216,21 @@ object QbeastOptions {
    *   the options map
    * @return
    */
-  def optimizationOptions(options: Map[String, String]): QbeastOptions = {
-    val caseInsensitiveMap = CaseInsensitiveMap(options)
-    val userMetadata = getUserMetadata(caseInsensitiveMap)
-    val hookInfo = getHookInfo(caseInsensitiveMap)
-    QbeastOptions(
-      Seq.empty,
-      0,
-      DEFAULT_TABLE_FORMAT,
-      None,
-      None,
-      None,
-      userMetadata,
-      None,
-      None,
-      hookInfo)
+  def optimizationOptions(options: Map[String, String], revision: Revision): QbeastOptions = {
+    val updatedOptions = mutable.Map[String, String](options.toSeq: _*)
+    updatedOptions += (CUBE_SIZE -> revision.desiredCubeSize.toString)
+    updatedOptions += (COLUMNS_TO_INDEX -> revision.columnTransformers
+      .map(_.columnName)
+      .mkString(","))
+    updatedOptions += (TABLE_FORMAT -> DEFAULT_TABLE_FORMAT)
+    apply(updatedOptions.toMap)
   }
 
   /**
    * The empty options to be used as a placeholder.
    */
   lazy val empty: QbeastOptions =
-    QbeastOptions(
-      Seq.empty,
-      DEFAULT_CUBE_SIZE,
-      DEFAULT_TABLE_FORMAT,
-      None,
-      None,
-      None,
-      None,
-      None,
-      None)
+    QbeastOptions(Seq.empty, DEFAULT_CUBE_SIZE, DEFAULT_TABLE_FORMAT)
 
   def loadTableIDFromParameters(parameters: Map[String, String]): QTableID = {
     new QTableID(
