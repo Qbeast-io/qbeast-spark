@@ -107,14 +107,12 @@ private[hudi] case class HudiMetadataWriter(
     extends HudiMetadataOperation
     with Logging {
 
-  private val spark = SparkSession.active
-
   private val basePath = tableID.id
 
-  private val jsc = new JavaSparkContext(spark.sparkContext)
+  private lazy val spark = SparkSession.active
+  private lazy val jsc = new JavaSparkContext(spark.sparkContext)
 
   private def isOverwriteOperation: Boolean = writeMode == WriteMode.Overwrite
-
   private def isOptimizeOperation: Boolean = writeMode == WriteMode.Optimize
 
   // As in Delta, currently we treat the schema of data written to Delta is

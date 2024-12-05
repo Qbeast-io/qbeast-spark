@@ -40,8 +40,8 @@ import scala.jdk.CollectionConverters.mapAsJavaMapConverter
  */
 object HudiMetadataManager extends MetadataManager {
 
-  private val spark = SparkSession.active
-  private val hadoopConf = spark.sparkContext.hadoopConfiguration
+  private lazy val spark = SparkSession.active
+  private lazy val hadoopConf = spark.sparkContext.hadoopConfiguration
 
   override def updateWithTransaction(
       tableID: QTableID,
@@ -92,10 +92,6 @@ object HudiMetadataManager extends MetadataManager {
   override def loadCurrentSchema(tableID: QTableID): StructType = {
     loadSnapshot(tableID).schema
   }
-
-  override def updateRevision(tableID: QTableID, revisionChange: RevisionChange): Unit = {}
-
-  override def updateTable(tableID: QTableID, tableChanges: TableChanges): Unit = {}
 
   /**
    * Returns the MetaClient for the table

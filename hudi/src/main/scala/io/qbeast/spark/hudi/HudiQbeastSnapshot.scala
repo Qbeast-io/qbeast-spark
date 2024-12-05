@@ -4,6 +4,7 @@ import io.qbeast.core.model._
 import io.qbeast.spark.index.IndexStatusBuilder
 import io.qbeast.spark.utils.MetadataConfig
 import io.qbeast.IISeq
+import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.fs.Path
 import org.apache.hudi.common.fs.FSUtils
 import org.apache.hudi.common.model.HoodieCommitMetadata
@@ -27,13 +28,12 @@ import org.apache.spark.sql.SparkSession
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 
-case class HudiQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot {
+case class HudiQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with StagingUtils {
 
   override val basePath: Path = new Path(tableID.id)
 
-  private val spark = SparkSession.active
-
-  private val jsc = new JavaSparkContext(spark.sparkContext)
+  private lazy val spark = SparkSession.active
+  private lazy val jsc = new JavaSparkContext(spark.sparkContext)
 
   private lazy val metaClient: HoodieTableMetaClient = HoodieTableMetaClient
     .builder()
@@ -53,7 +53,7 @@ case class HudiQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot {
   /** Schema present in this Snapshot. */
   override lazy val schema: StructType = {
     val tableSchemaResolver = new TableSchemaResolver(metaClient)
-    val avroSchema = tableSchemaResolver.getTableAvroSchemaFromLatestCommit(false)
+    val avroSchema = tableSchemaResolver.getTableAvroSchemaFromLatestCommit(true)
     if (avroSchema.isPresent) {
       AvroConversionUtils.convertAvroSchemaToStructType(avroSchema.get)
     } else StructType.apply(Nil)
@@ -179,12 +179,24 @@ case class HudiQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot {
    * @return
    *   Sequence of FileStatusWithMetadata
    */
-  override def listStagingAreaFiles(
+  override def listUnindexedFiles(
       fileIndex: FileIndex,
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[FileStatusWithMetadata] = {
 
-    Seq.empty
+    val unindexedFilesDS = loadIndexFiles(stagingID)
+    val getAbsolutePath = (filePath: String) => {
+      val path = new Path(filePath)
+      if (path.isAbsolute) path else new Path(basePath, path)
+    }
+    unindexedFilesDS
+      .collect()
+      .map { indexFile =>
+        val newPath = getAbsolutePath(indexFile.path)
+        FileStatusWithMetadata(
+          new FileStatus(indexFile.size, false, 0, 1, indexFile.modificationTime, newPath),
+          Map.empty)
+      }
   }
 
   /**
