@@ -74,7 +74,6 @@ case class ConvertToQbeastCommand(
       logInfo("The table you are trying to convert is already a qbeast table")
     } else {
       fileFormat match {
-        // Convert parquet to delta
         case "parquet" =>
           DEFAULT_TABLE_FORMAT match {
             case "delta" =>
@@ -95,8 +94,7 @@ case class ConvertToQbeastCommand(
         case _ => throw AnalysisExceptionFactory.create(unsupportedFormatExceptionMsg(fileFormat))
       }
 
-      // Convert delta to qbeast through metadata modification
-
+      // Convert to qbeast through metadata modification
       val schema = qbeastSnapshot.schema
 
       QbeastContext.metadataManager.updateMetadataWithTransaction(qTableID, schema) {
