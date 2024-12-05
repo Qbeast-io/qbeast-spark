@@ -15,10 +15,12 @@
  */
 package io.qbeast.spark.delta
 
-import io.qbeast.spark.internal.QbeastOptions
+import io.qbeast.core.model.QbeastOptions
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Student
 import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.delta.DeltaOptions.TXN_APP_ID
+import org.apache.spark.sql.delta.DeltaOptions.TXN_VERSION
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
@@ -37,8 +39,8 @@ class QbeastSparkTxnTest extends QbeastIntegrationTestSpec {
       .format("qbeast")
       .option(QbeastOptions.COLUMNS_TO_INDEX, "id")
       .option(QbeastOptions.CUBE_SIZE, 1)
-      .option(QbeastOptions.TXN_APP_ID, "test")
-      .option(QbeastOptions.TXN_VERSION, "1")
+      .option(TXN_APP_ID, "test")
+      .option(TXN_VERSION, "1")
       .save(tmpDir)
     val transaction =
       DeltaLog.forTable(spark, tmpDir).unsafeVolatileSnapshot.setTransactions.head
@@ -53,19 +55,19 @@ class QbeastSparkTxnTest extends QbeastIntegrationTestSpec {
       .format("qbeast")
       .option(QbeastOptions.COLUMNS_TO_INDEX, "id")
       .option(QbeastOptions.CUBE_SIZE, 1)
-      .option(QbeastOptions.TXN_APP_ID, "test")
-      .option(QbeastOptions.TXN_VERSION, "2")
+      .option(TXN_APP_ID, "test")
+      .option(TXN_VERSION, "2")
       .save(tmpDir)
     data.write
       .format("qbeast")
-      .option(QbeastOptions.TXN_APP_ID, "test")
-      .option(QbeastOptions.TXN_VERSION, "1")
+      .option(TXN_APP_ID, "test")
+      .option(TXN_VERSION, "1")
       .mode(SaveMode.Append)
       .save(tmpDir)
     data.write
       .format("qbeast")
-      .option(QbeastOptions.TXN_APP_ID, "test")
-      .option(QbeastOptions.TXN_VERSION, "2")
+      .option(TXN_APP_ID, "test")
+      .option(TXN_VERSION, "2")
       .mode(SaveMode.Append)
       .save(tmpDir)
     spark.read.format("qbeast").load(tmpDir).count() shouldBe data.count()
@@ -78,13 +80,13 @@ class QbeastSparkTxnTest extends QbeastIntegrationTestSpec {
       .format("qbeast")
       .option(QbeastOptions.COLUMNS_TO_INDEX, "id")
       .option(QbeastOptions.CUBE_SIZE, 1)
-      .option(QbeastOptions.TXN_APP_ID, "test")
-      .option(QbeastOptions.TXN_VERSION, "1")
+      .option(TXN_APP_ID, "test")
+      .option(TXN_VERSION, "1")
       .save(tmpDir)
     data.write
       .format("qbeast")
-      .option(QbeastOptions.TXN_APP_ID, "test2")
-      .option(QbeastOptions.TXN_VERSION, "1")
+      .option(TXN_APP_ID, "test2")
+      .option(TXN_VERSION, "1")
       .mode(SaveMode.Append)
       .save(tmpDir)
     spark.read.format("qbeast").load(tmpDir).count() shouldBe data.count() * 2
@@ -97,13 +99,13 @@ class QbeastSparkTxnTest extends QbeastIntegrationTestSpec {
       .format("qbeast")
       .option(QbeastOptions.COLUMNS_TO_INDEX, "id")
       .option(QbeastOptions.CUBE_SIZE, 1)
-      .option(QbeastOptions.TXN_APP_ID, "test")
-      .option(QbeastOptions.TXN_VERSION, "1")
+      .option(TXN_APP_ID, "test")
+      .option(TXN_VERSION, "1")
       .save(tmpDir)
     data.write
       .format("qbeast")
-      .option(QbeastOptions.TXN_APP_ID, "test")
-      .option(QbeastOptions.TXN_VERSION, "2")
+      .option(TXN_APP_ID, "test")
+      .option(TXN_VERSION, "2")
       .mode(SaveMode.Append)
       .save(tmpDir)
     spark.read.format("qbeast").load(tmpDir).count() shouldBe data.count() * 2
@@ -116,8 +118,8 @@ class QbeastSparkTxnTest extends QbeastIntegrationTestSpec {
       .format("qbeast")
       .option(QbeastOptions.COLUMNS_TO_INDEX, "id")
       .option(QbeastOptions.CUBE_SIZE, 1)
-      .option(QbeastOptions.TXN_APP_ID, "test")
-      .option(QbeastOptions.TXN_VERSION, "1")
+      .option(TXN_APP_ID, "test")
+      .option(TXN_VERSION, "1")
       .save(tmpDir)
     data.write
       .format("qbeast")

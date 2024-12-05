@@ -15,11 +15,11 @@
  */
 package io.qbeast.internal.rules
 
+import io.qbeast.core.model.QbeastOptions
 import io.qbeast.core.model.Weight
 import io.qbeast.core.model.WeightRange
 import io.qbeast.spark.index.DefaultFileIndex
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
-import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.IndexedColumns
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.And

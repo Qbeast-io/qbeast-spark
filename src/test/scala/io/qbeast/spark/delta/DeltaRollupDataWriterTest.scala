@@ -19,12 +19,12 @@ import io.qbeast.core.model.BroadcastTableChanges
 import io.qbeast.core.model.CubeId
 import io.qbeast.core.model.IndexStatus
 import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QbeastOptions
 import io.qbeast.core.model.Revision
 import io.qbeast.core.model.Weight
 import io.qbeast.core.transform.EmptyTransformer
 import io.qbeast.spark.index.SparkOTreeManager
 import io.qbeast.spark.index.SparkRevisionFactory
-import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
 

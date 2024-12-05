@@ -16,7 +16,6 @@
 package io.qbeast.core.model
 
 import io.qbeast.core.model.WriteMode.WriteModeValue
-import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.IISeq
 import org.apache.spark.sql.types.StructType
 

@@ -16,8 +16,8 @@
 package io.qbeast.spark.utils
 
 import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QbeastOptions
 import io.qbeast.spark.index.SparkRevisionFactory
-import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
 import org.apache.hadoop.fs.Path

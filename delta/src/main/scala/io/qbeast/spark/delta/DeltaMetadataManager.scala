@@ -17,7 +17,6 @@ package io.qbeast.spark.delta
 
 import io.qbeast.core.model._
 import io.qbeast.core.model.WriteMode.WriteModeValue
-import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.IISeq
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.DeltaLog
