@@ -216,7 +216,7 @@ object QbeastOptions {
    *   the options map
    * @return
    */
-  def optimizationOptions(options: Map[String, String], revision: Revision): QbeastOptions = {
+  def apply(options: Map[String, String], revision: Revision): QbeastOptions = {
     val updatedOptions = mutable.Map[String, String](options.toSeq: _*)
     updatedOptions += (CUBE_SIZE -> revision.desiredCubeSize.toString)
     updatedOptions += (COLUMNS_TO_INDEX -> revision.columnTransformers
@@ -229,8 +229,7 @@ object QbeastOptions {
   /**
    * The empty options to be used as a placeholder.
    */
-  lazy val empty: QbeastOptions =
-    QbeastOptions(Seq.empty, DEFAULT_CUBE_SIZE, DEFAULT_TABLE_FORMAT)
+  def empty: QbeastOptions = QbeastOptions(Seq.empty, DEFAULT_CUBE_SIZE, DEFAULT_TABLE_FORMAT)
 
   def loadTableIDFromParameters(parameters: Map[String, String]): QTableID = {
     new QTableID(

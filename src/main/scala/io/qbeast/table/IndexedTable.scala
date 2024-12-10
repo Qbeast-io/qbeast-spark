@@ -17,7 +17,6 @@ package io.qbeast.table
 
 import io.qbeast.core.model._
 import io.qbeast.core.model.QbeastOptions.checkQbeastProperties
-import io.qbeast.core.model.QbeastOptions.optimizationOptions
 import io.qbeast.core.model.QbeastOptions.COLUMNS_TO_INDEX
 import io.qbeast.core.model.QbeastOptions.CUBE_SIZE
 import io.qbeast.core.model.RevisionFactory
@@ -549,7 +548,7 @@ private[table] class IndexedTableImpl(
     metadataManager.updateWithTransaction(
       tableID,
       schema,
-      optimizationOptions(options, latestIndexStatus.revision),
+      QbeastOptions(options, latestIndexStatus.revision),
       WriteMode.Optimize) { transactionStartTime: String =>
       // Remove the Unindexed Files from the Log
       val deleteFiles: IISeq[DeleteFile] = files
@@ -596,7 +595,7 @@ private[table] class IndexedTableImpl(
           .updateWithTransaction(
             tableID,
             schema,
-            optimizationOptions(options, revision),
+            QbeastOptions(options, revision),
             WriteMode.Optimize) { transactionStartTime: String =>
             import indexFiles.sparkSession.implicits._
             val deleteFiles: IISeq[DeleteFile] = indexFiles
