@@ -22,6 +22,8 @@ import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
 import io.qbeast.IISeq
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.CUBE_DOMAINS_BUFFER_CAPACITY
+import org.apache.spark.sql.catalyst.expressions.NamedExpression
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Dataset
@@ -270,10 +272,50 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
     }
   }
 
+  private def analyzeDeterminism(df: DataFrame, columnsToIndex: Seq[String]): Unit = {
+    println("ANALYZING DETERMINISM")
+
+    // Access the logical plan of the DataFrame
+    val logicalPlan: LogicalPlan = df.queryExecution.logical
+
+    // Get all named expressions (columns)
+    val namedExpressions = logicalPlan.output.collect { case ne: NamedExpression => ne }
+    val deterministicColumns = namedExpressions.filter(_.deterministic)
+    println("DETERMINISTIC COLUMNS: " + deterministicColumns.toString())
+    // Check if each indexed column is deterministic
+    columnsToIndex.foreach(columnName =>
+      assert(
+        deterministicColumns.exists(dc => dc.name == columnName),
+        s"Column ${columnName} is not deterministic. Please provide columnStats if you can to index the dataset."))
+
+    // Check if all operation on the logical plan are deterministic
+    logicalPlan.expressions.foreach(ex =>
+      println(s"Is expression ${ex.sql} deterministic: " + ex.deterministic))
+
+    val isAnalyzedPlanDeterministic = df.queryExecution.analyzed.deterministic
+    val isLogicalPlanDeterministic = df.queryExecution.logical.deterministic
+    val isOptimizedPlanDeterministic = logicalPlan.deterministic
+    val isExecutionPlanDeterministic = df.queryExecution.executedPlan.deterministic
+    println("Is analyzed plan deterministic: " + isAnalyzedPlanDeterministic)
+    println("Is logical plan deterministic: " + isLogicalPlanDeterministic)
+    println("Is optimized plan deterministic: " + isOptimizedPlanDeterministic)
+    println("Is execution plan deterministic: " + isExecutionPlanDeterministic)
+    val isDataFrameDeterministic =
+      isAnalyzedPlanDeterministic && isLogicalPlanDeterministic && isOptimizedPlanDeterministic && isExecutionPlanDeterministic
+    assert(
+      isDataFrameDeterministic,
+      "The source query is not deterministic. Please provide columnStats if you can to index the dataset.")
+
+  }
+
   override def analyze(
       dataFrame: DataFrame,
       indexStatus: IndexStatus): (DataFrame, TableChanges) = {
     logTrace(s"Begin: Analyzing the input data with existing revision: ${indexStatus.revision}")
+
+    // Check if the Indexing Columns and the Query are deterministic
+    val columnTransformers = indexStatus.revision.columnTransformers
+    analyzeDeterminism(dataFrame, columnTransformers.map(_.columnName))
     // Compute the statistics for the indexedColumns
     val dataFrameStats = getDataFrameStats(dataFrame, indexStatus.revision.columnTransformers)
     val numElements = dataFrameStats.getAs[Long]("count")
