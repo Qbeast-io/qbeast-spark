@@ -45,7 +45,7 @@ case class CDFStringQuantilesTransformation(quantiles: IndexedSeq[String])
 
   override val dataType: QDataType = StringDataType
 
-  override def ordering: Ordering[Any] =
+  override implicit def ordering: Ordering[Any] =
     Ordering[String].asInstanceOf[Ordering[Any]]
 
   override def mapValue(value: Any): Any = {
