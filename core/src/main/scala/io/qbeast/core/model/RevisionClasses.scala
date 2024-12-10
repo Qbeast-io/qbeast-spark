@@ -143,23 +143,14 @@ final case class Revision(
   assert(columnTransformers != null || transformations != null)
 
   /**
-   * Controls that this revision indexes all and only the provided columns.
-   *
+   * Checks whether the provided columns match the columns indexed by this revision.
    * @param columnsToIndex
    *   the column names to check.
-   * @return
-   *   true if the revision indexes all and only the provided columns.
    */
   def matchColumns(columnsToIndex: Seq[String]): Boolean = {
-    columnsToIndex.size == columnTransformers.size && columnsToIndex
-      .zip(columnTransformers)
-      .forall { case (columnToIndex, t) =>
-        if (columnToIndex.contains(":")) {
-          columnToIndex == t.spec
-        } else {
-          columnToIndex == t.columnName
-        }
-      }
+    val newColumnNames = columnsToIndex.map(_.split(":").head)
+    val existingColumnNames = columnTransformers.map(_.columnName)
+    newColumnNames == existingColumnNames
   }
 
   /**

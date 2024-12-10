@@ -15,6 +15,7 @@
  */
 package io.qbeast.spark.index
 
+import io.qbeast.core.model.ColumnToIndex
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.QbeastOptions
 import io.qbeast.core.model.Revision
@@ -23,6 +24,7 @@ import io.qbeast.core.model.RevisionFactory
 import io.qbeast.core.model.StagingUtils
 import io.qbeast.core.transform.CDFQuantilesTransformer
 import io.qbeast.core.transform.EmptyTransformation
+import io.qbeast.core.transform.EmptyTransformer
 import io.qbeast.core.transform.Transformation
 import io.qbeast.core.transform.Transformer
 import io.qbeast.IISeq
@@ -70,22 +72,11 @@ object SparkRevisionChangeFactory extends StagingUtils {
       options: QbeastOptions,
       statsRow: Row,
       dataSchema: StructType): Option[RevisionChange] = {
-    val isNewColumns = !revision.matchColumns(options.columnsToIndex)
-    if (isNewColumns) {
-      // Currently, we don't allow changing the columns to index
-      val currentColumnsToIndex = revision.columnTransformers.map(_.columnName)
-      throw AnalysisExceptionFactory.create(
-        s"Columns to index: '${options.columnsToIndex.mkString(",")}' do not match " +
-          s"existing indexing columns: ${currentColumnsToIndex.mkString(",")}.")
-    }
+    checkColumnChanges(revision, options)
     val cubeSizeChange = computeCubeSizeChange(revision, options)
     val transformerChanges = computeTransformerChanges(revision, options, dataSchema)
-    val updatedTransformers = updateTransformers(revision.columnTransformers, transformerChanges)
-    val transformationChanges = computeTransformationChanges(
-      updatedTransformers,
-      revision.transformations,
-      options,
-      statsRow)
+    val transformationChanges =
+      computeTransformationChanges(transformerChanges, revision, options, statsRow)
     val hasChanges =
       cubeSizeChange.isDefined ||
         transformerChanges.flatten.nonEmpty ||
@@ -95,9 +86,21 @@ object SparkRevisionChangeFactory extends StagingUtils {
         supersededRevision = revision,
         timestamp = System.currentTimeMillis(),
         desiredCubeSizeChange = cubeSizeChange,
+        columnTransformersChanges = transformerChanges,
         transformationsChanges = transformationChanges)
       Some(rc)
     } else None
+  }
+
+  private[index] def checkColumnChanges(revision: Revision, options: QbeastOptions): Unit = {
+    val columnChanges = !revision.matchColumns(options.columnsToIndex)
+    if (columnChanges) {
+      // Currently, we don't allow changing the indexing columns
+      val currentColumnsToIndex = revision.columnTransformers.map(_.columnName)
+      throw AnalysisExceptionFactory.create(
+        s"columnsToIndex: '${options.columnsToIndex.mkString(",")}' does not have " +
+          s"the same column names as the existing ones: ${currentColumnsToIndex.mkString(",")}.")
+    }
   }
 
   private[index] def computeCubeSizeChange(
@@ -107,13 +110,35 @@ object SparkRevisionChangeFactory extends StagingUtils {
     else None
   }
 
+  /**
+   * Compute the transformer changes for the current operation. The input column names are assumed
+   * to be the same as the existing ones. A new Transformer will be created if the existing one is
+   * an EmptyTransformer or if the transformerType has changed.
+   * @param revision
+   *   the existing revision
+   * @param options
+   *   the QbeastOptions
+   * @param schema
+   *   the data schema
+   */
   private[index] def computeTransformerChanges(
       revision: Revision,
       options: QbeastOptions,
       schema: StructType): IISeq[Option[Transformer]] = {
-    if (isStaging(revision)) {
-      options.columnsToIndexParsed.map(_.toTransformer(schema)).map(Some(_)).toVector
-    } else options.columnsToIndexParsed.map(_ => None).toVector
+    val newColumnSpecs = options.columnsToIndexParsed
+    val existingColumnSpecs = revision.columnTransformers.map(t => ColumnToIndex(t.spec))
+    newColumnSpecs
+      .zip(existingColumnSpecs)
+      .map {
+        case (newSpec, ColumnToIndex(_, Some(EmptyTransformer.transformerSimpleName))) =>
+          // If the existing Transformer is an EmptyTransformer
+          Some(newSpec.toTransformer(schema))
+        case (newSpec @ ColumnToIndex(_, Some(newType)), ColumnToIndex(_, Some(oldType)))
+            if newType != oldType => // If the transformerType has changed
+          Some(newSpec.toTransformer(schema))
+        case _ => None
+      }
+      .toIndexedSeq
   }
 
   private[index] def updateTransformers(
@@ -126,22 +151,65 @@ object SparkRevisionChangeFactory extends StagingUtils {
   }
 
   /**
-   * Compute the transformation changes for the current operation. At the moment, we don't support
-   * changing the indexing columns. The process of creating transformation changes is as follows:
-   *   1. Compute the transformations from the input columnStats 2. Compute the transformations
-   *      from the input DataFrame 3. Merge the transformations from the columnStats and DataFrame
-   *      4. Check if the new transformations supersede the existing ones
-   * @param transformers
-   * @param transformations
+   * Compute the transformation changes for the current operation. The process of creating
+   * transformation changes is as follows:
+   *   1. Compute the transformations from the input columnStats 2. Compute the new
+   *      Transformations from the input DataFrame statistics and the columnStats, if available,
+   *      and merge them. 4. Check if the new transformations supersede the existing ones
+   * @param transformerChanges
+   *   the transformer changes
+   * @param revision
+   *   the existing revision
    * @param options
+   *   the QbeastOptions
    * @param row
-   * @return
+   *   the Row containing column statistics computed from the input DataFrame
    */
   private[index] def computeTransformationChanges(
-      transformers: IISeq[Transformer],
-      transformations: IISeq[Transformation],
+      transformerChanges: IISeq[Option[Transformer]],
+      revision: Revision,
       options: QbeastOptions,
       row: Row): IISeq[Option[Transformation]] = {
+    val transformers = updateTransformers(revision.columnTransformers, transformerChanges)
+    val newTransformations = computeNewTransformations(transformers, options, row)
+    // Create transformationChanges
+    val transformationChanges =
+      if (revision.transformations.isEmpty) newTransformations.map(Some(_))
+      else {
+        // If the input revision has transformations, check if the new transformations supersede them.
+        revision.transformations.zip(newTransformations).map {
+          case (oldT, newT) if oldT.isSupersededBy(newT) => Some(oldT.merge(newT))
+          case _ => None
+        }
+      }
+    // Make sure that CDFQuantilesTransformers, if present, are properly setup
+    transformers.zip(transformationChanges).foreach {
+      case (t: CDFQuantilesTransformer, Some(_: EmptyTransformation)) =>
+        var msg = s"Empty transformation for column: ${t.columnName}."
+        if (t.isInstanceOf[CDFQuantilesTransformer]) {
+          msg += s"Columns stats required for quantile transformer/transformations for column: ${t.columnName}." +
+            s"Please provide the following statistics via columnStats: ${t.stats.statsNames}"
+        }
+        throw AnalysisExceptionFactory.create(msg)
+      case _ =>
+    }
+    transformationChanges
+  }
+
+  /**
+   * Compute the new transformations from the input DataFrame statistics and the columnStats, if
+   * available, and merge them.
+   * @param transformers
+   *   the transformers
+   * @param options
+   *   the QbeastOptions containing the columnStats
+   * @param row
+   *   the Row containing column statistics computed from the input DataFrame
+   */
+  private[index] def computeNewTransformations(
+      transformers: IISeq[Transformer],
+      options: QbeastOptions,
+      row: Row): IISeq[Transformation] = {
     val transformationsFromColumnsStats = {
       val (columnStats, availableColumnStats) =
         if (options.columnStats.isDefined) {
@@ -167,34 +235,12 @@ object SparkRevisionChangeFactory extends StagingUtils {
     // Create transformations from the input DataFrame
     val transformationsFromDataFrame = transformers.map(_.makeTransformation(row.getAs[Object]))
     // Merge transformations created from the columnStats and DataFrame
-    val newTransformations = transformationsFromColumnsStats
+    transformationsFromColumnsStats
       .zip(transformationsFromDataFrame)
       .map {
-        case (Some(tcs), tdf) => Some(tcs.merge(tdf))
-        case (None, tdf) => Some(tdf)
+        case (Some(tcs), tdf) => tcs.merge(tdf)
+        case (None, tdf) => tdf
       }
-    // Create transformationChanges
-    val transformationChanges =
-      if (transformations.isEmpty) newTransformations
-      else {
-        // If the input revision has transformations, check if the new transformations supersede them.
-        transformations.zip(newTransformations).map {
-          case (oldT, Some(newT)) if oldT.isSupersededBy(newT) => Some(oldT.merge(newT))
-          case _ => None
-        }
-      }
-    // Make sure that CDFQuantilesTransformers, if present, are properly setup
-    transformers.zip(transformationChanges).foreach {
-      case (t: CDFQuantilesTransformer, Some(_: EmptyTransformation)) =>
-        throw AnalysisExceptionFactory.create(
-          s"Columns stats required for quantile transformer/transformations for column: ${t.columnName}." +
-            s"Please provide the following statistics: ${t.stats.statsNames}")
-      case (t, Some(_: EmptyTransformation)) =>
-        throw AnalysisExceptionFactory.create(
-          s"Empty transformation for column: ${t.columnName}.")
-      case _ =>
-    }
-    transformationChanges
   }
 
 }
