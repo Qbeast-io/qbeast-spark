@@ -97,7 +97,6 @@ object Revision {
    * @return
    *   the new revision, with the specified transformations
    */
-
   def firstRevision(
       tableID: QTableID,
       desiredCubeSize: Int,

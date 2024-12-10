@@ -31,7 +31,6 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.SparkSession
 
 import java.lang.System.currentTimeMillis
 import java.util.ConcurrentModificationException
@@ -269,43 +268,6 @@ private[table] class IndexedTableImpl(
     }
   }
 
-  private def isNewRevision(qbeastOptions: QbeastOptions): Boolean = {
-    // TODO feature: columnsToIndex may change between revisions
-    val columnsToIndex = qbeastOptions.columnsToIndex
-    val currentColumnsToIndex = latestRevision.columnTransformers.map(_.columnName)
-    val isNewColumns = !latestRevision.matchColumns(columnsToIndex)
-    if (isNewColumns) {
-      throw AnalysisExceptionFactory.create(
-        s"Columns to index '${columnsToIndex.mkString(",")}' do not match " +
-          s"existing index ${currentColumnsToIndex.mkString(",")}.")
-    }
-    // Checks if the desiredCubeSize is different from the existing one
-    val isNewCubeSize = latestRevision.desiredCubeSize != qbeastOptions.cubeSize
-    // Checks if the user-provided column boundaries would trigger the creation of
-    // a new revision.
-    val isNewSpace = qbeastOptions.columnStats match {
-      case None => false
-      case Some(statsString) =>
-        val spark = SparkSession.active
-        import spark.implicits._
-        val columnStatsRow = spark.read
-          .option("inferTimestamp", "true")
-          .option("timestampFormat", "yyyy-MM-dd HH:mm:ss.SSSSSS'Z'")
-          .json(Seq(statsString).toDS())
-          .first()
-        val statsFunc = (statsName: String) => columnStatsRow.getAs[Object](statsName)
-        val newPossibleTransformations =
-          latestRevision.columnTransformers.map(_.makeTransformation(statsFunc))
-        latestRevision.transformations
-          .zip(newPossibleTransformations)
-          .forall(t => {
-            t._1.isSupersededBy(t._2)
-          })
-    }
-    isNewCubeSize || isNewSpace
-
-  }
-
   override def selectColumnsToIndex(
       parameters: Map[String, String],
       data: Option[DataFrame]): Map[String, String] = {
@@ -334,58 +296,13 @@ private[table] class IndexedTableImpl(
       parameters: Map[String, String],
       append: Boolean): BaseRelation = {
     logTrace(s"Begin: save table $tableID")
-    val (indexStatus, options) =
-      if (exists && append) {
-        // If the table exists, and we are appending new data
-        // 1. Load existing IndexStatus
-        val options = QbeastOptions(verifyAndMergeProperties(parameters))
-        logDebug(s"Appending data to table $tableID with revision=${latestRevision.revisionID}")
-        if (isStaging(latestRevision)) { // If the existing Revision is Staging
-          val revision = revisionFactory.createNewRevision(tableID, data.schema, options)
-          (IndexStatus(revision), options)
-        } else {
-          if (isNewRevision(options)) {
-            // If the new parameters generate a new revision, we need to create another one
-            val newPotentialRevision = revisionFactory
-              .createNewRevision(tableID, data.schema, options)
-            val newRevisionCubeSize = newPotentialRevision.desiredCubeSize
-            // Merge new Revision Transformations with old Revision Transformations
-            logDebug(
-              s"Merging transformations for table $tableID with cubeSize=$newRevisionCubeSize")
-            val newRevisionTransformations =
-              latestRevision.transformations.zip(newPotentialRevision.transformations).map {
-                case (oldTransformation, newTransformation)
-                    if oldTransformation.isSupersededBy(newTransformation) =>
-                  Some(oldTransformation.merge(newTransformation))
-                case _ => None
-              }
-
-            // Create a RevisionChange
-            val revisionChanges = RevisionChange(
-              supersededRevision = latestRevision,
-              timestamp = System.currentTimeMillis(),
-              desiredCubeSizeChange = Some(newRevisionCubeSize),
-              transformationsChanges = newRevisionTransformations)
-            logDebug(
-              s"Creating new revision changes for table $tableID with revisionChanges=$revisionChanges)")
-
-            // Output the New Revision into the IndexStatus
-            (IndexStatus(revisionChanges.createNewRevision), options)
-          } else {
-            // If the new parameters does not create a different revision,
-            // load the latest IndexStatus
-            logDebug(
-              s"Loading latest revision for table $tableID with revision=${latestRevision.revisionID}")
-            (snapshot.loadIndexStatus(latestRevision.revisionID), options)
-          }
-        }
-      } else {
-        // IF autoIndexingEnabled, choose columns to index
-        val updatedParameters = selectColumnsToIndex(parameters, Some(data))
-        val options = QbeastOptions(updatedParameters)
-        val revision = revisionFactory.createNewRevision(tableID, data.schema, options)
-        (IndexStatus(revision), options)
-      }
+    val options = QbeastOptions(verifyAndMergeProperties(parameters))
+    val indexStatus = if (exists && append && hasQbeastMetadata && !isStaging(latestRevision)) {
+      snapshot.loadLatestIndexStatus
+    } else {
+      val revision = revisionFactory.createNewRevision(tableID, data.schema, options)
+      IndexStatus(revision)
+    }
     val result = write(data, indexStatus, options, append)
     logTrace(s"End: Save table $tableID")
     result
@@ -455,7 +372,7 @@ private[table] class IndexedTableImpl(
     val writeMode = if (append) WriteMode.Append else WriteMode.Overwrite
     metadataManager.updateWithTransaction(tableID, schema, options, writeMode) {
       transactionStartTime: String =>
-        val (qbeastData, tableChanges) = indexManager.index(data, indexStatus)
+        val (qbeastData, tableChanges) = indexManager.index(data, indexStatus, options)
         val addFiles =
           dataWriter.write(tableID, schema, qbeastData, tableChanges, transactionStartTime)
         (tableChanges, addFiles, Vector.empty[DeleteFile])
@@ -545,35 +462,33 @@ private[table] class IndexedTableImpl(
     val filesDF = snapshot.loadDataframeFromIndexFiles(files)
     val latestIndexStatus = snapshot.loadLatestIndexStatus
     val schema = metadataManager.loadCurrentSchema(tableID)
+    val optOptions = optimizationOptions(options, latestIndexStatus.revision)
     // 3. In a transaction, update the table with the new data
-    metadataManager.updateWithTransaction(
-      tableID,
-      schema,
-      optimizationOptions(options, latestIndexStatus.revision),
-      WriteMode.Optimize) { transactionStartTime: String =>
-      // Remove the Unindexed Files from the Log
-      val deleteFiles: IISeq[DeleteFile] = files
-        .map { indexFile =>
-          DeleteFile(
-            path = indexFile.path,
-            size = indexFile.size,
-            dataChange = false,
-            deletionTimestamp = currentTimeMillis())
-        }
-        .collect()
-        .toIndexedSeq
-      // Index the data with IndexManager
-      val (data, tableChanges) = indexManager.index(filesDF, latestIndexStatus)
-      // Write the data with DataWriter
-      val newFiles: IISeq[IndexFile] =
-        dataWriter
-          .write(tableID, schema, data, tableChanges, transactionStartTime)
-          .collect { case indexFile: IndexFile =>
-            indexFile.copy(dataChange = false)
+    metadataManager.updateWithTransaction(tableID, schema, optOptions, WriteMode.Optimize) {
+      transactionStartTime: String =>
+        // Remove the Unindexed Files from the Log
+        val deleteFiles: IISeq[DeleteFile] = files
+          .map { indexFile =>
+            DeleteFile(
+              path = indexFile.path,
+              size = indexFile.size,
+              dataChange = false,
+              deletionTimestamp = currentTimeMillis())
           }
+          .collect()
           .toIndexedSeq
-      // Commit
-      (tableChanges, newFiles, deleteFiles)
+        // Index the data with IndexManager
+        val (data, tableChanges) = indexManager.index(filesDF, latestIndexStatus, optOptions)
+        // Write the data with DataWriter
+        val newFiles: IISeq[IndexFile] =
+          dataWriter
+            .write(tableID, schema, data, tableChanges, transactionStartTime)
+            .collect { case indexFile: IndexFile =>
+              indexFile.copy(dataChange = false)
+            }
+            .toIndexedSeq
+        // Commit
+        (tableChanges, newFiles, deleteFiles)
     }
   }
 

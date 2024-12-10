@@ -31,7 +31,10 @@ trait IndexManager {
    * @return
    *   the changes of the index and reorganization of data
    */
-  def index(data: DataFrame, indexStatus: IndexStatus): (DataFrame, TableChanges)
+  def index(
+      data: DataFrame,
+      indexStatus: IndexStatus,
+      options: QbeastOptions): (DataFrame, TableChanges)
 
   /**
    * Optimizes the input data by reassigning cubes according to the current index status
