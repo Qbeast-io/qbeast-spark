@@ -17,7 +17,6 @@ package io.qbeast.table
 
 import io.qbeast.core.model._
 import io.qbeast.core.model.QbeastOptions.checkQbeastProperties
-import io.qbeast.core.model.QbeastOptions.optimizationOptions
 import io.qbeast.core.model.QbeastOptions.COLUMNS_TO_INDEX
 import io.qbeast.core.model.QbeastOptions.CUBE_SIZE
 import io.qbeast.core.model.RevisionFactory
@@ -462,7 +461,7 @@ private[table] class IndexedTableImpl(
     val filesDF = snapshot.loadDataframeFromIndexFiles(files)
     val latestIndexStatus = snapshot.loadLatestIndexStatus
     val schema = metadataManager.loadCurrentSchema(tableID)
-    val optOptions = optimizationOptions(options, latestIndexStatus.revision)
+    val optOptions = QbeastOptions(options, latestIndexStatus.revision)
     // 3. In a transaction, update the table with the new data
     metadataManager.updateWithTransaction(tableID, schema, optOptions, WriteMode.Optimize) {
       transactionStartTime: String =>
@@ -511,7 +510,7 @@ private[table] class IndexedTableImpl(
           .updateWithTransaction(
             tableID,
             schema,
-            optimizationOptions(options, revision),
+            QbeastOptions(options, revision),
             WriteMode.Optimize) { transactionStartTime: String =>
             import indexFiles.sparkSession.implicits._
             val deleteFiles: IISeq[DeleteFile] = indexFiles
