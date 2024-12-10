@@ -1,6 +1,5 @@
 package io.qbeast.core.transform
 
-import io.qbeast.core.model.DoubleDataType
 import io.qbeast.core.model.IntegerDataType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -24,9 +23,16 @@ class CDFNumericQuantilesTransformationTest extends AnyFlatSpec with Matchers {
     qt.transform(4) should be(1.0)
   }
 
-  it should "return correct transformation for insertion point in middle" in {
-    val qt = CDFNumericQuantilesTransformation(IndexedSeq(1.0, 2.0, 3.0), DoubleDataType)
-    qt.transform(1.5) should be(0.0)
+  it should "return correct transformation for insertion point in the bin" in {
+    val qt = CDFNumericQuantilesTransformation(IndexedSeq(1, 3, 5), orderedDataTypeTest)
+    // 2 is between 1 and 3, so it should be 0.25 (fraction = 2-1 / 3-1 = 0.5. -> 0 + fraction(0.5) / 2 = 0.25)
+    qt.transform(2) should be(0.25)
+  }
+
+  it should "return correct transformation for insertion point in the bin with repeated values" in {
+    val qt = CDFNumericQuantilesTransformation(IndexedSeq(1, 1, 3, 5), orderedDataTypeTest)
+    // 2 is between 1 and 3 so it should be 0.5
+    qt.transform(2) should be(0.5)
   }
 
   it should "return true when quantiles are different and neither is default" in {
