@@ -23,7 +23,6 @@ import io.qbeast.core.transform.HashTransformer
 import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.core.transform.LinearTransformer
 import io.qbeast.core.transform.ManualPlaceholderTransformation
-import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.T3
 import org.apache.spark.sql.functions.to_timestamp
@@ -98,7 +97,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
           Map(
             QbeastOptions.COLUMNS_TO_INDEX -> "a",
             QbeastOptions.CUBE_SIZE -> "10",
-            QbeastOptions.STATS -> """{ "a_min": 0, "a_max": 10 }""")))
+            QbeastOptions.COLUMN_STATS -> """{ "a_min": 0, "a_max": 10 }""")))
 
     revision.tableID shouldBe qid
     // the reason while it's 1 is because columnStats are provided here
@@ -205,7 +204,9 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
         qid,
         schema,
         QbeastOptions(
-          Map(QbeastOptions.COLUMNS_TO_INDEX -> "date", QbeastOptions.STATS -> columnStats)))
+          Map(
+            QbeastOptions.COLUMNS_TO_INDEX -> "date",
+            QbeastOptions.COLUMN_STATS -> columnStats)))
 
     val transformation = revision.transformations.head
     transformation should not be null
@@ -228,7 +229,7 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
             Map(
               QbeastOptions.COLUMNS_TO_INDEX -> "a,b",
               QbeastOptions.CUBE_SIZE -> "10",
-              QbeastOptions.STATS ->
+              QbeastOptions.COLUMN_STATS ->
                 """{ "a_min": 0, "a_max": 10, "b_min": 10.0, "b_max": 20.0}""".stripMargin)))
 
       revision.tableID shouldBe qid
@@ -290,7 +291,8 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
         QbeastOptions(
           Map(
             QbeastOptions.COLUMNS_TO_INDEX -> "a:quantiles",
-            QbeastOptions.STATS -> s"""{"a_quantiles":[${numericQuantiles.mkString(", ")}]}""")))
+            QbeastOptions.COLUMN_STATS -> s"""{"a_quantiles":[${numericQuantiles.mkString(
+                ", ")}]}""")))
 
     revision.revisionID shouldBe 1L
     revision.columnTransformers shouldBe Vector(CDFNumericQuantilesTransformer("a", LongDataType))
