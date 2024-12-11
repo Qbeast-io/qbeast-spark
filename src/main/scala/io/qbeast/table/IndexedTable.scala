@@ -247,15 +247,16 @@ private[table] class IndexedTableImpl(
   override def verifyAndUpdateParameters(
       parameters: Map[String, String],
       data: Option[DataFrame]): Map[String, String] = {
+    // Check configuration membership using the input map as it may be a CaseInsensitiveMap
     val updatedParameters = mutable.Map[String, String](parameters.toSeq: _*)
     if (exists && hasQbeastMetadata) {
       // If the table exists and has Qbeast metadata. Update the parameters if needed
-      if (!updatedParameters.contains(COLUMNS_TO_INDEX)) {
+      if (!parameters.contains(COLUMNS_TO_INDEX)) {
         val currentIndexingColumns =
           latestRevision.columnTransformers.map(_.columnName).mkString(",")
         updatedParameters += (COLUMNS_TO_INDEX -> currentIndexingColumns)
       }
-      if (!updatedParameters.contains(CUBE_SIZE)) {
+      if (!parameters.contains(CUBE_SIZE)) {
         val currentCubeSize = latestRevision.desiredCubeSize.toString
         updatedParameters += (CUBE_SIZE -> currentCubeSize)
       }
@@ -263,7 +264,7 @@ private[table] class IndexedTableImpl(
       // If the table does not exist or does not have Qbeast metadata. Compute
       // the columnsToIndex from the data if needed. The cubeSize, if not provided,
       // will be set to the default value.
-      if (!updatedParameters.contains(COLUMNS_TO_INDEX)) {
+      if (!parameters.contains(COLUMNS_TO_INDEX)) {
         val columnsToIndex = selectColumnsToIndex(data)
         updatedParameters += (COLUMNS_TO_INDEX -> columnsToIndex.mkString(","))
       }
