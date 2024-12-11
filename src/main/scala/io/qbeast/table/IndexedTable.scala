@@ -249,8 +249,15 @@ private[table] class IndexedTableImpl(
       data: Option[DataFrame]): Map[String, String] = {
     // Check configuration membership using the input map as it may be a CaseInsensitiveMap
     val updatedParameters = mutable.Map[String, String](parameters.toSeq: _*)
-    if (exists && hasQbeastMetadata) {
-      // If the table exists and has Qbeast metadata. Update the parameters if needed
+    if (!exists) {
+      // If the table does not exist. Compute the columnsToIndex from the data if needed.
+      // The cubeSize, if not provided, will be set to the default value.
+      if (!parameters.contains(COLUMNS_TO_INDEX)) {
+        val columnsToIndex = selectColumnsToIndex(data)
+        updatedParameters += (COLUMNS_TO_INDEX -> columnsToIndex.mkString(","))
+      }
+    } else if (hasQbeastMetadata) {
+      // If the table exists and has Qbeast metadata. Update the parameters if needed.
       if (!parameters.contains(COLUMNS_TO_INDEX)) {
         val currentIndexingColumns =
           latestRevision.columnTransformers.map(_.columnName).mkString(",")
@@ -261,13 +268,11 @@ private[table] class IndexedTableImpl(
         updatedParameters += (CUBE_SIZE -> currentCubeSize)
       }
     } else {
-      // If the table does not exist or does not have Qbeast metadata. Compute
-      // the columnsToIndex from the data if needed. The cubeSize, if not provided,
-      // will be set to the default value.
-      if (!parameters.contains(COLUMNS_TO_INDEX)) {
-        val columnsToIndex = selectColumnsToIndex(data)
-        updatedParameters += (COLUMNS_TO_INDEX -> columnsToIndex.mkString(","))
-      }
+      // If the table exists but does not have Qbeast metadata.
+      throw AnalysisExceptionFactory.create(
+        "The table exists but does not have Qbeast metadata. " +
+          "Please provide the columnsToIndex parameters. " +
+          "Or use the ConvertToQbeast command to convert the table to Qbeast.")
     }
     updatedParameters.toMap
   }
