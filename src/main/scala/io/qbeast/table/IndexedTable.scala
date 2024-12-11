@@ -296,7 +296,7 @@ private[table] class IndexedTableImpl(
       append: Boolean): BaseRelation = {
     logTrace(s"Begin: save table $tableID")
     val options = QbeastOptions(verifyAndMergeProperties(parameters))
-    val indexStatus = if (exists && append && hasQbeastMetadata && !isStaging(latestRevision)) {
+    val indexStatus = if (exists && append && hasQbeastMetadata) {
       snapshot.loadLatestIndexStatus
     } else {
       val revision = revisionFactory.createNewRevision(tableID, data.schema, options)

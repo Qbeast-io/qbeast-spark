@@ -16,16 +16,13 @@
 package io.qbeast.spark.index
 
 import io.qbeast.core.model._
-import io.qbeast.core.transform.Transformer
 import io.qbeast.spark.index.QbeastColumns.weightColumnName
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
-import io.qbeast.IISeq
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.CUBE_DOMAINS_BUFFER_CAPACITY
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
 
 /**
@@ -51,30 +48,14 @@ trait OTreeDataAnalyzer {
 
 }
 
-object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable with Logging {
-
-  /**
-   * Estimates MaxWeight on DataFrame
-   */
-
-  /**
-   * Analyze a specific group of columns of the dataframe and extract valuable statistics
-   * @param data
-   *   the data to analyze
-   * @param columnTransformers
-   *   the columns to analyze
-   * @return
-   */
-  private[index] def getDataFrameStats(
-      data: DataFrame,
-      columnTransformers: IISeq[Transformer]): Row = {
-    val columnStats = columnTransformers.map(_.stats)
-    val columnsExpr = columnStats.flatMap(_.statsSqlPredicates)
-    logInfo("Computing statistics: " + columnsExpr.mkString(", "))
-    val row = data.selectExpr(columnsExpr ++ Seq("count(1) AS count"): _*).first()
-    logInfo("Computed statistics: " + row.mkString(", "))
-    row
-  }
+/**
+ * Estimates MaxWeight on DataFrame
+ */
+object DoublePassOTreeDataAnalyzer
+    extends OTreeDataAnalyzer
+    with SparkRevisionChangesUtils
+    with Serializable
+    with Logging {
 
   private[index] def addRandomWeight(revision: Revision): DataFrame => DataFrame =
     (df: DataFrame) => {
@@ -235,13 +216,10 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
       indexStatus: IndexStatus,
       options: QbeastOptions): (DataFrame, TableChanges) = {
     logTrace(s"Begin: Analyzing the input data with existing revision: ${indexStatus.revision}")
-    // Compute the statistics for the indexedColumns
-    val dataFrameStats = getDataFrameStats(dataFrame, indexStatus.revision.columnTransformers)
-    val numElements = dataFrameStats.getAs[Long]("count")
-    // Compute the changes in the space: cube size, transformations, etc.
-    val spaceChanges =
-      SparkRevisionChangeFactory.create(indexStatus.revision, options, dataFrameStats)
-    val (isNewRevision, revisionToUse) = spaceChanges match {
+    // Compute the changes in the space: cube size, transformers, and transformations.
+    val (revisionChanges, numElements) =
+      computeRevisionChanges(indexStatus.revision, options, dataFrame)
+    val (isNewRevision, revisionToUse) = revisionChanges match {
       case None => (false, indexStatus.revision)
       case Some(revisionChange) => (true, revisionChange.createNewRevision)
     }
@@ -280,7 +258,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
 
     // Gather the new changes
     val tableChanges = BroadcastTableChanges(
-      spaceChanges,
+      revisionChanges,
       indexStatus,
       updatedCubeWeights,
       inputDataBlockElementCounts)

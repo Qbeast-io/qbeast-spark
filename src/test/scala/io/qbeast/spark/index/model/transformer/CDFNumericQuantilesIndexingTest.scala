@@ -3,6 +3,7 @@ package io.qbeast.spark.index.model.transformer
 import io.qbeast.core.transform.CDFNumericQuantilesTransformation
 import io.qbeast.table.QbeastTable
 import io.qbeast.QbeastIntegrationTestSpec
+import org.apache.spark.sql.AnalysisException
 
 class CDFNumericQuantilesIndexingTest
     extends QbeastIntegrationTestSpec
@@ -101,7 +102,7 @@ class CDFNumericQuantilesIndexingTest
         val colName = "int_col"
         val path = tmpDir + "/quantiles/"
 
-        val thrown = intercept[UnsupportedOperationException] {
+        val thrown = intercept[AnalysisException] {
           df.write
             .mode("append")
             .format("qbeast")
@@ -109,7 +110,10 @@ class CDFNumericQuantilesIndexingTest
             .option("cubeSize", "30")
             .save(path)
         }
-        thrown.getMessage should include("ManualPlaceholderTransformation does not support")
+        val smg = s"Empty transformation for column $colName. " +
+          s"The following must be provided to use QuantileTransformers: ${colName}_quantiles."
+
+        thrown.getMessage shouldBe smg
       })
 
 }

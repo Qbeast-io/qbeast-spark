@@ -25,7 +25,9 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 
-class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
+class DoublePassOTreeDataAnalyzerTest
+    extends QbeastIntegrationTestSpec
+    with SparkRevisionChangesUtils {
 
   private def createDF(size: Int, spark: SparkSession): Dataset[T3] = {
     import spark.implicits._
@@ -68,15 +70,12 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
     val startingRevision =
       SparkRevisionFactory.createNewRevision(QTableID("test"), data.schema, options)
     val indexStatus = IndexStatus.empty(startingRevision)
-
-    val dataFrameStats = getDataFrameStats(data.toDF(), startingRevision.columnTransformers)
-    val numElements = dataFrameStats.getAs[Long]("count")
-
-    val revisionToUse =
-      SparkRevisionChangeFactory
-        .create(indexStatus.revision, options, dataFrameStats)
-        .get
-        .createNewRevision
+    val (revisionChanges, numElements) =
+      computeRevisionChanges(indexStatus.revision, options, data.toDF())
+    val (isNewRevision, revisionToUse) = revisionChanges match {
+      case None => (false, indexStatus.revision)
+      case Some(revisionChange) => (true, revisionChange.createNewRevision)
+    }
 
     val weightedDataFrame = data.withColumn(weightColumnName, qbeastHash(rand()))
 
@@ -88,7 +87,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
             numElements,
             revisionToUse,
             indexStatus,
-            isNewRevision = true))
+            isNewRevision = isNewRevision))
 
     val cubeCount = inputDataPartitionCubeDomains
       .groupBy("cubeBytes")
@@ -113,15 +112,13 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
       val startingRevision =
         SparkRevisionFactory.createNewRevision(QTableID("test"), data.schema, options)
       val indexStatus = IndexStatus.empty(startingRevision)
+      val (revisionChanges, numElements) =
+        computeRevisionChanges(indexStatus.revision, options, data.toDF())
+      val (isNewRevision, revisionToUse) = revisionChanges match {
+        case None => (false, indexStatus.revision)
+        case Some(revisionChange) => (true, revisionChange.createNewRevision)
+      }
 
-      val dataFrameStats = getDataFrameStats(data.toDF(), startingRevision.columnTransformers)
-      val numElements = dataFrameStats.getAs[Long]("count")
-
-      val revisionToUse =
-        SparkRevisionChangeFactory
-          .create(indexStatus.revision, options, dataFrameStats)
-          .get
-          .createNewRevision
       // Add a random weight column
       val weightedDataFrame = data.withColumn(weightColumnName, qbeastHash(rand()))
 
@@ -133,7 +130,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
               numElements,
               revisionToUse,
               indexStatus,
-              isNewRevision = true))
+              isNewRevision = isNewRevision))
           .collect()
           .toMap
 
@@ -155,14 +152,12 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
       val startingRevision =
         SparkRevisionFactory.createNewRevision(QTableID("test"), data.schema, options)
       val indexStatus = IndexStatus.empty(startingRevision)
-
-      val dataFrameStats = getDataFrameStats(data.toDF(), startingRevision.columnTransformers)
-      val numElements = dataFrameStats.getAs[Long]("count")
-      val revisionToUse =
-        SparkRevisionChangeFactory
-          .create(indexStatus.revision, options, dataFrameStats)
-          .get
-          .createNewRevision
+      val (revisionChanges, numElements) =
+        computeRevisionChanges(indexStatus.revision, options, data.toDF())
+      val (isNewRevision, revisionToUse) = revisionChanges match {
+        case None => (false, indexStatus.revision)
+        case Some(revisionChange) => (true, revisionChange.createNewRevision)
+      }
 
       val weightedDataFrame = data.withColumn(weightColumnName, qbeastHash(rand()))
 
@@ -174,7 +169,7 @@ class DoublePassOTreeDataAnalyzerTest extends QbeastIntegrationTestSpec {
               numElements,
               revisionToUse,
               indexStatus,
-              isNewRevision = true))
+              isNewRevision = isNewRevision))
           .collect()
           .toMap
 
