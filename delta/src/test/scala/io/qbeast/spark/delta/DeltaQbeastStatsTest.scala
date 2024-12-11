@@ -15,88 +15,57 @@
  */
 package io.qbeast.spark.delta
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
-import io.qbeast.core.model.mapper
-import io.qbeast.core.model.QbeastStats
+import io.qbeast.core.model.IndexFile
+import io.qbeast.spark.utils.TagUtils
+import org.apache.spark.sql.delta.actions.AddFile
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class DeltaQbeastStatsTest extends AnyFlatSpec with Matchers {
 
-  mapper.registerModule(QbeastStatsUtils.module)
+  "QbeastStats" should "maintain the AddFile stats value" in {
 
-  def areJsonEqual(json1: String, json2: String): Boolean = {
-    val basicMapper = new ObjectMapper()
-
-    try {
-      val node1: JsonNode = basicMapper.readTree(json1)
-      val node2: JsonNode = basicMapper.readTree(json2)
-
-      node1.equals(node2)
-    } catch {
-      case e: Exception =>
-        println(s"Error parsing JSON: ${e.getMessage}")
-        false
-    }
-  }
-
-  "ValueSerializer" should "serialize a numeric string to a number" in {
-    val json = mapper.writeValueAsString("123") // This uses ValueSerializer
-    json shouldEqual "123" // It should output a number in JSON
-  }
-
-  it should "serialize a non-numeric string as is" in {
-    val json = mapper.writeValueAsString("hello") // This uses ValueSerializer
-    json shouldEqual "\"hello\""
-  }
-
-  "ValueDeserializer" should "deserialize a number string to a string" in {
-    val value = mapper.readValue("123", classOf[String]) // This uses ValueDeserializer
-    value shouldEqual "123"
-  }
-
-  it should "deserialize a textual value as is" in {
-    val value = mapper.readValue("\"hello\"", classOf[String]) // This uses ValueDeserializer
-    value shouldEqual "hello"
-  }
-
-  "MapDeserializer" should "deserialize a JSON object to a Map[String, String]" in {
-    val json = """{"key1": "value1", "key2": {"innerKey": "innerValue"}}"""
-    val result = mapper.readValue(json, classOf[Map[String, String]]) // This uses MapDeserializer
-
-    result should contain("key1" -> "value1")
-    result should contain("key2" -> """{"innerKey":"innerValue"}""")
-  }
-
-  "QbeastStatsUtils" should "serialize and deserialize correctly" in {
     val jsonString =
       """{"numRecords":52041,"minValues":{"key1": "value1", "key2": {"innerKey": "innerValue"}},
         |"maxValues":{"key3": "value3", "key4": "value4"},"nullCount":{"key5": 0, "key6": 2}}""".stripMargin
 
-    // Create the expected QbeastStats object
-    val expectedStats = QbeastStats(
-      numRecords = 52041,
-      minValues = Map("key2" -> """{"innerKey":"innerValue"}""", "key1" -> "value1"),
-      maxValues = Map("key3" -> "value3", "key4" -> "value4"),
-      nullCount = Map("key5" -> "0", "key6" -> "2"))
+    val addFile = AddFile(
+      path = "path",
+      partitionValues = Map(),
+      size = 2L,
+      modificationTime = 0L,
+      dataChange = true,
+      stats = jsonString,
+      tags = Map(
+        TagUtils.revision -> "1",
+        TagUtils.blocks -> // WRONG BLOCK START
+          """{"cubeId":"","minWeight":2147483647,
+            |"maxWeight":2147483647,"elementCount":1}]""".stripMargin))
 
-    // Deserialize the JSON string
-    val deserializedStats = QbeastStatsUtils.fromString(jsonString)
+    val indexFile = DeltaQbeastFileUtils.fromAddFile(2)(addFile)
+    indexFile.stats.isDefined shouldBe true
+    indexFile.stats.get.toString shouldBe jsonString
 
-    // Verify that deserialization was successful and matches expected values
-    deserializedStats shouldBe defined // Ensure deserialization was successful
+  }
 
-    deserializedStats.foreach { ds =>
-      ds.numRecords shouldEqual expectedStats.numRecords
-      ds.minValues should contain theSameElementsAs expectedStats.minValues
-      ds.maxValues should contain theSameElementsAs expectedStats.maxValues
-      ds.nullCount should contain theSameElementsAs expectedStats.nullCount
-    }
+  it should "map correctly stats from AddFile" in {
 
-    // Serialize back to JSON string and verify it matches the original
-    val serializedJsonString = QbeastStatsUtils.toString(deserializedStats.get)
-    areJsonEqual(serializedJsonString, jsonString) shouldBe true
+    val jsonString =
+      """{"numRecords":52041,"minValues":{"key1": "value1", "key2": {"innerKey": "innerValue"}},
+        |"maxValues":{"key3": "value3", "key4": "value4"},"nullCount":{"key5": 0, "key6": 2}}""".stripMargin
+
+    val indexFile = IndexFile(
+      path = "path",
+      size = 2L,
+      dataChange = true,
+      modificationTime = 0L,
+      revisionId = 1L,
+      blocks = Seq().toIndexedSeq,
+      stats = Some(jsonString))
+
+    val addFile = DeltaQbeastFileUtils.toAddFile(indexFile)
+    addFile.stats shouldBe jsonString
+
   }
 
 }

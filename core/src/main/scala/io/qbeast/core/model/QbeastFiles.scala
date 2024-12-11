@@ -33,15 +33,20 @@ sealed trait QbeastFile extends Serializable {
 
 /**
  * Index file represents a physical file where blocks of the elements are stored.
- *
  * @param path
  *   the file path
  * @param size
  *   the file size in bytes
+ * @param dataChange
+ *   the data change flag
  * @param modificationTime
- *   the last modification timestamp
+ *   the modification time
+ * @param revisionId
+ *   the revision identifier
  * @param blocks
  *   the blocks
+ * @param stats
+ *   the statistics
  */
 case class IndexFile(
     path: String,
@@ -50,7 +55,7 @@ case class IndexFile(
     modificationTime: Long,
     revisionId: RevisionID,
     blocks: IISeq[Block],
-    stats: Option[QbeastStats] = None)
+    stats: Option[Any] = None)
     extends QbeastFile {
 
   /**
