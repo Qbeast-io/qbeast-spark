@@ -31,16 +31,12 @@ class QbeastInputSourcesTest extends QbeastIntegrationTestSpec {
       assert(e.getMessage.contains("assertion failed: The source query is non-deterministic."))
   }
 
-  it should "throw an error when indexing non-deterministic ORDER BY" in withSparkAndTmpDir {
+  it should "throw an error when indexing non-deterministic SAMPLE" in withSparkAndTmpDir {
     (spark, tmpDir) =>
-      // Index non-deterministic columns with ORDER BY
+      // Index non-deterministic columns with SAMPLE
       val df = spark.range(10).toDF("id")
       val e = intercept[AssertionError] {
-        df.orderBy("id")
-          .write
-          .format("qbeast")
-          .option("columnsToIndex", "id")
-          .save(tmpDir)
+        df.sample(0.5).write.format("qbeast").option("columnsToIndex", "id").save(tmpDir)
       }
       assert(e.getMessage.contains("assertion failed: The source query is non-deterministic."))
   }

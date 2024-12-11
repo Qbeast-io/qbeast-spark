@@ -22,13 +22,10 @@ import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
 import io.qbeast.IISeq
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.CUBE_DOMAINS_BUFFER_CAPACITY
-import org.apache.spark.sql.catalyst.plans.logical.Aggregate
 import org.apache.spark.sql.catalyst.plans.logical.Filter
-import org.apache.spark.sql.catalyst.plans.logical.GlobalLimit
-import org.apache.spark.sql.catalyst.plans.logical.Join
 import org.apache.spark.sql.catalyst.plans.logical.LocalLimit
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.logical.Project
+import org.apache.spark.sql.catalyst.plans.logical.Sample
 import org.apache.spark.sql.catalyst.plans.logical.Sort
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.DataFrame
@@ -278,45 +275,48 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
     }
   }
 
-  private def detectNonDeterministicOperations(plan: LogicalPlan): Set[String] = {
+  /**
+   * Builds a list of non-deterministic operations in the logical plan
+   *
+   * A list of Non-Deterministic operations:
+   *   - LocalLimit without Sort Operation
+   *   - Sample
+   *   - Filter with non-deterministic condition
+   *
+   * @param plan
+   *   the logical plan
+   * @return
+   */
+  private def getNonDeterministicOperations(plan: LogicalPlan): Set[LogicalPlan] = {
     // Recursively traverse the logical plan to find non-deterministic operations
     val currentOperation = plan match {
-      case GlobalLimit(_, l: LocalLimit) => Some("GLOBAL LIMIT")
-      case LocalLimit(_, _) => Some("LOCAL LIMIT")
-      case Aggregate(_, _, _) => Some("AGGREGATE")
-      case Filter(condition, _) if !condition.deterministic => Some("NON-DETERMINISTIC FILTER")
-      case Join(_, _, _, _, _) => Some("JOIN")
-      case Sort(_, _, _) => Some("SORT")
-      case Project(_, _) => None // Projection by itself is not non-deterministic
+      case LocalLimit(_, _: Sort) => None // LocalLimit with Sort is deterministic
+      case l @ LocalLimit(_, _) => Some(l)
+      case s @ Sample(_, _, _, _, _) => Some(s)
+      case f @ Filter(condition, _) if !condition.deterministic => Some(f)
       case _ => None
     }
 
-    val childOperations = plan.children.flatMap(detectNonDeterministicOperations)
+    val childOperations = plan.children.flatMap(getNonDeterministicOperations)
     val nonDeterministicOpsInCurrentPlan = currentOperation.toSet
 
     nonDeterministicOpsInCurrentPlan ++ childOperations
   }
 
-  def analyzeDeterminism(df: DataFrame): Unit = {
+  private def analyzeDataFrameDeterminism(df: DataFrame): Boolean = {
     // Access the logical plan of the DataFrame
     val logicalPlan: LogicalPlan = df.queryExecution.logical
 
     // Check if the logical plan's query is deterministic
     // Detect if the DataFrame's operations are deterministic
-    val nonDeterministicOps = detectNonDeterministicOperations(logicalPlan)
+    val nonDeterministicOps = getNonDeterministicOperations(logicalPlan)
     val isQueryDeterministic = nonDeterministicOps.isEmpty && logicalPlan.deterministic
 
     // Check if each column in the DataFrame is deterministic
     val columnDeterminism: Boolean = logicalPlan.output.forall(_.deterministic)
 
     // Check if the source is deterministic
-    val isSourceDeterministic = isQueryDeterministic && columnDeterminism
-
-    assert(
-      isSourceDeterministic,
-      s"The source query is non-deterministic." +
-        s" Due to Qbeast algorithm, we cannot ensure the determinism on the data organization." +
-        s" Please, use columnStats to index the DataFrame or enforce write operation by doing: .option(skipDeterminismCheck, true)")
+    isQueryDeterministic && columnDeterminism
   }
 
   override def analyze(
@@ -324,8 +324,16 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
       indexStatus: IndexStatus): (DataFrame, TableChanges) = {
     logTrace(s"Begin: Analyzing the input data with existing revision: ${indexStatus.revision}")
 
-    // Check if the Indexing Columns and the Query are deterministic
-    analyzeDeterminism(dataFrame)
+    // Check if the DataFrame is deterministic
+    logDebug(s"Checking the determinism of the input data")
+    val isSourceDeterministic = analyzeDataFrameDeterminism(dataFrame)
+    assert(
+      isSourceDeterministic,
+      s"The source query is non-deterministic. " +
+        s"Due to Qbeast-Spark write nature, we load the DataFrame twice before writing to storage." +
+        s"It is required to have deterministic queries and deterministic columns " +
+        s"to preserve the state of the indexing pipeline. " +
+        s"If it is not the case, please save the DF as delta and Convert it To Qbeast in a second step")
     // Compute the statistics for the indexedColumns
     val dataFrameStats = getDataFrameStats(dataFrame, indexStatus.revision.columnTransformers)
     val numElements = dataFrameStats.getAs[Long]("count")
