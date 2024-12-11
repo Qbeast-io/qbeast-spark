@@ -71,7 +71,7 @@ class DeltaRollupDataWriterTest extends QbeastIntegrationTestSpec {
     }
 
   it should "compute rollup correctly when optimizing" in
-    withSparkAndTmpDir { (spark, tmpDir) =>
+    withSparkAndTmpDir { (_, tmpDir) =>
       val revision =
         Revision(1L, 0, QTableID(tmpDir), 20, Vector(EmptyTransformer("col_1")), Vector.empty)
 
@@ -86,7 +86,7 @@ class DeltaRollupDataWriterTest extends QbeastIntegrationTestSpec {
         Map(root -> 20L, c1 -> 1L, c2 -> 20L))
 
       val rollup = DeltaRollupDataWriter.computeRollup(tc)
-      rollup shouldBe Map(root -> root, c1 -> root, c2 -> c2)
+      rollup shouldBe Map(root -> root, c1 -> c2, c2 -> c2)
     }
 
 }

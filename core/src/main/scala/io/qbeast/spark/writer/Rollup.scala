@@ -60,12 +60,15 @@ private[writer] class Rollup(limit: Double) {
       val cubeId = queue.dequeue()
       val group = groups(cubeId)
       if (group.size < limit && !cubeId.isRoot) {
-        val Some(parentCubeId) = cubeId.parent
-        if (groups.contains(parentCubeId)) {
-          groups(parentCubeId).add(group)
+        val nextInLine = cubeId.nextSibling match {
+          case Some(a) => a
+          case None => cubeId.parent.get
+        }
+        if (groups.contains(nextInLine)) {
+          groups(nextInLine).add(group)
         } else {
-          groups.put(parentCubeId, group)
-          queue.enqueue(parentCubeId)
+          groups.put(nextInLine, group)
+          queue.enqueue(nextInLine)
         }
         groups.remove(cubeId)
       }
