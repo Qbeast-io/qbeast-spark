@@ -60,7 +60,7 @@ private[delta] object DeltaQbeastFileUtils {
     val jsonString = addFile.stats
     val stats = jsonString match {
       case null => None
-      case _ => QbeastStatsUtils.fromString(jsonString)
+      case _ => Some(jsonString)
     }
     val builder = new IndexFileBuilder()
       .setPath(addFile.path)
@@ -91,10 +91,7 @@ private[delta] object DeltaQbeastFileUtils {
     val tags = Map(
       TagUtils.revision -> indexFile.revisionId.toString,
       TagUtils.blocks -> encodeBlocks(indexFile.blocks))
-    val stats = Option(indexFile.stats).flatMap {
-      case Some(s) => Some(QbeastStatsUtils.toString(s))
-      case None => None
-    }.orNull
+    val stats = indexFile.stats.orNull
     AddFile(
       path = indexFile.path,
       partitionValues = Map.empty[String, String],

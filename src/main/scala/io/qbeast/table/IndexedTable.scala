@@ -16,13 +16,11 @@
 package io.qbeast.table
 
 import io.qbeast.core.model._
+import io.qbeast.core.model.QbeastOptions.checkQbeastProperties
+import io.qbeast.core.model.QbeastOptions.COLUMNS_TO_INDEX
+import io.qbeast.core.model.QbeastOptions.CUBE_SIZE
 import io.qbeast.core.model.RevisionFactory
 import io.qbeast.sources.QbeastBaseRelation
-import io.qbeast.spark.internal.QbeastOptions
-import io.qbeast.spark.internal.QbeastOptions.checkQbeastProperties
-import io.qbeast.spark.internal.QbeastOptions.optimizationOptions
-import io.qbeast.spark.internal.QbeastOptions.COLUMNS_TO_INDEX
-import io.qbeast.spark.internal.QbeastOptions.CUBE_SIZE
 import io.qbeast.IISeq
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.COLUMN_SELECTOR_ENABLED
@@ -32,6 +30,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
 
 import java.lang.System.currentTimeMillis
 import java.util.ConcurrentModificationException
@@ -270,7 +269,6 @@ private[table] class IndexedTableImpl(
   }
 
   private def isNewRevision(qbeastOptions: QbeastOptions): Boolean = {
-
     // TODO feature: columnsToIndex may change between revisions
     val columnsToIndex = qbeastOptions.columnsToIndex
     val currentColumnsToIndex = latestRevision.columnTransformers.map(_.columnName)
@@ -284,23 +282,25 @@ private[table] class IndexedTableImpl(
     val isNewCubeSize = latestRevision.desiredCubeSize != qbeastOptions.cubeSize
     // Checks if the user-provided column boundaries would trigger the creation of
     // a new revision.
-    val isNewSpace = qbeastOptions.stats match {
+    val isNewSpace = qbeastOptions.columnStats match {
       case None => false
-      case Some(stats) =>
-        val columnStats = stats.first()
-        val transformations = latestRevision.transformations
-
+      case Some(statsString) =>
+        val spark = SparkSession.active
+        import spark.implicits._
+        val columnStatsRow = spark.read
+          .option("inferTimestamp", "true")
+          .option("timestampFormat", "yyyy-MM-dd HH:mm:ss.SSSSSS'Z'")
+          .json(Seq(statsString).toDS())
+          .first()
+        val statsFunc = (statsName: String) => columnStatsRow.getAs[Object](statsName)
         val newPossibleTransformations =
-          latestRevision.columnTransformers.map(t =>
-            t.makeTransformation(columnName => columnStats.getAs[Object](columnName)))
-
-        transformations
+          latestRevision.columnTransformers.map(_.makeTransformation(statsFunc))
+        latestRevision.transformations
           .zip(newPossibleTransformations)
           .forall(t => {
             t._1.isSupersededBy(t._2)
           })
     }
-
     isNewCubeSize || isNewSpace
 
   }
@@ -548,7 +548,7 @@ private[table] class IndexedTableImpl(
     metadataManager.updateWithTransaction(
       tableID,
       schema,
-      optimizationOptions(options),
+      QbeastOptions(options, latestIndexStatus.revision),
       WriteMode.Optimize) { transactionStartTime: String =>
       // Remove the Unindexed Files from the Log
       val deleteFiles: IISeq[DeleteFile] = files
@@ -595,7 +595,7 @@ private[table] class IndexedTableImpl(
           .updateWithTransaction(
             tableID,
             schema,
-            optimizationOptions(options),
+            QbeastOptions(options, revision),
             WriteMode.Optimize) { transactionStartTime: String =>
             import indexFiles.sparkSession.implicits._
             val deleteFiles: IISeq[DeleteFile] = indexFiles
