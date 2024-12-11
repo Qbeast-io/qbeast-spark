@@ -39,8 +39,7 @@ class DeltaQbeastStatsTest extends AnyFlatSpec with Matchers {
       tags = Map(
         TagUtils.revision -> "1",
         TagUtils.blocks -> // WRONG BLOCK START
-          """{"cubeId":"","minWeight":2147483647,
-            |"maxWeight":2147483647,"elementCount":1}]""".stripMargin))
+          """[{"cubeId":"","minWeight":2147483647,"maxWeight":2147483647,"elementCount":1}]""".stripMargin))
 
     val indexFile = DeltaQbeastFileUtils.fromAddFile(2)(addFile)
     indexFile.stats.isDefined shouldBe true
