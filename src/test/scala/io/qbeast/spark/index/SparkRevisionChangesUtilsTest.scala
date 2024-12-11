@@ -254,6 +254,37 @@ class SparkRevisionChangesUtilsTest
       }
   }
 
+  it should "allow for changing Transformer types between hashing and quantiles" in withSpark {
+    spark =>
+      // a: hashing -> quantiles, b: quantiles -> hashing
+      val revision = Revision.firstRevision(
+        QTableID("test"),
+        1000,
+        Vector(
+          HashTransformer("a", LongDataType),
+          CDFNumericQuantilesTransformer("b", DoubleDataType)),
+        Vector(
+          HashTransformation(),
+          CDFNumericQuantilesTransformation(Vector(0d, 0.5, 1.0), DoubleDataType)))
+      val options =
+        QbeastOptions(
+          Map(
+            COLUMNS_TO_INDEX -> "a:quantiles,b:hashing",
+            CUBE_SIZE -> "1000",
+            COLUMN_STATS -> """{"a_quantiles":[0.0, 0.3, 0.6, 1.0]"""))
+      val newRevision =
+        computeRevisionChanges(revision, options, createData(spark))._1.get.createNewRevision
+
+      newRevision.columnTransformers shouldBe Vector(
+        CDFNumericQuantilesTransformer("a", LongDataType),
+        HashTransformer("b", DoubleDataType))
+      newRevision.transformations.size shouldBe 2
+      newRevision.transformations.head shouldBe CDFNumericQuantilesTransformation(
+        Vector(0.0, 0.3, 0.6, 1.0),
+        LongDataType)
+      newRevision.transformations.last shouldBe a[HashTransformation]
+  }
+
   it should "throw an exception when using a quantile transformation without columnStats" in withSpark {
     spark =>
       val revision = Revision.firstRevision(
@@ -264,57 +295,5 @@ class SparkRevisionChangesUtilsTest
       an[AnalysisException] shouldBe thrownBy(
         computeRevisionChanges(revision, options, createData(spark))._1.get.createNewRevision)
   }
-
-  //  "computeRevisionChanges" should "work correctly with hashing types" in withSpark { spark =>
-  //    import spark.implicits._
-  //    val dataFrame = spark
-  //      .range(10000)
-  //      .map(i => TestStrings(s"$i", s"${i * i}", s"${i * 2}"))
-  //    val options = QbeastOptions(Map("columnsToIndex" -> "a,b,c", "cubeSize" -> "1000"))
-  //    val startingRevision =
-  //      SparkRevisionFactory.createNewRevision(QTableID("test"), dataFrame.schema, options)
-  //    val dataFrameStats = getDataFrameStats(dataFrame.toDF(), startingRevision.columnTransformers)
-  //    val revision =
-  //      computeRevisionChanges(dataFrameStats, startingRevision, options).get.createNewRevision
-  //
-  //    revision.columnTransformers.length shouldBe options.columnsToIndex.length
-  //    revision.transformations.length shouldBe options.columnsToIndex.length
-  //    revision.transformations.foreach(t => t shouldBe a[HashTransformation])
-  //  }
-  //
-  //  it should "work correctly with different types" in withSpark { spark =>
-  //    val dataFrame = createDF(10001, spark).toDF()
-  //    val columnsToIndex = dataFrame.columns
-  //    val options =
-  //      QbeastOptions(Map("columnsToIndex" -> columnsToIndex.mkString(","), "cubeSize" -> "1000"))
-  //    val startingRevision =
-  //      SparkRevisionFactory.createNewRevision(QTableID("test"), dataFrame.schema, options)
-  //    val dataFrameStats = getDataFrameStats(dataFrame, startingRevision.columnTransformers)
-  //
-  //    val revisionChanges = computeRevisionChanges(dataFrameStats, startingRevision, options)
-  //    revisionChanges shouldBe defined
-  //    revisionChanges.get.supersededRevision shouldBe startingRevision
-  //    revisionChanges.get.transformationsChanges.count(_.isDefined) shouldBe columnsToIndex.length
-  //    revisionChanges.get.desiredCubeSizeChange shouldBe None
-  //    revisionChanges.get.columnTransformersChanges shouldBe Vector.empty
-  //
-  //    val revision = revisionChanges.get.createNewRevision
-  //    revision.revisionID shouldBe 1L
-  //    revision.columnTransformers.size shouldBe columnsToIndex.length
-  //    revision.columnTransformers.map(_.columnName) shouldBe columnsToIndex
-  //    revision.transformations.size shouldBe columnsToIndex.length
-  //
-  //    val zero = revision.transformations.head
-  //    val one = revision.transformations(1)
-  //    val two = revision.transformations(2)
-  //    val three = revision.transformations(3)
-  //
-  //    zero should matchPattern { case LinearTransformation(0, 10000, _, LongDataType) => }
-  //    one should matchPattern { case LinearTransformation(0.0, 10000.0, _, DoubleDataType) => }
-  //    two should matchPattern { case HashTransformation(_) => }
-  //    three should matchPattern { case LinearTransformation(0.0f, 10000.0f, _, FloatDataType) => }
-  //
-  //  }
-  //  }
 
 }
