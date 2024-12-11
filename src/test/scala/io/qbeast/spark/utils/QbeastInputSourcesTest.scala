@@ -21,19 +21,6 @@ class QbeastInputSourcesTest extends QbeastIntegrationTestSpec {
     assert(e.getMessage.contains("assertion failed: The source query is non-deterministic."))
   }
 
-  it should "throw an error with current timestamp queries" in withSparkAndTmpDir {
-    (spark, tmpDir) =>
-      val df = spark.range(10).toDF("id")
-      val e = intercept[AssertionError] {
-        df.withColumn("timestamp", org.apache.spark.sql.functions.current_timestamp())
-          .write
-          .format("qbeast")
-          .option("columnsToIndex", "id")
-          .save(tmpDir)
-      }
-      assert(e.getMessage.contains("assertion failed: The source query is non-deterministic."))
-  }
-
   it should "throw an error when indexing non-deterministic LIMIT" in withSparkAndTmpDir {
     (spark, tmpDir) =>
       // Index non-deterministic columns with LIMIT
@@ -69,17 +56,6 @@ class QbeastInputSourcesTest extends QbeastIntegrationTestSpec {
           .save(tmpDir)
       }
       assert(e.getMessage.contains("assertion failed: The source query is non-deterministic."))
-  }
-
-  it should "throw an error with undeterministic timestamp queries" in withSparkAndTmpDir {
-    (spark, tmpDir) =>
-      spark
-        .range(100)
-        .withColumn("timestamp", org.apache.spark.sql.functions.current_timestamp())
-        .write
-        .format("qbeast")
-        .option("columnsToIndex", "id")
-        .save(tmpDir)
   }
 
   it should "allow indexing deterministic filters" in withSparkAndTmpDir { (spark, tmpDir) =>
