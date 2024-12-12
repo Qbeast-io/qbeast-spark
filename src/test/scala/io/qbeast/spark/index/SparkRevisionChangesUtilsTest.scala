@@ -43,6 +43,8 @@ class SparkRevisionChangesUtilsTest
 
   def createData(spark: SparkSession): DataFrame = {
     import spark.implicits._
+    // a_min = -100, a_max = 100, b_min = -200.0, b_max = 200.0
+    // c_min = 1.0, c_max = 2.0, d_min = 1.0, d_max = 2.0
     Seq(T3(-100L, -200.0, "a", 1.0f), T3(100L, 200.0, "b", 2.0f)).toDF
   }
 
@@ -205,7 +207,7 @@ class SparkRevisionChangesUtilsTest
         QTableID("test"),
         1000,
         Vector(LinearTransformer("a", LongDataType), HashTransformer("b", DoubleDataType)),
-        Vector(LinearTransformation(-1000L, 1000L, LongDataType), HashTransformation()))
+        Vector(LinearTransformation(-100L, 100L, LongDataType), HashTransformation()))
       val options =
         QbeastOptions(Map(COLUMNS_TO_INDEX -> "a:hashing,b:linear", CUBE_SIZE -> "1000"))
       val newRevision =
@@ -217,7 +219,7 @@ class SparkRevisionChangesUtilsTest
       newRevision.transformations.size shouldBe 2
       newRevision.transformations.head shouldBe a[HashTransformation]
       newRevision.transformations.last should matchPattern {
-        case LinearTransformation(-2000.0, 2000.0, _, DoubleDataType) =>
+        case LinearTransformation(-200.0, 200.0, _, DoubleDataType) =>
       }
   }
 
@@ -238,7 +240,7 @@ class SparkRevisionChangesUtilsTest
           Map(
             COLUMNS_TO_INDEX -> "a:quantiles,b:linear",
             CUBE_SIZE -> "1000",
-            COLUMN_STATS -> """{"a_quantiles":[0.0, 0.3, 0.6, 1.0]"""))
+            COLUMN_STATS -> """{"a_quantiles":[0.0, 0.3, 0.6, 1.0]}"""))
       val newRevision =
         computeRevisionChanges(revision, options, createData(spark))._1.get.createNewRevision
 
@@ -250,7 +252,7 @@ class SparkRevisionChangesUtilsTest
         Vector(0.0, 0.3, 0.6, 1.0),
         LongDataType)
       newRevision.transformations.last should matchPattern {
-        case LinearTransformation(-2000.0, 2000.0, _, DoubleDataType) =>
+        case LinearTransformation(-200.0, 200.0, _, DoubleDataType) =>
       }
   }
 
@@ -271,7 +273,7 @@ class SparkRevisionChangesUtilsTest
           Map(
             COLUMNS_TO_INDEX -> "a:quantiles,b:hashing",
             CUBE_SIZE -> "1000",
-            COLUMN_STATS -> """{"a_quantiles":[0.0, 0.3, 0.6, 1.0]"""))
+            COLUMN_STATS -> """{"a_quantiles":[0.0, 0.3, 0.6, 1.0]}"""))
       val newRevision =
         computeRevisionChanges(revision, options, createData(spark))._1.get.createNewRevision
 
@@ -291,9 +293,47 @@ class SparkRevisionChangesUtilsTest
         QTableID("test"),
         1000,
         Vector(LinearTransformer("a", LongDataType), HashTransformer("b", DoubleDataType)))
-      val options = QbeastOptions(Map(COLUMNS_TO_INDEX -> "a:quantiles", CUBE_SIZE -> "1000"))
-      an[AnalysisException] shouldBe thrownBy(
-        computeRevisionChanges(revision, options, createData(spark))._1.get.createNewRevision)
+      val options = QbeastOptions(Map(COLUMNS_TO_INDEX -> "a:quantiles,b", CUBE_SIZE -> "1000"))
+      val thrown = intercept[AnalysisException] {
+        computeRevisionChanges(revision, options, createData(spark))
+      }
+      val smg = s"Empty transformation for column a. " +
+        s"The following must be provided to use QuantileTransformers: a_quantiles."
+
+      thrown.getMessage shouldBe smg
+  }
+
+  it should "throw an exception when the provided columnStats is not a valid JSON string" in
+    withSpark { spark =>
+      val revision = stagingRevision(QTableID("test"), 1000, Seq("a", "b"))
+      val options = QbeastOptions(
+        Map(
+          COLUMNS_TO_INDEX -> "a:quantiles,b",
+          CUBE_SIZE -> "1000",
+          COLUMN_STATS -> """{"a_quantiles": [0.0, 0.3, 0.6, 1.0}"""))
+
+      val thrown = intercept[AnalysisException] {
+        computeRevisionChanges(revision, options, createData(spark))
+      }
+
+      thrown.getMessage shouldBe
+        """The columnStats provided is not a valid JSON: {"a_quantiles": [0.0, 0.3, 0.6, 1.0}"""
+    }
+
+  it should "change transformer type only when specified" in withSpark { spark =>
+    val schema = createData(spark).schema
+    val noChanges = computeTransformerChanges(
+      Vector(CDFNumericQuantilesTransformer("b", DoubleDataType)),
+      QbeastOptions(Seq("b"), 1000, "some_format"),
+      schema).flatten
+
+    noChanges.isEmpty shouldBe true
+
+    val withChanges = computeTransformerChanges(
+      Vector(CDFNumericQuantilesTransformer("b", DoubleDataType)),
+      QbeastOptions(Seq("b:hashing"), 1000, "some_format"),
+      schema).flatten
+    withChanges shouldBe Vector(HashTransformer("b", DoubleDataType))
   }
 
 }

@@ -7,7 +7,7 @@ import org.scalatest.matchers.should.Matchers
 
 class CDFNumericQuantilesTransformationTest extends AnyFlatSpec with Matchers {
 
-  val orderedDataTypeTest = IntegerDataType
+  val orderedDataTypeTest: IntegerDataType.type = IntegerDataType
 
   "CDFNumericQuantilesTransformer" should "return correct transformation for found index" in {
     val qt = CDFNumericQuantilesTransformation(IndexedSeq(1, 2, 3), orderedDataTypeTest)
@@ -50,7 +50,7 @@ class CDFNumericQuantilesTransformationTest extends AnyFlatSpec with Matchers {
   it should "return current transformation when other is not a QuantileTransformation" in {
     val qt = CDFNumericQuantilesTransformation(IndexedSeq(1, 2, 3), orderedDataTypeTest)
     val other = new LinearTransformation(1, 10, 7, orderedDataTypeTest)
-    qt.merge(other) should be(qt)
+    qt.merge(other) should be(other)
   }
 
 }

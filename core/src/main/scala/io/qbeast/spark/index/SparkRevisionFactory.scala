@@ -136,7 +136,11 @@ trait SparkRevisionChangesUtils extends StagingUtils with Logging {
   /**
    * Compute the transformer changes for the current operation. The input column names are assumed
    * to be the same as the existing ones. A new Transformer will be created if the existing one is
-   * an EmptyTransformer or if the transformerType has changed.
+   * an EmptyTransformer or if the transformerType has changed.To change the transformer type, one
+   * has to specify exactly the transformerType in the columnToIndex option:
+   * option("columnsToIndex", "col_name:transformer_type"). If the transformerType is not
+   * specified, no transformer change will be detected.
+   *
    * @param transformers
    *   the existing transformers
    * @param options
@@ -273,17 +277,7 @@ trait SparkRevisionChangesUtils extends StagingUtils with Logging {
       options: QbeastOptions,
       row: Row): IISeq[Transformation] = {
     val transformationsFromColumnsStats = {
-      val (columnStats, availableColumnStats) =
-        if (options.columnStats.isDefined) {
-          val spark = SparkSession.active
-          import spark.implicits._
-          val stats = spark.read
-            .option("inferTimestamp", "true")
-            .option("timestampFormat", "yyyy-MM-dd HH:mm:ss.SSSSSS'Z'")
-            .json(Seq(options.columnStats.get).toDS())
-            .first()
-          (stats, stats.schema.fieldNames.toSet)
-        } else (Row.empty, Set.empty[String])
+      val (columnStats, availableColumnStats) = parseColumnStats(options)
       transformers.map { t =>
         if (t.stats.statsNames.forall(availableColumnStats.contains)) {
           // Create transformation with columnStats
@@ -297,12 +291,30 @@ trait SparkRevisionChangesUtils extends StagingUtils with Logging {
     // Create transformations from the input DataFrame
     val transformationsFromDataFrame = transformers.map(_.makeTransformation(row.getAs[Object]))
     // Merge transformations created from the columnStats and DataFrame
-    transformationsFromColumnsStats
-      .zip(transformationsFromDataFrame)
+    transformationsFromDataFrame
+      .zip(transformationsFromColumnsStats)
       .map {
-        case (Some(tcs), tdf) => tcs.merge(tdf)
-        case (None, tdf) => tdf
+        case (tdf, Some(tcs)) => tdf.merge(tcs)
+        case (tdf, None) => tdf
       }
+  }
+
+  private[index] def parseColumnStats(options: QbeastOptions): (Row, Set[String]) = {
+    val (row, statsNames) = if (options.columnStats.isDefined) {
+      val spark = SparkSession.active
+      import spark.implicits._
+      val stats = spark.read
+        .option("inferTimestamp", "true")
+        .option("timestampFormat", "yyyy-MM-dd HH:mm:ss.SSSSSS'Z'")
+        .json(Seq(options.columnStats.get).toDS())
+        .first()
+      (stats, stats.schema.fieldNames.toSet)
+    } else (Row.empty, Set.empty[String])
+    if (statsNames.contains("_corrupt_record")) {
+      throw AnalysisExceptionFactory.create(
+        "The columnStats provided is not a valid JSON: " + row.getAs[String]("_corrupt_record"))
+    }
+    (row, statsNames)
   }
 
 }
