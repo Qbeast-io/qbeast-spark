@@ -17,11 +17,10 @@ package io.qbeast.spark.hudi
 
 import io.qbeast.core.model._
 import io.qbeast.core.model.PreCommitHook.PreCommitHookOutput
+import io.qbeast.core.model.QbeastOptions
 import io.qbeast.core.model.WriteMode.WriteModeValue
-import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.spark.utils.MetadataConfig
 import io.qbeast.spark.utils.TagUtils
-import io.qbeast.spark.writer.StatsTracker.registerStatsTrackers
 import io.qbeast.IISeq
 import org.apache.avro.Schema
 import org.apache.hudi
@@ -57,6 +56,7 @@ import org.apache.hudi.internal.schema.InternalSchema
 import org.apache.hudi.metadata.HoodieBackedTableMetadata
 import org.apache.hudi.metadata.HoodieTableMetadata
 import org.apache.hudi.storage.StoragePath
+import org.apache.hudi.table.action.HoodieWriteMetadata
 import org.apache.hudi.table.HoodieSparkTable
 import org.apache.hudi.AvroConversionUtils
 import org.apache.hudi.AvroConversionUtils.getAvroRecordNameAndNamespace
@@ -68,14 +68,12 @@ import org.apache.hudi.DataSourceWriteOptions._
 import org.apache.hudi.HoodieConversionUtils.toScalaOption
 import org.apache.hudi.HoodieSchemaUtils
 import org.apache.hudi.HoodieWriterUtils
+import org.apache.spark.api.java.JavaRDD
 import org.apache.spark.api.java.JavaSparkContext
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.execution.datasources.BasicWriteJobStatsTracker
-import org.apache.spark.sql.execution.datasources.WriteJobStatsTracker
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.util.SerializableConfiguration
 
 import java.lang.System.currentTimeMillis
 import java.util
@@ -89,8 +87,8 @@ import scala.collection.JavaConverters._
  *
  * @param tableID
  *   the table identifier
- * @param writeMode
- *   writeMode of the metadata
+ * @param mode
+ *   SaveMode of the writeMetadata
  * @param metaClient
  *   metaClient associated to the table
  * @param qbeastOptions
@@ -109,8 +107,8 @@ private[hudi] case class HudiMetadataWriter(
 
   private val basePath = tableID.id
 
-  private lazy val spark = SparkSession.active
-  private lazy val jsc = new JavaSparkContext(spark.sparkContext)
+  private val spark = SparkSession.active
+  private val jsc = new JavaSparkContext(spark.sparkContext)
 
   private def isOverwriteOperation: Boolean = writeMode == WriteMode.Overwrite
   private def isOptimizeOperation: Boolean = writeMode == WriteMode.Optimize
@@ -120,21 +118,6 @@ private[hudi] case class HudiMetadataWriter(
   // may not respect nullable very well.
   private val dataSchema: StructType = StructType(schema.fields.map(field =>
     field.copy(nullable = true, dataType = asNullable(field.dataType))))
-
-  /**
-   * Creates an instance of basic stats tracker on the desired transaction
-   * @return
-   */
-  private def createStatsTrackers(): Seq[WriteJobStatsTracker] = {
-    val statsTrackers: ListBuffer[WriteJobStatsTracker] = ListBuffer()
-    // Create basic stats trackers to add metrics on the Write Operation
-    val hadoopConf = spark.sessionState.newHadoopConf()
-    val basicWriteJobStatsTracker = new BasicWriteJobStatsTracker(
-      new SerializableConfiguration(hadoopConf),
-      BasicWriteJobStatsTracker.metrics)
-    statsTrackers.append(basicWriteJobStatsTracker)
-    statsTrackers
-  }
 
   private val preCommitHooks = new ListBuffer[PreCommitHook]()
 
@@ -247,10 +230,6 @@ private[hudi] case class HudiMetadataWriter(
       internalSchemaOpt,
       Some(writerSchema)) - HoodieWriteConfig.AUTO_COMMIT_ENABLE.key
 
-    // Check if it is necessary in hudi
-    val statsTrackers = createStatsTrackers()
-    registerStatsTrackers(statsTrackers)
-
     DataSourceUtils.createHoodieClient(
       jsc,
       writerSchema.toString,
@@ -277,6 +256,7 @@ private[hudi] case class HudiMetadataWriter(
     val instantTime = HoodieActiveTimeline.createNewInstantTime
     hudiClient.startCommitWithTime(instantTime, commitActionType)
     hudiClient.setOperationType(operationType)
+    hudiClient.preWrite(instantTime, operationType, metaClient)
 
     val hoodieTable = HoodieSparkTable.create(hudiClient.getConfig, hudiClient.getEngineContext)
     val timeLine = hoodieTable.getActiveTimeline
@@ -336,6 +316,10 @@ private[hudi] case class HudiMetadataWriter(
       hudiClient.commit(instantTime, writeStatusRdd, hudi.common.util.Option.of(extraMeta))
     }
 
+    val hoodieWriteMetadata = new HoodieWriteMetadata[JavaRDD[WriteStatus]]
+    hoodieWriteMetadata.setWriteStatuses(writeStatusRdd)
+    val table = hudiClient.initTable(operationType, hudi.common.util.Option.of(instantTime))
+    hudiClient.postWrite(hoodieWriteMetadata, instantTime, table)
   }
 
   def updateMetadataWithTransaction(config: => Configuration, overwrite: Boolean): Unit = {

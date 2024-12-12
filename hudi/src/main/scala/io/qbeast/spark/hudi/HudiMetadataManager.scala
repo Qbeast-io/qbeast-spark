@@ -16,8 +16,8 @@
 package io.qbeast.spark.hudi
 
 import io.qbeast.core.model._
+import io.qbeast.core.model.QbeastOptions
 import io.qbeast.core.model.WriteMode.WriteModeValue
-import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.IISeq
 import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.fs.Path
@@ -116,7 +116,8 @@ object HudiMetadataManager extends MetadataManager {
    */
   override def existsLog(tableID: QTableID): Boolean = {
     val hoodiePath = new Path(tableID.id, HoodieTableMetaClient.METAFOLDER_NAME)
-    FileSystem.get(hadoopConf).exists(hoodiePath)
+    val filesystem = FileSystem.get(new java.net.URI(tableID.id), hadoopConf)
+    filesystem.exists(hoodiePath)
   }
 
   /**
@@ -128,7 +129,8 @@ object HudiMetadataManager extends MetadataManager {
   override def createLog(tableID: QTableID): Unit = {
     if (!existsLog(tableID)) {
       val hoodiePath = new Path(tableID.id, HoodieTableMetaClient.METAFOLDER_NAME)
-      FileSystem.get(hadoopConf).mkdirs(hoodiePath)
+      val filesystem = FileSystem.get(new java.net.URI(tableID.id), hadoopConf)
+      filesystem.mkdirs(hoodiePath)
     }
   }
 
