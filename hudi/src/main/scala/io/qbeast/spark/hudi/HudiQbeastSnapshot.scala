@@ -115,6 +115,10 @@ case class HudiQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with Sta
     val indexFilesBuffer = ListBuffer[IndexFile]()
 
     val inputFiles = loadFileIndex().inputFiles
+
+    import spark.implicits._
+    if (inputFiles.isEmpty) return spark.emptyDataset[IndexFile]
+
     val commitTimes = inputFiles.map { filePath =>
       val fileName = new StoragePath(filePath).getName
       FSUtils.getCommitTime(fileName)
@@ -143,9 +147,7 @@ case class HudiQbeastSnapshot(tableID: QTableID) extends QbeastSnapshot with Sta
     val archivedTimeline = metaClient.getArchivedTimeline(commitTimes.min)
     processTimeline(archivedTimeline)
 
-    import spark.implicits._
-    val indexFilesDataset: Dataset[IndexFile] = spark.createDataset(indexFilesBuffer.toList)
-    indexFilesDataset
+    spark.createDataset(indexFilesBuffer.toList)
   }
 
   override def loadAllRevisions: IISeq[Revision] = revisionsMap.values.toVector
