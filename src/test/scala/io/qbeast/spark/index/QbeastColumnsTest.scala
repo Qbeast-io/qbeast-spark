@@ -32,7 +32,6 @@ class QbeastColumnsTest extends AnyFlatSpec with Matchers {
     QbeastColumns.weightColumnName should startWith("_qbeast")
     QbeastColumns.cubeColumnName should startWith("_qbeast")
     QbeastColumns.fileUUIDColumnName should startWith("_qbeast")
-    QbeastColumns.filenameColumnName should startWith("_qbeast")
   }
 
   it should "create instance from schema correctly" in {
@@ -50,8 +49,6 @@ class QbeastColumnsTest extends AnyFlatSpec with Matchers {
     columns1.hasCubeColumn shouldBe true
     columns1.fileUUIDColumnIndex shouldBe -1
     columns1.hasFileUUIDColumn shouldBe false
-    columns1.filenameColumnIndex shouldBe -1
-    columns1.hasFilenameColumn shouldBe false
 
     val schema2 = StructType(
       Seq(
@@ -59,8 +56,7 @@ class QbeastColumnsTest extends AnyFlatSpec with Matchers {
         StructField("B", StringType),
         StructField("C", StringType),
         StructField(QbeastColumns.fileUUIDColumnName, BinaryType),
-        StructField("D", StringType),
-        StructField(QbeastColumns.filenameColumnName, StringType)))
+        StructField("D", StringType)))
     val columns2 = QbeastColumns(schema2)
     columns2.weightColumnIndex shouldBe -1
     columns2.hasWeightColumn shouldBe false
@@ -68,8 +64,6 @@ class QbeastColumnsTest extends AnyFlatSpec with Matchers {
     columns2.hasCubeColumn shouldBe false
     columns2.fileUUIDColumnIndex shouldBe 3
     columns2.hasFileUUIDColumn shouldBe true
-    columns2.filenameColumnIndex shouldBe 5
-    columns2.hasFilenameColumn shouldBe true
   }
 
   it should "implement contains correctly" in {

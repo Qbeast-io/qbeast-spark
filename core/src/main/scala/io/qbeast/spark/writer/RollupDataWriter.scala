@@ -37,23 +37,32 @@ import scala.collection.mutable
  */
 trait RollupDataWriter extends DataWriter {
 
-  type GetCubeMaxWeight = CubeId => Weight
-  type Extract = InternalRow => (InternalRow, Weight, CubeId, String)
-  type WriteRows = Iterator[InternalRow] => Iterator[(IndexFile, TaskStats)]
+  type ProcessRows = (InternalRow, String) => (InternalRow, String)
+  private type GetCubeMaxWeight = CubeId => Weight
+  private type Extract = InternalRow => (InternalRow, Weight, CubeId, String)
+  private type WriteRows = Iterator[InternalRow] => Iterator[(IndexFile, TaskStats)]
 
   protected def doWrite(
       tableId: QTableID,
       schema: StructType,
       extendedData: DataFrame,
       tableChanges: TableChanges,
-      trackers: Seq[WriteJobStatsTracker]): IISeq[(IndexFile, TaskStats)] = {
+      trackers: Seq[WriteJobStatsTracker],
+      processRow: Option[ProcessRows] = None): IISeq[(IndexFile, TaskStats)] = {
 
     val revision = tableChanges.updatedRevision
     val getCubeMaxWeight = { cubeId: CubeId =>
       tableChanges.cubeWeight(cubeId).getOrElse(Weight.MaxValue)
     }
     val writeRows =
-      getWriteRows(tableId, schema, extendedData, revision, getCubeMaxWeight, trackers)
+      getWriteRows(
+        tableId,
+        schema,
+        extendedData,
+        revision,
+        getCubeMaxWeight,
+        trackers,
+        processRow)
     extendedData
       .repartition(col(QbeastColumns.fileUUIDColumnName))
       .queryExecution
@@ -70,8 +79,9 @@ trait RollupDataWriter extends DataWriter {
       extendedData: DataFrame,
       revision: Revision,
       getCubeMaxWeight: GetCubeMaxWeight,
-      trackers: Seq[WriteJobStatsTracker]): WriteRows = {
-    val extract = getExtract(extendedData, revision)
+      trackers: Seq[WriteJobStatsTracker],
+      processRow: Option[ProcessRows]): WriteRows = {
+    val extract = getExtract(extendedData, revision, processRow)
     val revisionId = revision.revisionID
     val writerFactory =
       getIndexFileWriterFactory(tableId, schema, extendedData, revisionId, trackers)
@@ -88,7 +98,10 @@ trait RollupDataWriter extends DataWriter {
     }
   }
 
-  private def getExtract(extendedData: DataFrame, revision: Revision): Extract = {
+  private def getExtract(
+      extendedData: DataFrame,
+      revision: Revision,
+      processRow: Option[ProcessRows]): Extract = {
     val schema = extendedData.schema
     val qbeastColumns = QbeastColumns(extendedData)
     val extractors = schema.fields.indices
@@ -97,16 +110,16 @@ trait RollupDataWriter extends DataWriter {
         row.get(i, schema(i).dataType)
       }
     extendedRow => {
+      val fileUUID = extendedRow.getString(qbeastColumns.fileUUIDColumnIndex)
       val row = InternalRow.fromSeq(extractors.map(_.apply(extendedRow)))
+      val (processedRow, filename) = processRow match {
+        case Some(func) => func(row, fileUUID)
+        case None => (row, s"$fileUUID.parquet")
+      }
       val weight = Weight(extendedRow.getInt(qbeastColumns.weightColumnIndex))
       val cubeIdBytes = extendedRow.getBinary(qbeastColumns.cubeColumnIndex)
       val cubeId = revision.createCubeId(cubeIdBytes)
-      val filename = {
-        if (qbeastColumns.hasFilenameColumn)
-          extendedRow.getString(qbeastColumns.filenameColumnIndex)
-        else extendedRow.getString(qbeastColumns.fileUUIDColumnIndex) + ".parquet"
-      }
-      (row, weight, cubeId, filename)
+      (processedRow, weight, cubeId, filename)
     }
   }
 

@@ -35,17 +35,11 @@ object QbeastColumns {
   val cubeColumnName = "_qbeastCube"
 
   /**
-   * Cube to rollup column name.
+   * Destination file UUID column name.
    */
   val fileUUIDColumnName = "_qbeastFileUUID"
 
-  /**
-   * Cube to rollup file name column name.
-   */
-  val filenameColumnName = "_qbeastFilename"
-
-  val columnNames: Set[String] =
-    Set(weightColumnName, cubeColumnName, fileUUIDColumnName, filenameColumnName)
+  val columnNames: Set[String] = Set(weightColumnName, cubeColumnName, fileUUIDColumnName)
 
   /**
    * Creates an instance for a given data frame.
@@ -70,8 +64,7 @@ object QbeastColumns {
     QbeastColumns(
       weightColumnIndex = columnIndexes.getOrElse(weightColumnName, -1),
       cubeColumnIndex = columnIndexes.getOrElse(cubeColumnName, -1),
-      fileUUIDColumnIndex = columnIndexes.getOrElse(fileUUIDColumnName, -1),
-      filenameColumnIndex = columnIndexes.getOrElse(filenameColumnName, -1))
+      fileUUIDColumnIndex = columnIndexes.getOrElse(fileUUIDColumnName, -1))
   }
 
   /**
@@ -106,14 +99,8 @@ object QbeastColumns {
  *   the cube column index or -1 if it is missing
  * @param fileUUIDColumnIndex
  *   target file UUID column index or -1 if it is missing
- * @param filenameColumnIndex
- *   the cube to rollup file name column index or -1 if it is missing
  */
-case class QbeastColumns(
-    weightColumnIndex: Int,
-    cubeColumnIndex: Int,
-    fileUUIDColumnIndex: Int,
-    filenameColumnIndex: Int) {
+case class QbeastColumns(weightColumnIndex: Int, cubeColumnIndex: Int, fileUUIDColumnIndex: Int) {
 
   /**
    * Returns whether a given column is one of the Qbeast columns.
@@ -126,8 +113,7 @@ case class QbeastColumns(
   def contains(columnIndex: Int): Boolean = {
     columnIndex == weightColumnIndex ||
     columnIndex == cubeColumnIndex ||
-    columnIndex == fileUUIDColumnIndex ||
-    columnIndex == filenameColumnIndex
+    columnIndex == fileUUIDColumnIndex
   }
 
   /**
@@ -147,18 +133,11 @@ case class QbeastColumns(
   def hasCubeColumn: Boolean = cubeColumnIndex >= 0
 
   /**
-   * Returns whether the cube to rollup column exists.
+   * Returns whether the destination file UUID column exists.
    *
    * @return
    *   the cube to rollup column exists
    */
   def hasFileUUIDColumn: Boolean = fileUUIDColumnIndex >= 0
 
-  /**
-   * Returns whether the filename column exists.
-   *
-   * @return
-   *   the filename column exists
-   */
-  def hasFilenameColumn: Boolean = filenameColumnIndex >= 0
 }
