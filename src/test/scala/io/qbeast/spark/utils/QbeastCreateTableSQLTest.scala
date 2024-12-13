@@ -18,6 +18,7 @@ package io.qbeast.spark.utils
 import io.qbeast.table.QbeastTable
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Student
+import org.apache.spark.qbeast.config.DEFAULT_TABLE_FORMAT
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
@@ -52,7 +53,7 @@ class QbeastCreateTableSQLTest extends QbeastIntegrationTestSpec {
 
       val location = tmpDir + "/external_student/"
       val data = createStudentsTestData(spark)
-      data.write.format("delta").save(location)
+      data.write.format(DEFAULT_TABLE_FORMAT).save(location)
 
       an[AnalysisException] shouldBe thrownBy(
         spark.sql(

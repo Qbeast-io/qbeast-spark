@@ -13,99 +13,53 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.qbeast.spark.utils
+package io.qbeast.spark.delta
 
 import io.qbeast.core.model.IndexFile
 import io.qbeast.core.model.QTableID
+import io.qbeast.internal.commands.ConvertToQbeastCommand
 import io.qbeast.table.QbeastTable
 import io.qbeast.QbeastIntegrationTestSpec
-import org.apache.spark.qbeast.config.DEFAULT_TABLE_FORMAT
-import org.apache.spark.sql.functions._
+import org.apache.spark.sql.delta.actions.Action
+import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.actions.CommitInfo
+import org.apache.spark.sql.delta.actions.RemoveFile
+import org.apache.spark.sql.delta.util.FileNames
+import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 
-class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
+class QbeastOptimizeDeltaTest extends QbeastIntegrationTestSpec {
 
-  def createTableWithMultipleAppends(spark: SparkSession, tmpDir: String): Unit = {
-    val options = Map(
-      "columnsToIndex" -> "col_1,col_2",
-      "cubeSize" -> "100",
-      "columnStats" ->
-        """{"col_1_min": 0.0, "col_1_max": 10000.0, "col_2_min": 0.0, "col_2_max": 10000.0}""")
-    spark
-      .range(10000)
-      .withColumn("col_1", rand() % 10000)
-      .withColumn("col_2", rand() % 10000)
-      .write
-      .format("qbeast")
-      .options(options)
-      .save(tmpDir)
-    spark
-      .range(10000)
-      .withColumn("col_1", rand() % 10000)
-      .withColumn("col_2", rand() % 10000)
-      .write
-      .mode("append")
-      .format("qbeast")
-      .save(tmpDir)
-  }
+  "Table optimize" should "set the dataChange flag as false" in
+    withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
+      import spark.implicits._
 
-  behavior of "A fully optimized index"
+      val df = spark.sparkContext.range(0, 10).toDF("id")
+      df.write
+        .mode("append")
+        .format("qbeast")
+        .option("columnsToIndex", "id")
+        .save(tmpDir)
 
-  it should "have no cube fragmentation" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
-    createTableWithMultipleAppends(spark, tmpDir)
-    val qt = QbeastTable.forPath(spark, tmpDir)
-    val elementCountBefore = qt.getIndexMetrics.elementCount
-    qt.optimize()
+      QbeastTable.forPath(spark, tmpDir).optimize(1L, Map.empty[String, String])
 
-    val mAfter = qt.getIndexMetrics
-    val fragmentationAfter = mAfter.blockCount / mAfter.cubeCount.toDouble
-    val elementCountAfter = mAfter.elementCount
+      val deltaLog = DeltaLog.forTable(spark, tmpDir)
+      val snapshot = deltaLog.update()
+      val conf = deltaLog.newDeltaHadoopConf()
 
-    fragmentationAfter shouldBe 1d
-    elementCountBefore shouldBe elementCountAfter
-  }
+      deltaLog.store
+        .read(FileNames.deltaFile(deltaLog.logPath, snapshot.version), conf)
+        .map(Action.fromJson)
+        .collect({
+          case addFile: AddFile => addFile.dataChange shouldBe false
+          case removeFile: RemoveFile => removeFile.dataChange shouldBe false
+          case commitInfo: CommitInfo =>
+            commitInfo.isolationLevel shouldBe Some("SnapshotIsolation")
+          case _ => None
+        })
 
-  it should "sample correctly" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
-    createTableWithMultipleAppends(spark, tmpDir)
-    val df = spark.read.format("qbeast").load(tmpDir)
-    val dataSize = df.count()
-
-    val qt = QbeastTable.forPath(spark, tmpDir)
-    qt.optimize()
-
-    // Here, we use a tolerance of 5% because the total number of elements is relatively small
-    val tolerance = 0.05
-    List(0.1, 0.2, 0.5, 0.7, 0.99).foreach { f =>
-      val margin = dataSize * f * tolerance
-      val sampleSize = df.sample(f).count().toDouble
-      sampleSize shouldBe (dataSize * f) +- margin
     }
-  }
-
-  "Optimizing with given fraction" should "improve sampling efficiency" in withQbeastContextSparkAndTmpDir {
-    (spark, tmpDir) =>
-      def getSampledFiles(fraction: Double): Seq[IndexFile] = {
-        val qs = getQbeastSnapshot(tmpDir)
-        qs.loadLatestIndexFiles
-          .filter(f => f.blocks.exists(_.minWeight.fraction <= fraction))
-          .collect()
-      }
-
-      createTableWithMultipleAppends(spark, tmpDir)
-      val fraction: Double = 0.1
-      val filesBefore = getSampledFiles(fraction)
-
-      QbeastTable.forPath(spark, tmpDir).optimize(fraction)
-
-      val filesAfter = getSampledFiles(fraction)
-      // We should be reading fewer files
-      filesAfter.size should be < filesBefore.size
-      // We should be reading fewer data
-      filesAfter.map(_.size).sum should be < filesBefore.map(_.size).sum
-      // We should be reading fewer blocks
-      filesAfter.map(_.blocks.size).sum should be < filesBefore.map(_.blocks.size).sum
-  }
 
   /**
    * Get the unindexed files from the last updated Snapshot
@@ -127,6 +81,10 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
     getQbeastSnapshot(qtableID.id).loadLatestIndexFiles
   }
 
+  def getAllFiles(spark: SparkSession, d: QTableID): Dataset[AddFile] = {
+    DeltaLog.forTable(spark, d.id).update().allFiles
+  }
+
   def checkLatestRevisionAfterOptimize(spark: SparkSession, qTableID: QTableID): Unit = {
     // Check that the revision of the files is correct
     val indexedFiles = getIndexedFiles(qTableID)
@@ -144,6 +102,38 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
       .getLong(0) shouldBe 1L // The latest Revision
   }
 
+  "Optimizing the Revision 0L" should "optimize a table converted to Qbeast" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      spark
+        .range(50)
+        .write
+        .mode("append")
+        .format("delta")
+        .save(tmpDir) // Append data without indexing
+
+      ConvertToQbeastCommand(identifier = s"delta.`$tmpDir`", columnsToIndex = Seq("id"))
+        .run(spark)
+
+      val qtableID = QTableID(tmpDir)
+      val firstUnindexedFiles = getUnindexedFiles(qtableID)
+      val allFiles = getAllFiles(spark, qtableID)
+      firstUnindexedFiles.count() shouldBe allFiles.count()
+      // Optimize the Table
+      val qt = QbeastTable.forPath(spark, tmpDir)
+      qt.optimize(0L)
+
+      // After optimization, all files from the Legacy Table should be indexed
+      val unindexedFiles = getUnindexedFiles(qtableID)
+      unindexedFiles shouldBe empty
+      // Check that the indexed files are correct
+      val indexedFiles = getIndexedFiles(qtableID)
+      val allFilesAfter = getAllFiles(spark, qtableID)
+      indexedFiles.count() shouldBe allFilesAfter.count()
+
+      checkLatestRevisionAfterOptimize(spark, qtableID)
+
+  }
+
   it should "optimize and Hybrid Table" in withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
     spark
       .range(50)
@@ -157,7 +147,7 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
       .range(50)
       .write
       .mode("append")
-      .format(DEFAULT_TABLE_FORMAT)
+      .format("delta")
       .save(tmpDir) // Append data without indexing
 
     val qtableID = QTableID(tmpDir)
@@ -191,7 +181,7 @@ class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
         .range(100)
         .write
         .mode("append")
-        .format(DEFAULT_TABLE_FORMAT)
+        .format("delta")
         .save(tmpDir) // Append data without indexing
 
       // Check that the number of unindexed files is not 0

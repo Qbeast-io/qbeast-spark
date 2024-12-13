@@ -16,7 +16,6 @@
 package io.qbeast.core.model
 
 import io.qbeast.core.model.WriteMode.WriteModeValue
-import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.IISeq
 import org.apache.spark.sql.types.StructType
 
@@ -79,24 +78,6 @@ trait MetadataManager {
       tableID: QTableID,
       schema: StructType,
       overwrite: Boolean = false)(update: => Configuration): Unit
-
-  /**
-   * Updates the Revision with the given RevisionChanges
-   * @param tableID
-   *   the QTableID
-   * @param revisionChange
-   *   the collection of RevisionChanges
-   */
-  def updateRevision(tableID: QTableID, revisionChange: RevisionChange): Unit
-
-  /**
-   * Updates the Table with the given TableChanges
-   * @param tableID
-   *   the QTableID
-   * @param tableChanges
-   *   the collection of TableChanges
-   */
-  def updateTable(tableID: QTableID, tableChanges: TableChanges): Unit
 
   /**
    * Checks if there's an existing log directory for the table

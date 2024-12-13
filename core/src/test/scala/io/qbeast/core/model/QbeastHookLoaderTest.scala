@@ -17,7 +17,6 @@ package io.qbeast.core.model
 
 import io.qbeast.core.model.PreCommitHook.PreCommitHookOutput
 import io.qbeast.core.model.StatefulTestHook.StatefulTestHookState
-import io.qbeast.spark.internal.QbeastOptions
 import org.mockito.Mockito._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

@@ -17,7 +17,6 @@ package io.qbeast.spark.delta
 
 import io.qbeast.core.model._
 import io.qbeast.core.model.WriteMode.WriteModeValue
-import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.IISeq
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.DeltaLog
@@ -62,10 +61,6 @@ object DeltaMetadataManager extends MetadataManager {
   override def loadCurrentSchema(tableID: QTableID): StructType = {
     loadDeltaLog(tableID).update().schema
   }
-
-  override def updateRevision(tableID: QTableID, revisionChange: RevisionChange): Unit = {}
-
-  override def updateTable(tableID: QTableID, tableChanges: TableChanges): Unit = {}
 
   /**
    * Returns the DeltaQbeastLog for the table

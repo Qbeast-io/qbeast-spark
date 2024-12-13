@@ -15,15 +15,13 @@
  */
 package io.qbeast.spark.utils
 
-import io.qbeast.core.model.IndexFile
 import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QbeastOptions
 import io.qbeast.spark.index.SparkRevisionFactory
-import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Client3
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.functions.input_file_name
-import org.apache.spark.sql.functions.rand
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
@@ -168,89 +166,6 @@ class QbeastSnapshotTest extends QbeastIntegrationTestSpec {
         qbeastSnapshot.loadDataframeFromIndexFiles(filesToOptimize.filter(_.path == fileName))
 
       subSet.count shouldBe fileSize
-
-    }
-  }
-
-  "loadDataframeFromIndexFiles" should "work properly with evolving schema" in {
-    withSparkAndTmpDir { (spark, tmpDir) =>
-      import spark.implicits._
-
-      val cubeSize = 100
-      val options =
-        Map("columnsToIndex" -> "id", "cubeSize" -> cubeSize.toString)
-      spark
-        .range(100)
-        .filter("id % 2 = 0")
-        .write
-        .format("qbeast")
-        .mode("overwrite")
-        .options(options)
-        .save(tmpDir)
-
-      spark
-        .range(100)
-        .filter("id % 2 = 1")
-        .withColumn("rand", rand())
-        .write
-        .option("mergeSchema", "true")
-        .format("qbeast")
-        .mode("append")
-        .options(options)
-        .save(tmpDir)
-
-      spark.read.format("qbeast").load(tmpDir).count.toInt shouldBe 100
-
-      val qbeastSnapshot = getQbeastSnapshot(tmpDir)
-
-      val filesToOptimize = qbeastSnapshot.loadAllRevisions
-        .map(rev => qbeastSnapshot.loadIndexFiles(rev.revisionID))
-        .foldLeft(spark.emptyDataset[IndexFile])(_ union _)
-      val allData = qbeastSnapshot.loadDataframeFromIndexFiles(filesToOptimize)
-      allData.count.toInt shouldBe 100
-
-      val data = spark.read.format("qbeast").load(tmpDir)
-      // I'm selecting only the old file with the first schema with only 1 column
-      val filePath =
-        data.filter("id % 2 = 0").select(input_file_name()).distinct().as[String].first()
-
-      spark.read.parquet(filePath).columns shouldBe Seq("id")
-
-      val fileName = new Path(filePath).getName
-
-      val subSet =
-        qbeastSnapshot.loadDataframeFromIndexFiles(filesToOptimize.filter(_.path == fileName))
-
-      subSet.schema shouldBe data.schema
-      subSet.columns shouldBe Seq("id", "rand")
-
-    }
-  }
-
-  it should "fail if deletion Vector are enable" in {
-    withExtendedSparkAndTmpDir(
-      sparkConfWithSqlAndCatalog
-        .set("spark.databricks.delta.properties.defaults.enableDeletionVectors", "true")) {
-      (spark, tmpDir) =>
-        val nrows = 100
-        val df = createDF(nrows)
-        val names = List("age", "val2")
-        val cubeSize = 100
-        val options =
-          Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> cubeSize.toString)
-        df.write
-          .format("qbeast")
-          .option("enableDeletionVectors", "true")
-          .mode("overwrite")
-          .options(options)
-          .save(tmpDir)
-        val qbeastSnapshot = getQbeastSnapshot(tmpDir)
-        val lastRev = qbeastSnapshot.loadLatestRevision
-        val filesToOptimize = qbeastSnapshot.loadIndexFiles(lastRev.revisionID)
-
-        intercept[UnsupportedOperationException] {
-          qbeastSnapshot.loadDataframeFromIndexFiles(filesToOptimize)
-        }
 
     }
   }

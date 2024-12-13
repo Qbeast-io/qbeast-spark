@@ -157,11 +157,11 @@ trait QbeastSnapshot {
   def loadDataframeFromIndexFiles(indexFile: Dataset[IndexFile]): DataFrame
 
   /**
-   * Lists the files present in the staging area
+   * Lists the un-indexed files
    * @return
    *   the FileIndex
    */
-  def listStagingAreaFiles(
+  def listUnindexedFiles(
       fileIndex: FileIndex,
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[FileStatusWithMetadata]

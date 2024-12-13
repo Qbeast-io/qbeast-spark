@@ -189,7 +189,7 @@ object QbeastUtils extends Logging {
   @Experimental
   def updateTransformationTypes(qbeastTable: QbeastTable): Unit = {
     // 1. Get te Latest Snapshot of the Table
-    val latestSnapshot = qbeastTable.getLatestSnapshot()
+    val latestSnapshot = qbeastTable.getLatestSnapshot
     // 2. Load all the Revisions Present
     val allRevisions = latestSnapshot.loadAllRevisions
     // 3. Check if there are any revisionsToUpdate
