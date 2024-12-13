@@ -89,8 +89,11 @@ case class CDFNumericQuantilesTransformation(
           val upperValue = quantiles(upperIndex)
 
           // Linear interpolation within the bin
+          // 1. Calculate the linear value between the two quantiles
           val fraction = (currentValue - lowerValue) / (upperValue - lowerValue)
-          (lowerIndex.toDouble + fraction) / (quantiles.length - 1)
+          // 2. Normalize the value to the range [0, 1]
+          val result = (lowerIndex.toDouble + fraction) / (quantiles.length - 1)
+          result
         }
     }
   }
