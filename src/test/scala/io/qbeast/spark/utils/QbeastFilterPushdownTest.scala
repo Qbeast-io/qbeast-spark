@@ -21,9 +21,7 @@ import io.qbeast.TestUtils._
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.functions.avg
 import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.functions.rand
 import org.apache.spark.sql.functions.regexp_replace
-import org.apache.spark.sql.functions.when
 
 class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
@@ -133,12 +131,14 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
     "for null value columns" in withSparkAndTmpDir { (spark, tmpDir) =>
       {
         val data = loadTestData(spark)
-        val dataWithNulls =
-          data.withColumn(
-            "null_product_id",
-            when(rand() > 0.5, null).otherwise(col("product_id")))
+        val dataWithoutNulls =
+          data.filter("product_id < 100000").withColumn("null_product_id", col("product_id"))
+        val dataWithNulls = data
+          .filter("product_id >= 100000")
+          .withColumn("null_product_id", null)
+        val dataToIndex = dataWithoutNulls.union(dataWithNulls)
 
-        writeTestData(dataWithNulls, Seq("brand", "null_product_id"), 10000, tmpDir)
+        writeTestData(dataToIndex, Seq("brand", "null_product_id"), 10000, tmpDir)
 
         val df = spark.read.format("qbeast").load(tmpDir)
         val filter = "(`null_product_id` is null)"
