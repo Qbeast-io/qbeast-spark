@@ -79,10 +79,11 @@ class SparkRevisionChangesUtilsTest
   // 19. it should create a new revision by changing the transformer type between linear and quantiles
   // 20. it should create a new revision by changing the transformer type between hashing and quantiles
   // 21. it should throw an exception when using a quantile transformation without columnStats
-  // 22. it should throw an exception when the provided columnStats is not a valid JSON string
+  // 22. it should not create a new revision when appending to an existing quantile transformation without columnStats
+  // 23. it should throw an exception when the provided columnStats is not a valid JSON string
 
   // cubeSize changes
-  // 23. it should detect cubeSize changes
+  // 24. it should detect cubeSize changes
 
   // Transformation changes (no columnStats)
   "SparkRevisionChangesUtils" should
@@ -607,7 +608,7 @@ class SparkRevisionChangesUtilsTest
       thrown.getMessage shouldBe smg
   }
 
-  it should "not throw an exception when appending to an existing quantile transformation without columnStats" in
+  it should "not create a new revision when appending to an existing quantile transformation without columnStats" in
     withSpark { spark =>
       val revision = Revision.firstRevision(
         QTableID("test"),
