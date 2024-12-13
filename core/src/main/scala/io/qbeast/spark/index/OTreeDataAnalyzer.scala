@@ -22,9 +22,12 @@ import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
 import io.qbeast.IISeq
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.CUBE_DOMAINS_BUFFER_CAPACITY
+import org.apache.spark.sql.catalyst.expressions.Alias
+import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.logical.Filter
 import org.apache.spark.sql.catalyst.plans.logical.LocalLimit
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.plans.logical.Project
 import org.apache.spark.sql.catalyst.plans.logical.Sample
 import org.apache.spark.sql.catalyst.plans.logical.Sort
 import org.apache.spark.sql.functions._
@@ -32,6 +35,8 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
+
+import scala.collection.convert.ImplicitConversions.`collection asJava`
 
 /**
  * Analyzes the data and extracts OTree structures
@@ -287,36 +292,60 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
    *   the logical plan
    * @return
    */
-  private def getNonDeterministicOperations(plan: LogicalPlan): Set[LogicalPlan] = {
+  private def isLogicalPlanDeterministic(plan: LogicalPlan): Boolean = {
     // Recursively traverse the logical plan to find non-deterministic operations
-    val currentOperation = plan match {
-      case LocalLimit(_, _: Sort) => None // LocalLimit with Sort is deterministic
-      case l @ LocalLimit(_, _) => Some(l)
-      case s @ Sample(_, _, _, _, _) => Some(s)
-      case f @ Filter(condition, _) if !condition.deterministic => Some(f)
-      case _ => None
+    val isCurrentOperationDeterministic = plan match {
+      case LocalLimit(_, _: Sort) => true // LocalLimit with Sort is deterministic
+      case LocalLimit(_, _) => false
+      case Sample(_, _, _, _, _) => false
+      case Filter(condition, _) => condition.deterministic
+      case _ => true
     }
 
-    val childOperations = plan.children.flatMap(getNonDeterministicOperations)
-    val nonDeterministicOpsInCurrentPlan = currentOperation.toSet
+    val areChildOperationsDeterministic = plan.children.forall(isLogicalPlanDeterministic)
 
-    nonDeterministicOpsInCurrentPlan ++ childOperations
+    isCurrentOperationDeterministic && areChildOperationsDeterministic
   }
 
-  private def analyzeDataFrameDeterminism(df: DataFrame): Boolean = {
+  /**
+   * Extracts the non-deterministic columns from the logical plan
+   *
+   * @param plan
+   * @return
+   */
+  private[index] def collectSelectExpressions(
+      logicalPlan: LogicalPlan,
+      columnName: String): Seq[Expression] = {
+    logicalPlan match {
+      case Project(projectList, _) =>
+        projectList.collect {
+          case Alias(child, name) if name == columnName => child
+          case expr if expr.references.map(_.name).contains(columnName) => expr
+        }
+      case _ =>
+        logicalPlan.children.flatMap(child => collectSelectExpressions(child, columnName))
+    }
+  }
+
+  private def isColumnDeterministic(logicalPlan: LogicalPlan, columnName: String): Boolean = {
+    val expressionSet = collectSelectExpressions(logicalPlan, columnName)
+    expressionSet.forall(_.deterministic)
+  }
+
+  private def analyzeDataFrameDeterminism(df: DataFrame, columnsToIndex: Seq[String]): Boolean = {
     // Access the logical plan of the DataFrame
     val logicalPlan: LogicalPlan = df.queryExecution.logical
 
     // Check if the logical plan's query is deterministic
     // Detect if the DataFrame's operations are deterministic
-    val nonDeterministicOps = getNonDeterministicOperations(logicalPlan)
-    val isQueryDeterministic = nonDeterministicOps.isEmpty && logicalPlan.deterministic
+    val isQueryDeterministic: Boolean = isLogicalPlanDeterministic(logicalPlan)
 
-    // Check if each column in the DataFrame is deterministic
-    val columnDeterminism: Boolean = logicalPlan.output.forall(_.deterministic)
+    // Check if any of the columns to index in the DataFrame is deterministic
+    val areColumnsToIndexDeterministic: Boolean =
+      columnsToIndex.forall(column => isColumnDeterministic(logicalPlan, column))
 
     // Check if the source is deterministic
-    isQueryDeterministic && columnDeterminism
+    isQueryDeterministic && areColumnsToIndexDeterministic
   }
 
   override def analyze(
@@ -326,20 +355,27 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
 
     // Check if the DataFrame is deterministic
     logDebug(s"Checking the determinism of the input data")
-    val isSourceDeterministic = analyzeDataFrameDeterminism(dataFrame)
+    val currentRevision = indexStatus.revision
+    val currentColumnTransformers = currentRevision.columnTransformers
+    val currentColumnsToIndex = currentColumnTransformers.map(_.columnName)
+    val isSourceDeterministic = analyzeDataFrameDeterminism(dataFrame, currentColumnsToIndex)
+    // TODO: we need to add columnStats control before the assert
+    // TODO: Otherwise, the write would fail even if the user adds the correct configuration
+    // TODO: blocked by https://github.com/Qbeast-io/qbeast-spark/issues/223
     assert(
       isSourceDeterministic,
       s"The source query is non-deterministic. " +
         s"Due to Qbeast-Spark write nature, we load the DataFrame twice before writing to storage." +
-        s"It is required to have deterministic queries and deterministic columns " +
+        s"It is required to have deterministic sources and deterministic columns to index " +
         s"to preserve the state of the indexing pipeline. " +
         s"If it is not the case, please save the DF as delta and Convert it To Qbeast in a second step")
+
     // Compute the statistics for the indexedColumns
-    val dataFrameStats = getDataFrameStats(dataFrame, indexStatus.revision.columnTransformers)
+    val dataFrameStats = getDataFrameStats(dataFrame, currentColumnTransformers)
     val numElements = dataFrameStats.getAs[Long]("count")
-    val spaceChanges = calculateRevisionChanges(dataFrameStats, indexStatus.revision)
+    val spaceChanges = calculateRevisionChanges(dataFrameStats, currentRevision)
     val (isNewRevision, revisionToUse) = spaceChanges match {
-      case None => (false, indexStatus.revision)
+      case None => (false, currentRevision)
       case Some(revisionChange) => (true, revisionChange.createNewRevision)
     }
     logDebug(s"revisionToUse=$revisionToUse")

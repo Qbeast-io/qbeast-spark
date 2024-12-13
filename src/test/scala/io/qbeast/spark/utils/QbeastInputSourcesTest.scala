@@ -4,21 +4,40 @@ import io.qbeast.QbeastIntegrationTestSpec
 
 class QbeastInputSourcesTest extends QbeastIntegrationTestSpec {
 
+  private val nonDeterministicColumns =
+    Seq("rand()", "uuid()")
+
   "Qbeast" should "throw an error when indexing non-deterministic query columns" in withSparkAndTmpDir {
     (spark, tmpDir) =>
-      val df = spark.range(10).withColumn("rand", org.apache.spark.sql.functions.rand())
-      val e = intercept[AssertionError] {
-        df.write.format("qbeast").option("columnsToIndex", "rand").save(tmpDir)
-      }
-      assert(e.getMessage.contains("assertion failed: The source query is non-deterministic."))
+      nonDeterministicColumns.foreach(column => {
+        val location = tmpDir + "/" + column
+        val df = spark
+          .range(10)
+          .withColumn("non_deterministic_col", org.apache.spark.sql.functions.expr(column))
+        val e = intercept[AssertionError] {
+          df.write
+            .format("qbeast")
+            .option("columnsToIndex", "non_deterministic_col")
+            .save(location)
+        }
+        assert(e.getMessage.contains("assertion failed: The source query is non-deterministic."))
+      })
   }
 
-  it should "throw an error when indexing random UUID" in withSparkAndTmpDir { (spark, tmpDir) =>
-    val df = spark.range(10).withColumn("uuid", org.apache.spark.sql.functions.uuid())
-    val e = intercept[AssertionError] {
-      df.write.format("qbeast").option("columnsToIndex", "uuid").save(tmpDir)
-    }
-    assert(e.getMessage.contains("assertion failed: The source query is non-deterministic."))
+  it should "allow to write non-deterministic columns when they are not being indexed" in withSparkAndTmpDir {
+    (spark, tmpDir) =>
+      nonDeterministicColumns.foreach(column => {
+        val location = tmpDir + "/" + column
+        val df = spark
+          .range(10)
+          .toDF("id")
+          .withColumn("non_deterministic_col", org.apache.spark.sql.functions.expr(column))
+        df.write.format("qbeast").option("columnsToIndex", "id").save(location)
+        assertSmallDatasetEquality(
+          df,
+          spark.read.format("qbeast").load(location),
+          ignoreNullable = true)
+      })
   }
 
   it should "throw an error when indexing non-deterministic LIMIT" in withSparkAndTmpDir {
