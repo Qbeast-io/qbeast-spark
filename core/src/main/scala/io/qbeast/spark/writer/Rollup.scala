@@ -54,7 +54,7 @@ private[writer] class Rollup(limit: Double) {
    *   the rollup result
    */
   def compute(): Map[CubeId, CubeId] = {
-    val queue = new mutable.PriorityQueue()(Ordering.by[CubeId, Int](_.depth))
+    val queue = new mutable.PriorityQueue()(CubeIdOrdering)
     groups.keys.foreach(queue.enqueue(_))
     while (queue.nonEmpty) {
       val cubeId = queue.dequeue()
@@ -76,6 +76,31 @@ private[writer] class Rollup(limit: Double) {
     groups.flatMap { case (rollupCubeId, group) =>
       group.cubeIds.map((_, rollupCubeId))
     }.toMap
+  }
+
+  /*
+   * Ordering for cube identifiers. The cube identifiers are ordered by their depth in ascending
+   * order. If the depth is the same then the cube identifiers are ordered by in reverse order.
+   * This ordering is used in the priority queue to process the cube identifiers in the correct
+   * order, i.e., from the deepest to the shallowest, and from the leftmost to the rightmost:
+   *    0                     root
+   *    1           c0                   c1
+   *    2     c00         c01       c10         c11
+   * The priority queue will process the cube identifiers in the following order:
+   * c00, c01, c10, c11, c0, c1, root.
+   * c00 -> c01 -> c0, c10 -> c11 -> c1, c0 -> c1 -> root
+   */
+  private object CubeIdOrdering extends Ordering[CubeId] {
+
+    override def compare(x: CubeId, y: CubeId): Int = {
+      val depthComparison = x.depth.compareTo(y.depth)
+      if (depthComparison == 0) {
+        y.compare(x)
+      } else {
+        depthComparison
+      }
+    }
+
   }
 
   private class Group(val cubeIds: mutable.Set[CubeId], var size: Long) {
