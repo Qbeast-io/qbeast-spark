@@ -16,8 +16,8 @@
 package io.qbeast.spark.index
 
 import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QbeastOptions
 import io.qbeast.spark.index.QbeastColumns._
-import io.qbeast.spark.internal.QbeastOptions
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses._
 import org.apache.spark.sql.functions._

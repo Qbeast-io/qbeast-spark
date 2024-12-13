@@ -15,7 +15,6 @@
  */
 package io.qbeast.core.model
 
-import io.qbeast.spark.internal.QbeastOptions
 import org.apache.spark.sql.types.StructType
 
 /**
