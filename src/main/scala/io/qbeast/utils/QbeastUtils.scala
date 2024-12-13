@@ -217,4 +217,30 @@ object QbeastUtils extends Logging {
 
   }
 
+  /**
+   * Compute the histogram for a given column
+   *
+   * Since computing the histogram can be expensive, this method is used outside the indexing
+   * process.
+   *
+   * It outputs the histogram of the column as format [bin1, bin2, bin3, ...] Number of bins by
+   * default is 50
+   *
+   * For example:
+   *
+   * val qbeastTable = QbeastTable.forPath(spark, "path")
+   *
+   * val histogram =qbeastTable.computeHistogramForColumn(df, "column")
+   *
+   * df.write.format("qbeast").option("columnsToIndex",
+   * "column:histogram").option("columnStats",histogram).save()
+   *
+   * @param df
+   * @param columnName
+   */
+  @deprecated("Use computeQuantilesForColumn method instead", "0.8.0")
+  def computeHistogramForColumn(df: DataFrame, columnName: String, numBins: Int = 50): String = {
+    computeQuantilesForStringColumn(df, columnName, numBins).mkString("[", ", ", "]")
+  }
+
 }
