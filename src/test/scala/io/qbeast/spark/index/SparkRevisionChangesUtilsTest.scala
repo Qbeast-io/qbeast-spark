@@ -381,7 +381,7 @@ class SparkRevisionChangesUtilsTest
       val revision =
         computeRevisionChanges(
           emptyRevision,
-          options.copy(columnStats = Some(s"""{"a_min":-1000,"a_max":1000}""")),
+          options.copy(columnStats = Some("""{"a_min":-1000,"a_max":1000}""")),
           data)._1.get.createNewRevision
 
       revision.columnTransformers shouldBe Vector(
@@ -422,7 +422,7 @@ class SparkRevisionChangesUtilsTest
         Map(
           COLUMNS_TO_INDEX -> "a,b",
           CUBE_SIZE -> "1000",
-          COLUMN_STATS -> s"""{"b_min":-2000.0, "b_max":2000.0}"""))
+          COLUMN_STATS -> """{"b_min":-2000.0, "b_max":2000.0}"""))
       val revision2 =
         computeRevisionChanges(revision1, options_2, data)._1.get.createNewRevision
 
@@ -602,8 +602,9 @@ class SparkRevisionChangesUtilsTest
       val thrown = intercept[AnalysisException] {
         computeRevisionChanges(revision, options, createData(spark))
       }
-      val smg = s"Empty transformation for column a. " +
-        s"The following must be provided to use QuantileTransformers: a_quantiles."
+      val smg =
+        "Empty transformation for column a. " +
+          "The following must be provided to use QuantileTransformers: a_quantiles."
 
       thrown.getMessage shouldBe smg
   }
