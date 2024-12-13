@@ -4,11 +4,15 @@ on:
     branches: [ main ]
     paths:
       - 'src/**'
+      - 'delta/**'
+      - 'core/**'
       - 'build.sbt'
       - 'project/**'
   pull_request:
     paths:
       - 'src/**'
+      - 'delta/**'
+      - 'core/**'
       - 'build.sbt'
       - 'project/**'
 
