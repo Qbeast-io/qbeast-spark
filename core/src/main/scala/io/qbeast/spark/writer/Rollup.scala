@@ -60,9 +60,9 @@ private[writer] class Rollup(limit: Double) {
       val cubeId = queue.dequeue()
       val group = groups(cubeId)
       if (group.size < limit && !cubeId.isRoot) {
-        val nextInLine = cubeId.nextSibling match {
-          case Some(a) => a
-          case None => cubeId.parent.get
+        val nextInLine = queue.headOption match {
+          case Some(cube) if areSiblings(cube, cubeId) => cube
+          case _ => cubeId.parent.get
         }
         if (groups.contains(nextInLine)) {
           groups(nextInLine).add(group)
@@ -76,6 +76,12 @@ private[writer] class Rollup(limit: Double) {
     groups.flatMap { case (rollupCubeId, group) =>
       group.cubeIds.map((_, rollupCubeId))
     }.toMap
+  }
+
+  private def areSiblings(cube_a: CubeId, cube_b: CubeId): Boolean = {
+    val sameParent = cube_a.parent == cube_b.parent
+    val differentCube = cube_a != cube_b
+    sameParent && differentCube
   }
 
   /*
