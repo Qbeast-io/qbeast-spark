@@ -240,7 +240,33 @@ object QbeastUtils extends Logging {
    */
   @deprecated("Use computeQuantilesForColumn method instead", "0.8.0")
   def computeHistogramForColumn(df: DataFrame, columnName: String, numBins: Int = 50): String = {
-    computeQuantilesForStringColumn(df, columnName, numBins).mkString("[", ", ", "]")
+
+    import df.sparkSession.implicits._
+    if (!df.columns.contains(columnName)) {
+      throw AnalysisExceptionFactory.create(s"Column $columnName does not exist in the dataframe")
+    }
+
+    log.info(s"Computing histogram for column $columnName with number of bins $numBins")
+    val binStarts = "__bin_starts"
+    val stringPartitionColumn =
+      MultiDimClusteringFunctions.range_partition_id(col(columnName), numBins)
+
+    val histogram = df
+      .select(columnName)
+      .distinct()
+      .na
+      .drop()
+      .groupBy(stringPartitionColumn)
+      .agg(min(columnName).alias(binStarts))
+      .select(binStarts)
+      .orderBy(binStarts)
+      .as[String]
+      .collect()
+
+    log.info(s"Histogram for column $columnName: $histogram")
+    histogram
+      .map(string => s"'$string'")
+      .mkString("[", ",", "]")
   }
 
 }
