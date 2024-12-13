@@ -30,12 +30,14 @@ class RevisionTest extends AnyFlatSpec with Matchers {
       Vector(LinearTransformer("col_1", IntegerDataType)),
       Vector.empty)
 
+    // We are checking here only the column name, not the type
     revision.matchColumns(Seq("col_1")) shouldBe true
     revision.matchColumns(Seq("col_1:linear")) shouldBe true
+    revision.matchColumns(Seq("col_1:histogram")) shouldBe true
+    revision.matchColumns(Seq("col_1:quantiles")) shouldBe true
 
     revision.matchColumns(Seq("col_2")) shouldBe false
     revision.matchColumns(Seq("col_1", "col_2")) shouldBe false
-    revision.matchColumns(Seq("col_1:histogram")) shouldBe false
   }
 
 }
