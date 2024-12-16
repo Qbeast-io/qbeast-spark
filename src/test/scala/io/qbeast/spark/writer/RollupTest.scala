@@ -19,6 +19,8 @@ import io.qbeast.core.model.CubeId
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.collection.mutable
+
 /**
  * Tests of Rollup.
  */
@@ -80,6 +82,35 @@ class RollupTest extends AnyFlatSpec with Matchers {
       .compute()
 
     result(root) shouldBe root
+  }
+
+  it should "order CubeIds correctly" in {
+    val root = CubeId.root(4)
+    val Seq(c0, c1, c2) = root.children.take(3).toSeq
+    val Seq(c00, c01, c02, c03) = c0.children.take(4).toSeq
+    val Seq(c10, c11, c12, c13) = c1.children.take(4).toSeq
+    val Seq(c20, c21, c22, c23) = c2.children.take(4).toSeq
+
+    val rollupCubeOrdering = new Rollup(0).CubeIdRollupOrdering
+    val queue = new mutable.PriorityQueue()(rollupCubeOrdering)
+
+    queue.enqueue(root, c0, c1, c2, c00, c01, c02, c03, c10, c11, c12, c13, c20, c21, c22, c23)
+    queue.dequeue() shouldBe c00
+    queue.dequeue() shouldBe c01
+    queue.dequeue() shouldBe c02
+    queue.dequeue() shouldBe c03
+    queue.dequeue() shouldBe c10
+    queue.dequeue() shouldBe c11
+    queue.dequeue() shouldBe c12
+    queue.dequeue() shouldBe c13
+    queue.dequeue() shouldBe c20
+    queue.dequeue() shouldBe c21
+    queue.dequeue() shouldBe c22
+    queue.dequeue() shouldBe c23
+    queue.dequeue() shouldBe c0
+    queue.dequeue() shouldBe c1
+    queue.dequeue() shouldBe c2
+    queue.dequeue() shouldBe root
   }
 
 }

@@ -54,7 +54,7 @@ private[writer] class Rollup(limit: Double) {
    *   the rollup result
    */
   def compute(): Map[CubeId, CubeId] = {
-    val queue = new mutable.PriorityQueue()(CubeIdOrdering)
+    val queue = new mutable.PriorityQueue()(CubeIdRollupOrdering)
     groups.keys.foreach(queue.enqueue(_))
     while (queue.nonEmpty) {
       val cubeId = queue.dequeue()
@@ -78,11 +78,12 @@ private[writer] class Rollup(limit: Double) {
     }.toMap
   }
 
-  private def areSiblings(cube_a: CubeId, cube_b: CubeId): Boolean = {
-    val sameParent = cube_a.parent == cube_b.parent
-    val differentCube = cube_a != cube_b
-    sameParent && differentCube
-  }
+  /**
+   * Checks if the given cube identifiers are siblings. Two cube identifiers are siblings if they
+   * have the same parent. It is assumed that the cube identifiers are different.
+   */
+  private def areSiblings(cube_a: CubeId, cube_b: CubeId): Boolean =
+    cube_a.parent == cube_b.parent
 
   /*
    * Ordering for cube identifiers. The cube identifiers are ordered by their depth in ascending
@@ -96,7 +97,7 @@ private[writer] class Rollup(limit: Double) {
    * c00, c01, c10, c11, c0, c1, root.
    * c00 -> c01 -> c0, c10 -> c11 -> c1, c0 -> c1 -> root
    */
-  private object CubeIdOrdering extends Ordering[CubeId] {
+  private[writer] object CubeIdRollupOrdering extends Ordering[CubeId] {
 
     override def compare(x: CubeId, y: CubeId): Int = {
       val depthComparison = x.depth.compareTo(y.depth)
