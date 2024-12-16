@@ -41,11 +41,13 @@ class CDFNumericQuantilesTransformationTest extends AnyFlatSpec with Matchers {
       CDFNumericQuantilesTransformation(quantiles, orderedDataTypeTest)
     val valuesToTest = 2.to(99)
     val maxIndexQuantiles = quantiles.size - 1
-    valuesToTest.foreach { value =>
+    val results = valuesToTest.map { value =>
       val transformation = qt.transform(value)
       transformation shouldBe >=(5 / maxIndexQuantiles.toDouble)
       transformation shouldBe <=(6 / maxIndexQuantiles.toDouble)
+      transformation
     }
+    results.sorted should be(results)
   }
 
   it should "return true when quantiles are different and neither is default" in {
