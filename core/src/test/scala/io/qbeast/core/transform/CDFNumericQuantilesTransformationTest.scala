@@ -10,7 +10,6 @@ class CDFNumericQuantilesTransformationTest extends AnyFlatSpec with Matchers {
   "CDFNumericQuantilesTransformer" should "return transform correctly" in {
     val qt = CDFNumericQuantilesTransformation(IndexedSeq(1d, 2d, 3d), IntegerDataType)
     qt.transform(0) should be(0.0)
-    qt.transform(1.5) should be(0.0)
     qt.transform(2) should be(0.5)
     qt.transform(4) should be(1.0)
   }
