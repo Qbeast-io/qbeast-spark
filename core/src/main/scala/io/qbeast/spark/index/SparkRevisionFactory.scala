@@ -219,10 +219,11 @@ trait SparkRevisionChangesUtils extends StagingUtils with Logging {
   /**
    * Compute the transformation changes for the current operation. The process of creating
    * transformation changes is as follows:
-   *   1. Compute the Transformations from the input columnStats(if available) and the input
-   *      DataFrame statistics. 2. Check if the new transformations supersede the existing ones.
-   *      3. Make sure no EmptyTransformation is used. If a CDFQuantilesTransformers is present,
-   *      it must be properly setup.
+   *   - Compute the Transformations from the input columnStats(if available) and the input
+   *     DataFrame statistics.
+   *   - Check if the new transformations supersede the existing ones.
+   *   - Make sure no EmptyTransformation is used. If a CDFQuantilesTransformers is present, it
+   *     must be properly setup.
    * @param transformers
    *   the updated transformers
    * @param transformations
@@ -237,7 +238,17 @@ trait SparkRevisionChangesUtils extends StagingUtils with Logging {
       transformations: IISeq[Transformation],
       options: QbeastOptions,
       row: Row): IISeq[Option[Transformation]] = {
-    val newTransformations = computeNewTransformations(transformers, options, row)
+    // Compute transformations from columnStats and DataFrame stats, and merge them
+    val transformationsFromDataFrameStats =
+      computeTransformationsFromDataFrameStats(transformers, row)
+    val transformationsFromColumnsStats =
+      computeTransformationsFromColumnStats(transformers, options)
+    val newTransformations = transformationsFromDataFrameStats
+      .zip(transformationsFromColumnsStats)
+      .map {
+        case (tdf, Some(tcs)) => tdf.merge(tcs)
+        case (tdf, None) => tdf
+      }
     // Create transformationChanges
     val transformationChanges =
       if (transformations.isEmpty) newTransformations.map(Some(_))
@@ -263,40 +274,40 @@ trait SparkRevisionChangesUtils extends StagingUtils with Logging {
   }
 
   /**
-   * Compute the new transformations from the input DataFrame statistics and the columnStats(if
-   * available) and merge them.
+   * Compute transformations from the input column stats. If the stats are not available, the
+   * transformation is ignored.
    * @param transformers
    *   the transformers
    * @param options
    *   the QbeastOptions containing the columnStats
+   */
+  private[index] def computeTransformationsFromColumnStats(
+      transformers: IISeq[Transformer],
+      options: QbeastOptions): IISeq[Option[Transformation]] = {
+    val (columnStats, availableColumnStats) = parseColumnStats(options)
+    transformers.map { t =>
+      if (t.stats.statsNames.forall(availableColumnStats.contains)) {
+        // Create transformation with columnStats
+        Some(t.makeTransformation(columnStats.getAs[Object]))
+      } else {
+        // Ignore the transformation if the stats are not available
+        None
+      }
+    }
+  }
+
+  /**
+   * Compute transformations from the input DataFrame statistics. If the stats are not available,
+   * an EmptyTransformation should be created.
+   * @param transformers
+   *   the transformers
    * @param row
    *   the Row containing column statistics computed from the input DataFrame
    */
-  private[index] def computeNewTransformations(
+  private[index] def computeTransformationsFromDataFrameStats(
       transformers: IISeq[Transformer],
-      options: QbeastOptions,
       row: Row): IISeq[Transformation] = {
-    val transformationsFromColumnsStats = {
-      val (columnStats, availableColumnStats) = parseColumnStats(options)
-      transformers.map { t =>
-        if (t.stats.statsNames.forall(availableColumnStats.contains)) {
-          // Create transformation with columnStats
-          Some(t.makeTransformation(columnStats.getAs[Object]))
-        } else {
-          // Ignore the transformation if the stats are not available
-          None
-        }
-      }
-    }
-    // Create transformations from the input DataFrame
-    val transformationsFromDataFrame = transformers.map(_.makeTransformation(row.getAs[Object]))
-    // Merge transformations created from the columnStats and DataFrame
-    transformationsFromDataFrame
-      .zip(transformationsFromColumnsStats)
-      .map {
-        case (tdf, Some(tcs)) => tdf.merge(tcs)
-        case (tdf, None) => tdf
-      }
+    transformers.map(_.makeTransformation(row.getAs[Object]))
   }
 
   private[index] def parseColumnStats(options: QbeastOptions): (Row, Set[String]) = {

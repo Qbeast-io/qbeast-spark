@@ -148,7 +148,7 @@ final case class Revision(
    *   the column names to check.
    */
   def matchColumns(columnsToIndex: Seq[String]): Boolean = {
-    val newColumnNames = columnsToIndex.map(_.split(":").head)
+    val newColumnNames = columnsToIndex.map(ColumnToIndex(_).columnName)
     val existingColumnNames = columnTransformers.map(_.columnName)
     newColumnNames == existingColumnNames
   }
