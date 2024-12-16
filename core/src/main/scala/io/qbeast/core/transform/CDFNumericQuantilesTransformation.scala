@@ -31,6 +31,8 @@ import com.fasterxml.jackson.databind.SerializerProvider
 import io.qbeast.core.model.OrderedDataType
 import org.apache.spark.annotation.Experimental
 
+import scala.collection.Searching._
+
 /**
  * CDF Quantiles Transformation for Numeric types
  * @param quantiles
@@ -47,10 +49,10 @@ case class CDFNumericQuantilesTransformation(
     extends CDFQuantilesTransformation {
   require(quantiles.size > 1, "Quantiles size should be greater than 1")
 
-  override def ordering: Ordering[Any] =
+  override implicit def ordering: Ordering[Any] =
     Ordering[Double].asInstanceOf[Ordering[Any]]
 
-  override def mapValue(value: Any): Any = {
+  override def mapValue(value: Any): Double = {
     value match {
       case v: Double => v
       case v: Long => v.toDouble
@@ -60,6 +62,39 @@ case class CDFNumericQuantilesTransformation(
       case v: java.sql.Timestamp => v.getTime.toDouble
       case v: java.sql.Date => v.getTime.toDouble
       case v: java.time.Instant => v.toEpochMilli.toDouble
+    }
+  }
+
+  override def transform(value: Any): Double = {
+    // If the value is null, we return 0
+    if (value == null) return 0d
+
+    val currentValue = mapValue(value)
+
+    // Otherwise, we search for the value in the quantiles
+    quantiles.search(currentValue) match {
+      // If the exact index is found, normalize it to a range [0, 1]
+      case Found(foundIndex) => foundIndex.toDouble / (quantiles.length - 1)
+
+      // If not found, calculate the interpolated relative position
+      case InsertionPoint(insertionPoint) =>
+        if (insertionPoint == 0) 0d // Value is below the first quantile
+        else if (insertionPoint == quantiles.length) 1d // Value is above the last quantile
+        else {
+          // InsertionPoint gives the index of the first element in quantiles greater than x.
+          // Thus, the lowerIndex can safely be derived as insertionPoint - 1.
+          val lowerIndex = insertionPoint - 1
+          val upperIndex = insertionPoint
+          val lowerValue = quantiles(lowerIndex)
+          val upperValue = quantiles(upperIndex)
+
+          // Linear interpolation within the bin
+          // 1. Calculate the linear value between the two quantiles
+          val fraction = (currentValue - lowerValue) / (upperValue - lowerValue)
+          // 2. Normalize the value to the range [0, 1]
+          val result = (lowerIndex.toDouble + fraction) / (quantiles.length - 1)
+          result
+        }
     }
   }
 
