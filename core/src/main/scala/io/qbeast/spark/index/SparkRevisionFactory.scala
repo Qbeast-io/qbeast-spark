@@ -16,6 +16,7 @@
 package io.qbeast.spark.index
 
 import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QbeastColumnStats
 import io.qbeast.core.model.QbeastOptions
 import io.qbeast.core.model.Revision
 import io.qbeast.core.model.RevisionFactory
@@ -25,8 +26,7 @@ import io.qbeast.core.transform.ManualColumnStats
 import io.qbeast.core.transform.ManualPlaceholderTransformation
 import io.qbeast.core.transform.Transformation
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.AnalysisExceptionFactory
 
 /**
  * Spark implementation of RevisionBuilder
@@ -65,16 +65,14 @@ object SparkRevisionFactory extends RevisionFactory {
 
     // Check if the columns to index are present in the schema
     var shouldCreateNewSpace = true
-    val manualDefinedColumnStats = options.columnStats.isDefined
-    val columnStats = if (manualDefinedColumnStats) {
-      val spark = SparkSession.active
-      import spark.implicits._
-      spark.read
-        .option("inferTimestamp", "true")
-        .option("timestampFormat", "yyyy-MM-dd HH:mm:ss.SSSSSS'Z'")
-        .json(Seq(options.columnStats.get).toDS())
-        .first()
-    } else Row.empty
+    val manualDefinedColumnStats: Boolean = options.areColumnStatsDefined
+    // Build the optionable Column Stats from the provided Qbeast options
+    val optionColumnStats: Option[QbeastColumnStats] =
+      options.columnStats.map(stats =>
+        QbeastColumnStats.build(
+          stats = stats,
+          columnTransformers = transformers,
+          dataSchema = schema))
 
     val transformations = {
       val builder = Vector.newBuilder[Transformation]
@@ -87,13 +85,21 @@ object SparkRevisionFactory extends RevisionFactory {
           case _: ManualColumnStats => true
           case _ => false
         }
-        val hasManualColumnStats = manualDefinedColumnStats &&
-          columnStats.schema.exists(_.name.contains(transformer.columnName))
-        if (hasManualColumnStats) {
-          // If manual column stats are provided
-          // Create transformation with boundaries
-          builder += transformer.makeTransformation(columnName =>
-            columnStats.getAs[Object](columnName))
+        if (manualDefinedColumnStats) {
+          println("Column stats dfined")
+          try {
+            println("Making transformation from column stats for " + transformer.columnName)
+            // If manual column stats are provided
+            // Try to create transformation with boundaries
+            builder += transformer.makeTransformation(columnName =>
+              optionColumnStats.get.columnStatsRow.getAs[Object](columnName))
+          } catch {
+            case _: Throwable =>
+              // If manual column stats are provided, but the column stats are not found
+              // Use an ManualPlaceholderTransformation which will throw an error when indexing
+              throw AnalysisExceptionFactory.create(
+                s"Column stats for ${transformer.columnName} not found in columnStats")
+          }
         } else if (needManualColumnStats) {
           // If no column stats are provided, and manual stats are required
           // Use an ManualPlaceholderTransformation which will throw an error when indexing

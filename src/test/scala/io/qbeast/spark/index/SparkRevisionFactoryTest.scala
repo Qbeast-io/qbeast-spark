@@ -25,6 +25,7 @@ import io.qbeast.core.transform.LinearTransformer
 import io.qbeast.core.transform.ManualPlaceholderTransformation
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.T3
+import io.qbeast.TestClasses.TestAll
 import org.apache.spark.sql.functions.to_timestamp
 
 import java.text.SimpleDateFormat
@@ -254,6 +255,45 @@ class SparkRevisionFactoryTest extends QbeastIntegrationTestSpec {
       b_transformation.asInstanceOf[LinearTransformation].maxNumber shouldBe 20.0
 
     })
+
+  it should "createNewRevision with column stats for all numeric types" in withSpark(spark => {
+    import spark.implicits._
+    val schema = spark
+      .range(5)
+      .map(i => TestAll(s"$i", i.toDouble, i.floatValue(), i.toInt, i.toLong))
+      .schema
+    val qid = QTableID("t")
+    val revision =
+      SparkRevisionFactory.createNewRevision(
+        qid,
+        schema,
+        QbeastOptions(
+          Map(
+            QbeastOptions.COLUMNS_TO_INDEX -> "float_value,double_value,int_value,long_value",
+            QbeastOptions.COLUMN_STATS ->
+              """{ "float_value_min": 0.0, "float_value_max": 10.0,
+                | "double_value_min": 0.0, "double_value_max": 10.0,
+                | "int_value_min": 0, "int_value_max": 10,
+                | "long_value_min": 0L, "long_value_max": 10L}""".stripMargin)))
+
+    revision.tableID shouldBe qid
+    // the reason while it's 1 is because columnStats are provided here
+    revision.revisionID shouldBe 1
+    revision.columnTransformers shouldBe Vector(
+      LinearTransformer("float_value", FloatDataType),
+      LinearTransformer("double_value", DoubleDataType),
+      LinearTransformer("int_value", IntegerDataType),
+      LinearTransformer("long_value", LongDataType))
+
+    val transformations = revision.transformations.head
+    transformations should not be null
+    transformations shouldBe Vector(
+      LinearTransformation(0.0f, 10.0f, (), FloatDataType),
+      LinearTransformation(0.0, 10.0, (), DoubleDataType),
+      LinearTransformation(0, 10, (), IntegerDataType),
+      LinearTransformation(0L, 10L, (), LongDataType))
+
+  })
 
   it should "createNewRevision with only indexed columns with all hash" in withSpark(spark => {
     import spark.implicits._
