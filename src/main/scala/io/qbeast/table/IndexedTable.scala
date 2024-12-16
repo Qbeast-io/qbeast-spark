@@ -30,7 +30,6 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.SparkSession
 
 import java.lang.System.currentTimeMillis
 import java.util.ConcurrentModificationException
@@ -282,25 +281,16 @@ private[table] class IndexedTableImpl(
     val isNewCubeSize = latestRevision.desiredCubeSize != qbeastOptions.cubeSize
     // Checks if the user-provided column boundaries would trigger the creation of
     // a new revision.
-    val isNewSpace = qbeastOptions.columnStats match {
-      case None => false
-      case Some(statsString) =>
-        val spark = SparkSession.active
-        import spark.implicits._
-        val columnStatsRow = spark.read
-          .option("inferTimestamp", "true")
-          .option("timestampFormat", "yyyy-MM-dd HH:mm:ss.SSSSSS'Z'")
-          .json(Seq(statsString).toDS())
-          .first()
-        val statsFunc = (statsName: String) => columnStatsRow.getAs[Object](statsName)
-        val newPossibleTransformations =
-          latestRevision.columnTransformers.map(_.makeTransformation(statsFunc))
-        latestRevision.transformations
-          .zip(newPossibleTransformations)
-          .forall(t => {
-            t._1.isSupersededBy(t._2)
-          })
-    }
+    val newPossibleRevision = revisionFactory.createNewRevision(tableID, schema, qbeastOptions)
+    val newPossibleTransformations = newPossibleRevision.transformations
+    // 2. Check if the new possible transformations are superseded by the existing ones
+    val isNewSpace =
+      latestRevision.transformations
+        .zip(newPossibleTransformations)
+        .forall(t => {
+          t._1.isSupersededBy(t._2)
+        })
+
     isNewCubeSize || isNewSpace
 
   }

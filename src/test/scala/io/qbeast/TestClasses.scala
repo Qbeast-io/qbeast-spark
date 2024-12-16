@@ -28,6 +28,14 @@ object TestClasses {
   case class TestBigDecimal(a: BigDecimal, b: BigDecimal, c: BigDecimal)
   case class TestInt(a: Int, b: Int, c: Int)
   case class TestLong(a: Long, b: Long, c: Long)
+
+  case class TestAll(
+      string_value: String,
+      double_value: Double,
+      float_value: Float,
+      int_value: Int,
+      long_value: Long)
+
   case class TestNull(a: Option[String], b: Option[Double], c: Option[Long])
 
   case class IndexData(id: Long, cube: Array[Byte], weight: Double)

@@ -33,4 +33,17 @@ object SparkToQTypesUtils {
     // TODO add more types
   }
 
+  def convertFromQDataType(qType: io.qbeast.core.model.QDataType): DataType = qType match {
+    case qmodel.DoubleDataType => DoubleType
+    case qmodel.IntegerDataType => IntegerType
+    case qmodel.FloatDataType => FloatType
+    case qmodel.LongDataType => LongType
+    case qmodel.StringDataType => StringType
+    case qmodel.DecimalDataType => DecimalType.SYSTEM_DEFAULT
+    case qmodel.TimestampDataType => TimestampType
+    case qmodel.DateDataType => DateType
+    case _ => throw new RuntimeException(s"${qType.name} is not supported yet")
+    // TODO add more types
+  }
+
 }
