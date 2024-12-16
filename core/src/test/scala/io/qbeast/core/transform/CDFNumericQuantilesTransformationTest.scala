@@ -15,6 +15,32 @@ class CDFNumericQuantilesTransformationTest extends AnyFlatSpec with Matchers {
     qt.transform(4) should be(1.0)
   }
 
+  it should "return correct transformation for insertion point in the bin" in {
+    val qt = CDFNumericQuantilesTransformation(IndexedSeq(1, 3, 5), IntegerDataType)
+    // 2 is between 1 and 3, so it should be 0.25 (fraction = 2-1 / 3-1 = 0.5. -> 0 + fraction(0.5) / 2 = 0.25)
+    qt.transform(2) should be(0.25)
+  }
+
+  it should "return correct transformation for insertion point in the bin with repeated values" in {
+    val qt = CDFNumericQuantilesTransformation(IndexedSeq(1, 1, 3, 5), IntegerDataType)
+    // 2 is between 1 and 3 so it should be 0.5
+    qt.transform(2) should be(0.5)
+  }
+
+  it should "return correct transformation point for all values inside the bin" in {
+    val quantiles = IndexedSeq(1, 1, 1, 1, 1, 1, 100, 100, 100).map(_.toDouble)
+    val qt = CDFNumericQuantilesTransformation(quantiles, IntegerDataType)
+    val maxIndexQuantiles = quantiles.size - 1
+    val transformations = 2.to(99).map(qt.transform)
+    // All transformations should be mapped between the index of 1 and 100.
+    transformations.foreach { v =>
+      v shouldBe >=(5 / maxIndexQuantiles.toDouble)
+      v shouldBe <=(6 / maxIndexQuantiles.toDouble)
+    }
+    // The transformations should be sorted
+    transformations.sorted should be(transformations)
+  }
+
   it should "force quantiles to have more than 1 value" in {
     an[IllegalArgumentException] should be thrownBy CDFNumericQuantilesTransformation(
       Vector(1d),
