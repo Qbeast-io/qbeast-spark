@@ -45,15 +45,11 @@ class CubeDomainsIntegrationTest extends QbeastIntegrationTestSpec with PrivateM
       (spark, tmpDir) =>
         withOTreeAlgorithm { oTreeAlgorithm =>
           val df = createDF(spark, 100000)
-          val names = List("age", "val2")
-          val indexStatus = IndexStatus(
-            SparkRevisionFactory
-              .createNewRevision(
-                QTableID("test"),
-                df.schema,
-                QbeastOptions(
-                  Map("columnsToIndex" -> names.mkString(","), "cubeSize" -> "10000"))))
-          val (_, tc) = oTreeAlgorithm.index(df.toDF(), indexStatus)
+          val options = QbeastOptions(Map("columnsToIndex" -> "age,val2", "cubeSize" -> "10000"))
+          val revision = SparkRevisionFactory
+            .createNewRevision(QTableID("test"), df.schema, options)
+          val indexStatus = IndexStatus(revision)
+          val (_, tc) = oTreeAlgorithm.index(df.toDF(), indexStatus, options)
           df.write
             .format("qbeast")
             .mode("overwrite")

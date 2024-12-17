@@ -89,41 +89,26 @@ case class LinearTransformation(
     }
   }
 
-  /**
-   * Merges two transformations. The domain of the resulting transformation is the union of this
-   * and the other transformation.
-   */
-  override def merge(other: Transformation): Transformation = {
-    other match {
-      case LinearTransformation(otherMin, otherMax, _, otherOrdering)
-          if orderedDataType == otherOrdering =>
-        LinearTransformation(min(minNumber, otherMin), max(maxNumber, otherMax), orderedDataType)
-      case IdentityTransformation(newVal, otherType) if orderedDataType == otherType =>
-        LinearTransformation(min(minNumber, newVal), max(maxNumber, newVal), orderedDataType)
-      case IdentityToZeroTransformation(newVal) =>
-        LinearTransformation(min(minNumber, newVal), max(maxNumber, newVal), orderedDataType)
-      case _ => this
-    }
+  override def isSupersededBy(other: Transformation): Boolean = other match {
+    case LinearTransformation(newMin, newMax, _, otherOrdering)
+        if orderedDataType == otherOrdering =>
+      gt(minNumber, newMin) || lt(maxNumber, newMax)
+    case IdentityTransformation(newVal, otherType) if otherType == orderedDataType =>
+      newVal != null && (gt(minNumber, newVal) || lt(maxNumber, newVal))
+    case _: EmptyTransformation => false
+    case _ => true
   }
 
-  /**
-   * This method should determine if the new data will cause the creation of a new revision.
-   * @param newTransformation
-   *   the new transformation created with statistics over the new data
-   * @return
-   *   true if the domain of the newTransformation is not fully contained in this one.
-   */
-  override def isSupersededBy(newTransformation: Transformation): Boolean =
-    newTransformation match {
-      case LinearTransformation(newMin, newMax, _, otherOrdering)
-          if orderedDataType == otherOrdering =>
-        gt(minNumber, newMin) || lt(maxNumber, newMax)
-      case IdentityTransformation(newVal, otherType)
-          if otherType == orderedDataType && newVal != null =>
-        gt(minNumber, newVal) || lt(maxNumber, newVal)
-      case IdentityToZeroTransformation(newVal) => gt(minNumber, newVal) || lt(maxNumber, newVal)
-      case _ => false
-    }
+  override def merge(other: Transformation): Transformation = other match {
+    case LinearTransformation(otherMin, otherMax, _, otherOrdering)
+        if orderedDataType == otherOrdering =>
+      LinearTransformation(min(minNumber, otherMin), max(maxNumber, otherMax), orderedDataType)
+    case IdentityTransformation(newVal, otherType) if orderedDataType == otherType =>
+      if (newVal == null) this
+      else LinearTransformation(min(minNumber, newVal), max(maxNumber, newVal), orderedDataType)
+    case _: EmptyTransformation => this
+    case _ => other
+  }
 
 }
 

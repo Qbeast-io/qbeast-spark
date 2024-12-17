@@ -39,18 +39,15 @@ class IndexTest
   private val options = Map("columnsToIndex" -> "age,val2", "cubeSize" -> "10000")
   private def qbeastOptions = QbeastOptions(options)
 
-  private def createDF(spark: SparkSession): DataFrame = {
+  private def createDF(spark: SparkSession, numRecords: Int = 100000): DataFrame = {
     import spark.implicits._
-    val rdd =
-      spark
-        .range(100000)
-        .map(i => Client3(i * i, s"student-$i", i.intValue(), i * 1000 + 123, i * 2567.3432143))
-
-    rdd.toDF()
+    spark
+      .range(numRecords)
+      .map(i => Client3(i * i, s"student-$i", i.intValue(), i * 1000 + 123, i * 2567.3432143))
+      .toDF()
   }
 
   // Check correctness
-
   "Indexing method" should "respect the size of the data" in withSpark { spark =>
     withOTreeAlgorithm { oTreeAlgorithm =>
       {
@@ -58,7 +55,7 @@ class IndexTest
         val rev =
           SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, qbeastOptions)
 
-        val (indexed, _) = oTreeAlgorithm.index(df, IndexStatus(rev))
+        val (indexed, _) = oTreeAlgorithm.index(df, IndexStatus(rev), qbeastOptions)
 
         checkDFSize(indexed, df)
       }
@@ -72,7 +69,8 @@ class IndexTest
         val rev =
           SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, qbeastOptions)
 
-        val (_, tc: BroadcastTableChanges) = oTreeAlgorithm.index(df, IndexStatus(rev))
+        val (_, tc: BroadcastTableChanges) =
+          oTreeAlgorithm.index(df, IndexStatus(rev), qbeastOptions)
 
         checkCubes(tc.cubeWeightsBroadcast.value)
       }
@@ -86,7 +84,8 @@ class IndexTest
         val rev =
           SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, qbeastOptions)
 
-        val (_, tc: BroadcastTableChanges) = oTreeAlgorithm.index(df, IndexStatus(rev))
+        val (_, tc: BroadcastTableChanges) =
+          oTreeAlgorithm.index(df, IndexStatus(rev), qbeastOptions)
 
         checkWeightsIncrement(tc.cubeWeightsBroadcast.value)
       }
@@ -100,7 +99,8 @@ class IndexTest
         val rev =
           SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, qbeastOptions)
 
-        val (indexed, tc: BroadcastTableChanges) = oTreeAlgorithm.index(df, IndexStatus(rev))
+        val (indexed, tc: BroadcastTableChanges) =
+          oTreeAlgorithm.index(df, IndexStatus(rev), qbeastOptions)
 
         checkCubesOnData(tc.cubeWeightsBroadcast.value, indexed, dimensionCount = 2)
       }
@@ -118,12 +118,11 @@ class IndexTest
           .option("inferSchema", "true")
           .load(inputPath + file1)
           .distinct()
-
-        val rev = SparkRevisionFactory.createNewRevision(
-          QTableID("test"),
-          df.schema,
-          QbeastOptions(Map("columnsToIndex" -> "user_id,product_id", "cubeSize" -> "10000")))
-        val (indexed, tc: BroadcastTableChanges) = oTreeAlgorithm.index(df, IndexStatus(rev))
+        val options =
+          QbeastOptions(Map("columnsToIndex" -> "user_id,product_id", "cubeSize" -> "10000"))
+        val rev = SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, options)
+        val (indexed, tc: BroadcastTableChanges) =
+          oTreeAlgorithm.index(df, IndexStatus(rev), options)
         val weightMap = tc.cubeWeightsBroadcast.value
 
         checkDFSize(indexed, df)
@@ -154,7 +153,7 @@ class IndexTest
           .withColumn("val2", (col("val2") * offset).cast(LongType))
 
         val (indexed, tc: BroadcastTableChanges) =
-          oTreeAlgorithm.index(appendData, qbeastSnapshot.loadLatestIndexStatus)
+          oTreeAlgorithm.index(appendData, qbeastSnapshot.loadLatestIndexStatus, qbeastOptions)
         val weightMap = tc.cubeWeightsBroadcast.value
 
         checkDFSize(indexed, df)
@@ -200,7 +199,7 @@ class IndexTest
         val df = createDF(spark)
         val rev =
           SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, qbeastOptions)
-        val (_, tc) = oTreeAlgorithm.index(df, IndexStatus(rev))
+        val (_, tc) = oTreeAlgorithm.index(df, IndexStatus(rev), qbeastOptions)
 
         df.write
           .format("qbeast")
@@ -225,20 +224,13 @@ class IndexTest
 
   it should "index correctly when a small cubeSize is given" in withSpark { spark =>
     withOTreeAlgorithm { oTreeAlgorithm =>
-      import spark.implicits._
-      val df =
-        spark
-          .range(1000)
-          .map(i => Client3(i * i, s"student-$i", i.intValue(), i * 1000 + 123, i * 2567.3432143))
-          .toDF()
+      val df = createDF(spark, 1000)
+      val options =
+        QbeastOptions(Map("columnsToIndex" -> "age,val2", "cubeSize" -> "10"))
+      val rev = SparkRevisionFactory.createNewRevision(QTableID("test"), df.schema, options)
 
-      val smallCubeSize = 10
-      val rev = SparkRevisionFactory.createNewRevision(
-        QTableID("test"),
-        df.schema,
-        QbeastOptions(Map("columnsToIndex" -> "age,val2", "cubeSize" -> smallCubeSize.toString)))
-
-      val (indexed, tc: BroadcastTableChanges) = oTreeAlgorithm.index(df, IndexStatus(rev))
+      val (indexed, tc: BroadcastTableChanges) =
+        oTreeAlgorithm.index(df, IndexStatus(rev), qbeastOptions)
       val weightMap = tc.cubeWeightsBroadcast.value
 
       checkDFSize(indexed, df)
@@ -262,7 +254,7 @@ class IndexTest
         .save(tmpDir)
       val appendSize = 10
       val numAppends = 10
-      (1 to numAppends).foreach { i =>
+      (1 to numAppends).foreach { _ =>
         val df = spark.range(offset, offset + appendSize).toDF("id")
         df.write.mode("append").format("qbeast").save(tmpDir)
         offset += appendSize

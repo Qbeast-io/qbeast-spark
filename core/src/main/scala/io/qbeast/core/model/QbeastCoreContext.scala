@@ -46,22 +46,4 @@ trait RevisionFactory {
    */
   def createNewRevision(qtableID: QTableID, schema: StructType, options: QbeastOptions): Revision
 
-  /**
-   * Create a new revision with given parameters from an old revision
-   * @param qtableID
-   *   the table identifier
-   * @param schema
-   *   the schema
-   * @param options
-   *   the options
-   * @param oldRevision
-   *   the old revision
-   * @return
-   */
-  def createNextRevision(
-      qtableID: QTableID,
-      schema: StructType,
-      options: QbeastOptions,
-      oldRevision: RevisionID): Revision
-
 }

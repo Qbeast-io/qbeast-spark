@@ -15,16 +15,23 @@
  */
 package io.qbeast.spark.index
 
+import io.qbeast.core.model.ColumnToIndex
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.QbeastOptions
 import io.qbeast.core.model.Revision
+import io.qbeast.core.model.RevisionChange
 import io.qbeast.core.model.RevisionFactory
-import io.qbeast.core.model.RevisionID
+import io.qbeast.core.model.StagingUtils
+import io.qbeast.core.transform.CDFQuantilesTransformer
 import io.qbeast.core.transform.EmptyTransformation
-import io.qbeast.core.transform.ManualColumnStats
-import io.qbeast.core.transform.ManualPlaceholderTransformation
+import io.qbeast.core.transform.EmptyTransformer
 import io.qbeast.core.transform.Transformation
+import io.qbeast.core.transform.Transformer
+import io.qbeast.IISeq
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.AnalysisExceptionFactory
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
 
@@ -36,16 +43,7 @@ object SparkRevisionFactory extends RevisionFactory {
   /**
    * Creates a new revision
    *
-   * The Revision is created with the provided QbeastOptions: cubeSize, columnsToIndex and
-   * columnStats
-   *
-   *   - For each column to index, a Transformer is created.
-   *   - For each Transformer, we look for manual column stats.
-   *   - If no column stats are provided, and manual stats are required, we use a
-   *     ManualPlaceholderTransformation.
-   *   - If manual column stats are provided, we create a Transformation with boundaries.
-   *   - If no column stats are provided, and no manual stats are required, we use an
-   *     EmptyTransformation.
+   * The Revision is created with the provided QbeastOptions: cubeSize, columnsToIndex
    * @param qtableID
    *   the table identifier
    * @param schema
@@ -58,77 +56,276 @@ object SparkRevisionFactory extends RevisionFactory {
       qtableID: QTableID,
       schema: StructType,
       options: QbeastOptions): Revision = {
-
     val desiredCubeSize = options.cubeSize
-    val columnsToIndex = options.columnsToIndexParsed
-    val transformers = columnsToIndex.map(_.toTransformer(schema)).toVector
+    val transformers = options.columnsToIndexParsed.map(_.toTransformer(schema)).toVector
+    Revision.firstRevision(qtableID, desiredCubeSize, transformers)
+  }
 
-    // Check if the columns to index are present in the schema
-    var shouldCreateNewSpace = true
-    val manualDefinedColumnStats = options.columnStats.isDefined
-    val columnStats = if (manualDefinedColumnStats) {
+}
+
+/**
+ * Computes the changes, if any, between the existing space and that of the input Dataframe and
+ * the user input columnStats.
+ */
+trait SparkRevisionChangesUtils extends StagingUtils with Logging {
+
+  /**
+   * Compute the changes between the existing revision, the input data, and the user input
+   * configurations
+   * @param revision
+   *   the existing revision
+   * @param options
+   *   the QbeastOptions
+   * @param data
+   *   the input data
+   * @return
+   *   a tuple with the revision changes and the number of elements in the input data
+   */
+  def computeRevisionChanges(
+      revision: Revision,
+      options: QbeastOptions,
+      data: DataFrame): (Option[RevisionChange], Long) = {
+    checkColumnChanges(revision, options)
+    val transformerChanges =
+      computeTransformerChanges(revision.columnTransformers, options, data.schema)
+    val updatedTransformers =
+      computeUpdatedTransformers(revision.columnTransformers, transformerChanges)
+    val statsRow = getDataFrameStats(data, updatedTransformers)
+    val numElements = statsRow.getAs[Long]("count")
+    val cubeSizeChanges = computeCubeSizeChanges(revision, options)
+    val transformationChanges =
+      computeTransformationChanges(
+        updatedTransformers,
+        revision.transformations,
+        options,
+        statsRow)
+    val hasRevisionChanges =
+      cubeSizeChanges.isDefined ||
+        transformerChanges.flatten.nonEmpty ||
+        transformationChanges.flatten.nonEmpty
+    val revisionChanges = if (hasRevisionChanges) {
+      val rc = RevisionChange(
+        supersededRevision = revision,
+        timestamp = System.currentTimeMillis(),
+        desiredCubeSizeChange = cubeSizeChanges,
+        columnTransformersChanges = transformerChanges,
+        transformationsChanges = transformationChanges)
+      Some(rc)
+    } else None
+    (revisionChanges, numElements)
+  }
+
+  /**
+   * Check if the columns to index have changed
+   * @param revision
+   *   the existing revision
+   * @param options
+   *   the QbeastOptions
+   */
+  private[index] def checkColumnChanges(revision: Revision, options: QbeastOptions): Unit = {
+    val columnChanges = !revision.matchColumns(options.columnsToIndex)
+    if (columnChanges) {
+      // Currently, we don't allow changing the indexing columns
+      val currentColumnsToIndex = revision.columnTransformers.map(_.columnName)
+      throw AnalysisExceptionFactory.create(
+        s"columnsToIndex: '${options.columnsToIndex.mkString(",")}' does not have " +
+          s"the same column names as the existing ones: ${currentColumnsToIndex.mkString(",")}.")
+    }
+  }
+
+  /**
+   * Compute the transformer changes for the current operation. The input column names are assumed
+   * to be the same as the existing ones. A new Transformer will be created if the existing one is
+   * an EmptyTransformer or if the transformerType has changed.To change the transformer type, one
+   * has to specify exactly the transformerType in the columnToIndex option:
+   * option("columnsToIndex", "col_name:transformer_type"). If the transformerType is not
+   * specified, no transformer change will be detected.
+   *
+   * @param transformers
+   *   the existing transformers
+   * @param options
+   *   the QbeastOptions
+   * @param schema
+   *   the data schema
+   */
+  private[index] def computeTransformerChanges(
+      transformers: IISeq[Transformer],
+      options: QbeastOptions,
+      schema: StructType): IISeq[Option[Transformer]] = {
+    val newColumnSpecs = options.columnsToIndexParsed
+    val existingColumnSpecs = transformers.map(t => ColumnToIndex(t.spec))
+    newColumnSpecs
+      .zip(existingColumnSpecs)
+      .map {
+        case (newSpec, ColumnToIndex(_, Some(oldType)))
+            if oldType == EmptyTransformer.transformerSimpleName =>
+          // If the existing Transformer is an EmptyTransformer
+          Some(newSpec.toTransformer(schema))
+        case (newSpec @ ColumnToIndex(_, Some(newType)), ColumnToIndex(_, Some(oldType)))
+            if newType != oldType => // If the transformerType has changed
+          Some(newSpec.toTransformer(schema))
+        case _ => None
+      }
+      .toIndexedSeq
+  }
+
+  /**
+   * Compute the updated transformers. If a new transformer is created, it will replace the
+   * existing one.
+   * @param transformers
+   *   the existing transformers
+   * @param transformerChanges
+   *   the transformer changes created by user input
+   * @return
+   */
+  private[index] def computeUpdatedTransformers(
+      transformers: IISeq[Transformer],
+      transformerChanges: IISeq[Option[Transformer]]): IISeq[Transformer] = {
+    transformers.zip(transformerChanges).map {
+      case (_, Some(newT)) => newT
+      case (t, None) => t
+    }
+  }
+
+  /**
+   * Analyze and extract statistics for the indexing columns
+   * @param data
+   *   the data to analyze
+   * @param transformers
+   *   the columns to analyze
+   */
+  private[index] def getDataFrameStats(data: DataFrame, transformers: IISeq[Transformer]): Row = {
+    val columnsStatsExpr = transformers.map(_.stats).flatMap(_.statsSqlPredicates)
+    logInfo("Computing statistics: " + columnsStatsExpr.mkString(", "))
+    val row = data.selectExpr(columnsStatsExpr ++ Seq("count(1) AS count"): _*).first()
+    logInfo("Computed statistics: " + row.mkString(", "))
+    row
+  }
+
+  /**
+   * Compute the cube size changes for the current operation
+   * @param revision
+   *   the existing revision
+   * @param options
+   *   the QbeastOptions
+   */
+  private[index] def computeCubeSizeChanges(
+      revision: Revision,
+      options: QbeastOptions): Option[Int] = {
+    if (revision.desiredCubeSize != options.cubeSize) Some(options.cubeSize)
+    else None
+  }
+
+  /**
+   * Compute the transformation changes for the current operation. The process of creating
+   * transformation changes is as follows:
+   *   - Compute the Transformations from the input columnStats(if available) and the input
+   *     DataFrame statistics.
+   *   - Check if the new transformations supersede the existing ones.
+   *   - Make sure no EmptyTransformation is used. If a CDFQuantilesTransformers is present, it
+   *     must be properly setup.
+   * @param transformers
+   *   the updated transformers
+   * @param transformations
+   *   the existing transformations
+   * @param options
+   *   the QbeastOptions
+   * @param row
+   *   the Row containing column statistics computed from the input DataFrame
+   */
+  private[index] def computeTransformationChanges(
+      transformers: IISeq[Transformer],
+      transformations: IISeq[Transformation],
+      options: QbeastOptions,
+      row: Row): IISeq[Option[Transformation]] = {
+    // Compute transformations from columnStats and DataFrame stats, and merge them
+    val transformationsFromDataFrameStats =
+      computeTransformationsFromDataFrameStats(transformers, row)
+    val transformationsFromColumnsStats =
+      computeTransformationsFromColumnStats(transformers, options)
+    val newTransformations = transformationsFromDataFrameStats
+      .zip(transformationsFromColumnsStats)
+      .map {
+        case (tdf, Some(tcs)) => tdf.merge(tcs)
+        case (tdf, None) => tdf
+      }
+    // Create transformationChanges
+    val transformationChanges =
+      if (transformations.isEmpty) newTransformations.map(Some(_))
+      else {
+        // If the input revision has transformations, check if the new transformations supersede them.
+        transformations.zip(newTransformations).map {
+          case (oldT, newT) if oldT.isSupersededBy(newT) => Some(oldT.merge(newT))
+          case _ => None
+        }
+      }
+    // Make sure no EmptyTransformation is used.
+    // If a CDFQuantilesTransformers is present, it must be properly setup
+    transformers.zip(transformationChanges).foreach {
+      case (t, Some(_: EmptyTransformation)) =>
+        var msg = s"Empty transformation for column ${t.columnName}."
+        if (t.isInstanceOf[CDFQuantilesTransformer]) {
+          msg += s" The following must be provided to use QuantileTransformers: ${t.stats.statsNames.head}."
+        }
+        throw AnalysisExceptionFactory.create(msg)
+      case _ =>
+    }
+    transformationChanges
+  }
+
+  /**
+   * Compute transformations from the input column stats. If the stats are not available, the
+   * transformation is ignored.
+   * @param transformers
+   *   the transformers
+   * @param options
+   *   the QbeastOptions containing the columnStats
+   */
+  private[index] def computeTransformationsFromColumnStats(
+      transformers: IISeq[Transformer],
+      options: QbeastOptions): IISeq[Option[Transformation]] = {
+    val (columnStats, availableColumnStats) = parseColumnStats(options)
+    transformers.map { t =>
+      if (t.stats.statsNames.forall(availableColumnStats.contains)) {
+        // Create transformation with columnStats
+        Some(t.makeTransformation(columnStats.getAs[Object]))
+      } else {
+        // Ignore the transformation if the stats are not available
+        None
+      }
+    }
+  }
+
+  /**
+   * Compute transformations from the input DataFrame statistics. If the stats are not available,
+   * an EmptyTransformation should be created.
+   * @param transformers
+   *   the transformers
+   * @param row
+   *   the Row containing column statistics computed from the input DataFrame
+   */
+  private[index] def computeTransformationsFromDataFrameStats(
+      transformers: IISeq[Transformer],
+      row: Row): IISeq[Transformation] = {
+    transformers.map(_.makeTransformation(row.getAs[Object]))
+  }
+
+  private[index] def parseColumnStats(options: QbeastOptions): (Row, Set[String]) = {
+    val (row, statsNames) = if (options.columnStats.isDefined) {
       val spark = SparkSession.active
       import spark.implicits._
-      spark.read
+      val stats = spark.read
         .option("inferTimestamp", "true")
         .option("timestampFormat", "yyyy-MM-dd HH:mm:ss.SSSSSS'Z'")
         .json(Seq(options.columnStats.get).toDS())
         .first()
-    } else Row.empty
-
-    val transformations = {
-      val builder = Vector.newBuilder[Transformation]
-      builder.sizeHint(transformers.size)
-
-      transformers.foreach(transformer => {
-        // A Transformer needs manual column stats if:
-        // - it's type is ManualColumnStats
-        val needManualColumnStats = transformer.stats match {
-          case _: ManualColumnStats => true
-          case _ => false
-        }
-        val hasManualColumnStats = manualDefinedColumnStats &&
-          columnStats.schema.exists(_.name.contains(transformer.columnName))
-        if (hasManualColumnStats) {
-          // If manual column stats are provided
-          // Create transformation with boundaries
-          builder += transformer.makeTransformation(columnName =>
-            columnStats.getAs[Object](columnName))
-        } else if (needManualColumnStats) {
-          // If no column stats are provided, and manual stats are required
-          // Use an ManualPlaceholderTransformation which will throw an error when indexing
-          builder += ManualPlaceholderTransformation(
-            transformer.columnName,
-            transformer.stats.statsNames)
-          shouldCreateNewSpace = false
-        } else {
-          // If no column stats are provided, and no manual stats are required
-          // Use an EmptyTransformation which will always be superseded
-          builder += EmptyTransformation()
-          shouldCreateNewSpace = false
-        }
-      })
-      builder.result()
+      (stats, stats.schema.fieldNames.toSet)
+    } else (Row.empty, Set.empty[String])
+    if (statsNames.contains("_corrupt_record")) {
+      throw AnalysisExceptionFactory.create(
+        "The columnStats provided is not a valid JSON: " + row.getAs[String]("_corrupt_record"))
     }
-
-    val revision =
-      Revision.firstRevision(qtableID, desiredCubeSize, transformers, transformations)
-
-    // When all indexing columns have been provided with a boundary, update the RevisionID
-    // to 1 to avoid using the StagingRevisionID(0). It is possible for this RevisionID to
-    // to be later updated to 2 if the actual column boundaries are larger that than the
-    // provided values. In this case, we will have Revision 2 instead of Revision 1.
-    if (shouldCreateNewSpace) revision.copy(revisionID = 1)
-    else revision
-  }
-
-  override def createNextRevision(
-      qtableID: QTableID,
-      schema: StructType,
-      options: QbeastOptions,
-      oldRevisionID: RevisionID): Revision = {
-    val revision = createNewRevision(qtableID, schema, options)
-    revision.copy(revisionID = oldRevisionID + 1)
+    (row, statsNames)
   }
 
 }

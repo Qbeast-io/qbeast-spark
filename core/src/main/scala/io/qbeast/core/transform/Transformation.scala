@@ -31,28 +31,24 @@ import java.time.Instant
 trait Transformation extends Serializable {
 
   /**
-   * Converts a real number to a normalized value.
-   *
+   * Normalize an input value to a Double between 0 and 1.
    * @param value
-   *   a real number to convert
-   * @return
-   *   a real number between 0 and 1
+   *   the value to be converted
    */
   def transform(value: Any): Double
 
   /**
-   * This method should determine if the new data will cause the creation of a new revision.
+   * This method determines if another Transformation creates a new revision.
    *
-   * @param newTransformation
-   *   the new transformation created with statistics over the new data
+   * @param other
+   *   the other transformation to compare with
    * @return
-   *   true if the domain of the newTransformation is not fully contained in this one.
+   *   true if the domain of the other Transformation is not fully contained in this one.
    */
-  def isSupersededBy(newTransformation: Transformation): Boolean
+  def isSupersededBy(other: Transformation): Boolean
 
   /**
-   * Merges two transformations. The domain of the resulting transformation is the union of this
-   *
+   * Merges two transformations. The domain of the resulting transformation is the union of both.
    * @param other
    *   the other transformation to merge with this one
    * @return
@@ -77,13 +73,16 @@ case class IdentityToZeroTransformation(identityValue: Any) extends Transformati
 
   }
 
-  override def isSupersededBy(newTransformation: Transformation): Boolean =
-    newTransformation match {
-      case IdentityToZeroTransformation(newIdValue) => newIdValue != identityValue
-      case _ => true
-    }
+  override def isSupersededBy(other: Transformation): Boolean = other match {
+    case IdentityToZeroTransformation(newIdValue) => newIdValue != identityValue
+    case _: EmptyTransformation => false
+    case _ => true
+  }
 
-  override def merge(other: Transformation): Transformation = other
+  override def merge(other: Transformation): Transformation = other match {
+    case _: EmptyTransformation => this
+    case _ => other
+  }
 
 }
 
@@ -98,13 +97,15 @@ object NullToZeroTransformation extends Transformation {
     case null => 0.0
   }
 
-  override def isSupersededBy(newTransformation: Transformation): Boolean = {
-    newTransformation match {
-      case NullToZeroTransformation => false
-      case _ => true
-    }
+  override def isSupersededBy(other: Transformation): Boolean = other match {
+    case NullToZeroTransformation => false
+    case _: EmptyTransformation => false
+    case _ => true
   }
 
-  override def merge(other: Transformation): Transformation = other
+  override def merge(other: Transformation): Transformation = other match {
+    case _: EmptyTransformation => this
+    case _ => other
+  }
 
 }

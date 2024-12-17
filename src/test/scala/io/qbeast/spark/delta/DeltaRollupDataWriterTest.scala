@@ -49,12 +49,12 @@ class DeltaRollupDataWriterTest extends QbeastIntegrationTestSpec {
         .toDF()
 
       val tableID = QTableID(tmpDir)
-      val parameters: Map[String, String] =
-        Map("columnsToIndex" -> "age,val2", "cubeSize" -> cubeSize.toString)
+      val options =
+        QbeastOptions(Map("columnsToIndex" -> "age,val2", "cubeSize" -> cubeSize.toString))
       val revision =
-        SparkRevisionFactory.createNewRevision(tableID, df.schema, QbeastOptions(parameters))
+        SparkRevisionFactory.createNewRevision(tableID, df.schema, options)
       val indexStatus = IndexStatus(revision)
-      val (qbeastData, tableChanges) = SparkOTreeManager.index(df, indexStatus)
+      val (qbeastData, tableChanges) = SparkOTreeManager.index(df, indexStatus, options)
 
       val transactionStartTime = System.currentTimeMillis().toString
       val fileActions =
@@ -71,7 +71,7 @@ class DeltaRollupDataWriterTest extends QbeastIntegrationTestSpec {
     }
 
   it should "compute rollup correctly when optimizing" in
-    withSparkAndTmpDir { (spark, tmpDir) =>
+    withSparkAndTmpDir { (_, tmpDir) =>
       val revision =
         Revision(1L, 0, QTableID(tmpDir), 20, Vector(EmptyTransformer("col_1")), Vector.empty)
 

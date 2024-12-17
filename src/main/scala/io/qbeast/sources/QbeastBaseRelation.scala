@@ -19,7 +19,6 @@ import io.qbeast.context.QbeastContext
 import io.qbeast.spark.index.DefaultFileIndex
 import io.qbeast.spark.index.EmptyFileIndex
 import io.qbeast.table.IndexedTable
-import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.sources.BaseRelation
@@ -36,7 +35,7 @@ import org.apache.spark.sql.SparkSession
 object QbeastBaseRelation {
 
   /**
-   * Returns a HadoopFsRelation that contains all of the data present in the table. This relation
+   * Returns a HadoopFsRelation that contains all the data present in the table. This relation
    * will be continually updated as files are added or removed from the table. However, new
    * HadoopFsRelation must be requested in order to see changes to the schema.
    *
@@ -53,7 +52,6 @@ object QbeastBaseRelation {
       sqlContext: SQLContext,
       table: IndexedTable,
       options: Map[String, String]): BaseRelation = {
-
     val spark = SparkSession.active
     val snapshot = QbeastContext.metadataManager.loadSnapshot(table.tableID)
     if (snapshot.isInitial) {
@@ -74,18 +72,14 @@ object QbeastBaseRelation {
     } else {
       // If the table contains data, initialize it
       val qbeastFileIndex = DefaultFileIndex(snapshot)
-      val bucketSpec: Option[BucketSpec] = None
-      val file = new ParquetFileFormat()
-
-      // Verify and Merge options with existing indexed properties
-      val parameters = table.verifyAndMergeProperties(options)
-
+      // Verify and update options with existing indexed properties
+      val parameters = table.verifyAndUpdateParameters(options)
       new HadoopFsRelation(
         qbeastFileIndex,
         partitionSchema = StructType(Seq.empty[StructField]),
         dataSchema = snapshot.schema,
-        bucketSpec = bucketSpec,
-        file,
+        bucketSpec = None,
+        new ParquetFileFormat(),
         parameters)(spark) with InsertableRelation {
         def insert(data: DataFrame, overwrite: Boolean): Unit = {
           table.save(data, parameters, append = !overwrite)

@@ -16,11 +16,10 @@
 package io.qbeast.core.transform
 
 import io.qbeast.core.model.mapper
+import io.qbeast.core.model.DoubleDataType
 import io.qbeast.core.model.IntegerDataType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
-import scala.annotation.nowarn
 
 class LinearTransformationTest extends AnyFlatSpec with Matchers {
 
@@ -130,47 +129,30 @@ class LinearTransformationTest extends AnyFlatSpec with Matchers {
 
   }
 
-  it should "be superseded by IdentityToZeroTransformations" in {
-    @nowarn("cat=deprecation") def test(): Unit = {
-      val linearT = LinearTransformation(-10, 10, 0, IntegerDataType)
-      linearT.isSupersededBy(IdentityToZeroTransformation(1)) shouldBe false
-      linearT.isSupersededBy(IdentityToZeroTransformation(-20)) shouldBe true
-      linearT.isSupersededBy(IdentityToZeroTransformation(20)) shouldBe true
-    }
-    test()
+  it should "be superseded by other Transformations" in {
+    val et = EmptyTransformation()
+    val ht = HashTransformation()
+    val lt = LinearTransformation(-100d, 100d, DoubleDataType)
+    val cdf_st = CDFStringQuantilesTransformation(Vector("a", "b", "c"))
+    val cdf_nt = CDFNumericQuantilesTransformation(Vector(0.1, 0.2, 0.3), DoubleDataType)
+
+    lt.isSupersededBy(et) shouldBe false
+    lt.isSupersededBy(ht) shouldBe true
+    lt.isSupersededBy(cdf_st) shouldBe true
+    lt.isSupersededBy(cdf_nt) shouldBe true
   }
 
-  it should "merge with IdentityToZeroTransformations" in {
-    @nowarn("cat=deprecation") def test(): Unit = {
-      val linearT = LinearTransformation(-10, 10, 0, IntegerDataType)
-      linearT.merge(IdentityToZeroTransformation(1)) should matchPattern {
-        case LinearTransformation(-10, 10, _, IntegerDataType) =>
-      }
-      linearT.merge(IdentityToZeroTransformation(-20)) should matchPattern {
-        case LinearTransformation(-20, 10, _, IntegerDataType) =>
-      }
-      linearT.merge(IdentityToZeroTransformation(20)) should matchPattern {
-        case LinearTransformation(-10, 20, _, IntegerDataType) =>
-      }
-    }
-    test()
-  }
+  it should "merge with other Transformations" in {
+    val et = EmptyTransformation()
+    val ht = HashTransformation()
+    val lt = LinearTransformation(-100d, 100d, DoubleDataType)
+    val cdf_st = CDFStringQuantilesTransformation(Vector("a", "b", "c"))
+    val cdf_nt = CDFNumericQuantilesTransformation(Vector(0.1, 0.2, 0.3), DoubleDataType)
 
-  it should "not by superseded by NullToZeroTransformation" in {
-    @nowarn("cat=deprecation") def test(): Unit = {
-      LinearTransformation(-10, 10, 0, IntegerDataType).isSupersededBy(
-        NullToZeroTransformation) shouldBe false
-    }
-    test()
-
-  }
-
-  it should "merge with NullToZeroTransformation" in {
-    @nowarn("cat=deprecation") def test(): Unit = {
-      val linearT = LinearTransformation(-10, 10, 0, IntegerDataType)
-      linearT.merge(NullToZeroTransformation) shouldBe linearT
-    }
-    test()
+    lt.merge(et) shouldBe lt
+    lt.merge(ht) shouldBe ht
+    lt.merge(cdf_st) shouldBe cdf_st
+    lt.merge(cdf_nt) shouldBe cdf_nt
   }
 
 }
