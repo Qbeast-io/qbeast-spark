@@ -54,18 +54,21 @@ private[writer] class Rollup(limit: Double) {
    *   the rollup result
    */
   def compute(): Map[CubeId, CubeId] = {
-    val queue = new mutable.PriorityQueue()(Ordering.by[CubeId, Int](_.depth))
+    val queue = new mutable.PriorityQueue()(CubeIdRollupOrdering)
     groups.keys.foreach(queue.enqueue(_))
     while (queue.nonEmpty) {
       val cubeId = queue.dequeue()
       val group = groups(cubeId)
       if (group.size < limit && !cubeId.isRoot) {
-        val Some(parentCubeId) = cubeId.parent
-        if (groups.contains(parentCubeId)) {
-          groups(parentCubeId).add(group)
+        val nextInLine = queue.headOption match {
+          case Some(cube) if areSiblings(cube, cubeId) => cube
+          case _ => cubeId.parent.get
+        }
+        if (groups.contains(nextInLine)) {
+          groups(nextInLine).add(group)
         } else {
-          groups.put(parentCubeId, group)
-          queue.enqueue(parentCubeId)
+          groups.put(nextInLine, group)
+          queue.enqueue(nextInLine)
         }
         groups.remove(cubeId)
       }
@@ -73,6 +76,38 @@ private[writer] class Rollup(limit: Double) {
     groups.flatMap { case (rollupCubeId, group) =>
       group.cubeIds.map((_, rollupCubeId))
     }.toMap
+  }
+
+  /**
+   * Checks if the given cube identifiers are siblings. Two cube identifiers are siblings if they
+   * have the same parent. It is assumed that the cube identifiers are different.
+   */
+  private def areSiblings(cube_a: CubeId, cube_b: CubeId): Boolean =
+    cube_a.parent == cube_b.parent
+
+  /*
+   * Ordering for cube identifiers. The cube identifiers are ordered by their depth in ascending
+   * order. If the depth is the same then the cube identifiers are ordered by in reverse order.
+   * This ordering is used in the priority queue to process the cube identifiers in the correct
+   * order, i.e., from the deepest to the shallowest, and from the leftmost to the rightmost:
+   *    0                     root
+   *    1           c0                   c1
+   *    2     c00         c01       c10         c11
+   * The priority queue will process the cube identifiers in the following order:
+   * c00, c01, c10, c11, c0, c1, root.
+   * c00 -> c01 -> c0, c10 -> c11 -> c1, c0 -> c1 -> root
+   */
+  private[writer] object CubeIdRollupOrdering extends Ordering[CubeId] {
+
+    override def compare(x: CubeId, y: CubeId): Int = {
+      val depthComparison = x.depth.compareTo(y.depth)
+      if (depthComparison == 0) {
+        y.compare(x)
+      } else {
+        depthComparison
+      }
+    }
+
   }
 
   private class Group(val cubeIds: mutable.Set[CubeId], var size: Long) {
