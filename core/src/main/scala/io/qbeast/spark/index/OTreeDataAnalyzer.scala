@@ -221,86 +221,27 @@ object DoublePassOTreeDataAnalyzer
     }
   }
 
-  /**
-   * Builds a list of non-deterministic operations in the logical plan
-   *
-   * A list of Non-Deterministic operations:
-   *   - LocalLimit without Sort Operation
-   *   - Sample
-   *   - Filter with non-deterministic condition
-   *
-   * @param plan
-   *   the logical plan
-   * @return
-   */
-  private def isLogicalPlanDeterministic(plan: LogicalPlan): Boolean = {
-    // Recursively traverse the logical plan to find non-deterministic operations
-    val isCurrentOperationDeterministic = plan match {
-      case LocalLimit(_, _: Sort) => true // LocalLimit with Sort is deterministic
-      case LocalLimit(_, _) => false
-      case Sample(_, _, _, _, _) => false
-      case Filter(condition, _) => condition.deterministic
-      case _ => true
-    }
-
-    val areChildOperationsDeterministic = plan.children.forall(isLogicalPlanDeterministic)
-
-    isCurrentOperationDeterministic && areChildOperationsDeterministic
-  }
-
-  /**
-   * Extracts the non-deterministic columns from the logical plan
-   *
-   * @param plan
-   * @return
-   */
-  private[index] def collectSelectExpressions(
-      logicalPlan: LogicalPlan,
-      columnName: String): Seq[Expression] = {
-    logicalPlan match {
-      case Project(projectList, _) =>
-        projectList.collect {
-          case Alias(child, name) if name == columnName => child
-          case expr if expr.references.map(_.name).contains(columnName) => expr
-        }
-      case _ =>
-        logicalPlan.children.flatMap(child => collectSelectExpressions(child, columnName))
-    }
-  }
-
-  private def isColumnDeterministic(logicalPlan: LogicalPlan, columnName: String): Boolean = {
-    val expressionSet = collectSelectExpressions(logicalPlan, columnName)
-    expressionSet.forall(_.deterministic)
-  }
-
-  private def analyzeDataFrameDeterminism(df: DataFrame, columnsToIndex: Seq[String]): Boolean = {
-    // Access the logical plan of the DataFrame
-    val logicalPlan: LogicalPlan = df.queryExecution.logical
-
-    // Check if the logical plan's query is deterministic
-    // Detect if the DataFrame's operations are deterministic
-    val isQueryDeterministic: Boolean = isLogicalPlanDeterministic(logicalPlan)
-
-    // Check if any of the columns to index in the DataFrame is deterministic
-    val areColumnsToIndexDeterministic: Boolean =
-      columnsToIndex.forall(column => isColumnDeterministic(logicalPlan, column))
-
-    // Check if the source is deterministic
-    isQueryDeterministic && areColumnsToIndexDeterministic
-  }
-
   override def analyze(
       dataFrame: DataFrame,
       indexStatus: IndexStatus,
       options: QbeastOptions): (DataFrame, TableChanges) = {
     logTrace(s"Begin: Analyzing the input data with existing revision: ${indexStatus.revision}")
 
+    // Compute the changes in the space: cube size, transformers, and transformations.
+    val (revisionChanges, numElements) =
+      computeRevisionChanges(indexStatus.revision, options, dataFrame)
+    val (isNewRevision, revisionToUse) = revisionChanges match {
+      case None => (false, indexStatus.revision)
+      case Some(revisionChange) => (true, revisionChange.createNewRevision)
+    }
+    logDebug(s"revisionToUse=$revisionToUse")
+
     // Check if the DataFrame is deterministic
     logDebug(s"Checking the determinism of the input data")
-    val currentRevision = indexStatus.revision
-    val currentColumnTransformers = currentRevision.columnTransformers
-    val currentColumnsToIndex = currentColumnTransformers.map(_.columnName)
-    val isSourceDeterministic = analyzeDataFrameDeterminism(dataFrame, currentColumnsToIndex)
+    val columnsTransformersToUse = revisionToUse.columnTransformers
+    val columnsToIndex = columnsTransformersToUse.map(_.columnName)
+    val isSourceDeterministic =
+      SparkPlanAnalyzer.analyzeDataFrameDeterminism(dataFrame, columnsToIndex)
     // TODO: we need to add columnStats control before the assert
     // TODO: Otherwise, the write would fail even if the user adds the correct configuration
     assert(
@@ -310,15 +251,6 @@ object DoublePassOTreeDataAnalyzer
         s"It is required to have deterministic sources and deterministic columns to index " +
         s"to preserve the state of the indexing pipeline. " +
         s"If it is not the case, please save the DF as delta and Convert it To Qbeast in a second step")
-
-    // Compute the changes in the space: cube size, transformers, and transformations.
-    val (revisionChanges, numElements) =
-      computeRevisionChanges(currentRevision, options, dataFrame)
-    val (isNewRevision, revisionToUse) = revisionChanges match {
-      case None => (false, indexStatus.revision)
-      case Some(revisionChange) => (true, revisionChange.createNewRevision)
-    }
-    logDebug(s"revisionToUse=$revisionToUse")
 
     // Add a random weight column
     val weightedDataFrame = dataFrame.transform(addRandomWeight(revisionToUse))
