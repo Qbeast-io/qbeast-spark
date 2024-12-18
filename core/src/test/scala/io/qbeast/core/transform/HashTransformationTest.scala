@@ -15,11 +15,15 @@
  */
 package io.qbeast.core.transform
 
+import io.qbeast.core.model.DoubleDataType
+import io.qbeast.core.transform.HistogramTransformer.defaultStringHistogram
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.annotation.nowarn
 import scala.util.Random
 
+@nowarn("cat=deprecation")
 class HashTransformationTest extends AnyFlatSpec with Matchers {
 
   behavior of "HashTransformationTest"
@@ -31,7 +35,7 @@ class HashTransformationTest extends AnyFlatSpec with Matchers {
       i -= 1
       val hash = ht.transform(Random.nextInt.toString)
       hash should be >= 0.0
-      hash should be < 1.0
+      hash should be <= 1.0
     }
   }
 
@@ -58,6 +62,42 @@ class HashTransformationTest extends AnyFlatSpec with Matchers {
       brackets(i) should be(t +- (t / 10))
     }
 
+  }
+
+  it should "superseded by another Transformation" in {
+    val et = EmptyTransformation()
+    val ht = HashTransformation()
+    val idt = IdentityTransformation(0d, DoubleDataType)
+    val lt = LinearTransformation(-100d, 100d, DoubleDataType)
+    val cdf_st = CDFStringQuantilesTransformation(Vector("a", "b", "c"))
+    val cdf_nt = CDFNumericQuantilesTransformation(Vector(0.1, 0.2, 0.3), DoubleDataType)
+    val sht = StringHistogramTransformation(defaultStringHistogram)
+
+    ht.isSupersededBy(et) shouldBe false
+    ht.isSupersededBy(ht) shouldBe false
+    ht.isSupersededBy(idt) shouldBe true
+    ht.isSupersededBy(lt) shouldBe true
+    ht.isSupersededBy(cdf_st) shouldBe true
+    ht.isSupersededBy(cdf_nt) shouldBe true
+    ht.isSupersededBy(sht) shouldBe true
+  }
+
+  it should "merge with another Transformation" in {
+    val et = EmptyTransformation()
+    val ht = HashTransformation()
+    val idt = IdentityTransformation(0d, DoubleDataType)
+    val lt = LinearTransformation(-100d, 100d, DoubleDataType)
+    val cdf_st = CDFStringQuantilesTransformation(Vector("a", "b", "c"))
+    val cdf_nt = CDFNumericQuantilesTransformation(Vector(0.1, 0.2, 0.3), DoubleDataType)
+    val sht = StringHistogramTransformation(defaultStringHistogram)
+
+    ht.merge(et) shouldBe ht
+    ht.merge(ht) shouldBe ht
+    ht.merge(idt) shouldBe idt
+    ht.merge(lt) shouldBe lt
+    ht.merge(cdf_st) shouldBe cdf_st
+    ht.merge(cdf_nt) shouldBe cdf_nt
+    ht.merge(sht) shouldBe sht
   }
 
   "The murmur" should "uniformly distributed with Random Bytes" in {

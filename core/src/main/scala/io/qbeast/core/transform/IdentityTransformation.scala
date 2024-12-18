@@ -41,15 +41,14 @@ case class IdentityTransformation(identityValue: Any, orderedDataType: OrderedDa
 
   override def transform(value: Any): Double = 0.0
 
-  override def isSupersededBy(newTransformation: Transformation): Boolean =
-    newTransformation match {
-      case IdentityTransformation(newIdValue, newType) if newType == orderedDataType =>
-        if (newIdValue == null) false
-        else if (identityValue == null) true
-        else newIdValue != identityValue
-      case _: LinearTransformation => true
-      case _ => false
-    }
+  override def isSupersededBy(other: Transformation): Boolean = other match {
+    case IdentityTransformation(newIdValue, newType) if newType == orderedDataType =>
+      if (newIdValue == null) false
+      else if (identityValue == null) true
+      else newIdValue != identityValue
+    case _: EmptyTransformation => false
+    case _ => true
+  }
 
   override def merge(other: Transformation): Transformation = other match {
     case linear @ LinearTransformation(min, max, _, newType) if newType == orderedDataType =>
@@ -68,6 +67,8 @@ case class IdentityTransformation(identityValue: Any, orderedDataType: OrderedDa
         val maxValue = identityValue.max(newIdValue)
         LinearTransformation(minValue, maxValue, orderedDataType)
       }
+    case _: EmptyTransformation => this
+    case _ => other
   }
 
 }

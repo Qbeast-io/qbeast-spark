@@ -1,6 +1,7 @@
 package io.qbeast.core.transform
 
 import io.qbeast.core.model.mapper
+import io.qbeast.core.model.DoubleDataType
 import io.qbeast.core.model.IntegerDataType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -99,14 +100,45 @@ class IdentityTransformationTest extends AnyFlatSpec with Matchers {
     }
   }
 
+  it should "be superseded by other Transformations" in {
+    val et = EmptyTransformation()
+    val ht = HashTransformation()
+    val idt = IdentityTransformation(0.0, DoubleDataType)
+    val cdf_nt = CDFNumericQuantilesTransformation(Vector(0.1, 0.2, 0.3), DoubleDataType)
+
+    idt.isSupersededBy(et) shouldBe false
+    idt.isSupersededBy(ht) shouldBe true
+    idt.isSupersededBy(cdf_nt) shouldBe true
+  }
+
+  it should "merge with other Transformations" in {
+    val et = EmptyTransformation()
+    val ht = HashTransformation()
+    val idt = IdentityTransformation(0d, DoubleDataType)
+    val cdf_nt = CDFNumericQuantilesTransformation(Vector(0.1, 0.2, 0.3), DoubleDataType)
+
+    idt.merge(et) shouldBe idt
+    idt.merge(ht) shouldBe ht
+    idt.merge(cdf_nt) shouldBe cdf_nt
+  }
+
   "IdentityToZeroTransformation" should "be superseded correctly" in {
     @nowarn("cat=deprecation") def test(): Unit = {
       val idToZero = IdentityToZeroTransformation(1)
+      val et = EmptyTransformation()
+      val ht = HashTransformation()
+      val idt = IdentityTransformation(1, IntegerDataType)
+      val lt = LinearTransformation(-10, 10, 0, IntegerDataType)
+      val cdf_nt = CDFNumericQuantilesTransformation(Vector(0.1, 0.2, 0.3), IntegerDataType)
+
       idToZero.isSupersededBy(idToZero) shouldBe false
       idToZero.isSupersededBy(IdentityToZeroTransformation(2)) shouldBe true
       idToZero.isSupersededBy(NullToZeroTransformation) shouldBe true
-      idToZero.isSupersededBy(IdentityTransformation(1, IntegerDataType)) shouldBe true
-      idToZero.isSupersededBy(LinearTransformation(-10, 10, 0, IntegerDataType)) shouldBe true
+      idToZero.isSupersededBy(et) shouldBe false
+      idToZero.isSupersededBy(ht) shouldBe true
+      idToZero.isSupersededBy(idt) shouldBe true
+      idToZero.isSupersededBy(lt) shouldBe true
+      idToZero.isSupersededBy(cdf_nt) shouldBe true
     }
     test()
   }
@@ -114,12 +146,18 @@ class IdentityTransformationTest extends AnyFlatSpec with Matchers {
   it should "merge correctly" in {
     @nowarn("cat=deprecation") def test(): Unit = {
       val idToZero = IdentityToZeroTransformation(1)
-      val id = IdentityTransformation(1, IntegerDataType)
-      val linear = LinearTransformation(-10, 10, 0, IntegerDataType)
+      val et = EmptyTransformation()
+      val ht = HashTransformation()
+      val idt = IdentityTransformation(1, IntegerDataType)
+      val lt = LinearTransformation(-10, 10, 0, IntegerDataType)
+      val cdf_nt = CDFNumericQuantilesTransformation(Vector(0.1, 0.2, 0.3), IntegerDataType)
 
       idToZero.merge(NullToZeroTransformation) shouldBe NullToZeroTransformation
-      idToZero.merge(id) shouldBe id
-      idToZero.merge(linear) shouldBe linear
+      idToZero.merge(et) shouldBe idToZero
+      idToZero.merge(ht) shouldBe ht
+      idToZero.merge(idt) shouldBe idt
+      idToZero.merge(lt) shouldBe lt
+      idToZero.merge(cdf_nt) shouldBe cdf_nt
     }
     test()
   }
@@ -128,13 +166,19 @@ class IdentityTransformationTest extends AnyFlatSpec with Matchers {
     @nowarn("cat=deprecation") def test(): Unit = {
       val nullToZero = NullToZeroTransformation
       val idToZero = IdentityToZeroTransformation(1)
-      val id = IdentityTransformation(1, IntegerDataType)
-      val linear = LinearTransformation(-10, 10, 0, IntegerDataType)
+      val et = EmptyTransformation()
+      val ht = HashTransformation()
+      val idt = IdentityTransformation(1, IntegerDataType)
+      val lt = LinearTransformation(-10, 10, 0, IntegerDataType)
+      val cdf_nt = CDFNumericQuantilesTransformation(Vector(0.1, 0.2, 0.3), IntegerDataType)
 
       nullToZero.isSupersededBy(nullToZero) shouldBe false
       nullToZero.isSupersededBy(idToZero) shouldBe true
-      nullToZero.isSupersededBy(id) shouldBe true
-      idToZero.isSupersededBy(linear) shouldBe true
+      nullToZero.isSupersededBy(et) shouldBe false
+      nullToZero.isSupersededBy(ht) shouldBe true
+      nullToZero.isSupersededBy(idt) shouldBe true
+      nullToZero.isSupersededBy(lt) shouldBe true
+      nullToZero.isSupersededBy(cdf_nt) shouldBe true
     }
     test()
   }
@@ -143,13 +187,19 @@ class IdentityTransformationTest extends AnyFlatSpec with Matchers {
     @nowarn("cat=deprecation") def test(): Unit = {
       val nullToZero = NullToZeroTransformation
       val idToZero = IdentityToZeroTransformation(1)
-      val id = IdentityTransformation(1, IntegerDataType)
-      val linear = LinearTransformation(-10, 10, 0, IntegerDataType)
+      val et = EmptyTransformation()
+      val ht = HashTransformation()
+      val idt = IdentityTransformation(1, IntegerDataType)
+      val lt = LinearTransformation(-10, 10, 0, IntegerDataType)
+      val cdf_nt = CDFNumericQuantilesTransformation(Vector(0.1, 0.2, 0.3), IntegerDataType)
 
       nullToZero.merge(nullToZero) shouldBe nullToZero
       nullToZero.merge(idToZero) shouldBe idToZero
-      nullToZero.merge(id) shouldBe id
-      idToZero.merge(linear) shouldBe linear
+      nullToZero.merge(et) shouldBe nullToZero
+      nullToZero.merge(ht) shouldBe ht
+      nullToZero.merge(idt) shouldBe idt
+      nullToZero.merge(lt) shouldBe lt
+      nullToZero.merge(cdf_nt) shouldBe cdf_nt
     }
     test()
   }

@@ -37,16 +37,11 @@ case class ColumnToIndex(columnName: String, transformerType: Option[String]) {
 
 }
 
-/**
- * Companion object for IndexedColumn. Allows creating an IndexedColumn from a string.
- */
-
 object ColumnToIndex {
 
   /**
-   * Creates an IndexedColumn from a string and schema.
-   * @param columnSpec
-   * @return
+   * Creates an ColumnToIndex from a string which contains the column name and optionally the
+   * Transformer type. e.g. "col_1" or "col_1:linear".
    */
   def apply(columnSpec: String): ColumnToIndex = {
     columnSpec match {

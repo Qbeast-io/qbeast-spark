@@ -22,7 +22,10 @@ case class EmptyTransformation() extends Transformation {
 
   override def transform(value: Any): Double = 0d
 
-  override def isSupersededBy(newTransformation: Transformation): Boolean = true
+  override def isSupersededBy(other: Transformation): Boolean = other match {
+    case _: EmptyTransformation => false
+    case _ => true
+  }
 
   override def merge(other: Transformation): Transformation = other
 }

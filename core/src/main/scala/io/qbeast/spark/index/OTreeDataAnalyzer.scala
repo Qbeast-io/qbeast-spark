@@ -16,10 +16,8 @@
 package io.qbeast.spark.index
 
 import io.qbeast.core.model._
-import io.qbeast.core.transform.Transformer
 import io.qbeast.spark.index.QbeastColumns.weightColumnName
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
-import io.qbeast.IISeq
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.CUBE_DOMAINS_BUFFER_CAPACITY
 import org.apache.spark.sql.catalyst.expressions.Alias
@@ -33,7 +31,6 @@ import org.apache.spark.sql.catalyst.plans.logical.Sort
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
 
 import scala.collection.convert.ImplicitConversions.`collection asJava`
@@ -54,77 +51,21 @@ trait OTreeDataAnalyzer {
    * @return
    *   the changes to the index
    */
-  def analyze(data: DataFrame, indexStatus: IndexStatus): (DataFrame, TableChanges)
+  def analyze(
+      data: DataFrame,
+      indexStatus: IndexStatus,
+      options: QbeastOptions): (DataFrame, TableChanges)
 
 }
 
-object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable with Logging {
-
-  /**
-   * Estimates MaxWeight on DataFrame
-   */
-
-  /**
-   * Analyze a specific group of columns of the dataframe and extract valuable statistics
-   * @param data
-   *   the data to analyze
-   * @param columnTransformers
-   *   the columns to analyze
-   * @return
-   */
-  private[index] def getDataFrameStats(
-      data: DataFrame,
-      columnTransformers: IISeq[Transformer]): Row = {
-    val columnStats = columnTransformers.map(_.stats)
-    val columnsExpr = columnStats.flatMap(_.statsSqlPredicates)
-    logInfo("Computing statistics: " + columnsExpr.mkString(", "))
-    val row = data.selectExpr(columnsExpr ++ Seq("count(1) AS count"): _*).first()
-    logInfo("Computed statistics: " + row.mkString(", "))
-    row
-  }
-
-  /**
-   * Given a Row with Statistics, outputs the RevisionChange
-   * @param row
-   *   the row with statistics
-   * @param revision
-   *   the current revision
-   * @return
-   */
-  private[index] def calculateRevisionChanges(
-      row: Row,
-      revision: Revision): Option[RevisionChange] = {
-    // TODO: When all indexing columns are provided with a boundary, a new revision is
-    //  created directly. If the actual data boundaries are not contained by those
-    //  values, the RevisionID would then increase again by 1, leaving a discontinued
-    //  sequence of RevisionIDs in the metadata.
-
-    val newTransformation =
-      revision.columnTransformers.map(_.makeTransformation(colName => row.getAs[Object](colName)))
-
-    val transformationDelta = if (revision.transformations.isEmpty) {
-      newTransformation.map(a => Some(a))
-    } else {
-      revision.transformations.zip(newTransformation).map {
-        case (oldTransformation, newTransformation)
-            if oldTransformation.isSupersededBy(newTransformation) =>
-          Some(oldTransformation.merge(newTransformation))
-        case _ => None
-      }
-    }
-
-    if (transformationDelta.flatten.isEmpty) {
-      None
-    } else {
-      Some(
-        RevisionChange(
-          supersededRevision = revision,
-          timestamp = System.currentTimeMillis(),
-          transformationsChanges = transformationDelta))
-
-    }
-
-  }
+/**
+ * Estimates MaxWeight on DataFrame
+ */
+object DoublePassOTreeDataAnalyzer
+    extends OTreeDataAnalyzer
+    with SparkRevisionChangesUtils
+    with Serializable
+    with Logging {
 
   private[index] def addRandomWeight(revision: Revision): DataFrame => DataFrame =
     (df: DataFrame) => {
@@ -350,7 +291,8 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
 
   override def analyze(
       dataFrame: DataFrame,
-      indexStatus: IndexStatus): (DataFrame, TableChanges) = {
+      indexStatus: IndexStatus,
+      options: QbeastOptions): (DataFrame, TableChanges) = {
     logTrace(s"Begin: Analyzing the input data with existing revision: ${indexStatus.revision}")
 
     // Check if the DataFrame is deterministic
@@ -370,14 +312,12 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
         s"to preserve the state of the indexing pipeline. " +
         s"If it is not the case, please save the DF as delta and Convert it To Qbeast in a second step")
 
-    // Compute the statistics for the indexedColumns
-    val dataFrameStats = getDataFrameStats(dataFrame, currentColumnTransformers)
-    val numElements = dataFrameStats.getAs[Long]("count")
-    val spaceChanges = calculateRevisionChanges(dataFrameStats, currentRevision)
-    val (isNewRevision, revisionToUse) = spaceChanges match {
-      case None => (false, currentRevision)
-      case Some(revisionChange) => (true, revisionChange.createNewRevision)
-    }
+
+    // Compute the changes in the space: cube size, transformers, and transformations.
+    val (revisionChanges, numElements) =
+      computeRevisionChanges(indexStatus.revision, options, dataFrame)
+    val (isNewRevision, revisionToUse) = revisionChanges match {
+      case None => (false, indexStatus.revision)
     logDebug(s"revisionToUse=$revisionToUse")
 
     // Add a random weight column
@@ -413,7 +353,7 @@ object DoublePassOTreeDataAnalyzer extends OTreeDataAnalyzer with Serializable w
 
     // Gather the new changes
     val tableChanges = BroadcastTableChanges(
-      spaceChanges,
+      revisionChanges,
       indexStatus,
       updatedCubeWeights,
       inputDataBlockElementCounts)

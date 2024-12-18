@@ -54,7 +54,7 @@ class StringHistogramTransformationTest extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "supersede correctly" in {
+  it should "be superseded by another StringHistogramTransformation" in {
     val defaultT = StringHistogramTransformation(defaultStringHistogram)
     val customT_1 =
       StringHistogramTransformation(Array("brand_A", "brand_B", "brand_C"))
@@ -67,6 +67,28 @@ class StringHistogramTransformationTest extends AnyFlatSpec with Matchers {
     customT_1.isSupersededBy(defaultT) shouldBe false
     customT_1.isSupersededBy(customT_1) shouldBe false
     customT_1.isSupersededBy(customT_2) shouldBe true
+  }
+
+  it should "be superseded by other Transformations" in {
+    val et = EmptyTransformation()
+    val ht = HashTransformation()
+    val cdf_st = CDFStringQuantilesTransformation(Vector("a", "b", "c"))
+    val sht = StringHistogramTransformation(defaultStringHistogram)
+
+    sht.isSupersededBy(et) shouldBe false
+    sht.isSupersededBy(ht) shouldBe true
+    sht.isSupersededBy(cdf_st) shouldBe true
+  }
+
+  it should "merge with other Transformations" in {
+    val et = EmptyTransformation()
+    val ht = HashTransformation()
+    val cdf_st = CDFStringQuantilesTransformation(Vector("a", "b", "c"))
+    val sht = StringHistogramTransformation(defaultStringHistogram)
+
+    sht.merge(et) shouldBe sht
+    sht.merge(ht) shouldBe ht
+    sht.merge(cdf_st) shouldBe cdf_st
   }
 
   it should "have histograms with length > 1" in {

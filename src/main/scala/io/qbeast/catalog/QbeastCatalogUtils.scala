@@ -214,7 +214,7 @@ object QbeastCatalogUtils extends Logging {
    * @param dataFrame
    *   the dataframe to write, if any
    * @param tableCreationMode
-   *   the creation mode (could be CREATE, REPLACE or CREATE OR REPLACE)
+   *   the creation mode (CREATE, REPLACE or CREATE OR REPLACE)
    * @param tableFactory
    *   the indexed table factory
    * @param existingSessionCatalog
@@ -258,10 +258,7 @@ object QbeastCatalogUtils extends Logging {
     // Process the parameters/options/configuration sent to the table
     val qTableID = QTableID(loc.toString)
     val indexedTable = tableFactory.getIndexedTable(qTableID)
-    val newProperties =
-      if (!indexedTable.exists) indexedTable.selectColumnsToIndex(properties, dataFrame)
-      else properties
-    val allProperties = indexedTable.verifyAndMergeProperties(newProperties)
+    val allProperties = indexedTable.verifyAndUpdateParameters(properties, dataFrame)
 
     // Initialize the path option
     val storage = DataSource

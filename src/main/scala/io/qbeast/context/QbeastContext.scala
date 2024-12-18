@@ -76,8 +76,7 @@ object QbeastContext extends QbeastContext with QbeastCoreContext {
 
   override def metadataManager: MetadataManager = {
     DEFAULT_TABLE_FORMAT match {
-      case "delta" =>
-        DeltaMetadataManager
+      case "delta" => DeltaMetadataManager
       case _ =>
         throw new IllegalArgumentException(
           s"MetadataManager for table format $DEFAULT_TABLE_FORMAT not found")
@@ -86,8 +85,7 @@ object QbeastContext extends QbeastContext with QbeastCoreContext {
 
   override def dataWriter: DataWriter = {
     DEFAULT_TABLE_FORMAT match {
-      case "delta" =>
-        DeltaRollupDataWriter
+      case "delta" => DeltaRollupDataWriter
       case _ =>
         throw new IllegalArgumentException(
           s"RollupDataWriter for table format $DEFAULT_TABLE_FORMAT not found")
