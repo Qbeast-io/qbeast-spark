@@ -303,7 +303,6 @@ object DoublePassOTreeDataAnalyzer
     val isSourceDeterministic = analyzeDataFrameDeterminism(dataFrame, currentColumnsToIndex)
     // TODO: we need to add columnStats control before the assert
     // TODO: Otherwise, the write would fail even if the user adds the correct configuration
-    // TODO: blocked by https://github.com/Qbeast-io/qbeast-spark/issues/223
     assert(
       isSourceDeterministic,
       s"The source query is non-deterministic. " +
@@ -312,12 +311,13 @@ object DoublePassOTreeDataAnalyzer
         s"to preserve the state of the indexing pipeline. " +
         s"If it is not the case, please save the DF as delta and Convert it To Qbeast in a second step")
 
-
     // Compute the changes in the space: cube size, transformers, and transformations.
     val (revisionChanges, numElements) =
-      computeRevisionChanges(indexStatus.revision, options, dataFrame)
+      computeRevisionChanges(currentRevision, options, dataFrame)
     val (isNewRevision, revisionToUse) = revisionChanges match {
       case None => (false, indexStatus.revision)
+      case Some(revisionChange) => (true, revisionChange.createNewRevision)
+    }
     logDebug(s"revisionToUse=$revisionToUse")
 
     // Add a random weight column

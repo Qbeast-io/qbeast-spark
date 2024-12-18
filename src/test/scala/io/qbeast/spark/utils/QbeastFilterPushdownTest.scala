@@ -19,9 +19,7 @@ import io.qbeast.spark.index.DefaultFileIndex
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestUtils._
 import org.apache.spark.sql.execution.FileSourceScanExec
-import org.apache.spark.sql.functions.avg
-import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.functions.regexp_replace
+import org.apache.spark.sql.functions.{avg, col, lit, regexp_replace}
 
 class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
@@ -132,10 +130,10 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
       {
         val data = loadTestData(spark)
         val dataWithoutNulls =
-          data.filter("product_id < 100000").withColumn("null_product_id", col("product_id"))
+          data.filter("product_id < 4000000").withColumn("null_product_id", col("product_id"))
         val dataWithNulls = data
-          .filter("product_id >= 100000")
-          .withColumn("null_product_id", null)
+          .filter("product_id >= 4000000")
+          .withColumn("null_product_id", lit(null))
         val dataToIndex = dataWithoutNulls.union(dataWithNulls)
 
         writeTestData(dataToIndex, Seq("brand", "null_product_id"), 10000, tmpDir)
