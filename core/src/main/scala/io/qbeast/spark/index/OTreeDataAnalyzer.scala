@@ -20,20 +20,10 @@ import io.qbeast.spark.index.QbeastColumns.weightColumnName
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.CUBE_DOMAINS_BUFFER_CAPACITY
-import org.apache.spark.sql.catalyst.expressions.Alias
-import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.plans.logical.Filter
-import org.apache.spark.sql.catalyst.plans.logical.LocalLimit
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.logical.Project
-import org.apache.spark.sql.catalyst.plans.logical.Sample
-import org.apache.spark.sql.catalyst.plans.logical.Sort
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
-
-import scala.collection.convert.ImplicitConversions.`collection asJava`
 
 /**
  * Analyzes the data and extracts OTree structures
@@ -226,7 +216,6 @@ object DoublePassOTreeDataAnalyzer
       indexStatus: IndexStatus,
       options: QbeastOptions): (DataFrame, TableChanges) = {
     logTrace(s"Begin: Analyzing the input data with existing revision: ${indexStatus.revision}")
-
     // Compute the changes in the space: cube size, transformers, and transformations.
     val (revisionChanges, numElements) =
       computeRevisionChanges(indexStatus.revision, options, dataFrame)
