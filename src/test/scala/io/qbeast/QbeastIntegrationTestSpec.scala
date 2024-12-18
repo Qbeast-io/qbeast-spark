@@ -21,9 +21,7 @@ import io.qbeast.context.QbeastContextImpl
 import io.qbeast.core.model.IndexManager
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.QbeastSnapshot
-import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.spark.index.SparkOTreeManager
-import io.qbeast.spark.index.SparkRevisionFactory
 import io.qbeast.table.IndexedTableFactoryImpl
 import org.apache.log4j.Level
 import org.apache.spark.sql.internal.SQLConf
@@ -165,8 +163,8 @@ trait QbeastIntegrationTestSpec extends AnyFlatSpec with Matchers with DatasetCo
         QbeastContext.indexManager,
         QbeastContext.metadataManager,
         QbeastContext.dataWriter,
-        SparkRevisionFactory,
-        SparkColumnsToIndexSelector)
+        QbeastContext.revisionBuilder,
+        QbeastContext.columnSelector)
       val context = new QbeastContextImpl(spark.sparkContext.getConf, indexedTableFactory)
       try {
         QbeastContext.setUnmanaged(context)

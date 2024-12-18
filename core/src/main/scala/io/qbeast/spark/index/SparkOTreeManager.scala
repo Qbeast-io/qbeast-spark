@@ -35,7 +35,10 @@ object SparkOTreeManager extends IndexManager with Serializable with Logging {
    * @return
    *   the changes to the index
    */
-  override def index(data: DataFrame, indexStatus: IndexStatus): (DataFrame, TableChanges) = {
+  override def index(
+      data: DataFrame,
+      indexStatus: IndexStatus,
+      options: QbeastOptions): (DataFrame, TableChanges) = {
     // If the DataFrame is empty, we return an empty table changes
     if (data.isEmpty) {
       logInfo("Indexing empty Dataframe. Returning empty table changes.")
@@ -48,7 +51,7 @@ object SparkOTreeManager extends IndexManager with Serializable with Logging {
       return (data, emptyTableChanges)
     }
     // Analyze the data, add weight column, compute cube domains, and compute cube weights
-    val (weightedDataFrame, tc) = DoublePassOTreeDataAnalyzer.analyze(data, indexStatus)
+    val (weightedDataFrame, tc) = DoublePassOTreeDataAnalyzer.analyze(data, indexStatus, options)
 
     // Add cube column
     val pointWeightIndexer = new SparkPointWeightIndexer(tc)

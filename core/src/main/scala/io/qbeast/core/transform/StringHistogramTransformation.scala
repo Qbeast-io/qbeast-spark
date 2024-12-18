@@ -68,36 +68,18 @@ case class StringHistogramTransformation(histogram: IndexedSeq[String])
     }
   }
 
-  /**
-   * This method should determine if the new data will cause the creation of a new revision.
-   *
-   * @param newTransformation
-   *   the new transformation created with statistics over the new data
-   * @return
-   *   true if the domain of the newTransformation is not fully contained in this one.
-   */
-  override def isSupersededBy(newTransformation: Transformation): Boolean =
-    newTransformation match {
-      case nt @ StringHistogramTransformation(hist) =>
-        if (isDefault) !nt.isDefault
-        else if (nt.isDefault) false
-        else !(histogram == hist)
-      case _: CDFStringQuantilesTransformation => true // Always superseded by quantiles
-      case _ => false
-    }
+  override def isSupersededBy(other: Transformation): Boolean = other match {
+    case nt @ StringHistogramTransformation(hist) =>
+      if (isDefault) !nt.isDefault
+      else if (nt.isDefault) false
+      else histogram != hist
+    case _: EmptyTransformation => false
+    case _ => true
+  }
 
-  /**
-   * Merges two transformations. The domain of the resulting transformation is the union of this
-   *
-   * @param other
-   *   Transformation
-   * @return
-   *   a new Transformation that contains both this and other.
-   */
   override def merge(other: Transformation): Transformation = other match {
-    case _: StringHistogramTransformation => other
-    case _: CDFStringQuantilesTransformation => other
-    case _ => this
+    case _: EmptyTransformation => this
+    case _ => other
   }
 
 }

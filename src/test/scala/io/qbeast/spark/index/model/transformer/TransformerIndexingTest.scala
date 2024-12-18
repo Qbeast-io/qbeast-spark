@@ -16,6 +16,11 @@
 package io.qbeast.spark.index.model.transformer
 
 import io.qbeast.core.model.LongDataType
+import io.qbeast.core.model.StagingUtils
+import io.qbeast.core.transform.CDFNumericQuantilesTransformation
+import io.qbeast.core.transform.CDFNumericQuantilesTransformer
+import io.qbeast.core.transform.HashTransformation
+import io.qbeast.core.transform.HashTransformer
 import io.qbeast.core.transform.IdentityTransformation
 import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.core.transform.LinearTransformer
@@ -33,7 +38,11 @@ import org.scalatest.matchers.should.Matchers
 import scala.annotation.nowarn
 
 @nowarn("cat=deprecation")
-class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastIntegrationTestSpec {
+class TransformerIndexingTest
+    extends AnyFlatSpec
+    with Matchers
+    with QbeastIntegrationTestSpec
+    with StagingUtils {
 
   // Write source data indexing all columns and read it back
   private def writeAndReadDF(source: Dataset[_], tmpDir: String, spark: SparkSession) = {
@@ -439,5 +448,54 @@ class TransformerIndexingTest extends AnyFlatSpec with Matchers with QbeastInteg
     latestRevision.transformations.head shouldBe a[StringHistogramTransformation]
 
   })
+
+  it should "be able to change Transformer type at will" in withQbeastContextSparkAndTmpDir {
+    (spark, tmpDir) =>
+      val data = loadTestData(spark).sample(0.1)
+      // Creates a LinearTransformer with IdentityTransformation
+      data
+        .limit(1)
+        .write
+        .mode("append")
+        .format("qbeast")
+        .option("columnsToIndex", "price")
+        .save(tmpDir)
+      // Updates the IdentityTransformation to LinearTransformation
+      data.write.mode("append").format("qbeast").option("columnsToIndex", "price").save(tmpDir)
+      // Creates HashingTransformer with HashingTransformation
+      data.write
+        .mode("append")
+        .format("qbeast")
+        .option("columnsToIndex", "price:hashing")
+        .save(tmpDir)
+      // Creates CDFNumericQuantilesTransformer with CDFNumericQuantilesTransformation
+      data.write
+        .mode("append")
+        .format("qbeast")
+        .option("columnsToIndex", "price:quantiles")
+        .option("columnStats", """{"price_quantiles": [1.0, 100.0, 10000.0, 100000.0]}""")
+        .save(tmpDir)
+      // Creates LinearTransformer with LinearTransformation
+      data.write
+        .mode("append")
+        .format("qbeast")
+        .option("columnsToIndex", "price:linear")
+        .save(tmpDir)
+
+      val qt = QbeastTable.forPath(spark, tmpDir)
+      val revisions = qt.allRevisions().sortBy(_.revisionID)
+      revisions.size shouldBe 6
+      isStaging(revisions.head) shouldBe true
+      revisions(1).columnTransformers.head shouldBe a[LinearTransformer]
+      revisions(1).transformations.head shouldBe a[IdentityTransformation]
+      revisions(2).columnTransformers.head shouldBe a[LinearTransformer]
+      revisions(2).transformations.head shouldBe a[LinearTransformation]
+      revisions(3).columnTransformers.head shouldBe a[HashTransformer]
+      revisions(3).transformations.head shouldBe a[HashTransformation]
+      revisions(4).columnTransformers.head shouldBe a[CDFNumericQuantilesTransformer]
+      revisions(4).transformations.head shouldBe a[CDFNumericQuantilesTransformation]
+      revisions(5).columnTransformers.head shouldBe a[LinearTransformer]
+      revisions(5).transformations.head shouldBe a[LinearTransformation]
+  }
 
 }

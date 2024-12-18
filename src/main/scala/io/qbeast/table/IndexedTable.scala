@@ -16,7 +16,6 @@
 package io.qbeast.table
 
 import io.qbeast.core.model._
-import io.qbeast.core.model.QbeastOptions.checkQbeastProperties
 import io.qbeast.core.model.QbeastOptions.COLUMNS_TO_INDEX
 import io.qbeast.core.model.QbeastOptions.CUBE_SIZE
 import io.qbeast.core.model.RevisionFactory
@@ -33,6 +32,7 @@ import org.apache.spark.sql.Dataset
 
 import java.lang.System.currentTimeMillis
 import java.util.ConcurrentModificationException
+import scala.collection.mutable
 
 /**
  * Indexed table represents the tabular data storage indexed with the OTree indexing technology.
@@ -60,19 +60,12 @@ trait IndexedTable {
   def hasQbeastMetadata: Boolean
 
   /**
-   * Adds the indexed columns to the parameter if:
-   *   - ColumnsToIndex is NOT present
-   *   - AutoIndexing is enabled
-   *   - Data is available
-   * @param parameters
-   *   Map of parameters
+   * Automatically computes columnsToIndex from the provided DataFrame
    * @param data
    *   Dataframe
    * @return
    */
-  def selectColumnsToIndex(
-      parameters: Map[String, String],
-      data: Option[DataFrame]): Map[String, String]
+  def selectColumnsToIndex(data: Option[DataFrame]): Seq[String]
 
   /**
    * Returns the table id which identifies the table.
@@ -88,7 +81,9 @@ trait IndexedTable {
    *   the properties you want to merge
    * @return
    */
-  def verifyAndMergeProperties(properties: Map[String, String]): Map[String, String]
+  def verifyAndUpdateParameters(
+      properties: Map[String, String],
+      data: Option[DataFrame] = None): Map[String, String]
 
   /**
    * Saves given data in the table and updates the index. The specified columns are used to define
@@ -239,142 +234,86 @@ private[table] class IndexedTableImpl(
     case _: Exception => false
   }
 
-  override def verifyAndMergeProperties(properties: Map[String, String]): Map[String, String] = {
-    if (!exists) {
-      // IF not exists, we should only check new properties
-      checkQbeastProperties(properties)
-      properties
-    } else if (hasQbeastMetadata) {
-      // IF has qbeast metadata, we can merge both properties: new and current
-      val currentColumnsIndexed =
-        latestRevision.columnTransformers.map(_.columnName).mkString(",")
-      val currentCubeSize = latestRevision.desiredCubeSize.toString
-      val finalProperties = {
-        (properties.contains(COLUMNS_TO_INDEX), properties.contains(CUBE_SIZE)) match {
-          case (true, true) => properties
-          case (false, false) =>
-            properties + (COLUMNS_TO_INDEX -> currentColumnsIndexed, CUBE_SIZE -> currentCubeSize)
-          case (true, false) => properties + (CUBE_SIZE -> currentCubeSize)
-          case (false, true) =>
-            properties + (COLUMNS_TO_INDEX -> currentColumnsIndexed)
-        }
-      }
-      finalProperties
-    } else {
-      throw AnalysisExceptionFactory.create(
-        s"Table ${tableID.id} exists but does not contain Qbeast metadata. " +
-          "Please use ConvertToQbeastCommand to convert the table to Qbeast.")
-    }
-  }
-
-  private def isNewRevision(qbeastOptions: QbeastOptions): Boolean = {
-    // TODO feature: columnsToIndex may change between revisions
-    val columnsToIndex = qbeastOptions.columnsToIndex
-    val currentColumnsToIndex = latestRevision.columnTransformers.map(_.columnName)
-    val isNewColumns = !latestRevision.matchColumns(columnsToIndex)
-    if (isNewColumns) {
-      throw AnalysisExceptionFactory.create(
-        s"Columns to index '${columnsToIndex.mkString(",")}' do not match " +
-          s"existing index ${currentColumnsToIndex.mkString(",")}.")
-    }
-    // Checks if the desiredCubeSize is different from the existing one
-    val isNewCubeSize = latestRevision.desiredCubeSize != qbeastOptions.cubeSize
-    // Checks if the user-provided column boundaries would trigger the creation of
-    // a new revision.
-    val newPossibleRevision = revisionFactory.createNewRevision(tableID, schema, qbeastOptions)
-    val newPossibleTransformations = newPossibleRevision.transformations
-    // 2. Check if the new possible transformations are superseded by the existing ones
-    val isNewSpace =
-      latestRevision.transformations
-        .zip(newPossibleTransformations)
-        .forall(t => {
-          t._1.isSupersededBy(t._2)
-        })
-
-    isNewCubeSize || isNewSpace
-
-  }
-
-  override def selectColumnsToIndex(
+  /**
+   * Update the input parameters with the latest revision information if available. Otherwise,
+   * compute the columnsToIndex from the data.
+   * @param parameters
+   *   the input parameters
+   * @param data
+   *   the data
+   * @return
+   *   the updated parameters
+   */
+  override def verifyAndUpdateParameters(
       parameters: Map[String, String],
       data: Option[DataFrame]): Map[String, String] = {
-    val optionalColumnsToIndex = parameters.contains(COLUMNS_TO_INDEX)
-    if (!optionalColumnsToIndex && !COLUMN_SELECTOR_ENABLED) {
-      // IF autoIndexingEnabled is disabled, and no columnsToIndex are specified we should throw an exception
+    // Check configuration membership using the input map as it may be a CaseInsensitiveMap
+    val updatedParameters = mutable.Map[String, String](parameters.toSeq: _*)
+    if (!exists) {
+      // If the table does not exist. Compute the columnsToIndex from the data if needed.
+      // The cubeSize, if not provided, will be set to the default value.
+      if (!parameters.contains(COLUMNS_TO_INDEX)) {
+        val columnsToIndex = selectColumnsToIndex(data)
+        updatedParameters += (COLUMNS_TO_INDEX -> columnsToIndex.mkString(","))
+      }
+    } else if (hasQbeastMetadata) {
+      // If the table exists and has Qbeast metadata. Update the parameters if needed.
+      if (!parameters.contains(COLUMNS_TO_INDEX)) {
+        val currentIndexingColumns =
+          latestRevision.columnTransformers.map(_.columnName).mkString(",")
+        updatedParameters += (COLUMNS_TO_INDEX -> currentIndexingColumns)
+      }
+      if (!parameters.contains(CUBE_SIZE)) {
+        val currentCubeSize = latestRevision.desiredCubeSize.toString
+        updatedParameters += (CUBE_SIZE -> currentCubeSize)
+      }
+    } else {
+      // If the table exists but does not have Qbeast metadata.
       throw AnalysisExceptionFactory.create(
-        "Auto indexing is disabled. Please specify the columns to index in a comma separated way" +
-          " as .option(columnsToIndex, ...) or enable auto indexing with spark.qbeast.index.autoIndexingEnabled=true")
-    } else if (!optionalColumnsToIndex && COLUMN_SELECTOR_ENABLED) {
+        "The table exists but does not have Qbeast metadata. " +
+          "Please provide the columnsToIndex parameters. " +
+          "Or use the ConvertToQbeast command to convert the table to Qbeast.")
+    }
+    updatedParameters.toMap
+  }
+
+  /**
+   * Selects the columns to index from the data. This operation requires the data to be available
+   * and the autoIndexingEnabled to be enabled.
+   * @param data
+   *   the data
+   * @return
+   *   the columns to index
+   */
+  override def selectColumnsToIndex(data: Option[DataFrame]): Seq[String] = {
+    if (COLUMN_SELECTOR_ENABLED) {
       data match {
-        case Some(df) =>
-          // If columnsToIndex is NOT present, the column selector is ENABLED and DATA is AVAILABLE
-          // We can automatically choose the columnsToIndex based on dataFrame
-          val columnsToIndex = columnSelector.selectColumnsToIndex(df)
-          parameters + (COLUMNS_TO_INDEX -> columnsToIndex.mkString(","))
+        case Some(df) => columnSelector.selectColumnsToIndex(df)
         case None =>
           throw AnalysisExceptionFactory.create(
-            "Auto indexing is enabled but no data is available to select columns to index")
+            "No data is available to select columnsToIndex from.")
       }
-    } else parameters
+    } else {
+      // IF autoIndexingEnabled is disabled, and no columnsToIndex are specified we should throw an exception
+      throw AnalysisExceptionFactory.create(
+        "Auto indexing is disabled. " +
+          """You can either provide the columns to index via '.option("columnsToIndex", "col_1,col_2")'""" +
+          " or enable auto indexing with by setting spark.qbeast.index.autoIndexingEnabled=true")
+    }
   }
 
   override def save(
       data: DataFrame,
       parameters: Map[String, String],
       append: Boolean): BaseRelation = {
-    logTrace(s"Begin: save table $tableID")
-    val (indexStatus, options) =
-      if (exists && append) {
-        // If the table exists, and we are appending new data
-        // 1. Load existing IndexStatus
-        val options = QbeastOptions(verifyAndMergeProperties(parameters))
-        logDebug(s"Appending data to table $tableID with revision=${latestRevision.revisionID}")
-        if (isStaging(latestRevision)) { // If the existing Revision is Staging
-          val revision = revisionFactory.createNewRevision(tableID, data.schema, options)
-          (IndexStatus(revision), options)
-        } else {
-          if (isNewRevision(options)) {
-            // If the new parameters generate a new revision, we need to create another one
-            val newPotentialRevision = revisionFactory
-              .createNewRevision(tableID, data.schema, options)
-            val newRevisionCubeSize = newPotentialRevision.desiredCubeSize
-            // Merge new Revision Transformations with old Revision Transformations
-            logDebug(
-              s"Merging transformations for table $tableID with cubeSize=$newRevisionCubeSize")
-            val newRevisionTransformations =
-              latestRevision.transformations.zip(newPotentialRevision.transformations).map {
-                case (oldTransformation, newTransformation)
-                    if oldTransformation.isSupersededBy(newTransformation) =>
-                  Some(oldTransformation.merge(newTransformation))
-                case _ => None
-              }
-
-            // Create a RevisionChange
-            val revisionChanges = RevisionChange(
-              supersededRevision = latestRevision,
-              timestamp = System.currentTimeMillis(),
-              desiredCubeSizeChange = Some(newRevisionCubeSize),
-              transformationsChanges = newRevisionTransformations)
-            logDebug(
-              s"Creating new revision changes for table $tableID with revisionChanges=$revisionChanges)")
-
-            // Output the New Revision into the IndexStatus
-            (IndexStatus(revisionChanges.createNewRevision), options)
-          } else {
-            // If the new parameters does not create a different revision,
-            // load the latest IndexStatus
-            logDebug(
-              s"Loading latest revision for table $tableID with revision=${latestRevision.revisionID}")
-            (snapshot.loadIndexStatus(latestRevision.revisionID), options)
-          }
-        }
-      } else {
-        // IF autoIndexingEnabled, choose columns to index
-        val updatedParameters = selectColumnsToIndex(parameters, Some(data))
-        val options = QbeastOptions(updatedParameters)
-        val revision = revisionFactory.createNewRevision(tableID, data.schema, options)
-        (IndexStatus(revision), options)
-      }
+    logTrace(s"Begin: Save table $tableID")
+    val options = QbeastOptions(verifyAndUpdateParameters(parameters, Some(data)))
+    val indexStatus = if (exists && append && hasQbeastMetadata) {
+      snapshot.loadLatestIndexStatus
+    } else {
+      val revision = revisionFactory.createNewRevision(tableID, data.schema, options)
+      IndexStatus(revision)
+    }
     val result = write(data, indexStatus, options, append)
     logTrace(s"End: Save table $tableID")
     result
@@ -426,7 +365,6 @@ private[table] class IndexedTableImpl(
           // Trying one more time if the conflict is solvable
           tries -= 1
       }
-
     }
     clearCaches()
     val result = createQbeastBaseRelation()
@@ -444,7 +382,7 @@ private[table] class IndexedTableImpl(
     val writeMode = if (append) WriteMode.Append else WriteMode.Overwrite
     metadataManager.updateWithTransaction(tableID, schema, options, writeMode) {
       transactionStartTime: String =>
-        val (qbeastData, tableChanges) = indexManager.index(data, indexStatus)
+        val (qbeastData, tableChanges) = indexManager.index(data, indexStatus, options)
         val addFiles =
           dataWriter.write(tableID, schema, qbeastData, tableChanges, transactionStartTime)
         (tableChanges, addFiles, Vector.empty[DeleteFile])
@@ -534,35 +472,33 @@ private[table] class IndexedTableImpl(
     val filesDF = snapshot.loadDataframeFromIndexFiles(files)
     val latestIndexStatus = snapshot.loadLatestIndexStatus
     val schema = metadataManager.loadCurrentSchema(tableID)
+    val optOptions = QbeastOptions(options, latestIndexStatus.revision)
     // 3. In a transaction, update the table with the new data
-    metadataManager.updateWithTransaction(
-      tableID,
-      schema,
-      QbeastOptions(options, latestIndexStatus.revision),
-      WriteMode.Optimize) { transactionStartTime: String =>
-      // Remove the Unindexed Files from the Log
-      val deleteFiles: IISeq[DeleteFile] = files
-        .map { indexFile =>
-          DeleteFile(
-            path = indexFile.path,
-            size = indexFile.size,
-            dataChange = false,
-            deletionTimestamp = currentTimeMillis())
-        }
-        .collect()
-        .toIndexedSeq
-      // Index the data with IndexManager
-      val (data, tableChanges) = indexManager.index(filesDF, latestIndexStatus)
-      // Write the data with DataWriter
-      val newFiles: IISeq[IndexFile] =
-        dataWriter
-          .write(tableID, schema, data, tableChanges, transactionStartTime)
-          .collect { case indexFile: IndexFile =>
-            indexFile.copy(dataChange = false)
+    metadataManager.updateWithTransaction(tableID, schema, optOptions, WriteMode.Optimize) {
+      transactionStartTime: String =>
+        // Remove the Unindexed Files from the Log
+        val deleteFiles: IISeq[DeleteFile] = files
+          .map { indexFile =>
+            DeleteFile(
+              path = indexFile.path,
+              size = indexFile.size,
+              dataChange = false,
+              deletionTimestamp = currentTimeMillis())
           }
+          .collect()
           .toIndexedSeq
-      // Commit
-      (tableChanges, newFiles, deleteFiles)
+        // Index the data with IndexManager
+        val (data, tableChanges) = indexManager.index(filesDF, latestIndexStatus, optOptions)
+        // Write the data with DataWriter
+        val newFiles: IISeq[IndexFile] =
+          dataWriter
+            .write(tableID, schema, data, tableChanges, transactionStartTime)
+            .collect { case indexFile: IndexFile =>
+              indexFile.copy(dataChange = false)
+            }
+            .toIndexedSeq
+        // Commit
+        (tableChanges, newFiles, deleteFiles)
     }
   }
 

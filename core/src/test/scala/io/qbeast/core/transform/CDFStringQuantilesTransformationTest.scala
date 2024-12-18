@@ -15,12 +15,16 @@
  */
 package io.qbeast.core.transform
 
+import io.qbeast.core.model.DoubleDataType
+import io.qbeast.core.transform.HistogramTransformer.defaultStringHistogram
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.annotation.nowarn
 import scala.collection.immutable
 import scala.util.Random
 
+@nowarn("cat=deprecation")
 class CDFStringQuantilesTransformationTest extends AnyFlatSpec with Matchers {
 
   val defaultStringQuantilesTest: immutable.IndexedSeq[String] =
@@ -70,14 +74,44 @@ class CDFStringQuantilesTransformationTest extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "supersede correctly" in {
-    val customT_1 =
-      CDFStringQuantilesTransformation(Array("brand_A", "brand_B", "brand_C"))
-    val customT_2 =
-      CDFStringQuantilesTransformation(Array("brand_A", "brand_B", "brand_D"))
+  it should "be superseded by another Transformation" in {
+    val et = EmptyTransformation()
+    val ht = HashTransformation()
+    val idt = IdentityTransformation(0, DoubleDataType)
+    val lt = LinearTransformation(-100d, 100d, DoubleDataType)
+    val cdf_st = CDFStringQuantilesTransformation(Vector("a", "b", "c"))
+    val cdf_st_2 = CDFStringQuantilesTransformation(Vector("a", "b", "d"))
+    val cdf_nt = CDFNumericQuantilesTransformation(Vector(0.1, 0.2, 0.3), DoubleDataType)
+    val sht = StringHistogramTransformation(defaultStringHistogram)
 
-    customT_1.isSupersededBy(customT_1) shouldBe false
-    customT_1.isSupersededBy(customT_2) shouldBe true
+    cdf_st.isSupersededBy(et) shouldBe false
+    cdf_st.isSupersededBy(ht) shouldBe true
+    cdf_st.isSupersededBy(idt) shouldBe true
+    cdf_st.isSupersededBy(lt) shouldBe true
+    cdf_st.isSupersededBy(cdf_st) shouldBe false
+    cdf_st.isSupersededBy(cdf_st_2) shouldBe true
+    cdf_st.isSupersededBy(cdf_nt) shouldBe true
+    cdf_st.isSupersededBy(sht) shouldBe true
+  }
+
+  it should "merge with another Transformation" in {
+    val et = EmptyTransformation()
+    val ht = HashTransformation()
+    val idt = IdentityTransformation(0d, DoubleDataType)
+    val lt = LinearTransformation(-100d, 100d, DoubleDataType)
+    val cdf_st = CDFStringQuantilesTransformation(Vector("a", "b", "c"))
+    val cdf_st_2 = CDFStringQuantilesTransformation(Vector("a", "b", "d"))
+    val cdf_nt = CDFNumericQuantilesTransformation(Vector(0.1, 0.2, 0.3), DoubleDataType)
+    val sht = StringHistogramTransformation(defaultStringHistogram)
+
+    cdf_st.merge(et) shouldBe cdf_st
+    cdf_st.merge(ht) shouldBe ht
+    cdf_st.merge(idt) shouldBe idt
+    cdf_st.merge(lt) shouldBe lt
+    cdf_st.merge(cdf_st) shouldBe cdf_st
+    cdf_st.merge(cdf_st_2) shouldBe cdf_st_2
+    cdf_st.merge(cdf_nt) shouldBe cdf_nt
+    cdf_st.merge(sht) shouldBe sht
   }
 
   // TODO: check this test

@@ -39,7 +39,7 @@ trait HistogramTransformation extends Transformation {
 
   override def transform(value: Any): Double
 
-  override def isSupersededBy(newTransformation: Transformation): Boolean
+  override def isSupersededBy(other: Transformation): Boolean
 
   override def merge(other: Transformation): Transformation
 }

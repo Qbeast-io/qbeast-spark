@@ -55,14 +55,10 @@ trait CDFQuantilesTransformation extends Transformation {
   /**
    * Transforms a value to a Double between 0 and 1
    *
-   *   1. Checks if the value is null, if so, returns 0
-   *
-   * 2. Searches for the value in the quantiles
-   *
-   * 3. If the value is found, returns the current index divided by the length of the quantiles
-   *
-   * 4. If the value is not found, returns the relative position of the insertion point
-   *
+   *   1. Checks if the value is null, if so, returns 0. 2. Searches for the value in the
+   *      quantiles. 3. If the value is found, returns the current index divided by the length of
+   *      the quantiles. 4. If the value is not found, returns the relative position of the
+   *      insertion point.
    * WARNING: If the same number is repeated in the quantiles, the transformation will not always
    * select the same index
    * @param value
@@ -71,7 +67,6 @@ trait CDFQuantilesTransformation extends Transformation {
    *   the number between 0 and 1
    */
   override def transform(value: Any): Double = {
-
     // If the value is null, we return 0
     if (value == null) return 0d
     // Otherwise, we search for the value in the quantiles
@@ -87,43 +82,33 @@ trait CDFQuantilesTransformation extends Transformation {
   }
 
   /**
-   * This method should determine if the new data will cause the creation of a new revision.
-   *
-   * The current CDFQuantilesTransformation is superseded by another if
-   *   - the new transformation is a CDFQuantilesTransformation
-   *   - the ordering of the new transformation is the same as the current one
-   *   - the quantiles of the new transformation are non-empty
-   *   - the quantiles of the new transformation are different from the current one
-   *
-   * @param newTransformation
+   * This method determines if a transformation will cause the creation of a new revision. The
+   * current CDFQuantilesTransformation is superseded by another CDFQuantilesTransformation of the
+   * same data type if and only if a new and non-empty quantiles are provided. In any other case,
+   * the current transformation is always superseded.
+   * @param other
    *   the new transformation created with statistics over the new data
    * @return
    *   true if the domain of the newTransformation is not fully contained in this one.
    */
-  override def isSupersededBy(newTransformation: Transformation): Boolean =
-    newTransformation match {
-      case newT: CDFQuantilesTransformation =>
-        // Is superseded by other CDFQuantilesTransformations with different and non-empty quantiles
-        this.ordering == newT.ordering && newT.quantiles.nonEmpty && this.quantiles != newT.quantiles
-      case _ =>
-        // Not superseded by other transformations: Empty, Linear...
-        false
-    }
+  override def isSupersededBy(other: Transformation): Boolean = other match {
+    case newT: CDFQuantilesTransformation if this.ordering == newT.ordering =>
+      // Is superseded by other CDFQuantilesTransformations with different and non-empty quantiles
+      newT.quantiles.nonEmpty && this.quantiles != newT.quantiles
+    case _: EmptyTransformation => false
+    case _ => true
+  }
 
   /**
-   * Merges two transformations. The domain of the resulting transformation is the union of this
-   *
-   * In the case of CDFQuantilesTransformation, the merge would automatically select the new
-   * transformation if it's of the same type
-   *
+   * Merges two transformations. The domain of the resulting transformation is the union of both.
    * @param other
-   *   the other transformation
+   *   the other transformation to merge with this one
    * @return
    *   a new Transformation that contains both this and other.
    */
   override def merge(other: Transformation): Transformation = other match {
-    case otherT: CDFQuantilesTransformation => otherT
-    case _ => this
+    case _: EmptyTransformation => this
+    case _ => other
   }
 
 }
