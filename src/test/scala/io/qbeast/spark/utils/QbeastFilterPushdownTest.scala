@@ -19,7 +19,10 @@ import io.qbeast.spark.index.DefaultFileIndex
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestUtils._
 import org.apache.spark.sql.execution.FileSourceScanExec
-import org.apache.spark.sql.functions.{avg, col, lit, regexp_replace}
+import org.apache.spark.sql.functions.avg
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.functions.regexp_replace
 
 class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
 
@@ -142,7 +145,7 @@ class QbeastFilterPushdownTest extends QbeastIntegrationTestSpec {
         val filter = "(`null_product_id` is null)"
 
         val qbeastQuery = df.filter(filter)
-        val normalQuery = dataWithNulls.filter(filter)
+        val normalQuery = dataToIndex.filter(filter)
 
         checkFiltersArePushedDown(qbeastQuery)
         qbeastQuery.count() shouldBe normalQuery.count()
