@@ -1,5 +1,7 @@
 package io.qbeast.spark.index
 
+import io.qbeast.core.model.Revision
+import io.qbeast.spark.internal.rules.QbeastRelation
 import org.apache.spark.sql.catalyst.expressions.Alias
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.logical.Filter
@@ -12,7 +14,7 @@ import org.apache.spark.sql.DataFrame
 
 import scala.collection.convert.ImplicitConversions.`collection asJava`
 
-object SparkPlanAnalyzer {
+trait SparkPlanAnalyzer {
 
   /**
    * Builds a list of non-deterministic operations in the logical plan
@@ -31,7 +33,12 @@ object SparkPlanAnalyzer {
     val isCurrentOperationDeterministic = plan match {
       case LocalLimit(_, _: Sort) => true // LocalLimit with Sort is deterministic
       case LocalLimit(_, _) => false
-      case Sample(_, _, _, _, _) => false
+      case Sample(_, _, false, _, child) =>
+        child match {
+          case QbeastRelation(_, _) =>
+            true // Sample over QbeastRelation is deterministic
+          case _ => false
+        }
       case Filter(condition, _) => condition.deterministic
       case _ => true
     }
@@ -86,11 +93,11 @@ object SparkPlanAnalyzer {
    *
    * @param dataFrame
    *   the DataFrame to analyze
-   * @param columnsToIndex
-   *   the columns to index
+   * @param revision
+   *   the Revision to analyze
    * @return
    */
-  def analyzeDataFrameDeterminism(dataFrame: DataFrame, columnsToIndex: Seq[String]): Boolean = {
+  def analyzeDataFrameDeterminism(dataFrame: DataFrame, revision: Revision): Boolean = {
     // Access the logical plan of the DataFrame
     val logicalPlan: LogicalPlan = dataFrame.queryExecution.logical
 
@@ -99,6 +106,7 @@ object SparkPlanAnalyzer {
     val isQueryDeterministic: Boolean = isLogicalPlanDeterministic(logicalPlan)
 
     // Check if any of the columns to index in the DataFrame is deterministic
+    val columnsToIndex = revision.columnTransformers.map(_.columnName)
     val areColumnsToIndexDeterministic: Boolean =
       columnsToIndex.forall(column => isColumnDeterministic(logicalPlan, column))
 

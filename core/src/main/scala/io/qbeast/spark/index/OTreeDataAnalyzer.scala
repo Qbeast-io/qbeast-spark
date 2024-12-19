@@ -53,6 +53,7 @@ trait OTreeDataAnalyzer {
  */
 object DoublePassOTreeDataAnalyzer
     extends OTreeDataAnalyzer
+    with SparkPlanAnalyzer
     with SparkRevisionChangesUtils
     with Serializable
     with Logging {
@@ -216,21 +217,11 @@ object DoublePassOTreeDataAnalyzer
       indexStatus: IndexStatus,
       options: QbeastOptions): (DataFrame, TableChanges) = {
     logTrace(s"Begin: Analyzing the input data with existing revision: ${indexStatus.revision}")
-    // Compute the changes in the space: cube size, transformers, and transformations.
-    val (revisionChanges, numElements) =
-      computeRevisionChanges(indexStatus.revision, options, dataFrame)
-    val (isNewRevision, revisionToUse) = revisionChanges match {
-      case None => (false, indexStatus.revision)
-      case Some(revisionChange) => (true, revisionChange.createNewRevision)
-    }
-    logDebug(s"revisionToUse=$revisionToUse")
 
     // Check if the DataFrame is deterministic
     logDebug(s"Checking the determinism of the input data")
-    val columnsTransformersToUse = revisionToUse.columnTransformers
-    val columnsToIndex = columnsTransformersToUse.map(_.columnName)
     val isSourceDeterministic =
-      SparkPlanAnalyzer.analyzeDataFrameDeterminism(dataFrame, columnsToIndex)
+      analyzeDataFrameDeterminism(dataFrame, indexStatus.revision)
     // TODO: we need to add columnStats control before the assert
     // TODO: Otherwise, the write would fail even if the user adds the correct configuration
     assert(
@@ -240,6 +231,15 @@ object DoublePassOTreeDataAnalyzer
         s"It is required to have deterministic sources and deterministic columns to index " +
         s"to preserve the state of the indexing pipeline. " +
         s"If it is not the case, please save the DF as delta and Convert it To Qbeast in a second step")
+
+    // Compute the changes in the space: cube size, transformers, and transformations.
+    val (revisionChanges, numElements) =
+      computeRevisionChanges(indexStatus.revision, options, dataFrame)
+    val (isNewRevision, revisionToUse) = revisionChanges match {
+      case None => (false, indexStatus.revision)
+      case Some(revisionChange) => (true, revisionChange.createNewRevision)
+    }
+    logDebug(s"revisionToUse=$revisionToUse")
 
     // Add a random weight column
     val weightedDataFrame = dataFrame.transform(addRandomWeight(revisionToUse))
