@@ -13,7 +13,17 @@ import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
 
-case class QbeastColumnStats(stats: String, columnStatsSchema: StructType, columnStatsRow: Row) {}
+/**
+ * Container for Qbeast Column Stats
+ *
+ * @param statsString
+ * @param columnStatsSchema
+ * @param columnStatsRow
+ */
+case class QbeastColumnStats(
+    statsString: String,
+    columnStatsSchema: StructType,
+    columnStatsRow: Row)
 
 object QbeastColumnStats {
 
@@ -32,9 +42,15 @@ object QbeastColumnStats {
       columnTransformers: Seq[Transformer]): StructType = {
     val columnStatsSchema = StructType(columnTransformers.flatMap { transformer =>
       val transformerStatsNames = transformer.stats.statsNames
+      val transformerColumnName = transformer.columnName
+      val sparkDataType = dataSchema.find(_.name == transformerColumnName) match {
+        case Some(field) => field.dataType
+        case None =>
+          throw AnalysisExceptionFactory.create(
+            s"Column $transformerColumnName not found in the data schema")
+      }
       transformer match {
-        case LinearTransformer(columnName, _) =>
-          val sparkDataType = dataSchema.find(_.name == columnName).get.dataType
+        case LinearTransformer(_, _) =>
           transformerStatsNames.map(statName =>
             StructField(statName, sparkDataType, nullable = true))
         case CDFNumericQuantilesTransformer(_, _) =>
@@ -48,40 +64,48 @@ object QbeastColumnStats {
             StructField(statName, StringType, nullable = true))
       }
     })
-    println("columnStats schema")
-    println(columnStatsSchema)
     columnStatsSchema
   }
 
   def buildColumnStatsRow(stats: String, columnStatsSchema: StructType): Row = {
-    try {
-      val spark = SparkSession.active
-      import spark.implicits._
-      val columnStatsJSON = Seq(stats).toDS()
-      val row = spark.read
-        .option("inferTimestamp", "true")
-        .option("timestampFormat", "yyyy-MM-dd HH:mm:ss.SSSSSS'Z'")
-        .schema(columnStatsSchema)
-        .json(columnStatsJSON)
-        .first()
-
-      println("columnStats row")
-      println(row)
-      row
-    } catch {
-      case _: Throwable =>
-        throw AnalysisExceptionFactory.create(
-          "The column stats provided are not in the correct format")
+    // If the stats are empty, return an empty row
+    if (stats.isEmpty) return Row.empty
+    // Otherwise, parse the stats
+    val spark = SparkSession.active
+    import spark.implicits._
+    val columnStatsJSON = Seq(stats).toDS()
+    val row = spark.read
+      .option("inferTimestamp", "true")
+      .option("timestampFormat", "yyyy-MM-dd HH:mm:ss.SSSSSS'Z'")
+      .schema(columnStatsSchema)
+      .json(columnStatsJSON)
+      .first()
+    // If the stats are non-empty, and the row values are null,
+    // we assume that the stats are not in the correct format
+    val areAllStatsNull = row.toSeq.forall(f => f == null)
+    if (stats.nonEmpty && areAllStatsNull) {
+      throw AnalysisExceptionFactory.create(
+        s"The columnStats provided is not a valid JSON: $stats")
     }
+    // return row
+    row
   }
 
+  /**
+   * Builds the QbeastColumnStats
+   *
+   * @param statsString
+   * @param columnTransformers
+   * @param dataSchema
+   * @return
+   */
   def build(
-      stats: String,
+      statsString: String,
       columnTransformers: Seq[Transformer],
       dataSchema: StructType): QbeastColumnStats = {
     val columnStatsSchema = buildColumnStatsSchema(dataSchema, columnTransformers)
-    val columnStatsRow = buildColumnStatsRow(stats, columnStatsSchema)
-    QbeastColumnStats(stats, columnStatsSchema, columnStatsRow)
+    val columnStatsRow = buildColumnStatsRow(statsString, columnStatsSchema)
+    QbeastColumnStats(statsString, columnStatsSchema, columnStatsRow)
   }
 
 }

@@ -34,7 +34,6 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.SparkSession
 
 /**
  * Spark implementation of RevisionBuilder
@@ -87,19 +86,31 @@ trait SparkRevisionChangesUtils extends StagingUtils with Logging {
       options: QbeastOptions,
       data: DataFrame): (Option[RevisionChange], Long) = {
     checkColumnChanges(revision, options)
+    // 1. Compute transformer changes
     val transformerChanges =
       computeTransformerChanges(revision.columnTransformers, options, data.schema)
+    // 2. Update transformers if necessary
     val updatedTransformers =
       computeUpdatedTransformers(revision.columnTransformers, transformerChanges)
-    val statsRow = getDataFrameStats(data, updatedTransformers)
-    val numElements = statsRow.getAs[Long]("count")
+    // 3. Get the stats from the DataFrame
+    val dataFrameStats = getDataFrameStats(data, updatedTransformers)
+    val numElements = dataFrameStats.getAs[Long]("count")
+    // 4. Compute the cube size changes
     val cubeSizeChanges = computeCubeSizeChanges(revision, options)
+    // 5. Compute the Transformation changes given the input data and the user input
     val transformationChanges =
       computeTransformationChanges(
         updatedTransformers,
         revision.transformations,
         options,
-        statsRow)
+        dataFrameStats,
+        data.schema)
+    // 6. Return RevisionChanges.
+    //
+    // Revision should change if:
+    //    - Cube Size has changed
+    //    - Transformer types had changed
+    //    - Transformations have changed
     val hasRevisionChanges =
       cubeSizeChanges.isDefined ||
         transformerChanges.flatten.nonEmpty ||
@@ -238,12 +249,17 @@ trait SparkRevisionChangesUtils extends StagingUtils with Logging {
       transformers: IISeq[Transformer],
       transformations: IISeq[Transformation],
       options: QbeastOptions,
-      row: Row): IISeq[Option[Transformation]] = {
-    // Compute transformations from columnStats and DataFrame stats, and merge them
+      row: Row,
+      dataSchema: StructType): IISeq[Option[Transformation]] = {
+    // Compute transformations from dataFrameStats
     val transformationsFromDataFrameStats =
       computeTransformationsFromDataFrameStats(transformers, row)
+
+    // Compute transformations from columnStats
     val transformationsFromColumnsStats =
-      computeTransformationsFromColumnStats(transformers, options)
+      computeTransformationsFromColumnStats(transformers, options, dataSchema)
+
+    // Merge transformations from DataFrame and columnStats
     val newTransformations = transformationsFromDataFrameStats
       .zip(transformationsFromColumnsStats)
       .map {
@@ -284,15 +300,25 @@ trait SparkRevisionChangesUtils extends StagingUtils with Logging {
    */
   private[index] def computeTransformationsFromColumnStats(
       transformers: IISeq[Transformer],
-      options: QbeastOptions): IISeq[Option[Transformation]] = {
-    val (columnStats, availableColumnStats) = parseColumnStats(options)
+      options: QbeastOptions,
+      dataSchema: StructType): IISeq[Option[Transformation]] = {
+    // 1. Get the columnStats from the options
+    val columnStatsString = options.columnStats.getOrElse("")
+    // 2. Build the QbeastColumnStats
+    val qbeastColumnStats = QbeastColumnStats.build(columnStatsString, transformers, dataSchema)
+    // 3. Compute transformations from the columnStats
+    val columnStatsRow = qbeastColumnStats.columnStatsRow
     transformers.map { t =>
-      if (t.stats.statsNames.forall(availableColumnStats.contains)) {
+      try {
         // Create transformation with columnStats
-        Some(t.makeTransformation(columnStats.getAs[Object]))
-      } else {
-        // Ignore the transformation if the stats are not available
-        None
+        Some(t.makeTransformation(columnStatsRow.getAs[Object]))
+      } catch {
+        case e: Throwable =>
+          logWarning(
+            s"Error creating transformation for column ${t.columnName} with columnStats: $columnStatsString",
+            e)
+          // Ignore the transformation if the stats are not available
+          None
       }
     }
   }
@@ -309,24 +335,6 @@ trait SparkRevisionChangesUtils extends StagingUtils with Logging {
       transformers: IISeq[Transformer],
       row: Row): IISeq[Transformation] = {
     transformers.map(_.makeTransformation(row.getAs[Object]))
-  }
-
-  private[index] def parseColumnStats(options: QbeastOptions): (Row, Set[String]) = {
-    val (row, statsNames) = if (options.columnStats.isDefined) {
-      val spark = SparkSession.active
-      import spark.implicits._
-      val stats = spark.read
-        .option("inferTimestamp", "true")
-        .option("timestampFormat", "yyyy-MM-dd HH:mm:ss.SSSSSS'Z'")
-        .json(Seq(options.columnStats.get).toDS())
-        .first()
-      (stats, stats.schema.fieldNames.toSet)
-    } else (Row.empty, Set.empty[String])
-    if (statsNames.contains("_corrupt_record")) {
-      throw AnalysisExceptionFactory.create(
-        "The columnStats provided is not a valid JSON: " + row.getAs[String]("_corrupt_record"))
-    }
-    (row, statsNames)
   }
 
 }
