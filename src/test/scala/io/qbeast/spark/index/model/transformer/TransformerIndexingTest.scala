@@ -451,11 +451,11 @@ class TransformerIndexingTest
 
   it should "be able to change Transformer type at will" in withQbeastContextSparkAndTmpDir {
     (spark, tmpDir) =>
-      val data = loadTestData(spark).sample(0.1)
+      val dataFirst = spark.range(1).toDF("price")
+      val data = spark.range(2, 10).toDF("price")
+
       // Creates a LinearTransformer with IdentityTransformation
-      data
-        .limit(1)
-        .write
+      dataFirst.write
         .mode("append")
         .format("qbeast")
         .option("columnsToIndex", "price")
