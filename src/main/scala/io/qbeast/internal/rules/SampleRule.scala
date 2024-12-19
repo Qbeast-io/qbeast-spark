@@ -15,11 +15,10 @@
  */
 package io.qbeast.internal.rules
 
-import io.qbeast.core.model.QbeastOptions
 import io.qbeast.core.model.Weight
 import io.qbeast.core.model.WeightRange
-import io.qbeast.spark.index.DefaultFileIndex
 import io.qbeast.spark.internal.expressions.QbeastMurmur3Hash
+import io.qbeast.spark.internal.rules.QbeastRelation
 import io.qbeast.IndexedColumns
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.And
@@ -31,7 +30,6 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.logical.Project
 import org.apache.spark.sql.catalyst.plans.logical.Sample
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.SparkSession
 
@@ -104,26 +102,6 @@ class SampleRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
       }
 
     }
-  }
-
-}
-
-/**
- * QbeastRelation matching pattern
- */
-object QbeastRelation {
-
-  def unapply(plan: LogicalPlan): Option[(LogicalRelation, IndexedColumns)] = plan match {
-
-    case l @ LogicalRelation(
-          q @ HadoopFsRelation(o: DefaultFileIndex, _, _, _, _, parameters),
-          _,
-          _,
-          _) =>
-      val qbeastOptions = QbeastOptions(parameters)
-      val columnsToIndex = qbeastOptions.columnsToIndexParsed.map(_.columnName)
-      Some((l, columnsToIndex))
-    case _ => None
   }
 
 }
