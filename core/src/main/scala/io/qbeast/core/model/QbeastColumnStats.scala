@@ -3,6 +3,7 @@ package io.qbeast.core.model
 import io.qbeast.core.transform.CDFNumericQuantilesTransformer
 import io.qbeast.core.transform.CDFStringQuantilesTransformer
 import io.qbeast.core.transform.LinearTransformer
+import io.qbeast.core.transform.StringHistogramTransformer
 import io.qbeast.core.transform.Transformer
 import org.apache.spark.sql.types.ArrayType
 import org.apache.spark.sql.types.DoubleType
@@ -47,6 +48,7 @@ object QbeastColumnStatsBuilder {
           throw AnalysisExceptionFactory.create(
             s"Column $transformerColumnName not found in the data schema")
       }
+
       transformer match {
         case LinearTransformer(_, _) =>
           transformerStatsNames.map(statName =>
@@ -57,9 +59,12 @@ object QbeastColumnStatsBuilder {
         case CDFStringQuantilesTransformer(_) =>
           transformerStatsNames.map(statName =>
             StructField(statName, ArrayType(StringType), nullable = true))
-        case _ => // TODO: Add support for other transformers
+        case StringHistogramTransformer(_, _) =>
+          println("string hist")
           transformerStatsNames.map(statName =>
-            StructField(statName, StringType, nullable = true))
+            StructField(statName, ArrayType(StringType), nullable = true))
+        case _ => // TODO: Add support for other transformers
+          Seq.empty
       }
     })
     columnStatsSchema
@@ -91,7 +96,7 @@ object QbeastColumnStatsBuilder {
     // If the stats are non-empty, and the row values are null,
     // we assume that the stats are not in the correct format
     val areAllStatsNull = row.toSeq.forall(f => f == null)
-    if (stats.nonEmpty && areAllStatsNull) {
+    if (areAllStatsNull) {
       throw AnalysisExceptionFactory.create(
         s"The columnStats provided is not a valid JSON: $stats")
     }
