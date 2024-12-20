@@ -68,11 +68,6 @@ case class QbeastOptions(
    */
   def columnsToIndexParsed: Seq[ColumnToIndex] = columnsToIndex.map(ColumnToIndex(_))
 
-  /**
-   * Returns true if the column stats are defined
-   */
-  val areColumnStatsDefined: Boolean = columnStats.isDefined
-
   def toMap: CaseInsensitiveMap[String] = {
     val options = Map.newBuilder[String, String]
     options += COLUMNS_TO_INDEX -> columnsToIndex.mkString(",")
