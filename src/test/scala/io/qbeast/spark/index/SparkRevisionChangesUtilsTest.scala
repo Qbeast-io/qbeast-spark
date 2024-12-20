@@ -16,6 +16,8 @@
 package io.qbeast.spark.index
 
 import io.qbeast.core.model.DoubleDataType
+import io.qbeast.core.model.FloatDataType
+import io.qbeast.core.model.IntegerDataType
 import io.qbeast.core.model.LongDataType
 import io.qbeast.core.model.QTableID
 import io.qbeast.core.model.QbeastOptions
@@ -33,6 +35,7 @@ import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.core.transform.LinearTransformer
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.T3
+import io.qbeast.TestClasses.TestAll
 import org.apache.spark.sql.functions.to_timestamp
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.DataFrame
@@ -657,5 +660,61 @@ class SparkRevisionChangesUtilsTest
 
     revision_2.desiredCubeSize shouldBe 10000
   }
+
+  it should "createNewRevision with column stats for all numeric types" in withSpark(spark => {
+    import spark.implicits._
+    val qid = QTableID("t")
+    val data = spark
+      .range(5)
+      .map(i => TestAll(s"$i", i.toDouble, i.floatValue(), i.toInt, i.toLong))
+      .toDF()
+    val emptyRevision = SparkRevisionFactory.createNewRevision(
+      qid,
+      data.schema,
+      QbeastOptions(Map(COLUMNS_TO_INDEX -> "float_value,double_value,int_value,long_value")))
+
+    // Compute The Revision Changes given a set of Column Stats
+    val (revisionChanges, _) =
+      computeRevisionChanges(
+        emptyRevision, // empty revision
+        QbeastOptions(
+          Map(
+            QbeastOptions.COLUMNS_TO_INDEX -> "float_value,double_value,int_value,long_value",
+            QbeastOptions.COLUMN_STATS ->
+              """{"float_value_min":0.0, "float_value_max":10.0,
+                | "double_value_min":0.0, "double_value_max":10.0,
+                | "int_value_min":0, "int_value_max":10,
+                | "long_value_min":0, "long_value_max":10}""".stripMargin)),
+        data)
+
+    // the revisionChanges should be defined
+    revisionChanges shouldBe defined
+
+    val revision = revisionChanges.get.createNewRevision
+    revision.tableID shouldBe qid
+    // the reason while it's 1 is because columnStats are provided here
+    revision.revisionID shouldBe 1
+    revision.columnTransformers shouldBe Vector(
+      LinearTransformer("float_value", FloatDataType),
+      LinearTransformer("double_value", DoubleDataType),
+      LinearTransformer("int_value", IntegerDataType),
+      LinearTransformer("long_value", LongDataType))
+
+    val transformations = revision.transformations
+    transformations should not be null
+    transformations.head should matchPattern {
+      case LinearTransformation(0.0f, 10.0f, _, FloatDataType) =>
+    }
+    transformations(1) should matchPattern {
+      case LinearTransformation(0.0, 10.0, _, DoubleDataType) =>
+    }
+    transformations(2) should matchPattern {
+      case LinearTransformation(0, 10, _, IntegerDataType) =>
+    }
+    transformations(3) should matchPattern {
+      case LinearTransformation(0L, 10L, _, LongDataType) =>
+    }
+
+  })
 
 }
