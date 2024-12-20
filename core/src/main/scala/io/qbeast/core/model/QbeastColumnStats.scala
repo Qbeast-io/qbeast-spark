@@ -16,16 +16,14 @@ import org.apache.spark.sql.SparkSession
 /**
  * Container for Qbeast Column Stats
  *
- * @param statsString
  * @param columnStatsSchema
+ *   the column stats schema
  * @param columnStatsRow
+ *   the column stats row
  */
-case class QbeastColumnStats(
-    statsString: String,
-    columnStatsSchema: StructType,
-    columnStatsRow: Row)
+case class QbeastColumnStats(columnStatsSchema: StructType, columnStatsRow: Row)
 
-object QbeastColumnStats {
+object QbeastColumnStatsBuilder {
 
   /**
    * Builds the column stats schema
@@ -67,6 +65,16 @@ object QbeastColumnStats {
     columnStatsSchema
   }
 
+  /**
+   * Builds the column stats row
+   *
+   * @param stats
+   *   the stats in a JSON string
+   * @param columnStatsSchema
+   *   the column stats schema
+   * @return
+   */
+
   def buildColumnStatsRow(stats: String, columnStatsSchema: StructType): Row = {
     // If the stats are empty, return an empty row
     if (stats.isEmpty) return Row.empty
@@ -95,8 +103,11 @@ object QbeastColumnStats {
    * Builds the QbeastColumnStats
    *
    * @param statsString
+   *   the stats in a JSON string
    * @param columnTransformers
+   *   the set of columnTransformers to build the Stats from
    * @param dataSchema
+   *   the data schema to build the Stats from
    * @return
    */
   def build(
@@ -105,7 +116,7 @@ object QbeastColumnStats {
       dataSchema: StructType): QbeastColumnStats = {
     val columnStatsSchema = buildColumnStatsSchema(dataSchema, columnTransformers)
     val columnStatsRow = buildColumnStatsRow(statsString, columnStatsSchema)
-    QbeastColumnStats(statsString, columnStatsSchema, columnStatsRow)
+    QbeastColumnStats(columnStatsSchema, columnStatsRow)
   }
 
 }

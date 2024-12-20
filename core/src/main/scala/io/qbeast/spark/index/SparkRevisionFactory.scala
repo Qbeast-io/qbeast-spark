@@ -17,7 +17,7 @@ package io.qbeast.spark.index
 
 import io.qbeast.core.model.ColumnToIndex
 import io.qbeast.core.model.QTableID
-import io.qbeast.core.model.QbeastColumnStats
+import io.qbeast.core.model.QbeastColumnStatsBuilder
 import io.qbeast.core.model.QbeastOptions
 import io.qbeast.core.model.Revision
 import io.qbeast.core.model.RevisionChange
@@ -305,7 +305,8 @@ trait SparkRevisionChangesUtils extends StagingUtils with Logging {
     // 1. Get the columnStats from the options
     val columnStatsString = options.columnStats.getOrElse("")
     // 2. Build the QbeastColumnStats
-    val qbeastColumnStats = QbeastColumnStats.build(columnStatsString, transformers, dataSchema)
+    val qbeastColumnStats =
+      QbeastColumnStatsBuilder.build(columnStatsString, transformers, dataSchema)
     // 3. Compute transformations from the columnStats
     val columnStatsRow = qbeastColumnStats.columnStatsRow
     transformers.map { t =>
