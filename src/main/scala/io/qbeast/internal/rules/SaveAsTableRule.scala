@@ -16,7 +16,6 @@
 package io.qbeast.internal.rules
 
 import io.qbeast.catalog.QbeastCatalogUtils.isQbeastTable
-import io.qbeast.catalog.QbeastCatalogUtils.isSupportedProvider
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.plans.logical.CreateTableAsSelect
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
