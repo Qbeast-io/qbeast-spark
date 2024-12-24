@@ -37,4 +37,8 @@ object MetadataConfig {
   final val blocks = "qbeast.blocks"
   final val tags = "qbeast.tags"
   final val configuration = "qbeast.configuration"
+
+  final val tableConfigurations: Seq[String] =
+    Seq(revision, lastRevisionID, configuration)
+
 }

@@ -17,10 +17,12 @@ package io.qbeast.catalog
 
 import io.qbeast.core.model.QTableID
 import io.qbeast.sources.v2.QbeastTableImpl
+import io.qbeast.spark.utils.MetadataConfig
 import io.qbeast.table.IndexedTable
 import io.qbeast.table.IndexedTableFactory
 import org.apache.hadoop.fs.Path
 import org.apache.spark.internal.Logging
+import org.apache.spark.qbeast.config.DEFAULT_TABLE_FORMAT
 import org.apache.spark.sql.catalyst.analysis.CannotReplaceMissingTableException
 import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.plans.logical.TableSpec
@@ -49,8 +51,13 @@ object QbeastCatalogUtils extends Logging {
 
   val QBEAST_PROVIDER_NAME: String = "qbeast"
 
+  val supportedProviders = Set("delta")
+
+  val qbeastMetadataConfiguration = MetadataConfig.tableConfigurations
+
   /**
    * Checks if the provider is Qbeast
+   *
    * @param provider
    *   the provider, if any
    * @return
@@ -67,6 +74,53 @@ object QbeastCatalogUtils extends Logging {
     properties.get("provider"))
 
   def isQbeastProvider(properties: util.Map[String, String]): Boolean = isQbeastProvider(
+    properties.asScala.toMap)
+
+  /**
+   * Checks if the provider is supported by Qbeast
+   * @param provider
+   *   the provider, if any
+   * @return
+   */
+  def isSupportedProvider(provider: Option[String]): Boolean = {
+    provider.isDefined && supportedProviders.contains(provider.get)
+  }
+
+  /**
+   * Checks if the provider is supported by Qbeast
+   * @param tableSpec
+   *   the table specification
+   * @return
+   */
+  def isSupportedProvider(tableSpec: TableSpec): Boolean = {
+    isSupportedProvider(tableSpec.provider)
+  }
+
+  /**
+   * Checks if the properties contain the Qbeast Metadata
+   * @param properties
+   * @return
+   */
+  def hasQbeastMetadata(properties: Map[String, String]): Boolean = {
+    qbeastMetadataConfiguration.forall(prop =>
+      properties.contains(prop)) // all properties are present
+  }
+
+  /**
+   * TODO: Check if this method is correct. (We should allow users to write as delta in a
+   * qbeast-table) Checks id the Table is formatted with Qbeast A Table is considered Qbeast if:
+   *   - the provider is Qbeast OR
+   *   - it contains Qbeast Metadata & the provider is supported by Qbeast
+   * @param properties
+   * @return
+   */
+  def isQbeastTable(properties: Map[String, String]): Boolean = {
+    val providerConf = properties.get("provider")
+    isQbeastProvider(providerConf) || (isSupportedProvider(
+      properties.get("provider")) && hasQbeastMetadata(properties))
+  }
+
+  def isQbeastTable(properties: util.Map[String, String]): Boolean = isQbeastTable(
     properties.asScala.toMap)
 
   /**
@@ -92,15 +146,15 @@ object QbeastCatalogUtils extends Logging {
     if (isPathTable(table)) return None
     val tableExists = existingSessionCatalog.tableExists(table)
     if (tableExists) {
-      val oldTable = existingSessionCatalog.getTableMetadata(table)
-      if (oldTable.tableType == CatalogTableType.VIEW) {
+      val tableMetadata = existingSessionCatalog.getTableMetadata(table)
+      if (tableMetadata.tableType == CatalogTableType.VIEW) {
         throw AnalysisExceptionFactory.create(
           s"$table is a view. You may not write data into a view.")
       }
-      if (!isQbeastProvider(oldTable.provider)) {
+      if (!isQbeastTable(tableMetadata.properties)) {
         throw AnalysisExceptionFactory.create(s"$table is not a Qbeast table.")
       }
-      Some(oldTable)
+      Some(tableMetadata)
     } else {
       None
     }
@@ -197,6 +251,21 @@ object QbeastCatalogUtils extends Logging {
   }
 
   /**
+   * Verifies the Catalog Properties to be used in the Catalog Table
+   * @param properties
+   *   the properties to verify
+   * @return
+   */
+  private def verifyAndUpdateCatalogProperties(
+      properties: Map[String, String],
+      writeOptions: Map[String, String]): Map[String, String] = {
+    // If the provider is Qbeast, we should add the tableFormat to the properties
+    if (properties.getOrElse("provider", "") == QBEAST_PROVIDER_NAME) {
+      properties + ("provider" -> writeOptions.getOrElse("tableFormat", DEFAULT_TABLE_FORMAT))
+    } else properties
+  }
+
+  /**
    * Creates a Table on the Catalog
    *
    * First, it will create the Log in the File System. And in a second step, it will update the
@@ -258,7 +327,8 @@ object QbeastCatalogUtils extends Logging {
     // Process the parameters/options/configuration sent to the table
     val qTableID = QTableID(loc.toString)
     val indexedTable = tableFactory.getIndexedTable(qTableID)
-    val allProperties = indexedTable.verifyAndUpdateParameters(properties, dataFrame)
+    val allPropertiesVerified = indexedTable.verifyAndUpdateParameters(properties, dataFrame)
+    val allProperties = verifyAndUpdateCatalogProperties(allPropertiesVerified, writeOptions)
 
     // Initialize the path option
     val storage = DataSource
@@ -280,7 +350,7 @@ object QbeastCatalogUtils extends Logging {
       tableType = tableType,
       storage = storage,
       schema = schema,
-      provider = Some("qbeast"),
+      provider = Some("delta"), // TODO: Hardcoded for now
       partitionColumnNames = Seq.empty,
       bucketSpec = None,
       properties = allProperties,

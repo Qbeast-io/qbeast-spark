@@ -95,8 +95,8 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
   override def loadTable(ident: Identifier): Table = {
     try {
       getSessionCatalog().loadTable(ident) match {
-        case table
-            if QbeastCatalogUtils.isQbeastProvider(table.properties().asScala.get("provider")) =>
+        case table if QbeastCatalogUtils.isQbeastTable(table.properties()) =>
+          println("loading qbeast table")
           QbeastCatalogUtils.loadQbeastTable(table, tableFactory)
         case o => o
       }
@@ -125,7 +125,7 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
       partitions: Array[Transform],
       properties: util.Map[String, String]): Table = {
 
-    if (QbeastCatalogUtils.isQbeastProvider(properties)) {
+    if (QbeastCatalogUtils.isQbeastTable(properties)) {
       // Create the table
       QbeastCatalogUtils.createQbeastTable(
         ident,
@@ -140,6 +140,7 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
       // Load the table
       loadTable(ident)
     } else {
+      println("is not qbeast table")
       getSessionCatalog(properties.asScala.toMap).createTable(
         ident,
         schema,
@@ -160,7 +161,7 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
       schema: StructType,
       partitions: Array[Transform],
       properties: util.Map[String, String]): StagedTable = {
-    if (QbeastCatalogUtils.isQbeastProvider(properties)) {
+    if (QbeastCatalogUtils.isQbeastTable(properties)) {
       QbeastStagedTableImpl(
         ident,
         schema,
@@ -189,7 +190,7 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
       schema: StructType,
       partitions: Array[Transform],
       properties: util.Map[String, String]): StagedTable = {
-    if (QbeastCatalogUtils.isQbeastProvider(properties)) {
+    if (QbeastCatalogUtils.isQbeastTable(properties)) {
       QbeastStagedTableImpl(
         ident,
         schema,
@@ -229,7 +230,7 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
       schema: StructType,
       partitions: Array[Transform],
       properties: util.Map[String, String]): StagedTable = {
-    if (QbeastCatalogUtils.isQbeastProvider(properties)) {
+    if (QbeastCatalogUtils.isQbeastTable(properties)) {
       QbeastStagedTableImpl(
         ident,
         schema,
