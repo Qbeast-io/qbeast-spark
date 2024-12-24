@@ -96,7 +96,6 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
     try {
       getSessionCatalog().loadTable(ident) match {
         case table if QbeastCatalogUtils.isQbeastTable(table.properties()) =>
-          println("loading qbeast table")
           QbeastCatalogUtils.loadQbeastTable(table, tableFactory)
         case o => o
       }
@@ -140,7 +139,6 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
       // Load the table
       loadTable(ident)
     } else {
-      println("is not qbeast table")
       getSessionCatalog(properties.asScala.toMap).createTable(
         ident,
         schema,
