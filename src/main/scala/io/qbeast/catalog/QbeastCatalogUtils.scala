@@ -329,6 +329,7 @@ object QbeastCatalogUtils extends Logging {
     val indexedTable = tableFactory.getIndexedTable(qTableID)
     val allPropertiesVerified = indexedTable.verifyAndUpdateParameters(properties, dataFrame)
     val allProperties = verifyAndUpdateCatalogProperties(allPropertiesVerified, writeOptions)
+    val provider = allProperties.get("provider")
 
     // Initialize the path option
     val storage = DataSource
@@ -350,7 +351,7 @@ object QbeastCatalogUtils extends Logging {
       tableType = tableType,
       storage = storage,
       schema = schema,
-      provider = Some("delta"), // TODO: Hardcoded for now
+      provider = provider, // TODO: Hardcoded for now
       partitionColumnNames = Seq.empty,
       bucketSpec = None,
       properties = allProperties,
