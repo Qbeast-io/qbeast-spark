@@ -51,9 +51,9 @@ object QbeastCatalogUtils extends Logging {
 
   val QBEAST_PROVIDER_NAME: String = "qbeast"
 
-  val supportedProviders = Set("delta")
+  private val supportedProviders: Set[String] = Set("delta")
 
-  val qbeastMetadataConfiguration = MetadataConfig.tableConfigurations
+  private val qbeastMetadataConfiguration: Set[String] = MetadataConfig.tableConfigurations.toSet
 
   /**
    * Checks if the provider is Qbeast
