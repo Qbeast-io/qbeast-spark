@@ -111,13 +111,19 @@ object QbeastCatalogUtils extends Logging {
    * qbeast-table) Checks id the Table is formatted with Qbeast A Table is considered Qbeast if:
    *   - the provider is Qbeast OR
    *   - it contains Qbeast Metadata & the provider is supported by Qbeast
+   * @param provider
+   *   the provider, if any
    * @param properties
+   *   the properties of the table
    * @return
    */
+  def isQbeastTable(provider: Option[String], properties: Map[String, String]): Boolean = {
+    isQbeastProvider(provider) || (isSupportedProvider(provider) && hasQbeastMetadata(properties))
+  }
+
   def isQbeastTable(properties: Map[String, String]): Boolean = {
     val providerConf = properties.get("provider")
-    isQbeastProvider(providerConf) || (isSupportedProvider(
-      properties.get("provider")) && hasQbeastMetadata(properties))
+    isQbeastTable(providerConf, properties)
   }
 
   def isQbeastTable(properties: util.Map[String, String]): Boolean = isQbeastTable(

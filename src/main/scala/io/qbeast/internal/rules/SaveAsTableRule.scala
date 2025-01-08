@@ -55,12 +55,14 @@ class SaveAsTableRule(spark: SparkSession) extends Rule[LogicalPlan] with Loggin
     // to make sure columnsToIndex is present
     plan transformDown {
       case saveAsSelect: CreateTableAsSelect
-          if isQbeastTable(saveAsSelect.tableSpec.properties) =>
+          if isQbeastTable(saveAsSelect.tableSpec.provider, saveAsSelect.tableSpec.properties) =>
         val tableSpec = saveAsSelect.tableSpec
         val writeOptions = saveAsSelect.writeOptions
         saveAsSelect.copy(tableSpec = createTableSpec(tableSpec, writeOptions))
       case replaceAsSelect: ReplaceTableAsSelect
-          if isQbeastTable(replaceAsSelect.tableSpec.properties) =>
+          if isQbeastTable(
+            replaceAsSelect.tableSpec.provider,
+            replaceAsSelect.tableSpec.properties) =>
         val tableSpec = replaceAsSelect.tableSpec
         val writeOptions = replaceAsSelect.writeOptions
         replaceAsSelect.copy(tableSpec = createTableSpec(tableSpec, writeOptions))
