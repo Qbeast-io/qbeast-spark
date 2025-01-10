@@ -60,11 +60,13 @@ class QbeastInputSourcesTest extends QbeastIntegrationTestSpec {
       assert(e.getMessage.contains("assertion failed: The source query is non-deterministic."))
   }
 
-  it should "throw an error with undeterministic filter query" in withSparkAndTmpDir {
+  it should "throw an error with non-deterministic filter query" in withSparkAndTmpDir {
     (spark, tmpDir) =>
       val df = spark.range(10).toDF("id")
       val e = intercept[AssertionError] {
-        df.filter("rand() > 0.5")
+        df.filter(
+          "rand() > 0.5"
+        ) // The filter contains non-deterministic predicates that can affect the results when executed multiple times
           .write
           .format("qbeast")
           .option("columnsToIndex", "id")
@@ -76,6 +78,20 @@ class QbeastInputSourcesTest extends QbeastIntegrationTestSpec {
   it should "allow indexing deterministic filters" in withSparkAndTmpDir { (spark, tmpDir) =>
     val df = spark.range(10).toDF("id")
     df.filter("id > 5").write.format("qbeast").option("columnsToIndex", "id").save(tmpDir)
+  }
+
+  it should "allow indexing Qbeast Samples" in withSparkAndTmpDir { (spark, tmpDir) =>
+    val qbeastDir = tmpDir + "/qbeast"
+    val finalDir = tmpDir + "/final"
+    val df = spark.range(10).toDF("id")
+    df.write.format("qbeast").option("columnsToIndex", "id").save(qbeastDir)
+
+    val qbeastDF = spark.read.format("qbeast").load(qbeastDir)
+    val sampleDF = qbeastDF.sample(0.5)
+    sampleDF.write.format("qbeast").option("columnsToIndex", "id").save(finalDir)
+
+    val finalDF = spark.read.format("qbeast").load(finalDir)
+    assertSmallDatasetEquality(sampleDF, finalDF)
   }
 
 }
