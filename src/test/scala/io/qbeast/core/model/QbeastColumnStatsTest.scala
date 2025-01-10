@@ -1,6 +1,7 @@
 package io.qbeast.core.model
 
 import io.qbeast.core.transform.CDFQuantilesTransformer
+import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.core.transform.LinearTransformer
 import io.qbeast.core.transform.StringHistogramTransformer
 import io.qbeast.QbeastIntegrationTestSpec
@@ -18,7 +19,7 @@ import org.apache.spark.sql.Row
 import scala.annotation.nowarn
 
 @nowarn("cat=deprecation")
-class QbeastColumnStatsBuilderTest extends QbeastIntegrationTestSpec {
+class QbeastColumnStatsTest extends QbeastIntegrationTestSpec {
 
   "QbeastColumnStats" should "build the schema for linear transformations" in withSpark { _ =>
     val dataSchema =
@@ -40,9 +41,9 @@ class QbeastColumnStatsBuilderTest extends QbeastIntegrationTestSpec {
         |"long_col_min":0,"long_col_max":0,
         |"double_col_min":0.0,"double_col_max":0.0}""".stripMargin
     val qbeastColumnStats =
-      QbeastColumnStatsBuilder.build(statsString, columnTransformers, dataSchema)
-    val qbeastColumnStatsSchema = qbeastColumnStats.columnStatsSchema
-    val qbeastColumnStatsRow = qbeastColumnStats.columnStatsRow
+      QbeastColumnStats.apply(statsString, columnTransformers, dataSchema)
+    val qbeastColumnStatsSchema = qbeastColumnStats.schema
+    val qbeastColumnStatsRow = qbeastColumnStats.row
 
     assert(qbeastColumnStatsSchema.fields.length != 0)
     qbeastColumnStatsRow.getAs[Int]("int_col_min") shouldBe 0
@@ -60,11 +61,11 @@ class QbeastColumnStatsBuilderTest extends QbeastIntegrationTestSpec {
     val columnTransformers = Seq(CDFQuantilesTransformer("int_col", IntegerDataType))
     val statsString = """{"int_col_quantiles":[0.0,0.25,0.5,0.75,1.0]}"""
     val qbeastColumnStats =
-      QbeastColumnStatsBuilder.build(statsString, columnTransformers, dataSchema)
+      QbeastColumnStats.apply(statsString, columnTransformers, dataSchema)
 
-    qbeastColumnStats.columnStatsSchema shouldBe StructType(
+    qbeastColumnStats.schema shouldBe StructType(
       StructField("int_col_quantiles", ArrayType(DoubleType), nullable = true) :: Nil)
-    qbeastColumnStats.columnStatsRow.getAs[Array[Double]]("int_col_quantiles") shouldBe
+    qbeastColumnStats.row.getAs[Array[Double]]("int_col_quantiles") shouldBe
       Array(0.0, 0.25, 0.5, 0.75, 1.0)
 
   }
@@ -75,11 +76,11 @@ class QbeastColumnStatsBuilderTest extends QbeastIntegrationTestSpec {
     val columnTransformers = Seq(CDFQuantilesTransformer("string_col", StringDataType))
     val statsString = """{"string_col_quantiles":["a","b","c","d","e"]}"""
     val qbeastColumnStats =
-      QbeastColumnStatsBuilder.build(statsString, columnTransformers, dataSchema)
+      QbeastColumnStats.apply(statsString, columnTransformers, dataSchema)
 
-    qbeastColumnStats.columnStatsSchema shouldBe StructType(
+    qbeastColumnStats.schema shouldBe StructType(
       StructField("string_col_quantiles", ArrayType(StringType), nullable = true) :: Nil)
-    qbeastColumnStats.columnStatsRow.getAs[Array[String]]("string_col_quantiles") shouldBe
+    qbeastColumnStats.row.getAs[Array[String]]("string_col_quantiles") shouldBe
       Array("a", "b", "c", "d", "e")
   })
 
@@ -90,11 +91,11 @@ class QbeastColumnStatsBuilderTest extends QbeastIntegrationTestSpec {
       val columnTransformers = Seq(StringHistogramTransformer("string_col", StringDataType))
       val statsString = """{"string_col_histogram":["a", "b", "c", "d", "e"]}"""
       val qbeastColumnStats =
-        QbeastColumnStatsBuilder.build(statsString, columnTransformers, dataSchema)
+        QbeastColumnStats.apply(statsString, columnTransformers, dataSchema)
 
-      qbeastColumnStats.columnStatsSchema shouldBe StructType(
+      qbeastColumnStats.schema shouldBe StructType(
         StructField("string_col_histogram", ArrayType(StringType), nullable = true) :: Nil)
-      qbeastColumnStats.columnStatsRow.getAs[Array[String]]("string_col_histogram") shouldBe
+      qbeastColumnStats.row.getAs[Array[String]]("string_col_histogram") shouldBe
         Array("a", "b", "c", "d", "e")
     })
 
@@ -104,14 +105,14 @@ class QbeastColumnStatsBuilderTest extends QbeastIntegrationTestSpec {
     val columnTransformers = Seq(CDFQuantilesTransformer("int_col", IntegerDataType))
     val statsString = """{"int_col_quantiles":0.0,0.25,0.5,0.75,1.0]}"""
     an[AnalysisException] shouldBe thrownBy {
-      QbeastColumnStatsBuilder.build(statsString, columnTransformers, dataSchema)
+      QbeastColumnStats.apply(statsString, columnTransformers, dataSchema)
     }
 
     val columnTransformersLinear = Seq(LinearTransformer("float_col", FloatDataType))
     val statsStringLinear =
       """{"float_col_min":0.0f,"float_col_max":0.0f}""" // JSON does not support float parsing with f termination
     an[AnalysisException] shouldBe thrownBy {
-      QbeastColumnStatsBuilder.build(statsStringLinear, columnTransformersLinear, dataSchema)
+      QbeastColumnStats.apply(statsStringLinear, columnTransformersLinear, dataSchema)
     }
 
   })
@@ -129,19 +130,19 @@ class QbeastColumnStatsBuilderTest extends QbeastIntegrationTestSpec {
     val statsString =
       """{"int_col_quantiles":[0.0,0.25,0.5,0.75,1.0], "long_col_min":0,"long_col_max":0}"""
     val qbeastColumnStats =
-      QbeastColumnStatsBuilder.build(statsString, columnTransformers, dataSchema)
+      QbeastColumnStats.apply(statsString, columnTransformers, dataSchema)
 
-    qbeastColumnStats.columnStatsSchema shouldBe StructType(
+    qbeastColumnStats.schema shouldBe StructType(
       Seq(
         StructField("int_col_quantiles", ArrayType(DoubleType), nullable = true),
         StructField("long_col_max", LongType, nullable = true),
         StructField("long_col_min", LongType, nullable = true)
       )
     ) // Ignore String col
-    qbeastColumnStats.columnStatsRow.getAs[Array[Double]]("int_col_quantiles") shouldBe
+    qbeastColumnStats.row.getAs[Array[Double]]("int_col_quantiles") shouldBe
       Array(0.0, 0.25, 0.5, 0.75, 1.0)
-    qbeastColumnStats.columnStatsRow.getAs[Long]("long_col_min") shouldBe 0
-    qbeastColumnStats.columnStatsRow.getAs[Long]("long_col_max") shouldBe 0
+    qbeastColumnStats.row.getAs[Long]("long_col_min") shouldBe 0
+    qbeastColumnStats.row.getAs[Long]("long_col_max") shouldBe 0
 
   })
 
@@ -158,9 +159,51 @@ class QbeastColumnStatsBuilderTest extends QbeastIntegrationTestSpec {
       LinearTransformer("string_col", StringDataType))
     val statsString = ""
     val qbeastColumnStats =
-      QbeastColumnStatsBuilder.build(statsString, columnTransformers, dataSchema)
+      QbeastColumnStats.apply(statsString, columnTransformers, dataSchema)
 
-    qbeastColumnStats.columnStatsRow shouldBe Row.empty
+    qbeastColumnStats.row shouldBe Row.empty
+  })
+
+  it should "create the right Transformation" in withSpark(spark => {
+    val dataSchema =
+      StructType(Seq(StructField("int_col", IntegerType)))
+    val columnTransformers = Seq(LinearTransformer("int_col", IntegerDataType))
+    val statsString = """{"int_col_min":0,"int_col_max":10}""".stripMargin
+    val qbeastColumnStats =
+      QbeastColumnStats.apply(statsString, columnTransformers, dataSchema)
+
+    val intTransformation = qbeastColumnStats
+      .createTransformation(columnTransformers.head)
+    intTransformation.isDefined shouldBe true
+    intTransformation.get shouldBe a[LinearTransformation]
+    intTransformation.get.asInstanceOf[LinearTransformation].minNumber shouldBe 0
+    intTransformation.get.asInstanceOf[LinearTransformation].maxNumber shouldBe 10
+  })
+
+  it should "return None if the transformation cannot be created" in withSpark(spark => {
+    val dataSchema =
+      StructType(Seq(StructField("int_col", IntegerType)))
+    val columnTransformers = Seq(LinearTransformer("int_col", IntegerDataType))
+    val statsString = ""
+    val qbeastColumnStats =
+      QbeastColumnStats.apply(statsString, columnTransformers, dataSchema)
+
+    val intTransformation = qbeastColumnStats
+      .createTransformation(columnTransformers.head)
+    intTransformation shouldBe None
+  })
+
+  it should "return None if the transformation fields are incorrect" in withSpark(spark => {
+    val dataSchema =
+      StructType(Seq(StructField("int_col", IntegerType)))
+    val columnTransformers = Seq(LinearTransformer("int_col", IntegerDataType))
+    val statsString = """{"int_col_min":0,"int_col_max":-1}""".stripMargin
+    val qbeastColumnStats =
+      QbeastColumnStats.apply(statsString, columnTransformers, dataSchema)
+
+    val intTransformation = qbeastColumnStats
+      .createTransformation(columnTransformers.head)
+    intTransformation shouldBe None
   })
 
 }

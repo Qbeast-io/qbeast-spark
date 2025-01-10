@@ -34,7 +34,8 @@ object TestClasses {
       double_value: Double,
       float_value: Float,
       int_value: Int,
-      long_value: Long)
+      long_value: Long,
+      decimal_value: BigDecimal)
 
   case class TestNull(a: Option[String], b: Option[Double], c: Option[Long])
 

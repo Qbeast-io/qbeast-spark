@@ -15,6 +15,7 @@
  */
 package io.qbeast.spark.index
 
+import io.qbeast.core.model.DecimalDataType
 import io.qbeast.core.model.DoubleDataType
 import io.qbeast.core.model.FloatDataType
 import io.qbeast.core.model.IntegerDataType
@@ -74,16 +75,17 @@ class SparkRevisionChangesUtilsTest
   // 13. it should be able to accept columnStats for only some of the indexing columns
   // 14. it should be able to accept columnStats for only some of the indexing columns when doing appends
   // 15. it should be able to accept columnStats for Timestamp columns
+  // 16. it should be able to accept columnStats for any Numeric column (Int, Float, Double, Long and Decimal)
 
   // Transformer changes
-  // 16. it should throw an exception when trying to change indexing columns
-  // 17. it should change transformer type only when specified
-  // 18. it should create a new revision by changing the transformer type between hashing to linear
-  // 19. it should create a new revision by changing the transformer type between linear and quantiles
-  // 20. it should create a new revision by changing the transformer type between hashing and quantiles
-  // 21. it should throw an exception when using a quantile transformation without columnStats
-  // 22. it should not create a new revision when appending to an existing quantile transformation without columnStats
-  // 23. it should throw an exception when the provided columnStats is not a valid JSON string
+  // 17. it should throw an exception when trying to change indexing columns
+  // 18. it should change transformer type only when specified
+  // 19. it should create a new revision by changing the transformer type between hashing to linear
+  // 20. it should create a new revision by changing the transformer type between linear and quantiles
+  // 21. it should create a new revision by changing the transformer type between hashing and quantiles
+  // 22. it should throw an exception when using a quantile transformation without columnStats
+  // 23. it should not create a new revision when appending to an existing quantile transformation without columnStats
+  // 24. it should throw an exception when the provided columnStats is not a valid JSON string
 
   // cubeSize changes
   // 24. it should detect cubeSize changes
@@ -666,12 +668,13 @@ class SparkRevisionChangesUtilsTest
     val qid = QTableID("t")
     val data = spark
       .range(5)
-      .map(i => TestAll(s"$i", i.toDouble, i.floatValue(), i.toInt, i.toLong))
+      .map(i => TestAll(s"$i", i.toDouble, i.floatValue(), i.toInt, i.toLong, BigDecimal(i)))
       .toDF()
     val emptyRevision = SparkRevisionFactory.createNewRevision(
       qid,
       data.schema,
-      QbeastOptions(Map(COLUMNS_TO_INDEX -> "float_value,double_value,int_value,long_value")))
+      QbeastOptions(
+        Map(COLUMNS_TO_INDEX -> "float_value,double_value,int_value,long_value,decimal_value")))
 
     // Compute The Revision Changes given a set of Column Stats
     val (revisionChanges, _) =
@@ -679,12 +682,13 @@ class SparkRevisionChangesUtilsTest
         emptyRevision, // empty revision
         QbeastOptions(
           Map(
-            QbeastOptions.COLUMNS_TO_INDEX -> "float_value,double_value,int_value,long_value",
+            QbeastOptions.COLUMNS_TO_INDEX -> "float_value,double_value,int_value,long_value,decimal_value",
             QbeastOptions.COLUMN_STATS ->
               """{"float_value_min":0.0, "float_value_max":10.0,
                 | "double_value_min":0.0, "double_value_max":10.0,
                 | "int_value_min":0, "int_value_max":10,
-                | "long_value_min":0, "long_value_max":10}""".stripMargin)),
+                | "long_value_min":0, "long_value_max":10,
+                | "decimal_value_min":0.0, "decimal_value_max":10.0}""".stripMargin)),
         data)
 
     // the revisionChanges should be defined
@@ -698,7 +702,8 @@ class SparkRevisionChangesUtilsTest
       LinearTransformer("float_value", FloatDataType),
       LinearTransformer("double_value", DoubleDataType),
       LinearTransformer("int_value", IntegerDataType),
-      LinearTransformer("long_value", LongDataType))
+      LinearTransformer("long_value", LongDataType),
+      LinearTransformer("decimal_value", DecimalDataType))
 
     val transformations = revision.transformations
     transformations should not be null
@@ -713,6 +718,9 @@ class SparkRevisionChangesUtilsTest
     }
     transformations(3) should matchPattern {
       case LinearTransformation(0L, 10L, _, LongDataType) =>
+    }
+    transformations(4) should matchPattern {
+      case LinearTransformation(0.0, 10.0, _, DecimalDataType) =>
     }
 
   })

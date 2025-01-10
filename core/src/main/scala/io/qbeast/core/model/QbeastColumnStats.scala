@@ -4,7 +4,9 @@ import io.qbeast.core.transform.CDFNumericQuantilesTransformer
 import io.qbeast.core.transform.CDFStringQuantilesTransformer
 import io.qbeast.core.transform.LinearTransformer
 import io.qbeast.core.transform.StringHistogramTransformer
+import io.qbeast.core.transform.Transformation
 import io.qbeast.core.transform.Transformer
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.types.ArrayType
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.types.StringType
@@ -17,19 +19,38 @@ import org.apache.spark.sql.SparkSession
 /**
  * Container for Qbeast Column Stats
  *
- * @param columnStatsSchema
+ * @param schema
  *   the column stats schema
- * @param columnStatsRow
+ * @param row
  *   the column stats row
  */
-case class QbeastColumnStats(columnStatsSchema: StructType, columnStatsRow: Row)
+case class QbeastColumnStats(schema: StructType, row: Row, string: String) extends Logging {
 
-object QbeastColumnStatsBuilder {
+  def createTransformation(transformer: Transformer): Option[Transformation] = {
+    try {
+      // Create transformation with columnStats
+      Some(transformer.makeTransformation(row.getAs[Object]))
+    } catch {
+      case e: Throwable =>
+        logWarning(
+          s"Error creating transformation for column ${transformer.columnName} with columnStats: $string",
+          e)
+        // Ignore the transformation if the stats are not available
+        None
+    }
+  }
+
+}
+
+/**
+ * Companion object for QbeastColumnStats
+ */
+object QbeastColumnStats {
 
   /**
    * Builds the column stats schema
    *
-   * For each column transformer, it creates a StructField with it's stats names
+   * For each column transformer, it creates a StructField with the stats names
    * @param dataSchema
    *   the data schema
    * @param columnTransformers
@@ -60,7 +81,6 @@ object QbeastColumnStatsBuilder {
           transformerStatsNames.map(statName =>
             StructField(statName, ArrayType(StringType), nullable = true))
         case StringHistogramTransformer(_, _) =>
-          println("string hist")
           transformerStatsNames.map(statName =>
             StructField(statName, ArrayType(StringType), nullable = true))
         case _ => // TODO: Add support for other transformers
@@ -115,13 +135,13 @@ object QbeastColumnStatsBuilder {
    *   the data schema to build the Stats from
    * @return
    */
-  def build(
+  def apply(
       statsString: String,
       columnTransformers: Seq[Transformer],
       dataSchema: StructType): QbeastColumnStats = {
     val columnStatsSchema = buildColumnStatsSchema(dataSchema, columnTransformers)
     val columnStatsRow = buildColumnStatsRow(statsString, columnStatsSchema)
-    QbeastColumnStats(columnStatsSchema, columnStatsRow)
+    QbeastColumnStats(columnStatsSchema, columnStatsRow, statsString)
   }
 
 }
