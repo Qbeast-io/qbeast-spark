@@ -38,7 +38,7 @@ object MetadataConfig {
   final val tags = "qbeast.tags"
   final val configuration = "qbeast.configuration"
 
-  final val tableConfigurations: Seq[String] =
+  final val tableConfigurationKeys: Seq[String] =
     Seq(revision, lastRevisionID, configuration)
 
 }

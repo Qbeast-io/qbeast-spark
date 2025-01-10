@@ -16,6 +16,7 @@
 package io.qbeast.catalog
 
 import io.qbeast.core.model.QTableID
+import io.qbeast.core.model.QbeastOptions
 import io.qbeast.sources.v2.QbeastTableImpl
 import io.qbeast.spark.utils.MetadataConfig
 import io.qbeast.table.IndexedTable
@@ -53,7 +54,10 @@ object QbeastCatalogUtils extends Logging {
 
   private val supportedProviders: Set[String] = Set("delta")
 
-  private val qbeastMetadataConfiguration: Set[String] = MetadataConfig.tableConfigurations.toSet
+  private val qbeastTableConfigurationKeys: Set[String] =
+    MetadataConfig.tableConfigurationKeys.toSet
+
+  private val qbeastOptionConfigurationKeys: Set[String] = QbeastOptions.qbeastOptionKeys.toSet
 
   /**
    * Checks if the provider is Qbeast
@@ -102,8 +106,11 @@ object QbeastCatalogUtils extends Logging {
    * @return
    */
   def hasQbeastMetadata(properties: Map[String, String]): Boolean = {
-    qbeastMetadataConfiguration.forall(prop =>
-      properties.contains(prop)) // all properties are present
+    qbeastTableConfigurationKeys.forall(prop =>
+      properties.contains(prop)) || qbeastOptionConfigurationKeys
+      .exists(
+        properties.contains
+      ) // all properties are present OR ANY of the write options are present
   }
 
   /**
@@ -129,6 +136,10 @@ object QbeastCatalogUtils extends Logging {
   def isQbeastTable(properties: util.Map[String, String]): Boolean = isQbeastTable(
     properties.asScala.toMap)
 
+  def isQbeastTable(table: CatalogTable): Boolean = {
+    isQbeastTable(table.provider, table.properties)
+  }
+
   /**
    * Checks if an Identifier is set with a path
    * @param ident
@@ -152,15 +163,15 @@ object QbeastCatalogUtils extends Logging {
     if (isPathTable(table)) return None
     val tableExists = existingSessionCatalog.tableExists(table)
     if (tableExists) {
-      val tableMetadata = existingSessionCatalog.getTableMetadata(table)
-      if (tableMetadata.tableType == CatalogTableType.VIEW) {
+      val existingTableMetadata = existingSessionCatalog.getTableMetadata(table)
+      if (existingTableMetadata.tableType == CatalogTableType.VIEW) {
         throw AnalysisExceptionFactory.create(
           s"$table is a view. You may not write data into a view.")
       }
-      if (!isQbeastTable(tableMetadata.properties)) {
+      if (!isQbeastTable(existingTableMetadata.properties)) {
         throw AnalysisExceptionFactory.create(s"$table is not a Qbeast table.")
       }
-      Some(tableMetadata)
+      Some(existingTableMetadata)
     } else {
       None
     }
