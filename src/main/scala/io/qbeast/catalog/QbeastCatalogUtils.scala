@@ -278,7 +278,7 @@ object QbeastCatalogUtils extends Logging {
       writeOptions: Map[String, String]): Map[String, String] = {
     // If the provider is Qbeast, we should add the tableFormat to the properties
     if (properties.getOrElse("provider", "") == QBEAST_PROVIDER_NAME) {
-      properties + ("provider" -> writeOptions.getOrElse("tableFormat", DEFAULT_TABLE_FORMAT))
+      properties.updated("provider", writeOptions.getOrElse("tableFormat", DEFAULT_TABLE_FORMAT))
     } else properties
   }
 
@@ -368,7 +368,7 @@ object QbeastCatalogUtils extends Logging {
       tableType = tableType,
       storage = storage,
       schema = schema,
-      provider = provider, // TODO: Hardcoded for now
+      provider = provider,
       partitionColumnNames = Seq.empty,
       bucketSpec = None,
       properties = allProperties,

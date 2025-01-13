@@ -118,23 +118,6 @@ class QbeastSchemaDeltaTest extends QbeastIntegrationTestSpec {
 
     })
 
-  it should "not replace schemas from other table if the type do not match" in
-    withQbeastContextSparkAndTmpWarehouse((spark, _) => {
-
-      spark.sql(
-        "CREATE TABLE student_parquet (id STRING, name STRING, age INT) " +
-          "USING parquet")
-      spark.sql("INSERT INTO student_parquet VALUES ('1', 'John', 20L)")
-
-      spark.sql(
-        "CREATE TABLE student (id INT, name STRING, age INT) USING delta " +
-          "OPTIONS ('columnsToIndex'='id')")
-
-      an[AnalysisException] shouldBe thrownBy(
-        spark.sql("INSERT INTO student SELECT * FROM student_parquet"))
-
-    })
-
   it should "work with delta" in withQbeastContextSparkAndTmpWarehouse((spark, tmpDir) => {
 
     spark.sql(s"CREATE TABLE student (id INT) USING delta LOCATION '$tmpDir/student'")

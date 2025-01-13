@@ -2,6 +2,7 @@ package io.qbeast.spark.utils
 
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Student
+import org.apache.spark.qbeast.config.DEFAULT_TABLE_FORMAT
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
 
@@ -16,7 +17,6 @@ class QbeastDifferentProviderTest extends QbeastIntegrationTestSpec {
     students.toDF()
   }
 
-  // TODO
   "QbeastSpark SQL" should "support CREATE TABLE" in withQbeastContextSparkAndTmpWarehouse(
     (spark, _) => {
       val data = createTestData(spark)
@@ -30,14 +30,13 @@ class QbeastDifferentProviderTest extends QbeastIntegrationTestSpec {
       nonTemporaryTables.count() shouldBe 2 // data table and student table
 
       val table = spark.sql("DESCRIBE TABLE EXTENDED student")
-      // TODO Check the metadata of the table
       // Check provider
       table
         .where("col_name == 'Provider'")
         .select("data_type")
         .first()
         .getString(
-          0) shouldBe "delta" // TODO: Trying to change the provider to the original table format
+          0) shouldBe DEFAULT_TABLE_FORMAT
       // Check Table Properties
       val tableProperties = table
         .where("col_name == 'Table Properties'")

@@ -15,6 +15,7 @@
  */
 package io.qbeast.sources.v2
 
+import io.qbeast.catalog.QbeastCatalogUtils.QBEAST_PROVIDER_NAME
 import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.QTableID
 import io.qbeast.sources.QbeastBaseRelation
@@ -64,16 +65,32 @@ case class QbeastTableImpl(
     with SupportsWrite
     with V2toV1Fallback {
 
+  /**
+   * The path of the table, in String Format
+   */
   private val pathString = path.toString
 
+  /**
+   * The ID of the table that consist in the Path of the table
+   */
   private val tableId = QTableID(pathString)
 
+  /**
+   * Returns the internal representation of the Indexed Table
+   */
   private val indexedTable = tableFactory.getIndexedTable(tableId)
 
   private lazy val spark = SparkSession.active
 
+  /**
+   * The initial Snapshot of the table
+   */
   private lazy val initialSnapshot = QbeastContext.metadataManager.loadSnapshot(tableId)
 
+  /**
+   * If defined, returns the Catalog Table
+   * Otherwise, returns the table from the spark session catalog
+   */
   private lazy val table: CatalogTable =
     if (catalogTable.isDefined) catalogTable.get
     else {
@@ -81,6 +98,11 @@ case class QbeastTableImpl(
       spark.sessionState.catalog
         .getTableMetadata(tableIdentifier)
     }
+
+  /**
+   * The provider of the table
+   */
+  private lazy val provider = table.provider.getOrElse(QBEAST_PROVIDER_NAME)
 
   override def name(): String = tableIdentifier.identifier
 
@@ -107,7 +129,7 @@ case class QbeastTableImpl(
         base.put(key, value)
       case _ => // do nothing
     }
-    base.put(TableCatalog.PROP_PROVIDER, "qbeast")
+    base.put(TableCatalog.PROP_PROVIDER, provider)
     base.put(TableCatalog.PROP_LOCATION, CatalogUtils.URIToString(path.toUri))
     catalogTable.foreach { table =>
       if (table.owner != null && table.owner.nonEmpty) {
