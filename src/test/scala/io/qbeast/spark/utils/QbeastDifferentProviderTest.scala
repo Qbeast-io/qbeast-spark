@@ -35,8 +35,7 @@ class QbeastDifferentProviderTest extends QbeastIntegrationTestSpec {
         .where("col_name == 'Provider'")
         .select("data_type")
         .first()
-        .getString(
-          0) shouldBe DEFAULT_TABLE_FORMAT
+        .getString(0) shouldBe DEFAULT_TABLE_FORMAT
       // Check Table Properties
       val tableProperties = table
         .where("col_name == 'Table Properties'")
