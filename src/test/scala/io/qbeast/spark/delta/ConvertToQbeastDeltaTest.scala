@@ -130,7 +130,9 @@ class ConvertToQbeastDeltaTest
 
   it should "not create new revisions for a qbeast table" in withSparkAndTmpDir(
     (spark, tmpDir) => {
-      loadTestData(spark).write
+      loadTestData(spark)
+        .limit(dataSize)
+        .write
         .format("qbeast")
         .option("columnsToIndex", columnsToIndex.mkString(","))
         .option("cubeSize", dcs)
@@ -187,7 +189,9 @@ class ConvertToQbeastDeltaTest
       convertFromFormat(spark, "parquet", tmpDir)
 
       // Append qbeast data
-      loadTestData(spark).write
+      loadTestData(spark)
+        .limit(dataSize)
+        .write
         .mode("append")
         .format("qbeast")
         .save(tmpDir)

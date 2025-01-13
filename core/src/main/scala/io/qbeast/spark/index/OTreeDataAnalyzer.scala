@@ -218,20 +218,6 @@ object DoublePassOTreeDataAnalyzer
       options: QbeastOptions): (DataFrame, TableChanges) = {
     logTrace(s"Begin: Analyzing the input data with existing revision: ${indexStatus.revision}")
 
-    // Check if the DataFrame is deterministic
-    logDebug(s"Checking the determinism of the input data")
-    val isSourceDeterministic =
-      analyzeDataFrameDeterminism(dataFrame, indexStatus.revision)
-    // TODO: we need to add columnStats control before the assert
-    // TODO: Otherwise, the write would fail even if the user adds the correct configuration
-    assert(
-      isSourceDeterministic,
-      s"The source query is non-deterministic. " +
-        s"Due to Qbeast-Spark write nature, we load the DataFrame twice before writing to storage." +
-        s"It is required to have deterministic sources and deterministic columns to index " +
-        s"to preserve the state of the indexing pipeline. " +
-        s"If it is not the case, please save the DF as delta and Convert it To Qbeast in a second step")
-
     // Compute the changes in the space: cube size, transformers, and transformations.
     val (revisionChanges, numElements) =
       computeRevisionChanges(indexStatus.revision, options, dataFrame)
@@ -240,6 +226,28 @@ object DoublePassOTreeDataAnalyzer
       case Some(revisionChange) => (true, revisionChange.createNewRevision)
     }
     logDebug(s"revisionToUse=$revisionToUse")
+
+    // Check if the DataFrame and the Columns To Index are deterministic
+    val deterministicColumnsToAnalyze =
+      revisionToUse.columnTransformers.filter(_.shouldBeDeterministic).map(_.columnName)
+    if (deterministicColumnsToAnalyze.nonEmpty) {
+      logDebug(
+        s"Some columnsToIndex need to come from a Deterministic Source: {${deterministicColumnsToAnalyze
+            .mkString(",")}}. Checking the determinism of the input data")
+      val isDataFrameDeterministic =
+        analyzeDataFrameDeterminism(dataFrame, deterministicColumnsToAnalyze)
+      if (!isDataFrameDeterministic) {
+        logWarning(
+          s"The source query is non-deterministic. " +
+            s"Due to Qbeast-Spark write nature, we load the DataFrame twice before writing to storage." +
+            s"It is required to have deterministic sources and deterministic columns to index " +
+            s"to preserve the state of the indexing pipeline. " +
+            s"If it is not the case, you can:" +
+            s"1. Change the transformer type to quantiles." +
+            s"2. Add columnStats with a greater space range to avoid indexing errors." +
+            s"3. save the DF as delta and Convert it To Qbeast in a second step")
+      }
+    }
 
     // Add a random weight column
     val weightedDataFrame = dataFrame.transform(addRandomWeight(revisionToUse))

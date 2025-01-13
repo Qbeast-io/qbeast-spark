@@ -156,6 +156,12 @@ trait Transformer extends Serializable {
 
   def spec: String = s"$columnName:${transformerType.transformerSimpleName}"
 
+  /**
+   * Returns if the transformation should have deterministic values at indexing time
+   * @return
+   */
+  def shouldBeDeterministic: Boolean = false
+
 }
 
 trait ColumnStats extends Serializable {

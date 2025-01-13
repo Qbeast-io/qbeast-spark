@@ -44,7 +44,17 @@ object RowUtils {
     var i = 0
     for (t <- revision.transformations) {
       val v = row.get(i)
-      coordinates += t.transform(v)
+      val transformation = t.transform(v)
+      assert(
+        transformation >= 0.0 && transformation <= 1.0,
+        s"Value $v is out of bounds of the Transformation. This can happen if you are indexing a Dataframe that:" +
+          s"1. It's source is constantly changing." +
+          s"2. The query that produces the DataFrame is not deterministic." +
+          s"To avoid this problem, we suggest to: " +
+          s"1. Change the transformer type to quantiles." +
+          s"2. Add columnStats with a greater space range to avoid indexing errors." +
+          s"3. save the DF as delta and Convert it To Qbeast in a second step")
+      coordinates += transformation
       i += 1
 
     }

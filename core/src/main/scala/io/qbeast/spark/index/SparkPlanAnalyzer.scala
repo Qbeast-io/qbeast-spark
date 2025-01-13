@@ -1,6 +1,5 @@
 package io.qbeast.spark.index
 
-import io.qbeast.core.model.Revision
 import io.qbeast.spark.internal.rules.QbeastRelation
 import org.apache.spark.sql.catalyst.expressions.Alias
 import org.apache.spark.sql.catalyst.expressions.Expression
@@ -89,29 +88,33 @@ trait SparkPlanAnalyzer {
    * Analyzes the DataFrame to determine if it's execution is safely deterministic for indexing
    *
    *   - The logical plan of the DataFrame is checked for determinism
-   *   - The columns to index are checked for determinism
+   *   - The columns to analyze (to index) are checked for determinism
    *
    * @param dataFrame
    *   the DataFrame to analyze
-   * @param revision
-   *   the Revision to analyze
+   * @param columnsToAnalyze
+   *   the columns to analyze for determinism
    * @return
    */
-  def analyzeDataFrameDeterminism(dataFrame: DataFrame, revision: Revision): Boolean = {
+  def analyzeDataFrameDeterminism(
+      dataFrame: DataFrame,
+      columnsToAnalyze: Seq[String]): Boolean = {
     // Access the logical plan of the DataFrame
     val logicalPlan: LogicalPlan = dataFrame.queryExecution.logical
 
     // Check if the logical plan's query is deterministic
     // Detect if the DataFrame's operations are deterministic
-    val isQueryDeterministic: Boolean = isLogicalPlanDeterministic(logicalPlan)
+    val isPlanDeterministic: Boolean = isLogicalPlanDeterministic(logicalPlan)
 
-    // Check if any of the columns to index in the DataFrame is deterministic
-    val columnsToIndex = revision.columnTransformers.map(_.columnName)
-    val areColumnsToIndexDeterministic: Boolean =
-      columnsToIndex.forall(column => isColumnDeterministic(logicalPlan, column))
+    // Verify whether all columns required to have a deterministic nature are indeed deterministic
+    val areColumnsToAnalyzeDeterministic: Boolean =
+      if (columnsToAnalyze.isEmpty) true // If no columns are provided, return true
+      else {
+        columnsToAnalyze.forall(columnName => isColumnDeterministic(logicalPlan, columnName))
+      }
 
     // Check if the source is deterministic
-    isQueryDeterministic && areColumnsToIndexDeterministic
+    isPlanDeterministic && areColumnsToAnalyzeDeterministic
   }
 
 }

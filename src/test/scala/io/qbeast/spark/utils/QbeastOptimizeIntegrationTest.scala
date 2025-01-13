@@ -20,30 +20,30 @@ import io.qbeast.core.model.QTableID
 import io.qbeast.table.QbeastTable
 import io.qbeast.QbeastIntegrationTestSpec
 import org.apache.spark.qbeast.config.DEFAULT_TABLE_FORMAT
+import org.apache.spark.sql.functions._
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
-
-import scala.util.Random
 
 class QbeastOptimizeIntegrationTest extends QbeastIntegrationTestSpec {
 
   def createTableWithMultipleAppends(spark: SparkSession, tmpDir: String): Unit = {
-    import spark.implicits._
     val options = Map(
       "columnsToIndex" -> "col_1,col_2",
       "cubeSize" -> "100",
       "columnStats" ->
         """{"col_1_min": 0.0, "col_1_max": 10000.0, "col_2_min": 0.0, "col_2_max": 10000.0}""")
-    1.to(10000)
-      .map(i => (i, Random.nextDouble() * 10000, Random.nextDouble() * 10000))
-      .toDF("id", "col_1", "col_2")
+    spark
+      .range(10000)
+      .withColumn("col_1", rand() % 10000)
+      .withColumn("col_2", rand() % 10000)
       .write
       .format("qbeast")
       .options(options)
       .save(tmpDir)
-    1.to(10000)
-      .map(i => (i, Random.nextDouble() * 10000, Random.nextDouble() * 10000))
-      .toDF("id", "col_1", "col_2")
+    spark
+      .range(10000)
+      .withColumn("col_1", rand() % 10000)
+      .withColumn("col_2", rand() % 10000)
       .write
       .mode("append")
       .format("qbeast")

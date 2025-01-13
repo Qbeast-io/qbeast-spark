@@ -67,10 +67,10 @@ class QbeastSnapshotDeltaTest extends QbeastIntegrationTestSpec {
   "Appends" should "only update metadata when needed" in
     withQbeastContextSparkAndTmpDir { (spark, tmpDir) =>
       {
-        val df = createDF(100)
+        val df = loadTestData(spark).limit(5000)
         df.write
           .format("qbeast")
-          .option("columnsToIndex", "age,val2")
+          .option("columnsToIndex", "user_id,price")
           .save(tmpDir)
         df.write.mode("append").format("qbeast").save(tmpDir)
 
