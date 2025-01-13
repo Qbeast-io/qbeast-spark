@@ -88,8 +88,8 @@ case class QbeastTableImpl(
   private lazy val initialSnapshot = QbeastContext.metadataManager.loadSnapshot(tableId)
 
   /**
-   * If defined, returns the Catalog Table
-   * Otherwise, returns the table from the spark session catalog
+   * If defined, returns the Catalog Table Otherwise, returns the table from the spark session
+   * catalog
    */
   private lazy val table: CatalogTable =
     if (catalogTable.isDefined) catalogTable.get
