@@ -44,7 +44,7 @@ import scala.collection.JavaConverters._
  * Table Implementation for Qbeast Format
  * @param tableIdentifier
  *   the identifier of the table
- * @param tableProvider
+ * @param tableFormat
  *   the provider of the table
  * @param path
  *   the Path of the table
@@ -59,7 +59,7 @@ import scala.collection.JavaConverters._
  */
 case class QbeastTableImpl(
     tableIdentifier: TableIdentifier,
-    tableProvider: String,
+    tableFormat: String,
     path: Path,
     options: Map[String, String] = Map.empty,
     optionSchema: Option[StructType] = None,
@@ -128,7 +128,7 @@ case class QbeastTableImpl(
         base.put(key, value)
       case _ => // do nothing
     }
-    base.put(TableCatalog.PROP_PROVIDER, tableProvider)
+    base.put(TableCatalog.PROP_PROVIDER, tableFormat)
     base.put(TableCatalog.PROP_LOCATION, CatalogUtils.URIToString(path.toUri))
     catalogTable.foreach { table =>
       if (table.owner != null && table.owner.nonEmpty) {

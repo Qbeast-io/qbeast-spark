@@ -89,11 +89,12 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
         None,
         tableFactory)
     } else {
-      // If the table does not exist, we create a new one with the properties passed
+      // If the table does not exist, we create a new one with the properties parsed
       val tableProperties = properties.asScala.toMap
-      val tableProvider =
-        tableProperties.getOrElse(QbeastOptions.TABLE_FORMAT, QBEAST_PROVIDER_NAME)
       val tableIdentifier = TableIdentifier(tableId.id)
+      // We need to get the table format from the properties
+      val tableProvider =
+        properties.getOrDefault(QbeastOptions.TABLE_FORMAT, QBEAST_PROVIDER_NAME)
       QbeastTableImpl(
         tableIdentifier,
         tableProvider,

@@ -103,7 +103,11 @@ class QbeastDataSourceTest extends FixtureAnyFlatSpec with MockitoSugar with Mat
     val schema = StructType(Seq())
     val columns = SparkCatalogV2Util.structTypeToV2Columns(schema)
     val partitioning = Array.empty[Transform]
-    val properties = Map("path" -> path).asJava
+    val properties = Map(
+      "path" -> path,
+      "columnsToIndex" -> "id",
+      "cubeSize" -> "50",
+      "tableFormat" -> "delta").asJava
     val table = f.dataSource.getTable(schema, partitioning, properties)
     table.columns() shouldBe columns
     table.capabilities() shouldBe Set(
