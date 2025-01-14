@@ -1,11 +1,12 @@
 package io.qbeast.core.model
 
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
-import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.must.Matchers
 
-class QbeastOptionsTest extends AnyFunSuite {
+class QbeastOptionsTest extends AnyFlatSpec with Matchers {
 
-  test("QbeastOptions should correctly parse options") {
+  "QbeastOptions" should "correctly parse options" in {
     val optionsMap = Map(
       "columnsToIndex" -> "column1,column2",
       "cubeSize" -> "1000",
@@ -20,7 +21,7 @@ class QbeastOptionsTest extends AnyFunSuite {
     assert(qbeastOptions.columnStats.contains("{\"column1_min\":0,\"column1_max\":100}"))
   }
 
-  test("QbeastOptions should throw an exception for unsupported table formats") {
+  it should "throw an exception for unsupported table formats" in {
     val optionsMap = Map(
       "columnsToIndex" -> "column1,column2",
       "cubeSize" -> "1000",
@@ -33,7 +34,7 @@ class QbeastOptionsTest extends AnyFunSuite {
     assert(exception.getMessage.contains("Unsupported table format"))
   }
 
-  test("QbeastOptions should handle hooks correctly") {
+  it should "handle hooks correctly" in {
 
     val optionsMap = Map(
       "columnsToIndex" -> "column1,column2",
@@ -48,7 +49,7 @@ class QbeastOptionsTest extends AnyFunSuite {
     assert(qbeastOptions.hookInfo.head == HookInfo("hook1", "com.example.Hook1", Some("arg1")))
   }
 
-  test("QbeastOptions.toMap should return a case-insensitive map with all options") {
+  it should "return a case-insensitive map with all options" in {
     val optionsMap =
       Map("columnsToIndex" -> "column1,column2", "cubeSize" -> "1000", "tableFormat" -> "delta")
 
@@ -60,7 +61,7 @@ class QbeastOptionsTest extends AnyFunSuite {
     assert(resultMap("tableFormat") == "delta")
   }
 
-  test("QbeastOptions.empty should create default options") {
+  it should "create default options" in {
     val emptyOptions = QbeastOptions.empty
 
     assert(emptyOptions.columnsToIndex.isEmpty)
