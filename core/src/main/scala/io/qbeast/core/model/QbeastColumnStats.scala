@@ -1,17 +1,24 @@
+/*
+ * Copyright 2021 Qbeast Analytics, S.L.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.qbeast.core.model
 
-import io.qbeast.core.transform.CDFNumericQuantilesTransformer
-import io.qbeast.core.transform.CDFStringQuantilesTransformer
-import io.qbeast.core.transform.LinearTransformer
-import io.qbeast.core.transform.StringHistogramTransformer
-import io.qbeast.core.transform.Transformation
-import io.qbeast.core.transform.Transformer
+import io.qbeast.core.transform._
+import io.qbeast.spark.utils.SparkToQTypesUtils
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.types.ArrayType
-import org.apache.spark.sql.types.DoubleType
-import org.apache.spark.sql.types.StringType
-import org.apache.spark.sql.types.StructField
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types._
 import org.apache.spark.sql.AnalysisExceptionFactory
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
@@ -21,23 +28,17 @@ import org.apache.spark.sql.SparkSession
  *
  * @param schema
  *   the column stats schema
- * @param row
+ * @param rowOption
  *   the column stats row
  */
-case class QbeastColumnStats(schema: StructType, row: Row, string: String) extends Logging {
+case class QbeastColumnStats(schema: StructType, rowOption: Option[Row]) extends Logging {
 
-  def createTransformation(transformer: Transformer): Option[Transformation] = {
-    try {
-      // Create transformation with columnStats
-      Some(transformer.makeTransformation(row.getAs[Object]))
-    } catch {
-      case e: Throwable =>
-        logWarning(
-          s"Error creating transformation for column ${transformer.columnName} with columnStats: $string",
-          e)
-        // Ignore the transformation if the stats are not available
-        None
-    }
+  def createTransformation(transformer: Transformer): Option[Transformation] = rowOption match {
+    case Some(row) =>
+      val hasStats = transformer.stats.statsNames.exists(row.getAs[Object](_) != null)
+      if (hasStats) Some(transformer.makeTransformation(row.getAs[Object]))
+      else None
+    case None => None
   }
 
 }
@@ -50,44 +51,30 @@ object QbeastColumnStats {
   /**
    * Builds the column stats schema
    *
-   * For each column transformer, it creates a StructField with the stats names
-   * @param dataSchema
-   *   the data schema
+   * For each column transformer, create the sequence StructField for its column stats
    * @param columnTransformers
    *   the column transformers
    * @return
    */
-  def buildColumnStatsSchema(
-      dataSchema: StructType,
-      columnTransformers: Seq[Transformer]): StructType = {
-    val columnStatsSchema = StructType(columnTransformers.flatMap { transformer =>
-      val transformerStatsNames = transformer.stats.statsNames
-      val transformerColumnName = transformer.columnName
-      val sparkDataType = dataSchema.find(_.name == transformerColumnName) match {
-        case Some(field) => field.dataType
-        case None =>
-          throw AnalysisExceptionFactory.create(
-            s"Column $transformerColumnName not found in the data schema")
+  private[model] def buildColumnStatsSchema(columnTransformers: Seq[Transformer]): StructType = {
+    val builder = Seq.newBuilder[StructField]
+    columnTransformers.foreach { t =>
+      val fields = t match {
+        case lt: LinearTransformer =>
+          val sparkDataType = SparkToQTypesUtils.convertToSparkDataType(lt.dataType)
+          lt.stats.statsNames.map(StructField(_, sparkDataType, nullable = true))
+        case nq: CDFNumericQuantilesTransformer =>
+          nq.stats.statsNames.map(StructField(_, ArrayType(DoubleType), nullable = true))
+        case sq: CDFStringQuantilesTransformer =>
+          sq.stats.statsNames.map(StructField(_, ArrayType(StringType), nullable = true))
+        case sh: StringHistogramTransformer =>
+          sh.stats.statsNames.map(StructField(_, ArrayType(StringType), nullable = true))
+        case _ => Seq.empty
+        // TODO: Add support for other transformers
       }
-
-      transformer match {
-        case LinearTransformer(_, _) =>
-          transformerStatsNames.map(statName =>
-            StructField(statName, sparkDataType, nullable = true))
-        case CDFNumericQuantilesTransformer(_, _) =>
-          transformerStatsNames.map(statName =>
-            StructField(statName, ArrayType(DoubleType), nullable = true))
-        case CDFStringQuantilesTransformer(_) =>
-          transformerStatsNames.map(statName =>
-            StructField(statName, ArrayType(StringType), nullable = true))
-        case StringHistogramTransformer(_, _) =>
-          transformerStatsNames.map(statName =>
-            StructField(statName, ArrayType(StringType), nullable = true))
-        case _ => // TODO: Add support for other transformers
-          Seq.empty
-      }
-    })
-    columnStatsSchema
+      builder ++= fields
+    }
+    StructType(builder.result())
   }
 
   /**
@@ -99,29 +86,28 @@ object QbeastColumnStats {
    *   the column stats schema
    * @return
    */
-
-  def buildColumnStatsRow(stats: String, columnStatsSchema: StructType): Row = {
-    // If the stats are empty, return an empty row
-    if (stats.isEmpty) return Row.empty
-    // Otherwise, parse the stats
-    val spark = SparkSession.active
-    import spark.implicits._
-    val columnStatsJSON = Seq(stats).toDS()
-    val row = spark.read
-      .option("inferTimestamp", "true")
-      .option("timestampFormat", "yyyy-MM-dd HH:mm:ss.SSSSSS'Z'")
-      .schema(columnStatsSchema)
-      .json(columnStatsJSON)
-      .first()
-    // If the stats are non-empty, and the row values are null,
-    // we assume that the stats are not in the correct format
-    val areAllStatsNull = row.toSeq.forall(f => f == null)
-    if (areAllStatsNull) {
-      throw AnalysisExceptionFactory.create(
-        s"The columnStats provided is not a valid JSON: $stats")
+  private[model] def buildColumnStatsRow(
+      stats: String,
+      columnStatsSchema: StructType): Option[Row] = {
+    if (stats.isEmpty) None // No stats are provided
+    else {
+      val spark = SparkSession.active
+      import spark.implicits._
+      val columnStatsJSON = Seq(stats).toDS()
+      val row = spark.read
+        .option("inferTimestamp", "true")
+        .option("timestampFormat", "yyyy-MM-dd HH:mm:ss.SSSSSS'Z'")
+        .schema(columnStatsSchema)
+        .json(columnStatsJSON)
+        .first()
+      // All values will be Null is the input JSON is invalid
+      val isInvalidJSON = row.toSeq.forall(_ == null)
+      if (isInvalidJSON) {
+        throw AnalysisExceptionFactory.create(
+          s"The columnStats provided is not a valid JSON: $stats")
+      }
+      Some(row)
     }
-    // return row
-    row
   }
 
   /**
@@ -131,17 +117,12 @@ object QbeastColumnStats {
    *   the stats in a JSON string
    * @param columnTransformers
    *   the set of columnTransformers to build the Stats from
-   * @param dataSchema
-   *   the data schema to build the Stats from
    * @return
    */
-  def apply(
-      statsString: String,
-      columnTransformers: Seq[Transformer],
-      dataSchema: StructType): QbeastColumnStats = {
-    val columnStatsSchema = buildColumnStatsSchema(dataSchema, columnTransformers)
-    val columnStatsRow = buildColumnStatsRow(statsString, columnStatsSchema)
-    QbeastColumnStats(columnStatsSchema, columnStatsRow, statsString)
+  def apply(statsString: String, columnTransformers: Seq[Transformer]): QbeastColumnStats = {
+    val statsSchema = buildColumnStatsSchema(columnTransformers)
+    val statsRowOption = buildColumnStatsRow(statsString, statsSchema)
+    QbeastColumnStats(statsSchema, statsRowOption)
   }
 
 }

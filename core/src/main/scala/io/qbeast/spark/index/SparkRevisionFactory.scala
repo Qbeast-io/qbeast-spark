@@ -15,19 +15,8 @@
  */
 package io.qbeast.spark.index
 
-import io.qbeast.core.model.ColumnToIndex
-import io.qbeast.core.model.QTableID
-import io.qbeast.core.model.QbeastColumnStats
-import io.qbeast.core.model.QbeastOptions
-import io.qbeast.core.model.Revision
-import io.qbeast.core.model.RevisionChange
-import io.qbeast.core.model.RevisionFactory
-import io.qbeast.core.model.StagingUtils
-import io.qbeast.core.transform.CDFQuantilesTransformer
-import io.qbeast.core.transform.EmptyTransformation
-import io.qbeast.core.transform.EmptyTransformer
-import io.qbeast.core.transform.Transformation
-import io.qbeast.core.transform.Transformer
+import io.qbeast.core.model._
+import io.qbeast.core.transform._
 import io.qbeast.IISeq
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.types.StructType
@@ -103,14 +92,7 @@ trait SparkRevisionChangesUtils extends StagingUtils with Logging {
         updatedTransformers,
         revision.transformations,
         options,
-        dataFrameStats,
-        data.schema)
-    // 6. Return RevisionChanges.
-    //
-    // Revision should change if:
-    //    - Cube Size has changed
-    //    - Transformer types had changed
-    //    - Transformations have changed
+        dataFrameStats)
     val hasRevisionChanges =
       cubeSizeChanges.isDefined ||
         transformerChanges.flatten.nonEmpty ||
@@ -249,16 +231,13 @@ trait SparkRevisionChangesUtils extends StagingUtils with Logging {
       transformers: IISeq[Transformer],
       transformations: IISeq[Transformation],
       options: QbeastOptions,
-      row: Row,
-      dataSchema: StructType): IISeq[Option[Transformation]] = {
+      row: Row): IISeq[Option[Transformation]] = {
     // Compute transformations from dataFrameStats
     val transformationsFromDataFrameStats =
       computeTransformationsFromDataFrameStats(transformers, row)
-
     // Compute transformations from columnStats
     val transformationsFromColumnsStats =
-      computeTransformationsFromColumnStats(transformers, options, dataSchema)
-
+      computeTransformationsFromColumnStats(transformers, options)
     // Merge transformations from DataFrame and columnStats
     val newTransformations = transformationsFromDataFrameStats
       .zip(transformationsFromColumnsStats)
@@ -300,15 +279,13 @@ trait SparkRevisionChangesUtils extends StagingUtils with Logging {
    */
   private[index] def computeTransformationsFromColumnStats(
       transformers: IISeq[Transformer],
-      options: QbeastOptions,
-      dataSchema: StructType): IISeq[Option[Transformation]] = {
+      options: QbeastOptions): IISeq[Option[Transformation]] = {
     // 1. Get the columnStats from the options
     val columnStatsString = options.columnStats.getOrElse("")
     // 2. Build the QbeastColumnStats
-    val qbeastColumnStats =
-      QbeastColumnStats(columnStatsString, transformers, dataSchema)
+    val columnStats = QbeastColumnStats(columnStatsString, transformers)
     // 3. Compute transformations from the columnStats
-    transformers.map(qbeastColumnStats.createTransformation)
+    transformers.map(columnStats.createTransformation)
   }
 
   /**
