@@ -15,21 +15,43 @@
  */
 package io.qbeast.spark.utils
 
-import io.qbeast.core.{model => qmodel}
+import io.qbeast.core.model.DateDataType
+import io.qbeast.core.model.DecimalDataType
+import io.qbeast.core.model.DoubleDataType
+import io.qbeast.core.model.FloatDataType
+import io.qbeast.core.model.IntegerDataType
+import io.qbeast.core.model.LongDataType
+import io.qbeast.core.model.QDataType
+import io.qbeast.core.model.StringDataType
+import io.qbeast.core.model.TimestampDataType
 import org.apache.spark.sql.types._
 
 object SparkToQTypesUtils {
 
-  def convertDataTypes(sparkType: DataType): io.qbeast.core.model.QDataType = sparkType match {
-    case _: DoubleType => qmodel.DoubleDataType
-    case _: IntegerType => qmodel.IntegerDataType
-    case _: FloatType => qmodel.FloatDataType
-    case _: LongType => qmodel.LongDataType
-    case _: StringType => qmodel.StringDataType
-    case _: DecimalType => qmodel.DecimalDataType
-    case _: TimestampType => qmodel.TimestampDataType
-    case _: DateType => qmodel.DateDataType
-    case _ => throw new RuntimeException(s"${sparkType.typeName} is not supported yet")
+  def convertToQDataType(sparkDataType: DataType): QDataType = sparkDataType match {
+    case _: DoubleType => DoubleDataType
+    case _: IntegerType => IntegerDataType
+    case _: FloatType => FloatDataType
+    case _: LongType => LongDataType
+    case _: StringType => StringDataType
+    case _: DecimalType => DecimalDataType
+    case _: TimestampType => TimestampDataType
+    case _: DateType => DateDataType
+    case _ => throw new RuntimeException(s"${sparkDataType.typeName} is not supported.")
+    // TODO add more types
+  }
+
+  def convertToSparkDataType(qDataType: QDataType): DataType = qDataType match {
+    case DoubleDataType => DoubleType
+    case IntegerDataType => IntegerType
+    case FloatDataType => FloatType
+    case LongDataType => LongType
+    case StringDataType => StringType
+    case DecimalDataType => DecimalType.SYSTEM_DEFAULT
+    case TimestampDataType => TimestampType
+    case DateDataType => DateType
+    case _ =>
+      throw new RuntimeException(s"No corresponding spark type is found for ${qDataType.name}.")
     // TODO add more types
   }
 

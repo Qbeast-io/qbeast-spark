@@ -25,7 +25,7 @@ object ColumnToIndexUtils {
   val SpecExtractor: Regex = "([^:]+):([A-z]+)".r
 
   def getColumnQType(columnName: String, schema: StructType): QDataType = {
-    SparkToQTypesUtils.convertDataTypes(schema(columnName).dataType)
+    SparkToQTypesUtils.convertToQDataType(schema(columnName).dataType)
   }
 
 }
