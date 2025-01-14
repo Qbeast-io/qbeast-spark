@@ -15,6 +15,7 @@
  */
 package io.qbeast.sources
 
+import io.qbeast.catalog.QbeastCatalogUtils.QBEAST_PROVIDER_NAME
 import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.QbeastOptions
 import io.qbeast.sources.v2.QbeastTableImpl
@@ -90,8 +91,8 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
     } else {
       // If the table does not exist, we create a new one with the properties passed
       val tableProperties = properties.asScala.toMap
-      val qbeastOptions = QbeastOptions(tableProperties)
-      val tableProvider = qbeastOptions.tableFormat
+      val tableProvider =
+        tableProperties.getOrElse(QbeastOptions.TABLE_FORMAT, QBEAST_PROVIDER_NAME)
       val tableIdentifier = TableIdentifier(tableId.id)
       QbeastTableImpl(
         tableIdentifier,
