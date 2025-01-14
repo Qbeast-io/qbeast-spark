@@ -41,7 +41,7 @@ case class CDFNumericQuantilesTransformer(columnName: String, orderedDataType: O
   override def makeTransformation(row: String => Any): Transformation = {
     row(columnTransformerName) match {
       case null => EmptyTransformation()
-      case q: Seq[_] if q.nonEmpty =>
+      case q: Seq[_] =>
         try {
           val quantiles = q.map(_.asInstanceOf[Double]).toIndexedSeq
           CDFNumericQuantilesTransformation(quantiles, orderedDataType)
@@ -50,9 +50,6 @@ case class CDFNumericQuantilesTransformer(columnName: String, orderedDataType: O
             throw AnalysisExceptionFactory.create(
               "Quantiles should be of type Double, but found another type")
         }
-      case q: Seq[_] if q.isEmpty =>
-        throw AnalysisExceptionFactory.create(
-          s"Quantiles for column $columnName size should be greater than 1")
       case _ =>
         throw AnalysisExceptionFactory.create(
           s"Quantiles for column $columnName should be of type Array[Double]")
