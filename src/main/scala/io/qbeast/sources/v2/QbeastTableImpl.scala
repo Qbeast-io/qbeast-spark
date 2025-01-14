@@ -45,7 +45,7 @@ import scala.collection.JavaConverters._
  * @param tableIdentifier
  *   the identifier of the table
  * @param tableFormat
- *   the provider of the table
+ *   the underlying format of the table (delta, parquet, etc)
  * @param path
  *   the Path of the table
  * @param options

@@ -107,7 +107,7 @@ object QbeastOptions {
    *   the options passed on the dataframe
    * @return
    */
-  private def getColumnsToIndex(options: Map[String, String]): Seq[String] = {
+  def getColumnsToIndex(options: Map[String, String]): Seq[String] = {
     val encodedColumnsToIndex = options.getOrElse(
       COLUMNS_TO_INDEX, {
         throw AnalysisExceptionFactory.create(
@@ -123,14 +123,14 @@ object QbeastOptions {
    *   the options passed on the dataframe
    * @return
    */
-  private def getDesiredCubeSize(options: Map[String, String]): Int = {
+  def getDesiredCubeSize(options: Map[String, String]): Int = {
     options.get(CUBE_SIZE) match {
       case Some(value) => value.toInt
       case None => DEFAULT_CUBE_SIZE
     }
   }
 
-  private def getTableFormat(options: Map[String, String]): String =
+  def getTableFormat(options: Map[String, String]): String =
     options.get(TABLE_FORMAT) match {
       case Some(value) if (supportedTableFormats.contains(value)) => value
       case Some(unsupportedValue) =>
@@ -148,7 +148,7 @@ object QbeastOptions {
    *   the options passed on the dataframe
    * @return
    */
-  private def getColumnStats(options: Map[String, String]): Option[String] =
+  def getColumnStats(options: Map[String, String]): Option[String] =
     options.get(COLUMN_STATS)
 
   /**
@@ -168,7 +168,7 @@ object QbeastOptions {
    *   contains the name of the hook, the full class name of the hook, and optionally the argument
    *   for the hook.
    */
-  private def getHookInfo(options: Map[String, String]): Seq[HookInfo] = {
+  def getHookInfo(options: Map[String, String]): Seq[HookInfo] = {
     val hookNamePattern: Regex = s"${PRE_COMMIT_HOOKS_PREFIX.toLowerCase}.(\\w+)".r
     options
       .map {
@@ -237,8 +237,8 @@ object QbeastOptions {
    */
   def empty: QbeastOptions = QbeastOptions(
     columnsToIndex = Seq.empty[String],
-    cubeSize = 0,
-    tableFormat = "",
+    cubeSize = DEFAULT_CUBE_SIZE,
+    tableFormat = DEFAULT_TABLE_FORMAT,
     columnStats = None,
     hookInfo = Nil,
     extraOptions = Map.empty[String, String])

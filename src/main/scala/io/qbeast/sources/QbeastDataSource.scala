@@ -57,7 +57,7 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
    */
   def this() = this(QbeastContext.indexedTableFactory)
 
-  override def shortName(): String = "qbeast"
+  override def shortName(): String = QBEAST_PROVIDER_NAME
 
   override def inferSchema(options: CaseInsensitiveStringMap): StructType = StructType(Seq())
 
@@ -66,44 +66,19 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
       schema: StructType,
       partitioning: Array[Transform],
       properties: util.Map[String, String]): Table = {
-    val tableId = QbeastOptions.loadTableIDFromParameters(properties.asScala.toMap)
-    logInfo(s"Getting Qbeast table $tableId")
-    val indexedTable = tableFactory.getIndexedTable(tableId)
-    if (indexedTable.exists) {
-      // If the table exists, we make sure to pass all the properties to QbeastTableImpl
-      val currentRevision =
-        QbeastContext.metadataManager.loadSnapshot(tableId).loadLatestRevision
-      val indexProperties = Map(
-        "columnsToIndex" -> currentRevision.columnTransformers.map(_.columnName).mkString(","),
-        "cubeSize" -> currentRevision.desiredCubeSize.toString)
-      val tableProperties = properties.asScala.toMap ++ indexProperties
-      val qbeastOptions = QbeastOptions(tableProperties)
-      val tableProvider = qbeastOptions.tableFormat
-      logDebug(s"Table $tableId properties: $tableProperties")
-      QbeastTableImpl(
-        TableIdentifier(tableId.id),
-        tableProvider,
-        new Path(tableId.id),
-        tableProperties,
-        Some(schema),
-        None,
-        tableFactory)
-    } else {
-      // If the table does not exist, we create a new one with the properties parsed
-      val tableProperties = properties.asScala.toMap
-      val tableIdentifier = TableIdentifier(tableId.id)
-      // We need to get the table format from the properties
-      val tableProvider =
-        properties.getOrDefault(QbeastOptions.TABLE_FORMAT, QBEAST_PROVIDER_NAME)
-      QbeastTableImpl(
-        tableIdentifier,
-        tableProvider,
-        new Path(tableId.id),
-        tableProperties,
-        Some(schema),
-        None,
-        tableFactory)
-    }
+    val tableProperties = properties.asScala.toMap
+    val tableId = QbeastOptions.loadTableIDFromParameters(tableProperties)
+    val tablePathIdentifier = TableIdentifier(tableId.id)
+    val tableFormat = QbeastOptions.getTableFormat(tableProperties)
+    logInfo(s"Getting Qbeast table $tableId via QbeastDataSource")
+    QbeastTableImpl(
+      tablePathIdentifier,
+      tableFormat,
+      new Path(tableId.id),
+      tableProperties,
+      Some(schema),
+      None,
+      tableFactory)
 
   }
 

@@ -55,8 +55,9 @@ class QbeastOptionsTest extends QbeastIntegrationTestSpec {
   }
 
   it should "initialize with tableFormat" in withSpark { _ =>
-    val options = QbeastOptions(Map(COLUMNS_TO_INDEX -> "id", TABLE_FORMAT -> "someFormat"))
-    options.tableFormat shouldBe "someFormat"
+    val formatName = QbeastOptions.supportedTableFormats.head
+    val options = QbeastOptions(Map(COLUMNS_TO_INDEX -> "id", TABLE_FORMAT -> formatName))
+    options.tableFormat shouldBe formatName
     options.columnsToIndex shouldBe Seq("id")
     options.cubeSize shouldBe DEFAULT_CUBE_SIZE
   }
@@ -99,7 +100,7 @@ class QbeastOptionsTest extends QbeastIntegrationTestSpec {
     val optionsMap = Map(
       QbeastOptions.COLUMNS_TO_INDEX -> "id",
       QbeastOptions.CUBE_SIZE -> "10",
-      QbeastOptions.TABLE_FORMAT -> "parquet",
+      QbeastOptions.TABLE_FORMAT -> "delta",
       QbeastOptions.COLUMN_STATS -> """{"col1_min":1",col1_max":10}""",
       s"$PRE_COMMIT_HOOKS_PREFIX.hook2" -> "HookClass2",
       s"$PRE_COMMIT_HOOKS_PREFIX.hook2.arg" -> "HookClass2Arg")
@@ -128,6 +129,45 @@ class QbeastOptionsTest extends QbeastIntegrationTestSpec {
     options.tableFormat shouldBe DEFAULT_TABLE_FORMAT
     options.columnStats shouldBe Some("""{"col1_min":1,"col1_max":10}""")
     options.hookInfo shouldBe Seq(HookInfo("hook", "HookClass", Some("HookClassArg")))
+  }
+
+  it should "create default options" in withSpark { _ =>
+    val emptyOptions = QbeastOptions.empty
+
+    assert(emptyOptions.columnsToIndex.isEmpty)
+    assert(emptyOptions.cubeSize == DEFAULT_CUBE_SIZE)
+    assert(emptyOptions.tableFormat == DEFAULT_TABLE_FORMAT)
+    assert(emptyOptions.columnStats.isEmpty)
+    assert(emptyOptions.hookInfo.isEmpty)
+    assert(emptyOptions.extraOptions.isEmpty)
+  }
+
+  it should "handle hooks correctly" in {
+
+    val optionsMap = Map(
+      "columnsToIndex" -> "column1,column2",
+      "cubeSize" -> "1000",
+      "tableFormat" -> "delta",
+      "qbeastPreCommitHook.hook1" -> "com.example.Hook1",
+      "qbeastPreCommitHook.hook1.arg" -> "arg1")
+
+    val qbeastOptions = QbeastOptions(optionsMap)
+
+    assert(qbeastOptions.hookInfo.nonEmpty)
+    assert(qbeastOptions.hookInfo.head == HookInfo("hook1", "com.example.Hook1", Some("arg1")))
+  }
+
+  it should "throw an exception for unsupported table formats" in {
+    val optionsMap = Map(
+      "columnsToIndex" -> "column1,column2",
+      "cubeSize" -> "1000",
+      "tableFormat" -> "unsupportedFormat")
+
+    val exception = intercept[Exception] {
+      QbeastOptions(optionsMap)
+    }
+
+    assert(exception.getMessage.contains("Unsupported table format"))
   }
 
   "checkQbeastProperties" should "throw exception when missing columnsToIndex" in {
