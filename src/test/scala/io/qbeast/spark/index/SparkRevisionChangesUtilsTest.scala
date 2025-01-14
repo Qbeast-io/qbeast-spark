@@ -88,7 +88,7 @@ class SparkRevisionChangesUtilsTest
   // 24. it should throw an exception when the provided columnStats is not a valid JSON string
 
   // cubeSize changes
-  // 24. it should detect cubeSize changes
+  // 25. it should detect cubeSize changes
 
   // Transformation changes (no columnStats)
   "SparkRevisionChangesUtils" should
@@ -481,6 +481,60 @@ class SparkRevisionChangesUtilsTest
     }
   }
 
+  it should "createNewRevision with column stats for all numeric types" in withSpark(spark => {
+    import spark.implicits._
+    val qid = QTableID("t")
+    val data = spark
+      .range(5)
+      .map(i => TestAll(s"$i", i.toDouble, i.floatValue(), i.toInt, i.toLong, BigDecimal(i)))
+      .toDF()
+    val emptyRevision = SparkRevisionFactory.createNewRevision(
+      qid,
+      data.schema,
+      QbeastOptions(Map(COLUMNS_TO_INDEX -> "float_col,double_col,int_col,long_col,decimal_col")))
+
+    // Compute The Revision Changes given a set of Column Stats
+    val (revisionChanges, _) =
+      computeRevisionChanges(
+        emptyRevision, // empty revision
+        QbeastOptions(
+          Map(
+            QbeastOptions.COLUMNS_TO_INDEX -> "float_col,double_col,int_col,long_col,decimal_col",
+            QbeastOptions.COLUMN_STATS ->
+              """{"float_col_min":0.0, "float_col_max":10.0,
+                | "double_col_min":0.0, "double_col_max":10.0,
+                | "int_col_min":0, "int_col_max":10,
+                | "long_col_min":0, "long_col_max":10,
+                | "decimal_col_min":0.0, "decimal_col_max":10.0}""".stripMargin)),
+        data)
+
+    val revision = revisionChanges.get.createNewRevision
+    revision.tableID shouldBe qid
+    revision.revisionID shouldBe 1 // the provided columnStats triggered a new revision
+    revision.columnTransformers shouldBe Vector(
+      LinearTransformer("float_col", FloatDataType),
+      LinearTransformer("double_col", DoubleDataType),
+      LinearTransformer("int_col", IntegerDataType),
+      LinearTransformer("long_col", LongDataType),
+      LinearTransformer("decimal_col", DecimalDataType))
+    revision.transformations.head should matchPattern {
+      case LinearTransformation(0.0f, 10.0f, _, FloatDataType) =>
+    }
+    revision.transformations(1) should matchPattern {
+      case LinearTransformation(0.0, 10.0, _, DoubleDataType) =>
+    }
+    revision.transformations(2) should matchPattern {
+      case LinearTransformation(0, 10, _, IntegerDataType) =>
+    }
+    revision.transformations(3) should matchPattern {
+      case LinearTransformation(0L, 10L, _, LongDataType) =>
+    }
+    revision.transformations(4) should matchPattern {
+      case LinearTransformation(0.0, 10.0, _, DecimalDataType) =>
+    }
+
+  })
+
   // Transformer changes
   it should "throw an exception when trying to change indexing columns" in withSpark { spark =>
     val data = createData(spark)
@@ -662,67 +716,5 @@ class SparkRevisionChangesUtilsTest
 
     revision_2.desiredCubeSize shouldBe 10000
   }
-
-  it should "createNewRevision with column stats for all numeric types" in withSpark(spark => {
-    import spark.implicits._
-    val qid = QTableID("t")
-    val data = spark
-      .range(5)
-      .map(i => TestAll(s"$i", i.toDouble, i.floatValue(), i.toInt, i.toLong, BigDecimal(i)))
-      .toDF()
-    val emptyRevision = SparkRevisionFactory.createNewRevision(
-      qid,
-      data.schema,
-      QbeastOptions(
-        Map(COLUMNS_TO_INDEX -> "float_value,double_value,int_value,long_value,decimal_value")))
-
-    // Compute The Revision Changes given a set of Column Stats
-    val (revisionChanges, _) =
-      computeRevisionChanges(
-        emptyRevision, // empty revision
-        QbeastOptions(
-          Map(
-            QbeastOptions.COLUMNS_TO_INDEX -> "float_value,double_value,int_value,long_value,decimal_value",
-            QbeastOptions.COLUMN_STATS ->
-              """{"float_value_min":0.0, "float_value_max":10.0,
-                | "double_value_min":0.0, "double_value_max":10.0,
-                | "int_value_min":0, "int_value_max":10,
-                | "long_value_min":0, "long_value_max":10,
-                | "decimal_value_min":0.0, "decimal_value_max":10.0}""".stripMargin)),
-        data)
-
-    // the revisionChanges should be defined
-    revisionChanges shouldBe defined
-
-    val revision = revisionChanges.get.createNewRevision
-    revision.tableID shouldBe qid
-    // the reason while it's 1 is because columnStats are provided here
-    revision.revisionID shouldBe 1
-    revision.columnTransformers shouldBe Vector(
-      LinearTransformer("float_value", FloatDataType),
-      LinearTransformer("double_value", DoubleDataType),
-      LinearTransformer("int_value", IntegerDataType),
-      LinearTransformer("long_value", LongDataType),
-      LinearTransformer("decimal_value", DecimalDataType))
-
-    val transformations = revision.transformations
-    transformations should not be null
-    transformations.head should matchPattern {
-      case LinearTransformation(0.0f, 10.0f, _, FloatDataType) =>
-    }
-    transformations(1) should matchPattern {
-      case LinearTransformation(0.0, 10.0, _, DoubleDataType) =>
-    }
-    transformations(2) should matchPattern {
-      case LinearTransformation(0, 10, _, IntegerDataType) =>
-    }
-    transformations(3) should matchPattern {
-      case LinearTransformation(0L, 10L, _, LongDataType) =>
-    }
-    transformations(4) should matchPattern {
-      case LinearTransformation(0.0, 10.0, _, DecimalDataType) =>
-    }
-
-  })
 
 }
