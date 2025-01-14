@@ -15,7 +15,6 @@
  */
 package io.qbeast.sources.v2
 
-import io.qbeast.catalog.QbeastCatalogUtils.QBEAST_PROVIDER_NAME
 import io.qbeast.context.QbeastContext
 import io.qbeast.core.model.QTableID
 import io.qbeast.sources.QbeastBaseRelation
@@ -43,6 +42,10 @@ import scala.collection.JavaConverters._
 
 /**
  * Table Implementation for Qbeast Format
+ * @param tableIdentifier
+ *   the identifier of the table
+ * @param tableProvider
+ *   the provider of the table
  * @param path
  *   the Path of the table
  * @param options
@@ -56,6 +59,7 @@ import scala.collection.JavaConverters._
  */
 case class QbeastTableImpl(
     tableIdentifier: TableIdentifier,
+    tableProvider: String,
     path: Path,
     options: Map[String, String] = Map.empty,
     optionSchema: Option[StructType] = None,
@@ -99,11 +103,6 @@ case class QbeastTableImpl(
         .getTableMetadata(tableIdentifier)
     }
 
-  /**
-   * The provider of the table
-   */
-  private lazy val provider = table.provider.getOrElse(QBEAST_PROVIDER_NAME)
-
   override def name(): String = tableIdentifier.identifier
 
   override def schema(): StructType =
@@ -129,7 +128,7 @@ case class QbeastTableImpl(
         base.put(key, value)
       case _ => // do nothing
     }
-    base.put(TableCatalog.PROP_PROVIDER, provider)
+    base.put(TableCatalog.PROP_PROVIDER, tableProvider)
     base.put(TableCatalog.PROP_LOCATION, CatalogUtils.URIToString(path.toUri))
     catalogTable.foreach { table =>
       if (table.owner != null && table.owner.nonEmpty) {

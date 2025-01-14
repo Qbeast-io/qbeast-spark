@@ -19,6 +19,7 @@ import io.qbeast.spark.index.SparkColumnsToIndexSelector
 import io.qbeast.table.QbeastTable
 import io.qbeast.QbeastIntegrationTestSpec
 import io.qbeast.TestClasses.Student
+import org.apache.spark.qbeast.config.DEFAULT_TABLE_FORMAT
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
@@ -47,13 +48,12 @@ class QbeastSQLIntegrationTest extends QbeastIntegrationTestSpec {
       nonTemporaryTables.count() shouldBe 2 // data table and student table
 
       val table = spark.sql("DESCRIBE TABLE EXTENDED student")
-      // TODO Check the metadata of the table
-      // Check provider
+
       table
         .where("col_name == 'Provider'")
         .select("data_type")
         .first()
-        .getString(0) shouldBe "qbeast"
+        .getString(0) shouldBe DEFAULT_TABLE_FORMAT
       // Check Table Properties
       val tableProperties = table
         .where("col_name == 'Table Properties'")

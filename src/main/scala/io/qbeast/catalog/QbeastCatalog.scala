@@ -21,6 +21,7 @@ import io.qbeast.internal.commands.AlterTableUnsetPropertiesQbeastCommand
 import io.qbeast.sources.v2.QbeastStagedTableImpl
 import io.qbeast.sources.v2.QbeastTableImpl
 import org.apache.hadoop.fs.Path
+import org.apache.spark.qbeast.config.DEFAULT_TABLE_FORMAT
 import org.apache.spark.sql.catalyst.analysis.NoSuchDatabaseException
 import org.apache.spark.sql.catalyst.analysis.NoSuchNamespaceException
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException
@@ -104,6 +105,7 @@ class QbeastCatalog[T <: TableCatalog with SupportsNamespaces with FunctionCatal
           if QbeastCatalogUtils.isPathTable(ident) =>
         QbeastTableImpl(
           TableIdentifier(ident.name(), ident.namespace().headOption),
+          DEFAULT_TABLE_FORMAT,
           new Path(ident.name()),
           Map.empty,
           tableFactory = tableFactory)

@@ -99,6 +99,8 @@ object QbeastOptions {
   val qbeastOptionKeys: Set[String] =
     Set(PATH, COLUMNS_TO_INDEX, CUBE_SIZE, TABLE_FORMAT, COLUMN_STATS)
 
+  val supportedTableFormats: Set[String] = Set("delta")
+
   /**
    * Gets the columns to index from the options
    * @param options
@@ -130,7 +132,11 @@ object QbeastOptions {
 
   private def getTableFormat(options: Map[String, String]): String =
     options.get(TABLE_FORMAT) match {
-      case Some(value) => value
+      case Some(value) if (supportedTableFormats.contains(value)) => value
+      case Some(unsupportedValue) =>
+        throw AnalysisExceptionFactory.create(
+          s"Unsupported table format: $unsupportedValue. Supported formats are: " +
+            supportedTableFormats.mkString(", "))
       case None => DEFAULT_TABLE_FORMAT
     }
 
@@ -229,7 +235,13 @@ object QbeastOptions {
   /**
    * The empty options to be used as a placeholder.
    */
-  def empty: QbeastOptions = QbeastOptions(Seq.empty, DEFAULT_CUBE_SIZE, DEFAULT_TABLE_FORMAT)
+  def empty: QbeastOptions = QbeastOptions(
+    columnsToIndex = Seq.empty[String],
+    cubeSize = 0,
+    tableFormat = "",
+    columnStats = None,
+    hookInfo = Nil,
+    extraOptions = Map.empty[String, String])
 
   def loadTableIDFromParameters(parameters: Map[String, String]): QTableID = {
     new QTableID(

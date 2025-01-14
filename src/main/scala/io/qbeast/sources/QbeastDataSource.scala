@@ -22,7 +22,7 @@ import io.qbeast.table.IndexedTableFactory
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.fs.Path
 import org.apache.spark.internal.Logging
-import org.apache.spark.qbeast.config.COLUMN_SELECTOR_ENABLED
+import org.apache.spark.qbeast.config.{COLUMN_SELECTOR_ENABLED}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.expressions.Transform
@@ -76,19 +76,28 @@ class QbeastDataSource private[sources] (private val tableFactory: IndexedTableF
         "columnsToIndex" -> currentRevision.columnTransformers.map(_.columnName).mkString(","),
         "cubeSize" -> currentRevision.desiredCubeSize.toString)
       val tableProperties = properties.asScala.toMap ++ indexProperties
+      val qbeastOptions = QbeastOptions(tableProperties)
+      val tableProvider = qbeastOptions.tableFormat
       logDebug(s"Table $tableId properties: $tableProperties")
       QbeastTableImpl(
         TableIdentifier(tableId.id),
+        tableProvider,
         new Path(tableId.id),
         tableProperties,
         Some(schema),
         None,
         tableFactory)
     } else {
+      // If the table does not exist, we create a new one with the properties passed
+      val tableProperties = properties.asScala.toMap
+      val qbeastOptions = QbeastOptions(tableProperties)
+      val tableProvider = qbeastOptions.tableFormat
+      val tableIdentifier = TableIdentifier(tableId.id)
       QbeastTableImpl(
-        TableIdentifier(tableId.id),
+        tableIdentifier,
+        tableProvider,
         new Path(tableId.id),
-        properties.asScala.toMap,
+        tableProperties,
         Some(schema),
         None,
         tableFactory)

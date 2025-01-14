@@ -29,7 +29,6 @@ import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.plans.logical.TableSpec
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.connector.catalog.Identifier
-import org.apache.spark.sql.connector.catalog.SparkCatalogV2Util
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.datasources.DataSource
@@ -52,12 +51,16 @@ object QbeastCatalogUtils extends Logging {
 
   val QBEAST_PROVIDER_NAME: String = "qbeast"
 
-  private val supportedProviders: Set[String] = Set("delta")
+  private val PROVIDER_CONF_KEY: String = "provider"
+
+  private val TABLE_FORMAT_CONF_KEY: String = QbeastOptions.TABLE_FORMAT
+
+  private val supportedProviders: Set[String] = QbeastOptions.supportedTableFormats
+
+  private val qbeastOptionConfigurationKeys: Set[String] = QbeastOptions.qbeastOptionKeys
 
   private val qbeastTableConfigurationKeys: Set[String] =
     MetadataConfig.tableConfigurationKeys.toSet
-
-  private val qbeastOptionConfigurationKeys: Set[String] = QbeastOptions.qbeastOptionKeys.toSet
 
   /**
    * Checks if the provider is Qbeast
@@ -70,15 +73,8 @@ object QbeastCatalogUtils extends Logging {
     provider.isDefined && provider.get == QBEAST_PROVIDER_NAME
   }
 
-  def isQbeastProvider(tableSpec: TableSpec): Boolean = {
-    tableSpec.provider.contains(QBEAST_PROVIDER_NAME)
-  }
-
   def isQbeastProvider(properties: Map[String, String]): Boolean = isQbeastProvider(
-    properties.get("provider"))
-
-  def isQbeastProvider(properties: util.Map[String, String]): Boolean = isQbeastProvider(
-    properties.asScala.toMap)
+    properties.get(PROVIDER_CONF_KEY))
 
   /**
    * Checks if the provider is supported by Qbeast
@@ -129,7 +125,7 @@ object QbeastCatalogUtils extends Logging {
   }
 
   def isQbeastTable(properties: Map[String, String]): Boolean = {
-    val providerConf = properties.get("provider")
+    val providerConf = properties.get(PROVIDER_CONF_KEY)
     isQbeastTable(providerConf, properties)
   }
 
@@ -277,8 +273,10 @@ object QbeastCatalogUtils extends Logging {
       properties: Map[String, String],
       writeOptions: Map[String, String]): Map[String, String] = {
     // If the provider is Qbeast, we should add the tableFormat to the properties
-    if (properties.getOrElse("provider", "") == QBEAST_PROVIDER_NAME) {
-      properties.updated("provider", writeOptions.getOrElse("tableFormat", DEFAULT_TABLE_FORMAT))
+    if (properties.getOrElse(PROVIDER_CONF_KEY, "") == QBEAST_PROVIDER_NAME) {
+      properties.updated(
+        PROVIDER_CONF_KEY,
+        writeOptions.getOrElse(TABLE_FORMAT_CONF_KEY, DEFAULT_TABLE_FORMAT))
     } else properties
   }
 
@@ -441,14 +439,13 @@ object QbeastCatalogUtils extends Logging {
    */
   def loadQbeastTable(table: Table, tableFactory: IndexedTableFactory): Table = {
 
-    val prop = table.properties()
-    val columns = table.columns()
-    val schema = SparkCatalogV2Util.v2ColumnsToStructType(columns)
-
     table match {
       case V1TableQbeast(t) =>
+        // Get the Catalog Table
         val catalogTable = t.v1Table
 
+        val tableIdentifier = catalogTable.identifier
+        val tableProvider = catalogTable.provider.getOrElse(QBEAST_PROVIDER_NAME)
         val path: String = if (catalogTable.tableType == CatalogTableType.EXTERNAL) {
           // If it's an EXTERNAL TABLE, we can find the path through the Storage Properties
           catalogTable.storage.locationUri.get.toString
@@ -456,11 +453,14 @@ object QbeastCatalogUtils extends Logging {
           // If it's a MANAGED TABLE, the location is set in the former catalogTable
           catalogTable.location.toString
         }
+        val schema = catalogTable.schema
+        val properties = catalogTable.properties
 
         QbeastTableImpl(
-          catalogTable.identifier,
+          tableIdentifier,
+          tableProvider,
           new Path(path),
-          prop.asScala.toMap,
+          properties,
           Some(schema),
           Some(catalogTable),
           tableFactory)

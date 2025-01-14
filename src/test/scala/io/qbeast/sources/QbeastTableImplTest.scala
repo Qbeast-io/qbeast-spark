@@ -20,6 +20,7 @@ import io.qbeast.sources.v2.QbeastTableImpl
 import io.qbeast.sources.v2.QbeastWriteBuilder
 import io.qbeast.QbeastIntegrationTestSpec
 import org.apache.hadoop.fs.Path
+import org.apache.spark.qbeast.config.DEFAULT_TABLE_FORMAT
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.connector.catalog.Identifier
 import org.apache.spark.sql.connector.catalog.TableCapability._
@@ -32,6 +33,7 @@ class QbeastTableImplTest extends QbeastIntegrationTestSpec with CatalogTestSuit
   def createQbeastTableImpl(tmpDir: String): QbeastTableImpl = {
     QbeastTableImpl(
       TableIdentifier("students"),
+      DEFAULT_TABLE_FORMAT,
       new Path(tmpDir),
       Map.empty,
       Some(schema),
@@ -78,6 +80,7 @@ class QbeastTableImplTest extends QbeastIntegrationTestSpec with CatalogTestSuit
       val properties = Map("provider" -> "qbeast", "columnsToIndex" -> "id")
       val qbeastTableImpl = QbeastTableImpl(
         TableIdentifier("students"),
+        DEFAULT_TABLE_FORMAT,
         new Path(tmpDir),
         properties,
         Some(schema),
@@ -86,7 +89,7 @@ class QbeastTableImplTest extends QbeastIntegrationTestSpec with CatalogTestSuit
 
       val qbeastTableProperties = qbeastTableImpl.properties()
 
-      qbeastTableProperties.get("provider") shouldBe "qbeast"
+      qbeastTableProperties.get("provider") shouldBe DEFAULT_TABLE_FORMAT
       qbeastTableProperties.get("columnsToIndex") shouldBe "id"
 
     })
@@ -102,6 +105,7 @@ class QbeastTableImplTest extends QbeastIntegrationTestSpec with CatalogTestSuit
 
       val qbeastTableImpl = QbeastTableImpl(
         tableIdentifier,
+        DEFAULT_TABLE_FORMAT,
         new Path(tmpDir),
         properties,
         None,
