@@ -1,209 +1,238 @@
 package io.qbeast.core.model
 
-import io.qbeast.core.transform.CDFQuantilesTransformer
-import io.qbeast.core.transform.LinearTransformation
-import io.qbeast.core.transform.LinearTransformer
-import io.qbeast.core.transform.StringHistogramTransformer
+import io.qbeast.core.transform._
 import io.qbeast.QbeastIntegrationTestSpec
-import org.apache.spark.sql.types.ArrayType
-import org.apache.spark.sql.types.DoubleType
-import org.apache.spark.sql.types.FloatType
-import org.apache.spark.sql.types.IntegerType
-import org.apache.spark.sql.types.LongType
-import org.apache.spark.sql.types.StringType
-import org.apache.spark.sql.types.StructField
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types._
 import org.apache.spark.sql.AnalysisException
-import org.apache.spark.sql.Row
 
 import scala.annotation.nowarn
 
 @nowarn("cat=deprecation")
 class QbeastColumnStatsTest extends QbeastIntegrationTestSpec {
 
-  "QbeastColumnStats" should "build the schema for linear transformations" in withSpark { _ =>
-    val dataSchema =
-      StructType(
-        Seq(
-          StructField("int_col", IntegerType),
-          StructField("float_col", FloatType),
-          StructField("long_col", LongType),
-          StructField("double_col", DoubleType)))
+  "QbeastColumnStats" should "build the stats schema and row correctly" in withSpark { _ =>
     val columnTransformers = Seq(
       LinearTransformer("int_col", IntegerDataType),
       LinearTransformer("float_col", FloatDataType),
       LinearTransformer("long_col", LongDataType),
-      LinearTransformer("double_col", DoubleDataType))
+      LinearTransformer("double_col", DoubleDataType),
+      CDFNumericQuantilesTransformer("int_col_2", IntegerDataType),
+      CDFNumericQuantilesTransformer("float_col_2", FloatDataType),
+      CDFNumericQuantilesTransformer("long_col_2", LongDataType),
+      CDFNumericQuantilesTransformer("double_col_2", DoubleDataType),
+      CDFStringQuantilesTransformer("string_col_2"),
+      StringHistogramTransformer("string_col_3", StringDataType))
 
-    val statsString =
-      """{"int_col_min":0,"int_col_max":0,
-        |"float_col_min":0.0,"float_col_max":0.0,
-        |"long_col_min":0,"long_col_max":0,
-        |"double_col_min":0.0,"double_col_max":0.0}""".stripMargin
-    val qbeastColumnStats =
-      QbeastColumnStats.apply(statsString, columnTransformers, dataSchema)
-    val qbeastColumnStatsSchema = qbeastColumnStats.schema
-    val qbeastColumnStatsRow = qbeastColumnStats.row
+    val statsSchema = StructType(
+      StructField("int_col_min", IntegerType) ::
+        StructField("int_col_max", IntegerType) ::
+        StructField("float_col_min", FloatType) ::
+        StructField("float_col_max", FloatType) ::
+        StructField("long_col_min", LongType) ::
+        StructField("long_col_max", LongType) ::
+        StructField("double_col_min", DoubleType) ::
+        StructField("double_col_max", DoubleType) ::
+        StructField("int_col_2_quantiles", ArrayType(DoubleType)) ::
+        StructField("float_col_2_quantiles", ArrayType(DoubleType)) ::
+        StructField("long_col_2_quantiles", ArrayType(DoubleType)) ::
+        StructField("double_col_2_quantiles", ArrayType(DoubleType)) ::
+        StructField("string_col_2_quantiles", ArrayType(StringType)) ::
+        StructField("string_col_3_histogram", ArrayType(StringType)) :: Nil)
 
-    assert(qbeastColumnStatsSchema.fields.length != 0)
-    qbeastColumnStatsRow.getAs[Int]("int_col_min") shouldBe 0
-    qbeastColumnStatsRow.getAs[Int]("int_col_max") shouldBe 0
-    qbeastColumnStatsRow.getAs[Float]("float_col_min") shouldBe 0.0
-    qbeastColumnStatsRow.getAs[Float]("float_col_max") shouldBe 0.0
-    qbeastColumnStatsRow.getAs[Long]("long_col_min") shouldBe 0
-    qbeastColumnStatsRow.getAs[Long]("long_col_max") shouldBe 0
-    qbeastColumnStatsRow.getAs[Double]("double_col_min") shouldBe 0.0
+    val statsString = """{"int_col_min":0,"int_col_max":1,
+        |"float_col_min":0.0,"float_col_max":1.0,
+        |"long_col_min":0,"long_col_max":1,
+        |"double_col_min":0.0,"double_col_max":1.0,
+        |"int_col_2_quantiles":[1.0, 2.0],
+        |"float_col_2_quantiles":[0.1, 0.2],
+        |"long_col_2_quantiles":[1.0, 2.0],
+        |"double_col_2_quantiles":[0.1, 0.2],
+        |"string_col_2_quantiles":["a", "b"],
+        |"string_col_3_histogram":["a", "b"]}""".stripMargin
+
+    val columnStats = QbeastColumnStats(statsString, columnTransformers)
+    columnStats.schema shouldBe statsSchema
+
+    val statsRow = columnStats.rowOption.get
+    assert(statsSchema.fields.length != 0)
+    statsRow.getAs[Int]("int_col_min") shouldBe 0
+    statsRow.getAs[Int]("int_col_max") shouldBe 1
+    statsRow.getAs[Float]("float_col_min") shouldBe 0.0
+    statsRow.getAs[Float]("float_col_max") shouldBe 1.0
+    statsRow.getAs[Long]("long_col_min") shouldBe 0
+    statsRow.getAs[Long]("long_col_max") shouldBe 1
+    statsRow.getAs[Double]("double_col_min") shouldBe 0.0
+    statsRow.getAs[Double]("double_col_max") shouldBe 1.0
+    statsRow.getAs[Array[Double]]("int_col_2_quantiles") shouldBe Array(1.0, 2.0)
+    statsRow.getAs[Array[Double]]("float_col_2_quantiles") shouldBe Array(0.1, 0.2)
+    statsRow.getAs[Array[Double]]("long_col_2_quantiles") shouldBe Array(1.0, 2.0)
+    statsRow.getAs[Array[Double]]("double_col_2_quantiles") shouldBe Array(0.1, 0.2)
+    statsRow.getAs[Array[String]]("string_col_2_quantiles") shouldBe Array("a", "b")
+    statsRow.getAs[Array[String]]("string_col_3_histogram") shouldBe Array("a", "b")
   }
 
-  it should "build the schema for quantiles" in withSpark { spark =>
-    val dataSchema =
-      StructType(Seq(StructField("int_col", IntegerType), StructField("string_col", StringType)))
-    val columnTransformers = Seq(CDFQuantilesTransformer("int_col", IntegerDataType))
-    val statsString = """{"int_col_quantiles":[0.0,0.25,0.5,0.75,1.0]}"""
-    val qbeastColumnStats =
-      QbeastColumnStats.apply(statsString, columnTransformers, dataSchema)
-
-    qbeastColumnStats.schema shouldBe StructType(
-      StructField("int_col_quantiles", ArrayType(DoubleType), nullable = true) :: Nil)
-    qbeastColumnStats.row.getAs[Array[Double]]("int_col_quantiles") shouldBe
-      Array(0.0, 0.25, 0.5, 0.75, 1.0)
-
-  }
-
-  it should "build the schema for string quantiles" in withSpark(spark => {
-    val dataSchema =
-      StructType(Seq(StructField("string_col", StringType)))
-    val columnTransformers = Seq(CDFQuantilesTransformer("string_col", StringDataType))
-    val statsString = """{"string_col_quantiles":["a","b","c","d","e"]}"""
-    val qbeastColumnStats =
-      QbeastColumnStats.apply(statsString, columnTransformers, dataSchema)
-
-    qbeastColumnStats.schema shouldBe StructType(
-      StructField("string_col_quantiles", ArrayType(StringType), nullable = true) :: Nil)
-    qbeastColumnStats.row.getAs[Array[String]]("string_col_quantiles") shouldBe
-      Array("a", "b", "c", "d", "e")
-  })
-
-  it should "build the QbeastColumnStats for string histogram (deprecated)" in withSpark(
-    spark => {
-      val dataSchema =
-        StructType(Seq(StructField("string_col", StringType)))
-      val columnTransformers = Seq(StringHistogramTransformer("string_col", StringDataType))
-      val statsString = """{"string_col_histogram":["a", "b", "c", "d", "e"]}"""
-      val qbeastColumnStats =
-        QbeastColumnStats.apply(statsString, columnTransformers, dataSchema)
-
-      qbeastColumnStats.schema shouldBe StructType(
-        StructField("string_col_histogram", ArrayType(StringType), nullable = true) :: Nil)
-      qbeastColumnStats.row.getAs[Array[String]]("string_col_histogram") shouldBe
-        Array("a", "b", "c", "d", "e")
-    })
-
-  it should "throw error when parsing is incorrect" in withSpark(spark => {
-    val dataSchema =
-      StructType(Seq(StructField("int_col", IntegerType), StructField("float_col", FloatType)))
-    val columnTransformers = Seq(CDFQuantilesTransformer("int_col", IntegerDataType))
-    val statsString = """{"int_col_quantiles":0.0,0.25,0.5,0.75,1.0]}"""
-    an[AnalysisException] shouldBe thrownBy {
-      QbeastColumnStats.apply(statsString, columnTransformers, dataSchema)
-    }
-
-    val columnTransformersLinear = Seq(LinearTransformer("float_col", FloatDataType))
-    val statsStringLinear =
-      """{"float_col_min":0.0f,"float_col_max":0.0f}""" // JSON does not support float parsing with f termination
-    an[AnalysisException] shouldBe thrownBy {
-      QbeastColumnStats.apply(statsStringLinear, columnTransformersLinear, dataSchema)
-    }
-
-  })
-
-  it should "only process LinearTransformers and QuantilesTransformers" in withSpark(spark => {
-    val dataSchema =
-      StructType(
-        Seq(
-          StructField("int_col", IntegerType),
-          StructField("long_col", LongType),
-          StructField("string_col", StringType)))
-    val columnTransformers = Seq(
-      CDFQuantilesTransformer("int_col", IntegerDataType),
-      LinearTransformer("long_col", LongDataType))
-    val statsString =
-      """{"int_col_quantiles":[0.0,0.25,0.5,0.75,1.0], "long_col_min":0,"long_col_max":0}"""
-    val qbeastColumnStats =
-      QbeastColumnStats.apply(statsString, columnTransformers, dataSchema)
-
-    qbeastColumnStats.schema shouldBe StructType(
-      Seq(
-        StructField("int_col_quantiles", ArrayType(DoubleType), nullable = true),
-        StructField("long_col_max", LongType, nullable = true),
-        StructField("long_col_min", LongType, nullable = true)
-      )
-    ) // Ignore String col
-    qbeastColumnStats.row.getAs[Array[Double]]("int_col_quantiles") shouldBe
-      Array(0.0, 0.25, 0.5, 0.75, 1.0)
-    qbeastColumnStats.row.getAs[Long]("long_col_min") shouldBe 0
-    qbeastColumnStats.row.getAs[Long]("long_col_max") shouldBe 0
-
-  })
-
-  it should "return empty Row if no columnStats are specified" in withSpark(spark => {
-    val dataSchema =
-      StructType(
-        Seq(
-          StructField("int_col", IntegerType),
-          StructField("long_col", LongType),
-          StructField("string_col", StringType)))
+  it should "create the right Transformations" in withSpark { _ =>
     val columnTransformers = Seq(
       LinearTransformer("int_col", IntegerDataType),
-      LinearTransformer("long_col", LongDataType),
-      LinearTransformer("string_col", StringDataType))
-    val statsString = ""
-    val qbeastColumnStats =
-      QbeastColumnStats.apply(statsString, columnTransformers, dataSchema)
+      CDFNumericQuantilesTransformer("int_col_2", IntegerDataType),
+      CDFStringQuantilesTransformer("string_col"),
+      StringHistogramTransformer("string_col_2", StringDataType))
+    val statsString =
+      """{"int_col_min":0,"int_col_max":10,
+        |"int_col_2_quantiles":[0.0,25.0,50.0,75.0,100.0],
+        |"string_col_quantiles": ["a","b","c", "d"],
+        |"string_col_2_histogram": ["a","b","c","d"]}""".stripMargin
+    val columnStats = QbeastColumnStats(statsString, columnTransformers)
+    columnStats.createTransformation(columnTransformers.head) should matchPattern {
+      case Some(LinearTransformation(0, 10, _, IntegerDataType)) =>
+    }
+    columnStats
+      .createTransformation(columnTransformers(1)) shouldBe Some(
+      CDFNumericQuantilesTransformation(Vector(0.0, 25.0, 50.0, 75.0, 100.0), IntegerDataType))
+    columnStats
+      .createTransformation(columnTransformers(2)) shouldBe Some(
+      CDFStringQuantilesTransformation(Vector("a", "b", "c", "d")))
+    columnStats
+      .createTransformation(columnTransformers.last) shouldBe Some(
+      StringHistogramTransformation(Vector("a", "b", "c", "d")))
+  }
 
-    qbeastColumnStats.row shouldBe Row.empty
-  })
-
-  it should "create the right Transformation" in withSpark(spark => {
-    val dataSchema =
-      StructType(Seq(StructField("int_col", IntegerType)))
+  it should "build the stats row correctly if no stats are specified" in withSpark { _ =>
     val columnTransformers = Seq(LinearTransformer("int_col", IntegerDataType))
-    val statsString = """{"int_col_min":0,"int_col_max":10}""".stripMargin
-    val qbeastColumnStats =
-      QbeastColumnStats.apply(statsString, columnTransformers, dataSchema)
+    val statsSchema = StructType(
+      StructField("int_col_min", IntegerType) ::
+        StructField("int_col_max", IntegerType) :: Nil)
+    val columnStats = QbeastColumnStats("", columnTransformers)
+    columnStats.schema shouldBe statsSchema
+    columnStats.rowOption shouldBe None
+  }
 
-    val intTransformation = qbeastColumnStats
-      .createTransformation(columnTransformers.head)
-    intTransformation.isDefined shouldBe true
-    intTransformation.get shouldBe a[LinearTransformation]
-    intTransformation.get.asInstanceOf[LinearTransformation].minNumber shouldBe 0
-    intTransformation.get.asInstanceOf[LinearTransformation].maxNumber shouldBe 10
-  })
+  it should "return None when no stats is provided" in withSpark { _ =>
+    val columnTransformers = Seq(
+      LinearTransformer("int_col", IntegerDataType),
+      CDFNumericQuantilesTransformer("int_col_2", IntegerDataType),
+      CDFStringQuantilesTransformer("string_col_2"),
+      StringHistogramTransformer("string_col_3", StringDataType))
+    val columnStats = QbeastColumnStats("", columnTransformers)
+    columnTransformers.flatMap(columnStats.createTransformation).isEmpty shouldBe true
+  }
 
-  it should "return None if the transformation cannot be created" in withSpark(spark => {
-    val dataSchema =
-      StructType(Seq(StructField("int_col", IntegerType)))
+  it should "build the stats schema and ignore redundant stats names" in withSpark { _ =>
     val columnTransformers = Seq(LinearTransformer("int_col", IntegerDataType))
-    val statsString = ""
-    val qbeastColumnStats =
-      QbeastColumnStats.apply(statsString, columnTransformers, dataSchema)
+    val statsSchema = StructType(
+      StructField("int_col_min", IntegerType) ::
+        StructField("int_col_max", IntegerType) :: Nil)
+    val statsString = """{"int_col_min": 100, "int_col_max": 200, "some_redundant_name": 100}"""
+    val columnStats = QbeastColumnStats(statsString, columnTransformers)
+    columnStats.schema shouldBe statsSchema
+    columnStats.rowOption.get.schema.find(_.name == "some_redundant_name") shouldBe None
+  }
 
-    val intTransformation = qbeastColumnStats
-      .createTransformation(columnTransformers.head)
-    intTransformation shouldBe None
-  })
+  it should "throw an exception when the provided JSON is invalid" in withSpark { _ =>
+    an[AnalysisException] shouldBe thrownBy {
+      QbeastColumnStats(
+        """{"int_col_min":0,"int_col_max":1""",
+        Seq(LinearTransformer("int_col", IntegerDataType)))
+    }
+    an[AnalysisException] shouldBe thrownBy {
+      QbeastColumnStats(
+        """{"long_col_quantiles":[0.0, 25.0, 50.0, 75.0, 100.0}""",
+        Seq(LinearTransformer("long_col", IntegerDataType)))
+    }
+    an[AnalysisException] shouldBe thrownBy {
+      QbeastColumnStats(
+        """{"long_col_quantiles":[0.0, 25.0, 50.0, 75.0, 100]}""",
+        Seq(LinearTransformer("long_col", IntegerDataType)))
+    }
+    an[AnalysisException] shouldBe thrownBy {
+      QbeastColumnStats(
+        """{"string_col_quantiles":["a", "b", "c", "d"}""",
+        Seq(LinearTransformer("string_col", StringDataType)))
+    }
+    // JSON does not support float parsing with f termination
+    an[AnalysisException] shouldBe thrownBy {
+      QbeastColumnStats(
+        """{"float_col_min":0.0f,"float_col_max":0.0f}""",
+        Seq(LinearTransformer("float_col", FloatDataType)))
+    }
 
-  it should "return None if the transformation fields are incorrect" in withSpark(spark => {
-    val dataSchema =
-      StructType(Seq(StructField("int_col", IntegerType)))
-    val columnTransformers = Seq(LinearTransformer("int_col", IntegerDataType))
-    val statsString = """{"int_col_min":0,"int_col_max":-1}""".stripMargin
-    val qbeastColumnStats =
-      QbeastColumnStats.apply(statsString, columnTransformers, dataSchema)
+  }
 
-    val intTransformation = qbeastColumnStats
-      .createTransformation(columnTransformers.head)
-    intTransformation shouldBe None
-  })
+  it should "throw an exception when the provided stats are incomplete for the corresponding Transformer" in
+    withSpark { _ =>
+      an[IllegalArgumentException] shouldBe thrownBy {
+        QbeastColumnStats(
+          """{"int_col_min":0}""",
+          Seq(LinearTransformer("int_col", IntegerDataType)))
+      }
+      an[IllegalArgumentException] shouldBe thrownBy {
+        QbeastColumnStats(
+          """{"int_col_max":1}""",
+          Seq(LinearTransformer("int_col", IntegerDataType)))
+      }
+    }
+
+  it should "it should throw an exception when the provided min/max values are incorrect for a LinearTransformer" in
+    withSpark { _ =>
+      val t = LinearTransformer("int_col", IntegerDataType)
+      an[IllegalArgumentException] shouldBe thrownBy {
+        val columnStats = QbeastColumnStats("""{"int_col_min":0,"int_col_max":-1}""", Seq(t))
+        println(columnStats.createTransformation(t))
+      }
+      an[IllegalArgumentException] shouldBe thrownBy {
+        val columnStats = QbeastColumnStats("""{"int_col_min":0,"int_col_max":0}""", Seq(t))
+        println(columnStats.createTransformation(t))
+      }
+    }
+
+  it should "throw an exception when the provided quantiles are incorrect" in withSpark { _ =>
+    an[IllegalArgumentException] shouldBe thrownBy {
+      // empty numeric quantiles
+      val t = CDFNumericQuantilesTransformer("int_col", IntegerDataType)
+      val columnStats = QbeastColumnStats("""{"int_col_quantiles":[]}""", Seq(t))
+      columnStats.createTransformation(t)
+    }
+    an[IllegalArgumentException] shouldBe thrownBy {
+      // numeric quantiles with a single value
+      val t = CDFNumericQuantilesTransformer("int_col", IntegerDataType)
+      val columnStats = QbeastColumnStats("""{"int_col_quantiles":[0.0]}""", Seq(t))
+      columnStats.createTransformation(t)
+    }
+    an[IllegalArgumentException] shouldBe thrownBy {
+      // empty string quantiles
+      val t = CDFStringQuantilesTransformer("string_col")
+      val columnStats = QbeastColumnStats("""{"string_col_quantiles":[]}""", Seq(t))
+      columnStats.createTransformation(t)
+    }
+    an[IllegalArgumentException] shouldBe thrownBy {
+      // string quantiles with a single value
+      val t = CDFStringQuantilesTransformer("string_col")
+      val columnStats = QbeastColumnStats("""{"string_col_quantiles":["a"]}""", Seq(t))
+      columnStats.createTransformation(t)
+    }
+    an[IllegalArgumentException] shouldBe thrownBy {
+      // empty string histogram
+      val t = StringHistogramTransformer("string_col", StringDataType)
+      val columnStats = QbeastColumnStats("""{"string_col_histogram":[]}""", Seq(t))
+      columnStats.createTransformation(t)
+    }
+    an[IllegalArgumentException] shouldBe thrownBy {
+      // string histogram with a single value
+      val t = StringHistogramTransformer("string_col", StringDataType)
+      val columnStats = QbeastColumnStats("""{"string_col_histogram":["a"]}""", Seq(t))
+      columnStats.createTransformation(t)
+    }
+  }
+
+  it should "build the QbeastColumnStats for string histogram (deprecated)" in withSpark { _ =>
+    val columnTransformers = Seq(StringHistogramTransformer("string_col", StringDataType))
+    val statsString = """{"string_col_histogram":["a", "b", "c", "d", "e"]}"""
+    val qbeastColumnStats = QbeastColumnStats(statsString, columnTransformers)
+
+    qbeastColumnStats.schema shouldBe StructType(
+      StructField("string_col_histogram", ArrayType(StringType)) :: Nil)
+    qbeastColumnStats.rowOption.get.getAs[Array[String]]("string_col_histogram") shouldBe
+      Array("a", "b", "c", "d", "e")
+  }
 
 }
