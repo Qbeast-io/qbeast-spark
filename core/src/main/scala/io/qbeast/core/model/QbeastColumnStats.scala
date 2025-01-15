@@ -33,11 +33,32 @@ import org.apache.spark.sql.SparkSession
  */
 case class QbeastColumnStats(schema: StructType, rowOption: Option[Row]) extends Logging {
 
+  /**
+   * Creates a transformation for the given transformer. If the stats are not available, it
+   * returns None. If the stats are available but the transformation is IdentityTransformation, it
+   * throws an IllegalArgumentException. Otherwise, the provided stats will be used to create and
+   * returns the transformation.
+   *
+   * @param transformer
+   *   the transformer
+   * @return
+   */
   def createTransformation(transformer: Transformer): Option[Transformation] = rowOption match {
     case Some(row) =>
       val hasStats = transformer.stats.statsNames.exists(row.getAs[Object](_) != null)
-      if (hasStats) Some(transformer.makeTransformation(row.getAs[Object]))
-      else None
+      if (hasStats) {
+        val transformation = transformer.makeTransformation(row.getAs[Object])
+        (transformer, transformation) match {
+          case (_: LinearTransformer, _: IdentityTransformation) =>
+            // If the transformation is IdentityTransformation, it means:
+            // 1. Either columnName_min or columnName_max is missing or
+            // 2. columnName_min and columnName_max are the same
+            throw new IllegalArgumentException(
+              s"The provided columnStats for column ${transformer.columnName} are not valid. " +
+                s"Make sure both min and max values are provided and satisfy the condition: min < max.")
+          case _ => Some(transformation)
+        }
+      } else None
     case None => None
   }
 

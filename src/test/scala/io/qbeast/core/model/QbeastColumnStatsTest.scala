@@ -71,32 +71,6 @@ class QbeastColumnStatsTest extends QbeastIntegrationTestSpec {
     statsRow.getAs[Array[String]]("string_col_3_histogram") shouldBe Array("a", "b")
   }
 
-  it should "create the right Transformations" in withSpark { _ =>
-    val columnTransformers = Seq(
-      LinearTransformer("int_col", IntegerDataType),
-      CDFNumericQuantilesTransformer("int_col_2", IntegerDataType),
-      CDFStringQuantilesTransformer("string_col"),
-      StringHistogramTransformer("string_col_2", StringDataType))
-    val statsString =
-      """{"int_col_min":0,"int_col_max":10,
-        |"int_col_2_quantiles":[0.0,25.0,50.0,75.0,100.0],
-        |"string_col_quantiles": ["a","b","c", "d"],
-        |"string_col_2_histogram": ["a","b","c","d"]}""".stripMargin
-    val columnStats = QbeastColumnStats(statsString, columnTransformers)
-    columnStats.createTransformation(columnTransformers.head) should matchPattern {
-      case Some(LinearTransformation(0, 10, _, IntegerDataType)) =>
-    }
-    columnStats
-      .createTransformation(columnTransformers(1)) shouldBe Some(
-      CDFNumericQuantilesTransformation(Vector(0.0, 25.0, 50.0, 75.0, 100.0), IntegerDataType))
-    columnStats
-      .createTransformation(columnTransformers(2)) shouldBe Some(
-      CDFStringQuantilesTransformation(Vector("a", "b", "c", "d")))
-    columnStats
-      .createTransformation(columnTransformers.last) shouldBe Some(
-      StringHistogramTransformation(Vector("a", "b", "c", "d")))
-  }
-
   it should "build the stats row correctly if no stats are specified" in withSpark { _ =>
     val columnTransformers = Seq(LinearTransformer("int_col", IntegerDataType))
     val statsSchema = StructType(
@@ -158,30 +132,61 @@ class QbeastColumnStatsTest extends QbeastIntegrationTestSpec {
 
   }
 
-  it should "throw an exception when the provided stats are incomplete for the corresponding Transformer" in
-    withSpark { _ =>
-      an[IllegalArgumentException] shouldBe thrownBy {
-        QbeastColumnStats(
-          """{"int_col_min":0}""",
-          Seq(LinearTransformer("int_col", IntegerDataType)))
-      }
-      an[IllegalArgumentException] shouldBe thrownBy {
-        QbeastColumnStats(
-          """{"int_col_max":1}""",
-          Seq(LinearTransformer("int_col", IntegerDataType)))
-      }
-    }
+  it should "build the QbeastColumnStats for string histogram (deprecated)" in withSpark { _ =>
+    val columnTransformers = Seq(StringHistogramTransformer("string_col", StringDataType))
+    val statsString = """{"string_col_histogram":["a", "b", "c", "d", "e"]}"""
+    val qbeastColumnStats = QbeastColumnStats(statsString, columnTransformers)
 
-  it should "it should throw an exception when the provided min/max values are incorrect for a LinearTransformer" in
+    qbeastColumnStats.schema shouldBe StructType(
+      StructField("string_col_histogram", ArrayType(StringType)) :: Nil)
+    qbeastColumnStats.rowOption.get.getAs[Array[String]]("string_col_histogram") shouldBe
+      Array("a", "b", "c", "d", "e")
+  }
+
+  "createTransformation" should "create the right Transformations" in withSpark { _ =>
+    val columnTransformers = Seq(
+      LinearTransformer("int_col", IntegerDataType),
+      CDFNumericQuantilesTransformer("int_col_2", IntegerDataType),
+      CDFStringQuantilesTransformer("string_col"),
+      StringHistogramTransformer("string_col_2", StringDataType))
+    val statsString =
+      """{"int_col_min":0,"int_col_max":10,
+        |"int_col_2_quantiles":[0.0,25.0,50.0,75.0,100.0],
+        |"string_col_quantiles": ["a","b","c", "d"],
+        |"string_col_2_histogram": ["a","b","c","d"]}""".stripMargin
+    val columnStats = QbeastColumnStats(statsString, columnTransformers)
+    columnStats.createTransformation(columnTransformers.head) should matchPattern {
+      case Some(LinearTransformation(0, 10, _, IntegerDataType)) =>
+    }
+    columnStats
+      .createTransformation(columnTransformers(1)) shouldBe Some(
+      CDFNumericQuantilesTransformation(Vector(0.0, 25.0, 50.0, 75.0, 100.0), IntegerDataType))
+    columnStats
+      .createTransformation(columnTransformers(2)) shouldBe Some(
+      CDFStringQuantilesTransformation(Vector("a", "b", "c", "d")))
+    columnStats
+      .createTransformation(columnTransformers.last) shouldBe Some(
+      StringHistogramTransformation(Vector("a", "b", "c", "d")))
+  }
+
+  it should "throw an exception when the provided stats are not valid for a LinearTransformer" in
     withSpark { _ =>
       val t = LinearTransformer("int_col", IntegerDataType)
       an[IllegalArgumentException] shouldBe thrownBy {
+        val columnStats = QbeastColumnStats("""{"int_col_min":0}""", Seq(t))
+        columnStats.createTransformation(t)
+      }
+      an[IllegalArgumentException] shouldBe thrownBy {
+        val columnStats = QbeastColumnStats("""{"int_col_max":1}""", Seq(t))
+        columnStats.createTransformation(t)
+      }
+      an[IllegalArgumentException] shouldBe thrownBy {
         val columnStats = QbeastColumnStats("""{"int_col_min":0,"int_col_max":-1}""", Seq(t))
-        println(columnStats.createTransformation(t))
+        columnStats.createTransformation(t)
       }
       an[IllegalArgumentException] shouldBe thrownBy {
         val columnStats = QbeastColumnStats("""{"int_col_min":0,"int_col_max":0}""", Seq(t))
-        println(columnStats.createTransformation(t))
+        columnStats.createTransformation(t)
       }
     }
 
@@ -222,17 +227,6 @@ class QbeastColumnStatsTest extends QbeastIntegrationTestSpec {
       val columnStats = QbeastColumnStats("""{"string_col_histogram":["a"]}""", Seq(t))
       columnStats.createTransformation(t)
     }
-  }
-
-  it should "build the QbeastColumnStats for string histogram (deprecated)" in withSpark { _ =>
-    val columnTransformers = Seq(StringHistogramTransformer("string_col", StringDataType))
-    val statsString = """{"string_col_histogram":["a", "b", "c", "d", "e"]}"""
-    val qbeastColumnStats = QbeastColumnStats(statsString, columnTransformers)
-
-    qbeastColumnStats.schema shouldBe StructType(
-      StructField("string_col_histogram", ArrayType(StringType)) :: Nil)
-    qbeastColumnStats.rowOption.get.getAs[Array[String]]("string_col_histogram") shouldBe
-      Array("a", "b", "c", "d", "e")
   }
 
 }
