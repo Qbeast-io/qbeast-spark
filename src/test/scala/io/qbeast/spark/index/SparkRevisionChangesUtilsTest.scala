@@ -491,7 +491,8 @@ class SparkRevisionChangesUtilsTest
     val emptyRevision = SparkRevisionFactory.createNewRevision(
       qid,
       data.schema,
-      QbeastOptions(Map(COLUMNS_TO_INDEX -> "float_value,double_value,int_value,long_value,decimal_value")))
+      QbeastOptions(
+        Map(COLUMNS_TO_INDEX -> "float_value,double_value,int_value,long_value,decimal_value")))
 
     // Compute The Revision Changes given a set of Column Stats
     val (revisionChanges, _) =
