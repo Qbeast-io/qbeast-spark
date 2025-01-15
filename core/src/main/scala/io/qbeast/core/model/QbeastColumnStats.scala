@@ -35,9 +35,9 @@ case class QbeastColumnStats(schema: StructType, rowOption: Option[Row]) extends
 
   /**
    * Creates a transformation for the given transformer. If the stats are not available, it
-   * returns None. If the stats are available but the transformation is IdentityTransformation, it
-   * throws an IllegalArgumentException. Otherwise, the provided stats will be used to create and
-   * returns the transformation.
+   * returns None. An IllegalArgumentException is thrown if the output is an
+   * IdentityTransformation. Otherwise, the provided stats will be used to create and returns the
+   * transformation.
    *
    * @param transformer
    *   the transformer
