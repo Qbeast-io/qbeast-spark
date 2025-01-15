@@ -491,7 +491,7 @@ class SparkRevisionChangesUtilsTest
     val emptyRevision = SparkRevisionFactory.createNewRevision(
       qid,
       data.schema,
-      QbeastOptions(Map(COLUMNS_TO_INDEX -> "float_col,double_col,int_col,long_col,decimal_col")))
+      QbeastOptions(Map(COLUMNS_TO_INDEX -> "float_value,double_value,int_value,long_value,decimal_value")))
 
     // Compute The Revision Changes given a set of Column Stats
     val (revisionChanges, _) =
@@ -499,24 +499,24 @@ class SparkRevisionChangesUtilsTest
         emptyRevision, // empty revision
         QbeastOptions(
           Map(
-            QbeastOptions.COLUMNS_TO_INDEX -> "float_col,double_col,int_col,long_col,decimal_col",
+            QbeastOptions.COLUMNS_TO_INDEX -> "float_value,double_value,int_value,long_value,decimal_value",
             QbeastOptions.COLUMN_STATS ->
-              """{"float_col_min":0.0, "float_col_max":10.0,
-                | "double_col_min":0.0, "double_col_max":10.0,
-                | "int_col_min":0, "int_col_max":10,
-                | "long_col_min":0, "long_col_max":10,
-                | "decimal_col_min":0.0, "decimal_col_max":10.0}""".stripMargin)),
+              """{"float_value_min":0.0, "float_value_max":10.0,
+                | "double_value_min":0.0, "double_value_max":10.0,
+                | "int_value_min":0, "int_value_max":10,
+                | "long_value_min":0, "long_value_max":10,
+                | "decimal_value_min":0.0, "decimal_value_max":10.0}""".stripMargin)),
         data)
 
     val revision = revisionChanges.get.createNewRevision
     revision.tableID shouldBe qid
     revision.revisionID shouldBe 1 // the provided columnStats triggered a new revision
     revision.columnTransformers shouldBe Vector(
-      LinearTransformer("float_col", FloatDataType),
-      LinearTransformer("double_col", DoubleDataType),
-      LinearTransformer("int_col", IntegerDataType),
-      LinearTransformer("long_col", LongDataType),
-      LinearTransformer("decimal_col", DecimalDataType))
+      LinearTransformer("float_value", FloatDataType),
+      LinearTransformer("double_value", DoubleDataType),
+      LinearTransformer("int_value", IntegerDataType),
+      LinearTransformer("long_value", LongDataType),
+      LinearTransformer("decimal_value", DecimalDataType))
     revision.transformations.head should matchPattern {
       case LinearTransformation(0.0f, 10.0f, _, FloatDataType) =>
     }
