@@ -28,10 +28,10 @@ import org.apache.spark.sql.types.StructType
 case class ColumnToIndex(columnName: String, transformerType: Option[String]) {
 
   def toTransformer(schema: StructType): Transformer = {
-    val getColumnQType = ColumnToIndexUtils.getColumnQType(columnName, schema)
+    val qDataType = ColumnToIndexUtils.getColumnQType(columnName, schema)
     transformerType match {
-      case Some(tt) => Transformer(tt, columnName, getColumnQType)
-      case None => Transformer(columnName, getColumnQType)
+      case Some(tt) => Transformer(tt, columnName, qDataType)
+      case None => Transformer(columnName, qDataType)
     }
   }
 

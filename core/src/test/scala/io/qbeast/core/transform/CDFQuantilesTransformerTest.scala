@@ -30,14 +30,16 @@ class CDFQuantilesTransformerTest extends AnyFlatSpec with Matchers {
 
   it should "fail to create transformation for non-empty stats with wrong type" in {
     val transformer = CDFQuantilesTransformer("testColumn", IntegerDataType)
-    an[AnalysisException] should be thrownBy transformer.makeTransformation(_ =>
-      Seq("0.0", "0.25", "0.5", "0.75", "1.0"))
+    an[AnalysisException] should be thrownBy {
+      // Sequence of strings instead of doubles
+      transformer.makeTransformation(_ => Seq("0.0", "0.25", "0.5", "0.75", "1.0"))
+    }
 
   }
 
   it should "throw an exception for empty sequence of bins" in {
     val transformer = CDFQuantilesTransformer("testColumn", IntegerDataType)
-    an[AnalysisException] should be thrownBy transformer.makeTransformation(_ => Seq.empty)
+    an[IllegalArgumentException] should be thrownBy transformer.makeTransformation(_ => Seq.empty)
   }
 
 }
