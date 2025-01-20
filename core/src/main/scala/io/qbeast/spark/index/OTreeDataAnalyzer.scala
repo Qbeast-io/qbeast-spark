@@ -18,6 +18,7 @@ package io.qbeast.spark.index
 import io.qbeast.core.model._
 import io.qbeast.spark.index.QbeastColumns.weightColumnName
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
+import io.qbeast.spark.utils.SparkPlanAnalyzer
 import org.apache.spark.internal.Logging
 import org.apache.spark.qbeast.config.CUBE_DOMAINS_BUFFER_CAPACITY
 import org.apache.spark.sql.functions._
@@ -212,6 +213,50 @@ object DoublePassOTreeDataAnalyzer
     }
   }
 
+  /**
+   * Given a Revision, analyses the determinism of the DataFrame and the columns to index and
+   * throws a warning if the DataFrame is non-deterministic
+   *
+   * A DataFrame's determinism is considered safe if:
+   *   - The logical plan is deterministic (all operations are deterministic)
+   *   - The columns to index that require boundaries (such as min/max for LinearTransformation)
+   *     are deterministic
+   *
+   * @param dataFrame
+   *   the DataFrame to analyze
+   * @param revision
+   *   the revision to analyze
+   * @return
+   */
+  private[index] def analyzeDataFrameDeterminism(
+      dataFrame: DataFrame,
+      revision: Revision): Unit = {
+    // Check if the DataFrame and the Columns To Index are deterministic
+    val columnsToAnalyze =
+      revision.columnTransformers.filter(_.isBounded).map(_.columnName)
+    if (columnsToAnalyze.nonEmpty) {
+      logDebug(s"Some columnsToIndex need to come from a Deterministic Source: {${columnsToAnalyze
+          .mkString(",")}}. Checking the determinism of the input data")
+
+      // Detect if the DataFrame's operations are deterministic
+      val isPlanDeterministic: Boolean = isDataFramePlanDeterministic(dataFrame)
+      if (!isPlanDeterministic) {
+        logWarning(
+          s"The source query is non-deterministic. " +
+            s"Due to Qbeast-Spark write nature, we load the DataFrame twice before writing to storage." +
+            s"It is required to have deterministic sources and deterministic columns to index " +
+            s"to preserve the state of the indexing pipeline. " +
+            s"If it is not the case, you can:" +
+            s"1. Change the transformer type to quantiles." +
+            s"2. Add columnStats with a greater space range to avoid indexing errors." +
+            s"3. save the DF as delta and Convert it To Qbeast in a second step")
+      }
+    } else {
+      logDebug(
+        s"No columnsToIndex need to come from a Deterministic Source. Skipping determinism check.")
+    }
+  }
+
   override def analyze(
       dataFrame: DataFrame,
       indexStatus: IndexStatus,
@@ -228,26 +273,7 @@ object DoublePassOTreeDataAnalyzer
     logDebug(s"revisionToUse=$revisionToUse")
 
     // Check if the DataFrame and the Columns To Index are deterministic
-    val deterministicColumnsToAnalyze =
-      revisionToUse.columnTransformers.filter(_.shouldBeDeterministic).map(_.columnName)
-    if (deterministicColumnsToAnalyze.nonEmpty) {
-      logDebug(
-        s"Some columnsToIndex need to come from a Deterministic Source: {${deterministicColumnsToAnalyze
-            .mkString(",")}}. Checking the determinism of the input data")
-      val isDataFrameDeterministic =
-        analyzeDataFrameDeterminism(dataFrame, deterministicColumnsToAnalyze)
-      if (!isDataFrameDeterministic) {
-        logWarning(
-          s"The source query is non-deterministic. " +
-            s"Due to Qbeast-Spark write nature, we load the DataFrame twice before writing to storage." +
-            s"It is required to have deterministic sources and deterministic columns to index " +
-            s"to preserve the state of the indexing pipeline. " +
-            s"If it is not the case, you can:" +
-            s"1. Change the transformer type to quantiles." +
-            s"2. Add columnStats with a greater space range to avoid indexing errors." +
-            s"3. save the DF as delta and Convert it To Qbeast in a second step")
-      }
-    }
+    analyzeDataFrameDeterminism(dataFrame, revisionToUse)
 
     // Add a random weight column
     val weightedDataFrame = dataFrame.transform(addRandomWeight(revisionToUse))

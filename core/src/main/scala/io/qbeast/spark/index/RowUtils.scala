@@ -52,8 +52,8 @@ object RowUtils {
           s"2. The query that produces the DataFrame is not deterministic." +
           s"To avoid this problem, we suggest to: " +
           s"1. Change the transformer type to quantiles." +
-          s"2. Add columnStats with a greater space range to avoid indexing errors." +
-          s"3. save the DF as delta and Convert it To Qbeast in a second step")
+          s"2. Add columnStats with greater boundaries to avoid unexpected changes within indexing stages." +
+          s"3. Materialize the DataFrame before indexing it.")
       coordinates += transformation
       i += 1
 

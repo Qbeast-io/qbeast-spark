@@ -16,6 +16,8 @@
 package io.qbeast.spark.index
 
 import io.qbeast.core.model._
+import io.qbeast.core.transform.HashTransformer
+import io.qbeast.core.transform.LinearTransformer
 import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer._
 import io.qbeast.spark.index.QbeastColumns.weightColumnName
 import io.qbeast.spark.internal.QbeastFunctions.qbeastHash
@@ -236,6 +238,43 @@ class DoublePassOTreeDataAnalyzerTest
     // Assert the results
     result shouldBe expectedBlockSizes
 
+  }
+
+  "AnalyzeDataframeDeterminism method" should "detect when the column to index is non deterministic" in withSpark {
+    spark =>
+      val nonDeterministicUDF = udf(() => Math.random()).asNondeterministic()
+
+      val df = spark
+        .range(1000)
+        .toDF("id")
+        .withColumn("non_deterministic_col", nonDeterministicUDF())
+      val revision = Revision(
+        revisionID = 1L,
+        timestamp = System.currentTimeMillis(),
+        tableID = QTableID("id"),
+        desiredCubeSize = 5000,
+        columnTransformers = Seq(LinearTransformer("id", IntegerDataType)).toIndexedSeq,
+        transformations = Seq.empty.toIndexedSeq)
+      val isDeterministic = DoublePassOTreeDataAnalyzer.analyzeDataFrameDeterminism(df, revision)
+      isDeterministic shouldBe false
+  }
+
+  it should "return true when the column to index is not bounded" in withSpark { spark =>
+    val nonDeterministicUDF = udf(() => Math.random()).asNondeterministic()
+
+    val df = spark
+      .range(1000)
+      .toDF("id")
+      .withColumn("non_deterministic_col", nonDeterministicUDF())
+    val revision = Revision(
+      revisionID = 1L,
+      timestamp = System.currentTimeMillis(),
+      tableID = QTableID("id"),
+      desiredCubeSize = 5000,
+      columnTransformers = Seq(HashTransformer("id", IntegerDataType)).toIndexedSeq,
+      transformations = Seq.empty.toIndexedSeq)
+    val isDeterministic = DoublePassOTreeDataAnalyzer.analyzeDataFrameDeterminism(df, revision)
+    isDeterministic shouldBe true
   }
 
 }

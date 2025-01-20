@@ -157,10 +157,13 @@ trait Transformer extends Serializable {
   def spec: String = s"$columnName:${transformerType.transformerSimpleName}"
 
   /**
-   * Returns if the transformation should have deterministic values at indexing time
+   * Returns if the transformation is bounded within the space
+   * f.e:
+   * LinearTransformer is bounded with min and max (values outside the ranges can cause Indexing Errors),
+   * HashTransformer is not, because the transformation function is a Hash with a fixed range
    * @return
    */
-  def shouldBeDeterministic: Boolean = false
+  def isBounded: Boolean = false
 
 }
 

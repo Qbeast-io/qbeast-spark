@@ -50,7 +50,7 @@ case class LinearTransformer(columnName: String, dataType: QDataType) extends Tr
     }
   }
 
-  override def shouldBeDeterministic: Boolean = true
+  override def isBounded: Boolean = true
 
   override def stats: ColumnStats =
     ColumnStats(
