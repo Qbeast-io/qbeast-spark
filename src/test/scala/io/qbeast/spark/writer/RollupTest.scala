@@ -19,33 +19,98 @@ import io.qbeast.core.model.CubeId
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.collection.mutable
+
 /**
  * Tests of Rollup.
  */
 class RollupTest extends AnyFlatSpec with Matchers {
 
-  "Rollup" should "work correctly" in {
-    val root = CubeId.root(1)
+  "Rollup" should "work correctly with basic cube structure" in {
+    //                     root(100)
+    //                         |
+    //                      c0(100)
+    //             /       |       \       \
+    //         c00(50)   c01(50)  c02(50)  c03(50)
+    val root = CubeId.root(2)
     val c0 = root.firstChild
-    val c1 = c0.nextSibling.get
-    val c00 = c0.firstChild
-    val c01 = c00.nextSibling.get
-    val c10 = c1.firstChild
-    val c11 = c10.nextSibling.get
+    val Seq(c00, c01, c02, c03) = c0.children.toSeq
 
+    val rollup = new Rollup(100)
+    rollup.populate(root, 100)
+    rollup.populate(c0, 100)
+    rollup.populate(c00, 50)
+    rollup.populate(c01, 50)
+    rollup.populate(c02, 50)
+    rollup.populate(c03, 50)
+
+    rollup.compute() shouldBe Map(
+      root -> root,
+      c0 -> c0,
+      c00 -> c01,
+      c01 -> c01,
+      c02 -> c03,
+      c03 -> c03)
+  }
+
+  it should "rollup a cube up to the parent after checking all sibling cubes" in {
+    //                     root(100)
+    //             /       |       \       \
+    //          c0(20)   c1(20)   c2(20)   c3(20)
+    val root = CubeId.root(2)
+    val Seq(c0, c1, c2, c3) = root.children.toSeq
+
+    val rollup = new Rollup(100)
+    rollup.populate(root, 100)
+    rollup.populate(c0, 20)
+    rollup.populate(c1, 20)
+    rollup.populate(c2, 20)
+    rollup.populate(c3, 20)
+
+    rollup.compute() shouldBe Map(root -> root, c0 -> root, c1 -> root, c2 -> root, c3 -> root)
+  }
+
+  it should "handle empty rollup" in {
+    val result = new Rollup(3).compute()
+    result shouldBe empty
+  }
+
+  it should "handle single cube" in {
+    val root = CubeId.root(1)
     val result = new Rollup(3)
-      .populate(root, 1)
-      .populate(c00, 1)
-      .populate(c01, 2)
-      .populate(c10, 2)
-      .populate(c11, 3)
+      .populate(root, 2)
       .compute()
 
     result(root) shouldBe root
-    result(c00) shouldBe c0
-    result(c01) shouldBe c0
-    result(c10) shouldBe root
-    result(c11) shouldBe c11
+  }
+
+  it should "order CubeIds correctly" in {
+    val root = CubeId.root(4)
+    val Seq(c0, c1, c2) = root.children.take(3).toSeq
+    val Seq(c00, c01, c02, c03) = c0.children.take(4).toSeq
+    val Seq(c10, c11, c12, c13) = c1.children.take(4).toSeq
+    val Seq(c20, c21, c22, c23) = c2.children.take(4).toSeq
+
+    val rollupCubeOrdering = new Rollup(0).CubeIdRollupOrdering
+    val queue = new mutable.PriorityQueue()(rollupCubeOrdering)
+
+    queue.enqueue(root, c0, c1, c2, c00, c01, c02, c03, c10, c11, c12, c13, c20, c21, c22, c23)
+    queue.dequeue() shouldBe c00
+    queue.dequeue() shouldBe c01
+    queue.dequeue() shouldBe c02
+    queue.dequeue() shouldBe c03
+    queue.dequeue() shouldBe c10
+    queue.dequeue() shouldBe c11
+    queue.dequeue() shouldBe c12
+    queue.dequeue() shouldBe c13
+    queue.dequeue() shouldBe c20
+    queue.dequeue() shouldBe c21
+    queue.dequeue() shouldBe c22
+    queue.dequeue() shouldBe c23
+    queue.dequeue() shouldBe c0
+    queue.dequeue() shouldBe c1
+    queue.dequeue() shouldBe c2
+    queue.dequeue() shouldBe root
   }
 
 }
