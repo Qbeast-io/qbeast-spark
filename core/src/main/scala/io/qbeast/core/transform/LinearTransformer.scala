@@ -50,8 +50,6 @@ case class LinearTransformer(columnName: String, dataType: QDataType) extends Tr
     }
   }
 
-  override def isBounded: Boolean = true
-
   override def stats: ColumnStats =
     ColumnStats(
       names = Seq(colMin, colMax),

@@ -75,6 +75,12 @@ case class LinearTransformation(
     1.0 / (mx - mn)
   }
 
+  /**
+   * The LinearTransformation is bounded by min and max values
+   * @return
+   */
+  override def bounded: Boolean = true
+
   override def transform(value: Any): Double = {
     val v = if (value == null) nullValue else value
     v match {

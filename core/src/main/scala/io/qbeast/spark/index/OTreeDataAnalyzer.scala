@@ -232,11 +232,16 @@ object DoublePassOTreeDataAnalyzer
       dataFrame: DataFrame,
       revision: Revision): Unit = {
     // Check if the DataFrame and the Columns To Index are deterministic
-    val columnsToAnalyze =
-      revision.columnTransformers.filter(_.isBounded).map(_.columnName)
-    if (columnsToAnalyze.nonEmpty) {
-      logDebug(s"Some columnsToIndex need to come from a Deterministic Source: {${columnsToAnalyze
-          .mkString(",")}}. Checking the determinism of the input data")
+    val boundedColumnTransformations = revision.columnTransformers
+      .zip(revision.transformations)
+      .collect {
+        case (columnTransformer, transformation) if transformation.bounded =>
+          columnTransformer.columnName
+      }
+    if (boundedColumnTransformations.nonEmpty) {
+      logDebug(
+        s"Some columns to index need to come from a Deterministic Source: {${boundedColumnTransformations
+            .mkString(",")}}. Checking the determinism of the input data")
 
       // Detect if the DataFrame's operations are deterministic
       val isPlanDeterministic: Boolean = isDataFramePlanDeterministic(dataFrame)
@@ -252,8 +257,7 @@ object DoublePassOTreeDataAnalyzer
             s"3. save the DF as delta and Convert it To Qbeast in a second step")
       }
     } else {
-      logDebug(
-        s"No columnsToIndex need to come from a Deterministic Source. Skipping determinism check.")
+      logDebug(s"No bounded columns to index. Skipping determinism check.")
     }
   }
 

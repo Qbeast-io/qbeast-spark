@@ -31,6 +31,15 @@ import java.time.Instant
 trait Transformation extends Serializable {
 
   /**
+   * Returns if the transformation is bounded within the space f.e: LinearTransformer is bounded
+   * with min and max (values outside the ranges can cause Indexing Errors), HashTransformer is
+   * not, because the transformation function is a Hash with a fixed range
+   *
+   * @return
+   */
+  def bounded: Boolean = false
+
+  /**
    * Normalize an input value to a Double between 0 and 1.
    * @param value
    *   the value to be converted
