@@ -18,7 +18,7 @@ on:
 
 jobs:
   test-artifact:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       GHPR_TOKEN: ${{ secrets.GHPR_TOKEN }}
     steps:
