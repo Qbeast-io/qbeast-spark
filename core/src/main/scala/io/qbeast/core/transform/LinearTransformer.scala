@@ -54,8 +54,8 @@ case class LinearTransformer(columnName: String, dataType: QDataType) extends Tr
 
   override def stats: ColumnStats =
     ColumnStats(
-      names = Seq(colMax, colMin),
-      predicates = Seq(s"max($columnName) AS $colMax", s"min($columnName) AS $colMin"))
+      names = Seq(colMin, colMax),
+      predicates = Seq(s"min($columnName) AS $colMin", s"max($columnName) AS $colMax"))
 
   override def makeTransformation(row: String => Any): Transformation = dataType match {
     case ordered: OrderedDataType =>
