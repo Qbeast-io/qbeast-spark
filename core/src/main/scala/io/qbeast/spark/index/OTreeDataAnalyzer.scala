@@ -227,10 +227,13 @@ object DoublePassOTreeDataAnalyzer
    * @param revision
    *   the revision to analyze
    * @return
+   *   wether the plan has been determined to be deterministic
+   *
+   * If the Revision does not have any bounded columns, it will return true
    */
-  private[index] def analyzeDataFrameDeterminism(
+  private[index] def analyzeDataFrameAndRevisionDeterminism(
       dataFrame: DataFrame,
-      revision: Revision): Unit = {
+      revision: Revision): Boolean = {
     // Check if the DataFrame and the Columns To Index are deterministic
     val boundedColumnTransformations = revision.columnTransformers
       .zip(revision.transformations)
@@ -238,13 +241,13 @@ object DoublePassOTreeDataAnalyzer
         case (columnTransformer, transformation) if transformation.bounded =>
           columnTransformer.columnName
       }
+
     if (boundedColumnTransformations.nonEmpty) {
       logDebug(
         s"Some columns to index need to come from a Deterministic Source: {${boundedColumnTransformations
             .mkString(",")}}. Checking the determinism of the input data")
-
-      // Detect if the DataFrame's operations are deterministic
       val isPlanDeterministic: Boolean = isDataFramePlanDeterministic(dataFrame)
+
       if (!isPlanDeterministic) {
         logWarning(
           s"The source query is non-deterministic. " +
@@ -256,8 +259,10 @@ object DoublePassOTreeDataAnalyzer
             s"2. Add columnStats with a greater space range to avoid indexing errors." +
             s"3. save the DF as delta and Convert it To Qbeast in a second step")
       }
+      isPlanDeterministic
     } else {
-      logDebug(s"No bounded columns to index. Skipping determinism check.")
+      logDebug(s"No bounded columns to index. Skipping determinism warning.")
+      false
     }
   }
 
@@ -276,8 +281,11 @@ object DoublePassOTreeDataAnalyzer
     }
     logDebug(s"revisionToUse=$revisionToUse")
 
-    // Check if the DataFrame and the Columns To Index are deterministic
-    analyzeDataFrameDeterminism(dataFrame, revisionToUse)
+    // Check if the DataFrame and the Columns To Index should deterministic
+    // If the DataFrame is non-deterministic, it will throw a warning
+    // If the DataFrame is deterministic, it will return true
+    // And if no bounded columns are present, it will return false
+    analyzeDataFrameAndRevisionDeterminism(dataFrame, revisionToUse)
 
     // Add a random weight column
     val weightedDataFrame = dataFrame.transform(addRandomWeight(revisionToUse))

@@ -240,7 +240,7 @@ class DoublePassOTreeDataAnalyzerTest
 
   }
 
-  "AnalyzeDataframeDeterminism method" should "detect when the column to index is non deterministic" in withSpark {
+  "AnalyzeDataframeAndRevisionDeterminism method" should "detect when the column to index is non deterministic" in withSpark {
     spark =>
       val nonDeterministicUDF = udf(() => Math.random()).asNondeterministic()
 
@@ -255,7 +255,8 @@ class DoublePassOTreeDataAnalyzerTest
         desiredCubeSize = 5000,
         columnTransformers = Seq(LinearTransformer("id", IntegerDataType)).toIndexedSeq,
         transformations = Seq.empty.toIndexedSeq)
-      val isDeterministic = DoublePassOTreeDataAnalyzer.analyzeDataFrameDeterminism(df, revision)
+      val isDeterministic =
+        DoublePassOTreeDataAnalyzer.analyzeDataFrameAndRevisionDeterminism(df, revision)
       isDeterministic shouldBe false
   }
 
@@ -273,7 +274,8 @@ class DoublePassOTreeDataAnalyzerTest
       desiredCubeSize = 5000,
       columnTransformers = Seq(HashTransformer("id", IntegerDataType)).toIndexedSeq,
       transformations = Seq.empty.toIndexedSeq)
-    val isDeterministic = DoublePassOTreeDataAnalyzer.analyzeDataFrameDeterminism(df, revision)
+    val isDeterministic =
+      DoublePassOTreeDataAnalyzer.analyzeDataFrameAndRevisionDeterminism(df, revision)
     isDeterministic shouldBe true
   }
 
