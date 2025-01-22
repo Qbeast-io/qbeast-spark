@@ -154,7 +154,7 @@ The following log levels are used to track code behaviour:
 
 # Developing and contributing
 
-## Development set up
+## Manual development set up
 
 ### 1. Install [**sbt**(>=1.4.7)](https://www.scala-sbt.org/download.html).
 
@@ -213,6 +213,60 @@ sbt publishM2
 ```
 
 <br/>
+
+## Automatic development set up (Nix)
+### 1. Install Nix
+For installing Nix, you can follow the instructions in the [Nix website](https://nixos.org/download/). It consist on running only one command in your terminal. If you are using Linux with SELinux enabled the installation method for `single-user` would be simpler.
+```bash
+### 2. Activate the Nix shell
+
+For installing all the dependencies and setting up the environment, you can use the Nix shell.  It will have spark, sbt and JAVA 8 installed.
+
+```bash
+$ nix-shell #by default it will use bash
+$ nix-shell --command zsh # in case you want to use zsh
+```
+
+### 3. Project packaging:
+Navigate to the repository folder and package the project using **sbt**.
+
+``` bash
+cd qbeast-spark
+
+sbt assembly
+```
+This code generates a fat jar with all required dependencies (or most of them) shaded.
+
+The jar does not include scala nor spark nor delta, and it is supposed to be used inside spark. 
+
+For example: 
+```bash
+sbt assembly
+
+$SPARK_HOME/bin/spark-shell \
+--jars ./target/scala-2.12/qbeast-spark-assembly-0.8.0-SNAPSHOT.jar \
+--packages io.delta:delta-spark_2.12:3.1.0 \
+--conf spark.sql.extensions=io.qbeast.sql.QbeastSparkSessionExtension \
+--conf spark.sql.catalog.spark_catalog=io.qbeast.catalog.QbeastCatalog
+```
+
+### 4. Publishing artefacts in the local repository
+Sometimes it is convenient to have custom versions of the library to be
+published in the local repository like IVy or Maven. For local Ivy (`~/.ivy2`)
+use
+
+```bash
+sbt publishLocal
+```
+
+For local Maven (~/.m2) use
+
+```bash
+sbt publishM2
+```
+
+<br/>
+
 
 ## Developer documentation
 You can find the developer documentation (Scala docs) in the [https://docs.qbeast.io/](https://docs.qbeast.io/).
