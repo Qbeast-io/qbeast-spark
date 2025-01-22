@@ -227,9 +227,7 @@ object DoublePassOTreeDataAnalyzer
    * @param revision
    *   the revision to analyze
    * @return
-   *   wether the plan has been determined to be deterministic
-   *
-   * If the Revision does not have any bounded columns, it will return true
+   *   whether the warning should be thrown
    */
   private[index] def analyzeDataFrameAndRevisionDeterminism(
       dataFrame: DataFrame,
@@ -242,13 +240,16 @@ object DoublePassOTreeDataAnalyzer
           columnTransformer.columnName
       }
 
-    if (boundedColumnTransformations.nonEmpty) {
+    val shouldBeDeterministic = boundedColumnTransformations.nonEmpty
+
+    if (shouldBeDeterministic) {
       logDebug(
         s"Some columns to index need to come from a Deterministic Source: {${boundedColumnTransformations
             .mkString(",")}}. Checking the determinism of the input data")
-      val isPlanDeterministic: Boolean = isDataFramePlanDeterministic(dataFrame)
 
-      if (!isPlanDeterministic) {
+      val isPlanDeterministic = isDataFramePlanDeterministic(dataFrame)
+      val shouldThrowWarning = !isPlanDeterministic
+      if (shouldThrowWarning) {
         logWarning(
           s"The source query is non-deterministic. " +
             s"Due to Qbeast-Spark write nature, we load the DataFrame twice before writing to storage." +
@@ -259,7 +260,7 @@ object DoublePassOTreeDataAnalyzer
             s"2. Add columnStats with a greater space range to avoid indexing errors." +
             s"3. save the DF as delta and Convert it To Qbeast in a second step")
       }
-      isPlanDeterministic
+      shouldThrowWarning
     } else {
       logDebug(s"No bounded columns to index. Skipping determinism warning.")
       false
@@ -282,9 +283,7 @@ object DoublePassOTreeDataAnalyzer
     logDebug(s"revisionToUse=$revisionToUse")
 
     // Check if the DataFrame and the Columns To Index should deterministic
-    // If the DataFrame is non-deterministic, it will throw a warning
-    // If the DataFrame is deterministic, it will return true
-    // And if no bounded columns are present, it will return false
+    // and returns a DeterminismAnalysis object
     analyzeDataFrameAndRevisionDeterminism(dataFrame, revisionToUse)
 
     // Add a random weight column

@@ -17,6 +17,7 @@ package io.qbeast.spark.index
 
 import io.qbeast.core.model._
 import io.qbeast.core.transform.HashTransformer
+import io.qbeast.core.transform.LinearTransformation
 import io.qbeast.core.transform.LinearTransformer
 import io.qbeast.spark.index.DoublePassOTreeDataAnalyzer._
 import io.qbeast.spark.index.QbeastColumns.weightColumnName
@@ -254,13 +255,13 @@ class DoublePassOTreeDataAnalyzerTest
         tableID = QTableID("id"),
         desiredCubeSize = 5000,
         columnTransformers = Seq(LinearTransformer("id", IntegerDataType)).toIndexedSeq,
-        transformations = Seq.empty.toIndexedSeq)
-      val isDeterministic =
+        transformations = Seq(LinearTransformation(0, 100, 5, IntegerDataType)).toIndexedSeq)
+      val shouldThrowWarning =
         DoublePassOTreeDataAnalyzer.analyzeDataFrameAndRevisionDeterminism(df, revision)
-      isDeterministic shouldBe false
+      shouldThrowWarning shouldBe true
   }
 
-  it should "return true when the column to index is not bounded" in withSpark { spark =>
+  it should "return false when the column to index is not bounded" in withSpark { spark =>
     val nonDeterministicUDF = udf(() => Math.random()).asNondeterministic()
 
     val df = spark
@@ -274,9 +275,9 @@ class DoublePassOTreeDataAnalyzerTest
       desiredCubeSize = 5000,
       columnTransformers = Seq(HashTransformer("id", IntegerDataType)).toIndexedSeq,
       transformations = Seq.empty.toIndexedSeq)
-    val isDeterministic =
+    val shouldThrowWarning =
       DoublePassOTreeDataAnalyzer.analyzeDataFrameAndRevisionDeterminism(df, revision)
-    isDeterministic shouldBe true
+    shouldThrowWarning shouldBe false
   }
 
 }
